@@ -16,13 +16,6 @@ async function landedIn(editor: EditorPage): Promise<number | undefined> {
 	return (await editor.bridge.getSelectionPaths())?.anchor.path[0];
 }
 
-// Each step types or deletes, so the next one loads its document afresh. The test page keeps its
-// source in `$state`, which drops a load equal to the last one, so a blank swap goes first.
-async function fresh(editor: EditorPage, source: string): Promise<void> {
-	await editor.loadContent('');
-	await editor.loadContent(source);
-}
-
 async function liveEditor(page: EditorPage['page']): Promise<EditorPage> {
 	const editor = new EditorPage(page);
 	await editor.goto('?presentationMode=live');
@@ -35,7 +28,7 @@ test.describe('code block in live mode: arrows at every edge', () => {
 		const editor = await liveEditor(page);
 
 		await test.step('ArrowRight from the block above lands at the body start', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockEnd(0);
 			await page.keyboard.press('ArrowRight');
 			await page.keyboard.type('X');
@@ -43,7 +36,7 @@ test.describe('code block in live mode: arrows at every edge', () => {
 		});
 
 		await test.step('ArrowLeft at the body start leaves to the end of the block above', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockAtPath([1], BODY_START);
 			await page.keyboard.press('ArrowLeft');
 			await page.keyboard.type('X');
@@ -51,7 +44,7 @@ test.describe('code block in live mode: arrows at every edge', () => {
 		});
 
 		await test.step('ArrowRight at the body end leaves to the start of the block below', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockAtPath([1], BODY_END);
 			await page.keyboard.press('ArrowRight');
 			await page.keyboard.type('X');
@@ -59,7 +52,7 @@ test.describe('code block in live mode: arrows at every edge', () => {
 		});
 
 		await test.step('ArrowLeft from the block below lands at the body end', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockStart(2);
 			await page.keyboard.press('ArrowLeft');
 			await page.keyboard.type('X');
@@ -67,7 +60,7 @@ test.describe('code block in live mode: arrows at every edge', () => {
 		});
 
 		await test.step('ArrowDown walks the body lines, then leaves below; ArrowUp mirrors it', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			// A real click places the caret and sets the sticky column the vertical moves read;
 			// each read then polls for a landing the handler awaits.
 			await editor.clickBlockAtPath([0], 6);
@@ -93,7 +86,7 @@ test.describe('code block in live mode: line extremes and the fence lines', () =
 		const editor = await liveEditor(page);
 
 		await test.step('Home on the first body line puts the caret at its column 0, not in the hidden opener', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockAtPath([1], BODY_START + 4);
 			await page.keyboard.press('Home');
 			await page.keyboard.type('X');
@@ -101,7 +94,7 @@ test.describe('code block in live mode: line extremes and the fence lines', () =
 		});
 
 		await test.step('End on the last body line puts the caret after its last byte, not past the hidden closer', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockAtPath([1], LINE_TWO + 2);
 			await page.keyboard.press('End');
 			await page.keyboard.type('X');
@@ -109,14 +102,14 @@ test.describe('code block in live mode: line extremes and the fence lines', () =
 		});
 
 		await test.step('Tab at a body line start indents the line', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockAtPath([1], BODY_START);
 			await page.keyboard.press('Tab');
 			await editor.bridge.waitForSourceContains('```js\n\tconst x = 1;');
 		});
 
 		await test.step('Backspace at the body start leaves upward and the fence stays whole', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockAtPath([1], BODY_START);
 			await page.keyboard.press('Backspace');
 			await page.keyboard.type('X');
@@ -126,7 +119,7 @@ test.describe('code block in live mode: line extremes and the fence lines', () =
 		});
 
 		await test.step('Backspace on the last byte of a one-character body empties it without reaching the fence', async () => {
-			await fresh(editor, '```js\na\n```\n\nAfter\n');
+			await editor.loadContent('```js\na\n```\n\nAfter\n');
 			await editor.focusBlockAtPath([0], 7);
 			await page.keyboard.press('Backspace');
 			await editor.bridge.waitForSourceEquals('```js\n\n```\n\nAfter\n');
@@ -141,7 +134,7 @@ test.describe('code block in live mode: line extremes and the fence lines', () =
 		const editor = await liveEditor(page);
 
 		await test.step('Enter at the body end opens a line inside the fence; a second Enter leaves below', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockAtPath([1], BODY_END);
 			await page.keyboard.press('Enter');
 			await editor.bridge.waitForSourceContains('foo();\n\n```');
@@ -159,7 +152,7 @@ test.describe('code block in live mode: line extremes and the fence lines', () =
 		// The closer is hidden here, so typing one is the user asking to leave rather than to write
 		// bytes: the run never lands, and the caret arrives in the block already below.
 		await test.step('a closer typed on the empty last line leaves below, writing none of its bytes', async () => {
-			await fresh(editor, DOC);
+			await editor.loadContent(DOC);
 			await editor.focusBlockAtPath([1], BODY_END);
 			await page.keyboard.press('Enter');
 			await editor.bridge.waitForSourceContains('foo();\n\n```');
@@ -181,7 +174,7 @@ test.describe('code block in live mode: an empty fence', () => {
 		const editor = await liveEditor(page);
 
 		await test.step('ArrowRight from above completes the fence and types into its body line', async () => {
-			await fresh(editor, EMPTY_FENCE_DOC);
+			await editor.loadContent(EMPTY_FENCE_DOC);
 			await editor.focusBlockEnd(0);
 			await page.keyboard.press('ArrowRight');
 			await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
@@ -190,7 +183,7 @@ test.describe('code block in live mode: an empty fence', () => {
 		});
 
 		await test.step('ArrowLeft from below enters, and ArrowLeft again leaves to the block above', async () => {
-			await fresh(editor, EMPTY_FENCE_DOC);
+			await editor.loadContent(EMPTY_FENCE_DOC);
 			await editor.focusBlockStart(2);
 			await page.keyboard.press('ArrowLeft');
 			await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
@@ -201,7 +194,7 @@ test.describe('code block in live mode: an empty fence', () => {
 		});
 
 		await test.step('Backspace on the empty body line deletes the fence and lands at the end of the block above', async () => {
-			await fresh(editor, EMPTY_FENCE_DOC);
+			await editor.loadContent(EMPTY_FENCE_DOC);
 			await editor.focusBlockEnd(0);
 			await page.keyboard.press('ArrowRight');
 			await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');

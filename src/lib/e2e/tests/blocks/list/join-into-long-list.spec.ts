@@ -34,9 +34,8 @@ test.describe('a paragraph joined into the last item of a long list', () => {
 
 			for (const { gesture, items, typed, pasted, pressed, tail } of JOINS) {
 				await test.step(gesture, async () => {
-					// A blank document first, scrolled to the top: a list still drawn from the step
-					// before would hide a caret placement that never waits for the joined item.
-					await editor.loadContent('');
+					// Scrolled to the top first, as a fresh page is: the last items still mounted from the
+					// step before would hide a caret placement that never waits for the joined item.
 					await editor.scrollEditorTo(0);
 					await editor.loadContent(`${listOf(items)}\nzz\n`);
 					if (pasted) await editor.seedClipboard(pasted);

@@ -17,10 +17,8 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.loadDiagram(STANDARD_DIAGRAM_DOC);
 	});
 
-	/** A folded row starts on the fixture again, behind an empty load, since the editor ignores a
-	 *  repeat of its last `source`. */
+	/** A folded row starts on a fresh copy of the fixture. */
 	async function nextRow(): Promise<void> {
-		await editor.loadContent('\n');
 		await editor.loadContent(STANDARD_DIAGRAM_DOC);
 		await editor.settleDiagram('svg');
 	}

@@ -425,24 +425,6 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.106 an e2e spec reloads the editor’s own text through reloadContent',
-		population: under(SOURCE_DIR.e2e),
-		matches: /\b(?:loadContent|setSource)\s*\(\s*await\s+[\w.]+\.getSource\s*\(/,
-		reason:
-			'a `source` write equal to the text the editor holds is no change, so the check after it reads the unreloaded document: call `editor.reloadContent()`',
-		hits: [
-			at(
-				'src/lib/e2e/tests/x.spec.ts',
-				'await editor.loadContent(await editor.bridge.getSource());'
-			),
-			at('src/lib/e2e/tests/y.spec.ts', 'await bridge.setSource( await bridge.getSource() );')
-		],
-		misses: [
-			at('src/lib/e2e/tests/x.spec.ts', 'await editor.reloadContent();'),
-			at('src/lib/e2e/tests/y.spec.ts', 'const before = await editor.bridge.getSource();')
-		]
-	},
-	{
 		id: 'every unit test starts from a clean plugin platform, which the unit setup alone resets',
 		population: under(SOURCE_DIR.unitTests),
 		matches: (file) => platformResetHooks(file.code).length > 0,

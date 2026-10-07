@@ -143,9 +143,6 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		expect(await editor.parseConverged()).toBe(true);
 
-		// A fresh navigation, not a second `loadContent`: the harness drives `source` as a prop, so the
-		// string it already holds would change nothing.
-		await editor.goto('?imagePaste=on');
 		await editor.loadContent(TABLE);
 		await selectOutOfCell();
 		await editor.seedClipboard(MARKDOWN);

@@ -51,18 +51,6 @@ export class EditorPage {
 		});
 	}
 
-	/** Reparses the editor's own text, failing unless both writes swapped. The detour is built from
-	 *  that text, which neither the harness nor the editor holds. Restarts the swap capture. */
-	async reloadContent(): Promise<string> {
-		const text = await this.bridge.getSource();
-		await this.page.evaluate(() => (window as any).__test.startSourceSwapCapture());
-		await this.loadContent(`${text}reload\n`);
-		await this.loadContent(text);
-		const swaps = await this.page.evaluate(() => (window as any).__test.stopSourceSwapCapture());
-		expect(swaps, 'the reload replaced the document twice').toHaveLength(2);
-		return text;
-	}
-
 	/** Waits on the attribute, not the call: a mode that never applied falls back to source, where
 	 *  most assertions pass anyway and the run goes green without ever entering that mode. */
 	async setPresentationMode(mode: string): Promise<void> {

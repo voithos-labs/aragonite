@@ -19,7 +19,7 @@ test.describe('emptying the first item of a list under a paragraph', () => {
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceEquals('para\n\n- \n');
 		expect(await editor.parseConverged()).toBe(true);
-		await editor.reloadContent();
+		await editor.loadContent(await editor.bridge.getSource());
 		expect([await editor.bridge.getBlockKind(0), await editor.bridge.getBlockKind(1)]).toEqual([
 			'paragraph',
 			'list'

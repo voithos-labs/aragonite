@@ -1171,7 +1171,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.99  | A windowed list's box is never shorter than its table while blocks mount                  | L       |
 | G4.100 | A block's own trailing line ending is added by the surface write and a few listed routes  | L       |
 | G4.101 | Only the surface write names a typed kind change or completes a typed line                | L       |
-| G4.106 | An e2e spec reloads the editor's own text through `reloadContent`                         | L       |
+| G4.106 | _Retired upward_: every test page load is a fresh document, and a load that isn't throws  | A       |
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input`         | L       |
 | G4.108 | Only the range replace removes a range; only it and the range indent open its undo step   | L       |
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
@@ -2198,12 +2198,12 @@ fails an `afterTypedWrite` or `completeLineOnType` call under `components/` or `
 else, and `blocks/surface-write-intent.test.ts` runs a write of each intent and checks which ones
 ask.
 
-**G4.106 · A reload in a spec really reloads.** A `source` write equal to the text the editor holds
-is no change (G1.52 has the text it's compared with), so `loadContent(await getSource())` reparses
-nothing, and whatever the spec checks next passes against the document it never reloaded.
-`e2e/editor-page.ts :: reloadContent` loads a different document in between, then the original,
-and checks both writes really replaced the document. `lint/suite-file-rules.test.ts`
-fails a `loadContent` or `setSource` of an awaited `getSource()` anywhere under `src/lib/e2e/`.
+**G4.106 · Retired upward.** The rule was: a spec reloads the editor's own text through
+`reloadContent`, since a `source` write equal to the text the editor holds changes nothing. The test
+pages' `__test.setSource` (`src/routes/test/editor/test-probes.ts`) now loads every write as a fresh
+document. When the editor already holds the text it goes through another document first, and it
+throws when the editor never replaced its document. So `loadContent(await getSource())` really
+reloads, and the lint rule and `reloadContent` are deleted.
 
 **G4.107 · An `edit` fires at its write.** A commit, a keystroke written in place, undo and redo,
 and a whole replace-all each emit their `edit` as their bytes land. Nothing holds one back for

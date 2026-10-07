@@ -5,7 +5,7 @@ import { PluginsPage } from '../plugins/helpers';
 import type { SimContext } from '../../simulation/invariants';
 import { assertStructuralIntegrity } from '../../simulation/invariants';
 import { mintAtGap } from '../../simulation/gestures/structure';
-import { loadFresh, makeSimContext } from './helpers';
+import { makeSimContext } from './helpers';
 
 // Each step checks that a real paragraph appeared at the boundary, since a gesture that
 // quietly typed into the block below would be an invisible hole in the coverage. The last step
@@ -27,7 +27,7 @@ test('sim gesture reachability: gap create', async ({ page }) => {
 	await editor.goto();
 
 	await test.step('typing at the gap inserts a paragraph between the two blocks', async () => {
-		await loadFresh(editor, TABLE_THEN_FENCE);
+		await editor.loadContent(TABLE_THEN_FENCE);
 		const ctx = await makeCtx(page, editor);
 
 		await mintAtGap(ctx, 1, 'Q');
@@ -38,7 +38,7 @@ test('sim gesture reachability: gap create', async ({ page }) => {
 	});
 
 	await test.step('Enter at the gap inserts an empty paragraph the caret lands in', async () => {
-		await loadFresh(editor, TABLE_THEN_FENCE);
+		await editor.loadContent(TABLE_THEN_FENCE);
 		const ctx = await makeCtx(page, editor);
 
 		await mintAtGap(ctx, 1, '');
@@ -52,7 +52,7 @@ test('sim gesture reachability: gap create', async ({ page }) => {
 	// The gesture's own check: at a boundary it cannot use, Backspace merges as usual, and a gesture
 	// that recorded that as a new block would cover nothing.
 	await test.step('a boundary neither neighbour declares fails loudly', async () => {
-		await loadFresh(editor, PARA_THEN_FENCE);
+		await editor.loadContent(PARA_THEN_FENCE);
 
 		await expect(mintAtGap(await makeCtx(page, editor), 1, 'Q')).rejects.toThrow(
 			/no gap caret there/
@@ -72,7 +72,7 @@ test('sim gesture reachability: gap create between opaque containers', async ({ 
 	await editor.gotoPlugins();
 
 	await test.step('the arrow-up arrival creates a paragraph between the two callouts', async () => {
-		await loadFresh(editor, TWO_CALLOUTS);
+		await editor.loadContent(TWO_CALLOUTS);
 		const ctx = await makeSimContext(page, editor, 'reach-opaque');
 
 		await mintAtGap(ctx, 1, 'Q', { arrival: 'arrow-up' });
@@ -85,7 +85,7 @@ test('sim gesture reachability: gap create between opaque containers', async ({ 
 	// Backspace on the callout's title does nothing by design, so arriving that way must throw
 	// here rather than record it as a new block.
 	await test.step('the backspace arrival fails loudly at a chrome-container boundary', async () => {
-		await loadFresh(editor, TWO_CALLOUTS);
+		await editor.loadContent(TWO_CALLOUTS);
 		await expect(
 			mintAtGap(await makeSimContext(page, editor, 'reach-opaque'), 1, 'Q')
 		).rejects.toThrow(/no gap caret there/);
