@@ -57,6 +57,17 @@ In return your block behaves like any built-in text block: the caret walks in an
 
 That text carries every newline your source holds, which makes **`white-space: pre-wrap` (or `pre`) on your source element part of the contract** for any leaf whose bytes can span lines. Without it the browser collapses the line breaks on screen while the byte count goes on counting them, and the caret sits nowhere near where it looks.
 
+**The spread also brings the empty-block hint** (the consumer's `placeholder` prop), so there's nothing to write for it. A block counts as empty when its content range is. If your kind draws its own fence lines, that range never empties (the fences are bytes too), so declare `bodyRange`: the body a user types into, or null while there's no body line yet. `fencedBodyRange` does the work from a `sliceFencedSource` split:
+
+```ts
+registerBlockKind(kind, {
+	// …the rest of your registration
+	bodyRange: (node) => fencedBodyRange(sliceFencedSource(node.raw))
+});
+```
+
+A block that edits through an element of its own instead of this factory (the bundled mermaid's textarea) gets no hint.
+
 **A painted source.** By default the source is one text node. Give the factory a `renderSource(text)` dep and it paints the source as DOM instead: fence lines the marker-hiding modes collapse, highlight tokens, whatever your kind draws. `renderFencedSource` draws a fenced source the way the code block does, with `highlightCode` as its tokenizer. The factory checks `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
 
 A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint. Undo inside the open reveal walks those edits back before it reaches the document's history, whether you pressed the undo key or picked Undo from the browser's menu. Three more pieces go with a painter:
