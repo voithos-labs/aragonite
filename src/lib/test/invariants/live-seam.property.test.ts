@@ -117,33 +117,20 @@ describe('live-mode joins over random range deletes', () => {
 	beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 	afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
-	it('a live delete diverges nowhere the byte-literal delete already does', () => {
-		fc.assert(
-			fc.property(arbInlineDoc, arbCut, (source, cut) => {
-				const literal = deleteRange(source, cut, undefined);
-				if (literal === null || literal.shape !== null) return;
-				if (serialize(parse(literal.bytes)) !== literal.bytes) return;
-				const live = deleteRange(source, cut, 'live');
-				if (live === null) return;
-				if (live.shape !== null) {
-					throw new Error(`${JSON.stringify(source)}: reload shape; ${live.shape}`);
-				}
-				if (serialize(parse(live.bytes)) !== live.bytes) {
-					throw new Error(
-						`${JSON.stringify(source)}: not a round-trip ${JSON.stringify(live.bytes)}`
-					);
-				}
-			}),
-			PARAMS
-		);
-	});
-
-	it('a live delete only ever drops bytes, and never creates unpainted residue', () => {
+	// The counters prove the draws reach the rewrite and that it takes glyphs off the screen; a
+	// comparison over draws that never rewrite proves nothing about the rewrite.
+	it('a live delete only drops bytes, adds no residue, and diverges only where the literal one does', () => {
+		let rewritten = 0;
+		let cleaned = 0;
+		const glyphs = (text: string) => (text.match(/[*_~`[\]]/g) ?? []).length;
 		fc.assert(
 			fc.property(arbInlineDoc, arbCut, (source, cut) => {
 				const literal = deleteRange(source, cut, undefined);
 				const live = deleteRange(source, cut, 'live');
 				if (literal === null || live === null) return;
+				if (live.bytes !== literal.bytes) rewritten++;
+				if (glyphs(live.visible) < glyphs(literal.visible)) cleaned++;
+
 				if (!isSubsequence(live.bytes, literal.bytes)) {
 					throw new Error(
 						`${JSON.stringify(source)}: live wrote ${JSON.stringify(live.bytes)}, not a ` +
@@ -158,24 +145,16 @@ describe('live-mode joins over random range deletes', () => {
 							`against ${JSON.stringify(literal.bytes)}`
 					);
 				}
-			}),
-			PARAMS
-		);
-	});
 
-	// A comparison over draws that never rewrite proves nothing about the rewrite, and a glyph
-	// budget nobody spends checks nothing.
-	it('the corpus reaches the rewrite, and the rewrite takes glyphs off the screen', () => {
-		let rewritten = 0;
-		let cleaned = 0;
-		const glyphs = (text: string) => (text.match(/[*_~`[\]]/g) ?? []).length;
-		fc.assert(
-			fc.property(arbInlineDoc, arbCut, (source, cut) => {
-				const literal = deleteRange(source, cut, undefined);
-				const live = deleteRange(source, cut, 'live');
-				if (literal === null || live === null) return;
-				if (live.bytes !== literal.bytes) rewritten++;
-				if (glyphs(live.visible) < glyphs(literal.visible)) cleaned++;
+				if (literal.shape !== null || serialize(parse(literal.bytes)) !== literal.bytes) return;
+				if (live.shape !== null) {
+					throw new Error(`${JSON.stringify(source)}: reload shape; ${live.shape}`);
+				}
+				if (serialize(parse(live.bytes)) !== live.bytes) {
+					throw new Error(
+						`${JSON.stringify(source)}: not a round-trip ${JSON.stringify(live.bytes)}`
+					);
+				}
 			}),
 			PARAMS
 		);

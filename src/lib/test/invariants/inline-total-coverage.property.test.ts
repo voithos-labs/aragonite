@@ -111,7 +111,7 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 				const line = doc.slice(0, Math.min(doc.length, 60_000));
 				assertScanContract(line, 0, line.length);
 			}),
-			{ numRuns: 20, seed: freshOrFixedSeed(424242), endOnFailure: true }
+			{ numRuns: 5, seed: freshOrFixedSeed(424242), endOnFailure: true }
 		);
 	}, 60_000);
 

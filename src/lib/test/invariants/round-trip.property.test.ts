@@ -70,22 +70,11 @@ describe('G2.1 round-trip at scale', () => {
 	}, 60_000);
 });
 
-// Fixed cases the generators cannot reach: arbDeepNesting tops out around a dozen levels,
-// well below the container-depth cap these exercise.
+// A depth the generators cannot reach. Container floods past the nesting cap round-trip in
+// `core/parsers/nesting-depth.test.ts`.
 describe('G2.1 adversarial nesting', () => {
 	it('round-trips 2000-deep link bracket nesting', () => {
 		const source = '['.repeat(2000) + 'a' + '](u)'.repeat(2000);
 		expect(serialize(parse(source))).toBe(source);
 	});
-
-	it('round-trips a blockquote flood past the container-depth cap', () => {
-		const source = '>'.repeat(5000) + ' x\n';
-		expect(serialize(parse(source))).toBe(source);
-	});
-
-	it('round-trips a nested-list flood past the container-depth cap', () => {
-		const source =
-			Array.from({ length: 700 }, (_, i) => ' '.repeat(2 * i) + '- x').join('\n') + '\n';
-		expect(serialize(parse(source))).toBe(source);
-	}, 30_000);
 });

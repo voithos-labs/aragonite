@@ -97,6 +97,11 @@ fails, naming the path.
 
 Vitest discovers `*.test.ts` anywhere under the root, so adding a file needs no config change.
 
+The one naming rule that changes how a file runs: a `*.deep.test.ts` file runs in its own Vitest
+project (`deep-stack` in `vitest.config.ts`) on a 150 KB stack. That's small enough that a
+recursive walk overflows at a depth jsdom still renders in a few seconds, so it's the place for a
+test proving some walk never recurses.
+
 ### By area
 
 | Script                       | Covers                                                                                                      |
