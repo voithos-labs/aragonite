@@ -19,6 +19,7 @@ import {
 	tryGetBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
+import type { HarnessSource } from './harness-source.svelte';
 import {
 	isPasteTransformRegistered,
 	registerPasteTransform
@@ -72,7 +73,7 @@ const HARNESS_PROBE_CLOSURE: ClosureBlock = {
 
 export interface TestProbeDeps {
 	editor: EditorInstance;
-	setSource: (md: string) => void;
+	source: HarnessSource;
 	setKeybindings: (overrides: KeybindingOverride[] | undefined) => void;
 	setPresentationMode: (mode: PresentationMode) => void;
 }
@@ -339,7 +340,7 @@ const decorationHandles = new Map<string, DecorationSourceHandle>();
 // the e2e suite drives the editor through them.
 export function installTestProbes({
 	editor,
-	setSource,
+	source,
 	setKeybindings,
 	setPresentationMode
 }: TestProbeDeps): void {
@@ -367,8 +368,22 @@ export function installTestProbes({
 		getDocument: () => editor.__test.getDocument(),
 		// The height guesses a windowed list's spacers are built from, so a spec can recompute them.
 		getHeightOracle: () => editor.__test.getHeightOracle(),
-		setSource: (md: string) => {
-			setSource(md);
+		// Every load is a fresh document. The editor keeps its document for a write equal to its own
+		// text, so that write goes through another document first; a load that never swapped throws.
+		setSource: async (md: string): Promise<void> => {
+			let swaps = 0;
+			const off = editor.getEvents().on('sourceSwap', () => swaps++);
+			try {
+				if (editor.getSource() === md) {
+					source.load(md === '' ? '\n' : '');
+					await tick();
+				}
+				source.load(md);
+				await tick();
+			} finally {
+				off();
+			}
+			if (swaps === 0) throw new Error('setSource: the editor never replaced its document');
 		},
 		setKeybindings: (overrides: KeybindingOverride[] | undefined) => {
 			setKeybindings(overrides);

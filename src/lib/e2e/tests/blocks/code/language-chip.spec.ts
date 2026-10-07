@@ -142,7 +142,6 @@ test.describe('code language chip: the commit', () => {
 		for (const mode of WRITING_MODES) {
 			await test.step(mode, async () => {
 				await editor.setPresentationMode(mode);
-				await editor.loadContent('');
 				await editor.loadContent(SOURCE);
 				await openChip(editor);
 				await page.keyboard.type('ts');

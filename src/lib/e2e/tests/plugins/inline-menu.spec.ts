@@ -47,10 +47,8 @@ test.describe('inline menus', () => {
 		expect(await capturedErrors(editor.page)).toEqual([]);
 	});
 
-	/** A folded row starts as a fresh page would: the seed reloaded, which closes any list, behind an
-	 *  empty load, since the editor ignores a repeat of its last `source`. */
+	/** A folded row starts as a fresh page would: the seed reloaded, which closes any list. */
 	async function nextRow(): Promise<void> {
-		await editor.loadContent('\n');
 		await editor.loadContent(seed);
 		await editor.focusBlockEnd(TARGET);
 		await expect(menu(editor)).toHaveCount(0);

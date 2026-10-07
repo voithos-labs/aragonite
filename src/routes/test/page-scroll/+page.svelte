@@ -2,6 +2,7 @@
 	import { Editor, type ImageLoadPolicy, type PresentationMode } from '$lib';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import { installTestProbes } from '../editor/test-probes';
+	import { HarnessSource } from '../editor/harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	import type { PageData } from './$types';
 
@@ -33,7 +34,7 @@
 					: `Paragraph ${i} — lorem ipsum dolor sit amet, consectetur adipiscing elit.`
 		).join('\n\n') + '\n';
 
-	let source = $state(ENTRY);
+	const source = new HarnessSource(ENTRY);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let presentationMode = $state<PresentationMode>('source');
 	let imageLoadPolicy = $state<ImageLoadPolicy>('placeholder');
@@ -46,7 +47,7 @@
 		if (!editor) return;
 		installTestProbes({
 			editor,
-			setSource: (md) => (source = md),
+			source,
 			setKeybindings: (overrides) => (keybindings = overrides),
 			setPresentationMode: (mode) => (presentationMode = mode)
 		});
@@ -71,7 +72,7 @@
 	<div class="entry" data-testid="entry">
 		<Editor
 			bind:this={editor}
-			{source}
+			source={source.text}
 			{keybindings}
 			{presentationMode}
 			{imageLoadPolicy}

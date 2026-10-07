@@ -1,4 +1,4 @@
-import { expect, type Page, type Locator } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 import { EditorBridge } from './editor-bridge';
 import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
@@ -34,10 +34,9 @@ export class EditorPage {
 		if (mode !== null) await expectPresentationMode(this.editorContainer, mode as PresentationMode);
 	}
 
+	/** Loads `md` as a fresh document, whatever the page or the editor held before. */
 	async loadContent(md: string) {
-		await this.page.evaluate((content) => {
-			(window as any).__test.setSource(content);
-		}, md);
+		await this.page.evaluate((content) => (window as any).__test.setSource(content), md);
 		// serialize() normalizes trailing whitespace; compare on trimmed forms.
 		await this.page.waitForFunction(
 			(expected) => {
@@ -55,18 +54,6 @@ export class EditorPage {
 			void document.body.offsetHeight;
 			return document.fonts.ready.then(() => undefined);
 		});
-	}
-
-	/** Reparses the editor's own text, failing unless both writes swapped. The detour is built from
-	 *  that text, which neither the harness nor the editor holds. Restarts the swap capture. */
-	async reloadContent(): Promise<string> {
-		const text = await this.bridge.getSource();
-		await this.page.evaluate(() => (window as any).__test.startSourceSwapCapture());
-		await this.loadContent(`${text}reload\n`);
-		await this.loadContent(text);
-		const swaps = await this.page.evaluate(() => (window as any).__test.stopSourceSwapCapture());
-		expect(swaps, 'the reload replaced the document twice').toHaveLength(2);
-		return text;
 	}
 
 	/** Sets the mode prop the way a host does, keeping focus, and waits until the editor shows it:

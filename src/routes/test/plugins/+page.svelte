@@ -86,6 +86,7 @@
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
+	import { HarnessSource } from '../editor/harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	import { convertGithubAlertsInDocument, hasGithubAlert } from '$lib/plugins/admonitions';
 
@@ -227,7 +228,7 @@
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
 	// svelte-ignore state_referenced_locally
-	let source = $state(SEEDS[data.seed ?? ''] ?? SEEDS.callout);
+	const source = new HarnessSource(SEEDS[data.seed ?? ''] ?? SEEDS.callout);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let presentationMode = $state<PresentationMode>('source');
 	// The seeds whose suites switch mode or theme for real through the header controls. Kept
@@ -243,9 +244,7 @@
 		if (!editor) return;
 		installTestProbes({
 			editor,
-			setSource: (md) => {
-				source = md;
-			},
+			source,
 			setKeybindings: (overrides) => {
 				keybindings = overrides;
 			},
@@ -260,7 +259,7 @@
 	function convertAlerts() {
 		if (!editor) return;
 		const { converted, changed } = convertGithubAlertsInDocument(editor.getSource());
-		if (changed) source = converted;
+		if (changed) source.load(converted);
 	}
 
 	// A marker inside a code fence must not light the button, so the cheap text check runs
@@ -273,7 +272,7 @@
 	// eslint-disable-next-line svelte/prefer-writable-derived -- the delay is required (see above)
 	let canConvert = $state(false);
 	$effect(() => {
-		canConvert = canConvertSource(source);
+		canConvert = canConvertSource(source.text);
 	});
 	$effect(() => {
 		if (!editor) return;
@@ -336,7 +335,7 @@
 	{/if}
 	<Editor
 		bind:this={editor}
-		{source}
+		source={source.text}
 		{keybindings}
 		{plugins}
 		{presentationMode}
