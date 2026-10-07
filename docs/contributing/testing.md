@@ -143,7 +143,7 @@ stubs for the rest. From `test/blocks/text/text-crlf-commit.test.ts`, which moun
 block and hands it a decoration engine that reports no widgets:
 
 ```ts
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
 import { mountBlock } from '../../harness/mount-block';
 
 const { target, blockEdit, dispose } = mountBlock(TextEditableBlock, {
@@ -214,7 +214,7 @@ The machinery, for when you're inside it:
   `takeDevWarns()`), never with a file-level `allowDevWarns`.
 - A file that swaps the sink out and never restores it fails itself rather than blinding the
   rest of the worker, and the gate re-arms.
-- There's no exemption. A file that `vi.mock`s `$lib/dev-warn` deletes the emitter outright,
+- There's no exemption. A file that `vi.mock`s `#lib/dev-warn.js` deletes the emitter outright,
   and a file that spies `console.warn` reads a channel the sink silences, while a spy that
   swallows the call takes the Svelte channel off the gate too; either one blinds the gate for
   that whole file, so a source scan (G4.41 in `invariants.md`) fails on both. The one file that
@@ -911,6 +911,7 @@ Locally the example depends on `@voithos-labs/aragonite` as `file:../..`, a link
 tree you cloned, so there's no tarball to refresh; after a library change, `npm run package`
 again and the example sees it. `examples/consumer/src/plugins/` is generated, not written: before
 every `dev`, `build`, `check`, and `test`, `scripts/sync-consumer-plugins.mjs` copies the callout
-fixture from `src/routes/test/plugins/callout/` with its `$lib/plugin` imports rewritten to the
-package name, and fails if any deep `$lib/` import survives the rewrite. The folder is
+fixture from `src/routes/test/plugins/callout/` with each `#lib` import of a published entry point
+(`#lib/plugin.js`, say) rewritten to the package name, and fails if a `#lib` import of any other
+file is left over. The folder is
 git-ignored and shows up on first run.

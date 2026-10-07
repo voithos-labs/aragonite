@@ -985,7 +985,7 @@ Plugin kinds sit alongside these in the same registries, keyed by their own stri
 
 ## 15. Extension points
 
-Everything above is reachable by a plugin without touching an editor internal. The surface itself is specified in [`plugin-contract.md`](plugin-contract.md), and [`../guide/plugin-guide.md`](../guide/plugin-guide.md) is the authoring guide. One design fact belongs here rather than there: `plugin.ts` is a **facade** over the library's internals (chiefly `schema/`, `core/` and `components/`), the curated public face of those directories rather than a layer sitting above them, and it's also a **sink**, meaning nothing it re-exports may import it back, because Rollup assigns the two sides of such a re-export cycle to different chunks and breaks execution order in a consumer's build. The proof the surface is complete is `plugins/`, whose bundled packages import the barrel and nothing else from the editor.
+Everything above is reachable by a plugin without touching an editor internal. The surface itself is specified in [`plugin-contract.md`](plugin-contract.md), and [`../guide/plugin-guide.md`](../guide/plugin-guide.md) is the authoring guide. One design fact belongs here rather than there: `plugin.ts` is a **facade** over the library's internals (chiefly `schema/`, `core/` and `components/`), the curated public face of those directories rather than a layer sitting above them, and it's also a **sink**, meaning nothing it re-exports may import it back, because a bundler that splits the two sides of such a re-export cycle into different chunks can break execution order in a consumer's build. The proof the surface is complete is `plugins/`, whose bundled packages import the barrel and nothing else from the editor.
 
 ## 16. Standing directions
 

@@ -1,6 +1,6 @@
 /**
  * No module in a published entry barrel's own import closure may import the barrel back (G4.54):
- * Rollup splits such a cycle across chunks and breaks execution order, which only a consumer's
+ * a bundler that splits such a cycle across chunks breaks execution order, which only a consumer's
  * bundler sees, since in-repo `#lib` resolves to source.
  */
 import { describe, it, expect } from 'vitest';

@@ -5,11 +5,12 @@ its prose. The owner rewrites that document by hand, and the suite that pinned i
 went red on the rewrite while proving nothing about whether the tour still works.
 
 The root route `/` is the showcase for developers: it mounts `<Editor>` with all nine bundled
-plugins installed the way a consumer installs them, each imported from its `$lib/plugins/<name>`
-subpath, with the latex and mermaid renderers injected. Unlike the `/test/*` routes, which exist
-for the tests, it exposes no `window.__test` bridge and no debug panel, since a real consumer's
-page has neither, so this smoke test asserts through the rendered DOM only. It is also a
-deployed page: a plugin that fails to register there degrades in front of visitors.
+plugins installed the way a consumer installs them, each imported from its
+`#lib/plugins/<name>/index.js` entry, with the latex and mermaid renderers injected. Unlike the
+`/test/*` routes, which exist for the tests, it exposes no `window.__test` bridge and no debug
+panel, since a real consumer's page has neither, so this smoke test asserts through the rendered DOM
+only. It is also a deployed page: a plugin that fails to register there degrades in front of
+visitors.
 
 The bar is that the whole page renders cleanly. The shared e2e `test` fixture fails on any
 `[invariant:…]` console message, so a passing run also proves the document loads without

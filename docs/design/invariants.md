@@ -1198,7 +1198,7 @@ is a non-reactive WeakMap. `lint/render-inlinecontent.test.ts`.
 **G4.3 · Container conformance kit.** The kit plus declaration sanity: `unwrapRole` strategies
 resolve, `containerPaste` has the right shape, `rebuildRaw` runs. Built-ins are swept
 registry-derived; a plugin container opts in with its own profile through `runContainerConformance`
-(`@voithos-labs/aragonite/testing`). Kit: `$lib/testing/container-conformance.ts` · tests
+(`@voithos-labs/aragonite/testing`). Kit: `src/lib/testing/container-conformance.ts` · tests
 `container-conformance.test.ts` (built-ins), `test/plugins/container-conformance.test.ts` (plugin
 containers).
 
@@ -1302,11 +1302,15 @@ arrives at a brand through a mint or a named conversion. G3.7's runtime-source c
 `lint/file-rules.test.ts`.
 
 **G4.16 · Bundled-plugin import boundary.** Every file under `src/lib/plugins/**` imports only the
-public authoring barrel (`$lib/plugin`), its own plugin directory, `svelte`, or, for a
+public authoring barrel (`#lib/plugin.js`), its own plugin directory, `svelte`, or, for a
 `renderer.ts`, its one declared rendering engine. This is the dogfood proof that the authoring
 barrel is complete. Every import-boundary scan (this one, G4.63, G4.64, G4.122) reads specifiers
-through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`,
-which skips strings, templates and comments, so an import quoted in an example is no edge.
+through `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`, which skips strings,
+templates and comments, so an import quoted in an example is no edge. They resolve a specifier with
+`src/lib/test/invariants/lint/scan-source.ts :: resolveSpecifier`, which reads the `#lib` alias out
+of package.json `imports` (via `scripts/lib-alias.mjs`), so a new scan shouldn't spell the alias
+itself. A rule row that matches an import by its module path builds its pattern with
+`src/lib/test/invariants/lint/scan-source.ts :: quotedSpecifierEnding` for the same reason.
 `lint/plugin-import-boundary.test.ts`.
 
 **G4.17 · One Playwright project per spec.** No spec file is collected by two Playwright
@@ -1682,9 +1686,10 @@ field are the two ways it stops being one. The manifest the scan reads is comple
 `lint/descriptor-field-census.test.ts`.
 
 **G4.54 · Entry barrels are import sinks.** No module in a published entry's own import closure may
-import that entry back. Rollup assigns the two sides of such a re-export cycle to different chunks
-and warns that execution order will break, and only a consumer's bundler ever sees it, because
-in-repo `$lib` resolves to source and assigns no chunks at all. The entry list derives from
+import that entry back. A bundler that splits the two sides of such a cycle into different chunks
+can run the entry before its own imports, and only a consumer's bundler ever sees it, because
+in-repo `#lib` resolves to source and assigns no chunks at all. The consumer example's build fails
+on such a cycle too (`examples/consumer/vite.config.js`). The entry list derives from
 package.json `exports`, so a new published subpath inherits the rule unasked.
 `lint/entry-barrel-sink.test.ts`.
 
@@ -1781,12 +1786,12 @@ are named lists.
 `lint/code-token-contrast.test.ts`.
 
 **G4.63 · Bundled-plugin test boundary.** Every file under a per-plugin test directory
-(`src/lib/test/plugins/<plugin>/`) imports only the published entry points (`$lib`, `$lib/plugin`,
-`$lib/testing`), its own plugin's source, another plugin's published subpath, the copyable in-repo
-test support, a relative path outside library code, or an npm package. G4.16's twin one layer out:
-that one proves the barrels can build a plugin, this one that they can test it, so a suite reaching
-a `$lib` deep path names a testing door the surface is missing. Each allowlist entry carries that
-door's name, and a dead entry fails too. The loose platform tests directly under
+(`src/lib/test/plugins/<plugin>/`) imports only the published entry points (`#lib`,
+`#lib/plugin.js`, `#lib/testing.js`), its own plugin's source, another plugin's published subpath,
+the copyable in-repo test support, a relative path outside library code, or an npm package. G4.16's
+twin one layer out: that one proves the barrels can build a plugin, this one that they can test it,
+so a suite reaching a deep `#lib` path names a testing door the surface is missing. Each allowlist
+entry carries that door's name, and a dead entry fails too. The loose platform tests directly under
 `src/lib/test/plugins/` are out of scope. `lint/bundled-plugin-test-boundary.test.ts`.
 
 **G4.64 · The tree-ops ladder.** The files `node-ops.ts` split into, plus the two it came to sit on

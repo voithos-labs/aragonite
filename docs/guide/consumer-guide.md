@@ -69,7 +69,7 @@ Two more that aren't in the snippet but bite early: plugins install once, app-wi
 
 ## What your build needs
 
-Three things. Though, prob already true in sveltekit apps (if thats you, skip ahead).
+Three things. Though, prob already true in sveltekit apps (if thats you, skip ahead). SvelteKit 2 and 3 both work, since the package never imports SvelteKit itself.
 
 1. **Node `^20.19.0 || >=22.12.0`.** That floor is Vite's, not ours: the package ships uncompiled Svelte, so your bundler's requirement is the real one.
 2. **TypeScript resolves the package through its `exports` map**, which needs one of these in `tsconfig.json`:
