@@ -53,6 +53,7 @@ test.describe('inline menus', () => {
 		await editor.loadContent('\n');
 		await editor.loadContent(seed);
 		await editor.focusBlockEnd(TARGET);
+		await expect(menu(editor)).toHaveCount(0);
 	}
 
 	test.describe('opening', () => {

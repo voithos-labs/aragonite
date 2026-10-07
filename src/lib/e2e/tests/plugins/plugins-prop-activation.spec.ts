@@ -87,7 +87,8 @@ test.describe('the plugins prop is the enablement set', () => {
 			await expect(unlisted.locator('[data-block-kind="directiveContainer"]')).toHaveCount(1);
 		});
 
-		// The badge comes from an onEditor hook, so its absence means the hook never ran here.
+		// The unlisted editor hands the badge plugin no context, so its decoration source never
+		// registers here; `plugin-editor-context.test.ts` pins that the hook itself never runs.
 		await test.step('attaches no decoration source from a plugin it did not list', async () => {
 			await expect(page.getByTestId('editor-not-listing').locator('.badge-h')).toHaveCount(0);
 		});
