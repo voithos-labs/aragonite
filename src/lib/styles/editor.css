@@ -139,6 +139,50 @@
 	align-self: stretch;
 }
 
+/* An empty block's hint (the `placeholder` prop) paints where typing starts, out of the flow so
+   the caret and the line keep their place; `aria-placeholder` says it, so its alt text is empty. */
+:where(.editor) [data-placeholder]::before {
+	content: attr(data-placeholder);
+	content: attr(data-placeholder) / '';
+	float: left;
+	height: 0;
+	text-indent: 0;
+	color: var(--md-placeholder-color);
+	pointer-events: none;
+	user-select: none;
+}
+
+/* A heading's own marker sits where that float would, so its hint follows the marker instead. */
+:where(.editor) [data-placeholder]:has(> [data-block-prefix])::before {
+	content: none;
+}
+
+:where(.editor) [data-placeholder]:has(> [data-block-prefix])::after {
+	content: attr(data-placeholder);
+	content: attr(data-placeholder) / '';
+	position: absolute;
+	text-indent: 0;
+	color: var(--md-placeholder-color);
+	pointer-events: none;
+	user-select: none;
+}
+
+/* A fenced source's body is the line under its opening fence wherever that fence paints, so the
+   hint is placed there rather than floated onto the fence line. */
+:where(.editor) [data-placeholder]:has(> .md-fence-line)::before {
+	float: none;
+	position: absolute;
+}
+
+/* The fence paints in source mode, and in a preview mode on the focused block (the fence rule in
+   the preview section below); the hint keys on the same two conditions. */
+:where(.editor):not([data-presentation]) [data-placeholder]:has(> .md-fence-line)::before,
+:where(.editor)[data-presentation^='preview-']
+	.block-host[data-focused]
+	[data-placeholder]:has(> .md-fence-line)::before {
+	margin-top: 1lh;
+}
+
 /* A typed kind change names the new kind at the block's corner until the fade ends. The empty
    alternative text keeps it out of the accessibility tree, since the editor's announcer says it. */
 :where(.editor) .block-host[data-kind-cue]::after {

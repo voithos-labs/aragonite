@@ -134,7 +134,8 @@ export type { LanguageFn } from 'highlight.js';
 export {
 	sliceFencedSource,
 	renderFencedSource,
-	fenceBodyAsDrawn
+	fenceBodyAsDrawn,
+	fencedBodyRange
 } from './components/blocks/code/code-renderer';
 export type { FencedSource } from './components/blocks/code/code-renderer';
 

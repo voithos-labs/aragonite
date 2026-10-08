@@ -134,10 +134,11 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 | `searchBar`        | The built-in find/replace bar and its Mod+F / Mod+H shortcuts (default on)                                                                                                                                                                                                                                                                                 |
 | `searchBarAnchor`  | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives))                                                                                                                                                                                                                     |
 | `selectionToolbar` | The built-in formatting popover over a selection: the marks, the link, a heading picker, inline code and copy (default on; reading mode never shows it; see [Recipe: a selection toolbar](#recipe-a-selection-toolbar))                                                                                                                                    |
+| `placeholder`      | Faint text an empty block shows until something's typed: a string for an empty document, or a function asked about each empty block (see [A hint in an empty block](#a-hint-in-an-empty-block))                                                                                                                                                            |
 
 **Set once at mount:** `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `onRunCode`, `codeMenuItems`, `scrollMode`, `plugins`, and `syntax`. Set them at mount and leave them; a swap later isn't guaranteed to reach blocks that are already built.
 
-**Read live:** `theme`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
+**Read live:** `theme`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `placeholder`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
 
 ### Loading another document
 
@@ -168,6 +169,36 @@ Two GFM syntaxes catch people out in a rendered view, because the markers that w
 ```
 
 With `indentedCode: false`, an indented line is a paragraph and its indent is just whitespace. With `setextHeading: false`, a `===` line under text stays part of the paragraph and a `---` line is a divider, which is how GFM reads them once setext headings are out. Only the editor's reading changes, not the file, so GitHub or an editor without the switch still sees its code blocks and headings.
+
+### A hint in an empty block
+
+`placeholder` puts faint text in an empty block, and it's gone with the first letter you type. A string is the simple version: it shows while the whole document is one empty block, and never in reading mode.
+
+```svelte
+<Editor {source} placeholder="Start writing…" />
+```
+
+Hand it a function instead and it's asked about every empty block on screen, reading mode included. Return the text, or `null` for no hint. Here's the Notion-style one, a hint only where the caret is:
+
+```svelte
+<Editor
+	{source}
+	placeholder={(block) => (block.focused && block.editable ? "Type '/' for commands" : null)}
+/>
+```
+
+The `block` it gets is a `PlaceholderBlock`:
+
+```ts
+{ kind: 'paragraph', path: [2], documentEmpty: false, focused: true, editable: true }
+```
+
+`documentEmpty` is true when that block is the whole document, and `editable` is false in reading mode. A few more things worth knowing:
+
+- Empty means nothing's been typed into it, markers aside. An empty `# ` heading gets a hint, painted after the `# `, and a code or math block counts its body, so one with no line inside its fences gets none.
+- Table cells aren't asked.
+- The hint hides while an IME is composing into the block, since that text isn't in the document yet.
+- It's painted in `--md-placeholder-color` (see [Theming](#theming)) and announced to screen readers as `aria-placeholder`.
 
 ## The instance surface
 
@@ -756,6 +787,8 @@ You can change it live, so a zoom control can just drive this token.
 Outside this contract sits the editor's own visual language: the syntax and code-token palettes, the marker colors, the selection, search, and reorder tints (derived from `--color-selection`, above), and the surfaces windowing paints where blocks aren't mounted yet. Those are dark-based or mode-independent; read `editor-theme.css` if you mean to retheme them.
 
 One corner of it you'll prob want anyway is inline code, which reads three tokens, overridden at `.editor` like the rest. `--syntax-code` is the code text (it defaults to the text around it), `--md-inline-code-bg` is the chip's fill, and `--md-inline-code-border` is its outline (transparent until you give it a color). The fill and the outline each have a light and a dark default.
+
+The hint in an empty block (the `placeholder` prop) reads `--md-placeholder-color`. It follows `--color-ui-muted` until you set it at `.editor`.
 
 **A host-chrome token you leave undeclared falls back.** If your host skips the `aragonite-editor-theme` class, declare the whole host-chrome table: anything you leave out resolves to the inline fallback its reads carry (`var(--color-ui-muted, #93938d)`), which is a dark-mode value whatever mode your page is in. The exception is `--color-text-primary` where the text sits on your page: it falls back to `currentColor`, so it inherits your page's own color instead of painting white on it. A menu paints its own dark surface, so its text keeps the dark-mode value.
 

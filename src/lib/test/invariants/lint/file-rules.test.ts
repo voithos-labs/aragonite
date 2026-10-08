@@ -248,6 +248,7 @@ const EDITOR_GETTERS = [
 	'presentationMode',
 	'blockDragHandles',
 	'getDragHandles',
+	'placeholder',
 	'getDocument',
 	'getContentVersion',
 	'navigateTo',

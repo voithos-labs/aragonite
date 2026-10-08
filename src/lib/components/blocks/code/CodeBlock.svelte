@@ -21,8 +21,7 @@
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
-		consumePendingRestore,
-		editableSurfaceAttributes
+		consumePendingRestore
 	} from '../editable-surface';
 	import { writeShownSelection, type ClipboardCopy } from '../clipboard-step';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
@@ -790,7 +789,7 @@
 	class="code-block"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	{...editableSurfaceAttributes(node, null)}
+	{...editableSurface.attributes(null)}
 	spellcheck="false"
 	oninput={onInput}
 	onfocus={onSurfaceFocus}

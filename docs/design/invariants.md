@@ -1186,6 +1186,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.125 | A component asks which inlines are widgets only in `widget-adjacency.ts`                  | L       |
 | G4.126 | The dev server bundles every package the app imports before a page asks for it            | L       |
 | G4.127 | Every branch on whether a DOM exists says what runs without one                           | L       |
+| G4.128 | Every registered block kind shows the empty-block hint, or says why it's never asked      | harness |
 | G4.133 | An e2e spec switches the presentation mode only through a helper that waits for it        | L       |
 
 ### The entries
@@ -1855,7 +1856,8 @@ name the editor uses there, it answers the editor's lookups or paints a state th
 (a decoration setting `data-kind-cue` painted a permanent label). The scan finds those names in
 the source: the ones written on those elements' own tags, the ones a `closest()`
 lookup asks for, and the ones a stylesheet or selector reads on an element that could be one of
-them. `src/lib/decorations/reserved-attrs.ts :: RESERVED_BLOCK_ATTRS` has to match that set
+them, a rule that paints the value with `attr()` included however bare its selector.
+`src/lib/decorations/reserved-attrs.ts :: RESERVED_BLOCK_ATTRS` has to match that set
 exactly, so a name the editor only uses inside a block (a menu row's `data-active`) stays free for
 decorations. `lint/reserved-block-attrs.test.ts`.
 
@@ -2365,6 +2367,13 @@ function, saying what it does without a DOM (the landing check of G1.43, for one
 compare when there's no focus or selection to move). The test fails when a function's count of
 DOM tests in the shipped source moves off its row, whether it's `typeof document`, a DOM class
 like `typeof Element`, or a `globalThis.document` or `'document' in globalThis` read.
+
+**G4.128 · Every kind is asked about its empty state.** The `placeholder` hint is decided in one
+place, `components/blocks/placeholder-hint.svelte.ts`, which every block built on
+`createEditableSurface` reads through the attributes its element spreads. A new kind with its own
+editable element could skip it. `test/components/placeholder-every-kind.svelte.test.ts` mounts every
+registered kind, bundled plugins included: each one either shows the hint in an empty fixture,
+or carries a reason it's never asked (a container, a cell, no blank form).
 
 **G4.133 · An e2e mode switch waits for the mode.** A mode the editor never applies leaves it in
 source mode, which paints every marker, so most live-mode assertions pass there too and a spec

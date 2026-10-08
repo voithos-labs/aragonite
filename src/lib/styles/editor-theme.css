@@ -133,6 +133,8 @@
 	/* The name a typed kind change leaves on its block, and how long it stays before it fades. */
 	--md-kind-cue-color: var(--color-ui-muted, #8f8f89);
 	--md-kind-cue-duration: 1.2s;
+	/* An empty block's hint (the `placeholder` prop): a quiet grey, not a second text colour. */
+	--md-placeholder-color: var(--color-ui-muted, #8f8f89);
 	/* Tint on the container a nested drag is reordering inside. It uses the reorder accent rather
 	   than neutral grey, so the change stays visible to low-contrast vision. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);

@@ -22,6 +22,7 @@ import {
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
 import { registerBuiltInRangeIndent } from '../schema/range-indent-forms';
 import { shiftBodyLines } from './blocks/code/code-indent';
+import { codeBodyRange } from './blocks/code/code-renderer';
 import { imageWidgetOnSelectedKey } from './image/image-widget-editing';
 import { cleanLiveJoinSeam } from './blocks/text/live-join-seam';
 import { rebalanceLiveSplit } from './blocks/text/live-split-rebalance';
@@ -83,6 +84,9 @@ export function registerBuiltInBlocks(): void {
 	// The default loop in `paste/hooks.ts` skips `tableCell`, so registration order cannot
 	// revert cell paste to the plain inline default.
 	registerPasteSurface(tableCellPasteSurface);
+
+	// A code block's emptiness is its body's, which the code renderer slices.
+	augmentBuiltin('fencedCode', { bodyRange: codeBodyRange });
 
 	// Table owns cell addressing: a drag needs the exact hit or a refusal, a caret the nearest
 	// cell, and the selection code reaches both through the descriptor.

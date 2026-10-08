@@ -115,6 +115,7 @@ function stubbedPolicies(): EditorPolicies {
 		resolveLinkUrl: (u) => u,
 		imageLoadPolicy: () => 'auto',
 		blockDragHandles: () => false,
+		placeholder: () => null,
 		presentationMode: () => 'source',
 		theme: () => 'dark',
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),

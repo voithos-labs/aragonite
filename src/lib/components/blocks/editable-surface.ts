@@ -1,11 +1,12 @@
 /**
- * What every contenteditable block and the `editable-leaf` factory share: cross-block wiring,
- * the shared keydown context, the BlockComponent caret methods, the one write to the block's own
- * text, input, composition and clipboard handling. Each block supplies a SurfaceBackend for its own
- * offsets; state that changes is passed as functions, never as captured values.
+ * What every contenteditable block and the `editable-leaf` factory share: cross-block wiring, the
+ * shared keydown context, the BlockComponent caret methods, the element's attributes and its
+ * empty-block hint, the one write to the block's own text, input, composition and clipboard
+ * handling. Each block supplies a SurfaceBackend for its offsets; live state comes as functions.
  */
 
 import { tick } from 'svelte';
+import { createAttachmentKey } from 'svelte/attachments';
 import type {
 	BlockEditActions,
 	ContentWrite,
@@ -79,6 +80,7 @@ import {
 import { assertInvariant } from '../../assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
 import type { Reading } from '../../schema/reading';
+import { createPlaceholderHint, type PlaceholderPolicy } from './placeholder-hint.svelte';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
@@ -98,8 +100,8 @@ function withKeydownVerdict(
 
 // ── Accessibility attributes ────────────────────────────────────────────────
 
-/** What an editable block tells assistive tech: its name, and the inline menu's list while
- *  one shows in it. */
+/** What an editable block tells assistive tech: its name, the inline menu's list while one shows
+ *  in it, and the empty block's hint, which `data-placeholder` also hands the stylesheet. */
 export interface EditableSurfaceAttributes {
 	role: 'textbox' | 'combobox';
 	'aria-label': string;
@@ -107,22 +109,8 @@ export interface EditableSurfaceAttributes {
 	'aria-controls'?: string;
 	'aria-activedescendant'?: string;
 	'aria-autocomplete'?: 'list';
-}
-
-/** The role is `combobox` only while inline menu rows show: `textbox` carries no
- *  `aria-expanded`, so a screen reader would hear nothing about the list. */
-export function editableSurfaceAttributes(
-	node: NodeView,
-	combobox: InlineMenuCombobox | null
-): EditableSurfaceAttributes {
-	return {
-		role: combobox ? 'combobox' : 'textbox',
-		'aria-label': blockAccessibleName(node),
-		'aria-expanded': combobox ? 'true' : undefined,
-		'aria-controls': combobox?.listboxId,
-		'aria-activedescendant': combobox?.activeOptionId,
-		'aria-autocomplete': combobox ? 'list' : undefined
-	};
+	'aria-placeholder'?: string;
+	'data-placeholder'?: string;
 }
 
 /** Applies `pending` only while `el` still holds focus, so a blur before the render drops it
@@ -190,6 +178,8 @@ export interface EditableSurfaceDeps {
 	events: EditorEvents;
 	/** Names a new block kind a typed write made, in the modes that hide markers. */
 	kindCue: KindCue;
+	/** The `placeholder` prop as the editor hands it down, read live. */
+	placeholder: () => PlaceholderPolicy | null;
 	/** A prose block's view of the pair the auto-pair wrote; omitted where nothing pairs. */
 	ownPairs?: BlockAutoPairs;
 
@@ -228,6 +218,11 @@ export interface EditableSurfaceDeps {
 }
 
 export interface EditableSurface {
+	/** Spread on the editable element: its accessibility attributes, the empty block's hint, and
+	 *  the attachment that hint reads focus and composition through. */
+	attributes(combobox: InlineMenuCombobox | null): EditableSurfaceAttributes & {
+		[attachment: symbol]: unknown;
+	};
 	crossBlock: CrossBlockHandlers;
 	sharedCtx: SharedKeydownContext;
 	surface: EditableSurfaceMethods;
@@ -260,6 +255,9 @@ export interface EditableSurface {
 	onCompositionEnd: () => void;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
 	getPreEditOffset(): number;
+	/** A shown source whose edits reach the node only on blur, for the empty-block hint to judge;
+	 *  `read` runs only while the `placeholder` prop is set, and null forgets it as the source folds. */
+	noteShownSource(read: (() => string) | null): void;
 	/** Name the pre-edit caret for an edit the block splices itself rather than the browser. */
 	notePreEditOffset(offset: number): void;
 }
@@ -426,6 +424,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── Input and composition ─────────────────────────────────────────────────
 
+	const placeholder = createPlaceholderHint({
+		policy: deps.placeholder,
+		getNode: deps.getNode,
+		getPath: deps.getMyPath,
+		reading: deps.reading
+	});
+
 	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
 	// its start: Chromium fires the composition's own beforeinput events after that.
 	let preEditOffset = 0;
@@ -540,6 +545,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		heldForComposition = holdInsertion();
 		crossBlock.handleCompositionStart();
 		deps.setComposing(true);
+		placeholder.setComposing(true);
 	}
 
 	function onCompositionEnd(): void {
@@ -548,6 +554,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
 		traceCompositionEnd();
 		deps.setComposing(false);
+		placeholder.setComposing(false);
 		commitDomRead(true);
 		crossBlock.handleCompositionEnd();
 	}
@@ -592,7 +599,28 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		return true;
 	}
 
+	// Taken once: Svelte re-runs an attachment only when the function under its key changes.
+	const trackKey = createAttachmentKey();
+
+	// The role is `combobox` only while inline menu rows show: `textbox` carries no
+	// `aria-expanded`, so a screen reader would hear nothing about the list.
+	function attributes(combobox: InlineMenuCombobox | null) {
+		const hint = placeholder.text() ?? undefined;
+		return {
+			role: combobox ? ('combobox' as const) : ('textbox' as const),
+			'aria-label': blockAccessibleName(deps.getNode()),
+			'aria-expanded': combobox ? ('true' as const) : undefined,
+			'aria-controls': combobox?.listboxId,
+			'aria-activedescendant': combobox?.activeOptionId,
+			'aria-autocomplete': combobox ? ('list' as const) : undefined,
+			'aria-placeholder': hint,
+			'data-placeholder': hint,
+			[trackKey]: placeholder.track
+		};
+	}
+
 	return {
+		attributes,
 		crossBlock,
 		sharedCtx,
 		surface,
@@ -610,6 +638,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		onCompositionStart,
 		onCompositionEnd,
 		getPreEditOffset: () => preEditOffset,
+		noteShownSource: (read) => {
+			if (!read) placeholder.setShownSource(null);
+			else if (deps.placeholder()) placeholder.setShownSource(read());
+		},
 		notePreEditOffset: (offset) => {
 			preEditOffset = offset;
 		}

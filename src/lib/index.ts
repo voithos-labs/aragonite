@@ -9,6 +9,7 @@ export type {
 	EditorProps,
 	EditorInstance,
 	InsertMarkdownOptions,
+	PlaceholderBlock,
 	SyntaxOptions
 } from './editor-props';
 

@@ -20,7 +20,6 @@ import { asRawOffset } from '../../cursor/coordinate-spaces';
 import { createSurfaceBackend } from '../../cursor/surface-backend';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
-	editableSurfaceAttributes,
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
@@ -310,12 +309,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				}
 			});
 			clearSourceHistory();
-			deps.setRevealed?.(true);
+			setRevealed(true);
 		},
 		showRendered: () => {
 			endDraft();
 			clearSourceHistory();
-			deps.setRevealed?.(false);
+			setRevealed(false);
 		}
 	});
 
@@ -373,7 +372,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const edited = deps.getEl()?.textContent ?? sourceText();
 		const open = draft;
 		endDraft();
-		deps.setRevealed!(false);
+		setRevealed(false);
 		// An undo or a `source` swap can put another block at this index before the destroyed
 		// component's blur arrives, so the edit lands only where its draft still can.
 		if (open && !open.canWrite()) return;
@@ -431,6 +430,20 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			el.textContent = text;
 		}
 		anchorTrailingNewline(el);
+		noteShownSource();
+	}
+
+	// Every open and fold goes through here; a folded source is gone, so the hint judges the node.
+	function setRevealed(value: boolean): void {
+		if (!value) editableSurface.noteShownSource(null);
+		deps.setRevealed?.(value);
+	}
+
+	// A shown render-primary source reaches the node only on blur, so the empty-block hint reads it.
+	function noteShownSource(): void {
+		const el = deps.getEl();
+		if (mode === 'render-primary' && el)
+			editableSurface.noteShownSource(() => el.textContent ?? '');
 	}
 
 	function repaintSource(): void {
@@ -611,7 +624,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			) {
 				e.preventDefault();
 				endDraft();
-				deps.setRevealed?.(false);
+				setRevealed(false);
 				await blockEdit.deleteBlock(deps.getIndex(), 'Backspace');
 				return;
 			}
@@ -733,7 +746,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const surfaceHandlers = {
 		tabindex: 0,
 		spellcheck: 'false' as const,
-		oninput: editableSurface.onInput,
+		oninput: () => {
+			editableSurface.onInput();
+			noteShownSource();
+		},
 		onbeforeinput: editableSurface.onBeforeInput,
 		onkeydown: editableSurface.onKeyDown,
 		oncopy: clipboard.onCopy,
@@ -762,7 +778,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// never shown in reading mode, so its `contenteditable` stays true.
 	const buildSurfaceProps = (): EditableLeafSurfaceProps => ({
 		...surfaceHandlers,
-		...editableSurfaceAttributes(deps.getNode(), inlineMenuCombobox(deps.getPath())),
+		...editableSurface.attributes(inlineMenuCombobox(deps.getPath())),
 		contenteditable: mode === 'render-primary' || !isReading() ? 'true' : 'false',
 		[syncKey]: syncAttachment,
 		[parkKey]: parkAttachment

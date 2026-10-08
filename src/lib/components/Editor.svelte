@@ -163,6 +163,7 @@
 		codeMenuItems,
 		header,
 		blockDragHandles = true,
+		placeholder,
 		searchBar = true,
 		searchBarAnchor,
 		selectionToolbar = true,
@@ -230,6 +231,12 @@
 	let doc: Document = $state(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
+	// Read only while the prop is set; a boolean, so a block added to a longer document leaves the
+	// policy, and every block's answer, as it was.
+	const singleBlock = $derived(doc.children.length === 1);
+	const placeholderPolicy = $derived(
+		placeholder === undefined ? null : { hint: placeholder, singleBlock }
+	);
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
@@ -764,6 +771,7 @@
 		imageLoadPolicy: () => imageLoadPolicy,
 		// Reading mode turns the drag handles off through the prop's own getter.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
+		placeholder: () => placeholderPolicy,
 		presentationMode: reading.mode,
 		theme: () => theme,
 		keybindingOverrides: () => overridesMap,
