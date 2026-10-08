@@ -108,8 +108,8 @@ describe('a chord in a cell mutates the table it names', () => {
 		});
 	}
 
-	// A reorder with nowhere to go (the header never moves, and no row or column passes an end)
-	// changes nothing and pushes no undo entry: one Ctrl+Z after it takes back the earlier insert.
+	// A refused reorder pushes no undo entry: a Ctrl+Z after it takes back the earlier insert.
+	// Miss-analysis: the refusal row asserted only the source, so a no-op that still pushed an entry passed.
 	const REFUSED_MOVES: Array<[string, KeyboardEventInit, [number, number]]> = [
 		['Alt+ArrowUp in the header row', { key: 'ArrowUp', altKey: true }, [0, 0]],
 		['Alt+ArrowDown in the header row', { key: 'ArrowDown', altKey: true }, [0, 0]],

@@ -70,7 +70,7 @@ test.describe('table block: typed formation', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('table');
 	});
 
-	test('one undo restores the paragraph byte-for-byte with the caret at its end', async ({
+	test('one undo restores the paragraph with the caret at its end, and Enter completes it again', async ({
 		page
 	}) => {
 		await typeRowAndEnter(editor, page, '| a | b |');
@@ -80,21 +80,15 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals('| a | b |\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 
-		// The undo snapshot anchors where the caret was, not where the completion sent it.
-		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceEquals('| a | b |Z\n');
-	});
-
-	// The restored line is still a header row the completion takes.
-	test('Enter again after the undo completes again', async ({ page }) => {
-		await typeRowAndEnter(editor, page, '| a | b |');
+		// The restored line is still a header row the completion takes.
+		await page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceEquals(COMPLETED);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('| a | b |\n');
-
-		await page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceEquals(COMPLETED);
+		// The undo snapshot anchors where the caret was, not where the completion sent it.
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceEquals('| a | b |Z\n');
 	});
 
 	// The row leaves the shape any tail-block split leaves, so this pins that the completion did
