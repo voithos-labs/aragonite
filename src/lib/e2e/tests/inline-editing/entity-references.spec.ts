@@ -25,17 +25,12 @@ test.describe('inline editing: entity references', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('a &copy; b');
 	});
 
-	for (const [form, sample] of [
-		['decimal', '&#39;'],
-		['hex (lowercase x)', '&#x22;'],
-		['hex (uppercase X)', '&#X22;']
-	]) {
-		test(`${form} numeric entity renders its glyph`, async () => {
-			await editor.typeText(`quote ${sample} here`);
-			await editor.bridge.waitForSourceContains(`quote ${sample} here`);
-			await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(1);
-		});
-	}
+	test('decimal, lowercase-hex and uppercase-hex numeric entities render their glyphs', async () => {
+		await editor.typeText('a &#39; b &#x22; c &#X22; d');
+		await editor.bridge.waitForSourceContains('a &#39; b &#x22; c &#X22; d');
+
+		await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveText(["'", '"', '"']);
+	});
 
 	test('partial entity stays as text and renders its glyph once closed', async () => {
 		await editor.typeText('&am');

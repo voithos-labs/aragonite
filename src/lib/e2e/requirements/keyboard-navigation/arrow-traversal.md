@@ -21,11 +21,6 @@ position rather than logical caret position) that decide when the boundary is re
   of a code block's body moves the caret to the end of the bold paragraph above, and a typed `x`
   goes after its closing `**`. It runs at the top level and inside a quote
 
-## User interactions
-
-- navigate down through multiple blocks: ArrowDown repeatedly, type in final block, verify source
-- navigate up then type: ArrowUp from second block, type at end of first block, verify
-
 ## Miss-analysis
 
 - Both ArrowDown cases pinned the caret to column 0 of the block it reached, which only the

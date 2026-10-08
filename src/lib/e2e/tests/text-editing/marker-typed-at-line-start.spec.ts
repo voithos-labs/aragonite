@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { nextRow } from '../presentation/helpers';
 
 // A marker typed at a line's start turns the block into a container; the key after it must land
 // where the user was typing, at the start of the text the container now holds.
@@ -45,25 +46,29 @@ test.describe('text editing, a marker typed at a line start', () => {
 	});
 
 	async function typeMarkerThenKey(doc: string, path: number[], typed: string): Promise<void> {
-		await editor.loadContent(doc);
+		await nextRow(editor, doc);
 		await editor.focusBlockAtPath(path, 0);
 		await editor.page.keyboard.type(typed);
 		await editor.page.keyboard.type('Q');
 	}
 
-	for (const { shape, typed, expected } of ON_A_PLAIN_LINE) {
-		test(`typing ${shape} marker before \`abcdef\` keeps the caret before the text`, async () => {
-			await typeMarkerThenKey('abcdef\n', [0], typed);
-			await expect.poll(() => editor.bridge.getSource()).toBe(expected);
-		});
-	}
+	test('typing a marker before `abcdef` keeps the caret before the text', async () => {
+		for (const { shape, typed, expected } of ON_A_PLAIN_LINE) {
+			await test.step(shape, async () => {
+				await typeMarkerThenKey('abcdef\n', [0], typed);
+				await expect.poll(() => editor.bridge.getSource()).toBe(expected);
+			});
+		}
+	});
 
-	for (const { shape, doc, path, typed, expected } of IN_CONTEXT) {
-		test(`typing ${shape} keeps the caret before the text`, async () => {
-			await typeMarkerThenKey(doc, path, typed);
-			await expect.poll(() => editor.bridge.getSource()).toBe(expected);
-		});
-	}
+	test('typing a marker in an existing item, under a list or in an item keeps the caret before the text', async () => {
+		for (const { shape, doc, path, typed, expected } of IN_CONTEXT) {
+			await test.step(shape, async () => {
+				await typeMarkerThenKey(doc, path, typed);
+				await expect.poll(() => editor.bridge.getSource()).toBe(expected);
+			});
+		}
+	});
 
 	test('a pasted space completing a bullet keeps the caret before the text', async () => {
 		await editor.loadContent('-abcdef\n');
@@ -76,17 +81,19 @@ test.describe('text editing, a marker typed at a line start', () => {
 	});
 
 	// The range covers `zz` and `yy` across the blank line, so replacing it joins `-` to `abcdef`.
-	for (const gesture of ['type', 'paste'] as const) {
-		test(`a space ${gesture}d over a cross-block range completing a bullet keeps the caret before the text`, async () => {
-			await editor.loadContent('-zz\n\nyyabcdef\n');
-			if (gesture === 'paste') await editor.seedClipboard(' ');
-			await editor.focusBlockAtPath([0], 1);
-			await editor.shiftClickBlock([1], 2);
-			if (gesture === 'paste') await editor.paste();
-			else await editor.page.keyboard.type(' ');
-			await editor.page.keyboard.type('Q');
+	test('a space typed or pasted over a cross-block range completing a bullet keeps the caret before the text', async () => {
+		for (const gesture of ['type', 'paste'] as const) {
+			await test.step(gesture, async () => {
+				await nextRow(editor, '-zz\n\nyyabcdef\n');
+				if (gesture === 'paste') await editor.seedClipboard(' ');
+				await editor.focusBlockAtPath([0], 1);
+				await editor.shiftClickBlock([1], 2);
+				if (gesture === 'paste') await editor.paste();
+				else await editor.page.keyboard.type(' ');
+				await editor.page.keyboard.type('Q');
 
-			await expect.poll(() => editor.bridge.getSource()).toBe('- Qabcdef\n');
-		});
-	}
+				await expect.poll(() => editor.bridge.getSource()).toBe('- Qabcdef\n');
+			});
+		}
+	});
 });

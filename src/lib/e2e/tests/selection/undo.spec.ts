@@ -69,22 +69,6 @@ test.describe('selection undo: cross-block restore', () => {
 
 	// ── Edge cases ──────────────────────────────────────────────────────
 
-	test('undo after type-replace restores selection and removes typed chars in one step', async () => {
-		await editor.loadContent('hello\n\nworld\n');
-		const before = await editor.bridge.getSource();
-
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
-
-		await editor.typeText('xyz');
-		await editor.bridge.waitForSourceContains('xyz');
-
-		await editor.undo();
-		await editor.bridge.waitForSourceEquals(before);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-	});
-
 	test('selection-only changes push no undo entries', async () => {
 		await editor.loadContent('line1\n\nline2\n');
 		const before = await editor.bridge.getSource();

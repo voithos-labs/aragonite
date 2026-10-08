@@ -86,5 +86,8 @@ test.describe('selection: keyboard: edge cases', () => {
 		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		expect(await editor.bridge.getBlockCount()).toBe(3);
+		await expect(
+			editor.page.locator("[data-block-path='[1]'] > .selection-overlay-middle")
+		).toHaveCount(1);
 	});
 });

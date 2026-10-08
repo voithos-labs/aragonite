@@ -12,13 +12,13 @@ text the block reads from the screen.
 
 ## Happy paths
 
-- End then a character, in source and live mode, under a `---`, a `===` and a ten-dash underline: the character joins the title and the underline stays, byte for byte; the block is still a setext heading
+- End then a character, in source mode under a `---` underline: the character joins the title and the underline stays, byte for byte; the block is still a setext heading. The `===` and ten-dash underlines, and both modes, run against the mounted block in `setext-dom-read.test.ts`; live mode's End row is the one in the larger document below
 - Home then a character, in both modes: the character lands before the title and the underline stays
 
 ## Edge cases
 
 - a heading in the middle of a document: the blocks around it and the blank lines between keep their bytes
-- a CRLF document: the title line and the underline keep their CRLF endings
+- a CRLF document: the title line and the underline keep their CRLF endings (`setext-dom-read.test.ts`)
 - a heading inside a list item (`- Plan` over an indented `---`) and inside a quote (`> Plan` over `> ===`): the underline keeps its container prefix
 - one undo after typing puts the title back and leaves the underline where it was
 

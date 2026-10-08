@@ -15,6 +15,7 @@ Boundary, no-op, and degenerate cases for cross-block selection.
 
 - Empty document (single empty paragraph): double Ctrl+A does not crash, source unchanged
 - Thematic break between endpoint blocks: gets whole-block overlay highlight, no crash
+  - Miss-analysis: the row asserted only the block count, so a rule left unpainted under the range passed it
 
 ## Miss-analysis (Sel-F1)
 

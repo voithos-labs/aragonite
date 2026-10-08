@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage, activeBlockPath } from '../plugins/helpers';
+import { nextRow } from '../presentation/helpers';
 
 // An image-only paragraph has no text column but can be entered as an object, so vertical travel
 // stops on it, one keypress each way. The image sits in a details body, so the traversal crosses
@@ -117,37 +118,45 @@ const ENTITY_SHAPES = [
 ];
 
 test.describe('vertical travel past an entity-only paragraph', () => {
-	for (const { label, middle, glyphs } of ENTITY_SHAPES) {
-		test(`${label}: one press in and one out, both directions`, async ({ page }) => {
-			const editor = new EditorPage(page);
-			await editor.goto();
-			await editor.loadContent(surrounded(middle));
-			await expect(page.locator('[data-inline-widget]')).toHaveCount(glyphs);
-			await editor.focusBlockAtPath([2], 3);
+	test('one press in and one out, both directions, for every entity-only shape', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
 
-			expect(await walkAcross(editor, 'ArrowUp', 0)).toEqual({ presses: 2, stops: 1 });
-			expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 2, stops: 1 });
-		});
-	}
+		for (const { label, middle, glyphs } of ENTITY_SHAPES) {
+			await test.step(label, async () => {
+				await nextRow(editor, surrounded(middle));
+				await expect(page.locator('[data-inline-widget]')).toHaveCount(glyphs);
+				await editor.focusBlockAtPath([2], 3);
+
+				expect(await walkAcross(editor, 'ArrowUp', 0)).toEqual({ presses: 2, stops: 1 });
+				expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 2, stops: 1 });
+			});
+		}
+	});
 
 	const STEPPED_SEATS = [
 		{ label: 'past the only glyph', middle: '&copy;' },
 		{ label: 'between two adjacent glyphs', middle: '&copy;&reg;' }
 	];
 
-	for (const { label, middle } of STEPPED_SEATS) {
-		test(`a caret stepped ${label} leaves on one press, either direction`, async ({ page }) => {
-			const editor = new EditorPage(page);
-			await editor.goto();
-			await editor.loadContent(surrounded(middle));
-			// One keypress crosses a whole glyph, so the caret here touches no text node either side.
-			await editor.focusBlockAtPath([MIDDLE], 0);
-			await page.keyboard.press('ArrowRight');
+	test('a caret stepped over a glyph leaves on one press, either direction', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
 
-			expect(await walkAcross(editor, 'ArrowUp', 0)).toEqual({ presses: 1, stops: 0 });
-			await editor.focusBlockAtPath([MIDDLE], 0);
-			await page.keyboard.press('ArrowRight');
-			expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 1, stops: 0 });
-		});
-	}
+		for (const { label, middle } of STEPPED_SEATS) {
+			await test.step(label, async () => {
+				await nextRow(editor, surrounded(middle));
+				// One keypress crosses a whole glyph, so the caret here touches no text node either side.
+				await editor.focusBlockAtPath([MIDDLE], 0);
+				await page.keyboard.press('ArrowRight');
+
+				expect(await walkAcross(editor, 'ArrowUp', 0)).toEqual({ presses: 1, stops: 0 });
+				await editor.focusBlockAtPath([MIDDLE], 0);
+				await page.keyboard.press('ArrowRight');
+				expect(await walkAcross(editor, 'ArrowDown', 2)).toEqual({ presses: 1, stops: 0 });
+			});
+		}
+	});
 });

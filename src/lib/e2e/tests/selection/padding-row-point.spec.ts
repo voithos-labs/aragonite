@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { nextRow } from '../presentation/helpers';
 import { BlockMathPage } from '../plugins/latex-reveal-helpers';
 import { pointAtRaw, pointInGap, pointInTopPadding, type Point } from '../../text-runs';
 
@@ -74,23 +75,26 @@ function expectedSelection(gesture: Gesture, at: Target['at']) {
 }
 
 for (const target of TARGETS) {
-	for (const gesture of ['drag end', 'drag start', 'shift-click', 'click'] as const) {
-		// A range reaching a table from outside it names whole cells, so only a click has a column.
-		if (target.name === 'a table cell' && gesture !== 'click') continue;
-		test(`${gesture} in the top padding of ${target.name} lands at the column below`, async ({
-			page
-		}) => {
-			const editor = new EditorPage(page);
-			await editor.goto('?presentationMode=live');
-			await editor.loadContent(DOC);
+	test(`gestures in the top padding of ${target.name} land at the column below`, async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
+		await editor.goto('?presentationMode=live');
 
-			await perform(editor, gesture, await paddingPoint(page, target));
+		for (const gesture of ['drag end', 'drag start', 'shift-click', 'click'] as const) {
+			// A range reaching a table from outside it names whole cells, so only a click has a column.
+			if (target.name === 'a table cell' && gesture !== 'click') continue;
+			await test.step(gesture, async () => {
+				await nextRow(editor, DOC);
 
-			await expect
-				.poll(() => editor.bridge.getSelectionPaths())
-				.toEqual(expectedSelection(gesture, target.at));
-		});
-	}
+				await perform(editor, gesture, await paddingPoint(page, target));
+
+				await expect
+					.poll(() => editor.bridge.getSelectionPaths())
+					.toEqual(expectedSelection(gesture, target.at));
+			});
+		}
+	});
 }
 
 // A plugin's editable goes through the same press: the revealed `$$` source keeps its own padding.

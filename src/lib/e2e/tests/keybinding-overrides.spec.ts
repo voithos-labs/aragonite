@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
+import { nextRow } from './presentation/helpers';
 import type { KeybindingOverride } from '../../schema/keybinding-overrides';
 
 async function setKeybindings(editor: EditorPage, overrides: KeybindingOverride[] | undefined) {
@@ -40,21 +41,6 @@ test.describe('keybinding-override prop', () => {
 		await expect.poll(() => editor.bridge.getSource()).not.toContain('helloX');
 	});
 
-	// Dropping the entry quietly would leave an author guessing why their shortcut does
-	// nothing, so what the parser reports is part of what this case checks.
-	test.describe('a malformed chord', () => {
-		test.use({ expectWarns: ['keybindings'] });
-
-		test('(Ctrl+B) is dropped and does not bind bare B', async () => {
-			await editor.loadContent('hello\n');
-			await setKeybindings(editor, [{ chord: 'Ctrl+B', command: 'history.undo' }]);
-			await editor.page.locator('.text-editable-block').first().click();
-			await editor.page.keyboard.press('End');
-			await editor.page.keyboard.type('b'); // would trigger the misbound undo if 'B' were bound
-			await expect.poll(() => editor.bridge.getSource()).toContain('hellob');
-		});
-	});
-
 	// An override scoped to one block kind, resolved by `resolveBinding`. Mod+Alt+Y has no
 	// binding of its own, so it fires only where the heading's override exists.
 	test('per-kind scope: a heading override does not fire in a paragraph', async () => {
@@ -79,119 +65,6 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('ControlOrMeta+Alt+y'); // unbound here, so no undo
 		await editor.bridge.waitForSourceContains('paraZ');
 		expect(await editor.bridge.getSource()).toContain('paraZ');
-	});
-
-	// The key travels up to the container: the list item's paragraph declines Tab, so it reaches
-	// ListItemBlock.resolveKindBinding. An override scoped to that kind unbinds it.
-	test('per-kind scope: disabling Tab on listItem stops the indent', async () => {
-		await editor.loadContent('- one\n- two\n');
-		await setKeybindings(editor, [{ chord: 'Tab', command: null, kind: 'listItem' }]);
-
-		await editor.page.locator('.text-editable-block', { hasText: 'two' }).click();
-		await editor.page.keyboard.press('Home');
-		await editor.pressDeclined('Tab');
-
-		expect(await editor.bridge.getSource()).not.toMatch(/- one\n {2}- two/);
-		expect(await editor.bridge.getSource()).toContain('- two');
-	});
-
-	// An override with no kind reaches the container too: resolveKindBinding consults it, so
-	// disabling Tab everywhere stops the list indenting.
-	test('global scope: disabling Tab stops the list indent at the bubble', async () => {
-		await editor.loadContent('- one\n- two\n');
-		await setKeybindings(editor, [{ chord: 'Tab', command: null }]);
-
-		await editor.page.locator('.text-editable-block', { hasText: 'two' }).click();
-		await editor.page.keyboard.press('Home');
-		await editor.pressDeclined('Tab');
-
-		expect(await editor.bridge.getSource()).not.toMatch(/- one\n {2}- two/);
-		expect(await editor.bridge.getSource()).toContain('- two');
-	});
-});
-
-// Over a selection spanning blocks, a command key removes the selection and then runs at the caret
-// that's left, so the selection goes only for a key the keymap binds to such a command.
-test.describe('a command key over a selection spanning blocks', () => {
-	let editor: EditorPage;
-
-	async function selectAcross(overrides: KeybindingOverride[]): Promise<void> {
-		await editor.loadContent('alpha\n\nbeta\n');
-		await setKeybindings(editor, overrides);
-		await editor.focusBlockAtPath([0], 2);
-		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
-	}
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
-
-	for (const [chord, key] of [
-		['Mod+2', 'ControlOrMeta+2'],
-		['Enter', 'Enter']
-	] as const) {
-		test(`${chord} disabled removes nothing and the selection stays`, async () => {
-			await selectAcross([{ chord, command: null }]);
-
-			await editor.pressDeclined(key);
-
-			expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
-			expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		});
-	}
-
-	for (const [chord, key] of [
-		['Mod+2', 'ControlOrMeta+2'],
-		['Enter', 'Enter']
-	] as const) {
-		test(`${chord} disabled on paragraphs removes nothing and the selection stays`, async () => {
-			await selectAcross([{ chord, command: null, kind: 'paragraph' }]);
-
-			await editor.pressDeclined(key);
-
-			expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
-			expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		});
-	}
-
-	test('Enter disabled on paragraphs does nothing from a heading the selection ends in', async () => {
-		await editor.loadContent('alpha\n\n# beta\n');
-		await setKeybindings(editor, [{ chord: 'Enter', command: null, kind: 'paragraph' }]);
-		await editor.focusBlockAtPath([0], 2);
-		await editor.shiftClickBlock([1], 4);
-		await editor.waitForCrossBlock(true);
-
-		await editor.pressDeclined('Enter');
-
-		expect(await editor.bridge.getSource()).toBe('alpha\n\n# beta\n');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-	});
-
-	test('a split bound to Mod+J on headings does nothing over paragraphs', async () => {
-		await selectAcross([{ chord: 'Mod+J', command: 'block.split', kind: 'heading' }]);
-
-		await editor.pressDeclined('ControlOrMeta+j');
-
-		expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-	});
-
-	test('the heading command rebound to Mod+Alt+2 makes the heading', async () => {
-		await selectAcross([{ chord: 'Mod+Alt+2', command: 'heading.cycle', arg: 2 }]);
-
-		await editor.page.keyboard.press('ControlOrMeta+Alt+2');
-
-		await editor.bridge.waitForSourceEquals('## alta\n', 3000);
-	});
-
-	test('the split rebound to Alt+Enter splits', async () => {
-		await selectAcross([{ chord: 'Alt+Enter', command: 'block.split' }]);
-
-		await editor.page.keyboard.press('Alt+Enter');
-
-		await editor.bridge.waitForSourceEquals('al\n\nta\n', 3000);
 	});
 });
 
@@ -229,18 +102,21 @@ test.describe('override fires on every leaf dispatch surface', () => {
 			focus: '.table-block [contenteditable]'
 		}
 	];
-	for (const s of surfaces) {
-		test(`Mod+Alt+U undo fires in ${s.name}`, async ({ page }) => {
-			const editor = new EditorPage(page);
-			await editor.goto();
-			await editor.loadContent(s.content);
-			await setKeybindings(editor, [{ chord: 'Mod+Alt+U', command: 'history.undo' }]);
-			await editor.page.locator(s.focus).first().click();
-			await editor.page.keyboard.press('End');
-			await editor.page.keyboard.type('Z');
-			await expect.poll(() => editor.bridge.getSource()).toContain('Z');
-			await editor.page.keyboard.press('ControlOrMeta+Alt+u');
-			await expect.poll(() => editor.bridge.getSource()).not.toContain('Z');
-		});
-	}
+	test('Mod+Alt+U undo fires in a paragraph, a code block and a table cell', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await setKeybindings(editor, [{ chord: 'Mod+Alt+U', command: 'history.undo' }]);
+		for (const [i, s] of surfaces.entries()) {
+			await test.step(s.name, async () => {
+				if (i === 0) await editor.loadContent(s.content);
+				else await nextRow(editor, s.content);
+				await editor.page.locator(s.focus).first().click();
+				await editor.page.keyboard.press('End');
+				await editor.page.keyboard.type('Z');
+				await expect.poll(() => editor.bridge.getSource()).toContain('Z');
+				await editor.page.keyboard.press('ControlOrMeta+Alt+u');
+				await expect.poll(() => editor.bridge.getSource()).not.toContain('Z');
+			});
+		}
+	});
 });

@@ -74,6 +74,24 @@ describe('the runCommand entry point over a selection', () => {
 		expect(undoStack()).toHaveLength(0);
 	});
 
+	// Miss-analysis: the decline was pinned only against a stubbed gate, so no test ran it through
+	// the Editor's own range state.
+	it('the link editor over a range spanning blocks declines, byte-unchanged', async () => {
+		mounted = mountEditor({ source: 'alpha\n\nbeta\n' });
+		await mounted.instance.setSelection({
+			anchor: { path: [0], offset: 3 },
+			focus: { path: [1], offset: 2 }
+		});
+		await mounted.settle();
+
+		expect(mounted.instance.runCommand('link.openCard')).toBe(false);
+		await mounted.settle();
+
+		expect(mounted.source()).toBe('alpha\n\nbeta\n');
+		expect(undoStack()).toHaveLength(0);
+		expect(mounted.instance.runCommand(TOOLBAR_COMMANDS.toggleStrong)).toBe(true);
+	});
+
 	it('a block-local id declines with focus outside the editor; undo still reaches the dispatch', async () => {
 		mounted = mountEditor({ source: SOURCE });
 		selectInFirstBlock(0, 5);

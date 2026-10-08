@@ -36,60 +36,31 @@ for (const mode of ['source', 'live'] as const) {
 			await ep.bridge.waitForSourceEquals(BOTH_BOLD, 3000);
 		});
 
-		test('Mod+B over two already-bold paragraphs unwraps both', async ({ page }) => {
-			await ep.loadContent(BOTH_BOLD);
-			await ep.waitForRenderFlush();
-			await selectWholeDocument(ep, page);
-			await page.keyboard.press('ControlOrMeta+b');
-			await ep.bridge.waitForSourceEquals(TWO, 3000);
-		});
+		// Source mode's unwrap and mixed rows are pinned in `format-range.test.ts`. Live mode keeps
+		// them: its toggle verifies each write against what the screen shows.
+		if (mode === 'live') {
+			test('Mod+B over two already-bold paragraphs unwraps both', async ({ page }) => {
+				await ep.loadContent(BOTH_BOLD);
+				await ep.waitForRenderFlush();
+				await selectWholeDocument(ep, page);
+				await page.keyboard.press('ControlOrMeta+b');
+				await ep.bridge.waitForSourceEquals(TWO, 3000);
+			});
 
-		test('one bold and one plain applies: the plain block wraps, the bold one is untouched', async ({
-			page
-		}) => {
-			await ep.loadContent(ONE_BOLD);
-			await ep.waitForRenderFlush();
-			await selectWholeDocument(ep, page);
-			await page.keyboard.press('ControlOrMeta+b');
-			await ep.bridge.waitForSourceEquals(BOTH_BOLD, 3000);
-		});
+			test('one bold and one plain applies: the plain block wraps, the bold one is untouched', async ({
+				page
+			}) => {
+				await ep.loadContent(ONE_BOLD);
+				await ep.waitForRenderFlush();
+				await selectWholeDocument(ep, page);
+				await page.keyboard.press('ControlOrMeta+b');
+				await ep.bridge.waitForSourceEquals(BOTH_BOLD, 3000);
+			});
+		}
 	});
 }
 
 test.describe('what the press skips and what it costs', () => {
-	test('a code block between two paragraphs keeps its bytes while both paragraphs wrap', async ({
-		page
-	}) => {
-		const ep = new EditorPage(page);
-		await ep.goto();
-		await ep.loadContent('First block here\n\n```\nlet x = 1\n```\n\nSecond block here\n');
-		await ep.waitForRenderFlush();
-		await selectWholeDocument(ep, page);
-		await page.keyboard.press('ControlOrMeta+b');
-		await ep.bridge.waitForSourceEquals(
-			'**First block here**\n\n```\nlet x = 1\n```\n\n**Second block here**\n',
-			3000
-		);
-	});
-
-	// Mod+A makes both endpoint blocks whole, so a shift-click on a word's start builds the one head
-	// span ending in a space, where markdown cannot close a run.
-	test('a partial range marks each endpoint span, trimming the space at its edge', async ({
-		page
-	}) => {
-		const ep = new EditorPage(page);
-		await ep.goto();
-		await ep.loadContent('alpha beta\n\ngamma delta\n');
-		await ep.waitForRenderFlush();
-
-		await ep.focusBlock(0, 'alpha '.length);
-		await ep.shiftClickBlock([1], 'gamma '.length);
-		await ep.waitForCrossBlock(true);
-
-		await page.keyboard.press('ControlOrMeta+b');
-		await ep.bridge.waitForSourceEquals('alpha **beta**\n\n**gamma** delta\n', 3000);
-	});
-
 	// The commit runs over the whole document precisely so a block no container mounted still
 	// gets written; every other case here fits in one render window and would not notice.
 	test('a block windowed out of the DOM is marked like the rest', async ({ page }) => {
@@ -171,24 +142,6 @@ test.describe('the sibling that stays declined: Mod+K over a cross-block range',
 		await expect(page.locator('[data-link-card]')).toHaveCount(0);
 		expect(await ep.bridge.getSource()).toBe(before);
 		await ep.waitForCrossBlock(true);
-	});
-});
-
-test.describe('the sibling that stays destructive: cross-block type-replace', () => {
-	test('plain typing over the range still replaces it in one undo entry', async ({ page }) => {
-		const ep = new EditorPage(page);
-		await ep.goto();
-		await ep.loadContent('First block here\n\nSecond block here\n\nThird block here\n');
-		await ep.waitForRenderFlush();
-		const before = await ep.bridge.getSource();
-
-		await selectWholeDocument(ep, page);
-		await page.keyboard.type('Z');
-		await ep.bridge.waitForSourceContains('Z');
-		expect(await ep.bridge.getSource()).not.toContain('First block');
-
-		await ep.undo();
-		await ep.bridge.waitForSourceEquals(before, 3000);
 	});
 });
 

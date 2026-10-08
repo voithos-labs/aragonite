@@ -9,7 +9,7 @@ User actions that clear the captured sticky column. Anything other than plain or
 - A host `setSelection` resets sticky column: the next ArrowDown captures from the placed caret X
   - Miss-analysis: every reset case was a key or a pointer gesture, and the restore every
     programmatic placement shares had no caller-level test, so it kept a column a click drops
-- ArrowLeft resets sticky column: the next ArrowDown captures from the post-left caret X
+- ArrowLeft resets sticky column: the next ArrowDown captures from the post-left caret X (the key table in `sticky-column-matrix.test.ts` and the memory's `ArrowLeft` row in `caret-memory.test.ts` pin it; ArrowRight below drives the same keydown path in a browser)
 - ArrowRight resets sticky column: the next ArrowDown captures from the post-right caret X
 - End resets sticky column: the next ArrowDown captures from the end-of-line caret X
 - Enter (structural split) resets sticky column: the next ArrowDown captures from the post-split caret X

@@ -3,53 +3,35 @@ import { EditorPage } from '../editor-page';
 import { DEFAULT_CONTENT } from '../test-content';
 
 test.describe('editor smoke tests', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
+	test('the editor mounts, the bridge answers, and loadContent replaces the document', async ({
+		page
+	}) => {
+		const editor = new EditorPage(page);
 		await editor.goto();
-	});
 
-	test('editor container is visible after goto', async () => {
-		await expect(editor.editorContainer).toBeVisible();
-	});
+		await test.step('the container is visible and the bridge reads a document', async () => {
+			await expect(editor.editorContainer).toBeVisible();
+			expect((await editor.bridge.getSource()).length).toBeGreaterThan(0);
+		});
 
-	test('test bridge is functional: getSource returns non-empty string', async () => {
-		const source = await editor.bridge.getSource();
-		expect(source.length).toBeGreaterThan(0);
-	});
+		await test.step('a second loadContent fully replaces the first', async () => {
+			await editor.loadContent('# First load\n\nNew content here.\n');
+			expect(await editor.bridge.getSource()).toContain('First load');
 
-	test('loadContent replaces document', async () => {
-		const custom = '# Replaced\n\nNew content here.\n';
-		await editor.loadContent(custom);
+			await editor.loadContent('# Second load\n');
+			const source = await editor.bridge.getSource();
+			expect(source).toContain('Second load');
+			expect(source).not.toContain('First load');
+		});
 
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Replaced');
-		expect(source).toContain('New content here.');
-	});
+		await test.step('many blocks load as many blocks', async () => {
+			await editor.loadContent(DEFAULT_CONTENT);
+			expect(await editor.bridge.getBlockCount()).toBeGreaterThanOrEqual(10);
+		});
 
-	test('loadContent with multiple blocks yields correct block count', async () => {
-		await editor.loadContent(DEFAULT_CONTENT);
-
-		const count = await editor.bridge.getBlockCount();
-		expect(count).toBeGreaterThanOrEqual(10);
-	});
-
-	test('empty document produces at least 1 editable block', async () => {
-		await editor.loadContent('');
-
-		const domCount = await editor.getDomBlockCount();
-		expect(domCount).toBeGreaterThanOrEqual(1);
-	});
-
-	test('loadContent called twice: second call fully replaces first', async () => {
-		await editor.loadContent('# First load\n');
-		const afterFirst = await editor.bridge.getSource();
-		expect(afterFirst).toContain('First load');
-
-		await editor.loadContent('# Second load\n');
-		const afterSecond = await editor.bridge.getSource();
-		expect(afterSecond).toContain('Second load');
-		expect(afterSecond).not.toContain('First load');
+		await test.step('an empty document still renders one editable block', async () => {
+			await editor.loadContent('');
+			expect(await editor.getDomBlockCount()).toBeGreaterThanOrEqual(1);
+		});
 	});
 });

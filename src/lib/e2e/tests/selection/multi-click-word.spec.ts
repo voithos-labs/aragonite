@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { nativeSelectionText, pastLineEnd } from './multi-click-helpers';
 import { textRunCenter } from '../../text-runs';
+import { nextRow } from '../presentation/helpers';
 
 // The word level of the click order (`requirements/selection/multi-click-word.md`), driven with
 // real double-clicks on the plugins page so a rendered formula stands beside the word.
@@ -19,48 +20,45 @@ test.describe('multi-click: the word inline syntax handler', () => {
 		await editor.page.mouse.dblclick(at.x, at.y);
 	}
 
-	for (const mode of ['source', 'live'] as const) {
-		test(`${mode}: a word before an inline formula is taken alone`, async ({ page }) => {
-			await editor.loadContent('word $x^2$ after\n');
-			await editor.setPresentationMode(mode);
-			await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
-			await doubleClickOn('word');
-			await expect.poll(() => nativeSelectionText(page)).toBe('word');
-		});
-
-		test(`${mode}: a word before an entity glyph drops its trailing space`, async ({ page }) => {
-			await editor.loadContent('a word &copy; after\n');
-			await editor.setPresentationMode(mode);
-			await doubleClickOn('word');
-			await expect.poll(() => nativeSelectionText(page)).toBe('word');
-		});
+	/** Loads `doc` and double-clicks `needle`, expecting `word` and nothing beside it. */
+	async function wordAt(doc: string, needle: string, word: string): Promise<void> {
+		await nextRow(editor, doc);
+		await doubleClickOn(needle);
+		await expect.poll(() => nativeSelectionText(editor.page)).toBe(word);
 	}
 
-	test('live: the markers around a word never join it', async ({ page }) => {
-		await editor.loadContent('some _ital_ words\n');
-		await editor.setPresentationMode('live');
-		await doubleClickOn('ital');
-		await expect.poll(() => nativeSelectionText(page)).toBe('ital');
-	});
+	for (const mode of ['source', 'live'] as const) {
+		test(`${mode}: a double-click takes the word alone`, async ({ page }) => {
+			await editor.setPresentationMode(mode);
 
-	test('a word in a table cell is taken alone', async ({ page }) => {
-		await editor.loadContent('| a | b |\n| --- | --- |\n| one two | c |\n');
-		await doubleClickOn('two');
-		await expect.poll(() => nativeSelectionText(page)).toBe('two');
-	});
+			await test.step('before an inline formula', async () => {
+				await nextRow(editor, 'word $x^2$ after\n');
+				await expect(page.locator('[data-inline-widget]')).toHaveCount(1);
+				await doubleClickOn('word');
+				await expect.poll(() => nativeSelectionText(page)).toBe('word');
+			});
 
-	test("a word in a code block's body is taken alone", async ({ page }) => {
-		await editor.loadContent('```\nconst value = 1\n```\n');
-		await doubleClickOn('value');
-		await expect.poll(() => nativeSelectionText(page)).toBe('value');
-	});
+			await test.step('before an entity glyph, dropping its trailing space', async () => {
+				await wordAt('a word &copy; after\n', 'word', 'word');
+			});
 
-	test('a double-click past the end of a line takes its last word', async ({ page }) => {
-		await editor.loadContent('alpha beta gamma\n');
-		const at = await pastLineEnd(page, 'gamma');
-		await page.mouse.dblclick(at.x, at.y);
-		await expect.poll(() => nativeSelectionText(page)).toBe('gamma');
-	});
+			if (mode === 'live') {
+				await test.step('the markers around a word never join it', async () => {
+					await wordAt('some _ital_ words\n', 'ital', 'ital');
+				});
+			} else {
+				await test.step('a word in a table cell, a code block and past a line end', async () => {
+					await wordAt('| a | b |\n| --- | --- |\n| one two | c |\n', 'two', 'two');
+					await wordAt('```\nconst value = 1\n```\n', 'value', 'value');
+
+					await nextRow(editor, 'alpha beta gamma\n');
+					const at = await pastLineEnd(page, 'gamma');
+					await page.mouse.dblclick(at.x, at.y);
+					await expect.poll(() => nativeSelectionText(page)).toBe('gamma');
+				});
+			}
+		});
+	}
 
 	test('typing over the word replaces it and nothing else', async ({ page }) => {
 		await editor.loadContent('alpha beta gamma\n');

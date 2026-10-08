@@ -14,13 +14,13 @@ never asked about.
 
 ## Happy paths
 
-- End then Backspace until the title is gone, in source and live mode, under a `===`, a `---` and a ten-dash underline: the heading becomes an empty paragraph and the underline goes with it (`Plan\n===\n\nnext\n` becomes `\nnext\n`, two paragraphs and no divider); the caret stays in the empty paragraph
 - on `Plan\n---\n\nnext\n`, in both modes, each edit that empties the title leaves no divider, puts the caret in what is left, and one undo puts the title and its underline back as a setext heading:
   - End then Backspace until the title is gone: `\nnext\n`, the caret at the start of the empty paragraph
   - Home, a shift-click at the end of `next`, then Backspace: `\n`, one empty paragraph with the caret in it
   - End, Shift+Home, then Ctrl+X: `\nnext\n`, the caret at the start of the empty paragraph
   - End, Shift+Home, then pasting a single space: ` \nnext\n`, the caret after the space
   - a double-click on the title, then dragging it to the start of `next`: `\nPlannext\n`, the caret after the dropped `Plan`
+- under a `===` and a ten-dash underline, End then Backspace until the title is gone leaves an empty paragraph and no underline too. Those run against the mounted editor in `setext-dom-read.test.ts`, in both modes, which empties the title the way those keys leave it
 
 ## Edge cases
 

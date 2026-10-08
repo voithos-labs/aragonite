@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { nextRow } from '../presentation/helpers';
 import { attachIme } from '../../simulation/ime';
 import { pointAtRaw, pointInTopPadding, type Point } from '../../text-runs';
 
@@ -63,89 +64,104 @@ async function multiClick(editor: EditorPage, point: Point, clickCount: number) 
 }
 
 for (const target of TARGETS) {
-	for (const [clicks, name] of [
-		[2, 'double-click'],
-		[3, 'triple-click']
-	] as const) {
-		test(`a ${name} in the top padding of ${target.name} selects what it does on the line`, async ({
-			page
-		}) => {
-			const editor = await open(page);
-			const { line, padding } = await paddingAbove(page, target);
-			const onLine = await multiClick(editor, line, clicks);
-			await editor.focusBlockEnd(0);
-
-			expect(await multiClick(editor, padding, clicks)).toEqual(onLine);
-		});
-	}
-
-	test(`a drag from the top padding of ${target.name} selects from the column below`, async ({
-		page
-	}) => {
+	test(`gestures that start in the top padding of ${target.name} still work`, async ({ page }) => {
 		const editor = await open(page);
-		const { padding } = await paddingAbove(page, target);
-		const end = await pointAtRaw(page, target.path, target.to);
 
-		await page.mouse.move(padding.x, padding.y);
-		await page.mouse.down();
-		await page.mouse.move(end.x, end.y, { steps: 8 });
-		await page.mouse.up();
+		for (const [clicks, name] of [
+			[2, 'double-click'],
+			[3, 'triple-click']
+		] as const) {
+			await test.step(`a ${name} selects what it does on the line`, async () => {
+				await nextRow(editor, DOC);
+				const { line, padding } = await paddingAbove(page, target);
+				const onLine = await multiClick(editor, line, clicks);
+				await editor.focusBlockEnd(0);
 
-		await expect
-			.poll(() => editor.bridge.getSelectionPaths())
-			.toEqual({
-				anchor: { path: target.path, offset: target.at },
-				focus: { path: target.path, offset: target.to }
+				expect(await multiClick(editor, padding, clicks)).toEqual(onLine);
 			});
-	});
+		}
 
-	test(`composing after a click in the top padding of ${target.name} writes at the column`, async ({
-		page
-	}) => {
-		const editor = await open(page);
-		const { padding } = await paddingAbove(page, target);
-		const ime = await attachIme(page);
+		await test.step('a drag selects from the column below', async () => {
+			await nextRow(editor, DOC);
+			const { padding } = await paddingAbove(page, target);
+			const end = await pointAtRaw(page, target.path, target.to);
 
-		await page.mouse.click(padding.x, padding.y);
-		await ime.compose('あ');
-		await ime.commit('あ');
+			await page.mouse.move(padding.x, padding.y);
+			await page.mouse.down();
+			await page.mouse.move(end.x, end.y, { steps: 8 });
+			await page.mouse.up();
 
-		await expect.poll(() => editor.bridge.getSource()).toContain(target.typed.replace('Z', 'あ'));
+			await expect
+				.poll(() => editor.bridge.getSelectionPaths())
+				.toEqual({
+					anchor: { path: target.path, offset: target.at },
+					focus: { path: target.path, offset: target.to }
+				});
+		});
+
+		await test.step('a right-click leaves the caret at the column', async () => {
+			await nextRow(editor, DOC);
+			const { padding } = await paddingAbove(page, target);
+
+			await page.mouse.click(padding.x, padding.y, { button: 'right' });
+			await expect(page.getByRole('menu')).toBeVisible();
+			await page.keyboard.press('Escape');
+			await expect(page.getByRole('menu')).toHaveCount(0);
+			await page.keyboard.type('Z');
+
+			await expect.poll(() => editor.bridge.getSource()).toContain(target.typed);
+		});
+
+		await test.step('composing after a click writes at the column', async () => {
+			await nextRow(editor, DOC);
+			const { padding } = await paddingAbove(page, target);
+			const ime = await attachIme(page);
+
+			await page.mouse.click(padding.x, padding.y);
+			await ime.compose('あ');
+			await ime.commit('あ');
+
+			await expect.poll(() => editor.bridge.getSource()).toContain(target.typed.replace('Z', 'あ'));
+		});
 	});
 }
 
 // A right-click moves the caret before its menu opens, as a click would; Escape keeps it there.
-for (const target of [...TARGETS, CELL]) {
-	test(`a right-click in the top padding of ${target.name} leaves the caret at the column`, async ({
-		page
-	}) => {
-		const editor = await open(page);
-		const { padding } = await paddingAbove(page, target);
+test('a right-click in the top padding of a table cell leaves the caret at the column', async ({
+	page
+}) => {
+	const editor = await open(page);
+	const { padding } = await paddingAbove(page, CELL);
 
-		await page.mouse.click(padding.x, padding.y, { button: 'right' });
-		await expect(page.getByRole('menu')).toBeVisible();
-		await page.keyboard.press('Escape');
-		await expect(page.getByRole('menu')).toHaveCount(0);
-		await page.keyboard.type('Z');
+	await page.mouse.click(padding.x, padding.y, { button: 'right' });
+	await expect(page.getByRole('menu')).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('menu')).toHaveCount(0);
+	await page.keyboard.type('Z');
 
-		await expect.poll(() => editor.bridge.getSource()).toContain(target.typed);
-	});
-}
+	await expect.poll(() => editor.bridge.getSource()).toContain(CELL.typed);
+});
 
 test.describe('a tap', () => {
 	test.use({ hasTouch: true });
 
-	for (const target of TARGETS) {
-		test(`a tap in the top padding of ${target.name} lands at the column below`, async ({
-			page
-		}) => {
-			const editor = await open(page);
-			const { padding } = await paddingAbove(page, target);
+	test('in the top padding of a code block and a paragraph lands at the column below', async ({
+		page
+	}) => {
+		const editor = await open(page);
 
-			await page.touchscreen.tap(padding.x, padding.y);
+		for (const target of TARGETS) {
+			await test.step(target.name, async () => {
+				await nextRow(editor, DOC);
+				const { padding } = await paddingAbove(page, target);
 
-			const at = { path: target.path, offset: target.at };
-			await expect.poll(() => editor.bridge.getSelectionPaths()).toEqual({ anchor: at, focus: at });
-		});
-	}
+				await page.touchscreen.tap(padding.x, padding.y);
+
+				const at = { path: target.path, offset: target.at };
+				await expect
+					.poll(() => editor.bridge.getSelectionPaths())
+					.toEqual({ anchor: at, focus: at });
+			});
+		}
+	});
 });

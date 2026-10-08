@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { nextRow } from '../presentation/helpers';
 
 // The selection wash is translucent, so two painted rects that share pixels show it twice as
 // dark. Every painter is read off the page: the overlay's rects, any element or `::after` filled
@@ -116,61 +117,50 @@ const RANGES: [string, string, number[], number, number[], number][] = [
 ];
 
 for (const mode of ['source', 'live'] as const) {
-	test.describe(`selection: overlay: no two painted rects overlap (${mode})`, () => {
-		let editor: EditorPage;
+	test(`selection: overlay: no two painted rects overlap (${mode})`, async ({ page }) => {
+		// Narrow enough that the long paragraphs wrap.
+		await page.setViewportSize({ width: 760, height: 1000 });
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.setPresentationMode(mode);
 
-		test.beforeEach(async ({ page }) => {
-			// Narrow enough that the long paragraphs wrap.
-			await page.setViewportSize({ width: 760, height: 1000 });
-			editor = new EditorPage(page);
-			await editor.goto();
-			await editor.setPresentationMode(mode);
-		});
+		/** Loads `doc` for the next step, with no range left over from the one before. */
+		const load = async (doc: string): Promise<void> => {
+			await nextRow(editor, doc);
+			await editor.waitForCrossBlock(false);
+		};
+
+		const expectClean = async (): Promise<void> => {
+			const painted = await paintedHighlights(page);
+			expect(painted.length).toBeGreaterThan(1);
+			expect(overlaps(painted)).toEqual([]);
+		};
 
 		for (const [name, doc, anchorPath, anchorOffset, focusPath, focusOffset] of RANGES) {
-			test(name, async ({ page }) => {
-				await editor.loadContent(doc);
+			await test.step(name, async () => {
+				await load(doc);
 				await editor.focusBlockAtPath(anchorPath, anchorOffset);
 				await editor.shiftClickBlock(focusPath, focusOffset);
 				await editor.waitForCrossBlock(true);
 
-				const painted = await paintedHighlights(page);
-				expect(painted.length).toBeGreaterThan(1);
-				expect(overlaps(painted)).toEqual([]);
+				await expectClean();
 			});
 		}
 
-		test('a range ending in a table cell', async ({ page }) => {
-			await editor.loadContent(TABLE);
+		await test.step('a range ending in a table cell', async () => {
+			await load(TABLE);
 			await editor.focusBlockAtPath([0], 5);
 			await page.keyboard.down('Shift');
 			await page.locator('.table-cell').nth(4).click();
 			await page.keyboard.up('Shift');
 			await editor.waitForCrossBlock(true);
 
-			const painted = await paintedHighlights(page);
-			expect(painted.length).toBeGreaterThan(1);
-			expect(overlaps(painted)).toEqual([]);
-		});
-
-		// A line-height under the glyphs' own height makes each row's text box reach into the next.
-		test('wrapped rows set tight enough to touch', async ({ page }) => {
-			await editor.loadContent(KINDS);
-			await page.addStyleTag({
-				content: '.editor [contenteditable="true"] { line-height: 1 !important; }'
-			});
-			await editor.focusBlockAtPath([1], 30);
-			await editor.shiftClickBlock([3, 0], 6);
-			await editor.waitForCrossBlock(true);
-
-			const painted = await paintedHighlights(page);
-			expect(painted.length).toBeGreaterThan(1);
-			expect(overlaps(painted)).toEqual([]);
+			await expectClean();
 		});
 
 		// A drag inside the rule holds it whole (one box); the range then grows past it.
-		test('a range grown out of a rule held whole', async ({ page }) => {
-			await editor.loadContent(RULE);
+		await test.step('a range grown out of a rule held whole', async () => {
+			await load(RULE);
 			const rule = (await page.locator('.thematic-break-block').boundingBox())!;
 			const y = rule.y + rule.height / 2;
 			await page.mouse.move(rule.x + 8, y);
@@ -187,9 +177,21 @@ for (const mode of ['source', 'live'] as const) {
 				anchor: { path: [1], offset: 0 },
 				focus: { path: [2], offset: 9 }
 			});
-			const painted = await paintedHighlights(page);
-			expect(painted.length).toBeGreaterThan(1);
-			expect(overlaps(painted)).toEqual([]);
+			await expectClean();
+		});
+
+		// A line-height under the glyphs' own height makes each row's text box reach into the next.
+		// Last, since the style stays on the page.
+		await test.step('wrapped rows set tight enough to touch', async () => {
+			await load(KINDS);
+			await page.addStyleTag({
+				content: '.editor [contenteditable="true"] { line-height: 1 !important; }'
+			});
+			await editor.focusBlockAtPath([1], 30);
+			await editor.shiftClickBlock([3, 0], 6);
+			await editor.waitForCrossBlock(true);
+
+			await expectClean();
 		});
 	});
 }

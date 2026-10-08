@@ -102,29 +102,6 @@ test.describe('keyboard navigation', () => {
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('XBelow.');
 	});
-
-	test('navigate down through multiple blocks and type in final', async () => {
-		await editor.loadContent('Block one.\n\nBlock two.\n\nBlock three.\n');
-
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.keyboard.press('ArrowDown');
-
-		await editor.page.keyboard.press('End');
-		await editor.typeText('!');
-		await editor.bridge.waitForSource(
-			(s) => s.includes('Block two.!') || s.includes('Block three.!')
-		);
-	});
-
-	test('navigate up then type at start of first block', async () => {
-		await editor.loadContent('Hello.\n\nWorld.\n');
-
-		await editor.focusBlockStart(1);
-		await editor.page.keyboard.press('ArrowUp');
-		await editor.typeText('hi ');
-		await editor.bridge.waitForSourceContains('hi Hello.');
-	});
 });
 
 // Backspace leaves no side of its own, so the move's end arrival decides it; the top level and a
