@@ -16,9 +16,11 @@ const PROD_PORT = OWN_PORT ? OWN_PORT + 1 : ISOLATED ? 1431 : 1421;
 // `server-warn-reporter` fail a run on an SSR-side `[aragonite:` guard fire. Stderr already pipes.
 const devServer = {
 	// `vite.config.js` pins the default port with `strictPort`, so isolation must move it on
-	// the command line — Playwright's `port` only says where to wait.
+	// the command line — Playwright's `url` only says where to wait.
 	command: ISOLATED ? `npm run dev -- --port ${DEV_PORT} --strictPort` : 'npm run dev',
-	port: DEV_PORT,
+	// An HTTP check, not a port probe: Vite's own port probe races Playwright's and a run could
+	// get ERR_CONNECTION_REFUSED mid-battery.
+	url: `http://localhost:${DEV_PORT}/test/editor`,
 	reuseExistingServer: !ISOLATED,
 	stdout: 'pipe' as const,
 	timeout: 15_000
