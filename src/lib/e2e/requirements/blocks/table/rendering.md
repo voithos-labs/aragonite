@@ -4,7 +4,7 @@
 
 - A simple table loads and renders as a grid: each row appears as a row of cells, each cell is its own contenteditable.
 - The table has `role="table"`; rows have `role="row"`; header-row cells have `role="columnheader"` and body cells `role="cell"`.
-- Clicking inside a cell focuses that cell and places the cursor in it.
+- Clicking inside a cell focuses that cell and places the cursor in it (the click-driven rows in `e2e/tests/blocks/table/navigation.spec.ts` start this way and need the focus to move).
 - Header row content shows; alignments parsed and stored in metadata (visible via `__test.dumpTree`).
 - Column alignment metadata (`left` / `center` / `right`) is applied to each cell in that column as `text-align`, including cells whose source has no leading-space padding. `none` alignment leaves the cell at its inherited default.
 

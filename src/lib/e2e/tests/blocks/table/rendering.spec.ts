@@ -17,13 +17,6 @@ test.describe('table block: rendering', () => {
 		await expect(cells).toHaveCount(4);
 	});
 
-	test('clicking a cell focuses it', async ({ page }) => {
-		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		const cell = page.locator('.table-cell').nth(0);
-		await cell.click();
-		await expect(cell).toBeFocused();
-	});
-
 	test('header-only table renders with one row', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n');
 		const rows = page.locator('[role="row"]');
