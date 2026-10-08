@@ -152,7 +152,7 @@ An edit that leaves spaces between an item's marker and its text keeps exactly t
 
 Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaque'` are exempt from it, for different reasons and with different consequences:
 
-- **Grid.** A cell has no line syntax of its own, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the table's `rebuildRaw` owns the pipes around them. One file reads a table line into cells and says where each one sits (`core/parsers/table-line.ts :: rowCellSpans`), and writes a row back (`core/parsers/table-line.ts :: tableRowLine`). So if you're reading a row, you call `rowCellSpans`, and if you're writing one, you call `tableRowLine`.
+- **Grid.** A cell has no line syntax of its own, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the table's `rebuildRaw` owns the pipes around them. To read a table line into cells (and where each one sits), call `core/parsers/table-line.ts :: rowCellSpans`; to write a row back, `core/parsers/table-line.ts :: tableRowLine`.
 
   A rebuilt row is written into its own old bytes, touching as little as it can:
   - a row whose cells all still match what its bytes read stays exactly as it was, line ending included

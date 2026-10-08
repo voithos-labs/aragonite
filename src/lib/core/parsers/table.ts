@@ -22,7 +22,7 @@ export function tableHeaderCells(text: string): string[] | null {
 export function matchTableOpening(
 	headerText: string,
 	delimiterText: string
-): { columnCount: number; alignments: TableAlignment[] } | null {
+): ReturnType<typeof matchTableDelimiterRow> {
 	const delimiter = matchTableDelimiterRow(delimiterText);
 	const header = tableHeaderCells(headerText);
 	return delimiter && header && header.length === delimiter.columnCount ? delimiter : null;

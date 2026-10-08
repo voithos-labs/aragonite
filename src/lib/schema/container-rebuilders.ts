@@ -24,8 +24,9 @@ import {
 	delimiterCellAlignment,
 	delimiterCellSpelling,
 	matchTableDelimiterRow,
+	boundaryPipeAt,
+	opensOnPipe,
 	rowCellSpans,
-	rowEdgePipes,
 	spliceCells,
 	splitRowCells,
 	tableDelimiterLine,
@@ -209,8 +210,8 @@ function readsAsRow(line: string, cells: string[], columns: number, isHeader: bo
 function opensAsBefore(line: string, before: string, spans: CellSpan[]): boolean {
 	const firstCellEnd = spans[0].to;
 	return (
-		rowEdgePipes(line).leading ||
-		(line.startsWith(before.slice(0, firstCellEnd)) && line[firstCellEnd] === '|')
+		opensOnPipe(line) ||
+		(line.startsWith(before.slice(0, firstCellEnd)) && boundaryPipeAt(line, firstCellEnd))
 	);
 }
 

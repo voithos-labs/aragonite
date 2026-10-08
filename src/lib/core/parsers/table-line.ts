@@ -4,7 +4,7 @@
  */
 
 import type { TableAlignment } from '../nodes';
-import { isWhitespaceChar } from '../lines';
+import { isWhitespaceChar, trimWhitespace } from '../lines';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
@@ -39,10 +39,21 @@ export function rowCellSpans(rowText: string): CellSpan[] {
 	return cells;
 }
 
-/** Whether a table line opens and closes on a pipe of its own, as `| a | b |` does. */
-export function rowEdgePipes(rowText: string): { leading: boolean; trailing: boolean } {
-	const { leading, trailing } = rowEdges(rowText);
-	return { leading, trailing };
+/** Whether a table line opens on a pipe of its own, as `| a | b` does and `a | b` doesn't. */
+export function opensOnPipe(rowText: string): boolean {
+	return rowEdges(rowText).leading;
+}
+
+/** Whether a line starts and ends with a pipe character, an escaped last one included: how a
+ *  pasted line with no delimiter row is taken as a grid row. */
+export function wrappedInPipes(rowText: string): boolean {
+	const text = trimWhitespace(rowText);
+	return text.length >= 2 && text[0] === '|' && text[text.length - 1] === '|';
+}
+
+/** Whether the pipe at `index` is a cell boundary rather than escaped text. */
+export function boundaryPipeAt(rowText: string, index: number): boolean {
+	return rowText[index] === '|' && !endsInEscape(rowText, index);
 }
 
 function rowEdges(rowText: string) {

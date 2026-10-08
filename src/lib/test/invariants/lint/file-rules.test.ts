@@ -1937,8 +1937,11 @@ const ROGUE_TABLE_WRITER = `${SOURCE_DIR.schema}rogue.ts`;
 const PADDED_PIPE = String.raw`['"\x60]\| ['"\x60]|['"\x60] \|['"\x60]|['"\x60]\|['"\x60]\s*\+|\+\s*['"\x60]\|['"\x60]`;
 // A template padding an interpolation with a pipe (`| ${cell}`, `${cell} |`), or ending on one.
 const TEMPLATE_ROW = String.raw`\| \$\{|\$\{[^}\x60]*\} \||\}\|\x60`;
-// A row's edge pipe read by hand: a regex anchored on it, or a string test for it.
-const EDGE_PIPE_READ = String.raw`/\^(?:\\s\*|\[ \\t\]\*)?\\\||\\\|(?:\\s\*)?\$/|(?:startsWith|endsWith)\(\s*['"\x60]\|['"\x60]\s*\)`;
+// A row's edge pipe read by hand: a regex anchored on it, a string test, or an index read.
+const EDGE_PIPE_READ = String.raw`/\^(?:\\s|\[[^\]\n]*\]| )?[*+?]?\\\||\\\|(?:\\s|\[[^\]\n]*\]| )?[*+?]?\$/|(?:startsWith|endsWith)\(\s*['"\x60]\|['"\x60]\s*\)|(?:\[\s*0\s*\]|\[[^\]\n]*length\s*-\s*1\s*\]|\.at\(\s*-1\s*\))\s*[!=]==?\s*['"\x60]\|['"\x60]`;
+// A header's cell count compared with a delimiter's: the table opening test written again.
+const OPENING_ARITY =
+	/\.length\s*[!=]==?\s*[\w.?]*columnCount\b|\bcolumnCount\s*[!=]==?\s*[\w.?]*\.length\b/;
 // A delimiter cell spelled as a string; a comparison or search with `---` is a divider's.
 const DELIMITER_CELL = String.raw`(?<!(?:[=!]==?|(?:startsWith|endsWith|includes|indexOf)\()\s*)['"\x60]:?-{3,}:?['"\x60]`;
 
@@ -1994,7 +1997,7 @@ const SYNTAX_MODULES: FileRule[] = [
 		},
 		reaches: [TABLE_LINE_HOME],
 		reason:
-			'a second spelling of a table row drifts from the first, so a new table, a copied rectangle, a pasted grid and a rebuilt row stop agreeing on bytes: write a row with `tableRowLine`, `tableDelimiterLine`, `newTableLines` or `spliceCells`, and read one with `rowCellSpans` or `rowEdgePipes`',
+			'a second spelling of a table row drifts from the first, so a new table, a copied rectangle, a pasted grid and a rebuilt row stop agreeing on bytes: write a row with `tableRowLine`, `tableDelimiterLine`, `newTableLines` or `spliceCells`, and read one with `rowCellSpans`, `opensOnPipe`, `wrappedInPipes` or `boundaryPipeAt`',
 		hits: [
 			at(ROGUE_TABLE_WRITER, "const plain = '| ' + cells.join(' | ') + ' |';"),
 			at(ROGUE_TABLE_WRITER, "return line + ' |';"),
@@ -2010,7 +2013,12 @@ const SYNTAX_MODULES: FileRule[] = [
 			at(ROGUE_TABLE_WRITER, "const row = `|${cells.map((c) => ` ${c} `).join('|')}|`;"),
 			at(ROGUE_TABLE_WRITER, 'if (!lines.every((l) => /^\\|.*\\|$/.test(l))) return null;'),
 			at(ROGUE_TABLE_WRITER, 'const opens = /^[ \\t]*\\|/.test(line);'),
-			at(ROGUE_TABLE_WRITER, "if (!trimWhitespace(line).startsWith('|')) return null;")
+			at(ROGUE_TABLE_WRITER, "if (!trimWhitespace(line).startsWith('|')) return null;"),
+			at(ROGUE_TABLE_WRITER, "if (trimWhitespace(line)[0] !== '|') return null;"),
+			at(ROGUE_TABLE_WRITER, "return line.trimEnd().at(-1) === '|';"),
+			at(ROGUE_TABLE_WRITER, "return t[t.length - 1] === '|';"),
+			at(ROGUE_TABLE_WRITER, 'const opens = /^ *\\|/.test(line);'),
+			at(ROGUE_TABLE_WRITER, 'const closes = /\\|[ \\t]*$/.test(line);')
 		],
 		misses: [
 			at(ROGUE_TABLE_WRITER, 'return tableRowLine(cells);'),
@@ -2018,6 +2026,7 @@ const SYNTAX_MODULES: FileRule[] = [
 			at(ROGUE_TABLE_WRITER, 'return `|${width}x${height}`;'),
 			at(ROGUE_TABLE_WRITER, 'const key = `${version}|${start}|${end}`;'),
 			at(ROGUE_TABLE_WRITER, "if (rowText[lo] === '|') lo++;"),
+			at(ROGUE_TABLE_WRITER, "if (rowText[hi - 1] === '|') hi--;"),
 			at(ROGUE_TABLE_WRITER, "return pieces.join('|');"),
 			at(ROGUE_TABLE_WRITER, '`"${kind}" onEdge is one of ${ON_EDGE_POLICIES.join(\' | \')}`;'),
 			at(ROGUE_TABLE_WRITER, "entry('divider', 'Divider', 'minus', [], '---\\n');"),
@@ -2025,6 +2034,29 @@ const SYNTAX_MODULES: FileRule[] = [
 			at(ROGUE_TABLE_WRITER, "if (text.startsWith('---')) return null;"),
 			at(ROGUE_TABLE_WRITER, 'const name = /^\\w+/.exec(text);'),
 			"const plain = '| ' + cells.join(' | ') + ' |';"
+		]
+	},
+	{
+		id: 'G4.131 whether two lines open a table is decided in `matchTableOpening` only',
+		population: under(SOURCE_DIR.library),
+		matches: OPENING_ARITY,
+		allowed: {
+			[SOURCE.tableParser]: '`matchTableOpening`, which the parser and the grid paste both ask'
+		},
+		reaches: [SOURCE.tableParser],
+		reason:
+			'a second test for whether two lines open a table drifts from the parser’s, so a paste and a reload disagree on what is a table: ask `matchTableOpening`',
+		hits: [
+			at(
+				ROGUE_TABLE_WRITER,
+				'if (delimiter && header && header.length === delimiter.columnCount) {'
+			),
+			at(ROGUE_TABLE_WRITER, 'return delim?.columnCount !== cells.length ? null : delim;')
+		],
+		misses: [
+			at(ROGUE_TABLE_WRITER, 'const delimiter = matchTableOpening(lines[0], lines[1]);'),
+			at(ROGUE_TABLE_WRITER, 'if (row.children.length < meta.columnCount) pad(row);'),
+			'if (header.length === delimiter.columnCount) return delimiter;'
 		]
 	}
 ];

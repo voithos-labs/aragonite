@@ -79,6 +79,22 @@ describe('parseClipboardGrid', () => {
 		expect(parseClipboardGrid('a | b\n--- | --- | ---\n1 | 2\n')).toBeNull();
 	});
 
+	// Miss-analysis: no pipe-row fixture ended its last cell in an escaped pipe.
+	it('a line wrapped in pipes is a grid row even when its last pipe is escaped', () => {
+		expect(parseClipboardGrid('| a | b\\|')).toEqual([['a', 'b|']]);
+	});
+
+	it('pipe rows with no delimiter need a pipe at both ends', () => {
+		expect(parseClipboardGrid('| a | b\n| c | d')).toBeNull();
+	});
+
+	it('a tab-holding payload that opens a table is read as the table', () => {
+		expect(parseClipboardGrid('a\tz | b\n--- | ---\nx | y')).toEqual([
+			['a\tz', 'b'],
+			['x', 'y']
+		]);
+	});
+
 	it('plain text, one word, or lines without tabs are not a grid', () => {
 		expect(parseClipboardGrid('hello')).toBeNull();
 		expect(parseClipboardGrid('hello\nworld')).toBeNull();

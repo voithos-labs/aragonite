@@ -34,6 +34,7 @@ export const SOURCE = {
 	imageSourceBytes: 'src/lib/core/inline/image-source-bytes.ts',
 	linkSourceBytes: 'src/lib/core/inline/link-source-bytes.ts',
 	tableLine: 'src/lib/core/parsers/table-line.ts',
+	tableParser: 'src/lib/core/parsers/table.ts',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'src/lib/schema/block-openers.ts',
@@ -171,6 +172,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	imageSourceBytes: 'export function buildImageEditBytes',
 	linkSourceBytes: 'export interface LinkFields',
 	tableLine: 'export function tableRowLine(',
+	tableParser: 'export function matchTableOpening(',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'export interface OpenContext',

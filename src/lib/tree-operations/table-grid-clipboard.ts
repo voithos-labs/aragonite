@@ -8,7 +8,7 @@
 import type { NodeView } from '../core/node-views';
 import { isBlankText } from '../core/lines';
 import { matchTableOpening } from '../core/parsers/table';
-import { matchTableDelimiterRow, rowEdgePipes, splitRowCells } from '../core/parsers/table-line';
+import { matchTableDelimiterRow, splitRowCells, wrappedInPipes } from '../core/parsers/table-line';
 import { unescapeCellPipes } from '../schema/table-cell-raw';
 import { rectangleCellRaws, type CellPos } from './sub-table-copy';
 
@@ -29,15 +29,10 @@ export function parseClipboardGrid(text: string): string[][] | null {
 // as a copied rectangle's are.
 function parseGfmRows(lines: string[]): string[][] | null {
 	const opensTable = lines.length >= 2 && matchTableOpening(lines[0], lines[1]) !== null;
-	if (!opensTable && !lines.every(isPipeRow)) return null;
+	if (!opensTable && !lines.every(wrappedInPipes)) return null;
 	const rows = lines.map((line) => splitRowCells(line).map(unescapeCellPipes));
 	if (rows.length >= 2 && matchTableDelimiterRow(lines[1])) rows.splice(1, 1);
 	return rows;
-}
-
-function isPipeRow(line: string): boolean {
-	const { leading, trailing } = rowEdgePipes(line);
-	return leading && trailing;
 }
 
 function parseTsvRows(lines: string[]): string[][] | null {
