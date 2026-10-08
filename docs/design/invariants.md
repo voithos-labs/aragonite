@@ -846,8 +846,8 @@ compares kinds only, since a join can move the caret's offset. Predicate
 `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
 
 **G1.75 · The caret goes before an empty block's `<br>`** (`caret-before-break`). An editable with
-no content holds one `<br>` so it keeps a line, and a caret written after it looks the same as one
-before it. Chromium tells them apart: a composition started after the `<br>` is dropped after its
+no content holds one `<br>` so it keeps a line, alone or after non-editable marker chrome (a list
+item's `- `), and a caret written after it looks the same as one before it. Chromium tells them apart: a composition started after the `<br>` is dropped after its
 first update, with no `compositionend`, so the composed text gets lost or doubled. Every caret and
 range the editor writes passes `cursor/widget-offset.ts :: writeSelection`, which checks both
 endpoints in dev. Predicate `invariants/caret-before-break.ts :: checkCaretBeforeBreak` ·

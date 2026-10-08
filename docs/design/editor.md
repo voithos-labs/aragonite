@@ -351,7 +351,7 @@ These the editor owns, not the browser:
 | Copy / Cut         | `copy` / `cut` → `preventDefault`                                       | Slice the selected range out of the CST's `raw`; cut then deletes it                                                                               |
 | Undo / Redo        | `keydown`, or the browser's own Undo (`beforeinput`) → `preventDefault` | Pop/push the editor's own undo stack in every editable element, a plugin leaf's included; a shown painted source steps through its own edits first |
 
-One thing the editor deliberately doesn't own: between `compositionstart` and `compositionend` there's no sync and no reconciliation. The browser owns the IME sequence outright (and is welcome to it), and `compositionend` enters the same input path as a keystroke. If the browser drops a composition and never sends `compositionend`, the first `input` it sends outside one ends the composition the same way, and a dev build warns under the `composition` tag so you hear about it.
+One thing the editor deliberately doesn't own: between `compositionstart` and `compositionend` there's no sync and no reconciliation. The browser owns the IME sequence outright (and is welcome to it), and `compositionend` enters the same input path as a keystroke. If the browser drops a composition and never sends `compositionend`, the next key, input or new composition it sends outside one ends it instead. The block then saves what it shows, the dropped update included (it can't tell which text the browser meant), and a dev build warns under the `composition` tag so you hear about it.
 
 ### Atomic inline widgets
 
