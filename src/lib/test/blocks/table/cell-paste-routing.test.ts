@@ -11,6 +11,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt } from './mount-table';
+import { pressKey } from '#lib/test/harness/settle.js';
 
 beforeAll(installLayoutStubs);
 
@@ -61,9 +62,9 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 		const el = cellAt(mounted!, 1, 0);
 		caretAtCellEnd(el);
 
-		await pasteInto(el, 'x|y');
+		await pasteInto(el, 'a|b|c');
 
-		expect(mounted.source()).toContain('\\|');
+		expect(mounted.source()).toBe('| A | B |\n| --- | --- |\n| onea\\|b\\|c | 2 |\n');
 		expect(reparsedColumns()).toBe(2);
 	});
 
@@ -97,6 +98,26 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 		await pasteInto(el, 'two');
 
 		expect(mounted.source()).toBe('| A | B |\n| --- | --- |\n| two | 2 |\n');
+	});
+
+	// Miss-analysis: the grid parser was unit-tested alone and the fill by e2e, so nothing below a
+	// browser showed that a cell sends a pasted grid to the table instead of into its own text.
+	it.each([
+		['tab-separated rows', 'p\tq\ns\tt\n'],
+		['a GFM table', '| p | q |\n| --- | --- |\n| s | t |\n']
+	])('fills %s from the caret’s cell and grows the table, in one undo', async (_name, clip) => {
+		mounted = mountEditor({ source: GRID });
+		const el = cellAt(mounted!, 1, 1);
+		caretAtCellEnd(el);
+
+		await pasteInto(el, clip);
+
+		expect(mounted.source()).toBe(
+			'| A | B |  |\n| --- | --- | --- |\n| one | p | q |\n|  | s | t |\n'
+		);
+
+		await pressKey(cellAt(mounted!, 1, 1), { key: 'z', ctrlKey: true });
+		expect(mounted.source()).toBe(GRID);
 	});
 
 	it('ignores an empty clipboard rather than committing a no-op edit', async () => {

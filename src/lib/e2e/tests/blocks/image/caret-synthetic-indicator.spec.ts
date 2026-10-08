@@ -91,17 +91,6 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		});
 	}
 
-	test('the native caret goes dark while the synthetic one is painted', async ({ page }) => {
-		await editor.loadContent(LIST_IMAGE_DOC);
-		await waitForFirstImageLoaded(page);
-		await clickPastImageRightEdge(page);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
-
-		// At an element-level offset the editor cannot see whether Chromium painted a native caret,
-		// so it hides that caret.
-		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
-	});
-
 	// Beside an image widget Chromium paints a taller native caret while the button is down, so the
 	// caret is hidden from pointerdown on.
 	test('the native caret is dark from the press, before the click arms the synthetic', async ({
@@ -228,15 +217,6 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await page.keyboard.press('Enter');
 		await clickPastImageRightEdge(page);
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
-	});
-
-	test('synthetic caret clears after the first typed character', async ({ page }) => {
-		await editor.loadContent(LIST_IMAGE_DOC);
-		await waitForFirstImageLoaded(page);
-		await clickPastImageRightEdge(page);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
-		await page.keyboard.press('a');
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
 	});
 
 	test('synthetic caret clears when clicking into a different paragraph', async ({ page }) => {

@@ -9,8 +9,6 @@
 - ArrowUp / ArrowDown move to the cell directly above / below in the same column. Both directions land the caret at the start of the target cell, so pressing one and pressing back restores the original cursor position.
 - ArrowDown from the bottom row exits the table downward into the next block; the caret lands at the sticky-X column on the next block's first visual line, matching how vertical navigation works between paragraphs.
 - ArrowUp from the top row exits the table upward into the previous block; the caret lands at the sticky-X column on the previous block's last visual line.
-- Enter in a non-last row moves to the cell directly below in the same column.
-- Enter in the last row creates a new empty row and focuses its first cell.
 
 ## Miss-analysis
 
@@ -32,3 +30,7 @@ column-from-X mapping in `cell-x-mapping.test.ts`.
 - Sticky-column hand-off: paragraph above table → ArrowDown → land in the cell whose horizontal range contains the previous pixel-X.
 - Inside-table vertical movement preserves the column index, ignoring the editor's pixel-X.
 - Exiting the table downward captures pixel-X into the editor sticky and lands the cursor at the corresponding column in the next block.
+
+## Pinned below the browser
+
+- Enter in a non-last row moves to the cell directly below in the same column, and Enter in the last row creates a new empty row and focuses its first cell (`test/blocks/table/cell-plan-dispatch.test.ts`).

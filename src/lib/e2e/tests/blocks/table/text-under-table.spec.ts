@@ -57,33 +57,36 @@ const ROUTES = [
 
 test.describe('a block turned into text right under a table', () => {
 	for (const route of ROUTES) {
-		test(`${route.name} keeps the text a paragraph and takes the next key`, async ({ page }) => {
+		test(`${route.name} keeps the text a paragraph and takes the next key, and undo gives back the loaded bytes`, async ({
+			page
+		}) => {
 			const editor = new EditorPage(page);
 			await editor.goto();
-			await editor.loadContent(route.source);
 
-			await route.edit(editor);
-			await page.keyboard.type('W');
+			await test.step('the text stays a paragraph and takes the next key', async () => {
+				await editor.loadContent(route.source);
 
-			await expect.poll(() => editor.bridge.getSource()).toBe(route.typed);
-			expect([await editor.bridge.getBlockKind(0), await editor.bridge.getBlockKind(1)]).toEqual([
-				'table',
-				'paragraph'
-			]);
-			expect(await editor.parseConverged()).toBe(true);
-		});
+				await route.edit(editor);
+				await page.keyboard.type('W');
 
-		test(`${route.name}, then undo, gives back the loaded bytes`, async ({ page }) => {
-			const editor = new EditorPage(page);
-			await editor.goto();
-			await editor.loadContent(route.source);
+				await expect.poll(() => editor.bridge.getSource()).toBe(route.typed);
+				expect([await editor.bridge.getBlockKind(0), await editor.bridge.getBlockKind(1)]).toEqual([
+					'table',
+					'paragraph'
+				]);
+				expect(await editor.parseConverged()).toBe(true);
+			});
 
-			await route.edit(editor);
-			await expect.poll(() => editor.bridge.getSource()).toBe(route.typed.replace('W', ''));
-			await editor.waitForUndoBatchFlush();
-			await editor.undo();
+			await test.step('undo gives back the loaded bytes', async () => {
+				await editor.loadContent(route.source);
 
-			await editor.bridge.waitForSourceEquals(route.source);
+				await route.edit(editor);
+				await expect.poll(() => editor.bridge.getSource()).toBe(route.typed.replace('W', ''));
+				await editor.waitForUndoBatchFlush();
+				await editor.undo();
+
+				await editor.bridge.waitForSourceEquals(route.source);
+			});
 		});
 	}
 });

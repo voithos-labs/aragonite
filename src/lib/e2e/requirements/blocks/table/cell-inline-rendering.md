@@ -9,18 +9,12 @@ contributes zero `textContent` but several raw bytes.
 
 ## Happy paths
 
-- emphasis in a cell: `*x*` renders an `<em>` containing `x` with dimmed `*` markers
-- strong in a cell: `**x**` renders a `<strong>` containing `x`
-- code span in a cell: `` `x` `` renders a `<code class="inline-code-content">` containing `x`
-- strikethrough in a cell: `~~x~~` renders an `<s>` containing `x`
-- inline link in a cell: `[t](u)` renders an `<a class="md-link-content" href="u">` containing `t`
 - reference link in a cell resolves: `[t][r]` with an LRD `[r]: u` renders an `<a href="u">`
 
 ## Edge cases
 
 - escaped pipe in a cell: `b \| c` renders with a dimmed `\` marker and the cell's
   textContent stays `b \| c` (the escape node renders marker + literal `|`)
-- image in a cell stays alt-text: `![a](u)` renders the alt text `a`, no `<img>` / widget
 - image in a cell under reading mode: both marker spans hide, leaving the alt as the
   cell's only painted text, and the bytes stay in the DOM (a regression test: hiding a
   marker acts on the split the fallback makes, so a single unsplit span leaves the whole
@@ -50,3 +44,11 @@ contributes zero `textContent` but several raw bytes.
 - Tab from a widget-bearing cell moves to the next cell
 - editing an LRD's URL in-editor updates an unedited reference cell's rendered `href`
   (inherits the LRD signature-keyed re-render)
+
+## Pinned below the browser
+
+The cell hands its bytes to the same inline renderer a paragraph uses, so these run on the cell renderer alone, over a bare element:
+
+- `*x*`, `**x**`, a code span and `~~x~~` render one `<em>`, `<strong>`, `<code class="inline-code-content">` and `<s>` holding `x`, and the emphasis keeps its dimmed markers (`test/blocks/table/cell-render.test.ts`).
+- `[t](https://example.com)` renders an `<a class="md-link-content">` with that href (`test/blocks/table/cell-render.test.ts`).
+- An image stays its own source text in a cell, never an `<img>` or a widget, with its two markers split from the alt (`test/blocks/table/cell-render.test.ts`).

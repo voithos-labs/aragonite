@@ -12,28 +12,6 @@ test.describe('table cell: inline rendering', () => {
 		await editor.goto();
 	});
 
-	// ── Styled inline constructs ─────────────────────────────────────────
-
-	const STYLED_CONSTRUCTS: Array<
-		[source: string, selector: string, expectedText: string, href?: string]
-	> = [
-		['*x*', 'em', 'x'],
-		['**x**', 'strong', 'x'],
-		['`x`', 'code.inline-code-content', 'x'],
-		['~~x~~', 's', 'x'],
-		['[t](https://example.com)', 'a.md-link-content', 't', 'https://example.com']
-	];
-
-	for (const [source, selector, expectedText, href] of STYLED_CONSTRUCTS) {
-		test(`${source} in a cell renders a styled <${selector}>`, async ({ page }) => {
-			await editor.loadContent(`${HEADER}| ${source} |\n`);
-			const styled = page.locator('.table-cell').nth(1).locator(selector);
-			await expect(styled).toHaveCount(1);
-			await expect(styled).toHaveText(expectedText);
-			if (href) await expect(styled).toHaveAttribute('href', href);
-		});
-	}
-
 	// ── Reference resolution (LRD signature keying) ──────────────────────
 
 	test('reference link in a cell resolves against an LRD', async ({ page }) => {
@@ -68,14 +46,6 @@ test.describe('table cell: inline rendering', () => {
 		const cell = page.locator('.table-cell').nth(1);
 		await expect(cell).toHaveText('b \\| c');
 		await expect(cell.locator('.md-marker', { hasText: '\\' })).toHaveCount(1);
-	});
-
-	test('image in a cell stays alt-text, no widget', async ({ page }) => {
-		await editor.loadContent(`${HEADER}| ![alt](u) |\n`);
-		const cell = page.locator('.table-cell').nth(1);
-		await expect(cell).toHaveText('![alt](u)');
-		await expect(cell.locator('img')).toHaveCount(0);
-		await expect(cell.locator('[data-inline-widget]')).toHaveCount(0);
 	});
 
 	// The collapse is CSS, so no unit test reaches it: a single unsplit span, from either branch,

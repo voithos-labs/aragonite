@@ -15,10 +15,12 @@ navigation is `a11y/table-menu.md`, and how the cell menu opens is
 
 ## Edge cases
 
-- The header row cannot move: its flyout offers the inserts, and both moves are disabled.
-- "Move row down" is disabled on the last body row while "Move row up" stays enabled.
 - "Delete row" is disabled when only one body row remains, and a forced click on it commits nothing; "Delete column" beside it stays enabled, since the two limits are independent.
 
 ## Notes
 
 - Retired with the row handles: the hover that showed them, their `pointer-events: none` at rest, and a caret click on the first cell surviving a hovered handle. No handle renders, so nothing intercepts the click.
+
+## Pinned below the browser
+
+- The header row cannot move: its flyout offers the inserts, and both moves are disabled. "Move row down" is disabled on the last body row while "Move row up" stays enabled (`test/blocks/table/table-menu-model.test.ts`).

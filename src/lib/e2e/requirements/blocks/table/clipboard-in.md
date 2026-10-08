@@ -1,13 +1,5 @@
 # Feature: Table block, clipboard in (paste)
 
-## Happy paths (inline)
-
-- Paste plain text without `|` or `\n` into a cell: text appears at the caret.
-- Paste plain text containing `|`: pipes auto-escape to `\|` in the cell raw.
-- Paste plain text containing `\n`: newlines collapse to a single space; leading/trailing whitespace trimmed.
-- Paste a single-paragraph clipboard (no blank-line separators): same rules as plain text, since a single-paragraph clipboard takes the inline path.
-- Paste text a copy wrapped in blank lines: the blank blocks at either edge are packaging, so one content paragraph still takes the inline path and the table stays whole.
-
 ## Happy paths (grid)
 
 A grid is data for the cells rather than a block to splice between them, which is the spreadsheet convention.
@@ -64,3 +56,10 @@ A grid is data for the cells rather than a block to splice between them, which i
 - Undo restores the rendered cells, not only the bytes: the cell writes land two levels down, so
   the table's whole subtree (rows and cells) is copied before them, or the write goes through
   the undo snapshot and undo puts the pasted text back
+
+## Pinned below the browser
+
+The text a cell takes in runs on a mounted cell, where the paste event is dispatched and the document read back:
+
+- Plain text lands at the caret or replaces the selected range, and a paste of text containing `|` escapes every pipe to `\|` so the row keeps its column count (`test/blocks/table/cell-paste-routing.test.ts`).
+- Newlines collapse to a single space and the edges are trimmed, and text a copy wrapped in blank lines (one content paragraph) still takes this inline path with the table whole (`test/blocks/table/cell-paste-classification.test.ts`).

@@ -14,33 +14,35 @@ test.describe('a press above or below a picture, inside its own block', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await editor.loadContent(IMAGE_PARAGRAPH);
-		await waitForFirstImageLoaded(page);
 	});
 
 	for (const mode of ['source', 'live'] as const) {
-		for (const side of ['above', 'below'] as const) {
-			test(`${mode}: a press ${side} the picture, right of its middle, types after it`, async ({
-				page
-			}) => {
-				await editor.setPresentationMode(mode);
-				const at = await pointOffImageLine(page, side, 0.75);
-				await page.mouse.click(at.x, at.y);
-				await page.keyboard.press('X');
-				const src = await editor.bridge.getSource();
-				expect(src).toContain(')X');
-				expect(src).toContain('alpha\n');
-			});
-		}
-
-		test(`${mode}: a press below the picture, left of its middle, types before it`, async ({
+		test(`${mode}: a press above or below the picture types on the side it was made`, async ({
 			page
 		}) => {
+			await editor.loadContent(IMAGE_PARAGRAPH);
 			await editor.setPresentationMode(mode);
-			const at = await pointOffImageLine(page, 'below', 0.25);
-			await page.mouse.click(at.x, at.y);
-			await page.keyboard.press('X');
-			expect(await editor.bridge.getSource()).toContain('X![pic');
+
+			const pressAndType = async (side: 'above' | 'below', across: number): Promise<string> => {
+				await editor.loadContent(IMAGE_PARAGRAPH);
+				await waitForFirstImageLoaded(page);
+				const at = await pointOffImageLine(page, side, across);
+				await page.mouse.click(at.x, at.y);
+				await page.keyboard.press('X');
+				return editor.bridge.getSource();
+			};
+
+			for (const side of ['above', 'below'] as const) {
+				await test.step(`${side} the picture, right of its middle, types after it`, async () => {
+					const src = await pressAndType(side, 0.75);
+					expect(src).toContain(')X');
+					expect(src).toContain('alpha\n');
+				});
+			}
+
+			await test.step('below the picture, left of its middle, types before it', async () => {
+				expect(await pressAndType('below', 0.25)).toContain('X![pic');
+			});
 		});
 	}
 });

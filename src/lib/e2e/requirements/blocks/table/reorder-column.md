@@ -6,17 +6,19 @@ index can be moved. Focus follows the moved column.
 
 ## Happy paths
 
-- Alt+ArrowRight on a column swaps it past the next column; the source round-trips to the reordered table
-- Alt+ArrowLeft on an interior column swaps it past the previous column; the source round-trips to the reordered table
-- Alt+ArrowRight on a column keeps focus in the moved column: a character typed afterward lands in that column's new position
 - A successful move announces the new 1-based position in the live region ("Moved column to position N of M")
 
 ## Edge cases
 
-- Alt+ArrowLeft on the first column does nothing: the source is unchanged and no undo entry is pushed, so a following Ctrl+Z undoes the typing before it
-- Alt+ArrowRight on the last column does nothing at the other end: no change, no undo entry
 - A column move on a tight table (no padding in the cells) keeps it tight: the moved cells swap places and nothing gets padded, and a single undo restores the original bytes exactly
 
 ## Error cases
 
 - A column move leaves the CST and the DOM in step and raises no page error
+
+## Pinned below the browser
+
+These run the chord in a mounted cell:
+
+- Alt+ArrowRight and Alt+ArrowLeft swap a column past its neighbour in every row (`test/blocks/table/cell-table-chords.test.ts`, `test/editor-actions/table-column-reorder-target.test.ts`); the focused column following the move is `e2e/tests/blocks/table/action-landing.spec.ts`.
+- Alt+ArrowLeft in the first column and Alt+ArrowRight in the last do nothing and push no undo entry, so the Ctrl+Z after them takes back the edit before (`test/blocks/table/cell-table-chords.test.ts`).

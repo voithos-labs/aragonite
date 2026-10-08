@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
-import { capturePageErrors } from '../../../page-probes';
+import { capturePageErrors, deferImage } from '../../../page-probes';
 
 // A short fixed viewport makes the editor a real (capped) scroll container; the e2e-blocks project
 // sets none.
@@ -82,14 +82,7 @@ async function expectNoShiftOnImageLoad(
 
 	// Holds the image response so it stays zero-height until released; installed after goto so the
 	// harness-ready wait is unaffected.
-	let releaseImage!: () => void;
-	const imageGate = new Promise<void>((resolve) => {
-		releaseImage = resolve;
-	});
-	await page.route('https://e2e-deferred.test/**', async (route) => {
-		await imageGate;
-		await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: DEFERRED_SVG });
-	});
+	const releaseImage = await deferImage(page, DEFERRED_SVG);
 
 	await editor.loadContent(doc);
 	await editor.waitForRenderFlush();
