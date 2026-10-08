@@ -278,8 +278,8 @@ export interface BlockComponent {
 	/**
 	 * Remove this block's own selection, then call `run(true)` at the caret that's left, as one undo
 	 * entry: how a command that breaks the line replaces what's selected. With nothing selected,
-	 * return `run(false)`; a removal the block declines, or whose bytes don't land, gets no `run`.
-	 * A block that omits it runs every command at the caret.
+	 * return `run(false)`. A removal the block declines, or whose bytes don't land, gets no `run`,
+	 * and the method still returns true. A block that omits it runs every command at the caret.
 	 */
 	afterSelectionRemoved?(run: (removed: boolean) => boolean): boolean;
 	/**

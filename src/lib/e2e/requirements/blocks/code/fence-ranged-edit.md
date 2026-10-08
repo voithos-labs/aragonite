@@ -43,8 +43,9 @@ driven against the mounted block rather than end to end. Backspace inside the cl
 paste into either marker run commit nothing (`code-fence-ranged-edit.test.ts`).
 `code-fence-edit-span.test.ts` runs every route that writes over a range (Backspace, Delete,
 type-over, a typed bracket, an IME composition, cut, paste and Enter) over the same ranges in
-both modes. A range on fence structure alone commits nothing on any of them. A delete inside the
-body is applied by the block, since Chromium would take the hidden fence line beside it.
+both modes. With the fence lines hidden, a range on fence structure alone commits nothing on any of
+them, and a delete inside the body is applied by the block, since Chromium would take the hidden
+fence line beside it.
 (miss-analysis: when these fence lines became editable in source mode, the refusals were deleted
 with their source-mode tests instead of moved to the mode that still hides the lines)
 

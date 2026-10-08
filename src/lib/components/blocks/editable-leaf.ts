@@ -24,6 +24,7 @@ import {
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
+	REMOVED_IN_PLACE,
 	type EditableSurfaceAttributes
 } from './editable-surface';
 import type { ClipboardCopy } from './clipboard-step';
@@ -277,10 +278,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
 			stepSourceHistory(e, e.inputType === 'historyUndo'),
 		handleBeforeInput: onBeforeInput,
-		// The leaf splices the text it shows in place, so the removal is done once this returns.
 		removeSelection: (range) => {
 			removeRange(range);
-			return true;
+			return REMOVED_IN_PLACE;
 		}
 	});
 

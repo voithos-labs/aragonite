@@ -68,7 +68,8 @@
 	import {
 		editableSurfaceAttributes,
 		createEditableSurface,
-		consumePendingRestore
+		consumePendingRestore,
+		writeWhen
 	} from '../editable-surface';
 	import { rangeWrite, withOwnEnding } from '../surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
@@ -270,17 +271,13 @@
 		handleBeforeInput: onBeforeInput,
 		// After a shown source is written: until then the selected text lives in the DOM only.
 		removeSelection: (range) =>
-			new Promise<boolean>((landed) =>
-				afterSourceCommit(() =>
-					landed(
-						writeText({
-							...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
-							intent: 'command',
-							mode: 'authored',
-							source: 'selection-removal'
-						})
-					)
-				)
+			writeWhen(afterSourceCommit, () =>
+				writeText({
+					...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
+					intent: 'command',
+					mode: 'authored',
+					source: 'selection-removal'
+				})
 			)
 	});
 	const { writeText, pendingBreak } = editableSurface;

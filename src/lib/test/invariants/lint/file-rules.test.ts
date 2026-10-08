@@ -2168,26 +2168,25 @@ const WIDGET_LIST: FileRule = {
 const EDIT_SPAN_HOME = SOURCE.codeFenceBoundary;
 const ROGUE_CODE_WRITE = `${SOURCE_DIR.codeBlock}RogueCode.svelte`;
 
-/** Whether a file reads the fence-lines flag, or the mode check behind it, outside the flag's
- *  derivation, `editSpan`'s last argument (which must be the flag) and an early return's end. */
+/** Whether a file reads the fence-lines flag, or the mode check behind it, other than where the
+ *  flag is derived, as the whole last argument of `editSpan`, or as an early return's last condition. */
 function readsFenceLinesByHand(file: SourceFile): boolean {
 	const code = file.code;
-	const spanCalls = [...code.matchAll(/(?<![\w.])editSpan\s*\(/g)].map((call) => {
+	const spanArgs: number[] = [];
+	for (const call of code.matchAll(/(?<![\w.])editSpan\s*\(/g)) {
 		const from = call.index + call[0].length;
-		return { from, args: balancedCall(code, from) ?? '' };
-	});
-	if (spanCalls.some(({ args }) => !/^fenceLines\w*\b/.test(callArguments(args).at(-1) ?? ''))) {
-		return true;
+		const args = balancedCall(code, from) ?? '';
+		const last = callArguments(args).at(-1) ?? '';
+		if (!/^fenceLines\w*$/.test(last)) return true;
+		spanArgs.push(from + args.lastIndexOf(last));
 	}
-	const inSpanCall = (at: number) =>
-		spanCalls.some(({ from, args }) => at >= from && at < from + args.length);
 	const flagReads = [...code.matchAll(/(?<![\w.])fenceLines\w*\b/g)].filter((read) => {
 		const before = code.slice(0, read.index);
 		const after = code.slice(read.index + read[0].length);
 		const derived = /\b(?:const|let)\s+$/.test(before);
 		const earlyReturn =
 			/(?:\|\||\bif\s*\()\s*$/.test(before) && /^\s*\)\s*return(?:\s+false)?\s*;/.test(after);
-		return !derived && !earlyReturn && !inSpanCall(read.index);
+		return !derived && !earlyReturn && !spanArgs.includes(read.index);
 	});
 	const modeChecks = [
 		...code.matchAll(/(?<![\w.])(?:paintsFocusedMarkers|hidesDelimitersAtCaret)\s*\(/g)
@@ -2231,6 +2230,9 @@ const CODE_EDIT_SPAN: FileRule[] = [
 			at(ROGUE_CODE_WRITE, 'if (fenceLinesShown) return range;'),
 			at(ROGUE_CODE_WRITE, 'if (!fenceLinesShown && crosses) write(clamp(range));'),
 			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, true);'),
+			at(ROGUE_CODE_WRITE, 'editSpan(node, fenceLinesShown ? range : body, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown || true);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown && !mode);'),
 			at(ROGUE_CODE_WRITE, 'const span = paintsFocusedMarkers(mode) ? range : body;'),
 			at(ROGUE_CODE_WRITE, 'if (hidesDelimitersAtCaret(mode)) return clamp(range);')
 		],

@@ -155,19 +155,6 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		foreign.remove();
 	});
 
-	// Enter is a command, so the dispatch removes the selection first through the block's fenced
-	// removal; the bytes the newline then writes are pinned in `break-over-selection.test.ts`.
-	it('Enter over a fence-crossing selection first removes only the body part', async () => {
-		select(12, 20);
-		mounted.el.dispatchEvent(
-			new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
-		);
-		await settleEditor();
-
-		const [removal] = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
-		expect(removal[1]).toBe('```js\nconst \n```\n');
-	});
-
 	// Focus must leave a caret that can type: the cross-container merge fallback moves
 	// focus to this block's end, which is the closer run, where every keystroke is refused.
 	it.each([

@@ -2362,9 +2362,10 @@ drag never gets there, since a range from the body onto a hidden fence line carr
 ending and the drop declines line breaks. Two rows in `lint/file-rules.test.ts` keep it there:
 `clampRangeToBody(` is called only in that module and in `code-indent.ts` (an indent leaves every
 fence line alone in every mode, a line rule rather than a span). And in the code block's folder,
-the fence-lines flag (or the mode check behind it) is read only where it's derived, as
-`editSpan`'s last argument, or as the last condition of an early return, so `fenceLinesShown ? …`
-or `if (fenceLinesShown) return range;` fails.
+the fence-lines flag (or the mode check behind it) is read in three places only: where it's
+derived, as the whole last argument of an `editSpan` call, and as the last condition of an early
+return. Every `editSpan` call has to pass the bare flag last, so `fenceLinesShown || true` fails,
+and so do `fenceLinesShown ? …` and `if (fenceLinesShown) return range;`.
 `test/blocks/code/code-fence-edit-span.test.ts` runs each route over the same ranges in both modes.
 
 **G4.131 · A block syntax's bytes are read and written in its own module.** Two routes that

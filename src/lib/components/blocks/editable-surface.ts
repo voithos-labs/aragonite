@@ -96,6 +96,26 @@ function withKeydownVerdict(
 	};
 }
 
+// ── Selection removal ───────────────────────────────────────────────────────
+
+/** What a block's selection removal hands back: the write it made, false when it declines the
+ *  range, or `REMOVED_IN_PLACE` when it splices shown text with no write to wait on. */
+export type SelectionRemoval = ContentWrite | HeldWrite | false | typeof REMOVED_IN_PLACE;
+
+export const REMOVED_IN_PLACE = Symbol('removed-in-place');
+
+declare const held: unique symbol;
+/** A write the block makes only once `schedule` runs it, resolving as that write does. */
+export type HeldWrite = Promise<boolean> & { readonly [held]: true };
+
+/** The only way to make a `HeldWrite`, so its promise is the write's own. */
+export function writeWhen(
+	schedule: (run: () => void) => void,
+	write: () => ContentWrite
+): HeldWrite {
+	return new Promise<boolean>((landed) => schedule(() => landed(write()))) as HeldWrite;
+}
+
 // ── Accessibility attributes ────────────────────────────────────────────────
 
 /** What an editable block tells assistive tech: its name, and the inline menu's list while
@@ -217,9 +237,8 @@ export interface EditableSurfaceDeps {
 	inputPrelude?: () => void;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
-	/** Deletes `range` of the block's own text, leaving the caret at its start; resolves once the
-	 *  bytes land, to whether they did, and is false when the block declines the range. */
-	removeSelection?: (range: RawRange) => PromiseLike<boolean> | boolean;
+	/** Deletes `range` of the block's own text, leaving the caret at its start. */
+	removeSelection?: (range: RawRange) => SelectionRemoval;
 	/** An undo history the block keeps itself (a shown painted source), asked before the
 	 *  editor's; true when it took the event. */
 	localHistory?: (e: InputEvent) => boolean;
@@ -576,7 +595,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const seed = deleteSnapshot(deps.getMyPath(), range.start);
 		void deps.controller
 			.undoStep(seed, async () => {
-				if (!(await remove(range))) return;
+				const removal = remove(range);
+				if (removal === false || !(await (removal === REMOVED_IN_PLACE || removal))) return;
 				// The command reads the caret the removal's render puts back.
 				await tick();
 				if (!isDetached()) run(true);
