@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { describeManifests, type ManifestRule } from './file-rule';
 import { balancedBlock, balancedCall, collectEditorSources, readSource } from './scan-source';
 import { SOURCE } from './source-paths';
+import { NATIVE_SELECTION_WRITE } from './native-selection-write';
 
 const DRAWN_CARET = 'src/lib/caret/drawn-caret.svelte.ts';
 const CARET_WRITER = 'src/lib/caret/widget-offset.ts';
@@ -98,8 +99,7 @@ describe('G4.142 caret-color is declared only for the known surfaces', () => {
 // ── G4.143 every caret write asks for a repaint ─────────────────────────────
 
 /** A write to the native selection, or a call of the private function that makes one. */
-const NATIVE_WRITE =
-	/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren|removeAllRanges|empty)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,|\bwriteSelection\s*\(/g;
+const NATIVE_WRITE = new RegExp(`${NATIVE_SELECTION_WRITE.source}|\\bwriteSelection\\s*\\(`, 'g');
 
 /** Offsets of every native write in `code` that sits outside `createCaretWriter`'s body. */
 function writesOutsideWriter(code: string): number[] {

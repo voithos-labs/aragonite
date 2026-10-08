@@ -64,7 +64,7 @@ const WEBKIT_LANE = [
 	'selection/keyboard/collapse.spec.ts',
 	'selection/dead-space-click.spec.ts',
 	'selection/gap-caret-arrival.spec.ts',
-	'caret/drawn-caret.spec.ts',
+	'caret/**/*.spec.ts',
 	'webkit/**/*.spec.ts'
 ];
 

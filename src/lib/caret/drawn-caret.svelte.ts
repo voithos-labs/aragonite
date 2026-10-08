@@ -9,15 +9,14 @@
 import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { firstUsefulRect, neighbourCaretRect } from './visual-lines';
-import { isAtomicInlineWidget } from './widget-offset';
+import { engineQuirks, measureCaret } from './drawn-caret-measure';
 import {
 	drawnCaretTarget,
 	type DrawnCaretReads,
 	type DrawnCaretRect,
 	type DrawnCaretTarget
 } from './drawn-caret-target';
-import { markCaretPaint, markCaretRequest } from '../perf/instruments';
+import { markCaretPaint, markCaretRequest, recordCaretFrameMove } from '../perf/instruments';
 import { assertInvariant } from '../assert';
 import { checkDrawnCaretAgrees, checkOneCaretShowing } from '../invariants/drawn-caret';
 
@@ -78,6 +77,7 @@ export function caretMedia(): CaretMedia | null {
 export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	const sources = new Map<HTMLElement, CaretSource>();
 	const media = caretMedia();
+	const quirks = engineQuirks();
 	let bar: HTMLElement | null = null;
 	let drawnFor: HTMLElement | null = null;
 	let painted: PaintedCaret | null = null;
@@ -111,15 +111,15 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 
 	function paintAtFrame(): void {
 		frame = 0;
-		paint();
+		paint(true);
 	}
 
-	function paint(): void {
+	function paint(atFrame = false): void {
 		const root = deps.getRoot();
 		if (!root) return;
 		const read = readCaret(root);
 		const target = drawnCaretTarget(read.reads);
-		draw(target, read);
+		draw(target, read, atFrame);
 		assertInvariant('one-caret-showing', () =>
 			checkOneCaretShowing(root, DRAWN_ATTR, target.state === 'text' ? drawnFor : null)
 		);
@@ -133,7 +133,8 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const owned = source && range && source.el.contains(range.startContainer) ? source : null;
 		const draws = drawsCaret(deps.caretMode(), media);
 		const drawable = owned?.drawable() ?? false;
-		const measured = draws && owned && range?.collapsed && drawable ? measure(owned, range) : null;
+		const measured =
+			draws && owned && range?.collapsed && drawable ? measureCaret(owned.el, range, quirks) : null;
 		const { selection } = deps;
 		return {
 			source: owned,
@@ -154,6 +155,8 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 				source: owned ? { drawable } : null,
 				besideWidget: measured?.besideWidget ?? false,
 				atSoftWrap: measured?.atSoftWrap ?? false,
+				clipped: measured?.clipped ?? false,
+				misdrawn: measured?.misdrawn ?? false,
 				caret: measured?.caret ?? null,
 				host: measured?.hostBox ?? null,
 				devicePixelRatio: window.devicePixelRatio || 1
@@ -161,7 +164,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		};
 	}
 
-	function draw(target: DrawnCaretTarget, read: CaretRead): void {
+	function draw(target: DrawnCaretTarget, read: CaretRead, atFrame: boolean): void {
 		if (target.state !== 'text' || !read.source || !read.host || !read.range) {
 			markDrawnFor(null);
 			bar?.setAttribute('data-caret-state', target.state);
@@ -174,6 +177,8 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const transform = `translate(${rect.x}px, ${rect.y}px)`;
 		const height = `${rect.height}px`;
 		if (el.style.transform !== transform || el.style.height !== height || !painted) {
+			// An editor-made move is painted by its own request; one the frame finds is the browser's.
+			if (atFrame && painted) recordCaretFrameMove();
 			el.style.transform = transform;
 			el.style.height = height;
 			// Two identical keyframe names: switching restarts the blink, so a moved caret shows solid.
@@ -288,9 +293,6 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
  *  attribute, not a class: Svelte rewrites an editable's whole class list when its kind changes. */
 const DRAWN_ATTR = 'data-caret-drawn';
 
-/** Drawn by the text block beside an inline widget; the bar steps aside while it shows. */
-const SNAP_CARET_CLASS = 'md-snap-caret-active';
-
 interface CaretRead {
 	source: CaretSource | null;
 	range: Range | null;
@@ -315,59 +317,4 @@ function createBar(): HTMLElement {
 
 function sizeOf(el: HTMLElement): string {
 	return `${el.offsetWidth}x${el.offsetHeight}`;
-}
-
-/** The caret's box the way the sticky column reads it, and the host the bar is drawn in. */
-function measure(source: CaretSource, range: Range) {
-	const host = source.el.closest<HTMLElement>('[data-block-path]') ?? source.el.parentElement;
-	if (!host) return null;
-	const own = firstUsefulRect(range);
-	const caret = own ?? neighbourCaretRect(range);
-	const besideWidget =
-		source.el.classList.contains(SNAP_CARET_CLASS) || (own === null && touchesWidget(range));
-	const box = host.getBoundingClientRect();
-	const scale = host.offsetWidth > 0 ? box.width / host.offsetWidth : 1;
-	return {
-		host,
-		besideWidget,
-		atSoftWrap: own !== null && atSoftWrap(range),
-		caret: caret && { left: caret.left, top: caret.top, bottom: caret.bottom },
-		hostBox: {
-			left: box.left + (host.clientLeft - host.scrollLeft) * scale,
-			top: box.top + (host.clientTop - host.scrollTop) * scale,
-			scale
-		}
-	};
-}
-
-// A line wraps inside a run of spaces, and the range reads one line or the other there whatever
-// line the browser draws on; the letters bounding the run sit on different lines exactly then.
-function atSoftWrap(range: Range): boolean {
-	const node = range.startContainer;
-	if (node.nodeType !== Node.TEXT_NODE) return false;
-	const text = node.textContent ?? '';
-	let before = range.startOffset - 1;
-	while (before >= 0 && WRAP_SPACE.includes(text[before])) before--;
-	let after = range.startOffset;
-	while (after < text.length && WRAP_SPACE.includes(text[after])) after++;
-	if (before < 0 || after >= text.length) return false;
-	const first = letterBox(node, before);
-	const next = letterBox(node, after);
-	return first !== null && next !== null && next.top >= first.bottom - 1;
-}
-
-const WRAP_SPACE = [' ', '\t'];
-
-function letterBox(node: Node, at: number): DOMRect | null {
-	const letter = document.createRange();
-	letter.setStart(node, at);
-	letter.setEnd(node, at + 1);
-	return firstUsefulRect(letter);
-}
-
-function touchesWidget(range: Range): boolean {
-	const container = range.startContainer;
-	const kids = container.childNodes;
-	const at = range.startOffset;
-	return [kids[at], kids[at - 1]].some((node) => node !== undefined && isAtomicInlineWidget(node));
 }

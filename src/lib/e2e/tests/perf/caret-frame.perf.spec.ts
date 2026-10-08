@@ -6,6 +6,7 @@ import { generateFixture, type FixtureShape } from '../../../test/perf/fixtures/
 import { waitForDocLength, writePerfResult } from './latency-harness';
 import {
 	installCaretFrameProbe,
+	pressPaced,
 	readCaretFrameProbe,
 	resetCaretFrameProbe,
 	type CaretFrameSummary
@@ -44,17 +45,17 @@ async function loadRow(page: Page, editor: EditorPage, shape: FixtureShape, mode
 async function typeRun(page: Page, editor: EditorPage, leaf: number[]): Promise<CaretFrameSummary> {
 	await editor.focusBlockAtPath(leaf, 3);
 	await resetCaretFrameProbe(page);
-	await editor.typeSlowly('x'.repeat(KEYS));
+	for (let i = 0; i < KEYS; i++) await pressPaced(page, 'x');
 	const length = await page.evaluate((path) => {
 		let node = (window as any).__test.getDocument();
 		for (const index of path) node = node.children[index];
 		return node.raw.replace(/\n$/, '').length as number;
 	}, leaf);
 	await editor.focusBlockAtPath(leaf, length);
-	await editor.typeSlowly('y'.repeat(KEYS));
+	for (let i = 0; i < KEYS; i++) await pressPaced(page, 'y');
 	for (let i = 0; i < 5; i++) {
-		await page.keyboard.press('Enter');
-		await page.keyboard.press('Backspace');
+		await pressPaced(page, 'Enter');
+		await pressPaced(page, 'Backspace');
 	}
 	return readCaretFrameProbe(page);
 }
@@ -71,6 +72,9 @@ test.describe('caret frame: the drawn caret lands with the letter', () => {
 			expect(run.compared, 'the drawn caret drew while typing').toBeGreaterThan(0);
 			expect(run.lagging, `${key}: frames where the caret trailed the letter`).toBe(0);
 			expect(run.maxDeltaPx, `${key}: the drawn box against the range’s`).toBeLessThanOrEqual(1);
+			expect(run.frameMoves, `${key}: caret writes painted by the frame, not their request`).toBe(
+				0
+			);
 		});
 	}
 });
@@ -87,12 +91,13 @@ test.describe('caret frame: moves the browser makes', () => {
 		await editor.focusBlock(2, 0);
 		await resetCaretFrameProbe(page);
 		let moves = 0;
-		for (let i = 0; i < 20; i++, moves++) await page.keyboard.press('ArrowRight');
-		for (let i = 0; i < 20; i++, moves++) await page.keyboard.press('ArrowLeft');
-		for (let i = 0; i < 2; i++, moves++) await page.keyboard.press('ArrowDown');
+		for (let i = 0; i < 20; i++, moves++) await pressPaced(page, 'ArrowRight');
+		for (let i = 0; i < 20; i++, moves++) await pressPaced(page, 'ArrowLeft');
+		for (let i = 0; i < 2; i++, moves++) await pressPaced(page, 'ArrowDown');
 		const box = (await editor.getBlock(2).boundingBox())!;
 		for (let i = 0; i < 6; i++, moves++) {
 			await page.mouse.click(box.x + 20 + i * 37, box.y + 6);
+			await page.evaluate(() => new Promise((done) => requestAnimationFrame(done)));
 		}
 		const run = await readCaretFrameProbe(page);
 		const perMove = run.lagging / moves;

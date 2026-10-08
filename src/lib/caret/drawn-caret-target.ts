@@ -37,6 +37,10 @@ export interface DrawnCaretReads {
 	/** The caret sits where a line wraps, which the range reads as the first line's end whichever
 	 *  line the browser draws its caret on. */
 	atSoftWrap: boolean;
+	/** A scroller inside the block clips the caret's box, and the browser's caret with it. */
+	clipped: boolean;
+	/** The engine paints its own caret off the range's box here. */
+	misdrawn: boolean;
 	caret: ClientCaretBox | null;
 	host: HostBox | null;
 	devicePixelRatio: number;
@@ -56,7 +60,7 @@ export function drawnCaretTarget(reads: DrawnCaretReads): DrawnCaretTarget {
 	if (!reads.draws) return { state: 'native' };
 	if (hides(reads)) return { state: 'hidden' };
 	const { source, caret, host } = reads;
-	if (!source || !source.drawable || reads.besideWidget || reads.atSoftWrap || !caret || !host) {
+	if (!source || !source.drawable || !caret || !host || offTheRange(reads)) {
 		return { state: 'native' };
 	}
 	// Snapped in client pixels, where the device grid is, so a 1px bar never smears over two.
@@ -70,6 +74,11 @@ export function drawnCaretTarget(reads: DrawnCaretReads): DrawnCaretTarget {
 			height: (caret.bottom - caret.top) / host.scale
 		}
 	};
+}
+
+// Where the range's box isn't where the browser's own caret is, the browser's caret is the truth.
+function offTheRange(reads: DrawnCaretReads): boolean {
+	return reads.besideWidget || reads.atSoftWrap || reads.clipped || reads.misdrawn;
 }
 
 function hides(reads: DrawnCaretReads): boolean {

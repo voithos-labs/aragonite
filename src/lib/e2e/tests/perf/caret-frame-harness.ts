@@ -21,6 +21,8 @@ export interface CaretFrameSummary {
 	/** Event Timing's `keydown` to next paint, over the entries it reported (16ms and up). */
 	keydownToPaintP50Ms: number | null;
 	keydownEntries: number;
+	/** Paints at an animation frame that moved the bar: a move no caret write asked to repaint. */
+	frameMoves: number;
 }
 
 /** Samples from a size observer, which fires after every frame callback (the editor's own paint
@@ -88,8 +90,9 @@ export async function readCaretFrameProbe(page: Page): Promise<CaretFrameSummary
 	);
 	const raw = await page.evaluate(() => {
 		const p = (window as any).__caretFrameProbe;
-		const paints = ((window as any).__test.perf.snapshot().caretPaintMs ?? []) as number[];
-		return { ...p, keydowns: [...p.keydowns], paints };
+		const perf = (window as any).__test.perf.snapshot();
+		const paints = (perf.caretPaintMs ?? []) as number[];
+		return { ...p, keydowns: [...p.keydowns], paints, frameMoves: perf.caretFrameMoves ?? 0 };
 	});
 	const p50 = (xs: number[]) => (xs.length ? percentileMs(xs, 50) : null);
 	return {
@@ -100,6 +103,13 @@ export async function readCaretFrameProbe(page: Page): Promise<CaretFrameSummary
 		caretPaintP50Ms: p50(raw.paints),
 		caretPaintP95Ms: raw.paints.length ? percentileMs(raw.paints, 95) : null,
 		keydownToPaintP50Ms: p50(raw.keydowns),
-		keydownEntries: raw.keydowns.length
+		keydownEntries: raw.keydowns.length,
+		frameMoves: raw.frameMoves
 	};
+}
+
+/** One key, then the frame it paints in, so every move is sampled at a frame boundary. */
+export async function pressPaced(page: Page, key: string): Promise<void> {
+	await page.keyboard.press(key);
+	await page.evaluate(() => new Promise((done) => requestAnimationFrame(done)));
 }

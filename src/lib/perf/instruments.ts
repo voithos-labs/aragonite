@@ -36,6 +36,8 @@ export interface PerfSnapshot {
 	keystrokeInPageMs: number[];
 	/** From the first repaint request of a task to the drawn caret's paint, one entry per paint. */
 	caretPaintMs: number[];
+	/** Paints at an animation frame that moved the drawn caret: a move no caret write asked for. */
+	caretFrameMoves: number;
 	blockRenderPaths: string[];
 	mountedBlockCount: number;
 	decorationRuns: number;
@@ -75,6 +77,7 @@ function emptySnapshot(): PerfSnapshot {
 		blockRenderMsTotal: 0,
 		keystrokeInPageMs: [],
 		caretPaintMs: [],
+		caretFrameMoves: 0,
 		blockRenderPaths: [],
 		mountedBlockCount: 0,
 		decorationRuns: 0,
@@ -233,6 +236,11 @@ export function markKeystrokeSettle(): void {
 export function markCaretRequest(): void {
 	if (!enabled || caretRequestedAt !== null) return;
 	caretRequestedAt = performance.now();
+}
+
+export function recordCaretFrameMove(): void {
+	if (!enabled) return;
+	counters.caretFrameMoves++;
 }
 
 export function markCaretPaint(): void {

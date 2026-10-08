@@ -16,6 +16,7 @@ import {
 	type Probe
 } from './file-rule';
 import { SOURCE, SOURCE_DIR } from './source-paths';
+import { NATIVE_SELECTION_WRITE } from './native-selection-write';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 const keys = (...groups: Record<string, string>[]) => groups.flatMap((g) => Object.keys(g));
@@ -296,10 +297,9 @@ const MANIFESTS: ManifestRule[] = [
 	},
 	{
 		id: 'G4.36 the one file writing the native selection is the caret writer',
-		// Only the two-argument collapse and setPosition: Range.collapse(true) and the editor's own
-		// selectionState.collapse() take one argument or none, and write no caret.
-		matches:
-			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren|removeAllRanges|empty)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
+		// A one-argument collapse counts on a selection only: Range.collapse(toStart) and the
+		// selection store's own collapse() write no caret.
+		matches: NATIVE_SELECTION_WRITE,
 		declared: {
 			'src/lib/caret/widget-offset.ts':
 				'createCaretWriter, one per editor: its writes check every endpoint against an empty block’s <br> (G1.75) and ask the drawn caret to repaint'
@@ -314,13 +314,20 @@ const MANIFESTS: ManifestRule[] = [
 			'sel.extend(node, 2);',
 			'window.getSelection()?.collapse(node, 2);',
 			'sel.setPosition(node, 2);',
-			'sel.selectAllChildren(node);'
+			'sel.selectAllChildren(node);',
+			'sel.collapseToEnd();',
+			'sel.collapseToStart();',
+			"sel.modify('move', 'forward', 'character');",
+			'sel.collapse(node);',
+			'window.getSelection()?.collapse(node);',
+			'sel.setPosition(node);'
 		],
 		misses: [
 			'sel.getRangeAt(0);',
 			'selectionState.collapse();',
+			'ctx.selection.collapse();',
 			'range.collapse(true);',
-			'sel.collapseToEnd();'
+			'range.collapse(toStart);'
 		]
 	},
 	{

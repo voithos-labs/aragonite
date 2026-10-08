@@ -1,10 +1,11 @@
 /**
  * What caret a user sees right now, read off the page: the browser's own caret in the focused
  * editable, and every caret the editor draws (the drawn caret's bar, or the snap caret beside a
- * widget). Every row about the drawn caret asserts exactly one of them shows.
+ * widget). Every row about the drawn caret asserts exactly one of them shows, and the rows that
+ * need the browser's own painted caret find it red in a screenshot.
  */
 
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export interface CaretsShowing {
 	/** The focused editable holds a collapsed selection and paints the browser's caret. */
@@ -81,4 +82,103 @@ export function nativeCaretBox(page: Page): Promise<CaretBox | null> {
 		const kids = container.childNodes;
 		return boxOf(kids[range.startOffset], false) ?? boxOf(kids[range.startOffset - 1], true);
 	});
+}
+
+/** Sets the `caret` prop on the test route, live. */
+export async function setCaretProp(page: Page, mode: 'auto' | 'native' | 'drawn'): Promise<void> {
+	await page.evaluate((m) => (window as any).__test.setCaret(m), mode);
+}
+
+// ── The browser's own painted caret ─────────────────────────────────────────
+
+export interface PaintedCaret {
+	left: number;
+	top: number;
+	bottom: number;
+}
+
+/** The column and the span of the red caret the browser paints in `clip`, or null while it blinks
+ *  off. */
+async function paintedRedCaret(
+	page: Page,
+	clip: { x: number; y: number; width: number; height: number }
+): Promise<PaintedCaret | null> {
+	const shot = await page.screenshot({ clip, caret: 'initial' });
+	return page.evaluate(
+		async ({ b64, clip }) => {
+			const img = new Image();
+			img.src = `data:image/png;base64,${b64}`;
+			await img.decode();
+			const canvas = document.createElement('canvas');
+			canvas.width = img.width;
+			canvas.height = img.height;
+			const ctx = canvas.getContext('2d')!;
+			ctx.drawImage(img, 0, 0);
+			const { data } = ctx.getImageData(0, 0, img.width, img.height);
+			let left = Infinity;
+			let top = Infinity;
+			let bottom = -Infinity;
+			for (let y = 0; y < img.height; y++) {
+				for (let x = 0; x < img.width; x++) {
+					const i = (y * img.width + x) * 4;
+					if (data[i] > 200 && data[i + 1] < 60 && data[i + 2] < 60) {
+						left = Math.min(left, x);
+						top = Math.min(top, y);
+						bottom = Math.max(bottom, y + 1);
+					}
+				}
+			}
+			if (left === Infinity) return null;
+			return { left: clip.x + left, top: clip.y + top, bottom: clip.y + bottom };
+		},
+		{ b64: shot.toString('base64'), clip }
+	);
+}
+
+/** Where the browser paints its own caret now, red and found by eye, retried past a blink. */
+export async function browserCaret(page: Page): Promise<PaintedCaret> {
+	await setCaretProp(page, 'native');
+	await page.addStyleTag({
+		content: '.editor [contenteditable] { caret-color: rgb(255, 0, 0) !important; }'
+	});
+	const block = await page.evaluate(() => {
+		const r = (document.activeElement as HTMLElement).getBoundingClientRect();
+		return { x: r.x, y: r.y, width: r.width, height: r.height };
+	});
+	const clip = { x: block.x - 4, y: block.y - 4, width: block.width + 8, height: block.height + 8 };
+	let found: PaintedCaret | null = null;
+	await expect
+		.poll(async () => (found = await paintedRedCaret(page, clip)), { timeout: 5000 })
+		.not.toBeNull();
+	return found!;
+}
+
+/** Exactly one caret shows; a drawn one sits on the line, and at the x, the browser paints its
+ *  own caret at for the same selection. */
+export async function oneCaretOnTheBrowsersLine(page: Page): Promise<'drawn' | 'native'> {
+	// A key the browser handles moves the caret in a later task; its paint lands by the frame.
+	await page.evaluate(
+		() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+	);
+	await expect
+		.poll(async () => {
+			const showing = await caretsShowing(page);
+			return showing.drawn + (showing.native ? 1 : 0);
+		})
+		.toBe(1);
+	const drawn = await drawnCaretBox(page);
+	if (!drawn) return 'native';
+	const painted = await browserCaret(page);
+	// The same line: WebKit paints its own caret the full line box tall past a wrap, taller than
+	// the text, so the drawn bar's middle is what has to fall inside it.
+	const middle = drawn.top + drawn.height / 2;
+	expect(middle, `line ${drawn.top} vs ${painted.top}..${painted.bottom}`).toBeGreaterThan(
+		painted.top
+	);
+	expect(middle).toBeLessThan(painted.bottom);
+	expect(
+		Math.abs(drawn.left - painted.left),
+		`x ${drawn.left} vs ${painted.left}`
+	).toBeLessThanOrEqual(1);
+	return 'drawn';
 }

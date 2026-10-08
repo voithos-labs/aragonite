@@ -43,7 +43,7 @@ export function checkOneCaretShowing(
 	const ok = drawnFor ? marked.length === 1 && marked[0] === drawnFor : marked.length === 0;
 	if (ok) return null;
 	return {
-		code: 'drawn-caret-class',
+		code: 'drawn-caret-mark',
 		message: `${marked.length} editables hide the browser's caret while the drawn caret draws for ${drawnFor ? 'one' : 'none'}: the mark and the bar change in one paint, so the page shows exactly one caret`
 	};
 }
