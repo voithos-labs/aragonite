@@ -29,17 +29,15 @@ function expectTypedInto(src: string, line: string, expected: string): void {
 
 for (const mode of ['source', 'live'] as const) {
 	for (const [placement, doc] of PLACEMENTS) {
-		test.describe(`selected image, vertical arrows: ${mode} mode, ${placement}`, () => {
-			let editor: PluginsPage;
+		test(`selected image, vertical arrows: ${mode} mode, ${placement}: ArrowDown and ArrowUp leave the image for its neighbours`, async ({
+			page
+		}) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins();
+			await editor.loadContent(doc);
+			await editor.setPresentationMode(mode);
 
-			test.beforeEach(async ({ page }) => {
-				editor = new PluginsPage(page);
-				await editor.gotoPlugins();
-				await editor.loadContent(doc);
-				await editor.setPresentationMode(mode);
-			});
-
-			test('ArrowDown leaves the selected image for the block below', async ({ page }) => {
+			await test.step('ArrowDown leaves the selected image for the block below', async () => {
 				await selectImage(editor);
 				await page.keyboard.press('ArrowDown');
 				await editor.typeText('X');
@@ -47,7 +45,8 @@ for (const mode of ['source', 'live'] as const) {
 				expectTypedInto(src, src.trimEnd().split('\n').pop()!, 'below');
 			});
 
-			test('ArrowUp leaves the selected image for the block above', async ({ page }) => {
+			await test.step('ArrowUp leaves the selected image for the block above', async () => {
+				await editor.loadContent(doc);
 				await selectImage(editor);
 				await page.keyboard.press('ArrowUp');
 				await editor.typeText('X');

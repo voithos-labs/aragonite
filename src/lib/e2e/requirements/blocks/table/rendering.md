@@ -12,7 +12,7 @@
 
 - A header-only table renders with one row, no body rows.
 - A single-column table renders without breaking the grid.
-- A table with escaped pipes (`\|`) in cells renders the escaped pipe as visible text in that cell.
+- A table with escaped pipes (`\|`) in cells renders the escaped pipe as visible text in that cell (`e2e/tests/blocks/table/cell-inline-rendering.spec.ts` reads it).
 
 ## Structural invariants
 
@@ -20,7 +20,7 @@
 
 ## User interactions
 
-- Typing in a cell mutates the cell's raw and the document round-trips with the new content.
+- Typing in a cell mutates the cell's raw and the document round-trips with the new content (`e2e/tests/blocks/table/cell-input-escape.spec.ts` types into a cell and reads the source back).
 - The table coexists with paragraphs above / below: typing in a paragraph above does not disturb the table.
 
 ## Error cases

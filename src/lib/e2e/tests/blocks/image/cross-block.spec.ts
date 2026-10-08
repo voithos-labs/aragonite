@@ -10,10 +10,13 @@ test.describe('image cross-block selection', () => {
 		await editor.goto();
 	});
 
-	test('Shift+ArrowRight extends selection atomically across widget', async ({ page }) => {
+	test('Shift+ArrowRight extends across a widget atomically, Backspace deletes it whole, and undo restores it', async ({
+		page
+	}) => {
 		await editor.loadContent('a![cat](/test-fixtures/sample.png)b\n');
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('ArrowRight');
+		// One Shift+ArrowRight jumps the whole widget; a second would extend into 'b'.
 		await page.keyboard.press('Shift+ArrowRight');
 		// The widget carries no textContent, so range.toString() can't see the source bytes; assert
 		// structurally that the widget element falls inside the Range bounds.
@@ -25,28 +28,11 @@ test.describe('image cross-block selection', () => {
 			return widget ? range.intersectsNode(widget) : false;
 		});
 		expect(widgetInRange).toBe(true);
-	});
 
-	test('cross-block delete removes whole widget', async ({ page }) => {
-		await editor.loadContent('a![cat](/test-fixtures/sample.png)b\n');
-		await editor.focusBlockStart(0);
-		await page.keyboard.press('ArrowRight');
-		// One Shift+ArrowRight jumps the whole widget; a second would extend into 'b'.
-		await page.keyboard.press('Shift+ArrowRight');
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('![cat]');
 		expect(await editor.bridge.getSource()).toContain('ab\n');
-	});
 
-	test('undo restores deleted widget', async ({ page }) => {
-		await editor.loadContent('a![cat](/test-fixtures/sample.png)b\n');
-		await editor.focusBlockStart(0);
-		await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('Shift+ArrowRight');
-		await page.keyboard.press('Backspace');
-		// Observe the delete before undoing: otherwise the restore predicate is satisfied by the
-		// document as loaded, and a Backspace that never fired passes.
-		await editor.bridge.waitForSourceNotContains('![cat]');
 		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
