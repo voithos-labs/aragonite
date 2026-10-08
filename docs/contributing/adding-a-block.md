@@ -42,9 +42,9 @@ Pick the closest reference and read it fully before you start. It'll answer more
 
 - `components/blocks/`: the reference components.
 - `schema/`: the registries you'll touch.
-- `editor-actions/` and `reactivity/`: the primitives a container builds on.
+- `editor-actions/`, `block-lists/` and `windowing/`: the primitives a container builds on.
 - `ambient/`: the DOM for the dimmed marker a container lends its first child (a list item's `- `).
-- `cursor/`: caret geometry, offsets across that marker included (`caret/widget-offset.ts`).
+- `caret/`: caret geometry, offsets across that marker included (`caret/widget-offset.ts`).
 
 ## Registration
 

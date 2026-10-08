@@ -2327,9 +2327,8 @@ listed edge that's gone fails until its line is deleted. What the scan can't do 
 someone adds, so that's a reviewer's job, and in a slice that moves files the baseline's diff may
 only rename nodes along the move map: any other new line gets named in the slice's report with its
 imports (a slice: one batch of work landing together; the move map: its list of old and new paths).
-Counting runtime edges, two directory cycles are still in it, {`core`, `schema`, `cursor`,
-`invariants`, `tree-operations`, `debug`} and {`selection`, `editor-actions`, `components`,
-`ambient`}. One rule doesn't wait for the list to shrink: nothing in `tree-operations/` imports from
+Counting runtime edges, two directory cycles are still in it, {`core`, `schema`, `caret`,
+`windowing`, `invariants`, `tree-operations`, `debug`} and {`selection`, `editor-actions`}. One rule doesn't wait for the list to shrink: nothing in `tree-operations/` imports from
 `editor-actions/` or `components/`, listed or not, since a pure tree mutation reaching up there is a
 cycle no behavior test notices. An import the scan can't resolve to a file fails too, so nothing
 drops out of the graph unseen. `lint/directory-layering.test.ts`.

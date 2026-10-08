@@ -2,8 +2,8 @@
  * Today's import edges between `src/lib`'s top-level directories (a root file is its own node).
  * `directory-layering.test.ts` fails on an edge not listed and on a listed edge that's gone; a new
  * line needs a reviewer's yes, and a move may only rename nodes along its move map. Two cycles are
- * left to break: {core, schema, cursor, invariants, tree-operations, debug} and {selection,
- * editor-actions, components, ambient}.
+ * left to break: {core, schema, caret, windowing, invariants, tree-operations, debug} and
+ * {selection, editor-actions}.
  */
 
 /** Pairs joined by at least one import that loads at runtime. */

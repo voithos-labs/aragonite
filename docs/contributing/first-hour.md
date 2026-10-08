@@ -20,7 +20,7 @@ You've cloned the repo and you'd like to be useful within the hour. This page is
    The second line isn't optional; the e2e suite and the perf gate both drive chromium. Open `/test/editor`, type a list, nest an item, undo it. Then `Ctrl+Shift+D` (`Cmd+Shift+D` on a Mac) opens the debug panel: watch the CST section (the parsed tree) change as you type, and notice the raw source next to it is the bytes you typed, `- ` and all. That's the whole architecture, live. Then run the area suite you'll spend the most time in, say
 
    ```
-   npm run test:editor:cursor
+   npm run test:editor:caret
    ```
 
    (any `test:editor:<area>` script in `package.json` works), and read two of the files it ran. Matching their conventions is half of a good first pull request, and [`testing.md`](testing.md) has the other half.

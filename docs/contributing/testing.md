@@ -123,8 +123,9 @@ calls vite's `resolveConfig` fails with a type error out of rolldown. A file lik
 | `test:editor:editor-actions` | Editor action bundles and commit primitives                                                                 |
 | `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules                          |
 | `test:editor:ambient`        | A container's marker prefix in the DOM, and offset translation across it                                    |
-| `test:editor:cursor`         | Cursor utilities, sticky column, overlay rect measurement                                                   |
-| `test:editor:reactivity`     | Block-list state and state registry                                                                         |
+| `test:editor:caret`          | Caret memory, offset translation, sticky column, overlay rect measurement                                   |
+| `test:editor:windowing`      | Virtual rendering: height model, scroll owner, per-list windowing                                           |
+| `test:editor:block-lists`    | Block-list state and state registry                                                                         |
 | `test:editor:selection`      | Selection-state logic                                                                                       |
 | `test:editor:decorations`    | Decoration engine: sources, edit-epoch invalidation, path buckets, widget model                             |
 | `test:editor:blocks`         | Per-block unit tests                                                                                        |
