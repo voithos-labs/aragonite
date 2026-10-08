@@ -20,25 +20,34 @@ export interface SharedResizeWatch {
 	watch(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
 }
 
-/** One observer for many elements, each watched from the next frame, made after the width watcher. */
+/** One observer for many elements, each watched from the next frame, made after the width watcher.
+ *  Every watcher of an element hears each resize; the last one to stop unobserves it. */
 export function createSharedResizeWatch(): SharedResizeWatch {
-	const listeners = new Map<Element, (entry: ResizeObserverEntry) => void>();
+	const listeners = new Map<Element, Set<(entry: ResizeObserverEntry) => void>>();
 	let observer: ResizeObserver | null = null;
 	const deliver: ResizeObserverCallback = (entries) => {
-		for (const entry of entries) listeners.get(entry.target)?.(entry);
+		for (const entry of entries) {
+			for (const onResize of [...(listeners.get(entry.target) ?? [])]) onResize(entry);
+		}
 	};
 	return {
 		watch(el, onResize) {
 			if (typeof ResizeObserver !== 'function') return () => {};
-			listeners.set(el, onResize);
+			const watchers = listeners.get(el) ?? new Set();
+			listeners.set(el, watchers);
+			// A fresh function per watch, so the same callback watching twice stops one at a time.
+			const watcher = (entry: ResizeObserverEntry) => onResize(entry);
+			watchers.add(watcher);
 			const frame = requestAnimationFrame(() => {
 				observer ??= new ResizeObserver(deliver);
 				observer.observe(el);
 			});
 			return () => {
 				cancelAnimationFrame(frame);
+				watchers.delete(watcher);
+				if (watchers.size > 0 || listeners.get(el) !== watchers) return;
+				listeners.delete(el);
 				observer?.unobserve(el);
-				if (listeners.get(el) === onResize) listeners.delete(el);
 			};
 		}
 	};
