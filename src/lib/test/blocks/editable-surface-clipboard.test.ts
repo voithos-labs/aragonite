@@ -216,6 +216,15 @@ describe('step order', () => {
 			expect(rec.prevented).toBe(true);
 		});
 
+		// Miss-analysis: every paste row seeded a one-line payload and the document-level CRLF rows
+		// paste into a CRLF document, so no row saw the tail get CRLF clipboard text.
+		it('hands the tail the clipboard text with CRLF read as LF', async () => {
+			const log: string[] = [];
+			const rec = recorder('one\r\n\r\ntwo\r\n');
+			await createClipboardHandlers(deps(log)).onPaste(rec.e);
+			expect(log).toEqual(['record', 'crossblock-paste', 'forget', 'pasteTail:one\n\ntwo\n']);
+		});
+
 		it('an empty clipboard normalizes to nothing and never reaches the tail', async () => {
 			const log: string[] = [];
 			const rec = recorder(''); // nothing on the clipboard

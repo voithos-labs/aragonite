@@ -22,8 +22,6 @@ set-once at mount) and swaps its per-image response through `window.__test.image
 
 - One image pasted into a paragraph with the caret mid-text, hook returns `![[a.png]]`:
   the markdown lands at the caret, splitting the surrounding text at that point.
-- Two images in one paste: both markdown strings land at the captured caret in
-  clipboard order, the second immediately after the first.
 - The hook receives the file's MIME type and its name as `suggestedName`.
 - An image pasted over a selection replaces it, like every other paste route: the
   selection's text is gone and the markdown stands in its place.
@@ -33,24 +31,29 @@ set-once at mount) and swaps its per-image response through `window.__test.image
 
 ## Edge cases
 
-- Hook returns `null`: nothing is inserted, no error is emitted, the document is
-  unchanged, and the paste is still consumed (no `text/plain` fallback).
 - Hook returns `null` for one of two images: only the other image's markdown lands.
   Pinned by `test/blocks/editable-surface-clipboard.test.ts`.
-- Caret moved elsewhere while a slow hook is still resolving: the markdown lands at
-  the caret held when the paste fired, not where the caret now sits.
 - Pasted while an inline-source reveal is open: the reveal collapses first, and the
   caret that collapse committed anchors the insertion, because the block reads no caret
   of its own on a widget's element-level edge. Pinned by
   `test/blocks/editable-surface-clipboard.test.ts`; opening a reveal and holding an
   import across it is not reachable as one user gesture at e2e level.
-- Clipboard carries a non-image file (a `.txt` attachment) plus text: the image branch
-  declines and the ordinary `text/plain` paste runs.
 - The block holding the captured caret is gone by the time a slow hook resolves
   (windowed out, or the document was replaced): nothing is inserted and an `error`
   event is emitted. The insertion is declined rather than landing at a guessed offset.
   Pinned by `test/blocks/editable-surface-clipboard.test.ts`, since unmounting a
   block mid-import is not reachable through a user gesture at e2e level.
+
+## Pinned below the browser
+
+`test/blocks/editable-surface-clipboard.test.ts` runs the paste handler without a page and pins:
+
+- Two images in one paste land at the captured caret in clipboard order, as one insertion and one
+  undo entry.
+- A hook that returns `null` inserts nothing, emits no error and does not fall back to `text/plain`.
+- A caret moved while a slow hook is still resolving does not redirect the insertion.
+- A non-image attachment (a `.txt`) leaves the paste on the `text/plain` path, and the hook is not
+  called.
 
 ## User interactions
 

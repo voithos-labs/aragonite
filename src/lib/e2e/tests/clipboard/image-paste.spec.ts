@@ -7,7 +7,6 @@ import {
 	getCalls,
 	gotoWithHook,
 	pasteFiles,
-	releaseImport,
 	setResponses
 } from './image-paste-harness';
 
@@ -45,21 +44,6 @@ test.describe('image paste: host hook installed', () => {
 		expect(await editor.bridge.getSource()).toContain('AB');
 	});
 
-	test('two images land in clipboard order as one undoable paste', async ({ page }) => {
-		await editor.loadContent(PARAGRAPH);
-		await setResponses(page, [{ markdown: '![[one.png]]' }, { markdown: '![[two.png]]' }]);
-		await caretMidParagraph(editor, page);
-		await pasteFiles(page, [
-			{ name: 'one.png', type: 'image/png' },
-			{ name: 'two.png', type: 'image/png' }
-		]);
-
-		await editor.bridge.waitForSourceContains('A![[one.png]]![[two.png]]B');
-		await page.keyboard.press('ControlOrMeta+z');
-		await editor.bridge.waitForSourceNotContains('one.png');
-		expect(await editor.bridge.getSource()).not.toContain('two.png');
-	});
-
 	// Every other paste route replaces the selection, and this one is another way in that
 	// has to follow the same rule.
 	test('an image pasted over a selection replaces it', async ({ page }) => {
@@ -72,38 +56,6 @@ test.describe('image paste: host hook installed', () => {
 
 		await editor.bridge.waitForSourceContains('![[shot.png]]');
 		expect((await editor.bridge.getSource()).trim()).toBe('![[shot.png]]');
-	});
-
-	test('a caret moved while the import is pending does not redirect the insertion', async ({
-		page
-	}) => {
-		await editor.loadContent(`${PARAGRAPH}\nsecond\n`);
-		await setResponses(page, [{ markdown: '![[held.png]]', hold: true }]);
-		await caretMidParagraph(editor, page);
-		await pasteFiles(page, [{ name: 'held.png', type: 'image/png' }]);
-
-		// A real click into the next block while the host is still uploading.
-		await expect.poll(async () => (await getCalls(page)).length).toBe(1);
-		await editor.getBlock(1).click();
-		await page.keyboard.press('End');
-		await releaseImport(page);
-
-		await editor.bridge.waitForSourceContains('A![[held.png]]B');
-		expect(await editor.bridge.getSource()).not.toContain('second![[held.png]]');
-	});
-
-	test('a null result inserts nothing and does not fall back to the clipboard text', async ({
-		page
-	}) => {
-		await editor.loadContent(PARAGRAPH);
-		await setResponses(page, [{ markdown: null }]);
-		await caretMidParagraph(editor, page);
-		await pasteFiles(page, [PNG], 'PLAIN');
-
-		await expect.poll(async () => (await getCalls(page)).length).toBe(1);
-		const source = await editor.bridge.getSource();
-		expect(source).not.toContain('PLAIN');
-		expect(source).toContain('AB');
 	});
 
 	test('a rejected import reports an error, its sibling still lands, editing continues', async ({
@@ -125,16 +77,6 @@ test.describe('image paste: host hook installed', () => {
 
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('![[two.png]]XB');
-	});
-
-	test('a non-image attachment leaves the paste on the text path', async ({ page }) => {
-		await editor.loadContent(PARAGRAPH);
-		await setResponses(page, [{ markdown: '![[wrong.png]]' }]);
-		await caretMidParagraph(editor, page);
-		await pasteFiles(page, [{ name: 'notes.txt', type: 'text/plain' }], 'PLAIN');
-
-		await editor.bridge.waitForSourceContains('APLAINB');
-		expect(await getCalls(page)).toEqual([]);
 	});
 
 	// Each editable element finishes the shared insertion its own way (a raw traversal plus escaping

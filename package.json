@@ -153,7 +153,6 @@
 		"test:e2e:blocks:image": "playwright test --project=e2e-blocks blocks/image",
 		"test:e2e:blocks:blockquote": "playwright test --project=e2e-blocks blocks/blockquote",
 		"test:e2e:clipboard": "playwright test --project=e2e-clipboard",
-		"test:e2e:exploration": "playwright test --project=e2e-exploration",
 		"test:e2e:selection": "playwright test --project=e2e-selection",
 		"test:e2e:sticky-column": "playwright test --project=e2e-sticky-column",
 		"test:e2e:simulation": "playwright test --project=e2e-simulation",

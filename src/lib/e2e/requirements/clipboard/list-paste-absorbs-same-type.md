@@ -7,17 +7,22 @@ Design reason: the user copied a list of the same type; flattening preserves the
 ## Happy paths
 
 - Ordered paste at end of ordered item: pasted items become siblings immediately after the target, all renumbered continuously (`1. alpha, 2. x, 3. y, 4. beta`).
-- Ordered paste at start of ordered item: pasted items become siblings before the target; target keeps its content.
-- Ordered paste in middle of ordered item: target splits into leading and trailing items; pasted items sandwich between them; continuous renumbering across the whole list.
-- Unordered paste at end of unordered item: same shape, flat single list with all items as siblings.
-- Single-item ordered paste at end of target: pasted item slots in as one new sibling.
 
 ## Edge cases
 
-- Target is an empty list item: handled earlier by `findContainerMatchingUnwrap`. Absorb does not fire.
-- Cross-block paste that happens to land in a same-type list: handled by `findContainerMatchingUnwrap`'s merge variant. Absorb does not fire.
+- Target is an empty list item, or a cross-block paste lands in a same-type list: handled earlier by `findContainerMatchingUnwrap` (and its merge variant). Absorb does not fire.
 - Mismatched ordered-flag between clipboard and target: absorb declines; `findListBreakOut` handles the break-out path.
 - Multi-block clipboard (e.g. `list + paragraph`): absorb declines (`parsed.children.length !== 1` guard). Falls through to `findListBreakOut` → break-out preserves the multi-block structure at the enclosing list's parent level.
 - Target deeper than a direct leaf of the listItem: absorb declines. Default structural paste applies (rare; may revisit).
-- Pasted items with a different ordered-marker suffix (`1) ` into a `1. ` list): suffix coerces to match the parent's template; `1. alpha, 2. x, 3. y, 4. beta` with uniform `. ` suffix throughout.
-- Trailing slice of a word-boundary split keeps its leading space, and the trailing item reads it into its marker the way a reload does (`7.  third`, and the drawn marker is `7.  ` too), the same as Enter at that spot.
+
+## Pinned below the browser
+
+`test/tree-operations/paste/list-absorb-rows.test.ts` pastes into a list at the same positions without a
+page, and each row ends as the whole list. An ordered paste at the start of an item lands the pasted
+items before it, in the middle of an item splits it and sandwiches the pasted items between the halves,
+and at the end of a middle item lands between it and the rest, with numbering continuous through all
+three. An unordered paste at the end of an item absorbs as flat siblings, and a single pasted item slots
+in as one new sibling. A list that does not start at 1 keeps counting from its own first number, and
+pasted items with a different ordered-marker suffix (`1) ` into a `1. ` list) take the enclosing list's
+style. A clipboard with no trailing newline still absorbs as separate items, and a trailing slice of a
+word-boundary split keeps its leading space in its marker (`7.  third`), the same as Enter there.

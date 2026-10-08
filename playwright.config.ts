@@ -129,10 +129,8 @@ export default defineConfig({
 		...PROJECT_DIRS.map((dir) => ({ name: `e2e-${dir}`, testMatch: `${dir}/**/*.spec.ts` })),
 		{
 			name: 'e2e-clipboard',
-			testMatch: 'clipboard/**/*.spec.ts',
-			testIgnore: 'clipboard/exploration/**/*'
+			testMatch: 'clipboard/**/*.spec.ts'
 		},
-		{ name: 'e2e-exploration', testMatch: 'clipboard/exploration/**/*.spec.ts' },
 		...(WEBKIT
 			? [
 					{

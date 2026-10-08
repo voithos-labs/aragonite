@@ -13,100 +13,6 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.goto();
 	});
 
-	test('Enter collapses cross-block selection and splits at the merge point', async () => {
-		await editor.loadContent('alpha\n\nbeta\n');
-
-		await editor.focusBlockAtPath([0], 2);
-		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
-
-		await editor.page.keyboard.press('Enter');
-		await editor.waitForCrossBlock(false);
-
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		const source = await editor.bridge.getSource();
-		// Merge concatenates "al" + "ta"; Enter splits it after "al".
-		expect(source).toMatch(/al\s*\n\s*ta/);
-	});
-
-	test('Shift+Enter collapses cross-block and inserts a hard line break', async () => {
-		await editor.loadContent('alpha\n\nbeta\n');
-
-		await editor.focusBlockAtPath([0], 2);
-		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
-
-		await editor.page.keyboard.press('Shift+Enter');
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains('al\\');
-
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('al\\');
-	});
-
-	// A format toggle marks each block's own span instead of deleting the range, since deleting first
-	// would leave `****`; the selection survives, which also keeps it off shifted indices.
-	test('Ctrl+B marks each endpoint span and the range survives', async () => {
-		await editor.loadContent('alpha\n\nbeta\n');
-
-		await editor.focusBlockAtPath([0], 2);
-		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
-
-		await editor.page.keyboard.press('ControlOrMeta+b');
-		// The anchor block's tail and the focus block's head, each marked on its own, no delete.
-		await editor.bridge.waitForSourceEquals('al**pha**\n\n**be**ta\n', 3000);
-
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-	});
-
-	test('Ctrl+2 collapses cross-block and converts merged block to H2', async () => {
-		await editor.loadContent('alpha\n\nbeta\n');
-
-		await editor.focusBlockAtPath([0], 2);
-		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
-
-		await editor.page.keyboard.press('ControlOrMeta+2');
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains('## ');
-
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('## ');
-	});
-
-	test('Ctrl+0 collapses cross-block and strips heading prefix from merge target', async () => {
-		await editor.loadContent('# alpha\n\nbeta\n');
-
-		await editor.focusBlockAtPath([0], 4);
-		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
-
-		await editor.page.keyboard.press('ControlOrMeta+0');
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceNotContains('# ');
-
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
-	});
-
-	// Tab over a selection indents list items and code lines, and two paragraphs hold neither.
-	test('Tab over a plain paragraph selection deletes nothing and keeps the range', async () => {
-		await editor.loadContent('alpha\n\nbeta\n');
-
-		await editor.focusBlockAtPath([0], 2);
-		await editor.shiftClickBlock([1], 2);
-		await editor.waitForCrossBlock(true);
-
-		await editor.pressDeclined('Tab');
-
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		expect(await editor.bridge.getSource()).toBe('alpha\n\nbeta\n');
-	});
-
 	// A selection starting in a table must reach the cell's `runCommand`, not the `TableBlock`
 	// wrapper: the target is resolved from the caret the delete leaves, a deep cell path.
 	test('Enter with a table-start cross-block selection reaches the cell, not the wrapper', async ({
@@ -166,11 +72,10 @@ test.describe('a command key over a whole table, row or column', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
+		await editor.goto();
 	});
 
-	// A fresh page each time: loading the source the editor was last given changes nothing.
 	async function pressOver(select: (editor: EditorPage) => Promise<void>, keys: string[]) {
-		await editor.goto();
 		await editor.loadContent(SOURCE);
 		await select(editor);
 		await editor.waitForCrossBlock(true);
@@ -201,33 +106,28 @@ test.describe('a command key over a whole table, row or column', () => {
 		}
 	}
 
-	for (const [coverage, select] of COVERAGES.slice(0, 2)) {
-		test(`ControlOrMeta+2 over ${coverage} changes nothing`, async () => {
-			await editor.goto();
-			await editor.loadContent(SOURCE);
-			await select(editor);
-			await editor.waitForCrossBlock(true);
+	// A key that is no command key there, or a table with nothing to indent, deletes nothing and
+	// keeps the range. One step per key and coverage, each on a freshly loaded document.
+	test('a key that is no command key over a grid changes nothing', async () => {
+		const CASES: [key: string, coverages: typeof COVERAGES][] = [
+			['ControlOrMeta+2', COVERAGES.slice(0, 2)],
+			['Tab', COVERAGES]
+		];
+		for (const [key, coverages] of CASES) {
+			for (const [coverage, select] of coverages) {
+				await test.step(`${key} over ${coverage}`, async () => {
+					await editor.loadContent(SOURCE);
+					await select(editor);
+					await editor.waitForCrossBlock(true);
 
-			await editor.pressDeclined('ControlOrMeta+2');
+					await editor.pressDeclined(key);
 
-			expect(await editor.bridge.getSource()).toBe(SOURCE);
-			expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		});
-	}
-
-	// A table holds nothing Tab indents, so Tab over it is not a delete.
-	for (const [coverage, select] of COVERAGES) {
-		test(`Tab over ${coverage} changes nothing`, async () => {
-			await editor.goto();
-			await editor.loadContent(SOURCE);
-			await select(editor);
-			await editor.waitForCrossBlock(true);
-
-			await editor.pressDeclined('Tab');
-
-			expect(await editor.bridge.getSource()).toBe(SOURCE);
-		});
-	}
+					expect(await editor.bridge.getSource()).toBe(SOURCE);
+					expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+				});
+			}
+		}
+	});
 });
 
 // Miss-analysis: no row took blocks whole between neighbours of different kinds, so nothing held

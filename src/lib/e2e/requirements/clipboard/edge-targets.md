@@ -1,6 +1,6 @@
-# Clipboard Exploration: Edge Targets
+# Clipboard: Edge Targets
 
-Paste / cut into unusual positions: empty document, heterogeneous clipboard, cut-then-paste round-trip, append at end-of-doc, empty clipboard no-op.
+Paste / cut into unusual positions: empty document, heterogeneous clipboard, cut-then-paste round-trip, append at end-of-doc.
 
 ## Happy paths
 
@@ -10,4 +10,8 @@ Paste / cut into unusual positions: empty document, heterogeneous clipboard, cut
 - Cut across two list items removes selection, leaves surviving items intact, puts removed content on clipboard.
 - Cut-then-paste round-trip restores the original content.
 - Paste at end of last block appends correctly.
-- Paste empty clipboard is a no-op: the document stays byte-identical, not merely still containing its text: a stray newline or a duplicated block is a failure.
+
+## Pinned below the browser
+
+An empty clipboard is a no-op: the document stays byte-identical, and the block's paste step never runs
+(`test/blocks/editable-surface-clipboard.test.ts`).
