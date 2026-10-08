@@ -5,9 +5,9 @@
 // name; the table menu stayed open, and the code gutter's menu closed only if focus sat in it.
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import { CODE_MENU_LABEL } from '$lib/a11y-strings';
-import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { CODE_MENU_LABEL } from '#lib/a11y-strings.js';
+import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -16,7 +16,7 @@ import {
 	pressKeyAt,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { pressInCell } from '../blocks/table/mount-table';
 
 beforeAll(installLayoutStubs);

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { mathDisplaySource, reshapeMathEdit } from '$lib/plugins/latex/math-source';
+import { mathDisplaySource, reshapeMathEdit } from '#lib/plugins/latex/math-source.js';
 
 describe('reshapeMathEdit completes a bare source from the block’s own delimiters', () => {
 	const completes: Array<[label: string, source: string, text: string, caret: number]> = [

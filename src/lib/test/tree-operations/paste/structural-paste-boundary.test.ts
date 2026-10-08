@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { defaultStructuralHook } from '$lib/tree-operations/paste/hooks';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
+import { defaultStructuralHook } from '#lib/tree-operations/paste/hooks.js';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { TOP_SLOT, topLevelStore } from '../../harness/fixture-grammar';
 
 // A clipboard blank-line row is a live block the parser produced, so it must survive the

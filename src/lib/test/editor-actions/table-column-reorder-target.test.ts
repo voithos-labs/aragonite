@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tableColumnReorderTarget } from '$lib/editor-actions/table-context';
+import { tableColumnReorderTarget } from '#lib/editor-actions/table-context.js';
 
 // colCount is the full column count; columns have no fixed header, so every index is a valid
 // source and target. A null result means no-op, so a keypress at the edge pushes no undo entry.

@@ -1,18 +1,18 @@
 // Miss-analysis: every container move test stubbed each ref as mounted, so a sibling the render
 // window left out was never a target, and only the root's move mounted one.
 import { describe, it, expect, vi } from 'vitest';
-import { CURSOR_START, type BlockComponent } from '$lib/block-component';
-import { createNestedFocus } from '$lib/editor-actions/nested/nested-focus';
-import type { ChildList } from '$lib/reactivity/child-list';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
+import { CURSOR_START, type BlockComponent } from '#lib/block-component.js';
+import { createNestedFocus } from '#lib/editor-actions/nested/nested-focus.js';
+import type { ChildList } from '#lib/reactivity/child-list.js';
+import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
 import {
 	makeCaretMemory,
 	makeStubFocus,
 	paragraphListNode,
 	stubBlockComponent
-} from '$lib/test/harness/editor-actions';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+} from '#lib/test/harness/editor-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 
 const COUNT = 30;
 

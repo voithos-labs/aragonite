@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { handleSharedKeydown, type SharedKeydownContext } from '$lib/selection/shared-keydown';
-import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
-import type { FocusActions } from '$lib/action-contracts';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { makeCaretMemory } from '$lib/test/harness/editor-actions';
-import { registerGlobalCommand } from '$lib/schema/global-commands';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { commandContext } from '$lib/test/support/command-context';
+import { handleSharedKeydown, type SharedKeydownContext } from '#lib/selection/shared-keydown.js';
+import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
+import type { FocusActions } from '#lib/action-contracts.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { makeCaretMemory } from '#lib/test/harness/editor-actions.js';
+import { registerGlobalCommand } from '#lib/schema/global-commands.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { commandContext } from '#lib/test/support/command-context.js';
 
 // The shared keydown must prevent a plugin-global chord's default yet return false, so the block's
 // own `dispatchKeyCommand` still runs it; true would swallow every plugin-global chord.

@@ -5,7 +5,7 @@
  * formula renders once per theme.
  */
 
-import { createRendererSlot, renderSourceFallback } from '$lib/plugin';
+import { createRendererSlot, renderSourceFallback } from '#lib/plugin.js';
 
 /** `theme` is for an adapter that draws its own colors; one written against `{ display }` alone
  *  stays assignable. */

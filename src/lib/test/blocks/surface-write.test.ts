@@ -4,12 +4,12 @@
 // Miss-analysis: every write site parked a caret on `admitted` alone, and no test stubbed a write
 // that reported it had placed the caret, so the field had no reader and nothing noticed.
 import { describe, expect, it, vi } from 'vitest';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { NodeView } from '$lib/core/node-views';
-import { createSurfaceWrite, type TextWrite } from '$lib/components/blocks/surface-write';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import { stubBlockEdit } from '$lib/testing/headless-actions';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { createSurfaceWrite, type TextWrite } from '#lib/components/blocks/surface-write.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { stubBlockEdit } from '#lib/testing/headless-actions.js';
+import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
 
 const TYPED: Omit<TextWrite, 'text' | 'caretAfter'> = {
 	intent: 'typed',

@@ -3,15 +3,15 @@
 // multi-scope commit over the document itself, the one scope whose owner is not a block.
 
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import type { ContainerScope } from '$lib/action-contracts';
-import { assignChildIdsDeep } from '$lib/block-id';
-import { ensureUnsharedChild, ensureUnsharedSubtree } from '$lib/tree-operations/unshare';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { ContainerScope } from '#lib/action-contracts.js';
+import { assignChildIdsDeep } from '#lib/block-id.js';
+import { ensureUnsharedChild, ensureUnsharedSubtree } from '#lib/tree-operations/unshare.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { makeKeydownEnv, press } from '../../selection/cross-block/keydown-env';
 
 const firesStaleRaw = (): boolean =>

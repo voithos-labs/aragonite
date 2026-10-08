@@ -4,8 +4,8 @@
 // whole dispatch: a real parse, `flattenInlineWidgets`, the policy lookup and the handler,
 // including the nested `[![alt][ref]][repo]` reference image.
 import { describe, it, expect, beforeAll } from 'vitest';
-import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
-import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
+import { augmentInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
+import { imageWidgetOnSelectedKey } from '#lib/components/image/image-widget-editing.js';
 import { harness } from './widget-selected-fixture';
 import { fixtureReading } from '../../harness/fixture-grammar';
 

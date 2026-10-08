@@ -9,10 +9,10 @@ import {
 	type MarkedInsertion
 } from '../../components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
-import { isSubsequence } from '$lib/test/harness/live-oracles';
-import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
+import { isSubsequence } from '#lib/test/harness/live-oracles.js';
+import { caretPositions, countOnScreen, paintedText } from '#lib/test/harness/painted-text.js';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // A pending mark rewrites bytes the user never sees, so the render path is the check: at every
 // caret the toggle took exactly or wrote nothing, only the typed letter painted, no byte was lost.

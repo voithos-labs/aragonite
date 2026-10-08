@@ -4,10 +4,10 @@
 // read rests on across the block openers a first line can carry.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { parse, parseTaskItemBody, readBlocks } from '$lib/core/parser';
-import { metadataOf, type CstNode } from '$lib/core/nodes';
-import type { NodeView } from '$lib/core/node-views';
-import { readThroughItemMarker } from '$lib/tree-operations/list/task-paragraph';
+import { parse, parseTaskItemBody, readBlocks } from '#lib/core/parser.js';
+import { metadataOf, type CstNode } from '#lib/core/nodes.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { readThroughItemMarker } from '#lib/tree-operations/list/task-paragraph.js';
 import { fixtureGrammar } from '../../harness/fixture-grammar';
 
 const ITEMS = ['- a\n', '* a\n', '1. a\n', '10) a\n', '- [ ] a\n', '- [x] a\n'].map(

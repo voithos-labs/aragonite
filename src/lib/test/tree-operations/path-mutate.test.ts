@@ -4,7 +4,7 @@ import { assignIds } from '../../block-id';
 import { deleteAtPath, replaceAtPath } from '../../tree-operations/path-mutate';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CstNode } from '../../core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // `createBlockListState` backfills only an absent `childIds` array, never a short one, so
 // a hand-rolled splice at depth desyncs the keyed-each source permanently.

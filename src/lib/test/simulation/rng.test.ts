@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeRng } from '$lib/e2e/simulation/rng';
+import { makeRng } from '#lib/e2e/simulation/rng.js';
 
 describe('makeRng', () => {
 	it('is deterministic for a seed', () => {

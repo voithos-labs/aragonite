@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { displayLength } from '$lib/core/lines';
-import { asDocPath } from '$lib/selection/path-math';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { ensureUnsharedChild } from '$lib/tree-operations/unshare';
-import { stampStructuralChange } from '$lib/tree-operations/structural-change';
-import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import { serialize } from '#lib/core/serializer.js';
+import { displayLength } from '#lib/core/lines.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { ensureUnsharedChild } from '#lib/tree-operations/unshare.js';
+import { stampStructuralChange } from '#lib/tree-operations/structural-change.js';
+import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 
 // Every top-level write hands the tree operations the document as a body, trailing blank line
 // included, so each route leaves the blocks a reload reads.

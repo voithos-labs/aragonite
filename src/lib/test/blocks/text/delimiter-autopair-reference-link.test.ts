@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { parse } from '$lib/core/parser';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { resolveDelimiterAutoPair } from '#lib/components/blocks/text/delimiter-autopair.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import { parse } from '#lib/core/parser.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // The auto-pair reads the line with the document's link definitions, so a `*` inside a reference
 // link is not taken for the closer of a `*` outside it.

@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { mergeIntoPrevDeepLeaf, mergeWithNext } from '$lib/tree-operations';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { parse } from '#lib/core/parser.js';
+import { mergeIntoPrevDeepLeaf, mergeWithNext } from '#lib/tree-operations/index.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/schema/inline-construct-policy.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // Both merge primitives, Backspace's deep-leaf write and Delete's reparse write, each in live mode
 // and with no mode, which keeps the bytes as typed.

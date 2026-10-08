@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { renderInlineNodes } from '$lib/core/inline-render';
-import type { InlineNode } from '$lib/core/nodes';
+import { renderInlineNodes } from '#lib/core/inline-render.js';
+import type { InlineNode } from '#lib/core/nodes.js';
 import { renderOptions } from '../harness/fixture-grammar';
 
 describe('unknown inline kind render', () => {

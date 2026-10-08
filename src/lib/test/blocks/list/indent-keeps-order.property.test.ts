@@ -5,17 +5,17 @@
 // paragraph after a sublist, second list or quoted list ever met a move.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import fc from 'fast-check';
-import type { CstNode, Document } from '$lib/core/nodes';
+import type { CstNode, Document } from '#lib/core/nodes.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	pressKeyAt,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import { freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/index.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 beforeAll(installLayoutStubs);
 

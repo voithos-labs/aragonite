@@ -4,9 +4,9 @@
 // Miss-analysis: no test pressed that Backspace, so its second caret move after the delete was
 // never counted.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import { recordingFocus } from '$lib/testing/headless-actions';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import { recordingFocus } from '#lib/testing/headless-actions.js';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'backspace-leaf';

@@ -3,8 +3,8 @@
 // barrel. The cross-block answer is covered in `test/schema/command-admissibility.test.ts`,
 // where a painted range needs no live selection.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { TOOLBAR_COMMANDS, type EditorInstance } from '$lib';
-import { registerBlockCommand } from '$lib/schema/block-commands';
+import { TOOLBAR_COMMANDS, type EditorInstance } from '#lib';
+import { registerBlockCommand } from '#lib/schema/block-commands.js';
 import { takeDevWarns } from '../support/warn-gate';
 import {
 	installLayoutStubs,
@@ -12,7 +12,7 @@ import {
 	selectRange,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(() => installLayoutStubs());
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
+import { serialize } from '#lib/core/serializer.js';
 import { makeTopHarness } from '../harness/editor-actions';
 
 // Miss-analysis: every ending case read an untouched document, never one whose first break went.

@@ -3,14 +3,14 @@
 // clipboard, not the caret, and the paste's commit hands that position to the caret landing once.
 // No other paste suite checks where the caret ends up.
 import { describe, it, expect } from 'vitest';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
 import {
 	makePasteCommit,
 	makeStubBlockEdit,
 	registerStubBlockListState,
 	pasteContext
 } from '../../harness/editor-actions';
-import { CURSOR_END } from '$lib/block-component';
+import { CURSOR_END } from '#lib/block-component.js';
 
 /** `crossBlock` is the route selector: the cross-block route reaches container-match, the
  *  single-block route falls through to the absorb route. */

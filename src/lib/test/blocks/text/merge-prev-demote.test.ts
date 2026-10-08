@@ -5,13 +5,13 @@
 // Miss-analysis: the commands were tested only at raw 0, where every mode agrees on the bound.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { DIRECTIVE_LEAF, registerDirectiveKinds } from '$lib/core/directive/kinds';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { parse } from '#lib/core/parser.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { DIRECTIVE_LEAF, registerDirectiveKinds } from '#lib/core/directive/kinds.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { fixtureReading } from '../../harness/fixture-grammar';

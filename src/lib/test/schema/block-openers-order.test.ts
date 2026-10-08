@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { AnyBlockKind } from '$lib/core/nodes';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
 import {
 	registerBlockOpener,
 	getOrderedOpeners,
 	type BlockOpener
-} from '$lib/schema/block-openers';
+} from '#lib/schema/block-openers.js';
 
 const opener = (priority: number): BlockOpener => ({
 	priority,

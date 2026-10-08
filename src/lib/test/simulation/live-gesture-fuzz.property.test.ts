@@ -5,18 +5,18 @@ import {
 	registerLiveSplitRebalancer,
 	__resetLiveJoinSeamCleanerForTests,
 	__resetLiveSplitRebalancerForTests
-} from '$lib/schema/inline-construct-policy';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
-import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
-import { freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
+} from '#lib/schema/inline-construct-policy.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
+import { rebalanceLiveSplit } from '#lib/components/blocks/text/live-split-rebalance.js';
+import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/index.js';
 import { fuzzLiveGestures, judgeGesture, type FuzzStats } from './live-gesture-fuzz';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 import { applyGesture, resetSurfaces, type Gesture } from './live-gesture-seams';
 import { documentContentText } from './live-screen-reading';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import '$lib/schema/built-in-descriptors';
-import '$lib/components/built-in-blocks';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import '#lib/schema/built-in-descriptors.js';
+import '#lib/components/built-in-blocks.js';
 
 // A seeded stream of typing and destructive gestures at hidden edges, each checked against what
 // live-mode.md § 2 allows; the checks live in `live-gesture-fuzz.ts`, the budget and pins here.

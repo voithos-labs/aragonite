@@ -3,11 +3,11 @@
 // the raw offset. Pure over the inline tree, so no DOM here; the block's placement that uses it
 // is covered in `typed-placement.test.ts`.
 import { describe, expect, it } from 'vitest';
-import { relocateInsertion, resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
-import { parseInline } from '$lib/core/inline';
-import { screenVisibility } from '$lib/core/inline/visibility';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { relocateInsertion, resolveEdgeSeat } from '#lib/components/blocks/text/edge-seat.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { screenVisibility } from '#lib/core/inline/visibility.js';
+import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 /** Every case below is a block holding content, so its markers are hidden: the live reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });

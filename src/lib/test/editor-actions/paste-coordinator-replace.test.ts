@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 function makePara(raw: string, leadingTrivia = ''): CstNode {
 	return { kind: 'paragraph', leadingTrivia, raw };

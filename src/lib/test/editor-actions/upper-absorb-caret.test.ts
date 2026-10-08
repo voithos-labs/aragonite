@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
+import { serialize } from '#lib/core/serializer.js';
+import { replaceRefs } from '#lib/reactivity/publish-ref.svelte.js';
 import {
 	stubBlockComponent,
 	makeNestedHarness,
 	makeTopHarness
-} from '$lib/test/harness/editor-actions';
-import type { BlockComponent } from '$lib/block-component';
+} from '#lib/test/harness/editor-actions.js';
+import type { BlockComponent } from '#lib/block-component.js';
 
 // Once the write's fix-up merges the block into the one above, the surviving block is the
 // predecessor, so the caret must add the bytes that predecessor put in front of the typed ones.

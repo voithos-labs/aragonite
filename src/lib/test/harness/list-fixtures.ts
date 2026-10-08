@@ -2,7 +2,7 @@
 // allows the stale-raw check where it fires. A list's own children carry no metadata: only an item
 // the commit writes back carries the marker its id path reads.
 
-import type { CstNode } from '$lib/core/nodes';
+import type { CstNode } from '#lib/core/nodes.js';
 
 /** A list item as a mutate callback adds it: marker metadata included. */
 export function makeListItem(raw: string): CstNode {

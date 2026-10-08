@@ -1,20 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { findMergeTarget } from '$lib/schema/merge-rules';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { findMergeTarget } from '#lib/schema/merge-rules.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeTopHarness
-} from '$lib/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor-events';
+} from '#lib/test/harness/editor-actions.js';
+import type { EditEvent } from '#lib/editor-events.js';
 
 // A structural edit that changes nothing must push no undo entry and emit no edit event.
 // The container path is the one that can leave traces: its discard runs the full in-place

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // Miss-analysis: hiding a shown source before a cell edit was tested on two of its paths only.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { registerMathInline } from '$lib/plugins/latex/latex-kind';
+import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
 import { mountCell } from './mount-cell';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { settleEditor, dispatchKey } from '#lib/test/harness/settle.js';
 
 const CELL = 'x $a$ yz';
 

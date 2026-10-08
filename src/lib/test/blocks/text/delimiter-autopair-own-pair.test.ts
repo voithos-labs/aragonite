@@ -6,13 +6,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
 	type AutoPairSurface
-} from '$lib/components/blocks/text/delimiter-autopair';
+} from '#lib/components/blocks/text/delimiter-autopair.js';
 import {
 	createAutoPairRecord,
 	type AutoPairRecord
-} from '$lib/components/blocks/text/auto-pair-record';
-import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/components/blocks/text/auto-pair-record.js';
+import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 /** A block's line under the handler, with the browser's own edit where the handler declines. */
 class TypedLine {

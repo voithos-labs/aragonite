@@ -2,14 +2,14 @@
 // document, undo controller and selection are all real, so the survivor's kind, bytes and caret
 // are the tree's own answers rather than a spy's.
 
-import { createCrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
-import { type GrammarView } from '$lib/schema/block-openers';
-import type { SelectionState } from '$lib/selection/selection-state.svelte';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { createCrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
+import { type GrammarView } from '#lib/schema/block-openers.js';
+import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import type { Reading } from '$lib/schema/reading';
+import type { Reading } from '#lib/schema/reading.js';
 import { commandContext } from '../../support/command-context';
 
 /** `reading` is the editor's own, which every write reads off the root. */

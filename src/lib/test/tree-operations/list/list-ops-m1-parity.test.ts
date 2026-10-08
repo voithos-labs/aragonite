@@ -5,13 +5,16 @@
  */
 
 import { describe, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { mergeListItemIntoPrevious } from '$lib/tree-operations/list/unwrap-merge';
-import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
-import { assertContainerParity, seedChildIdsRecursive } from '$lib/test/harness/container-parity';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { mergeListItemIntoPrevious } from '#lib/tree-operations/list/unwrap-merge.js';
+import { applyStructuralChangeToIdsRefs } from '#lib/tree-operations/structural-change.js';
+import {
+	assertContainerParity,
+	seedChildIdsRecursive
+} from '#lib/test/harness/container-parity.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 /**
  * The merge deletes the item from its children copy only, so the helper applies the same

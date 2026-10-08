@@ -4,7 +4,7 @@
  * runs unguarded.
  */
 
-import { definePluginBlock, type EditorPlugin } from '$lib/plugin';
+import { definePluginBlock, type EditorPlugin } from '#lib/plugin.js';
 import { registerMermaidKind, MERMAID } from './mermaid-kind';
 import { adaptMermaidRenderer, mermaidSlot, type MermaidRenderer } from './mermaid-renderer';
 import MermaidBlock from './MermaidBlock.svelte';

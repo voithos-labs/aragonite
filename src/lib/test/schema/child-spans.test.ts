@@ -1,12 +1,12 @@
 // The hand-built edges of the one-child splice: what each kind's per-line syntax does to a
 // region, and the two shapes where the rebuild must refuse the splice and re-derive instead.
 import { describe, it, expect } from 'vitest';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { makeBlockNode, type BlockMetadata, type CstNode } from '$lib/core/nodes';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { pushChild, spliceChildren } from '$lib/tree-operations/children';
-import { reorderChildren } from '$lib/tree-operations/reorder';
-import { enablePerfInstruments, disablePerfInstruments } from '$lib/perf/instruments';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { makeBlockNode, type BlockMetadata, type CstNode } from '#lib/core/nodes.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { pushChild, spliceChildren } from '#lib/tree-operations/children.js';
+import { reorderChildren } from '#lib/tree-operations/reorder.js';
+import { enablePerfInstruments, disablePerfInstruments } from '#lib/perf/instruments.js';
 
 const paragraph = (raw: string, leadingTrivia = ''): CstNode =>
 	makeBlockNode({ kind: 'paragraph', leadingTrivia, raw });

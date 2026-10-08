@@ -3,9 +3,9 @@
 // string whatever offsets the runs claim, and `edge-seat.ts` is the one reader that acts on them.
 // Miss-analysis: no test named an offset for a self-similar shape, where a raw search misfinds.
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import { CONTENT_VISIBILITY, visibleRuns } from '$lib/core/inline/visibility';
-import type { InlineNode } from '$lib/core/nodes';
+import { parseInline } from '#lib/core/inline/index.js';
+import { CONTENT_VISIBILITY, visibleRuns } from '#lib/core/inline/visibility.js';
+import type { InlineNode } from '#lib/core/nodes.js';
 import { renderOptions } from '../../harness/fixture-grammar';
 
 const painted = (nodes: readonly InlineNode[], raw: string) =>

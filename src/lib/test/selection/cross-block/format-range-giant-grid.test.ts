@@ -3,14 +3,14 @@
 // past the JavaScript engine's limit raises "Maximum call stack size exceeded".
 // Miss-analysis: GH #246; the format-range suite drew tables by hand, never one this large.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 import {
 	crossBlockActiveFormats,
 	planCrossBlockFormat
-} from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
+} from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
 
 // Past the argument-count limit with room to spare: the ceiling is stack-dependent, so a
 // count pinned just over one machine's measurement passes on the next machine's.

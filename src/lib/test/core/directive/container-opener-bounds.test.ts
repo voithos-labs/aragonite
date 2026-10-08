@@ -1,8 +1,8 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { DIRECTIVE_CONTAINER } from '$lib/core/directive/kinds';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 beforeEach(activateDirectiveGrammar);

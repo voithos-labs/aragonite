@@ -5,13 +5,13 @@
  * recompute.
  */
 
-import type { CstNode, Document } from '$lib/core/nodes';
-import { documentBody, type BodyParent } from '$lib/tree-operations/node-primitives';
-import { settleSeparator } from '$lib/tree-operations/settle';
-import type { StructuralChange } from '$lib/tree-operations/structural-change';
-import type { GrammarView } from '$lib/schema/block-openers';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { documentBody, type BodyParent } from '#lib/tree-operations/node-primitives.js';
+import { settleSeparator } from '#lib/tree-operations/settle.js';
+import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 /** Runs `mutate` over the body parent, recomputes the separators around it, returns the change.
  *  `grammar` is the editor's, which the recompute reads blocks with. */

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { createListOverrides } from '$lib/editor-actions/list-overrides';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { parse } from '$lib/core/parser';
+import { createListOverrides } from '#lib/editor-actions/list-overrides.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { parse } from '#lib/core/parser.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
@@ -12,9 +12,9 @@ import {
 	makeStubBlockEdit,
 	makeStubFocus,
 	mountEveryBlock
-} from '$lib/test/harness/editor-actions';
-import { CURSOR_END } from '$lib/block-component';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+} from '#lib/test/harness/editor-actions.js';
+import { CURSOR_END } from '#lib/block-component.js';
+import type { BlockListState } from '#lib/reactivity/block-list-state.svelte.js';
 
 // The delete's caret must be read against the live post-commit children: a node read before the
 // commit is one too long, so deleting the last item would aim past the list's end.

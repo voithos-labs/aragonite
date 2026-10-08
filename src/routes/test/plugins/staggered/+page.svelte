@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { calloutPlugin } from '../callout/register';
-	import { detailsPlugin } from '$lib/plugins/details';
+	import { detailsPlugin } from '#lib/plugins/details/index.js';
 
 	// Editor 2 adds detailsPlugin, the late mount this harness is about. Its own plugin objects,
 	// not the shared demo set: a set every other route installs is already registered.
@@ -26,7 +26,7 @@
 </script>
 
 <script lang="ts">
-	import { Editor } from '$lib';
+	import { Editor } from '#lib';
 	import { trackParityDocument } from '../../../parity-documents.svelte';
 
 	let editorOne = $state<ReturnType<typeof Editor>>();

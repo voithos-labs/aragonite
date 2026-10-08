@@ -7,17 +7,17 @@ import {
 	registerBlockOpener,
 	simpleLeafClosure,
 	OPENER_PRIORITIES
-} from '$lib/plugin';
-import { displayLength } from '$lib/core/lines';
+} from '#lib/plugin.js';
+import { displayLength } from '#lib/core/lines.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
 	typeInto,
 	type BlockLookup
-} from '$lib/test/harness/mount-editor.svelte';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { settleEditor } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 import HintRevealBlock from './fixtures/HintRevealBlock.svelte';
 
 installLayoutStubs();

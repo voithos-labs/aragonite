@@ -2,10 +2,10 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-render';
-import type { InlineNode } from '$lib/core/nodes';
-import { buildImageWidget } from '$lib/components/image/widget-dom';
+import { parseInline } from '#lib/core/inline/index.js';
+import { renderInlineNodes, type RenderInlineOptions } from '#lib/core/inline-render.js';
+import type { InlineNode } from '#lib/core/nodes.js';
+import { buildImageWidget } from '#lib/components/image/widget-dom.js';
 import { takeDevWarns } from '../support/warn-gate';
 import { renderOptions } from '../harness/fixture-grammar';
 

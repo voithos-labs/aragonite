@@ -3,13 +3,13 @@
 // Miss-analysis: no test sent a spill across two chains, so dropping the whole-read hand-off (and
 // the second write a rebuild per chain loses) stayed green.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
-import { rebuildUnsharedChain, sharedChainLevels } from '$lib/tree-operations/chain-rebuild';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { ensureUnsharedPath } from '#lib/tree-operations/unshare.js';
+import { rebuildUnsharedChain, sharedChainLevels } from '#lib/tree-operations/chain-rebuild.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 /** Writes each leaf, then rebuilds every written chain as one pass. */
 function writeThenRebuild(source: string, writes: [path: number[], raw: string][]): string {

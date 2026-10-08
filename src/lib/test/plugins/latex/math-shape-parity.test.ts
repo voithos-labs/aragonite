@@ -3,7 +3,7 @@
 // one split: `readMathSource` for `$$`, the code fence's own for ```math. The parser's side reads a
 // block's stored bytes, its line ending kept; the painter's side reads the source being edited.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { parse } from '$lib';
+import { parse } from '#lib';
 import {
 	fenceBodyAsDrawn,
 	firstLineEnding,
@@ -12,17 +12,21 @@ import {
 	trimTrailingLineEnding,
 	trimWhitespace,
 	type LineEnding
-} from '$lib/plugin';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
+} from '#lib/plugin.js';
+import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { MATH_BLOCK, registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
 import {
 	mathBodySpan,
 	mathDisplaySource,
 	renderMathSource,
 	reshapeMathEdit
-} from '$lib/plugins/latex/math-source';
-import { awaitsMathCloser, readMathSource, type MathSource } from '$lib/plugins/latex/math-shape';
+} from '#lib/plugins/latex/math-source.js';
+import {
+	awaitsMathCloser,
+	readMathSource,
+	type MathSource
+} from '#lib/plugins/latex/math-shape.js';
 import { paintedSplit } from './painted-split';
 
 beforeEach(registerMathBlock);

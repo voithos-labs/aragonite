@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import type { BlockComponent } from '$lib/block-component';
-import { componentAt, descendTo, type ChildList } from '$lib/reactivity/child-list';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import { stubBlockComponent } from '$lib/test/harness/editor-actions';
+import type { BlockComponent } from '#lib/block-component.js';
+import { componentAt, descendTo, type ChildList } from '#lib/reactivity/child-list.js';
+import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import { stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 
 // Every path through the tree the editor walks: a windowed list, a list inside a list, a table's
 // rows and a row's cells, and a collapsed body. Each level mounts through its own list.

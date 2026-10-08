@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import type { Document } from '$lib/core/nodes';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
+import { serialize } from '#lib/core/serializer.js';
+import type { Document } from '#lib/core/nodes.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 
 // Miss-analysis (GH #40): the replace escape suites covered fences and cells, never a bodyWrite.
 

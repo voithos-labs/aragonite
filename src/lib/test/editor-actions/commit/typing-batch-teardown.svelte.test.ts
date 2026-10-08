@@ -8,9 +8,9 @@ import {
 	mountEditor,
 	destroyMountedEditors,
 	typeInFirstBlock
-} from '$lib/test/harness/mount-editor.svelte';
-import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
-import type { EditEvent } from '$lib/editor-events';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';
+import type { EditEvent } from '#lib/editor-events.js';
 
 beforeAll(installLayoutStubs);
 afterEach(() => {

@@ -6,7 +6,7 @@ import {
 	defineBlockComponent,
 	declaredPluginKind,
 	type EditorPlugin
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { registerMemoBlock, MEMO_BLOCK } from './memo-kind';
 import MemoBlock from './MemoBlock.svelte';
 

@@ -3,28 +3,28 @@
 // every candidate under a list marker; the fuzzer took any refusal as no worse than the literal
 // edit, ran its caret-edge gestures on top-level blocks only, and no unit gave the join a container.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins } from '$lib';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { parseInline, getContentRange } from '$lib/core/inline';
-import { screenVisibility } from '$lib/core/inline/visibility';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
-import { resolveEdgeDeletion } from '$lib/components/blocks/text/construct-edge-delete';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { installPlugins } from '#lib';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { parseInline, getContentRange } from '#lib/core/inline/index.js';
+import { screenVisibility } from '#lib/core/inline/visibility.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { storedAsAt } from '#lib/tree-operations/stored-as.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
+import { resolveEdgeDeletion } from '#lib/components/blocks/text/construct-edge-delete.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
-import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+} from '#lib/schema/inline-construct-policy.js';
+import { makeContainerHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 // A live cut under a container marker writes the text bytes the same cut writes at the top level,

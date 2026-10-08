@@ -3,12 +3,12 @@ import {
 	applyStructuralChangeToIdsRefs,
 	changeBetweenIds,
 	trackChildIds
-} from '$lib/tree-operations/structural-change';
-import { parse } from '$lib/core/parser';
-import { deleteAtPath } from '$lib/tree-operations/path-mutate';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import type { BlockComponent } from '$lib/block-component';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+} from '#lib/tree-operations/structural-change.js';
+import { parse } from '#lib/core/parser.js';
+import { deleteAtPath } from '#lib/tree-operations/path-mutate.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // How a caller running several splice functions reports: each writes its net splice into the id
 // array, and one contiguous window is read back off which ids survived where.

@@ -3,22 +3,22 @@
 // Miss-analysis: the paste rows cut a range that left the run unpaired, never one the pasted text
 // refills, so no row saw the cut cleaned without the text it was about to take.
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
-import { trimTrailingLineEnding, ownTrailingLineEnding } from '$lib/core/lines';
-import type { CstNode } from '$lib/core/nodes';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
-import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { parse } from '#lib/core/parser.js';
+import { trimTrailingLineEnding, ownTrailingLineEnding } from '#lib/core/lines.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
+import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,

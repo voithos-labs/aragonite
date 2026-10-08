@@ -5,7 +5,7 @@
 // no unit row forgot the memory from inside a reactive read; only an e2e unmount saw the throw.
 import { describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
 
 describe('forgetting with nothing pending', () => {
 	it('writes no reactive state, so a forget inside a derived read is safe', () => {

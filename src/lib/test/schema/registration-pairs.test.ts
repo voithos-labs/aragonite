@@ -2,17 +2,17 @@
 // through a cast, the way a JavaScript plugin reaches the runtime.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	registerBlockKind,
 	tryGetBlockKindDescriptor,
 	type BlockKindRegistration
-} from '$lib/schema/block-kind-descriptor';
+} from '#lib/schema/block-kind-descriptor.js';
 import {
 	INCOHERENT_REGISTRATION_PAIRS,
 	type IncoherentPairId
-} from '$lib/schema/registration-pairs';
-import { testClosure } from '$lib/test/support/closure';
+} from '#lib/schema/registration-pairs.js';
+import { testClosure } from '#lib/test/support/closure.js';
 
 const leaf = {
 	gapEdges: 'none',

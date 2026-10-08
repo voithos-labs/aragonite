@@ -5,8 +5,8 @@
  * contract makes moot is declared with a reason, never skipped.
  */
 
-import type { BlockKind } from '$lib/core/nodes';
-import type { BuiltinContainerProfile } from '$lib/testing/container-conformance';
+import type { BlockKind } from '#lib/core/nodes.js';
+import type { BuiltinContainerProfile } from '#lib/testing/container-conformance.js';
 import {
 	checkListIndentOneUndo,
 	checkTableColumnOneUndo,

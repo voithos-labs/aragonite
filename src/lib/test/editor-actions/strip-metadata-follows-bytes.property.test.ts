@@ -4,17 +4,17 @@
 // item's content start, the one place a keystroke changes what the marker reads as.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { serialize } from '$lib';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { documentLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
+import { serialize } from '#lib';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { documentLineEnding, trimTrailingLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/index.js';
 
 const PARAMS = { numRuns: 200, seed: freshOrFixedSeed(667640) } as const;
 

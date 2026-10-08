@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
-import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
-import { composeWholeBlockFocusSurface } from '$lib/editor-actions/whole-block-focus-surface';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimDeps } from '$lib/test/harness/editor-actions';
+import { allowDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { createContainerBlockComponent } from '#lib/editor-actions/container-block-component.js';
+import { composeWholeBlockFocusSurface } from '#lib/editor-actions/whole-block-focus-surface.js';
+import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
+import { makeShimDeps } from '#lib/test/harness/editor-actions.js';
 
 // A kind whose declared focus element is absent (a render-error state the plugin forgot
 // to cover) must fall back to a focusable box, never do nothing and strand the caret.

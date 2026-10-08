@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { taskMarkerCaretShift } from '$lib/tree-operations/list/reconcile-task';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { taskMarkerCaretShift } from '#lib/tree-operations/list/reconcile-task.js';
 
 // A task marker typed at the front of an item's paragraph moves into the item, and the caret
 // moves back with the text by the marker's length.

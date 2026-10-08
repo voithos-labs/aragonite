@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Decoration } from '$lib/plugin';
+	import type { Decoration } from '#lib/plugin.js';
 
 	// The widget contract passes the decoration in; the ghost is fixed text, so the prop
 	// only gives the component the type the contract expects.

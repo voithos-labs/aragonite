@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { ancestorsOf, walkBlocks } from '$lib/core/paths';
-import type { NodeView } from '$lib/core/node-views';
+import { parse } from '#lib/core/parser.js';
+import { ancestorsOf, walkBlocks } from '#lib/core/paths.js';
+import type { NodeView } from '#lib/core/node-views.js';
 
 // A quote holding a list, then a top-level paragraph: three levels deep, siblings at each.
 const SOURCE = '> - a\n> - b\n>\n> c\n\nd\n';

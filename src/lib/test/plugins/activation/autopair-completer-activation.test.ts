@@ -1,13 +1,13 @@
 // Miss-analysis: the auto-pair and completer suites never ran with their owning plugin left out.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
-import { completeLineOnType, registerBlockCompleter } from '$lib/schema/block-completions';
-import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
-import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { registerInlineSyntax } from '#lib/core/inline/scan/plugin-syntax.js';
+import { completeLineOnType, registerBlockCompleter } from '#lib/schema/block-completions.js';
+import { resolveDelimiterAutoPair } from '#lib/components/blocks/text/delimiter-autopair.js';
+import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
 import { grammarListing } from './grammar-listing';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 const unlisted = definePlugin({
 	name: 'unlisted',

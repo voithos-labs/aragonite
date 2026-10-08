@@ -1,12 +1,12 @@
 // The side of a hidden marker a cross-block move lands on.
 // Miss-analysis (GH #172): the affinity suite never asked what a moveFocus arrival answers.
 import { describe, it, expect, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
-import type { FocusPosition } from '$lib/block-component';
+import { parse } from '#lib/core/parser.js';
+import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
+import type { FocusPosition } from '#lib/block-component.js';
 
 // `**bold**` above a fence: the caret lands in the closer's hidden run, where 'near' means inside
 // the construct and 'outside' after it (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge).

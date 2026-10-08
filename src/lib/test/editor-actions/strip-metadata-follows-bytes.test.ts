@@ -1,20 +1,20 @@
 // Miss-analysis: every write into a list item's first line kept its marker's width, so no test
 // wrote a leading space there, where a reload reads the space as part of a wider marker.
 import { beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { commitLeafTextAt } from '$lib/editor-actions/block-edit-core';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { assignChildIdsDeep } from '$lib/block-id';
-import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { installPlugins, parse, serialize } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { commitLeafTextAt } from '#lib/editor-actions/block-edit-core.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { assignChildIdsDeep } from '#lib/block-id.js';
+import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 interface Row {
 	name: string;

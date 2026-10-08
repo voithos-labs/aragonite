@@ -2,10 +2,10 @@
 // Miss-analysis (#243): every math mount test ran under one theme, so no cache key ever missed it.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-import { destroyMountedEditors, mountEditor } from '$lib/test/harness/mount-editor.svelte';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
 
 interface RenderCall {
 	source: string;

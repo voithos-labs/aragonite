@@ -3,10 +3,10 @@
 // the gap branch only opens under a host that pads `.block-host`: geometry no browser suite
 // reaches, which is why the band rects are synthetic.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
-import type { BlockComponent } from '$lib/block-component';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { createDeadSpaceCaret } from '$lib/selection/dead-space-caret';
-import type { GapStopScope } from '$lib/selection/gap-caret';
+import type { BlockComponent } from '#lib/block-component.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
+import { createDeadSpaceCaret } from '#lib/selection/dead-space-caret.js';
+import type { GapStopScope } from '#lib/selection/gap-caret.js';
 import { makeGapScope } from '../harness/editor-actions';
 import { mountTableGrid, type TableGridBox } from './table-grid';
 

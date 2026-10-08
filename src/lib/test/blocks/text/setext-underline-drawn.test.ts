@@ -11,9 +11,9 @@ import {
 	pressKeyAt,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import { landableRawBounds } from '$lib/cursor/widget-offset';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import { landableRawBounds } from '#lib/cursor/widget-offset.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

@@ -4,17 +4,17 @@
 // swap cannot recover: one already copied in the same undo entry, or a direct child the
 // shallow copy still shares.
 import { describe, it, expect, afterEach } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { asDocPath } from '$lib/selection/path-math';
-import type { CstNode } from '$lib/core/nodes';
-import type { MultiScopeTarget } from '$lib/action-contracts';
-import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
-import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { makeListItem } from '$lib/test/harness/list-fixtures';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { MultiScopeTarget } from '#lib/action-contracts.js';
+import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { makeListItem } from '#lib/test/harness/list-fixtures.js';
 
 // The scope fixtures are hand-built, not parser output: the stale-raw and read-back checks read
 // them as stale, and the one-block check reads their childless list items as emptied.

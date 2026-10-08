@@ -3,14 +3,14 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	createEditorRootKeydown,
 	type EditorRootKeydownDeps
-} from '$lib/components/editor-root-keydown';
-import { registerEditor, __resetActiveEditorForTests } from '$lib/active-editor';
+} from '#lib/components/editor-root-keydown.js';
+import { registerEditor, __resetActiveEditorForTests } from '#lib/active-editor.js';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
-} from '$lib/schema/keybinding-overrides';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { SearchState } from '$lib/search/search-state.svelte';
+} from '#lib/schema/keybinding-overrides.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { SearchState } from '#lib/search/search-state.svelte.js';
 import { commandContext } from '../support/command-context';
 
 // The search bar's live state, cut down to what the root handler drives. `isOpen`

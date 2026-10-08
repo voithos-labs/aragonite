@@ -1,10 +1,10 @@
 // Miss-analysis: each built-in registry kept its own set of reset-surviving keys, and only those two
 // sets had tests, so a third registry needing a core entry had no shared route to test.
 import { describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { activationFor } from '$lib/schema/plugin-activation';
-import { createBlockKindRegistry, createPluginRegistry } from '$lib/schema/plugin-registry';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
+import { createBlockKindRegistry, createPluginRegistry } from '#lib/schema/plugin-registry.js';
 
 const registry = createPluginRegistry<string, string>({
 	label: 'registerProbe',

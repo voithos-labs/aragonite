@@ -2,12 +2,12 @@
 // The hover drag handle is on by default, and `false` turns it off.
 // Miss-analysis: every e2e case passed `blockDragHandles` explicitly, so none asserted the default.
 import { describe, it, expect, afterEach } from 'vitest';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 installLayoutStubs();
 

@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { lrdMapCouldChange } from '$lib/components/link-reference-map';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { serialize } from '$lib/core/serializer';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
+import { lrdMapCouldChange } from '#lib/components/link-reference-map.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { makeEnv, makeHandlers, selectAcross, makeBeforeInputEvent } from './typed-char-env';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import type { CstNode } from '$lib/core/nodes';
-import type { EditEvent } from '$lib/editor-events';
-import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { EditEvent } from '#lib/editor-events.js';
+import type { LinkReferenceResolver } from '#lib/core/inline/link-reference-resolver.js';
 
 /**
  * Mirrors the shell's `edit` subscriber (`Editor.svelte`): rebuilds the link-reference map whenever

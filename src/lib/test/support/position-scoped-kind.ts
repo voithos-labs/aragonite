@@ -3,14 +3,14 @@
  * document and nowhere else. No shipped kind has this shape, so the suites need one that does.
  */
 
-import { joinRaw } from '$lib/core/parser';
+import { joinRaw } from '#lib/core/parser.js';
 import {
 	registerBlockOpener,
 	type BlockOpenerResult,
 	type OpenContext
-} from '$lib/schema/block-openers';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+} from '#lib/schema/block-openers.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 export const FRONT_MATTER = '---\ntitle: x\n---\n';
 

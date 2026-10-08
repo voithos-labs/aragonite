@@ -25,7 +25,7 @@ import {
 	type BlockOpenerResult,
 	type CstNode,
 	type OpenContext
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import FootnoteDefinition from './FootnoteDefinition.svelte';
 import { FOOTNOTE_DEF_KIND } from './constants';
 

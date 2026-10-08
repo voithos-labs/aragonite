@@ -1,24 +1,24 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
-import { parse } from '$lib/core/parser';
-import { installPlugins } from '$lib';
-import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
+import { parse } from '#lib/core/parser.js';
+import { installPlugins } from '#lib';
+import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import {
 	ALL_BLOCK_KINDS,
 	isBuiltinBlockKind,
 	type CstNode,
 	type Document,
 	type InlineNode
-} from '$lib/core/nodes';
-import { computeInlineContent, isProseKind } from '$lib/plugin';
-import { ADMONITION, GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
-import { DETAILS } from '$lib/plugins/details';
-import { EMOJI_KIND } from '$lib/plugins/emoji';
-import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
-import { MATH_BLOCK, MATH_INLINE } from '$lib/plugins/latex';
-import { MERMAID } from '$lib/plugins/mermaid';
-import { PARROT } from '$lib/plugins/parrot';
-import { TOC_BLOCK } from '$lib/plugins/toc';
+} from '#lib/core/nodes.js';
+import { computeInlineContent, isProseKind } from '#lib/plugin.js';
+import { ADMONITION, GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { DETAILS } from '#lib/plugins/details/index.js';
+import { EMOJI_KIND } from '#lib/plugins/emoji/index.js';
+import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/index.js';
+import { MATH_BLOCK, MATH_INLINE } from '#lib/plugins/latex/index.js';
+import { MERMAID } from '#lib/plugins/mermaid/index.js';
+import { PARROT } from '#lib/plugins/parrot/index.js';
+import { TOC_BLOCK } from '#lib/plugins/toc/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../routes/showcase-content.md?raw';
 

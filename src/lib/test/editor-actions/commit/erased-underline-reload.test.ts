@@ -2,11 +2,11 @@
 // Miss-analysis: the rebuild tests fed parser-built trees, where a paragraph never ends in a blank
 // line, so no test rebuilt a container whose last child's own bytes end in one.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
-import { makeContainerHarness } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { serialize } from '#lib/core/serializer.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
+import { makeContainerHarness } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 /** A container holding a setext title, its body lines prefixed, and the container's path. */
 const CONTAINERS = [

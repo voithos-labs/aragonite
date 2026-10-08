@@ -3,9 +3,9 @@
 // a burst ending in the margin is the whole frame's move.
 // Miss-analysis: no test drove a move off every block, and Chromium e2e paces one move per frame.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { installDragListener } from '$lib/selection/drag-pointer';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { parse } from '$lib/core/parser';
+import { installDragListener } from '#lib/selection/drag-pointer.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { parse } from '#lib/core/parser.js';
 
 const SOURCE = 'first\n\nsecond\n\nthird\n';
 // Ten pixels of gap between the boxes, the shape a y belonging to no band needs.

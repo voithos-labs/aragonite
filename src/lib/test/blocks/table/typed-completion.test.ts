@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { tryCompleteTableRow } from '$lib/core/parsers/table-completion';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { tryCompleteTableRow } from '#lib/core/parsers/table-completion.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 
 // Which lines the table's Enter completer claims: the parser's row scan, narrowed by a leading
 // pipe so prose carrying a pipe is left alone. `table-row-writers.test.ts` pins the bytes.

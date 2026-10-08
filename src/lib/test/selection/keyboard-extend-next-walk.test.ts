@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import { stateAt, el } from './extend-walk-env';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // Forward mirror of keyboard-extend-leaf-walk.test.ts.
 

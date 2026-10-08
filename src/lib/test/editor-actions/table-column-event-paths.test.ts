@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { commitGridLineDelete } from '$lib/selection/range-delete-table-coverage';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { parse } from '#lib/core/parser.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { commitGridLineDelete } from '#lib/selection/range-delete-table-coverage.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { makeTableMutations } from './table-mutations-harness';
-import type { EditEvent } from '$lib/editor-events';
+import type { EditEvent } from '#lib/editor-events.js';
 
 // A column is not a child node, so column edits address the table and carry the column
 // index in the event detail. Two sites share the contract: the alignment edits

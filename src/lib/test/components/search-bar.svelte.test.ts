@@ -5,8 +5,8 @@
 // rode a full page load.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import SearchBar from '$lib/components/SearchBar.svelte';
-import { EDITOR_SERVICES_KEY } from '$lib/editor-keys';
+import SearchBar from '#lib/components/SearchBar.svelte';
+import { EDITOR_SERVICES_KEY } from '#lib/editor-keys.js';
 import {
 	SEARCH_CLOSE_LABEL,
 	SEARCH_FIND,
@@ -17,7 +17,7 @@ import {
 	SEARCH_REPLACE,
 	SEARCH_TOGGLE_REPLACE,
 	SEARCH_WHOLE_WORD
-} from '$lib/a11y-strings';
+} from '#lib/a11y-strings.js';
 
 function fakeSearch(over: Record<string, unknown> = {}) {
 	return {

@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse } from '$lib';
+import { installPlugins, parse } from '#lib';
 import {
 	footnotesPlugin,
 	assignFootnoteNumbers,
 	collectFootnoteReferences
-} from '$lib/plugins/footnotes';
+} from '#lib/plugins/footnotes/index.js';
 // Plugin-internal (see the barrel's note): the shared numbering pass keys on the editor's
 // content version, so only an editor-mounted widget can call it.
-import { footnoteNumbersFor } from '$lib/plugins/footnotes/footnote-numbering';
+import { footnoteNumbersFor } from '#lib/plugins/footnotes/footnote-numbering.js';
 
 describe('footnote numbering (derived, first-reference order)', () => {
 	beforeEach(() => {

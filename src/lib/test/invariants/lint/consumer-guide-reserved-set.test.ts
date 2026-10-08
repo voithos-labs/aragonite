@@ -7,9 +7,9 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
-import { collectReservedChords } from '$lib/schema/reserved-chords';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
+import { collectReservedChords } from '#lib/schema/reserved-chords.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 registerBuiltInDescriptors();
 

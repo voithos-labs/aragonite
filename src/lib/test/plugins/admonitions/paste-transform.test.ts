@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { githubAlertsPasteTransform } from '$lib/plugins/admonitions/convert-document';
+import { githubAlertsPasteTransform } from '#lib/plugins/admonitions/convert-document.js';
 
 // Only the paste-transform wrapper's contract lives here. Conversion correctness is
 // covered by convert-document.test.ts and is not re-tested through the wrapper.

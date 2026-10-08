@@ -3,9 +3,9 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { applyStructuralChangeToIdsRefs } from '../../tree-operations/structural-change';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {

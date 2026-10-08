@@ -7,7 +7,7 @@ import {
 	installLayoutStubs,
 	destroyMountedEditors,
 	pressKeyAt
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { mountImageSelected } from './image-selected-harness';
 
 beforeAll(installLayoutStubs);

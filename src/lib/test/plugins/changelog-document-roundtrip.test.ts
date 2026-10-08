@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin, DETAILS } from '$lib/plugins/details';
-import { tocPlugin, TOC_BLOCK } from '$lib/plugins/toc';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
-import { latexPlugin } from '$lib/plugins/latex';
-import { mermaidPlugin } from '$lib/plugins/mermaid';
-import { parrotPlugin } from '$lib/plugins/parrot';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { detailsPlugin, DETAILS } from '#lib/plugins/details/index.js';
+import { tocPlugin, TOC_BLOCK } from '#lib/plugins/toc/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
+import { parrotPlugin } from '#lib/plugins/parrot/index.js';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 
 /**

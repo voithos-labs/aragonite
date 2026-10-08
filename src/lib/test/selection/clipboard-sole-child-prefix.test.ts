@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { collectCrossBlockText } from '$lib/selection/clipboard-text';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
+import { installPlugins, parse } from '#lib';
+import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 
 // A partial slice from the sole child of a strip container (a list item, a blockquote) must keep
 // the container's marker prefix, or it reparses as bare text. Eligibility is the descriptor's

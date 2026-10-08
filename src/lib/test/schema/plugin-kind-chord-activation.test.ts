@@ -1,12 +1,12 @@
 // Miss-analysis: GH #288; no reserved-chord test read the set from an editor leaving a plugin out.
 import { describe, it, expect } from 'vitest';
-import { registerBlockCommand } from '$lib/schema/block-commands';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { collectReservedChords } from '$lib/schema/reserved-chords';
-import { testClosure } from '$lib/test/support/closure';
+import { registerBlockCommand } from '#lib/schema/block-commands.js';
+import { registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
+import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { collectReservedChords } from '#lib/schema/reserved-chords.js';
+import { testClosure } from '#lib/test/support/closure.js';
 
 const CHORD = 'Mod+Shift+8';
 

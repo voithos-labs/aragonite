@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { ALL_BLOCK_KINDS, type AnyBlockKind, type CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { ALL_BLOCK_KINDS, type AnyBlockKind, type CstNode } from '#lib/core/nodes.js';
 import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
-import { activateDirectives } from '$lib/components/blocks/directive/activate-directives';
-import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
-import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
-import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
-import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
-import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
-import { ADMONITION } from '$lib/plugins/admonitions/kinds';
-import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
+} from '#lib/schema/block-kind-descriptor.js';
+import { activateDirectives } from '#lib/components/blocks/directive/activate-directives.js';
+import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
+import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
+import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
+import { ADMONITION } from '#lib/plugins/admonitions/kinds.js';
+import { registerTocBlock, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
 
 // Every declared `conformanceFixture` parses to a tree containing the kind that declared it
 // (G1.24 rule c). Checked here rather than at registration, because a `parse` import there would

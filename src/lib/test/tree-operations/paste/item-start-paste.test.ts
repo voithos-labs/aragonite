@@ -2,21 +2,21 @@
 // Miss-analysis: the to-do paste rows landed headings, which an item's bare marker line holds, and
 // never a block that line reads as something else, so no row saw the to-do become a divider.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { metadataOf, type Document } from '$lib/core/nodes';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { metadataOf, type Document } from '#lib/core/nodes.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
+} from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { rangeContext } from '../../selection/cross-block/range-context';
 
 /** `pasted` at the start of the first item's text, through the paste dispatcher. */

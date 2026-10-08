@@ -1,7 +1,7 @@
 <script lang="ts">
 	// A render-primary leaf whose folded view shows the hint its source would show, so a test can
 	// read the hint while no source element exists.
-	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '#lib/plugin.js';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 

@@ -2,6 +2,7 @@ import { realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 // E2E broken-image tests hit /test-fixtures/nonexistent.png on purpose, and SvelteKit's
@@ -61,8 +62,13 @@ const nodeModulesTarget = (() => {
 })();
 const depsOutsideRoot = path.relative(process.cwd(), nodeModulesTarget).startsWith('..');
 
+// Static build: no Node server, so the demo app ships as adapter-static. The SPA fallback is
+// 404.html rather than index.html, because a static host answers an unknown path with 404.html
+// and index.html is the prerendered showcase.
+const staticSite = adapter({ fallback: '404.html' });
+
 export default defineConfig({
-	plugins: [silenceBrokenImageFixture, sveltekit(), posixScanEntries],
+	plugins: [silenceBrokenImageFixture, sveltekit({ adapter: staticSite }), posixScanEntries],
 	// Per checkout when the deps live outside it, or sibling worktrees' dev servers
 	// re-optimize one shared pre-bundle under each other and 500 every page.
 	...(depsOutsideRoot ? { cacheDir: '.svelte-kit/vite-cache' } : {}),

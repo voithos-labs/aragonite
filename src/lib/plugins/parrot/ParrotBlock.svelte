@@ -1,6 +1,6 @@
 <!-- ParrotBlock.svelte -->
 <script lang="ts">
-	import { createEditableLeaf, trimWhitespace, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, trimWhitespace, type NodeView } from '#lib/plugin.js';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let sourceEl: HTMLDivElement | undefined = $state();

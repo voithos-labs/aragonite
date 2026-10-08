@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
 // The caret-edge dispatch around widgets: decoration widgets, modifier chords, a range
 // opening on a widget, and the caret a write stores.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { parse } from '$lib/core/parser';
-import { computeInlineContent } from '$lib/core/inline';
-import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { parse } from '#lib/core/parser.js';
+import { computeInlineContent } from '#lib/core/inline/index.js';
+import { asRawOffset } from '#lib/cursor/coordinate-spaces.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
-import { type InlineNode, type CstNode } from '$lib/core/nodes';
+} from '#lib/perf/instruments.js';
+import { type InlineNode, type CstNode } from '#lib/core/nodes.js';
 import {
 	caretAfter,
 	decorationIsland,
@@ -27,9 +27,9 @@ import {
 	at
 } from './edge-policy-fixture';
 import { mountWidgetBlock } from './math-widget-fixture';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { type BlockEditActions } from '$lib/action-contracts';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { type BlockEditActions } from '#lib/action-contracts.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 
 installEdgeDispatchCleanup();
 

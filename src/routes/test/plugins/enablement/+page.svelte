@@ -12,7 +12,7 @@
 </script>
 
 <script lang="ts">
-	import { Editor } from '$lib';
+	import { Editor } from '#lib';
 	import { trackParityDocument } from '../../../parity-documents.svelte';
 
 	// Each editor parses the seed in its own grammar: the left, with the memo kind off, reads the

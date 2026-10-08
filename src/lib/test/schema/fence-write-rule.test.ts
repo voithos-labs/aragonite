@@ -2,9 +2,9 @@
 // mode that tells the user typing the fence apart from content arriving whole.
 // Miss-analysis: only the code block's typing path applied the caret half, and no test had a caret.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { fencedCodeWrite } from '$lib/schema/fenced-code-raw';
-import type { WriteContext } from '$lib/schema/block-kind-descriptor';
+import { parse } from '#lib/core/parser.js';
+import { fencedCodeWrite } from '#lib/schema/fenced-code-raw.js';
+import type { WriteContext } from '#lib/schema/block-kind-descriptor.js';
 
 const ctxFor = (source: string, mode: WriteContext['mode']): WriteContext => ({
 	node: parse(source).children[0],

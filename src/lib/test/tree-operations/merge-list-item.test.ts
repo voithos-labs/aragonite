@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { mergeListItemIntoPrevious } from '$lib/test/harness/list-merge';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { mergeListItemIntoPrevious } from '#lib/test/harness/list-merge.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import type { CstNode } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // Backspace-at-start-of-list-item merge semantics. The worked examples mirror the table
 // in e2e/requirements/blocks/list/backspace/m1-merge.md.

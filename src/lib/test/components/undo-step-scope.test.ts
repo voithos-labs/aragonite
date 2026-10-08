@@ -3,7 +3,7 @@
 // elsewhere on the page.
 // Miss-analysis (GH #520): no mounted test put a second editor beside the first.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import type { UndoEntry } from '$lib/undo/types';
+import type { UndoEntry } from '#lib/undo/types.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -11,7 +11,7 @@ import {
 	placeCaret,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(() => installLayoutStubs());
 

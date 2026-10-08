@@ -3,8 +3,8 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { createBoundedMemo } from '$lib/bounded-memo';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { createBoundedMemo } from '#lib/bounded-memo.js';
 
 describe('createBoundedMemo', () => {
 	it('computes once per key and returns the cached value by identity without cloneOnRead', () => {

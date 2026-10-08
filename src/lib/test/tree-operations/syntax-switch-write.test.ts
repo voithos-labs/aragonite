@@ -1,21 +1,21 @@
 // Miss-analysis: every write test ran in the global grammar, never with a syntax switched off.
 import { describe, it, expect } from 'vitest';
-import type { Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import type { Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 import {
 	cascadeCleanupEmptyAncestors,
 	mergeIntoPrevDeepLeaf,
 	splitNode,
 	updateNodeContent
-} from '$lib/tree-operations';
-import { deleteAtPath, replaceAtPath } from '$lib/tree-operations/path-mutate';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { createRegistryView } from '$lib/schema/registry-view';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+} from '#lib/tree-operations/index.js';
+import { deleteAtPath, replaceAtPath } from '#lib/tree-operations/path-mutate.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // A write reads its neighbours in the editor's grammar, so a paragraph that comes to sit over
 // `---` in an editor without setext headings stays a paragraph over a divider.

@@ -2,7 +2,7 @@
 // source range left the block, and where a splice at the source leaves the target's path.
 // Miss-analysis: the browser's own drop resolved both natively, so no unit ever had to.
 import { describe, it, expect } from 'vitest';
-import { dropOffsetAfterCut, shiftPathAfterSplice } from '$lib/selection/selection-drop';
+import { dropOffsetAfterCut, shiftPathAfterSplice } from '#lib/selection/selection-drop.js';
 
 describe('dropOffsetAfterCut', () => {
 	it('leaves a drop before the cut alone', () => {

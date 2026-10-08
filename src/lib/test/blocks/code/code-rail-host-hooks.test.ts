@@ -2,8 +2,8 @@
 // Miss-analysis: only the type checker covered the code block gutter's host hooks.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import type { CodeMenuItem, CodeRunRequest } from '$lib/editor-keys';
-import { CODE_MENU_LABEL, CODE_RUN_LABEL } from '$lib/a11y-strings';
+import type { CodeMenuItem, CodeRunRequest } from '#lib/editor-keys.js';
+import { CODE_MENU_LABEL, CODE_RUN_LABEL } from '#lib/a11y-strings.js';
 import { mountCode, type MountedCode } from './mount-code';
 
 const FENCE = '```js {1}\nconst x = 1\n```\n';

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { buildLinkWrapBytes, canWrapRangeAsLink } from '$lib/core/inline/link-source-bytes';
+import { parse } from '#lib/core/parser.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import { buildLinkWrapBytes, canWrapRangeAsLink } from '#lib/core/inline/link-source-bytes.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // The create half of the byte writer: what `[selected text](url)` may be written over, and how

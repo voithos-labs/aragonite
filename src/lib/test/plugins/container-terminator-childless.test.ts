@@ -6,12 +6,12 @@ import {
 	OPENER_PRIORITIES,
 	type AnyBlockKind,
 	type CstNode
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import {
 	checkTerminatorCollision,
 	type ContainerConformanceProfile
-} from '$lib/testing/container-conformance';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+} from '#lib/testing/container-conformance.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 // The terminator cell over a childless container: the whole-block shape (mermaid's) whose body
 // lives in metadata, so there is no last child to overwrite. Two kinds share one grammar and

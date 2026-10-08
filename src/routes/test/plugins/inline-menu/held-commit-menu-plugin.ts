@@ -3,8 +3,8 @@
  * shape a source takes when it fetches a title first. The spec releases the wait through
  * `window.__releaseHeldCommit`, so it can type while the pick's commit is still pending.
  */
-import { definePlugin } from '$lib/plugin';
-import type { EditorPlugin } from '$lib/plugin';
+import { definePlugin } from '#lib/plugin.js';
+import type { EditorPlugin } from '#lib/plugin.js';
 
 declare global {
 	interface Window {

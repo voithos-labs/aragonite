@@ -1,16 +1,16 @@
 // The editor's current text, cached per content version, and G1.52, the dev check that catches a
 // byte write the version never heard about.
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createCurrentSource } from '$lib/reactivity/current-source';
-import { checkCurrentSource } from '$lib/invariants/current-source';
-import { disablePerfInstruments, enablePerfInstruments } from '$lib/perf/instruments';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createCurrentSource } from '#lib/reactivity/current-source.js';
+import { checkCurrentSource } from '#lib/invariants/current-source.js';
+import { disablePerfInstruments, enablePerfInstruments } from '#lib/perf/instruments.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 // Counted, since the check's cost is one serialization and an echoing host reads on every key.
-vi.mock('$lib/core/serializer', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/core/serializer')>();
+vi.mock('#lib/core/serializer.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/core/serializer.js')>();
 	return { ...actual, serialize: vi.fn(actual.serialize) };
 });
 

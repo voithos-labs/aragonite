@@ -2,16 +2,16 @@
 // false when reading mode refuses it or it only moves focus, true when it writes.
 // Miss-analysis: the results were typed, never tested, so a true after a refusal passed.
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockCompleter } from '$lib/schema/block-completions';
-import type { EditorActionsDeps } from '$lib/editor-actions/deps';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { serialize } from '$lib/core/serializer';
-import { paragraphNode } from '$lib/tree-operations';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { registerBlockCompleter } from '#lib/schema/block-completions.js';
+import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { serialize } from '#lib/core/serializer.js';
+import { paragraphNode } from '#lib/tree-operations/index.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 import { makeContainerHarness, makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { allowDevWarns, drainDevWarns } from '../support/warn-gate';

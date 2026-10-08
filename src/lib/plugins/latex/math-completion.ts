@@ -9,7 +9,7 @@ import {
 	trimWhitespace,
 	type AnyBlockKind,
 	type CompletionResult
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { isMathFenceLine, mathBlockLines } from './math-shape';
 
 /** Exactly the fence and nothing else: `$$x$$` is already a whole block and `$$ x` opens no

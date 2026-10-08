@@ -3,14 +3,14 @@
 // Miss-analysis: the composition's range rows drew every selection inside the content, and only
 // the keydown route cut a range back from a hidden setext underline.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import { mountBlock } from '../../harness/mount-block';
 import { settleEditor } from '../../harness/settle';
 import { noIslands } from '../table/mount-cell';

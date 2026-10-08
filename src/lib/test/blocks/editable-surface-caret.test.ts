@@ -3,8 +3,8 @@
 // clamp, and the pending restore.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-component';
 import { consumePendingRestore } from '../../components/blocks/editable-surface';
 

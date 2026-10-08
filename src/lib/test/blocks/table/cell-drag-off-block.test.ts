@@ -6,8 +6,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	installCellDragListener,
 	type CellAnchor
-} from '$lib/components/blocks/table/cell-pointer';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+} from '#lib/components/blocks/table/cell-pointer.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { mountTableGrid } from '../../selection/table-grid';
 
 const PARA_BOX = { left: 100, right: 300, top: 0, bottom: 40 };

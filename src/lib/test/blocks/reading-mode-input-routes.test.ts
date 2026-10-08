@@ -4,7 +4,7 @@
 // Miss-analysis: each route's own check hid whether reading mode could reach it at all.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -12,8 +12,8 @@ import {
 	placeCaret,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 beforeAll(installLayoutStubs);

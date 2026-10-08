@@ -2,14 +2,14 @@
 // `commitReveal`'s undo and caret rules through the real `createWidgetInteraction` over a mounted
 // math widget. It catches a commit that changes nothing pushing an undo entry, a caret taken from
 // the widget's stale end, and the cross-block rule moving from the blur caller into the commit.
-import { recordingWrite } from '$lib/test/harness/editor-actions';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { recordingWrite } from '#lib/test/harness/editor-actions.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { describe, it, expect } from 'vitest';
-import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
-import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
+import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import type { Commit } from './widget-selected-fixture';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 installMathInline();
 

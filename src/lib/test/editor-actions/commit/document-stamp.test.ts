@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { createDocumentStamps, stampWrites } from '$lib/editor-actions/commit/document-stamp';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { createDocumentStamps, stampWrites } from '#lib/editor-actions/commit/document-stamp.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { takeDevWarns } from '../../support/warn-gate';
 
 // A write made for a document a swap replaced is refused at the write gate, quietly, whichever

@@ -1,11 +1,11 @@
 // Miss-analysis: every options test read back the entry it passed, so none asked what a plugin
 // reads with no entry, with half an entry, or with one its own check rejects.
 import { describe, it, expect } from 'vitest';
-import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
+import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import type { Component } from 'svelte';
-import { definePluginBlock } from '$lib/schema/define-plugin-block';
-import { definePlugin, installPlugins, resolvePluginOptions } from '$lib/schema/plugin-install';
-import type { BlockComponentExports } from '$lib/block-component';
+import { definePluginBlock } from '#lib/schema/define-plugin-block.js';
+import { definePlugin, installPlugins, resolvePluginOptions } from '#lib/schema/plugin-install.js';
+import type { BlockComponentExports } from '#lib/block-component.js';
 import { pluginContextDeps } from '../support/plugin-context-deps';
 
 interface BadgeOptions {

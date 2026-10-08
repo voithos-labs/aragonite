@@ -10,7 +10,7 @@ import {
 	traceCompositionStart,
 	traceKeydownVerdict,
 	traceRevealFold
-} from '$lib/debug/interaction-trace';
+} from '#lib/debug/interaction-trace.js';
 
 // The trace is module-global, so every case restores the shared switch and buffer around itself.
 beforeEach(() => {

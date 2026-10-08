@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CURSOR_START } from '$lib/block-component';
+import { CURSOR_START } from '#lib/block-component.js';
 import { makeTableMutations } from './table-mutations-harness';
 
 // a11y: an alignment choice must put the caret back in the originating cell and announce via

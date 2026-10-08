@@ -6,7 +6,7 @@ import {
 	BLOCK_SUFFIX_ATTR,
 	landableRawBounds,
 	rawTextOfContent
-} from '$lib/cursor/widget-offset';
+} from '#lib/cursor/widget-offset.js';
 
 /** A prose block's element from HTML, the way the browser leaves it after an edit. */
 function block(html: string): HTMLElement {

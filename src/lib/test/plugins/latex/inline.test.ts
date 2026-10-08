@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { computeInlineContent } from '$lib/plugin';
+import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { computeInlineContent } from '#lib/plugin.js';
 import {
 	buildCoreInlineWidget,
 	getInlineWidgetComponent,
 	getInlineWidgetEditing
-} from '$lib/core/inline/inline-widgets';
-import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+} from '#lib/core/inline/inline-widgets.js';
+import { registerMathInline, MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 
 const isMath = (n: InlineNode) => n.kind === MATH_INLINE;
 const mathNodesIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isMath);

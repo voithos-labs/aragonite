@@ -1,22 +1,22 @@
 // Miss-analysis: every case asserted the map, which a whole-document pass also produces.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse, type DocumentView } from '$lib';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { rebuildAncestryRaw } from '$lib/schema/container-raw';
+import { installPlugins, parse, type DocumentView } from '#lib';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
 import {
 	collectFootnoteReferences,
 	footnoteNumbersFor
-} from '$lib/plugins/footnotes/footnote-numbering';
+} from '#lib/plugins/footnotes/footnote-numbering.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+} from '#lib/perf/instruments.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 const TOP_LEVEL = 40;
 

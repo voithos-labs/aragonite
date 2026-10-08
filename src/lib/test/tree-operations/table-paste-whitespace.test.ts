@@ -1,7 +1,7 @@
 // Miss-analysis: the two paste routes into a cell had no test beside the row rebuild's NBSP fix.
 import { describe, expect, it } from 'vitest';
-import { parseClipboardGrid } from '$lib/tree-operations/table-grid-clipboard';
-import { normalizeWhitespace } from '$lib/components/blocks/table/table-cell-paste';
+import { parseClipboardGrid } from '#lib/tree-operations/table-grid-clipboard.js';
+import { normalizeWhitespace } from '#lib/components/blocks/table/table-cell-paste.js';
 
 const NBSP = '\u00a0';
 

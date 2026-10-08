@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import type { EditEvent } from '$lib/editor-events';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { parse } from '$lib/core/parser';
+import type { EditEvent } from '#lib/editor-events.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
+import { parse } from '#lib/core/parser.js';
 import { makeEditorActionsDeps } from './harness/editor-actions';
 
 describe('moveFocus past the last block', () => {

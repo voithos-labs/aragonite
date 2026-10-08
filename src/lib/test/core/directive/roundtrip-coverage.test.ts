@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { getPluginMetadata, type CstNode, type PluginBlockKind } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { parseInline } from '$lib/core/inline';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { getPluginMetadata, type CstNode, type PluginBlockKind } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	rebuildDirectiveContainerRaw,
 	DIRECTIVE_CONTAINER,
 	DIRECTIVE_TEXT,
 	type DirectiveContainerMetadata
-} from '$lib/core/directive/kinds';
-import { registerDirective, type ParsedDirective } from '$lib/core/directive/registry';
+} from '#lib/core/directive/kinds.js';
+import { registerDirective, type ParsedDirective } from '#lib/core/directive/registry.js';
 import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 
 let NOTE: PluginBlockKind;
 let WARNING: PluginBlockKind;

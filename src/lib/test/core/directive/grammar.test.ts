@@ -4,7 +4,7 @@ import {
 	isDirectiveCloser,
 	serializeDirective,
 	parseDirectiveAttributes
-} from '$lib/core/directive/grammar';
+} from '#lib/core/directive/grammar.js';
 
 describe('matchDirectiveOpener', () => {
 	it('parses a container opener with name and no info', () => {

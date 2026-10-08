@@ -4,8 +4,8 @@
 // A block decoration can write one, so such a value arrives through a supported API.
 // Miss-analysis: every traversal suite wrote a real mode, so nothing exercised the fallback.
 import { describe, it, expect, afterEach } from 'vitest';
-import { asPresentationMode } from '$lib/presentation-mode';
-import { revealsNoMarkers, screenVisibilityOf } from '$lib/cursor/widget-offset';
+import { asPresentationMode } from '#lib/presentation-mode.js';
+import { revealsNoMarkers, screenVisibilityOf } from '#lib/cursor/widget-offset.js';
 
 function stamp(value: string): HTMLElement {
 	const root = document.createElement('div');

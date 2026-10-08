@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { endsOpen, endWindowLines, keepOpenTail } from '$lib/tree-operations/open-tail';
-import { documentBody, type BodyParent } from '$lib/tree-operations/node-primitives';
-import { createSharingState, type SharingState } from '$lib/tree-operations/sharing';
-import { rebuildListRaw } from '$lib/schema/container-rebuilders';
-import { checkStaleRaw } from '$lib/invariants/node-shape';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { DIRECTIVE_CONTAINER } from '$lib/core/directive/kinds';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { endsOpen, endWindowLines, keepOpenTail } from '#lib/tree-operations/open-tail.js';
+import { documentBody, type BodyParent } from '#lib/tree-operations/node-primitives.js';
+import { createSharingState, type SharingState } from '#lib/tree-operations/sharing.js';
+import { rebuildListRaw } from '#lib/schema/container-rebuilders.js';
+import { checkStaleRaw } from '#lib/invariants/node-shape.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 /** The body of the list that is `source`'s first block, as a list scope's commit sees it. */
 function listBody(source: string): BodyParent {

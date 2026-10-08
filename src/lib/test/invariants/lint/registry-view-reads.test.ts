@@ -7,24 +7,26 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { InlineNode } from '$lib/core/nodes';
-import { inlineReaderFor } from '$lib/core/inline';
-import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
-import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import { renderInlineNodes } from '$lib/core/inline-render';
-import type { NodeView } from '$lib/core/node-views';
-import type { EditorActionsDeps } from '$lib/editor-actions/deps';
-import { withEnterCompletion } from '$lib/editor-actions/enter-completion';
-import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
-import type { Reading } from '$lib/schema/reading';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { InlineNode } from '#lib/core/nodes.js';
+import { inlineReaderFor } from '#lib/core/inline/index.js';
+import { resolvedInlineContent } from '#lib/core/inline/inline-cache.js';
+import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
+import { renderInlineNodes } from '#lib/core/inline-render.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
+import { withEnterCompletion } from '#lib/editor-actions/enter-completion.js';
+import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
+import type { Reading } from '#lib/schema/reading.js';
 import { pluginContextDeps } from '../../support/plugin-context-deps';
 import {
 	callArguments,
 	collectEditorSources,
 	enclosingFunction,
+	isLibrarySpecifier,
 	languageOf,
 	lexicalClasses,
+	resolveSpecifier,
 	stripComments,
 	type SourceFile
 } from './scan-source';
@@ -51,18 +53,18 @@ const mayImportDefaulted = (relPath: string): boolean =>
 
 /** Each defaulted reader a file imports from inside the library: `parse` and `parseInline` from
  *  anywhere in it, and the plugin barrel's `computeInlineContent`, which reads every plugin. */
-function defaultedReaderImports(code: string): string[] {
+function defaultedReaderImports(relPath: string, code: string): string[] {
 	const found: string[] = [];
 	const statement = /\b(?:import|export)\s*(?:type\s*)?\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g;
 	for (const match of code.matchAll(statement)) {
 		const specifier = match[2];
-		if (!specifier.startsWith('$lib') && !specifier.startsWith('.')) continue;
+		if (!isLibrarySpecifier(specifier)) continue;
+		const fromPluginBarrel = resolveSpecifier(relPath, specifier) === SOURCE.pluginBarrel;
 		for (const entry of match[1].split(',')) {
 			const name = entry
 				.trim()
 				.replace(/^type\s+/, '')
 				.split(/\s+as\s+/)[0];
-			const fromPluginBarrel = /(^\$lib|\/|^\.)\/?plugin$/.test(specifier);
 			if (name === 'parse' || name === 'parseInline') found.push(`${name} <- ${specifier}`);
 			else if (name === 'computeInlineContent' && fromPluginBarrel) {
 				found.push(`${name} <- ${specifier}`);
@@ -80,7 +82,10 @@ describe('G4.69 only the barrels, the kits and no-editor code import the default
 	it('finds none elsewhere in the library', () => {
 		const offenders = sources
 			.filter((file) => !mayImportDefaulted(file.relPath))
-			.map((file) => ({ relPath: file.relPath, hits: defaultedReaderImports(file.code) }))
+			.map((file) => ({
+				relPath: file.relPath,
+				hits: defaultedReaderImports(file.relPath, file.code)
+			}))
 			.filter((file) => file.hits.length > 0);
 		expect(
 			offenders,
@@ -91,26 +96,34 @@ describe('G4.69 only the barrels, the kits and no-editor code import the default
 	it('lists no file that no longer imports one', () => {
 		const stale = Object.keys(DEFAULTED_READER_IMPORTERS).filter((relPath) => {
 			const file = sources.find((f) => f.relPath === relPath);
-			return !file || defaultedReaderImports(file.code).length === 0;
+			return !file || defaultedReaderImports(file.relPath, file.code).length === 0;
 		});
 		expect(stale).toEqual([]);
 	});
 
+	const probe = `${SOURCE_DIR.library}components/probe.ts`;
+
 	it('matches the defaulted readers by name and source', () => {
-		expect(defaultedReaderImports("import { parse } from '../core/parser';")).toEqual([
+		expect(defaultedReaderImports(probe, "import { parse } from '../core/parser';")).toEqual([
 			'parse <- ../core/parser'
 		]);
 		expect(
-			defaultedReaderImports("import {\n\ttype X,\n\tparseInline as p\n} from '$lib/core/inline';")
-		).toEqual(['parseInline <- $lib/core/inline']);
-		expect(defaultedReaderImports("import { computeInlineContent } from '$lib/plugin';")).toEqual([
-			'computeInlineContent <- $lib/plugin'
-		]);
+			defaultedReaderImports(
+				probe,
+				"import {\n\ttype X,\n\tparseInline as p\n} from '#lib/core/inline/index.js';"
+			)
+		).toEqual(['parseInline <- #lib/core/inline/index.js']);
+		for (const barrel of ['#lib/plugin.js', '../plugin']) {
+			expect(
+				defaultedReaderImports(probe, `import { computeInlineContent } from '${barrel}';`)
+			).toEqual([`computeInlineContent <- ${barrel}`]);
+		}
 	});
 
 	it('spares the internal readers, other names and other packages', () => {
 		expect(
 			defaultedReaderImports(
+				probe,
 				stripComments(
 					"import { readBlocks, parseBlocks } from '../core/parser';\n" +
 						"import { readInline, computeInlineContent } from './index';\n" +

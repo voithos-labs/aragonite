@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 
 // The fix-up can merge pasted blocks into neighbours, so the caret follows bytes, not an index.
 // Miss-analysis: the structural-paste caret tests checked the block index, never the offset in it.

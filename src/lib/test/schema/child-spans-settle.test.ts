@@ -3,17 +3,17 @@
 // the next rebuild with a hint recomputes them.
 // Miss-analysis: the spans suite hand-built its hint, so no test ran a fix-up touching a sibling.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { dropChildSpans } from '$lib/schema/child-spans';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
-import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { dropChildSpans } from '#lib/schema/child-spans.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { ensureUnsharedPath } from '#lib/tree-operations/unshare.js';
+import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // The first keystroke fills in the spans and the second one uses them, so a single keypress
 // cannot show stale spans.

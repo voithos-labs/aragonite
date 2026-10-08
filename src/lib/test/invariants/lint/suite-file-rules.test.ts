@@ -13,6 +13,7 @@ import {
 	handRolledLexing,
 	balancedRegion,
 	literalSpans,
+	quotedSpecifierEnding,
 	ROUTES_SRC,
 	walkCode,
 	type SourceFile
@@ -217,11 +218,11 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.41 no file mocks dev-warn',
-		matches: /vi\s*\.\s*mock\(\s*['"`][^'"`]*dev-warn['"`]/,
+		matches: new RegExp(String.raw`vi\s*\.\s*mock\(\s*` + quotedSpecifierEnding('dev-warn')),
 		reason:
 			'a mocked devWarn never reaches the sink, so every guard fire in the file is invisible to the gate: assert on takeDevWarns() or declare the tag with allowDevWarns',
 		reaches: BOTH_HALVES,
-		hits: [mockCall('$lib/dev-warn'), mockCall('../../dev-warn')],
+		hits: [mockCall('#lib/dev-warn.js'), mockCall('../../dev-warn')],
 		misses: [mockCall('esm-env')]
 	},
 	{
@@ -449,7 +450,7 @@ const RULES: FileRule[] = [
 			),
 			at(
 				'src/lib/test/e.test.ts',
-				`import { ${PUBLIC_RESET} as wipe } from '$lib/testing';\nbeforeEach(wipe);`
+				`import { ${PUBLIC_RESET} as wipe } from '#lib/testing.js';\nbeforeEach(wipe);`
 			),
 			at('src/lib/test/f.test.ts', `afterEach(${RESET_NAMES[RESET_NAMES.length - 1]});`)
 		],
@@ -479,7 +480,7 @@ const RULES: FileRule[] = [
 			),
 			at(
 				'src/lib/test/x/fixture.svelte.ts',
-				`import { ${PUBLIC_RESET} as wipe } from '$lib/testing';`
+				`import { ${PUBLIC_RESET} as wipe } from '#lib/testing.js';`
 			)
 		],
 		misses: [

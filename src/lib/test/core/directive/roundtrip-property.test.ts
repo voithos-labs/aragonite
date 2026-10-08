@@ -1,12 +1,12 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import type { CstNode, PluginBlockKind } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { rebuildDirectiveContainerRaw } from '$lib/core/directive/kinds';
-import { registerDirective } from '$lib/core/directive/registry';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { roundTripCases } from '$lib/test/support/round-trip';
+import type { CstNode, PluginBlockKind } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { rebuildDirectiveContainerRaw } from '#lib/core/directive/kinds.js';
+import { registerDirective } from '#lib/core/directive/registry.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
 
 beforeEach(activateDirectiveGrammar);
 

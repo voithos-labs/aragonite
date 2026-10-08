@@ -3,17 +3,17 @@
 // Miss-analysis: every rebuild re-prefixed a lazy line, so no test had a kept lazy line lose the
 // paragraph it continued, and nothing asked what the bytes then read as.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { commitLeafTextAt } from '$lib/editor-actions/block-edit-core';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { commitLeafTextAt } from '#lib/editor-actions/block-edit-core.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 type Route = (h: TopHarness, leaf: number[], text: string) => Promise<void>;
 

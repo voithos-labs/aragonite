@@ -6,7 +6,7 @@ import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { createSharingState } from '../../tree-operations/sharing';
 import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 // rangeDelete is driven with hand-built endpoints, so the table branches see character offsets

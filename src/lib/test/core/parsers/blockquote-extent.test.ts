@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { splitLines } from '$lib/core/lines';
-import { blockquoteExtent } from '$lib/core/parsers/blockquote';
+import { splitLines } from '#lib/core/lines.js';
+import { blockquoteExtent } from '#lib/core/parsers/blockquote.js';
 
 // The extent must agree with the full parse on where the quote ends, CommonMark §5.1 lazy
 // continuation included, or an opener that decomposes its own body lands on the wrong line.

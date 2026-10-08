@@ -1,4 +1,4 @@
-import type { ClosureBlock } from '$lib/schema/closure';
+import type { ClosureBlock } from '#lib/schema/closure.js';
 
 /**
  * A closure block that clears the closure coherence check (G1.24) for any throwaway test kind,

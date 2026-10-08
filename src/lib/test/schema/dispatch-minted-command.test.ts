@@ -4,9 +4,9 @@ import {
 	dispatchKindCommand,
 	registerBlockCommand,
 	type CommandErrorReport
-} from '$lib/schema/block-commands';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/schema/block-commands.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { commandContext, commandContextWith } from '../support/command-context';
 
 const nodeOf = (kind: string): CstNode =>

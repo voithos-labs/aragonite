@@ -1,18 +1,18 @@
-import { parse } from '$lib/core/parser';
-import { recordingWrite, type RecordedWrite } from '$lib/test/harness/editor-actions';
+import { parse } from '#lib/core/parser.js';
+import { recordingWrite, type RecordedWrite } from '#lib/test/harness/editor-actions.js';
 import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
-} from '$lib/components/blocks/text/widget-interaction';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/components/blocks/text/widget-interaction.js';
+import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import type { Reading } from '$lib/schema/reading';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import type { Reading } from '#lib/schema/reading.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
+import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
 
 /** A recorded write less its mode. */
 export type Commit = Omit<RecordedWrite, 'mode'>;

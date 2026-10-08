@@ -11,8 +11,8 @@ import {
 	placeCaret,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey, settleEditor } from '#lib/test/harness/settle.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

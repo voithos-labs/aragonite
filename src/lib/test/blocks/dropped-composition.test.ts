@@ -11,7 +11,7 @@ import {
 	placeCaret,
 	surfaceAt,
 	typeInto
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 beforeAll(() => {

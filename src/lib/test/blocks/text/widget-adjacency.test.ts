@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { InlineNode } from '$lib/core/nodes';
+import type { InlineNode } from '#lib/core/nodes.js';
 import {
 	widgetAtCursor,
 	widgetNodeIn,
@@ -8,8 +8,8 @@ import {
 	findLastEdgeWidget,
 	rawHasNoTextBefore,
 	rawHasNoTextAfter
-} from '$lib/components/blocks/text/widget-adjacency';
-import { parse } from '$lib/core/parser';
+} from '#lib/components/blocks/text/widget-adjacency.js';
+import { parse } from '#lib/core/parser.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 function image(start: number, end: number): InlineNode {

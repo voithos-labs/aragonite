@@ -2,20 +2,20 @@
 // The cross-block toggle's span split and its direction rule: the anchor's tail, each middle
 // block's content, the focus block's head, all rewritten the one way the range's own coverage
 // says. Whether a keystroke lands is the commit's business and tested there.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import {
 	applyCrossBlockFormat,
 	crossBlockActiveFormats,
 	planCrossBlockFormat
-} from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
-import { documentBody } from '$lib/tree-operations/node-primitives';
+} from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 

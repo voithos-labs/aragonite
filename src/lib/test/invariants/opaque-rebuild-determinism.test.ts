@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { checkOpaqueRebuildDeterminism } from '../../invariants/node-shape';
-import { testContainer } from '$lib/test/harness/test-kinds';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 import { concatChildren } from '../../core/serializer';
 import { setPluginMetadata, getPluginMetadata, type CstNode } from '../../core/nodes';
 

@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	BLOCK_CONTENT_SELECTOR,
 	BLOCK_CONTENT_LOCATOR_SELECTOR
-} from '$lib/components/block-content-selector';
+} from '#lib/components/block-content-selector.js';
 
 /** BlockHost's wrapper children, in the order the component renders them. */
 function blockWrapper(options: {

@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import * as pluginBarrel from '$lib/plugin';
-import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
-import { registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
+import * as pluginBarrel from '#lib/plugin.js';
+import { registerInlineSyntax } from '#lib/core/inline/scan/plugin-syntax.js';
+import { registerInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
 import {
 	declarePluginInlineKind,
 	declaredPluginInlineKind,
 	isInlineKindDeclared
-} from '$lib/schema/plugin-kind';
+} from '#lib/schema/plugin-kind.js';
 import type {
 	InlineSyntaxRecognizer,
 	InlineWidgetDescriptor,
@@ -16,7 +16,7 @@ import type {
 	InlineNode,
 	ImageFields,
 	ImageSyntaxRewriter
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 // The inline authoring API is not frozen yet, so the suite pins the symbols a plugin imports
 // from `@voithos-labs/aragonite/plugin` to their core implementations: a dropped or mis-wired

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { mergeListItemIntoPrevious } from '$lib/test/harness/list-merge';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import type { Document } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { mergeListItemIntoPrevious } from '#lib/test/harness/list-merge.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The bytes an item merge writes, also checked against a reparse, since a round-trip of the
 // bytes alone passes on a stale list raw.

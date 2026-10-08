@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 // Text parsing to several blocks must replace the block with all of them at both levels.
 // Cramming the extras into the first node's raw leaves the live CST disagreeing with

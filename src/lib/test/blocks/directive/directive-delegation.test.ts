@@ -5,8 +5,8 @@
 // exercises the `:scope > .block-list` lookup.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { componentAt } from '$lib/reactivity/child-list';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { componentAt } from '#lib/reactivity/child-list.js';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));

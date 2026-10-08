@@ -5,14 +5,14 @@
 
 import { mount, unmount, flushSync } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import Editor from '$lib/components/Editor.svelte';
-import type { EditorInstance, EditorProps } from '$lib/editor-props';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { placeCaretAtRaw, selectRawRange } from '$lib/cursor/widget-offset';
-import { settleEditor, pressKey } from '$lib/test/harness/settle';
+import Editor from '#lib/components/Editor.svelte';
+import type { EditorInstance, EditorProps } from '#lib/editor-props.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { placeCaretAtRaw, selectRawRange } from '#lib/cursor/widget-offset.js';
+import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 
 /** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */
-export { installEditorDomStubsForTests as installLayoutStubs } from '$lib/testing';
+export { installEditorDomStubsForTests as installLayoutStubs } from '#lib/testing.js';
 
 export interface MountedEditor<Seam = unknown> {
 	instance: EditorInstance & { __test: Seam };

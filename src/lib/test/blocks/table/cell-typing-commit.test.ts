@@ -4,13 +4,13 @@
 // silently drops the last column. Gestures that write their own bytes are in
 // `cell-write-escape.test.ts`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { metadataOf } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { metadataOf } from '#lib/core/nodes.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt } from './mount-table';
 
 beforeAll(installLayoutStubs);

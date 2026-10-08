@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorRects } from '../../editor-rects';
 import type { PlaceOptions } from '../../cursor/scroll-owner';
-import { installEditorDomStubsForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
 
 installEditorDomStubsForTests();
 

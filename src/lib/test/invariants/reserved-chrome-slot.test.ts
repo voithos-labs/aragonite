@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { checkReservedChromeSlot } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
-import { testChromeContainer } from '$lib/test/harness/test-kinds';
+import { testChromeContainer } from '#lib/test/harness/test-kinds.js';
 
 describe('checkReservedChromeSlot (G1.14)', () => {
 	it('passes when child 0 is the declared chrome kind', () => {

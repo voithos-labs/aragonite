@@ -2,10 +2,10 @@
 // instead of passing with its DOM half skipped. Miss: `kit-report-vocabulary` ran the widget cell
 // without a DOM and checked only that its status was a valid word, so a quiet `boundary` passed.
 import { describe, expect, it } from 'vitest';
-import { installPlugins } from '$lib';
-import { declaredPluginInlineKind, INLINE_PRIORITIES } from '$lib/plugin';
-import { runInlineKindConformance } from '$lib/testing';
-import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
+import { installPlugins } from '#lib';
+import { declaredPluginInlineKind, INLINE_PRIORITIES } from '#lib/plugin.js';
+import { runInlineKindConformance } from '#lib/testing.js';
+import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 const EXCUSED = 'this suite reaches the widget cell only';

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createSearchReplace } from '$lib/editor-actions/search-replace';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 // A list whose first item is emptied right under a paragraph needs a blank line above it: a bare
 // marker cannot interrupt a paragraph, so the bytes would reload as a setext heading.

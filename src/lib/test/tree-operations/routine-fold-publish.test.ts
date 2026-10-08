@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { serialize } from '#lib/core/serializer.js';
+import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 // Routine typing writes outside the commit, so a fix-up that merges there must still resync the
 // parallel id array keyed rendering reads, or its length stays wrong.

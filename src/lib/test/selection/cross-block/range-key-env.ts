@@ -1,8 +1,8 @@
 // A key pressed over a live range through the real dispatch and commits, on a document whose every
 // container has a list state, as a mounted editor's does.
 
-import type { SelectionEndpoint } from '$lib/selection/primitives';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
+import type { SelectionEndpoint } from '#lib/selection/primitives.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeBlockListState, makeTopHarness, type TopHarness } from '../../harness/editor-actions';
 import { envOver, makeHandlers } from './typed-char-env';
 

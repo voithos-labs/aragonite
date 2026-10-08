@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 // Miss-analysis (GH #262): no test called the public `invalidate()` from a commit's `edit` handler.
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
-import { isCommitInProgress } from '$lib/invariants/commit-scope';
-import { asDocPath } from '$lib/selection/path-math';
-import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
+import { isCommitInProgress } from '#lib/invariants/commit-scope.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
 import {
 	stampStructuralChange,
 	type StructuralChange
-} from '$lib/tree-operations/structural-change';
+} from '#lib/tree-operations/structural-change.js';
 
 describe('a source that invalidates from its own edit handler', () => {
 	it('runs once, after the commit publishes, never inside it', async () => {

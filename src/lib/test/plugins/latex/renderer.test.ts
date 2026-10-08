@@ -6,7 +6,7 @@
  * proven in `math-renderer.test.ts`.
  */
 import { describe, it, expect } from 'vitest';
-import { katexRenderer } from '$lib/plugins/latex/renderer';
+import { katexRenderer } from '#lib/plugins/latex/renderer.js';
 
 describe('katexRenderer', () => {
 	it('renders valid math with MathML in the DOM (A9)', () => {

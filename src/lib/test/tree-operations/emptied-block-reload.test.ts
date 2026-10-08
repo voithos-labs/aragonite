@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { deleteNode } from '$lib/tree-operations/settle';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { splitNode } from '$lib/tree-operations/node-ops';
-import { trailingLineEnding } from '$lib/core/lines';
-import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
-import type { Document } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { deleteNode } from '#lib/tree-operations/settle.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { splitNode } from '#lib/tree-operations/node-ops.js';
+import { trailingLineEnding } from '#lib/core/lines.js';
+import { expectParseConverged, layoutOf as layout } from '#lib/test/harness/parse-converged.js';
+import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A block that turns blank joins the blank run around it, and the run carries exactly the one
 // separating line its reload produces; the reverse of `typed-blank-lines-reload.test.ts`.

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 
 // The paragraph the gap caret creates, checked by its bytes: a paragraph inserted at a
 // boundary must serialize to the document the user would have typed, with the separators

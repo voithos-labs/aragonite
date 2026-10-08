@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { installPlugins, parse } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import {
 	activateDirectives,
 	registerDirective,
 	type CstNode,
 	type ParsedDirective
-} from '$lib/plugin';
-import { testContainer } from '$lib/test/harness/test-kinds';
+} from '#lib/plugin.js';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 
 /** Admonitions registers its directive names only where no other plugin already holds one. */
 

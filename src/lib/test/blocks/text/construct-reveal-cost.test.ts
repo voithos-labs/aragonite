@@ -3,11 +3,11 @@
 // every key and render would pay for nothing. Live shows nothing there at all.
 // Miss-analysis: no test counted what the reveal reads, so turning it on in live mode went unseen.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
-import { createConstructReveal } from '$lib/components/blocks/text/construct-reveal';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { makeRenderHarness } from '$lib/test/harness/text-render';
+import { parse } from '#lib/core/parser.js';
+import { createTextRender } from '#lib/components/blocks/text/text-render.js';
+import { createConstructReveal } from '#lib/components/blocks/text/construct-reveal.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { makeRenderHarness } from '#lib/test/harness/text-render.js';
 import { placeCaretAt } from './math-widget-fixture';
 
 const CONSTRUCTS = 'plain **bold** and *em* and [a link](u)\n';

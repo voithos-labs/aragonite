@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 import {
 	registerCalloutKind,
 	rebuildCalloutRaw

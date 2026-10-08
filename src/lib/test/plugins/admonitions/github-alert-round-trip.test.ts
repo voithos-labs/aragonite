@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { rebuildGithubAlertRaw } from '$lib/plugins/admonitions/github-alert-kind';
-import { roundTripCases } from '$lib/test/support/round-trip';
+import { installPlugins, parse } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { rebuildGithubAlertRaw } from '#lib/plugins/admonitions/github-alert-kind.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
 
 // Load is byte-exact off the stored raw; a post-edit rebuild re-emits the marker
 // (casing preserved from metadata) + `> `-prefixed body, CRLF threaded, and reparses

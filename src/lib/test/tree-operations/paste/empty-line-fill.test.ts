@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+} from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 // Miss-analysis: no paste test filled one of two empty paragraphs with an unterminated block.
 

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { extendFocusToDocEdge } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import { stateAt, el } from './extend-walk-env';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 describe('extendFocusToDocEdge', () => {
 	it("Ctrl+Shift+End extends to the end offset of the document's last leaf", () => {

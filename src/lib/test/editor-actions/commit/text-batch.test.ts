@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTextBatch, UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
+import { createTextBatch, UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';
 
 function harness() {
 	const pushSnapshot = vi.fn();

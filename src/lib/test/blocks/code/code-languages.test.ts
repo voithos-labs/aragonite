@@ -6,7 +6,7 @@ import {
 	listLanguages
 } from '../../../components/blocks/code/code-languages';
 import type { LanguageFn } from 'highlight.js';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 const fakeGrammar = (() => ({ name: 'fake' })) as unknown as LanguageFn;
 

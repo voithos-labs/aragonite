@@ -6,19 +6,22 @@
 
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { displayLength, documentLineEnding } from '$lib/core/lines';
-import { holdsBlankLastLine } from '$lib/tree-operations/open-tail';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { ensureEditableContainers } from '$lib/tree-operations/node-primitives';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { displayLength, documentLineEnding } from '#lib/core/lines.js';
+import { holdsBlankLastLine } from '#lib/tree-operations/open-tail.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
+import { ensureEditableContainers } from '#lib/tree-operations/node-primitives.js';
 import {
 	makeContainerHarness,
 	makeListContextAt,
 	makeTopHarness
-} from '$lib/test/harness/editor-actions';
-import { arbBlankSeparatedGfmDoc, freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
+} from '#lib/test/harness/editor-actions.js';
+import {
+	arbBlankSeparatedGfmDoc,
+	freshOrFixedSeed
+} from '#lib/test/invariants/arbitraries/index.js';
 
 const PARAMS = { numRuns: 200, seed: freshOrFixedSeed(635616) } as const;
 

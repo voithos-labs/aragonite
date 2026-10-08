@@ -8,7 +8,7 @@ import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 /**
  * The document's bytes, since per-half raws can't show a dropped block; the shape must also reload

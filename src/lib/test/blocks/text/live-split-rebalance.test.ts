@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { parsesBack, rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { getContentRange, parseInline } from '$lib/core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
+import { parse } from '#lib/core/parser.js';
+import {
+	parsesBack,
+	rebalanceLiveSplit
+} from '#lib/components/blocks/text/live-split-rebalance.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import { getContentRange, parseInline } from '#lib/core/inline/index.js';
+import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
 import { fixtureReading, renderOptions, topLevelSplit } from '../../harness/fixture-grammar';
 
 // The bytes a live-mode Enter writes into each half. Each case states the literal cut a refusal

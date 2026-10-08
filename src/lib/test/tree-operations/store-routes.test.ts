@@ -4,37 +4,37 @@
 // Miss-analysis: every container shape read the same at the top level, so a route handed a lone
 // paragraph's store instead of its own passed every suite.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { installPlugins } from '$lib';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { CstNode } from '$lib/core/nodes';
-import type { Reading } from '$lib/schema/reading';
-import { asDomTextOffset, asRawOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { runDrop } from '$lib/selection/selection-drop';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
-import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { installPlugins } from '#lib';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { Reading } from '#lib/schema/reading.js';
+import { asDomTextOffset, asRawOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { storedAsAt } from '#lib/tree-operations/stored-as.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { runDrop } from '#lib/selection/selection-drop.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
+import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { rebalanceLiveSplit } from '#lib/components/blocks/text/live-split-rebalance.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
 import { allowDevWarns } from '../support/warn-gate';
 import {
 	registerLiveJoinSeamCleaner,
 	registerLiveSplitRebalancer,
 	__resetLiveJoinSeamCleanerForTests,
 	__resetLiveSplitRebalancerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import {
 	makeBlockListState,
 	makeContainerHarness,
@@ -43,8 +43,8 @@ import {
 	makeStubBlockEdit,
 	pasteContext
 } from '../harness/editor-actions';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { createCaretMemory, type CaretMemory } from '#lib/cursor/caret-memory.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
 import { settleEditor } from '../harness/settle';
@@ -58,15 +58,15 @@ import {
 } from '../blocks/text/edge-policy-fixture';
 import { registerCalloutForTests } from '../selection/chrome-plugins';
 import { collectEditorSources, EDITOR_SRC } from '../invariants/lint/scan-source';
-import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-interaction';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { replaceSelectedWidget } from '#lib/components/blocks/text/widget-interaction.js';
+import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.
 const TOP = vi.hoisted(() => ({ on: false }));
-vi.mock('$lib/tree-operations/stored-as', async (importOriginal) => {
-	const real = await importOriginal<typeof import('$lib/tree-operations/stored-as')>();
-	const { parse: parseDoc } = await import('$lib/core/parser');
+vi.mock('#lib/tree-operations/stored-as.js', async (importOriginal) => {
+	const real = await importOriginal<typeof import('#lib/tree-operations/stored-as.js')>();
+	const { parse: parseDoc } = await import('#lib/core/parser.js');
 	const top = (reading: Reading) => real.storedAsAt(parseDoc('x\n'), [0], reading);
 	return {
 		storedAsAt: (...args: Parameters<typeof real.storedAsAt>) =>

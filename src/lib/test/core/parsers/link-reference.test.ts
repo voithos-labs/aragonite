@@ -6,7 +6,7 @@ import { serialize } from '../../../core/serializer';
 import { buildLinkReferenceMap } from '../../../core/inline/link-reference-resolver';
 import { parseInline } from '../../../core/inline/index';
 import { metadataOf } from '../../../core/nodes';
-import { describeRoundTrips } from '$lib/test/support/round-trip';
+import { describeRoundTrips } from '#lib/test/support/round-trip.js';
 
 function parseOne(source: string) {
 	const lines = splitLines(source);

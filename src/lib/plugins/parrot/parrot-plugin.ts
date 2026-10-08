@@ -8,7 +8,7 @@ import {
 	simpleLeafClosure,
 	type CaretTarget,
 	type EditorPlugin
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import ParrotBlock from './ParrotBlock.svelte';
 
 export const PARROT = 'parrot';

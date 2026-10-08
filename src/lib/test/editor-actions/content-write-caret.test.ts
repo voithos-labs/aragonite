@@ -2,7 +2,7 @@
 // inserted or dropped, once, inside the content write that stores the bytes.
 // Miss-analysis: each kind mapped its caret beside its own component, so no test asked the write.
 import { describe, it, expect } from 'vitest';
-import { admittedCaret, mountBodyRow, makeTopHarness } from '$lib/test/harness/editor-actions';
+import { admittedCaret, mountBodyRow, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 const TABLE = '| a | b |\n| - | - |\n| x | y |\n';
 

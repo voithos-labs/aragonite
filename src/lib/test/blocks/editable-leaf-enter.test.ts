@@ -2,9 +2,9 @@
 // Miss-analysis: every editable-leaf case used a multi-line kind, so none asked a one-line leaf.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
-import { installLayoutStubs, selectRange } from '$lib/test/harness/mount-editor.svelte';
-import { settleEditor, pressKey } from '$lib/test/harness/settle';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { installLayoutStubs, selectRange } from '#lib/test/harness/mount-editor.svelte.js';
+import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 import PlainOneLineLeafBlock from './fixtures/PlainOneLineLeafBlock.svelte';
 import { mountBlock } from '../harness/mount-block';

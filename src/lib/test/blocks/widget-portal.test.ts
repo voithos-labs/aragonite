@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { createWidgetPool, type WidgetPoolAdapter } from '$lib/components/blocks/widget-portal';
-import type { AnyInlineKind, InlineNode } from '$lib/core/nodes';
+import { createWidgetPool, type WidgetPoolAdapter } from '#lib/components/blocks/widget-portal.js';
+import type { AnyInlineKind, InlineNode } from '#lib/core/nodes.js';
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,
 	resetInteractionTrace,
 	interactionTraceSnapshot
-} from '$lib/debug/interaction-trace';
+} from '#lib/debug/interaction-trace.js';
 
 // The editor rebuilds a block's inline DOM on every keystroke, so each render pass re-acquires
 // widgets by `${kind} ${source}` key and the pool hands back the live instance unchanged.

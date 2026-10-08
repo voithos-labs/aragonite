@@ -81,7 +81,7 @@ block's raw. A cross-block selection adds its ordered ends:
 anchor=[0]@2 focus=[2,1,0]@3 cross-block=true start=[0]@2 end=[2,1,0]@3
 ```
 
-That's the unit-test version (`dumpSelection` from `$lib/debug/inspect`, given the editor's
+That's the unit-test version (`dumpSelection` from `#lib/debug/inspect.js`, given the editor's
 selection state). The bridge's `__test.dumpSelection()` prints the same pairs, plus a few lines
 while the caret sits in one block: the mode, and the browser range's own container and offset.
 
@@ -132,7 +132,7 @@ test runners can reach it:
 
 ```ts
 // unit test
-import { dumpTree, dumpSelection } from '$lib/debug/inspect';
+import { dumpTree, dumpSelection } from '#lib/debug/inspect.js';
 
 // e2e spec
 const cst = await page.evaluate(() => (window as any).__test.dumpTree());

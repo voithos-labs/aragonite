@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { settleSublistSeparator } from '$lib/tree-operations/list/sublist-separator';
-import { rebuildListItemRaw } from '$lib/schema/container-rebuilders';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { settleSublistSeparator } from '#lib/tree-operations/list/sublist-separator.js';
+import { rebuildListItemRaw } from '#lib/schema/container-rebuilders.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 // The blank line a sublist needs wherever a paragraph above would swallow its first line, across
 // every such line rather than the one shape the Enter+Tab test reaches.

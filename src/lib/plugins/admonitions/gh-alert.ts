@@ -11,7 +11,7 @@ import {
 	splitLines,
 	type LineEnding,
 	type ParsedLine
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { ADMONITION_KINDS } from './kinds';
 
 const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);

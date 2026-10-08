@@ -1,14 +1,14 @@
 // Miss-analysis: the writer's tests compared exact strings and never read the bytes back.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { encodeDestination, escapeTitle } from '$lib/core/inline/destination-bytes';
-import { parseLinkDestination, parseLinkTitle } from '$lib/core/inline/link-destination';
+import { encodeDestination, escapeTitle } from '#lib/core/inline/destination-bytes.js';
+import { parseLinkDestination, parseLinkTitle } from '#lib/core/inline/link-destination.js';
 import {
 	percentEncodeUri,
 	processDestination,
 	unescapeSpecString
-} from '$lib/core/inline/scan/url';
-import { parseInline } from '$lib/core/inline';
+} from '#lib/core/inline/scan/url.js';
+import { parseInline } from '#lib/core/inline/index.js';
 import { freshOrFixedSeed } from '../../invariants/arbitraries';
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(617617) } as const;

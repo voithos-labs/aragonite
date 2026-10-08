@@ -14,25 +14,29 @@ import {
 	type EditorDoc,
 	type EditorPolicies,
 	type EditorServices
-} from '$lib/editor-keys';
-import type { BlockEditActions, ContainerEditActions, FocusActions } from '$lib/action-contracts';
-import type { Document } from '$lib/core/nodes';
-import type { DocumentView } from '$lib/core/node-views';
-import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
-import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
-import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
-import { createDraftRegistry } from '$lib/components/draft-registry';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
-import { defaultRegistryView } from '$lib/schema/registry-view';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { createEditorEvents, emitCommandError } from '$lib/editor-events';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { createScrollOwner } from '$lib/cursor/scroll-owner';
-import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
-import { createHeightOracle } from '$lib/cursor/height-oracle';
-import { createListTree } from '$lib/reactivity/list-tree';
-import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
+} from '#lib/editor-keys.js';
+import type {
+	BlockEditActions,
+	ContainerEditActions,
+	FocusActions
+} from '#lib/action-contracts.js';
+import type { Document } from '#lib/core/nodes.js';
+import type { DocumentView } from '#lib/core/node-views.js';
+import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
+import { createLinkCardState } from '#lib/components/link-card/link-card-state.svelte.js';
+import { createMenuPresence } from '#lib/components/menu/menu-presence.svelte.js';
+import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import { defaultRegistryView } from '#lib/schema/registry-view.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { createEditorEvents, emitCommandError } from '#lib/editor-events.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { createScrollOwner } from '#lib/cursor/scroll-owner.js';
+import { createAutoPairRecord } from '#lib/components/blocks/text/auto-pair-record.js';
+import { createHeightOracle } from '#lib/cursor/height-oracle.js';
+import { createListTree } from '#lib/reactivity/list-tree.js';
+import { HEIGHT_ESTIMATES } from '#lib/cursor/typography-estimates.js';
 import {
 	makeCaretMemory,
 	makeStubBlockEdit,

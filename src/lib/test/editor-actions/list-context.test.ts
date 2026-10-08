@@ -1,14 +1,14 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { parse } from '$lib/core/parser';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { parse } from '#lib/core/parser.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeListContextAt
-} from '$lib/test/harness/editor-actions';
-import { metadataOf, type CstNode } from '$lib/core/nodes';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+} from '#lib/test/harness/editor-actions.js';
+import { metadataOf, type CstNode } from '#lib/core/nodes.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 // A first half that parses to several blocks is one of the split shapes under test.
 afterEach(() => allowDevWarns(['tree-ops']));

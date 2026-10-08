@@ -23,7 +23,7 @@ import {
 	type CstNode,
 	type ParsedDirective,
 	type PluginBlockKind
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import {
 	ADMONITION,
 	ADMONITION_KINDS,

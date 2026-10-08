@@ -4,15 +4,15 @@
  * replaces it, so a captured value goes stale.
  */
 
-import type { Editor } from '$lib';
-import { parse, readBlocks } from '$lib/core/parser';
+import type { Editor } from '#lib';
+import { parse, readBlocks } from '#lib/core/parser.js';
 import {
 	dumpTree,
 	dumpUndoStack,
 	dumpOperationsLog,
 	dumpInteractionTrace
-} from '$lib/debug/inspect';
-import { interactionTraceSnapshot } from '$lib/debug/interaction-trace';
+} from '#lib/debug/inspect.js';
+import { interactionTraceSnapshot } from '#lib/debug/interaction-trace.js';
 import { dumpFocusedInlineTree, liveSelectionText } from './panel-sections';
 
 type EditorInstance = ReturnType<typeof Editor>;

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { gateDescendOnCollapse } from '$lib/editor-actions/plugin/container';
-import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
-import type { CstNode } from '$lib/core/nodes';
-import type { BlockComponent } from '$lib/block-component';
-import { makeCommitScopeStub, parseLeaf as leaf } from '$lib/test/harness/editor-actions';
+import { gateDescendOnCollapse } from '#lib/editor-actions/plugin/container.js';
+import { createBlockEditCore } from '#lib/editor-actions/block-edit-core.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import { makeCommitScopeStub, parseLeaf as leaf } from '#lib/test/harness/editor-actions.js';
 
 const stubScope = (children: CstNode[], refs: (BlockComponent | undefined)[] = []) =>
 	makeCommitScopeStub(children, { refs });

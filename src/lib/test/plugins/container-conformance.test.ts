@@ -5,21 +5,21 @@ import {
 	declaredPluginKind,
 	registerBlockKind,
 	type BlockKindRegistration
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import {
 	reversedAncestryLeavesRootStale,
 	runContainerConformance,
 	type ContainerConformanceProfile
-} from '$lib/testing';
-import { checkDeclarationSanity } from '$lib/testing/container-conformance';
-import { testClosure } from '$lib/test/support/closure';
+} from '#lib/testing.js';
+import { checkDeclarationSanity } from '#lib/testing/container-conformance.js';
+import { testClosure } from '#lib/test/support/closure.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
-import { registerGithubAlert } from '$lib/plugins/admonitions/github-alert-kind';
-import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
-import { parse } from '$lib/core/parser';
-import { childHoldingLastLine } from '$lib/schema/container-raw';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
+import { registerGithubAlert } from '#lib/plugins/admonitions/github-alert-kind.js';
+import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { parse } from '#lib/core/parser.js';
+import { childHoldingLastLine } from '#lib/schema/container-raw.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 // The container conformance kit pointed at real plugin containers, the audience it is for.
 // Unlike the built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its

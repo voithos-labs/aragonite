@@ -9,9 +9,9 @@ import {
 	runCommandById,
 	type CrossBlockCommandRouter,
 	type KindCommandTarget
-} from '$lib/schema/block-commands';
-import { TOOLBAR_COMMANDS } from '$lib/schema/commands';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+} from '#lib/schema/block-commands.js';
+import { TOOLBAR_COMMANDS } from '#lib/schema/commands.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { commandContext, INERT_RANGE_ROUTER } from '../support/command-context';
 
 const TOGGLES = [

@@ -2,7 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { pluginGuidePages } from '../../invariants/lint/scan-source';
+import { aliasSpecifier, pluginGuidePages } from '../../invariants/lint/scan-source';
+import { SOURCE } from '../../invariants/lint/source-paths';
 
 /**
  * The shipped parrot is the plugin guide's quickstart compiled with two adaptations, derived
@@ -89,7 +90,7 @@ function nestOneLevel(block: string[]): string[] {
 
 /** Adaptation (a): a bundled plugin imports only the in-repo barrel alias (G4.16). */
 const toLibImport = (code: string) =>
-	code.replaceAll("'@voithos-labs/aragonite/plugin'", "'$lib/plugin'");
+	code.replaceAll("'@voithos-labs/aragonite/plugin'", `'${aliasSpecifier(SOURCE.pluginBarrel)}'`);
 
 function derivePluginModule(): string {
 	return toLibImport(fenceIn(PLUGIN_MARKER));
@@ -135,7 +136,7 @@ describe('the derivation performs both adaptations', () => {
 	it('rewrites the published specifier to the in-repo barrel', () => {
 		const derived = derivePluginModule();
 		expect(fenceIn(PLUGIN_MARKER)).toContain("'@voithos-labs/aragonite/plugin'");
-		expect(derived).toContain("from '$lib/plugin'");
+		expect(derived).toContain("from '#lib/plugin.js'");
 		expect(derived).not.toContain('@voithos-labs/aragonite');
 	});
 

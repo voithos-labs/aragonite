@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 import {
 	assembleListHalf,
 	buildListItemWithContent,
 	splitLeafForPaste
-} from '$lib/tree-operations/list/list-builders';
-import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
-import type { CstNode } from '$lib/core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+} from '#lib/tree-operations/list/list-builders.js';
+import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {

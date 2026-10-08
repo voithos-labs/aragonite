@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // Filling a blank line runs the neighbour merge, so a fill that an indentation-delimited block
 // above absorbs leaves the same tree its reload reads.

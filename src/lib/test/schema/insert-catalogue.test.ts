@@ -3,10 +3,10 @@ import {
 	insertCatalogue,
 	registerInsertEntry,
 	type InsertEntry
-} from '$lib/schema/insert-catalogue';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { everyInstalledPlugin, type PluginActivation } from '$lib/schema/plugin-activation';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+} from '#lib/schema/insert-catalogue.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-activation.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 const everyone = everyInstalledPlugin;
 const ids = (activation: PluginActivation = everyone) =>

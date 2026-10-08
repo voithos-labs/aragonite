@@ -4,7 +4,7 @@
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mountCell } from './mount-cell';
 import { installTableLayoutStubs } from './mount-table';
-import { pressKey } from '$lib/test/harness/settle';
+import { pressKey } from '#lib/test/harness/settle.js';
 
 let mounted: ReturnType<typeof mountCell>;
 // The arrow exit captures a sticky column, which measures the caret through Range rects.

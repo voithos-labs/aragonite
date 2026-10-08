@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import type { Document } from '$lib/core/nodes';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
+import { serialize } from '#lib/core/serializer.js';
+import type { Document } from '#lib/core/nodes.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 
 // Find and replace is the one write that can take a code block's opener without a selection
 // endpoint: a match spanning the opener line substitutes it away and strands the closer,

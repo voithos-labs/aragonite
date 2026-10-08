@@ -9,7 +9,7 @@
 	import '@fontsource/jetbrains-mono/400.css';
 	import '@fontsource/jetbrains-mono/700.css';
 	import '../app.css';
-	import '$lib/styles/editor-theme.css';
+	import '#lib/styles/editor-theme.css';
 
 	let { children }: { children: Snippet } = $props();
 </script>

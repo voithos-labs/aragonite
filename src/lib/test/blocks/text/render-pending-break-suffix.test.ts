@@ -10,8 +10,8 @@ import {
 	mountEditor,
 	pressKeyAt,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { hiddenSuffixLength, rawTextOfContent } from '$lib/cursor/widget-offset';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { hiddenSuffixLength, rawTextOfContent } from '#lib/cursor/widget-offset.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

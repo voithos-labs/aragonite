@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { installPlugins } from '$lib';
-import { applyPasteTransforms } from '$lib/testing';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { installPlugins } from '#lib';
+import { applyPasteTransforms } from '#lib/testing.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 
 // Native rendering makes the alert paste transform opt-in. By default a pasted
 // GitHub alert keeps its bytes (it renders as a native `githubAlert`); a host that

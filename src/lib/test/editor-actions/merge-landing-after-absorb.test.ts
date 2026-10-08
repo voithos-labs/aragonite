@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { makeTopHarness, stubBlockComponent } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { makeTopHarness, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 
 // Backspace joins a line into the block above, and the fix-up can then merge that block into the
 // one above it; the caret has to follow the joined bytes there.

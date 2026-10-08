@@ -4,7 +4,7 @@
  * `MermaidBlock` mounts with the standard block props, so it reads the renderer from here.
  */
 
-import { createAsyncRendererSlot, type RenderContext } from '$lib/plugin';
+import { createAsyncRendererSlot, type RenderContext } from '#lib/plugin.js';
 
 /** What the editor knows at render time that the diagram text does not carry. */
 export interface MermaidRenderContext {

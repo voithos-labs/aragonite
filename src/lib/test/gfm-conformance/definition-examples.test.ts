@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { Parser } from 'commonmark';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { metadataOf, type CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { metadataOf, type CstNode } from '#lib/core/nodes.js';
 import {
 	buildLinkReferenceMap,
 	normalizeLinkLabel
-} from '$lib/core/inline/link-reference-resolver';
+} from '#lib/core/inline/link-reference-resolver.js';
 import { loadDefinitionExamples } from './corpus';
 import { editorOutline, referenceOutline } from './block-outline';
 import baseline from './baseline.json';

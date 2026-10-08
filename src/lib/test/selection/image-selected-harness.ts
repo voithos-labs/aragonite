@@ -1,10 +1,14 @@
 // A mounted editor whose first paragraph is an image, selected the way a click on it selects it,
 // with the public selection events it emits from then on.
 
-import { mountEditor, surfaceAt, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
-import type { EditorProps } from '$lib/editor-props';
-import type { EditorSelection } from '$lib/selection/primitives';
-import type { EditorTestSurface } from '$lib/components/editor-root-test-surface';
+import {
+	mountEditor,
+	surfaceAt,
+	type MountedEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { EditorProps } from '#lib/editor-props.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+import type { EditorTestSurface } from '#lib/components/editor-root-test-surface.js';
 
 export interface ImageSelected {
 	editor: MountedEditor<EditorTestSurface>;

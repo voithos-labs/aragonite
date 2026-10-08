@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle
-} from '$lib/editor-actions/nested/nested-actions';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+} from '#lib/editor-actions/nested/nested-actions.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubFocus
-} from '$lib/test/harness/editor-actions';
-import type { CstNode, Document } from '$lib/core/nodes';
+} from '#lib/test/harness/editor-actions.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
 
 // Emptying the one nested item reaches Enter+Tab's bytes, so the chain rebuild adds the separator.
 // Miss-analysis: the rebuild's join check only merged, so no case asked it for a separator.

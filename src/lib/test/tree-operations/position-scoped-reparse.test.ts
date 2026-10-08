@@ -6,8 +6,8 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { updateNodeContent } from '../../tree-operations';
 import { FRONT_MATTER, registerDocumentTopKind } from '../support/position-scoped-kind';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 const BROKEN_CLOSER = '---\ntitle: x\n--\n';
 

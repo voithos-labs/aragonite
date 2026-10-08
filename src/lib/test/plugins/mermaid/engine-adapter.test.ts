@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { MermaidRenderer } from '$lib/plugins/mermaid/mermaid-renderer';
-import { settleEditor } from '$lib/test/harness/settle';
+import type { MermaidRenderer } from '#lib/plugins/mermaid/mermaid-renderer.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 const engine = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn() }));
 /** Counts how many times the mermaid module is evaluated, so a load at import time shows. */
@@ -25,7 +25,7 @@ const BASE_CONFIG = { startOnLoad: false, securityLevel: 'strict', suppressError
 /** The remembered theme and the render queue are module-wide, so each case starts fresh. */
 async function freshAdapter(): Promise<MermaidRenderer> {
 	vi.resetModules();
-	return (await import('$lib/plugins/mermaid/renderer')).mermaidRenderer;
+	return (await import('#lib/plugins/mermaid/renderer.js')).mermaidRenderer;
 }
 
 beforeEach(() => {

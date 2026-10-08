@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseFirstBlock } from '$lib/tree-operations/parse-block';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
+import { parseFirstBlock } from '#lib/tree-operations/parse-block.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
 
 describe('parseFirstBlock', () => {
 	it('returns first block of parsed input', () => {

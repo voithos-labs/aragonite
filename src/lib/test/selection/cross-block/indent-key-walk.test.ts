@@ -5,11 +5,12 @@
 // whole range on every arrow and typed key passed them all.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeKeydownEnv, press, type KeydownEnvOptions } from './keydown-env';
-import { rangeOwnsKey } from '$lib/selection/cross-block/keydown';
+import { rangeOwnsKey } from '#lib/selection/cross-block/keydown.js';
 
 const walks = vi.hoisted(() => ({ count: 0 }));
-vi.mock('$lib/selection/cross-block/range-indent', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/selection/cross-block/range-indent')>();
+vi.mock('#lib/selection/cross-block/range-indent.js', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('#lib/selection/cross-block/range-indent.js')>();
 	return {
 		...actual,
 		coversIndentBinding: (...args: Parameters<typeof actual.coversIndentBinding>) => {

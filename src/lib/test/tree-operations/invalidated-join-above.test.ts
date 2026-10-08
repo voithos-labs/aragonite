@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { rebuildContainerRaw } from '$lib/schema/container-raw';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A demoted block stops interrupting the paragraph above it, so the write asks both edges of its
 // window and reports where its text starts inside the survivor, which may be the predecessor.

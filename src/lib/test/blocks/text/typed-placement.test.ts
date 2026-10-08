@@ -4,13 +4,13 @@
 // back across a run it does not render.
 // Miss-analysis: the policy entry and the arrival side shipped with no consumer to disagree with.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import type { CstNode } from '$lib/core/nodes';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
-import { asPresentationMode } from '$lib/presentation-mode';
+import { parse } from '#lib/core/parser.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
+import { asPresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { installEdgeDispatchCleanup, mountSurface } from './edge-policy-fixture';
 

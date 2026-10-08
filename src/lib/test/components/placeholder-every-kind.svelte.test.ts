@@ -9,20 +9,20 @@ import {
 	surfaceAt,
 	type BlockLookup,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
-import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
-import type { EditorPluginEntry, PlaceholderBlock } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin } from '$lib/plugins/details';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
-import { latexPlugin } from '$lib/plugins/latex';
-import { mermaidPlugin } from '$lib/plugins/mermaid';
-import { parrotPlugin } from '$lib/plugins/parrot';
-import { slashCommandsPlugin } from '$lib/plugins/slash-commands';
-import { tocPlugin } from '$lib/plugins/toc';
+import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
+import type { EditorPluginEntry, PlaceholderBlock } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
+import { parrotPlugin } from '#lib/plugins/parrot/index.js';
+import { slashCommandsPlugin } from '#lib/plugins/slash-commands/index.js';
+import { tocPlugin } from '#lib/plugins/toc/index.js';
 
 installLayoutStubs();
 afterEach(destroyMountedEditors);

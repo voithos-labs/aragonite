@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { composeExpandDoor } from '$lib/editor-actions/plugin/container';
-import { getPluginMetadata, setPluginMetadata, type CstNode } from '$lib/core/nodes';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { testContainer } from '$lib/test/harness/test-kinds';
+import { composeExpandDoor } from '#lib/editor-actions/plugin/container.js';
+import { getPluginMetadata, setPluginMetadata, type CstNode } from '#lib/core/nodes.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 
 // What opening a collapsed body commits, and when it declines. `expandPatch` is declared
 // beside `isCollapsed` on `reservedChrome`, so the rule that hides a body and the one that

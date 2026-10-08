@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import type { InlineNode } from '$lib/core/nodes';
+import { parseInline } from '#lib/core/inline/index.js';
+import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
+import { resolveMarkedInsertion } from '#lib/components/blocks/text/pending-mark-insert.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
+import type { InlineNode } from '#lib/core/nodes.js';
 import { renderOptions } from '../../harness/fixture-grammar';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // The bytes a pending toggle turns the next keystroke into; every case reparses the result.
 // Miss-analysis: fixtures held one word, and a hand-written scan read an autolink's `<>` as text.

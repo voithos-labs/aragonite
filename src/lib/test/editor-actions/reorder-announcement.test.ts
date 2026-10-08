@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { mountEveryBlock } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { mountEveryBlock } from '#lib/test/harness/editor-actions.js';
 import { makeReorderHarness } from './reorder-harness';
-import type { RecordedLanding } from '$lib/testing/headless-actions';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import type { PresentationMode } from '$lib/presentation-mode';
+import type { RecordedLanding } from '#lib/testing/headless-actions.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { takeDevWarns } from '../support/warn-gate';
 

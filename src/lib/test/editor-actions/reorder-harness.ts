@@ -3,17 +3,17 @@
 // the action finds the state a mounted container would register.
 
 import { expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createReorderAction } from '$lib/editor-actions/reorder-action';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
-import { stubBlockComponent, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
+import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { replaceRefs } from '#lib/reactivity/publish-ref.svelte.js';
+import { stubBlockComponent, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 
 /** The reorder action and its undo over `source`; `announce` hears what the edit live region is
  *  told. */

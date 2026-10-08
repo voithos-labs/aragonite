@@ -1,4 +1,4 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { computeInlineContent } from '../../core/inline';
 import { getInlineContent } from '../../core/inline/inline-cache';
@@ -13,8 +13,8 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '../../perf/instruments';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The measurement edits a node an undo snapshot shares by writing raw directly rather than
 // through a commit, which is what the shared-node check reports.

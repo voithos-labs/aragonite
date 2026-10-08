@@ -2,15 +2,15 @@
 // landing: a discarded no-op still lands, a reading-mode refusal lands nothing, and a landing that
 // waited across an undo places nothing.
 import { describe, expect, it, vi } from 'vitest';
-import type { StructuralChange } from '$lib/tree-operations/structural-change';
-import type { BlockComponent } from '$lib/block-component';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import { createCaretLanding } from '$lib/selection/caret-landing';
-import { asDocPath } from '$lib/selection/path-math';
-import type { CaretPosition } from '$lib/selection/primitives';
+import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import { createCaretLanding } from '#lib/selection/caret-landing.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import type { CaretPosition } from '#lib/selection/primitives.js';
 import { makeTopHarness, stubBlockComponent } from '../../harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { takeDevWarns } from '../../support/warn-gate';

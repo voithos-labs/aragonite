@@ -1,24 +1,24 @@
 // Every route that writes a table row or delimiter line, over the shapes a row takes, against the
 // bytes it writes; a CRLF document's lines are the same bytes ending in CRLF.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode, TableAlignment } from '$lib/core/nodes';
-import { rebuildTableRaw, rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode, TableAlignment } from '#lib/core/nodes.js';
+import { rebuildTableRaw, rebuildTableRowRaw } from '#lib/schema/container-rebuilders.js';
 import {
 	insertEmptyColumn,
 	insertEmptyRow,
 	setAlignment
-} from '$lib/tree-operations/table-mutations';
-import { copyRectangleAsSubTable } from '$lib/tree-operations/sub-table-copy';
-import { tryCompleteTableRow } from '$lib/core/parsers/table-completion';
-import { insertCatalogue } from '$lib/schema/insert-catalogue';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
+} from '#lib/tree-operations/table-mutations.js';
+import { copyRectangleAsSubTable } from '#lib/tree-operations/sub-table-copy.js';
+import { tryCompleteTableRow } from '#lib/core/parsers/table-completion.js';
+import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { makeEditorActionsDeps, pasteContext } from '#lib/test/harness/editor-actions.js';
 
 const ENDINGS = [
 	['LF', '\n'],

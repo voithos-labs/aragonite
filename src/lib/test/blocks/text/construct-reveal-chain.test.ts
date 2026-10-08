@@ -2,12 +2,12 @@
 // asks to show. Inclusive on both edges, because the markers must appear before the arrow step
 // that would land in them, and the whole chain for nested constructs. The DOM side is
 // construct-reveal-trigger.test.ts.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { getInlineContent } from '$lib/core/inline/inline-cache';
-import { findNodeAtOffset } from '$lib/core/inline-render';
-import { constructChainAtOffset } from '$lib/components/blocks/text/construct-reveal';
+import { parse } from '#lib/core/parser.js';
+import { getInlineContent } from '#lib/core/inline/inline-cache.js';
+import { findNodeAtOffset } from '#lib/core/inline-render.js';
+import { constructChainAtOffset } from '#lib/components/blocks/text/construct-reveal.js';
 
 function chainKinds(md: string, offset: number): string[] {
 	const node = parse(md + '\n').children[0];

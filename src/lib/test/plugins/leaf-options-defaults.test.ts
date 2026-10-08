@@ -4,16 +4,16 @@
 // Miss-analysis: no suite mounted a bundled leaf without an editor, so the components each
 // guarded an `undefined` that a typed read would have ruled out.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { resolveBlockSurface } from '$lib/block-component';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
-import { settleEditor } from '$lib/test/harness/settle';
+import { installPlugins, parse } from '#lib';
+import { resolveBlockSurface } from '#lib/block-component.js';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountBlock, type MountedBlock } from '../harness/mount-block';
-import { latexPlugin } from '$lib/plugins/latex';
-import BlockMath from '$lib/plugins/latex/BlockMath.svelte';
-import { tocPlugin } from '$lib/plugins/toc';
-import TocBlock from '$lib/plugins/toc/TocBlock.svelte';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import BlockMath from '#lib/plugins/latex/BlockMath.svelte';
+import { tocPlugin } from '#lib/plugins/toc/index.js';
+import TocBlock from '#lib/plugins/toc/TocBlock.svelte';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 

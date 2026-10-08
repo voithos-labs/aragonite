@@ -3,15 +3,15 @@
 // asserting the field would survive the check forgetting to consult it. Deleting any bundled
 // declaration fails a row here; the strip rows pin the kinds that stay undeclared.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
-import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
-import { registerTocBlock } from '$lib/plugins/toc/toc-plugin';
-import { gapEligibleAt } from '$lib/selection/gap-caret';
+import { parse } from '#lib/core/parser.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
+import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerTocBlock } from '#lib/plugins/toc/toc-plugin.js';
+import { gapEligibleAt } from '#lib/selection/gap-caret.js';
 
 const TABLE = '| a | b |\n| - | - |\n';
 const MATH_BLOCK = '$$\nx^2\n$$\n';

@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+} from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 
 // Replacing a blank blockquote body block wholesale must keep the separator it carried.
 // Miss-analysis: GH #73, the empty-target cases used a hand-emptied stub, which separates nothing.

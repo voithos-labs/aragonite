@@ -5,14 +5,14 @@
 // Miss-analysis: this layer had no test, so its two checks that fail open went unseen.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
-import { registerLiveJoinSeamCleaner } from '$lib/schema/inline-construct-policy';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
+import { registerLiveJoinSeamCleaner } from '#lib/schema/inline-construct-policy.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell, noIslands, type MountedCell } from '../table/mount-cell';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountBlock } from '../../harness/mount-block';
 
 // `**bold** tail`: the run is [0,2) and [6,8), the word `bold` is [2,6).

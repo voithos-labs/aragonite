@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { roundTripCases } from '$lib/test/support/round-trip';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
 import { editorOutline, referenceOutline } from './block-outline';
 
 /**

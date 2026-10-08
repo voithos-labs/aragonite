@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { checkCommitPathAddressable } from '$lib/invariants/commit-paths';
-import { asDocPath } from '$lib/selection/path-math';
+import { parse } from '#lib/core/parser.js';
+import { checkCommitPathAddressable } from '#lib/invariants/commit-paths.js';
+import { asDocPath } from '#lib/selection/path-math.js';
 
 // Doc shape: [paragraph, blockquote[list[item, item]]]
 const doc = parse('pad\n\n> - one\n> - two\n');

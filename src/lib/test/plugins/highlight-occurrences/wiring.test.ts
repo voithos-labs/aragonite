@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { installPlugins, parse } from '$lib';
+import { installPlugins, parse } from '#lib';
 import type {
 	EditorContext,
 	OnEditorCallback,
@@ -7,15 +7,15 @@ import type {
 	DecorationSource,
 	EditorSelection,
 	MarkDecoration
-} from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
+} from '#lib/plugin.js';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
 import {
 	highlightOccurrencesPlugin,
 	type HighlightOccurrencesOptions
-} from '$lib/plugins/highlight-occurrences';
-import { TYPING_PAUSE_MS } from '$lib/plugins/highlight-occurrences/highlight-occurrences-plugin';
-import { OCCURRENCE_CLASS } from '$lib/plugins/highlight-occurrences/occurrences';
-import { onEditorCallbacks } from '$lib/schema/plugin-install';
+} from '#lib/plugins/highlight-occurrences/index.js';
+import { TYPING_PAUSE_MS } from '#lib/plugins/highlight-occurrences/highlight-occurrences-plugin.js';
+import { OCCURRENCE_CLASS } from '#lib/plugins/highlight-occurrences/occurrences.js';
+import { onEditorCallbacks } from '#lib/schema/plugin-install.js';
 
 function caret(path: number[], offset: number): EditorSelection {
 	const point = { path, offset };

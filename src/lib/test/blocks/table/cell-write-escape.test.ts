@@ -3,15 +3,15 @@
 // `cell.raw` reparses the row too wide, silently dropping the last column. Each committed text
 // is read after the kind's escaping has run, not at the component's own call.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
-import { splitRowCells } from '$lib/core/parsers/table-line';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { writeTableRow } from '$lib/schema/container-rebuilders';
+import type { CstNode } from '#lib/core/nodes.js';
+import { splitRowCells } from '#lib/core/parsers/table-line.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { writeTableRow } from '#lib/schema/container-rebuilders.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell } from './mount-cell';
-import { settleEditor } from '$lib/test/harness/settle';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({

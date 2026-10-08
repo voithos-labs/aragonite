@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import type { InlineNode, PluginInlineKind } from '../../core/nodes';
 import {

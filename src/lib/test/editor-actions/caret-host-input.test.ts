@@ -2,7 +2,7 @@
 // A caret host (the gap caret, a whole-block block's hidden host) ends a composition the browser
 // dropped at the input that showed it, inserting what the composition left with that input's text.
 import { describe, it, expect } from 'vitest';
-import { createCaretHostInput } from '$lib/editor-actions/caret-host-input';
+import { createCaretHostInput } from '#lib/editor-actions/caret-host-input.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 function host() {

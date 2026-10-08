@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { rebuildContainerRaw } from '../../schema/container-raw';
 import type { TableMetadata } from '../../core/nodes';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 describe('container-raw: tableRow', () => {
 	it('rebuilds raw from cells with single-space padding and trailing newline', () => {

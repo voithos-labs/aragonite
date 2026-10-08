@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
-import { parse } from '$lib/core/parser';
-import type { DocumentView } from '$lib/core/node-views';
-import { createEditorEvents, type EditEvent } from '$lib/editor-events';
-import { createInlineMenuState } from '$lib/inline-menu/inline-menu-state.svelte';
-import type { InlineMenuItem, InlineMenuSource } from '$lib/inline-menu/types';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
-import { registerInlineSyntax } from '$lib/core/inline/scan/plugin-syntax';
+import { parse } from '#lib/core/parser.js';
+import type { DocumentView } from '#lib/core/node-views.js';
+import { createEditorEvents, type EditEvent } from '#lib/editor-events.js';
+import { createInlineMenuState } from '#lib/inline-menu/inline-menu-state.svelte.js';
+import type { InlineMenuItem, InlineMenuSource } from '#lib/inline-menu/types.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { declarePluginInlineKind } from '#lib/schema/plugin-kind.js';
+import { registerInlineSyntax } from '#lib/core/inline/scan/plugin-syntax.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { grammarListing } from '../plugins/activation/grammar-listing';
-import { createDraftRegistry } from '$lib/components/draft-registry';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
-import type { EditorContext } from '$lib/schema/plugin-install';
+import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import type { EditorContext } from '#lib/schema/plugin-install.js';
 
 /** The context a pick's commit is handed here; these suites never write through it. */
 const noWrites = {

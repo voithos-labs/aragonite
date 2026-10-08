@@ -1,23 +1,23 @@
 // Miss-analysis: no test parsed a fence or pressed Enter with the owning plugin left out (GH #266).
 import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import {
 	declarePluginInlineKind,
 	declarePluginKind,
 	declaredPluginKind
-} from '$lib/schema/plugin-kind';
-import { registerDirective } from '$lib/core/directive/registry';
-import { DIRECTIVE_CONTAINER, DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
-import { registerBlockCompleter } from '$lib/schema/block-completions';
-import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { parse } from '$lib/core/parser';
-import { parseInline } from '$lib/core/inline';
-import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/schema/plugin-kind.js';
+import { registerDirective } from '#lib/core/directive/registry.js';
+import { DIRECTIVE_CONTAINER, DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
+import { registerBlockCompleter } from '#lib/schema/block-completions.js';
+import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { parse } from '#lib/core/parser.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { grammarListing } from './grammar-listing';
-import { createRegistryView } from '$lib/schema/registry-view';
-import { activationFor } from '$lib/schema/plugin-activation';
+import { createRegistryView } from '#lib/schema/registry-view.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
 
 const unlisted = definePlugin({
 	name: 'unlisted',

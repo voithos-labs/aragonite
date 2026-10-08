@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { rebuildListItemRaw, rebuildListRaw } from '$lib/schema/container-rebuilders';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { rebuildListItemRaw, rebuildListRaw } from '#lib/schema/container-rebuilders.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeListContextAt
-} from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/test/harness/editor-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 // Miss-analysis (GH #220): each list action was tested only over sublists that held items.
 

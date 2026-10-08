@@ -5,13 +5,13 @@
 // command splicing against a block that commit is still replacing.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { parse } from '#lib/core/parser.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { installMathInline } from './math-widget-fixture';
-import { settleEditor } from '$lib/test/harness/settle';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 
 installMathInline();
 

@@ -5,8 +5,8 @@ import {
 	onEditorCallbacks,
 	installedPluginNames,
 	type PluginSetupContext
-} from '$lib/schema/plugin-install';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+} from '#lib/schema/plugin-install.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 describe('onEditor subscription join', () => {
 	it('records callbacks per plugin, in registration order', () => {

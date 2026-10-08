@@ -5,7 +5,7 @@
 </script>
 
 <script lang="ts">
-	import type { InlineWidgetComponentProps } from '$lib/plugin';
+	import type { InlineWidgetComponentProps } from '#lib/plugin.js';
 	import { mathSlot } from './math-renderer';
 
 	// Read once at mount on purpose: the widget remounts on any source change, so the

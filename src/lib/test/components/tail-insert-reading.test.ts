@@ -4,14 +4,14 @@
 // Miss-analysis: the row's own reading-mode check was never tested, nor the write behind it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
-import TailInsert from '$lib/components/TailInsert.svelte';
-import { serialize } from '$lib/core/serializer';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import TailInsert from '#lib/components/TailInsert.svelte';
+import { serialize } from '#lib/core/serializer.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { makeTopHarness } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { settleEditor } from '../harness/settle';

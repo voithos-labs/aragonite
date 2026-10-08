@@ -1,18 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
-import { rebuildAncestryRaw } from '$lib/schema/container-raw';
-import { installPlugins } from '$lib';
-import { detailsPlugin } from '$lib/plugins/details';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { firstLineEnding, trailingLineEnding } from '#lib/core/lines.js';
+import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
+import { installPlugins } from '#lib';
+import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
-import type { CstNode } from '$lib/core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import type { CstNode } from '#lib/core/nodes.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A blank run reaching a body's tail borrows a line into `innerSuffix` so the reload keeps the
 // block, and a tail that stops being blank gives it back.

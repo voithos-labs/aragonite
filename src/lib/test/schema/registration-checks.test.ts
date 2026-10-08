@@ -1,24 +1,27 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import type { AnyBlockKind } from '$lib/core/nodes';
-import { checkLateOpenerRegistration } from '$lib/invariants/registry';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
+import { checkLateOpenerRegistration } from '#lib/invariants/registry.js';
 import {
 	flushPendingRegistrationChecks,
 	hasPendingRegistrationChecks
-} from '$lib/schema/registration-checks';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind, type BlockKindRegistration } from '$lib/schema/block-kind-descriptor';
-import { registerBlockCommand } from '$lib/schema/block-commands';
+} from '#lib/schema/registration-checks.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import {
+	registerBlockKind,
+	type BlockKindRegistration
+} from '#lib/schema/block-kind-descriptor.js';
+import { registerBlockCommand } from '#lib/schema/block-commands.js';
 import {
 	registerBlockOpener,
 	getOrderedOpeners,
 	type BlockOpener
-} from '$lib/schema/block-openers';
-import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
-import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
-import { collector } from '$lib/test/harness/violation-collector';
+} from '#lib/schema/block-openers.js';
+import { registerChromeLeaf } from '#lib/editor-actions/plugin/chrome-leaf.js';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
+import { testClosure } from '#lib/test/support/closure.js';
+import { allowDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { collector } from '#lib/test/harness/violation-collector.js';
 
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 

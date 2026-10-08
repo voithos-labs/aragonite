@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { toggleFormat, whole } from './format-toggle-fixture';
-import { parseInline } from '$lib/core/inline';
+import { parseInline } from '#lib/core/inline/index.js';
 
 // Inline code's fence depends on its content both ways (a wrap sizes it, a strip reads it), so
 // every case checks the bytes reparse as one code span holding the intended text.

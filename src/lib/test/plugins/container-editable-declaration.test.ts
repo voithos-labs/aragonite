@@ -4,9 +4,9 @@
 // Miss-analysis: no fixture declared `editable: false`, so no test told it from a hardcoded value.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import { declaredPluginKind } from '$lib/plugin';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { isBlockEditable } from '$lib/schema/merge-rules';
+import { declaredPluginKind } from '#lib/plugin.js';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { isBlockEditable } from '#lib/schema/merge-rules.js';
 import { OPAQUE_KIND as KIND, mountOpaque, registerOpaqueKind } from './fixtures/opaque-container';
 
 beforeEach(() => {

@@ -3,7 +3,7 @@ import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind, getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isBuiltinBlockKind, type CstNode, type Document } from '../../core/nodes';
 import { serialize } from '../../core/serializer';
-import { testClosure } from '$lib/test/support/closure';
+import { testClosure } from '#lib/test/support/closure.js';
 
 describe('plugin-kind node is a first-class CST citizen', () => {
 	it('declares a non-builtin kind, registers a descriptor, and round-trips through serialize', () => {

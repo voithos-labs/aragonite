@@ -8,8 +8,13 @@
 
 import { afterAll, afterEach, expect } from 'vitest';
 import { tick } from 'svelte';
-import { setDevWarnSink, warnTagOfLine, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
-import { resetEditorEnv } from '$lib/env';
+import {
+	setDevWarnSink,
+	warnTagOfLine,
+	type DevWarnEntry,
+	type DevWarnSink
+} from '#lib/dev-warn.js';
+import { resetEditorEnv } from '#lib/env.js';
 import allowlist from './warn-allowlist.json';
 
 export interface AllowedWarn {

@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { checkStaleRaw, checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import { registerBlockOpener } from '../../schema/block-openers';
-import { testContainer } from '$lib/test/harness/test-kinds';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 import { parse } from '../../core/parser';
 import { concatChildren } from '../../core/serializer';
 import { trimTrailingLineEnding } from '../../core/lines';
 import type { AnyBlockKind, CstNode } from '../../core/nodes';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // ── Callout-shaped opaque kind with a registered opener ────────────────────
 // A title child at index 0 makes `strip(raw) !== serialize(children)`, and the opener stores

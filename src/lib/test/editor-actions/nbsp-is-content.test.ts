@@ -1,24 +1,24 @@
 // Miss-analysis: emptiness routes were tested with spaces or nothing, never a non-breaking space.
 import { describe, expect, it, vi, type Mocked } from 'vitest';
-import type { ListContext } from '$lib/action-contracts';
-import type { CstNode } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { isVerticallyTransparentNode } from '$lib/core/inline/transparency';
-import { createContainerExitOverrides } from '$lib/editor-actions/container-exit-overrides';
-import { createListItemOverrides } from '$lib/editor-actions/list-overrides';
-import type { NestedActionsBundle } from '$lib/editor-actions/nested/nested-actions';
+import type { ListContext } from '#lib/action-contracts.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { isVerticallyTransparentNode } from '#lib/core/inline/transparency.js';
+import { createContainerExitOverrides } from '#lib/editor-actions/container-exit-overrides.js';
+import { createListItemOverrides } from '#lib/editor-actions/list-overrides.js';
+import type { NestedActionsBundle } from '#lib/editor-actions/nested/nested-actions.js';
 import {
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
 	rawHasNoTextAfter,
 	rawHasNoTextBefore
-} from '$lib/components/blocks/text/widget-adjacency';
-import { isItemUserEmpty } from '$lib/tree-operations/list/empty-check';
-import { lacksSublistSeparator } from '$lib/tree-operations/list/sublist-separator';
-import { findContainerMatchingUnwrap } from '$lib/tree-operations/paste/container-match';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { makeStubBlockEdit, makeStubFocus } from '$lib/test/harness/editor-actions';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/components/blocks/text/widget-adjacency.js';
+import { isItemUserEmpty } from '#lib/tree-operations/list/empty-check.js';
+import { lacksSublistSeparator } from '#lib/tree-operations/list/sublist-separator.js';
+import { findContainerMatchingUnwrap } from '#lib/tree-operations/paste/container-match.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { makeStubBlockEdit, makeStubFocus } from '#lib/test/harness/editor-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 const NBSP = String.fromCharCode(0xa0);
 

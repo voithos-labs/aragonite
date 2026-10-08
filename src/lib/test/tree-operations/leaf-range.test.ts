@@ -2,23 +2,23 @@
 // Every in-leaf range replace and the merge's join write the bytes the functions they replaced
 // wrote: rows drawn from those, and the merge checked against every built-in kind pair.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { displayLength, ownTrailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
-import { isProseKind } from '$lib/core/inline';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { storedAsAt, storedAsIn } from '$lib/tree-operations/stored-as';
-import { cleanJoinedRaw, joinLeaves, replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
-import { joinKeepingSuffix } from '$lib/tree-operations/structural-suffix';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { displayLength, ownTrailingLineEnding, trimTrailingLineEnding } from '#lib/core/lines.js';
+import { isProseKind } from '#lib/core/inline/index.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { storedAsAt, storedAsIn } from '#lib/tree-operations/stored-as.js';
+import { cleanJoinedRaw, joinLeaves, replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
+import { joinKeepingSuffix } from '#lib/tree-operations/structural-suffix.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
+} from '#lib/schema/block-kind-descriptor.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { testLeaf } from '../harness/test-kinds';
 

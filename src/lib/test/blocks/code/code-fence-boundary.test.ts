@@ -5,10 +5,10 @@ import {
 	clampRangeToBody,
 	crossesFenceBoundary,
 	editSpan
-} from '$lib/components/blocks/code/code-fence-boundary';
-import { computeCodeEnter } from '$lib/components/blocks/code/code-enter';
-import { indentLines } from '$lib/components/blocks/code/code-indent';
-import { trimTrailingLineEnding } from '$lib/core/lines';
+} from '#lib/components/blocks/code/code-fence-boundary.js';
+import { computeCodeEnter } from '#lib/components/blocks/code/code-enter.js';
+import { indentLines } from '#lib/components/blocks/code/code-indent.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { fencedCode } from './fenced-code-fixture';
 
 describe('classifyFenceBoundary', () => {

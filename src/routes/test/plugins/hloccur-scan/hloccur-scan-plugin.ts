@@ -1,7 +1,7 @@
 // A harness wrapper that counts what the bundled highlight-occurrences plugin does. It
 // configures the shipped plugin through its public `onScan` option rather than rebuilding it,
 // so the memoization suite tests the plugin consumers actually get.
-import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
+import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
 
 declare global {
 	interface Window {

@@ -3,10 +3,10 @@
 // hidden, since the editor root handles what the item declines and a real context commits.
 
 import { vi } from 'vitest';
-import ListItemBlock from '$lib/components/blocks/list/ListItemBlock.svelte';
-import type { ListContext } from '$lib/action-contracts';
-import { LIST_CONTEXT_KEY } from '$lib/editor-keys';
-import { parse } from '$lib/core/parser';
+import ListItemBlock from '#lib/components/blocks/list/ListItemBlock.svelte';
+import type { ListContext } from '#lib/action-contracts.js';
+import { LIST_CONTEXT_KEY } from '#lib/editor-keys.js';
+import { parse } from '#lib/core/parser.js';
 import { mountBlock } from '../../harness/mount-block';
 import type { MountContextOverrides } from '../../harness/mount-context';
 

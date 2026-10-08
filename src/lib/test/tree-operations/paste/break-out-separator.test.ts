@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { Document } from '$lib/core/nodes';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps, pasteContext } from '$lib/test/harness/editor-actions';
-import { expectParseConverged, triviaRawOf } from '$lib/test/harness/parse-converged';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { Document } from '#lib/core/nodes.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { makeEditorActionsDeps, pasteContext } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged, triviaRawOf } from '#lib/test/harness/parse-converged.js';
 
 // A break-out keeps the list's separating line (`docs/design/syntax-tree.md` § Blank lines).
 // Miss-analysis: `list-break-out.test.ts` never drew a list with a blank line above it.

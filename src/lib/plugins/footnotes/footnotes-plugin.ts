@@ -4,7 +4,7 @@
  * is stored anywhere.
  */
 
-import { definePlugin, type EditorPlugin } from '$lib/plugin';
+import { definePlugin, type EditorPlugin } from '#lib/plugin.js';
 import { registerFootnoteDefinition } from './footnote-definition';
 import { registerFootnoteReference } from './footnote-reference';
 

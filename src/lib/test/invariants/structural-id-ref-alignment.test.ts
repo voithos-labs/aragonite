@@ -1,25 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createReorderAction } from '$lib/editor-actions/reorder-action';
-import type { NestedActionsBundle } from '$lib/editor-actions/nested/nested-actions';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { assignChildIdsDeep } from '$lib/block-id';
-import { buildPastedReplacement } from '$lib/tree-operations';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
+import type { NestedActionsBundle } from '#lib/editor-actions/nested/nested-actions.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { assignChildIdsDeep } from '#lib/block-id.js';
+import { buildPastedReplacement } from '#lib/tree-operations/index.js';
 import {
 	stubBlockComponent,
 	makeEditorActionsDeps,
 	makeNestedHarness,
 	makeNode
-} from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import type { BlockComponent } from '$lib/block-component';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
-import type { CstNode } from '$lib/core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { TOP_SLOT } from '$lib/test/harness/fixture-grammar';
+} from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { BlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { replaceRefs } from '#lib/reactivity/publish-ref.svelte.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { TOP_SLOT } from '#lib/test/harness/fixture-grammar.js';
 
 /**
  * After every structural op, `children`, the keyed-id array and the ref array stay the same length

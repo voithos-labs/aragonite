@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { metadataOf } from '$lib/core/nodes';
-import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-break-out';
-import { focusIndexBeforeResidue } from '$lib/tree-operations/paste/focus-target';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { parse } from '#lib/core/parser.js';
+import { metadataOf } from '#lib/core/nodes.js';
+import { buildListBreakOutReplacement } from '#lib/tree-operations/paste/list-break-out.js';
+import { focusIndexBeforeResidue } from '#lib/tree-operations/paste/focus-target.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 describe('buildListBreakOutReplacement', () => {
 	// A break-out from an ordered list whose first item is not "1." must keep the list's own

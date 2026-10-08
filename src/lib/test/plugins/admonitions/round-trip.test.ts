@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { getPluginMetadata } from '$lib/plugin';
-import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
-import type { AdmonitionMetadata } from '$lib/plugins/admonitions/kinds';
-import { roundTripCases } from '$lib/test/support/round-trip';
+import { installPlugins, parse, serialize } from '#lib';
+import { getPluginMetadata } from '#lib/plugin.js';
+import { admonitionsPlugin, convertGithubAlerts } from '#lib/plugins/admonitions/index.js';
+import type { AdmonitionMetadata } from '#lib/plugins/admonitions/kinds.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);

@@ -3,23 +3,23 @@
 // identity assert on the commit's own copies.
 
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { trackChildIds } from '$lib/tree-operations/structural-change';
-import { documentBody } from '$lib/tree-operations/node-primitives';
-import type { MultiScopeTarget } from '$lib/action-contracts';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { trackChildIds } from '#lib/tree-operations/structural-change.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import type { MultiScopeTarget } from '#lib/action-contracts.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeListContextAt
-} from '$lib/test/harness/editor-actions';
-import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/editor-actions.js';
+import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 describe('multi-scope commits with a scope detached by the mutation', () => {

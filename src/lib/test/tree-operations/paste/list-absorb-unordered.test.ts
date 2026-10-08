@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
 import {
 	makePasteCommit,
 	makeStubBlockEdit,
 	registerStubBlockListState,
 	pasteContext
 } from '../../harness/editor-actions';
-import { metadataOf } from '$lib/core/nodes';
+import { metadataOf } from '#lib/core/nodes.js';
 
 // Absorbing a same-type list paste must normalize markers for both halves: a `*` kept
 // inside a `- ` list is split into two lists by reference parsers.

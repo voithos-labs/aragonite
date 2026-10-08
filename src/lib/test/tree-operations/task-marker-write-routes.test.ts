@@ -4,17 +4,17 @@
 // jsdom, since the paste route's controller reads the mounted block-list state.
 
 import { describe, it, expect } from 'vitest';
-import { parse, serialize, type CstNode, type ListItemMetadata } from '$lib';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
+import { parse, serialize, type CstNode, type ListItemMetadata } from '#lib';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { createBlockEditCore } from '#lib/editor-actions/block-edit-core.js';
 import {
 	makeCommitScopeStub,
 	makeContainerHarness,
 	makePasteCommit,
 	registerStubBlockListState
-} from '$lib/test/harness/editor-actions';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+} from '#lib/test/harness/editor-actions.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 const TABLE = '| a | b |\n| --- | --- |\n';
 

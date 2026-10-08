@@ -5,8 +5,8 @@
  */
 
 import { expect } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
-import { checkChildIdParity } from '$lib/invariants/child-id-parity';
+import type { CstNode } from '#lib/core/nodes.js';
+import { checkChildIdParity } from '#lib/invariants/child-id-parity.js';
 import { makeBlockListState } from './editor-actions';
 
 export function assertContainerParity(node: CstNode): void {

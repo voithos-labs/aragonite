@@ -3,9 +3,9 @@ import {
 	cycleHeading,
 	demoteEmptyAtxHeading,
 	demoteToParagraph
-} from '$lib/components/blocks/text/text-keydown';
-import { getContentRange } from '$lib/core/inline';
-import { parse } from '$lib/core/parser';
+} from '#lib/components/blocks/text/text-keydown.js';
+import { getContentRange } from '#lib/core/inline/index.js';
+import { parse } from '#lib/core/parser.js';
 
 // Backspace at a live heading's content start drops every byte outside the kind's content range
 // before it merges anything.

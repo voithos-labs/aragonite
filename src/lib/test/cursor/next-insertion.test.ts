@@ -8,11 +8,11 @@ import {
 	insertsAt,
 	type InsertionRecord,
 	type InsertionSpend
-} from '$lib/cursor/next-insertion';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
-import { stubBlockEdit } from '$lib/testing/headless-actions';
-import type { NodeView } from '$lib/core/node-views';
+} from '#lib/cursor/next-insertion.js';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
+import { stubBlockEdit } from '#lib/testing/headless-actions.js';
+import type { NodeView } from '#lib/core/node-views.js';
 
 /** A toy record that waits at `at` and grows with every insertion there, the way a held run of
  *  spaces would. It knows nothing about holds: its `end` drops it whenever it is called. */

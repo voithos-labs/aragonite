@@ -3,19 +3,19 @@
 // its own, so it must land exactly what the single-block toggle lands on the same bytes
 // (`core/inline/format-toggle-cross-kind-nest.test.ts`).
 // Miss-analysis: no case put a block the toggle writes but then reads as unchanged into a range.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
-} from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
-import { documentBody } from '$lib/tree-operations/node-primitives';
+} from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 

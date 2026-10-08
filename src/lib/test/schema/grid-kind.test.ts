@@ -1,8 +1,8 @@
 // Miss-analysis: every grid reader named `table`, so no test held the grid fact itself.
 import { describe, expect, it } from 'vitest';
-import { isGridKind } from '$lib/schema/block-kind-descriptor';
-import { isVerticallyTransparentNode } from '$lib/core/inline/transparency';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { isGridKind } from '#lib/schema/block-kind-descriptor.js';
+import { isVerticallyTransparentNode } from '#lib/core/inline/transparency.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { gridOf, registerPluginGrid } from '../selection/cross-block/plugin-grid-kind';
 
 describe('isGridKind', () => {

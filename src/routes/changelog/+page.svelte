@@ -1,5 +1,5 @@
 <script module lang="ts">
-	import type { TocOptions } from '$lib/plugins/toc';
+	import type { TocOptions } from '#lib/plugins/toc/index.js';
 	import { DEMO_PLUGINS, DEMO_TOC } from './../demo-plugins';
 
 	// This route's own outline depth, declared per instance so the shared set still installs once.
@@ -11,7 +11,7 @@
 
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Editor, type PresentationMode } from '$lib';
+	import { Editor, type PresentationMode } from '#lib';
 	import { CHANGELOG_FAMILIES } from './changelog-content';
 	import { trackParityDocument } from '../parity-documents.svelte';
 

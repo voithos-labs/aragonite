@@ -3,12 +3,12 @@
 // Miss-analysis: the write returned its caret before asking the check, and every caller parked it;
 // only each route's own reading-mode check kept a refused write from parking a caret.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
-import type { ContentWrite } from '$lib/action-contracts';
-import { serialize } from '$lib/core/serializer';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import type { ContentWrite } from '#lib/action-contracts.js';
+import { serialize } from '#lib/core/serializer.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
 import { takeDevWarns } from '../support/warn-gate';

@@ -6,8 +6,8 @@ import {
 	RANGE_BUILDS,
 	RANGE_DESTROYS,
 	type SessionDraws
-} from '$lib/e2e/simulation/detour-plan';
-import { MULTI_SEEDS, NOTE_INTERRUPTS, replayDraws } from '$lib/e2e/simulation/multi-seeds';
+} from '#lib/e2e/simulation/detour-plan.js';
+import { MULTI_SEEDS, NOTE_INTERRUPTS, replayDraws } from '#lib/e2e/simulation/multi-seeds.js';
 
 function choicesIn({ plan, interrupt }: SessionDraws): string[] {
 	const choices: string[] = [];

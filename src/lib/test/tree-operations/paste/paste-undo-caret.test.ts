@@ -2,21 +2,21 @@
 // Miss-analysis: every paste test asserted the bytes and the landing caret, never the caret the
 // undo entry records, and the one e2e that did pinned a widget route that bypassed the dispatch.
 import { describe, it, expect, beforeAll } from 'vitest';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { pasteDispatch, type PasteDispatchInput } from '$lib/tree-operations/paste/dispatch';
-import { codePasteSurface } from '$lib/components/blocks/code/code-paste-surface';
-import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { pasteDispatch, type PasteDispatchInput } from '#lib/tree-operations/paste/dispatch.js';
+import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
+import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
 import {
 	makeContainerHarness,
 	makeTopHarness,
 	mountBodyRow,
 	pasteContext,
 	registerStubBlockListState
-} from '$lib/test/harness/editor-actions';
-import { ensurePasteSurface } from '$lib/test/support/paste-surface';
-import { rangeSelectionOf } from '$lib/test/support/undo-entry';
+} from '#lib/test/harness/editor-actions.js';
+import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
 
 interface Bench {
 	deps: EditorActionsDeps;

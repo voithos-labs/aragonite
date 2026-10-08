@@ -4,12 +4,12 @@
 // which block `path` names decides whether the length is the pre- or the post-write one.
 // Miss-analysis: every toggle case read the plan, one layer below the op a host subscribes to.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { EditEvent } from '$lib/editor-events';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { EditEvent } from '#lib/editor-events.js';
 import { gridOf, registerPluginGrid } from './plugin-grid-kind';
 import { makeKeydownEnv, press } from './keydown-env';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 // `head` first in both fixtures: the dispatch context's focused block is [0], and a container
 // there never reaches the toggle.

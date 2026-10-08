@@ -3,10 +3,10 @@
 // is never set in source mode: set unconditionally, it passes every presentation test while the
 // reading-mode rules match during ordinary editing.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { mountItem, type MountedItem } from './mount-item';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
