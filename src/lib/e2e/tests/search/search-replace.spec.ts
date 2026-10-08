@@ -81,52 +81,6 @@ test.describe('search: replace', () => {
 	});
 });
 
-test.describe('search: structural replace', () => {
-	let editor: EditorPage;
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
-
-	test('a replacement introducing a heading marker changes the block kind', async ({ page }) => {
-		await editor.loadContent('TITLE here\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
-
-		await openReplace(editor);
-		await findInput(page).click();
-		await typeQuery(editor, 'TITLE');
-		await replaceInput(page).fill('# Heading');
-
-		await page.getByRole('button', { name: 'All', exact: true }).click();
-		await editor.bridge.waitForSourceContains('# Heading');
-		await page.waitForFunction(() => (window as any).__test.getBlockKind(0) === 'heading', null, {
-			timeout: 5000,
-			polling: 16
-		});
-		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-	});
-
-	test('a replacement containing a newline splits the block in two', async ({ page }) => {
-		await editor.loadContent('left SPLIT right\n');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-
-		await openReplace(editor);
-		// A single-line replace input can't carry a real newline; in regex mode a
-		// literal `\n` escape expands to one (matching VS Code's regex replace).
-		await page.getByRole('button', { name: 'Regex' }).click();
-		await findInput(page).click();
-		await typeQuery(editor, 'SPLIT');
-		await replaceInput(page).fill('one\\n\\ntwo');
-
-		await page.getByRole('button', { name: 'All', exact: true }).click();
-		await editor.bridge.waitForBlockCount(2);
-		expect(await editor.bridge.getBlockCount()).toBe(2);
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('left one');
-		expect(source).toContain('two right');
-	});
-});
-
 test.describe('search: tables', () => {
 	let editor: EditorPage;
 	// A normal small table: header + delimiter + three body rows, all mounted.

@@ -189,3 +189,29 @@ describe('the editing host in reading mode', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
 	});
 });
+
+// Miss-analysis: the only paste over a clicked divider sat in an exploration spec whose check
+// accepted either outcome, so nothing below e2e said a paste into the host writes nothing.
+describe('a paste that reaches the editing host', () => {
+	it('is refused and mints no paragraph', () => {
+		const minted: string[] = [];
+		const proxy = createWholeBlockInputProxy({
+			getBoxEl: () => box(),
+			getFocusEl: () => null,
+			isReading: () => false,
+			getLabel: () => 'Divider',
+			mint: (text) => void minted.push(text)
+		});
+		mountCallbacks.forEach((run) => run());
+
+		const paste = new InputEvent('beforeinput', {
+			inputType: 'insertFromPaste',
+			data: 'pasted',
+			cancelable: true
+		});
+		proxy.el()!.dispatchEvent(paste);
+
+		expect(paste.defaultPrevented).toBe(true);
+		expect(minted).toEqual([]);
+	});
+});

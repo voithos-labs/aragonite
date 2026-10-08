@@ -1,26 +1,25 @@
-# Feature: cross-block clipboard, cut, delete/backspace, type-replace
-
-## Happy paths
-
-- Ctrl+X with cross-block selection copies text then deletes the range.
-- Backspace with cross-block selection deletes the range and merges endpoints.
-- Delete with cross-block selection deletes the range and merges endpoints.
-- Typing over a cross-block selection replaces it with the typed character.
+# Feature: cross-block clipboard cut
 
 ## Edge cases
 
 - Cut then undo restores the original document.
 - Cut from a block's first character into the next block keeps the blank line above the survivor,
   so reloading the cut source still shows two blocks.
-- Backspace merges endpoint blocks into one (start block survives).
-- Cross-block delete spanning three blocks leaves only the merged result.
-- Type-replace inserts the character at the correct offset in the merged block.
-- Type-replace over a cross-block selection is one undo unit: a single Ctrl+Z restores the pre-replace document (the delete and the typed character share one undo entry, with `op:'delete'` followed by `op:'updateContent'` on the event stream, and the typed character re-derives the leaf's kind, so it is not an `input`).
 
 ## User interactions
 
 - Select across two paragraphs via Shift+ArrowDown, Ctrl+X: removes range, cursor at merge point.
-- Select across three blocks, Backspace: single merged block remains.
+
+## Pinned below the browser
+
+These press keys over a cross-block range without a page:
+
+- Backspace and Delete delete the range and leave cross-block mode
+  (`test/selection/cross-block/keydown-destructive-gate.test.ts`).
+- A typed character lands in the merged block, and the delete and the character share one undo
+  entry (`test/selection/cross-block/cross-block-typed-char.test.ts`).
+- Backspace, a cut and a typed character each leave the expected bytes and one undo entry holding
+  the document as it stood (`test/selection/cross-block/range-replace.test.ts`).
 
 ## Miss-analysis
 

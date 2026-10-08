@@ -351,8 +351,7 @@ Specs are organized by feature area at the top level, and per block inside `test
 | `test:e2e:blocks`         | All per-block specs under `tests/blocks/`                                                                                                                                                                                                                                                                        |
 | `test:e2e:blocks:<block>` | One block only: `list`, `code`, `image`, `table`, `blockquote`                                                                                                                                                                                                                                                   |
 | `test:e2e:plugins`        | Plugin authoring: plugin containers, reserved chrome, collapse, the `plugins` prop, component-portal widgets, editable leaves, plus the browser conformance sweep (`tests/plugins/conformance-sweep.spec.ts`), which drives every registered kind declaring a `conformanceFixture` through the mounted-DOM cells |
-| `test:e2e:clipboard`      | Cut / copy / paste (excludes exploration)                                                                                                                                                                                                                                                                        |
-| `test:e2e:exploration`    | Clipboard exploration / manual-verification scenarios                                                                                                                                                                                                                                                            |
+| `test:e2e:clipboard`      | Cut / copy / paste                                                                                                                                                                                                                                                                                               |
 | `test:e2e:selection`      | Cross-block selection behavior                                                                                                                                                                                                                                                                                   |
 | `test:e2e:sticky-column`  | Vertical cursor column tracking across block transitions                                                                                                                                                                                                                                                         |
 | `test:e2e:search`         | Find/replace bar and controller behavior                                                                                                                                                                                                                                                                         |
@@ -518,7 +517,10 @@ The details:
   `playwright test --list` reports for the spec, so a test generated in a loop counts once per
   row. That last rule is allowlisted, and an entry there states its reason: an equal
   count is refuted by measurement (one test routinely walks several bullets), so padding the
-  suite to satisfy a count is never the fix.
+  suite to satisfy a count is never the fix. Bullets under a `## Pinned below the browser`
+  heading don't count, since a unit test runs them instead. Each one names that test by its
+  backticked path from `src/lib/`, and the lint fails a bullet that names none, or names a file
+  that isn't there.
 - `e2e/tests/perf/` holds two families, and the basename decides which project collects a spec:
   `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts`
   directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong

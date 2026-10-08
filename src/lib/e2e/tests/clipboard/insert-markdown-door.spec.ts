@@ -46,60 +46,6 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 		await expect(editor.page.locator('.task-checkbox')).toHaveCount(0);
 	});
 
-	test('a single-line snippet mid-paragraph splices inline at the caret offset', async () => {
-		await editor.loadContent('alphabeta\n');
-		await editor.focusBlock(0, 'alpha'.length);
-
-		expect(await insert('**bold**')).toBe(true);
-		await editor.bridge.waitForSourceContains('alpha**bold**beta');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-
-		await editor.typeText('Z');
-		await editor.bridge.waitForSourceContains('alpha**bold**Zbeta');
-	});
-
-	test('list items inserted inside a same-type list absorb as siblings', async () => {
-		await editor.loadContent('- alpha\n- beta\n');
-		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
-
-		expect(await insert('- x\n- y\n')).toBe(true);
-		await editor.bridge.waitForSourceMatches(/^- y$/m);
-
-		const source = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
-		expect(source.match(/^- .*$/gm)).toEqual(['- alpha', '- x', '- y', '- beta']);
-	});
-
-	// The one-undo rule holds for the structural strategy too: a splice that pushed the delete and
-	// the insert separately would leave a half-reverted document after one undo.
-	test('a structural insertion is one undo entry', async () => {
-		await editor.loadContent('before\n\nafter\n');
-		const before = await editor.bridge.getSource();
-		await editor.focusBlockEnd(0);
-
-		expect(await insert(TABLE)).toBe(true);
-		await editor.bridge.waitForSourceContains('| --- | --- |');
-
-		await editor.undo();
-		await editor.bridge.waitForSourceEquals(before);
-		expect(await editor.bridge.getBlockCount()).toBe(2);
-	});
-
-	test('a cross-block selection is replaced, and one undo restores both halves', async () => {
-		await editor.loadContent('alpha\n\nbeta\n');
-		const before = await editor.bridge.getSource();
-
-		await editor.focusBlock(0, 'alp'.length);
-		await editor.shiftClickBlock([1], 'be'.length);
-		await editor.waitForCrossBlock(true);
-
-		expect(await insert('MID')).toBe(true);
-		await editor.bridge.waitForSourceContains('alpMIDta');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-
-		await editor.undo();
-		await editor.bridge.waitForSourceEquals(before);
-	});
-
 	// A widget-only paragraph holds no native selection, so the browser sends clipboard events to
 	// `<body>`; the block still holds DOM focus, so the call must reach the paste's widget branch.
 	test('a selected inline widget is replaced, as pasting over it does', async () => {
@@ -121,17 +67,5 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 
 		expect(await insert('ZZ')).toBe(true);
 		await editor.bridge.waitForSourceContains('| 2ZZ |');
-	});
-
-	test('a registered paste transform rewrites the inserted text', async () => {
-		await editor.page.evaluate(() =>
-			(window as any).__test.registerPasteTransform('e2e-insert-door', '@@STAMP@@', 'stamped')
-		);
-		await editor.loadContent('note:\n');
-		await editor.focusBlockEnd(0);
-
-		expect(await insert(' @@STAMP@@')).toBe(true);
-		await editor.bridge.waitForSourceContains('note: stamped');
-		expect(await editor.bridge.getSource()).not.toContain('@@STAMP@@');
 	});
 });

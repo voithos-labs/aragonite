@@ -13,28 +13,21 @@ The invariant asserted by these tests: for every container with a registered
 
 ## Scenarios
 
-### 1. Cross-block delete spanning a blockquote and a top-level paragraph
-
-Start caret inside the top-level paragraph that precedes a blockquote; shift-
-select into the first inner paragraph of the blockquote; Backspace. The
-blockquote's `BlockListState` must reflect the post-delete children count, not
-the pre-delete count.
-
-### 2. Cross-block delete spanning two list items
+### 1. Cross-block delete spanning two list items
 
 Three-item list. Select from mid-first-item to mid-third-item; Backspace.
 The enclosing list's `BlockListState` shrinks from three items to one (merged
 content); its `innerBlockIds` must match the post-delete `node.children`
 length.
 
-### 3. Mixed top-level + list cross-block delete
+### 2. Mixed top-level + list cross-block delete
 
 Select from inside a list item's paragraph to a following top-level paragraph;
 Backspace. Both the list's `BlockListState` and the surviving list item's
 `BlockListState` must stay in sync with their respective `node.children`
 lengths after the delete and any cascade cleanup.
 
-### 4. Deeply-nested list cross-block delete
+### 3. Deeply-nested list cross-block delete
 
 Outer list contains an item whose children include a nested sub-list. Select
 from the outer first item's paragraph to a paragraph inside the nested sub-
@@ -42,10 +35,11 @@ list's second item; Backspace. Both the outer list's and the nested list's
 `BlockListState` instances must remain consistent: depth is no excuse for
 falling out of sync.
 
-### 5. Cross-block delete ending in a table body cell (regression)
+## Pinned below the browser
 
-Paragraph above a table; shift-click into a body cell and Backspace. The
-whole-row snap splices rows out of `table.children`, so the table must commit
-as its own scope: its row `BlockListState` ids/refs shrink with the surviving
-rows. Regression guard for the stale-row-ids bug where the endpoint table was
-never a commit scope and only strict ancestors were collected.
+A delete spanning a blockquote and the paragraph before it, and a delete from a paragraph into a table
+body cell, leave every registered `BlockListState` in step with its children. Both run in
+`test/selection/cross-block/cross-block-delete-sync.test.ts` and
+`test/selection/cross-block/cross-block-delete-table-scope.test.ts`.
+The cell delete was the stale-row-ids regression: the endpoint table was never a commit scope, so its
+row state kept the ids from before the whole-row snap.

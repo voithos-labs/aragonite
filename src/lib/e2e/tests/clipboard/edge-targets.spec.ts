@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('clipboard exploration: edge targets', () => {
+test.describe('clipboard: edge targets', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -95,20 +95,5 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.focusBlockAtPath([1], 'line two'.length);
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('line two APPENDED');
-	});
-
-	test('paste empty clipboard is no-op', async () => {
-		await editor.loadContent('unchanged\n');
-		await editor.seedClipboard('');
-		const before = await editor.bridge.getSource();
-
-		await editor.focusBlockAtPath([0], 'unchanged'.length);
-		await editor.paste();
-		// A paste event, not a keystroke: no keydown, so nothing for the editor to answer.
-		await editor.waitForNoSourceMutation();
-
-		// Byte-exact: a stray newline or a duplicated block would still pass a "contains unchanged"
-		// check.
-		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

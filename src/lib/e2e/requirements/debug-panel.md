@@ -25,4 +25,4 @@
 
 ## Pinned below the browser
 
-- `serializeDiagnostics()` omits the document body by default and carries it only under `{ includeSource: true }`, which adds the Source section (`editor-diagnostics.test.ts`).
+- `serializeDiagnostics()` omits the document body by default and carries it only under `{ includeSource: true }`, which adds the Source section (`test/debug/editor-diagnostics.test.ts`).

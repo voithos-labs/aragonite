@@ -32,7 +32,7 @@ reach it before the next input does. What the channel reports overall is in
 
 - Enter at the end of a paragraph announces the new paragraph from the key itself, before the
   browser reports the caret, so a byte typed straight after can't beat it. That runs in
-  `landing-announce.svelte.test.ts`.
+  `test/selection/landing-announce.svelte.test.ts`.
 
 ## Notes
 

@@ -25,10 +25,10 @@ mutating the global tables.
 
 ## Pinned below the browser
 
-- a malformed chord (`'Ctrl+B'`) is dropped and does not bind bare B, in `keybinding-overrides.test.ts`, which reads the override list on its own, with no editor
-- a `kind:'listItem'` override disabling Tab, and a global disable of Tab, each stop the list indent as the key travels up to the container (the leaf never takes Tab inside a list), in `item-tab-keydown.test.ts`
+- a malformed chord (`'Ctrl+B'`) is dropped and does not bind bare B, in `test/schema/keybinding-overrides.test.ts`, which reads the override list on its own, with no editor
+- a `kind:'listItem'` override disabling Tab, and a global disable of Tab, each stop the list indent as the key travels up to the container (the leaf never takes Tab inside a list), in `test/blocks/list/item-tab-keydown.test.ts`
   - Miss-analysis: every override row drove a leaf block, so none saw the list item's own key handler
-- over a selection spanning blocks, a command key removes the selection and then runs at the caret that's left, and the bindings decide which keys those are. These run against the mounted editor in `range-command-keys.test.ts`:
+- over a selection spanning blocks, a command key removes the selection and then runs at the caret that's left, and the bindings decide which keys those are. These run against the mounted editor in `test/selection/cross-block/range-command-keys.test.ts`:
   - `Mod+1` disabled: nothing's removed and the selection stays
   - `Enter` disabled: the same
   - the heading rebound to `Mod+Alt+1`: that chord removes the selection and makes the heading

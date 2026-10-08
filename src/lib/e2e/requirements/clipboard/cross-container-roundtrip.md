@@ -1,4 +1,4 @@
-# Clipboard Exploration: Cross-Container Round-Trip
+# Clipboard: Cross-Container Round-Trip
 
 Copy + paste across container boundaries. Catches asymmetries between the copy-side serialization and the paste-side parsing.
 

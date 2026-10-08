@@ -14,20 +14,14 @@ makes the pattern backtrack catastrophically.
 
 ## Happy paths
 
-- a pathological pattern typed into the find bar: the editor keeps accepting input,
-  and the query's own scan ends in a reported state rather than a hang
+- a pathological pattern typed into the find bar: the editor keeps accepting input (a keystroke
+  typed into the document reaches it within a bounded wait; the freeze regression is this never
+  landing), and the query's own scan ends in a reported state rather than a hang
 
 ## Edge cases
 
-- typing into the document while the pathological scan is running: the keystroke
-  reaches the document within a bounded wait (the freeze regression is this never
-  landing)
-- the deadline overrun: the count readout shows its error state and reads
-  "Regex too slow", and no match overlay is painted
-- recovery after an overrun: replacing the query with a cheap pattern clears the
-  too-slow state and matches again, so the bar is not stuck
-
-## Error cases
-
-- the overrun raises no page error: the terminated scan is a handled state, never an
-  unhandled rejection
+- the deadline overrun: the count readout shows its error state and reads "Regex too slow", no
+  match overlay is painted, and the terminated scan raises no page error (it is a handled state,
+  never an unhandled rejection)
+- recovery after an overrun: replacing the query with a cheap pattern clears the too-slow state and
+  matches again, so the bar is not stuck

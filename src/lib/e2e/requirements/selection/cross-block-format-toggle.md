@@ -46,11 +46,9 @@ single block to create one in.
 
 ## Pinned below the browser
 
-These run against the planner and the mounted editor, in `format-range.test.ts`, `format-range-edges.test.ts` and `cross-block-typed-char.test.ts`:
-
-- a fenced code block between two paragraphs keeps its bytes while both paragraphs wrap: whether a block takes part is the kind's own declaration (inline-bearing, editable, not a container), never its name
-- a partial range marks each endpoint's own span and trims the space at the head span's edge: markdown cannot close a run against whitespace, so an untrimmed edge writes delimiters that form no construct and the block is silently skipped
-- plain typing over a cross-block range still replaces it, and one undo restores the document, so the toggle narrowed nothing else (`undo-step-round-trips.spec.ts` holds the browser round trip)
+- a fenced code block between two paragraphs keeps its bytes while both paragraphs wrap: whether a block takes part is the kind's own declaration (inline-bearing, editable, not a container), never its name (`test/selection/cross-block/format-range.test.ts`)
+- a partial range marks each endpoint's own span and trims the space at the head span's edge: markdown cannot close a run against whitespace, so an untrimmed edge writes delimiters that form no construct and the block is silently skipped (`test/selection/cross-block/format-range-edges.test.ts`)
+- plain typing over a cross-block range still replaces it, and one undo restores the document, so the toggle narrowed nothing else (`test/selection/cross-block/cross-block-typed-char.test.ts`; `e2e/tests/selection/undo-step-round-trips.spec.ts` holds the browser round trip)
 
 ## Error cases
 

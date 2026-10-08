@@ -1,4 +1,4 @@
-# Clipboard Exploration: Deeply Nested
+# Clipboard: Deeply Nested
 
 Paste scenarios where the target lives inside multiple layers of containers: the stress test for how the dispatch and container-state code resolve paths.
 

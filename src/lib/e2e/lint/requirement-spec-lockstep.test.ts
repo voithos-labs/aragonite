@@ -2,10 +2,11 @@
  * Every spec pairs with a requirement file and every requirement file with a spec, so the file
  * tree is the list of what e2e covers (G4.23). Beyond pairing, a placeholder requirement fails,
  * and so does a scenario count far ahead of the spec's listed tests unless the allowlist excuses
- * it. A green run proves pairing alone, never that a bullet maps to a test.
+ * it; a bullet that names the unit test pinning it is not counted. A green run proves pairing
+ * alone, never that a bullet maps to a test.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { collectFiles } from '../../test/invariants/lint/scan-source';
 import {
@@ -93,34 +94,75 @@ export function requirementStem(specPath: string): string {
 	return specPath.replace(/\.perf\.spec\.ts$/, '').replace(/\.spec\.ts$/, '');
 }
 
+/** The section listing rows a unit test runs in place of this spec. */
+const PINNED_HEADING = /^##\s+Pinned below the browser\s*$/;
+const TEST_FILE = /`([^`\s]+\.(?:test|spec)\.ts)`/g;
+const UNIT_TEST_FILE = /`[^`\s]+\.test\.ts`/;
+
+export interface PinnedSection {
+	/** Each bullet with its continuation lines joined by a space. */
+	bullets: string[];
+	/** The section's whole text, prose included. */
+	text: string;
+}
+
 export interface RequirementShape {
 	hasTitle: boolean;
 	sections: number;
 	/** Top-level bullets plus `###` subsections: the two forms a scenario takes. */
 	scenarioUnits: number;
+	pinned: PinnedSection;
 }
 
 /**
  * One `-` at column 0 is one scenario: continuation lines are indented and nested bullets are
- * detail of their parent. Ordered items are prose, not scenarios.
+ * detail of their parent. Ordered items are prose, not scenarios, and so is a pinned bullet.
  */
 export function readRequirementShape(text: string): RequirementShape {
 	let hasTitle = false;
 	let sections = 0;
 	let scenarioUnits = 0;
 	let inFence = false;
+	let inPinned = false;
+	const pinned: PinnedSection = { bullets: [], text: '' };
 	for (const line of text.split('\n')) {
 		if (/^\s*```/.test(line)) {
 			inFence = !inFence;
 			continue;
 		}
 		if (inFence) continue;
+		if (/^##?\s/.test(line)) inPinned = PINNED_HEADING.test(line);
+		else if (inPinned) {
+			pinned.text += `${line}\n`;
+			if (/^-\s+\S/.test(line)) pinned.bullets.push(line.trim());
+			else if (/^\s+\S/.test(line) && pinned.bullets.length > 0)
+				pinned.bullets[pinned.bullets.length - 1] += ` ${line.trim()}`;
+			continue;
+		}
 		if (/^#\s+\S/.test(line)) hasTitle = true;
 		else if (/^##\s+(?!#)\S/.test(line)) sections++;
 		else if (/^###\s+\S/.test(line)) scenarioUnits++;
 		else if (/^-\s+\S/.test(line)) scenarioUnits++;
 	}
-	return { hasTitle, sections, scenarioUnits };
+	return { hasTitle, sections, scenarioUnits, pinned };
+}
+
+/**
+ * A pinned bullet stays out of the count because it names the unit test that runs it, so each one
+ * must name a unit test file, and every test file the section names must exist under `src/lib/`.
+ */
+export function pinnedProblems(
+	pinned: PinnedSection,
+	exists: (fromLib: string) => boolean
+): string[] {
+	const unnamed = pinned.bullets
+		.filter((bullet) => !UNIT_TEST_FILE.test(bullet))
+		.map((bullet) => `names no unit test file: "${bullet}"`);
+	const named = new Set([...pinned.text.matchAll(TEST_FILE)].map((match) => match[1]));
+	const missing = [...named]
+		.filter((file) => !exists(file))
+		.map((file) => `names a test file that does not exist under src/lib/: ${file}`);
+	return [...unnamed, ...missing];
 }
 
 /**
@@ -308,6 +350,19 @@ describe('G4.23 requirement↔spec lockstep', () => {
 		).toEqual([]);
 	});
 
+	it('every pinned bullet names a unit test, and every test file it names exists', () => {
+		const problems = lockstep.pairs.flatMap(({ requirement, shape }) =>
+			pinnedProblems(shape.pinned, (file) => existsSync(path.join('src/lib', file))).map(
+				(problem) => `${requirement} ${problem}`
+			)
+		);
+		expect(
+			problems,
+			`bullets under "Pinned below the browser" stay out of the scenario count because they name the unit test that runs them, so each names one by its backticked path from src/lib/:
+  ${problems.join('\n  ')}`
+		).toEqual([]);
+	});
+
 	it('every requirement list that ran ahead of its spec is named with a reason', () => {
 		const unexplained = lockstep.pairs
 			.filter(
@@ -377,7 +432,63 @@ describe('G4.23 requirement↔spec lockstep: classifier self-tests', () => {
 			'prose',
 			''
 		].join('\n');
-		expect(readRequirementShape(text)).toEqual({ hasTitle: true, sections: 2, scenarioUnits: 3 });
+		expect(readRequirementShape(text)).toMatchObject({
+			hasTitle: true,
+			sections: 2,
+			scenarioUnits: 3
+		});
+	});
+
+	it('leaves bullets under "Pinned below the browser" out of the scenario count', () => {
+		const text = [
+			'# Feature: x',
+			'',
+			'## Happy paths',
+			'',
+			'- a browser scenario',
+			'',
+			'## Pinned below the browser',
+			'',
+			'Each runs without a page:',
+			'',
+			'- first pinned row',
+			'  (`test/a.test.ts`)',
+			'- second pinned row (`test/b.test.ts`)',
+			'',
+			'## Edge cases',
+			'',
+			'- another browser scenario',
+			''
+		].join('\n');
+		const shape = readRequirementShape(text);
+		expect(shape.scenarioUnits).toBe(2);
+		expect(shape.pinned.bullets).toEqual([
+			'- first pinned row (`test/a.test.ts`)',
+			'- second pinned row (`test/b.test.ts`)'
+		]);
+	});
+
+	it('fails a pinned bullet that names no unit test, or a test file that does not exist', () => {
+		const text = [
+			'# Feature: x',
+			'',
+			'## Pinned below the browser',
+			'',
+			'Prose naming `test/gone-from-prose.test.ts`.',
+			'',
+			'- names a real file (`test/real.test.ts`)',
+			'- names a misspelled one (`test/reaI.test.ts`)',
+			'- names none',
+			'- names only a browser spec (`e2e/tests/real.spec.ts`)',
+			''
+		].join('\n');
+		const exists = (file: string) => file === 'test/real.test.ts' || file.endsWith('real.spec.ts');
+		expect(pinnedProblems(readRequirementShape(text).pinned, exists)).toEqual([
+			'names no unit test file: "- names none"',
+			'names no unit test file: "- names only a browser spec (`e2e/tests/real.spec.ts`)"',
+			'names a test file that does not exist under src/lib/: test/gone-from-prose.test.ts',
+			'names a test file that does not exist under src/lib/: test/reaI.test.ts'
+		]);
 	});
 
 	it('ignores bullets inside fenced code', () => {

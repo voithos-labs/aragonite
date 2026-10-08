@@ -14,7 +14,7 @@ Select some text inside one block and press a key that breaks the line, and the 
 
 ## Pinned below the browser
 
-- These run against the mounted editor in both modes, in `break-over-selection.test.ts` and `break-over-selection-exits.test.ts`. Each already carries its own miss-analysis.
+- These run against the mounted editor in both modes, in `test/blocks/break-over-selection.test.ts` and `test/blocks/break-over-selection-exits.test.ts`. Each already carries its own miss-analysis.
   - Enter over a selection in a paragraph or a heading
   - Shift+Enter over a selection in a paragraph or a heading
   - Enter over a selection in a code block

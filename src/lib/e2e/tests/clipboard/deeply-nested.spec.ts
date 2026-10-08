@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('clipboard exploration: deeply nested', () => {
+test.describe('clipboard: deeply nested', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

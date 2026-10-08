@@ -15,7 +15,7 @@ Formatting with no selection is its own concern: see `formatting-at-caret.md`.
 
 ## Pinned below the browser
 
-These call the toggle function directly in `format-toggle-coverage.test.ts`, with no editor:
+These call the toggle function directly in `test/core/inline/format-toggle-coverage.test.ts`, with no editor:
 
-- a selection inside a longer bold run splits the run rather than double-wrapping
-- a selection spanning bold runs and plain text bolds as one run, absorbing the inner markers
+- a selection inside a longer bold run splits the run rather than double-wrapping (`test/core/inline/format-toggle-coverage.test.ts`)
+- a selection spanning bold runs and plain text bolds as one run, absorbing the inner markers (`test/core/inline/format-toggle-coverage.test.ts`)

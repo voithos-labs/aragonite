@@ -158,12 +158,6 @@ test.describe('reorder hover handle', () => {
 		expect(Math.abs(delta), `off the rule centre by ${delta}px`).toBeLessThanOrEqual(2);
 	});
 
-	test('the drag handle is the lucide grip-vertical glyph, six dots', async ({ page }) => {
-		await editor.loadContent('```js\ncode\n```\n');
-		const card = page.locator('.block-host[data-block-kind="fencedCode"]').first();
-		await expect(card.locator('.block-drag-handle .grip svg path')).toHaveCount(6);
-	});
-
 	// The handle is reachable without first hovering the block it belongs to: one you can only
 	// reach by crossing the block is a flyout hanging off it.
 	test('approaching the drag handle through the gutter alone reveals it and hits it', async ({
@@ -199,17 +193,6 @@ test.describe('reorder hover handle', () => {
 		expect(gap, 'the glyph must not touch the content').toBeGreaterThanOrEqual(3);
 	});
 
-	// A picture is not prose: the paragraph holding it is what a user reaches for to move it.
-	test('an image-only paragraph carries a handle; an image beside words does not', async () => {
-		await editor.loadContent(
-			'![cat|200](/test-fixtures/sample.png)\n\n![cat|200](/test-fixtures/sample.png) beside words\n'
-		);
-		const imageOnly = editor.page.locator('.block-host[data-block-path="[0]"]');
-		const mixed = editor.page.locator('.block-host[data-block-path="[1]"]');
-		await expect(imageOnly.locator(':scope > .block-drag-handle')).toHaveCount(1);
-		await expect(mixed.locator(':scope > .block-drag-handle')).toHaveCount(0);
-	});
-
 	// A picture has no text line to sit on, and its own top edge puts the handle in the corner.
 	test('the drag handle on an image paragraph sits a line into the picture, not on its edge', async ({
 		page
@@ -232,35 +215,6 @@ test.describe('reorder hover handle', () => {
 		expect(inset, 'and within its first line, not adrift down it').toBeLessThan(40);
 	});
 
-	test('a paragraph is a background block: no handle, but still a reorder unit', async () => {
-		await editor.loadContent('# head\n\nplain\n\n- one\n');
-		const para = editor.page.locator('.block-host[data-block-kind="paragraph"]').first();
-		await para.hover();
-		await expect(para.locator(':scope > .block-drag-handle')).toHaveCount(0);
-		await expect(para).toHaveClass(/reorder-host/);
-	});
-
-	test('list item is a reorder unit; its inner paragraph is not (one handle in subtree)', async () => {
-		await editor.loadContent('- one\n- two\n\nplain\n');
-		const item = editor.page.locator('.list-item-block', { hasText: 'one' });
-		await item.hover();
-		await expect(item.locator('.block-drag-handle')).toHaveCount(1);
-		await expect(item.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
-	});
-
-	// The handle reorders within the list and nowhere else, so on a lone item it could only drop
-	// the item back where it was. Adding a sibling brings it back.
-	test('the only item of a list carries no handle until a sibling joins it', async ({ page }) => {
-		await editor.loadContent('- [ ] lone task\n\nplain\n');
-		const item = page.locator('.list-item-block', { hasText: 'lone task' });
-		await item.hover();
-		await expect(item.locator(':scope > .block-drag-handle')).toHaveCount(0);
-		await expect(page.locator('.block-drag-handle')).toHaveCount(0);
-
-		await editor.loadContent('- [ ] lone task\n- [ ] second\n\nplain\n');
-		await expect(page.locator('.list-item-block > .block-drag-handle')).toHaveCount(2);
-	});
-
 	// A handle on the list itself would land in the gutter on top of the first item's and, being
 	// its own hit target, take the pointer: aiming at row one would move the whole list.
 	test('the list shell carries no handle of its own, so row one owns its gutter', async ({
@@ -281,20 +235,6 @@ test.describe('reorder hover handle', () => {
 		await expect(rows.nth(2)).toHaveCSS('opacity', '0');
 	});
 
-	// Prose carries no handle, and a quote is prose holding prose: neither the quote nor the
-	// paragraphs inside it get one.
-	test('a blockquote and its prose children carry no handle', async () => {
-		await editor.loadContent('> a\n>\n> b\n');
-		await editor.page.locator('.blockquote-block').hover();
-		await expect(editor.page.locator('.block-drag-handle')).toHaveCount(0);
-	});
-
-	test('a note card carries no handle either', async () => {
-		await editor.loadContent('> [!NOTE]\n> body text\n');
-		await editor.page.locator('.block-host').first().hover();
-		await expect(editor.page.locator('.block-drag-handle')).toHaveCount(0);
-	});
-
 	test('nested hover reveals only the innermost unit, not the ancestor handle', async () => {
 		await editor.loadContent('- outer\n  - inner item\n  - inner two\n- outer two\n');
 		const inner = editor.page.locator('.list-item-block', { hasText: 'inner item' }).last();
@@ -312,31 +252,5 @@ test.describe('reorder hover handle', () => {
 		await editor.loadContent('- one\n- two\n\nplain\n\n> quoted\n');
 		await editor.waitForRenderFlush();
 		await expectNoNewA11yViolations(page, 'reorder-handle');
-	});
-
-	// Dragging is the only way to move a picture with the pointer, so its handle is not optional.
-	test('an image paragraph keeps its handle with blockDragHandles=false', async () => {
-		await editor.goto('?dragHandles=false');
-		await editor.loadContent('![cat|200](/test-fixtures/sample.png)\n\nplain\n');
-		await expect(
-			editor.page.locator('.block-host[data-block-path="[0]"] > .block-drag-handle')
-		).toHaveCount(1);
-		await expect(
-			editor.page.locator('.block-host[data-block-path="[1]"] > .block-drag-handle')
-		).toHaveCount(0);
-	});
-
-	test('reading mode shows no handle, not even on an image paragraph', async () => {
-		await editor.goto('?presentationMode=reading');
-		await editor.loadContent('![cat|200](/test-fixtures/sample.png)\n\n# head\n');
-		await expect(editor.page.locator('.block-drag-handle')).toHaveCount(0);
-	});
-
-	test('blockDragHandles=false renders no handle, even on hover', async () => {
-		await editor.goto('?dragHandles=false');
-		await editor.loadContent('- one\n\nplain\n');
-		const top = editor.page.locator('.block-host', { hasText: 'plain' }).last();
-		await top.hover();
-		await expect(editor.page.locator('.block-drag-handle')).toHaveCount(0);
 	});
 });

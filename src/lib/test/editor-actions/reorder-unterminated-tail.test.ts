@@ -67,6 +67,12 @@ const TOP_LEVEL: { label: string; before: string; after: string; move: Move }[] 
 		move: down([0])
 	},
 	{
+		label: 'Alt+ArrowDown on the block above the last, CRLF',
+		before: '# a\r\nb',
+		after: 'b\r\n# a',
+		move: down([0])
+	},
+	{
 		label: 'the block.moveUp command on the last block',
 		before: 'a\n# b',
 		after: '# b\na',

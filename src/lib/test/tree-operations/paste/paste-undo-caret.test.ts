@@ -198,6 +198,8 @@ describe('a paste’s undo entry records the caret where the paste began', () =>
 			expect(deps.doc.children.map((c) => c.raw).join('')).not.toBe(sourceBefore);
 			const entry = deps.undoManager.peekUndo();
 			expect(entry).not.toBeNull();
+			// One paste is one undo step, however many writes it made.
+			expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 			const point = { path: route.targetPath, offset: route.caretBefore };
 			expect(rangeSelectionOf(entry!)).toEqual({ anchor: point, focus: point });
 		});

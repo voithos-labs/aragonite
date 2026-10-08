@@ -44,13 +44,11 @@ is its only user.
 
 ## Pinned below the browser
 
-These run in `command-door.test.ts`, `format-command-arms.test.ts`, `command-undo-caret.test.ts` and `command-door-seam.test.ts`:
-
-- the emphasis, strikethrough and inline-code ids each write their own delimiter pair, and nothing else moves
-- a caret with no selection, in a mode that paints the delimiters, takes the toggle as an empty pair
-- the link editor over a range spanning blocks is the one range command still declined: it writes over one block's offsets and a range gives it none, so the call returns `false` and the source is byte-identical
-- an unknown id declines and mutates nothing
-- reading mode declines every published id, source byte-identical
+- the emphasis, strikethrough and inline-code ids each write their own delimiter pair, and nothing else moves (`test/blocks/text/format-command-arms.test.ts`)
+- a caret with no selection, in a mode that paints the delimiters, takes the toggle as an empty pair (`test/core/inline/format-toggle-caret.test.ts`)
+- the link editor over a range spanning blocks is the one range command still declined: it writes over one block's offsets and a range gives it none, so the call returns `false` and the source is byte-identical (`test/blocks/command-door.test.ts`)
+- an unknown id declines and mutates nothing (`test/schema/command-door-seam.test.ts`)
+- reading mode declines every published id, source byte-identical (`test/blocks/command-door.test.ts`)
 
 ## Miss-analysis
 

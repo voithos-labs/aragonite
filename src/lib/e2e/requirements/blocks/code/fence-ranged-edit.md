@@ -39,8 +39,8 @@ The contract, in three parts:
 ## Pinned below the browser
 
 No click or arrow puts a caret on a hidden fence line, so the gestures confined to one are
-driven against the mounted block (`code-fence-ranged-edit.test.ts`) rather than end to end:
-Backspace inside the closer run, a paste into either marker run or over a closer-only
+driven against the mounted block (`test/blocks/code/code-fence-ranged-edit.test.ts`) rather than
+end to end: Backspace inside the closer run, a paste into either marker run or over a closer-only
 selection, and a cut of a closer-only selection each commit nothing, and a delete inside the
 body is applied by the block, since Chromium would take the hidden fence line beside it.
 (miss-analysis: when these fence lines became editable in source mode, the refusals were deleted
