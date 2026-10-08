@@ -61,9 +61,9 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 		const el = cellAt(mounted!, 1, 0);
 		caretAtCellEnd(el);
 
-		await pasteInto(el, 'x|y');
+		await pasteInto(el, 'a|b|c');
 
-		expect(mounted.source()).toContain('\\|');
+		expect(mounted.source()).toBe('| A | B |\n| --- | --- |\n| onea\\|b\\|c | 2 |\n');
 		expect(reparsedColumns()).toBe(2);
 	});
 

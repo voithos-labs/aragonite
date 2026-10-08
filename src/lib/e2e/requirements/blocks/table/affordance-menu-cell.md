@@ -21,7 +21,10 @@ covered by `right-click-clipboard.md`.
 
 - Right-clicking outside the table (a paragraph, say) does not open the menu: the contextmenu handler covers the table grid only, and it suppresses the browser's own menu only when the pointer is over a cell.
 - Right-clicking a cell inside an active intra-table rectangle selection opens the menu without collapsing the rectangle: the pointerdown clear and the drag install are skipped for the secondary button, so the menu's Cut/Copy still see the rectangle.
-- The moves are disabled at the near end of each axis, "Move row up" on the first body row and "Move column left" on the first column, and both stay enabled in the other direction.
 - Both deletes are disabled when the table is down to one body row and one column, and a forced click on a disabled row commits nothing.
 - Hovering the sibling group row swaps which flyout is showing: only one is open at a time.
 - Keyboard-driven alignment (roving focus into the three buttons, Enter) returns focus to a cell and announces the new alignment in the live region.
+
+## Pinned below the browser
+
+- The moves are disabled at the near end of each axis, "Move row up" on the first body row and "Move column left" on the first column, and both stay enabled in the other direction (`test/blocks/table/table-menu-model.test.ts`).

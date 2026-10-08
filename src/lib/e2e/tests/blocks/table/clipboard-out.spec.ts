@@ -69,29 +69,6 @@ test.describe('table block: clipboard out', () => {
 			.toBe('| A | B |\n| :--- | :---: |\n| 1 | 2 |\n');
 	});
 
-	test('row-only rectangle copies a header-only sub-table', async ({ page }) => {
-		await editor.loadContent(TABLE_ALIGNED);
-		await dragBetweenCells(page, 0, 2);
-		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('ControlOrMeta+c');
-		await expect
-			.poll(() => editor.readClipboard())
-			.toBe('| A | B | C |\n| :--- | :---: | ---: |\n');
-	});
-
-	test('sub-table inherits sliced source alignments (right-edge slice)', async ({ page }) => {
-		// Source delimiter: `| :--- | :---: | ---: |`. Cells 1..5 select cols 1..2,
-		// so the slice keeps the right-aligned column and drops the left-aligned one.
-		await editor.loadContent(TABLE_ALIGNED);
-		await dragBetweenCells(page, 1, 5);
-		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('ControlOrMeta+c');
-		const clip = await editor.readClipboard();
-		expect(clip).toContain('| :---: | ---: |');
-		expect(clip).not.toContain(':---|');
-		expect(clip).not.toContain(':--- |');
-	});
-
 	test('whole table copy after Ctrl+A 2nd press emits table raw', async ({ page }) => {
 		await editor.loadContent(TABLE_ALIGNED);
 		await page.locator('.table-cell').nth(3).click();

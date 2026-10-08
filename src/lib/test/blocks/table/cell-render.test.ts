@@ -84,6 +84,17 @@ describe('createCellRender', () => {
 		expect(el.querySelectorAll('.md-marker').length).toBeGreaterThanOrEqual(2);
 	});
 
+	it.each([
+		{ raw: '**x**', selector: 'strong' },
+		{ raw: '`x`', selector: 'code.inline-code-content' },
+		{ raw: '~~x~~', selector: 's' }
+	])('renders $raw as one <$selector> holding x', ({ raw, selector }) => {
+		const { el, render } = mount(raw);
+		render.render();
+		expect(el.querySelectorAll(selector)).toHaveLength(1);
+		expect(el.querySelector(selector)?.textContent).toBe('x');
+	});
+
 	it('renders a link with href from an inline url', () => {
 		const { el, render } = mount('[t](https://example.com)');
 		render.render();

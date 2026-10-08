@@ -60,12 +60,8 @@ Backspace, Delete and cut over cells of one table go by what the selection cover
 - Whole-column coverage (every row's same column, no other columns): delete the column. It does
   nothing when only one column remains (≥2 columns required), mirroring Alt+Shift+Backspace.
 - Subset / mixed coverage: clear the selected cells and preserve the table structure.
-- A table inside a quote or a list item gets the same treatment: a whole row or column goes, and
-  the whole table goes too, taking the quote or item it leaves empty with it (the paragraph below
-  stays). One Ctrl+Z brings the table back.
-  - Miss-analysis: every coverage row used a top-level table, and Backspace only asked what a
-    selection covers when it sat at the top level, so a nested table got its cells cleared and no
-    test ever looked.
+- A whole table inside a quote or a list item goes too, taking the quote or item it leaves empty with it
+  (the paragraph below stays). One Ctrl+Z brings the table back.
 
 ## User interactions
 
@@ -80,3 +76,9 @@ Backspace, Delete and cut over cells of one table go by what the selection cover
   markup (`| A | B |`) mid-row. Both table endpoints are flagged cell coordinates, so the whole-row
   snap removes the touched rows in each table and the collapsed caret is a deep path to a surviving
   cell with a character offset, not a cell-index offset on the table block.
+
+## Pinned below the browser
+
+A whole row or column goes, and a row or column of a table at any depth goes the same way, with the caret landing in the cell that took its place and one Ctrl+Z bringing it back (`test/selection/cross-block/nested-grid-coverage-delete.test.ts`, run for a top-level table, a quote, a list item, a quote in a quote and an open details). The e2e rows that dragged over a row or a column are gone, since the drag itself is held by the whole-table rows above.
+
+Miss-analysis: every coverage row used a top-level table, and Backspace only asked what a selection covers when it sat at the top level, so a nested table got its cells cleared and no test ever looked.

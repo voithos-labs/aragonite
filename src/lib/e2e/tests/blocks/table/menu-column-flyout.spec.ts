@@ -33,12 +33,6 @@ test.describe('table block: the cell menu’s Column flyout', () => {
 		await editor.bridge.waitForSourceMatches(/\| 2 \| 1 \| 3 \|/);
 	});
 
-	test('Move column right is disabled on the last column', async ({ page }) => {
-		await openFlyout(page, 2, 'Column'); // header C, the last column
-		await expect(page.getByRole('menuitem', { name: 'Move column right' })).toBeDisabled();
-		await expect(page.getByRole('menuitem', { name: 'Move column left' })).toBeEnabled();
-	});
-
 	// One axis at its floor does not disable the other: the column delete is refused, the row
 	// delete beside it stays live.
 	test('Delete column is disabled for the only column while Delete row stays enabled', async ({

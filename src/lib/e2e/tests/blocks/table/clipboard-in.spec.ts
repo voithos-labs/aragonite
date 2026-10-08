@@ -13,42 +13,7 @@ test.describe('table block: paste in', () => {
 		await editor.seedClipboard('');
 	});
 
-	// ── Inline ──────────────────────────────────────────────────────────
-
-	test('plain text without special chars inserts at caret', async ({ page }) => {
-		await editor.loadContent(TABLE_2BODY);
-		await page.locator('.table-cell').nth(0).click();
-		await page.keyboard.press('End');
-		await editor.seedClipboard('hello');
-		await editor.paste();
-		await editor.bridge.waitForSourceContains('| Ahello | B |');
-	});
-
-	test('pipes auto-escape to backslash-pipe in cell raw', async ({ page }) => {
-		await editor.loadContent(TABLE_2BODY);
-		await page.locator('.table-cell').nth(2).click();
-		await page.keyboard.press('End');
-		await editor.seedClipboard('a|b|c');
-		await editor.paste();
-		await editor.bridge.waitForSourceContains('| 1a\\|b\\|c | 2 |');
-	});
-
-	test('newlines collapse to a single space and edges are trimmed', async ({ page }) => {
-		await editor.loadContent(TABLE_2BODY);
-		await page.locator('.table-cell').nth(3).click();
-		await page.keyboard.press('Home');
-		// One content paragraph: the blank lines the copy wrapped around it are packaging, so the
-		// cell keeps the inline path rather than breaking the table around them.
-		await editor.seedClipboard('  \nhello\nworld\n  ');
-		await editor.paste();
-		await editor.bridge.waitForSourceContains('| 1 | hello world2 |');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
-	});
-
 	// ── Structural ──────────────────────────────────────────────────────
-	// The exact source is asserted because a splice routed through a cell's row-level `blockEdit`
-	// leaves the substrings intact while the structure rots.
-
 	// A grid is data for the cells, not a block to splice between them: a GFM table, or the tabs a
 	// spreadsheet writes, fills from the caret's cell and grows the table to fit, in one commit.
 	test('pasting a markdown table fills cells from the caret and grows the table', async ({
@@ -113,85 +78,70 @@ test.describe('table block: paste in', () => {
 		await expect.poll(grid).toBe(before);
 	});
 
-	test('pasting a heading breaks the table at the paste row', async ({ page }) => {
-		await editor.loadContent(TABLE_2BODY);
-		await page.locator('.table-cell').nth(2).click();
-		await editor.seedClipboard('# Hello\n');
-		await editor.paste();
-		await editor.bridge.waitForSourceContains('# Hello');
-		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			[
-				'| A | B |',
-				'| --- | --- |',
-				'| 1 | 2 |',
-				'',
-				'# Hello',
-				'',
-				'| 3 | 4 |',
-				'| --- | --- |'
-			].join('\n')
-		);
-	});
+	// Each step pastes into a different row; the exact source is asserted because a splice through
+	// a cell's row-level `blockEdit` keeps the substrings while the structure rots.
+	test('pasting blocks into a cell breaks the table around them', async ({ page }) => {
+		const paste = async (cell: number, text: string, waitFor: string) => {
+			await editor.loadContent(TABLE_2BODY);
+			await page.locator('.table-cell').nth(cell).click();
+			await editor.seedClipboard(text);
+			await editor.paste();
+			await editor.bridge.waitForSourceContains(waitFor);
+			return (await editor.bridge.getSource()).replace(/\s+$/, '');
+		};
 
-	test('pasting a multi-block clipboard inserts every block between the halves', async ({
-		page
-	}) => {
-		await editor.loadContent(TABLE_2BODY);
-		await page.locator('.table-cell').nth(2).click();
-		await editor.seedClipboard('Para one.\n\n## Two\n');
-		await editor.paste();
-		await editor.bridge.waitForSourceContains('## Two');
-		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			[
-				'| A | B |',
-				'| --- | --- |',
-				'| 1 | 2 |',
-				'',
-				'Para one.',
-				'',
-				'## Two',
-				'',
-				'| 3 | 4 |',
-				'| --- | --- |'
-			].join('\n')
-		);
-	});
+		await test.step('a heading breaks the table at the paste row', async () => {
+			expect(await paste(2, '# Hello\n', '# Hello')).toBe(
+				[
+					'| A | B |',
+					'| --- | --- |',
+					'| 1 | 2 |',
+					'',
+					'# Hello',
+					'',
+					'| 3 | 4 |',
+					'| --- | --- |'
+				].join('\n')
+			);
+		});
 
-	// ── Edges ───────────────────────────────────────────────────────────
+		await test.step('a multi-block clipboard inserts every block between the halves', async () => {
+			expect(await paste(2, 'Para one.\n\n## Two\n', '## Two')).toBe(
+				[
+					'| A | B |',
+					'| --- | --- |',
+					'| 1 | 2 |',
+					'',
+					'Para one.',
+					'',
+					'## Two',
+					'',
+					'| 3 | 4 |',
+					'| --- | --- |'
+				].join('\n')
+			);
+		});
 
-	test('paste at row 0 leaves a header-only first half before the pasted blocks', async ({
-		page
-	}) => {
-		await editor.loadContent(TABLE_2BODY);
-		await page.locator('.table-cell').nth(0).click();
-		await editor.seedClipboard('# Sandwiched\n');
-		await editor.paste();
-		await editor.bridge.waitForSourceContains('# Sandwiched');
-		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			[
-				'| A | B |',
-				'| --- | --- |',
-				'',
-				'# Sandwiched',
-				'',
-				'| 1 | 2 |',
-				'| --- | --- |',
-				'| 3 | 4 |'
-			].join('\n')
-		);
-	});
+		await test.step('a paste at row 0 leaves a header-only first half before the pasted blocks', async () => {
+			expect(await paste(0, '# Sandwiched\n', '# Sandwiched')).toBe(
+				[
+					'| A | B |',
+					'| --- | --- |',
+					'',
+					'# Sandwiched',
+					'',
+					'| 1 | 2 |',
+					'| --- | --- |',
+					'| 3 | 4 |'
+				].join('\n')
+			);
+		});
 
-	test('paste at the last row appends pasted blocks after the original (no second half)', async ({
-		page
-	}) => {
-		await editor.loadContent(TABLE_2BODY);
-		await page.locator('.table-cell').nth(4).click();
-		await editor.seedClipboard('# Tail\n');
-		await editor.paste();
-		await editor.bridge.waitForSourceContains('# Tail');
-		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			['| A | B |', '| --- | --- |', '| 1 | 2 |', '| 3 | 4 |', '', '# Tail'].join('\n')
-		);
+		await test.step('a paste at the last row appends the blocks after the original', async () => {
+			expect(await paste(4, '# Tail\n', '# Tail')).toBe(
+				['| A | B |', '| --- | --- |', '| 1 | 2 |', '| 3 | 4 |', '', '# Tail'].join('\n')
+			);
+		});
 	});
 
 	// ── Undo ────────────────────────────────────────────────────────────

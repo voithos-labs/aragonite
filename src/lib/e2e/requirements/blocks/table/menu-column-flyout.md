@@ -17,9 +17,12 @@ flyout's keyboard navigation is `a11y/table-menu.md`, and how the cell menu open
 
 ## Edge cases
 
-- "Move column right" is disabled on the last column while "Move column left" stays enabled.
 - "Delete column" is disabled when only one column remains; "Delete row" beside it stays enabled, since the two limits are independent.
 
 ## Notes
 
 - Retired with the column handles: the hover that showed them, their `pointer-events: none` at rest, and a caret click on a header cell surviving a hovered handle. No handle renders, so nothing intercepts the click.
+
+## Pinned below the browser
+
+- "Move column right" is disabled on the last column while "Move column left" stays enabled (`test/blocks/table/table-menu-model.test.ts`).

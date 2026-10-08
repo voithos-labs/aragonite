@@ -55,6 +55,12 @@ describe('a chord in a cell mutates the table it names', () => {
 			'| A | B |\n| --- | --- |\n| 3 | 4 |\n'
 		],
 		[
+			'Mod+Shift+Backspace in the header row deletes it and promotes the next row',
+			{ key: 'Backspace', ctrlKey: true, shiftKey: true },
+			[0, 0],
+			'| 1 | 2 |\n| --- | --- |\n| 3 | 4 |\n'
+		],
+		[
 			'Alt+Shift+Backspace deletes the caret’s column',
 			{ key: 'Backspace', altKey: true, shiftKey: true },
 			[1, 0],
@@ -102,15 +108,53 @@ describe('a chord in a cell mutates the table it names', () => {
 		});
 	}
 
-	// The reorder refuses at the header boundary, so the chord must neither move the header nor
-	// push an undo entry.
-	it('Alt+ArrowUp on the first body row leaves the table alone', async () => {
-		mounted = mountEditor({ source: GRID });
+	// A reorder with nowhere to go (the header never moves, and no row or column passes an end)
+	// changes nothing and pushes no undo entry: one Ctrl+Z after it takes back the earlier insert.
+	const REFUSED_MOVES: Array<[string, KeyboardEventInit, [number, number]]> = [
+		['Alt+ArrowUp in the header row', { key: 'ArrowUp', altKey: true }, [0, 0]],
+		['Alt+ArrowDown in the header row', { key: 'ArrowDown', altKey: true }, [0, 0]],
+		['Alt+ArrowUp on the first body row', { key: 'ArrowUp', altKey: true }, [1, 0]],
+		['Alt+ArrowDown on the last body row', { key: 'ArrowDown', altKey: true }, [3, 0]],
+		['Alt+ArrowLeft in the first column', { key: 'ArrowLeft', altKey: true }, [1, 0]],
+		['Alt+ArrowRight in the last column', { key: 'ArrowRight', altKey: true }, [1, 1]]
+	];
+	for (const [name, init, [rowIdx, colIdx]] of REFUSED_MOVES) {
+		it(`${name} leaves the table alone and pushes no undo entry`, async () => {
+			mounted = mountEditor({ source: GRID });
+			await pressInCell(mounted!, 2, 0, { key: 'Enter', ctrlKey: true });
+			const inserted = mounted.source();
+			expect(inserted).not.toBe(GRID);
 
-		await pressInCell(mounted!, 1, 0, { key: 'ArrowUp', altKey: true });
+			await pressInCell(mounted!, rowIdx, colIdx, init);
+			expect(mounted.source()).toBe(inserted);
 
-		expect(mounted.source()).toBe(GRID);
-	});
+			await pressInCell(mounted!, rowIdx, colIdx, { key: 'z', ctrlKey: true });
+			expect(mounted.source()).toBe(GRID);
+		});
+	}
+
+	// A delete that would leave no body row or no column is refused, and a refusal is not an undo step.
+	const REFUSED: Array<[string, KeyboardEventInit, string]> = [
+		[
+			'Mod+Shift+Backspace with one body row left',
+			{ key: 'Backspace', ctrlKey: true, shiftKey: true },
+			'| A | B |\n| --- | --- |\n| 1 | 2 |\n'
+		],
+		[
+			'Alt+Shift+Backspace with one column left',
+			{ key: 'Backspace', altKey: true, shiftKey: true },
+			'| A |\n| --- |\n| 1 |\n'
+		]
+	];
+	for (const [name, init, source] of REFUSED) {
+		it(`${name} changes nothing`, async () => {
+			mounted = mountEditor({ source });
+
+			await pressInCell(mounted!, 1, 0, init);
+
+			expect(mounted.source()).toBe(source);
+		});
+	}
 
 	// The caret's own cell, not row 0 or column 0: a chord indexed off the wrong coordinate
 	// looks correct whenever the caret happens to be in the first cell.

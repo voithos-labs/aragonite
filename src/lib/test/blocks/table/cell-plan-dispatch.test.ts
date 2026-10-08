@@ -75,5 +75,6 @@ describe('the cell translates the row-creating plans into real rows', () => {
 		await pressInCell(mounted!, 2, 0, { key: 'Enter' });
 
 		expect(mounted!.source()).toBe(`${GRID}|  |  |\n`);
+		expect(document.activeElement).toBe(cellAt(mounted!, 3, 0));
 	});
 });

@@ -50,11 +50,6 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals('| a | b |\n| --- | --- |\n| Z |  |\n');
 	});
 
-	test('cell content is preserved verbatim and re-padded canonically', async ({ page }) => {
-		await typeRowAndEnter(editor, page, '|a|b|');
-		await editor.bridge.waitForSourceEquals(COMPLETED);
-	});
-
 	// The completion replaces the block in place, so the table above must not absorb it: the
 	// separating blank line is what keeps a reload seeing two tables rather than one.
 	test('a table typed under an existing one keeps its own identity', async ({ page }) => {
@@ -102,26 +97,14 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals(COMPLETED);
 	});
 
-	// Both rows leave the shape any tail-block split leaves (`plain\n` + Enter is byte-identical),
-	// so the pair pins "the completion did not fire" rather than a shape of its own.
-	test.describe('rows the completion declines', () => {
-		test('a single-cell row falls through to the ordinary split', async ({ page }) => {
-			await typeRowAndEnter(editor, page, '|a|');
+	// The row leaves the shape any tail-block split leaves, so this pins that the completion did
+	// not fire; which lines it claims is `test/blocks/table/typed-completion.test.ts`.
+	test('a single-cell row falls through to the ordinary split', async ({ page }) => {
+		await typeRowAndEnter(editor, page, '|a|');
 
-			await editor.bridge.waitForBlockCount(2);
-			await editor.bridge.waitForSourceEquals('|a|\n\n\n');
-			expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
-		});
-
-		// The parser's scan would take `a | b` as a two-cell header; the leading pipe is what says
-		// a table was meant, so prose carrying a pipe splits like any other paragraph.
-		test('a row without a leading pipe falls through to the ordinary split', async ({ page }) => {
-			await typeRowAndEnter(editor, page, 'a | b');
-
-			await editor.bridge.waitForBlockCount(2);
-			await editor.bridge.waitForSourceEquals('a | b\n\n\n');
-			expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
-		});
+		await editor.bridge.waitForBlockCount(2);
+		await editor.bridge.waitForSourceEquals('|a|\n\n\n');
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 	});
 
 	// A container resolves the caret through its own ref array, so this landing is a different

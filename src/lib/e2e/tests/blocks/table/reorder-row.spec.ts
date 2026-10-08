@@ -7,7 +7,6 @@ import { capturePageErrors } from '../../../page-probes';
 // (body row 1), 4,5 (body row 2), 6,7 (body row 3). Alt+↑/↓ reorders body rows only, since the
 // header's position is fixed, and focus follows the moved row, staying in its column.
 const TABLE_3BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
-const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 test.describe('table block: keyboard row reorder', () => {
 	let editor: EditorPage;
@@ -15,67 +14,6 @@ test.describe('table block: keyboard row reorder', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-	});
-
-	test('Alt+ArrowDown swaps a body row past the next, focus stays in column', async ({ page }) => {
-		await editor.loadContent(TABLE_3BODY);
-		// First body row, second column.
-		await page.locator('.table-cell').nth(3).click();
-		await page.keyboard.press('Alt+ArrowDown');
-		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|[\s\S]*\| 1 \| 2 \|[\s\S]*\| 5 \| 6 \|/);
-		// Focus follows the moved row and stays in column 1; typed marker lands there.
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('| 1 | X2 |');
-	});
-
-	test('Alt+ArrowUp moves an interior body row up', async ({ page }) => {
-		await editor.loadContent(TABLE_3BODY);
-		// Second body row, first column.
-		await page.locator('.table-cell').nth(4).click();
-		await page.keyboard.press('Alt+ArrowUp');
-		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|[\s\S]*\| 1 \| 2 \|[\s\S]*\| 5 \| 6 \|/);
-	});
-
-	test('Alt+ArrowUp / Alt+ArrowDown from the header row does not mutate the source', async ({
-		page
-	}) => {
-		await editor.loadContent(TABLE_3BODY);
-		await page.locator('.table-cell').nth(0).click();
-		const before = await editor.bridge.getSource();
-
-		await editor.pressDeclined('Alt+ArrowDown');
-		expect(await editor.bridge.getSource()).toBe(before);
-
-		await editor.pressDeclined('Alt+ArrowUp');
-		expect(await editor.bridge.getSource()).toBe(before);
-	});
-
-	// A move with no body row in that direction must change nothing and add no undo entry, or it
-	// silently eats a Ctrl+Z: the Ctrl+Z after it must undo the typing.
-	test('Alt+ArrowUp on the first body row is a no-op and creates no undo entry', async ({
-		page
-	}) => {
-		await editor.loadContent(TABLE_2BODY);
-		// A plain click lands the caret where it was clicked, not at offset 0, so the typed
-		// character may land either side of the cell text: assert that it is there, not where.
-		await page.locator('.table-cell').nth(2).click();
-		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceMatches(/\| (?:Z1|1Z) \| 2 \|/);
-
-		await editor.pressDeclined('Alt+ArrowUp');
-		await editor.bridge.waitForSourceMatches(/\| (?:Z1|1Z) \| 2 \|/);
-
-		await editor.undo();
-		await editor.bridge.waitForSourceEquals(TABLE_2BODY);
-		await editor.bridge.waitForSourceNotContains('Z');
-	});
-
-	test('Alt+ArrowDown on the last body row is a no-op', async ({ page }) => {
-		await editor.loadContent(TABLE_2BODY);
-		await page.locator('.table-cell').nth(4).click();
-		const before = await editor.bridge.getSource();
-		await editor.pressDeclined('Alt+ArrowDown');
-		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
 	test('reorder is single-undo; reorder→undo→reorder keeps parity with no page error', async ({

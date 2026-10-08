@@ -37,6 +37,18 @@ describe('table Enter completer: the answer it gives', () => {
 		expect(claim('| a | b |')!.caret).toEqual({ path: [1, 0], line: 0, column: 0 });
 	});
 
+	// Cell text is kept as typed and padded canonically; an escaped pipe stays inside its cell.
+	it.each([
+		['|a|b|', '| a | b |\n| --- | --- |\n|  |  |\n'],
+		['| a \\| x | b |', '| a \\| x | b |\n| --- | --- |\n|  |  |\n']
+	])('completes %j to %j', (line, bytes) => {
+		expect(
+			claim(line)!
+				.lines.map((l) => l + '\n')
+				.join('')
+		).toBe(bytes);
+	});
+
 	// The answer is worth something only if its bytes parse back as the table it describes.
 	it('answers bytes that parse to one table and serialize back unchanged', () => {
 		const source = claim('| a | b |')!

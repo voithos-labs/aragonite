@@ -16,64 +16,6 @@ test.describe('table block: keyboard column reorder', () => {
 		await editor.goto();
 	});
 
-	test('Alt+ArrowRight moves a column right; source round-trips', async ({ page }) => {
-		await editor.loadContent(TABLE_3COL);
-		await page.locator('.table-cell').nth(0).click();
-		await page.keyboard.press('Alt+ArrowRight');
-		await editor.bridge.waitForSourceMatches(/\| B \| A \| C \|/);
-	});
-
-	test('Alt+ArrowLeft moves a column left', async ({ page }) => {
-		await editor.loadContent(TABLE_3COL);
-		await page.locator('.table-cell').nth(2).click(); // header "C" (col 2)
-		await page.keyboard.press('Alt+ArrowLeft');
-		await editor.bridge.waitForSourceMatches(/\| A \| C \| B \|/);
-	});
-
-	test('column move keeps focus in the moved column (typing lands there)', async ({ page }) => {
-		await editor.loadContent(TABLE_3COL);
-		await page.locator('.table-cell').nth(3).click(); // body cell "1" (row 1, col 0)
-		await page.keyboard.press('Alt+ArrowRight');
-		await editor.bridge.waitForSourceMatches(/\| 2 \| 1 \| 3 \|/);
-		// Focus must have followed col 0 into col 1; otherwise X lands in the wrong cell.
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceMatches(/\| 2 \| (?:X1|1X) \| 3 \|/);
-	});
-
-	// A move with no column in that direction must change nothing and add no undo entry, or it
-	// silently eats a Ctrl+Z: the Ctrl+Z after it must undo the typing.
-	test('Alt+ArrowLeft on the first column is a no-op and creates no undo entry', async ({
-		page
-	}) => {
-		await editor.loadContent(TABLE_3COL);
-		// A plain click lands the caret where it was clicked, so the typed character may land
-		// either side of the cell text: assert that it is there, not where.
-		await page.locator('.table-cell').nth(0).click();
-		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceMatches(/\| (?:ZA|AZ) \|/);
-
-		await editor.pressDeclined('Alt+ArrowLeft');
-		await editor.bridge.waitForSourceMatches(/\| (?:ZA|AZ) \|/);
-
-		await editor.undo();
-		await editor.bridge.waitForSourceEquals(TABLE_3COL);
-	});
-
-	test('Alt+ArrowRight on the last column is a no-op and creates no undo entry', async ({
-		page
-	}) => {
-		await editor.loadContent(TABLE_3COL);
-		await page.locator('.table-cell').nth(2).click(); // header "C" (last column)
-		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceMatches(/\| (?:ZC|CZ) \|/);
-
-		await editor.pressDeclined('Alt+ArrowRight');
-		await editor.bridge.waitForSourceMatches(/\| (?:ZC|CZ) \|/);
-
-		await editor.undo();
-		await editor.bridge.waitForSourceEquals(TABLE_3COL);
-	});
-
 	test('column move: container parity holds and no page error', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		await editor.loadContent(TABLE_3COL);
