@@ -102,6 +102,20 @@ export interface InlineWidgetEditingPolicy {
 	/** The widget's own component handles an activation click ({@link isWidgetActivationClick}),
 	 *  so the editable element does not show the source, which would unmount the widget. */
 	claimsActivationClick?: boolean;
+	/** Any click activates, as a link on a web page does, and the caret arrowing in shows the
+	 *  source instead. Implies `claimsActivationClick`. */
+	plainClickActivates?: boolean;
+}
+
+/** Whether a click on a widget of this policy is its own activation click, which the editable
+ *  element then leaves alone rather than showing the source. */
+export function widgetClaimsClick(
+	policy: InlineWidgetEditingPolicy | undefined,
+	modified: boolean,
+	mode: PresentationMode
+): boolean {
+	if (policy?.plainClickActivates) return true;
+	return policy?.claimsActivationClick === true && isWidgetActivationClick(modified, mode);
 }
 
 export interface InlineWidgetEditingContext {
