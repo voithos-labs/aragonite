@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { placeCaretAtRaw } from '../../caret/widget-offset';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 describe('buildAmbientSpan', () => {
 	it('string input produces a single text-only span', () => {
@@ -130,7 +130,7 @@ describe('raw 0 behind a marker prefix', () => {
 
 	it('puts the caret in the first text node when text opens the content', () => {
 		const block = mountListBlock(document.createTextNode('tail'));
-		expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
+		expect(testCaretWriter.placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		const range = window.getSelection()!.getRangeAt(0);
 		expect(range.startContainer.textContent).toBe('tail');
 		expect(range.startOffset).toBe(0);
@@ -138,7 +138,7 @@ describe('raw 0 behind a marker prefix', () => {
 
 	it('puts the caret at the span boundary when a widget opens the content: its raw is not skippable', () => {
 		const block = mountListBlock(widget(), document.createTextNode(' tail'));
-		expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
+		expect(testCaretWriter.placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		const range = window.getSelection()!.getRangeAt(0);
 		expect(range.startContainer).toBe(block);
 		expect(range.startOffset).toBe(1);

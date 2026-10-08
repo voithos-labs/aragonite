@@ -14,12 +14,14 @@ import { createEditorEvents } from '../../editor-events';
 import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import type { Document } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** The widget starting at `sourceStart` in block 0 of `raw`, selected, and an edit to it. */
 function selectedAt(raw: string, sourceStart: number) {
 	let doc: Document = parse(raw);
 	const selection = createSelectionState();
 	const committer = createImageEditCommitter({
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		getEditorEl: () => null,
 		selection,
@@ -27,7 +29,11 @@ function selectedAt(raw: string, sourceStart: number) {
 		events: createEditorEvents(),
 		reading: fixtureReading()
 	});
-	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart, preSelectOffset: 0 });
+	selectWidgetWhole(selection, testCaretWriter, {
+		paragraphPath: [0],
+		sourceStart,
+		preSelectOffset: 0
+	});
 	const editTo = (next: string) => {
 		doc = parse(next);
 		committer.clearStaleSelection();

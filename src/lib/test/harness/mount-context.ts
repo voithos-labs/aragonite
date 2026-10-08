@@ -44,6 +44,7 @@ import {
 	makeStubFocus
 } from './editor-actions';
 import { fixtureReading } from './fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -67,6 +68,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 	const selection = createSelectionState();
 	const stamps = createDocumentStamps();
 	return {
+		caretWriter: testCaretWriter,
 		events: createEditorEvents(),
 		// Real, not a cast: BlockHost and its overlays call four members of the decorations
 		// service during mount, and one with no sources answers all of them honestly.
@@ -75,6 +77,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		rangeCoverage: () => null,
 		search: {} as EditorServices['search'],
 		caretMemory: makeCaretMemory(),
+		// A bare mount draws no caret.
+		drawnCaret: { request: () => {}, register: () => () => {} },
 		autoPairs: createAutoPairRecord(),
 		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
 		scrollOwner: {} as EditorServices['scrollOwner'],

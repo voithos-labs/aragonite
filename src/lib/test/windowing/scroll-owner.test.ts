@@ -26,6 +26,7 @@ import {
 	type MountedListWindowing
 } from '../harness/list-windowing.svelte';
 import { stubScrollOwner, stubScrollport } from '../harness/stub-scrollport';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const COLUMNS = ['host anchoring holds', 'a held placement is live', 'free'] as const;
 type Column = (typeof COLUMNS)[number];
@@ -170,6 +171,7 @@ async function landOnB4(f: Fixture, as: 'edit' | 'navigation'): Promise<void> {
 	const doc = parse(f.live.children.map((c) => c.raw).join('\n'));
 	const refs = f.live.children.map(() => stubBlockComponent());
 	const landing = createCaretLanding({
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		root: {
 			count: () => refs.length,
@@ -574,6 +576,7 @@ describe('scroll owner: the edges', () => {
 			({ top: 600 - f.port.scrollTop(), bottom: 610 - f.port.scrollTop() }) as DOMRect;
 		const doc = parse(f.live.children.map((c) => c.raw).join('\n'));
 		const landing = createCaretLanding({
+			caretWriter: testCaretWriter,
 			getDoc: () => doc,
 			root: {
 				count: () => 0,

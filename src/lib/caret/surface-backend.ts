@@ -9,14 +9,16 @@ import {
 	domTextOffsetAtNode,
 	markerPrefixLength,
 	markerPrefixOf,
-	placeCaretAtRaw,
 	rawOffsetAt,
 	rawSelectionFocus,
-	type CaretClamp
+	type CaretClamp,
+	type CaretWriter
 } from './widget-offset';
 
 export interface SurfaceBackendDeps {
 	getEl: () => HTMLElement | null;
+	/** The editor's caret writer, which every caret this surface places goes through. */
+	caretWriter: CaretWriter;
 	/** Where the user meant the caret, in raw units, when the browser holds no usable range: Chromium
 	 *  drops an element-level caret beside an atomic widget across an event-loop yield. */
 	getSnapTarget?: () => number | null;
@@ -61,7 +63,7 @@ export function createSurfaceBackend(deps: SurfaceBackendDeps): SurfaceBackend {
 
 	function setRaw(offset: RawOffset, placement: { clamp: CaretClamp }): void {
 		const el = deps.getEl();
-		if (el) placeCaretAtRaw(el, offset, placement);
+		if (el) deps.caretWriter.placeCaretAtRaw(el, offset, placement);
 	}
 
 	function getFocusOffset(): RawOffset | null {
@@ -88,7 +90,8 @@ export function createSurfaceBackend(deps: SurfaceBackendDeps): SurfaceBackend {
 		if (live.state !== 'live' || !live.collapsed) return;
 		const { startContainer, startOffset } = live.range;
 		const walk = domTextOffsetAtNode(live.el, startContainer, startOffset);
-		if (walk < markerPrefixLength(live.el)) placeCaretAtRaw(live.el, 0, { clamp: 'exact' });
+		if (walk < markerPrefixLength(live.el))
+			deps.caretWriter.placeCaretAtRaw(live.el, 0, { clamp: 'exact' });
 	}
 
 	return { getRaw, setRaw, getFocusOffset, getRawSelection, rawRangeOf, clampOutOfMarkerPrefix };

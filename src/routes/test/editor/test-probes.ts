@@ -82,6 +82,8 @@ export interface TestProbeDeps {
 	setPresentationMode: (mode: PresentationMode) => void;
 	/** Only the editor harness takes it; another route leaves the prop alone. */
 	setPlaceholder?: (placeholder: EditorProps['placeholder']) => void;
+	/** Only the editor harness takes it, like `setPlaceholder`. */
+	setCaret?: (mode: NonNullable<EditorProps['caret']>) => void;
 }
 
 // ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
@@ -349,7 +351,8 @@ export function installTestProbes({
 	source,
 	setKeybindings,
 	setPresentationMode,
-	setPlaceholder
+	setPlaceholder,
+	setCaret
 }: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
 
@@ -404,6 +407,10 @@ export function installTestProbes({
 		setPlaceholder: (placeholder: EditorProps['placeholder']) => {
 			if (!setPlaceholder) throw new Error('this route mounts no settable placeholder');
 			setPlaceholder(placeholder);
+		},
+		setCaret: (mode: NonNullable<EditorProps['caret']>) => {
+			if (!setCaret) throw new Error('this route mounts no settable caret prop');
+			setCaret(mode);
 		},
 		// getBlockCount, getBlockKind and dumpTree read the live CST: a reparse cannot see a
 		// block whose kind has left its raw text behind, or a short-lived block the serializer trims.

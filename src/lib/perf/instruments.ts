@@ -34,6 +34,10 @@ export interface PerfSnapshot {
 	blockRenderCount: number;
 	blockRenderMsTotal: number;
 	keystrokeInPageMs: number[];
+	/** From the first repaint request of a task to the drawn caret's paint, one entry per paint. */
+	caretPaintMs: number[];
+	/** Paints at an animation frame that moved the drawn caret: a move no caret write asked for. */
+	caretFrameMoves: number;
 	blockRenderPaths: string[];
 	mountedBlockCount: number;
 	decorationRuns: number;
@@ -49,6 +53,7 @@ export interface PerfSnapshot {
 let enabled = false;
 let counters = emptySnapshot();
 let keystrokeStart: number | null = null;
+let caretRequestedAt: number | null = null;
 
 function emptySnapshot(): PerfSnapshot {
 	return {
@@ -71,6 +76,8 @@ function emptySnapshot(): PerfSnapshot {
 		blockRenderCount: 0,
 		blockRenderMsTotal: 0,
 		keystrokeInPageMs: [],
+		caretPaintMs: [],
+		caretFrameMoves: 0,
 		blockRenderPaths: [],
 		mountedBlockCount: 0,
 		decorationRuns: 0,
@@ -94,6 +101,7 @@ export function disablePerfInstruments(): void {
 export function resetPerfInstruments(): void {
 	counters = emptySnapshot();
 	keystrokeStart = null;
+	caretRequestedAt = null;
 }
 
 export function perfEnabled(): boolean {
@@ -105,6 +113,7 @@ export function perfSnapshot(): PerfSnapshot {
 		...counters,
 		rebuildDepths: { ...counters.rebuildDepths },
 		keystrokeInPageMs: [...counters.keystrokeInPageMs],
+		caretPaintMs: [...counters.caretPaintMs],
 		blockRenderPaths: [...counters.blockRenderPaths],
 		heightTableBuilds: [...counters.heightTableBuilds]
 	};
@@ -222,6 +231,22 @@ export function markKeystrokeSettle(): void {
 	if (!enabled || keystrokeStart === null) return;
 	counters.keystrokeInPageMs.push(performance.now() - keystrokeStart);
 	keystrokeStart = null;
+}
+
+export function markCaretRequest(): void {
+	if (!enabled || caretRequestedAt !== null) return;
+	caretRequestedAt = performance.now();
+}
+
+export function recordCaretFrameMove(): void {
+	if (!enabled) return;
+	counters.caretFrameMoves++;
+}
+
+export function markCaretPaint(): void {
+	if (!enabled || caretRequestedAt === null) return;
+	counters.caretPaintMs.push(performance.now() - caretRequestedAt);
+	caretRequestedAt = null;
 }
 
 /**

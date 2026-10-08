@@ -11,6 +11,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import type { Reading } from '#lib/schema/reading.js';
 import { commandContext } from '../../support/command-context';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** `reading` is the editor's own, which every write reads off the root. */
 export function makeEnv(source: string, reading?: Reading) {
@@ -43,6 +44,7 @@ export function makeHandlers(
 ) {
 	const stubEl = document.createElement('div');
 	return createCrossBlockHandlers({
+		caretWriter: testCaretWriter,
 		getEl: () => stubEl,
 		getMyPath: () => myPath,
 		selection: env.selectionState,

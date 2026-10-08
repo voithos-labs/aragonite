@@ -14,6 +14,7 @@ import { UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const KIND = 'painted-undo-leaf';
 const SOURCE = '@@ one';
@@ -45,7 +46,9 @@ const pressUndoChord = (el: HTMLElement) => pressKey(el, { key: 'z', ctrlKey: tr
 
 /** One typed character as the browser delivers it: a collapsed target range at the caret. */
 async function typeChar(el: HTMLElement, char: string): Promise<void> {
-	const at = createSurfaceBackend({ getEl: () => el }).getRaw() ?? (el.textContent ?? '').length;
+	const at =
+		createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).getRaw() ??
+		(el.textContent ?? '').length;
 	const e = new InputEvent('beforeinput', {
 		inputType: 'insertText',
 		data: char,
@@ -132,7 +135,9 @@ describe('a burst of typing inside an open painted reveal', () => {
 		await pressUndoChord(el);
 
 		expect(el.textContent).toBe(SOURCE);
-		expect(createSurfaceBackend({ getEl: () => el }).getRaw()).toBe(SOURCE.length);
+		expect(createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).getRaw()).toBe(
+			SOURCE.length
+		);
 		expect(mounted.history.requestUndo).not.toHaveBeenCalled();
 	});
 

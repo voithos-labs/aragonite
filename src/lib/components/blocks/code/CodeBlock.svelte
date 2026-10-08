@@ -13,7 +13,6 @@
 	import {
 		CONTENT_EMPTY_ATTR,
 		holdsOnlyMarkerChrome,
-		selectRawRange,
 		type RawRange
 	} from '../../../caret/widget-offset';
 	import { createSurfaceBackend } from '../../../caret/surface-backend';
@@ -71,6 +70,7 @@
 		controller,
 		pasteCoordinator,
 		caretMemory,
+		caretWriter,
 		selection,
 		getDoc,
 		getEditorRoot,
@@ -92,7 +92,7 @@
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
 
-	const backend = createSurfaceBackend({ getEl: () => el ?? null });
+	const backend = createSurfaceBackend({ getEl: () => el ?? null, caretWriter });
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
@@ -190,7 +190,7 @@
 		// the caret to the split-off sibling. The pending fields clear either way.
 		if (pendingSelection !== null) {
 			consumePendingRestore(el, pendingSelection, (range) =>
-				selectRawRange(el!, range.start, range.end)
+				caretWriter.selectRawRange(el!, range.start, range.end)
 			);
 			pendingSelection = null;
 			pendingCursorOffset = null;

@@ -329,6 +329,8 @@ const RULES: FileRule[] = [
 				'rAF start of a size observation: one begun while a frame delivers resize notifications is skipped and reported as a loop error',
 			'src/lib/components/drag-handle.ts':
 				'rAF placement of the drag handle once its block has laid out; the handle is its own hit target before any hover',
+			'src/lib/caret/drawn-caret.svelte.ts':
+				'frame-time paint of a caret the browser moved: reads layout, writes only the caret element (G4.143)',
 			'src/lib/selection/pointer-session.ts':
 				'rAF pointermove coalescing: the one place every drag lifecycle runs',
 			'src/lib/editor-actions/commit/text-batch.ts':
@@ -2216,7 +2218,7 @@ const WIDGET_LIST: FileRule = {
 // ── G4.127 every branch on whether a DOM exists is declared ─────────────────
 
 /** Globals a DOM provides and plain Node lacks, so a test of one answers differently per file. */
-const DOM_GLOBAL = String.raw`(?:document|window|getSelection|getComputedStyle|requestAnimationFrame|Element|(?:HTML|SVG)\w*Element|Node|NodeFilter|Range|Selection|Text|Document|DOMParser|DOMRect|MutationObserver)\b`;
+const DOM_GLOBAL = String.raw`(?:document|window|getSelection|getComputedStyle|matchMedia|requestAnimationFrame|Element|(?:HTML|SVG)\w*Element|Node|NodeFilter|Range|Selection|Text|Document|DOMParser|DOMRect|MutationObserver)\b`;
 
 /** A test of whether a DOM exists that runs quietly without one: `typeof` on a bare DOM global,
  *  a `globalThis` read of one, or an `in globalThis` test. A bare read without `typeof` throws. */
@@ -2257,6 +2259,11 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 	'src/lib/selection/native-bridge.ts :: nativeRangeInFocusedBlock': {
 		branches: 2,
 		reason: 'an undo snapshot taken with no DOM keeps the caret offset alone'
+	},
+	'src/lib/caret/drawn-caret.svelte.ts :: caretMedia': {
+		branches: 1,
+		reason:
+			'with no media queries (no DOM, or jsdom) there is no pointer to ask, so `auto` leaves the browser’s caret alone'
 	},
 	'src/lib/testing/mount-dom-stubs.ts :: installEditorDomStubsForTests': {
 		branches: 2,

@@ -50,7 +50,7 @@
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
-	const { selection, decorations, events, commands } =
+	const { selection, caretWriter, decorations, events, commands } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { blockDragHandles: getDragHandles } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -164,6 +164,7 @@
 
 	export const containerApi = createContainerBlockComponent({
 		selection,
+		caretWriter,
 		reading,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;

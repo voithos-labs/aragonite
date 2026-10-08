@@ -61,6 +61,7 @@ import { collectEditorSources, EDITOR_SRC } from '../invariants/lint/scan-source
 import { replaceSelectedWidget } from '#lib/components/blocks/text/widget-interaction.js';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.
 const TOP = vi.hoisted(() => ({ on: false }));
@@ -311,7 +312,11 @@ async function backspaceOnSelectedImage(place: Place): Promise<string[]> {
 	const doc = parse(place.source);
 	const written: string[] = [];
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, { paragraphPath: place.leaf, sourceStart: 2, preSelectOffset: 2 });
+	selectWidgetWhole(selection, testCaretWriter, {
+		paragraphPath: place.leaf,
+		sourceStart: 2,
+		preSelectOffset: 2
+	});
 	await replaceSelectedWidget(
 		{
 			node: nodeAt(doc, place.leaf) as CstNode,

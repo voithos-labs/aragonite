@@ -16,6 +16,7 @@ import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scr
 import { descendTo, type ChildList } from '../block-lists/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
+import type { CaretWriter } from '../caret/widget-offset';
 import { firstUsefulRect } from '../caret/visual-lines';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
@@ -76,6 +77,8 @@ export interface CaretLandingDeps {
 	/** The editor root's child list, where every descent starts. */
 	root: ChildList;
 	selectionState: SelectionState;
+	/** The editor's caret writer, which every landing's caret and range goes through. */
+	caretWriter: CaretWriter;
 	caretMemory: Pick<CaretMemory, 'forget' | 'noteExtreme'>;
 	getBlockElByPath: BlockElLookup;
 	/** The editor's own element, which holds focus while a block with no text is selected whole. */
@@ -164,6 +167,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 				return restoreGapCaret(selection.gapCaret, {
 					getDoc: deps.getDoc,
 					selectionState: deps.selectionState,
+					caretWriter: deps.caretWriter,
 					caretMemory: deps.caretMemory,
 					mount: (path) => descendTo(deps.root, path),
 					reveal: (path) => bringIntoView(path, reveal)
@@ -194,7 +198,8 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 						selectionState: deps.selectionState,
 						getBlockElByPath: deps.getBlockElByPath,
 						caretAt,
-						getEditorRoot: deps.getEditorRoot
+						getEditorRoot: deps.getEditorRoot,
+						caretWriter: deps.caretWriter
 					}
 				)
 			);

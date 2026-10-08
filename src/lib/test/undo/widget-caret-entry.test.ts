@@ -7,6 +7,7 @@ import type { EditorSelection } from '#lib/selection/primitives.js';
 import { asDocPath } from '#lib/selection/path-math.js';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // What an undo entry records while an image is selected whole, when the user's caret is the one
 // from before the selection and no block's report can be trusted.
@@ -21,7 +22,7 @@ const BESIDE_IMAGE: EditorSelection = {
 function harness(imageSelected: boolean) {
 	const h = makeEditorActionsDeps(parse(PARAGRAPHS));
 	if (imageSelected) {
-		selectWidgetWhole(h.deps.selectionState, {
+		selectWidgetWhole(h.deps.selectionState, testCaretWriter, {
 			paragraphPath: [0],
 			sourceStart: 4,
 			preSelectOffset: BESIDE_IMAGE.focus.offset

@@ -122,6 +122,7 @@
 		controller,
 		pasteCoordinator,
 		caretMemory,
+		caretWriter,
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -184,7 +185,8 @@
 	let lastClickClientY: number | null = null;
 
 	const cursor = createSurfaceBackend({
-		getEl: () => el ?? null
+		getEl: () => el ?? null,
+		caretWriter
 	});
 
 	const edgeStep = createEdgeStep({
@@ -267,6 +269,7 @@
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
 		selection,
+		caretWriter,
 		blockEdit,
 		writeText,
 		focusActions,
@@ -333,7 +336,8 @@
 				: undefined;
 		},
 		isReading: () => readOnly,
-		pendingMarks: caretMemory.pendingMarks
+		pendingMarks: caretMemory.pendingMarks,
+		caretWriter
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -529,7 +533,8 @@
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
 		reportRenderError: (error) =>
-			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
+			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } }),
+		caretWriter
 	});
 
 	$effect(() => {
@@ -666,7 +671,7 @@
 				selection.incrementSelectAllCount();
 				if (plan.step === 'native') return;
 				e.preventDefault();
-				selectWholeDocument(selection, getDoc(), getBlockElByPath);
+				selectWholeDocument(selection, caretWriter, getDoc(), getBlockElByPath);
 				return;
 			default:
 				e.preventDefault();
@@ -721,8 +726,24 @@
 		selection.enterCrossBlock(anchor, cellPoint(tablePath, anchor.offset));
 		const extended =
 			ext.direction === 'forward'
-				? extendFocusToNextBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'vertical')
-				: extendFocusToPreviousBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'start');
+				? extendFocusToNextBlock(
+						selection,
+						caretWriter,
+						getDoc(),
+						grammar,
+						el,
+						ext.fromCellPath,
+						'vertical'
+					)
+				: extendFocusToPreviousBlock(
+						selection,
+						caretWriter,
+						getDoc(),
+						grammar,
+						el,
+						ext.fromCellPath,
+						'start'
+					);
 		if (!extended) {
 			selection.collapse();
 			return false;
@@ -844,7 +865,7 @@
 	function shiftClickFromAnotherCell(e: PointerEvent, tableEl: HTMLElement): boolean {
 		const prev = cellCoordsOfElement(document.activeElement, tableEl);
 		if (!prev || (prev.rowIdx === rowIdx && prev.colIdx === colIdx)) return false;
-		resetForPointerDown(selection, caretMemory, true);
+		resetForPointerDown(selection, caretWriter, caretMemory, true);
 		handleCellShiftClick(
 			selection,
 			{ ...anchorIn(tableEl), rowIdx: prev.rowIdx, colIdx: prev.colIdx },
@@ -865,7 +886,7 @@
 				const editorRoot = getEditorRoot();
 				if (!editorRoot) return;
 				installCellDragListener(
-					{ editorRoot, selection, lifetimeSignal: editorLifetime },
+					{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime },
 					anchorIn(tableEl),
 					e,
 					padding && { surface: cellEl, press: padding }
@@ -1075,6 +1096,7 @@
 	onblur={onBlur}
 	oncompositionstart={editableSurface.onCompositionStart}
 	oncompositionend={editableSurface.onCompositionEnd}
+	{@attach editableSurface.caretSource}
 ></div>
 
 <style>

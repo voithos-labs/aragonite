@@ -24,8 +24,10 @@ You prob want to read this page before your first edit, and the casebook before 
 2. **Reactive state crosses module boundaries as getters, never values.** A value read is a
    snapshot, plus a dependency you didn't ask for.
    ([the re-init incident](casebook.md#reactive-state-crosses-module-boundaries-as-getters-never-values))
-3. **`await tick()` is the only sequencing primitive.** No `setTimeout`, no `rAF`, no microtask
-   tricks. ([the predecessor editor](casebook.md#only-await-tick-for-sequencing))
+3. **`await tick()` is the only sequencing primitive.** No `setTimeout`, no microtask tricks, and
+   `rAF` only at the few sites the timer scan's allowlist in `file-rules.test.ts` names, each of
+   which orders nothing (an animation loop, the drawn caret's paint at the next frame).
+   ([the predecessor editor](casebook.md#only-await-tick-for-sequencing))
 4. **Rules live at choke points, not call sites.** A choke point is the one place every path
    already goes through (the function every commit calls, say). If a rule can move there, it
    moves there.

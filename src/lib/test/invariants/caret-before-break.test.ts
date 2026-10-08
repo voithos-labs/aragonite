@@ -2,8 +2,9 @@
 // G1.75: the caret writer checks every endpoint it writes against an empty block's `<br>`.
 import { describe, it, expect, afterEach } from 'vitest';
 import { checkCaretBeforeBreak } from '../../invariants/caret-before-break';
-import { extendSelectionToRaw } from '../../caret/widget-offset';
+
 import { takeDevWarns } from '../support/warn-gate';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 afterEach(() => {
 	document.body.replaceChildren();
@@ -40,7 +41,7 @@ describe('G1.75 no selection endpoint after an empty block’s placeholder <br>'
 		const el = emptyBlock();
 		window.getSelection()!.collapse(el, 1);
 
-		extendSelectionToRaw(el, 0);
+		testCaretWriter.extendSelectionToRaw(el, 0);
 
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:caret-before-break']);
 	});

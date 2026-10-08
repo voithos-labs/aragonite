@@ -270,6 +270,8 @@ These checks run in three kinds of place:
 | G1.61 | A list move keeps the order its text reads in                                              | A·P·N   |
 | G1.71 | A command key over a range runs in the kind of block whose keymap claimed it               | A·N     |
 | G1.75 | No selection endpoint the editor writes sits after an empty block's placeholder `<br>`     | A·N     |
+| G1.76 | The drawn caret sits on its caret until the caret moves                                    | A       |
+| G1.77 | The mark hiding the browser's caret is on exactly the editable the drawn caret draws for   | A       |
 
 ### The entries
 
@@ -854,6 +856,26 @@ the composed text gets lost or doubled. Every caret and range the editor writes 
 `invariants/caret-before-break.ts :: checkCaretBeforeBreak` ·
 `test/invariants/caret-before-break.test.ts`; G4.36 keeps every native selection write in that file.
 
+**G1.76 · The drawn caret agrees** (`drawn-caret-agrees`). It runs at a `selectionchange` that finds
+no paint request and no frame paint pending: a caret still at the position the last paint drew must
+still measure where the bar sits, within a pixel. Something that changed the caret's line after the
+paint without writing the caret (and so without asking for a paint) leaves the bar behind; the fix
+is `EditorServices.drawnCaret.request()` where the change is made. A typed key, a click or a press
+arms a frame paint before its `selectionchange` arrives, so on those paths the check doesn't run,
+and it compares the range with itself, so it can't see a range that's wrong to begin with (that's
+what the target's fallbacks are for). A reflow of the editable is left to its size observer.
+Predicate `invariants/drawn-caret.ts :: checkDrawnCaretAgrees` · run in
+`caret/drawn-caret.svelte.ts` · every e2e run through the shared invariant watcher, and
+`e2e/tests/caret/drawn-caret.spec.ts`.
+
+**G1.77 · One caret showing** (`one-caret-showing`). After every paint, the `data-caret-drawn`
+attribute (which hides the browser's caret) sits on exactly the editable the bar draws for, and on
+none while the bar draws nothing, so the page never shows two carets or none. An attribute, since
+Svelte rewrites an editable's whole class list when its kind changes. Predicate
+`invariants/drawn-caret.ts :: checkOneCaretShowing` · run after each paint in
+`caret/drawn-caret.svelte.ts` · `e2e/tests/caret/drawn-caret.spec.ts` (`caretsShowing`, exactly one
+caret in every row).
+
 ## Group 2: property and regression tested
 
 No runtime seam sees these; the test suite is the whole enforcement. Test files live under
@@ -1117,7 +1139,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.33  | Live-mode byte candidates verify against what actually paints                             | L       |
 | G4.34  | Link bytes are written only through the one seam module                                   | L       |
 | G4.35  | A construct stamps its markers exactly when its policy row says revealable                | L       |
-| G4.36  | A selection is written from raw offsets only in `widget-offset.ts`                        | L       |
+| G4.36  | The native selection is written only by the editor's caret writer in `widget-offset.ts`   | L       |
 | G4.37  | Every surface rendering into a caret-walk container stamps content-empty                  | L       |
 | G4.38  | Every editable surface publishes each of `EDITABLE_SURFACE_MEMBERS`                       | L       |
 | G4.39  | Every text-surface component publishes `runCommand`                                       | L       |
@@ -1200,6 +1222,9 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.130 | A code block edit over a range takes its span from `editSpan` only                        | L       |
 | G4.131 | A block syntax's bytes are read and written in its own module only                        | L       |
 | G4.133 | An e2e spec switches the presentation mode only through a helper that waits for it        | L       |
+| G4.141 | Only the drawn caret writes its element and the mark hiding the browser's caret           | L       |
+| G4.142 | `caret-color` is declared only for the known surfaces                                     | L       |
+| G4.143 | Every caret write asks the drawn caret to repaint, and its frame paint only paints        | T·L     |
 
 ### The entries
 
@@ -1223,15 +1248,16 @@ closed, and anything else trips the scan: the rAF throttles in `selection/autosc
 every drag lifecycle rides); the rAF fold in `components/blocks/editable-leaf.ts` (a revealed source
 folds after a range drag, whose blur arrives inside the frame that measured the range); the rAF
 placement in `components/drag-handle.ts` (the handle waits for its block to lay out); the rAF start
-of a size watch in `windowing/observe-resize.ts` (one begun while the browser reports sizes is skipped
-and logged as a loop error); the `setTimeout` wall-clock undo debounce in
-`editor-actions/commit/text-batch.ts` (a tick-grained microtask can't express "the user stopped
-typing") and the occurrence plugin's own typing pause in
-`plugins/highlight-occurrences/highlight-occurrences-plugin.ts`, for the same reason; and the
-`setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation budget, not an ordering
-primitive, since nothing awaits the timer). `lint/file-rules.test.ts`. The unit suites follow the
-same rule, held by a row of `lint/suite-file-rules.test.ts`. A test waits for the editor with
-`src/lib/test/harness/settle.ts :: settleEditor`, moves a wall-clock timer with fake timers, or
+of a size watch in `windowing/observe-resize.ts` (one begun while the browser reports sizes is
+skipped and logged as a loop error); the drawn caret's frame paint in `caret/drawn-caret.svelte.ts`
+(a caret the browser moved reaches the page a task later, and the paint only reads and paints, which
+G4.143 holds); the `setTimeout` wall-clock undo debounce in `editor-actions/commit/text-batch.ts` (a
+tick-grained microtask can't express "the user stopped typing") and the occurrence plugin's own
+typing pause in `plugins/highlight-occurrences/highlight-occurrences-plugin.ts`, for the same
+reason; and the `setTimeout` scan deadline in `search/regex-executor.ts` (a cancellation budget, not
+an ordering primitive, since nothing awaits the timer). `lint/file-rules.test.ts`. The unit suites
+follow the same rule, held by a row of `lint/suite-file-rules.test.ts`. A test waits for the editor
+with `src/lib/test/harness/settle.ts :: settleEditor`, moves a wall-clock timer with fake timers, or
 waits on real I/O with `vi.waitFor`. It doesn't flush a macrotask to wait, since that also runs
 whatever unrelated timer happens to be due.
 
@@ -1536,17 +1562,20 @@ block rather than by reveal, and its row is what seats a typed byte outside them
 today means a kind with no declared live-mode behavior at all.
 `lint/stamp-revealable-parity.test.ts`.
 
-**G4.36 · Caret-write sites.** Every selection written from raw offsets is written in
-`caret/widget-offset.ts`. A caret goes through `placeCaretAtRaw`, which skips the marker prefix,
-never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so
-an unclamped write says so at the call. A range goes through `selectRawRange`,
+**G4.36 · Caret-write sites.** Every write to the native selection goes through the editor's caret
+writer, `caret/widget-offset.ts :: createCaretWriter`, one per editor on
+`EditorServices.caretWriter`, which calls the `onWrite` it was built with (the drawn caret's repaint
+request, G4.143) after each write and clear. A caret goes through its `placeCaretAtRaw`, which skips
+the marker prefix, never lands behind a hidden marker run, and takes a required `clamp` (`reachable`
+or `exact`), so an unclamped write says so at the call. A range goes through `selectRawRange`,
 `extendSelectionToRaw` or `selectSurfaceContent`, which skip the prefix the same way and don't
 clamp, and a caller selecting nodes it already holds (a widget whole) hands its range to
 `selectDomRange`. The scan pins four file lists, each with per-file reasons and compared as sets:
 
 - the files calling a native selection writer (`addRange`, `setBaseAndExtent`, `extend`,
-  `selectAllChildren`, and the two-argument `collapse` and `setPosition`), which is
-  `widget-offset.ts` alone;
+  `selectAllChildren`, `removeAllRanges`, `empty`, `collapseToStart`, `collapseToEnd`, `modify`,
+  `setPosition`, a two-argument `collapse`, and a one-argument `collapse` on a selection), which is
+  `widget-offset.ts` alone (the shape is `lint/native-selection-write.ts`, which G4.143 reads too);
 - the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
   that measure with it);
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
@@ -2443,6 +2472,25 @@ checkboxes, `clickModeButton` for the showcase's and the changelog's buttons). E
 `data-presentation` on the editor root. `e2e/lint/mode-switch.test.ts` fails a bridge
 `setPresentationMode` call outside `editor-page.ts`, and any mention of a mode toggle or mode
 button outside `mode-switch.ts` and the two specs it allows by name.
+
+**G4.141 · One writer for the drawn caret.** `data-caret-drawn` (the attribute that hides the
+browser's caret) and `md-drawn-caret` (the bar) are named in `caret/drawn-caret.svelte.ts` alone
+(the bar also in `caret/block-content-selector.ts`, so a block-content lookup skips it), so the
+attribute and the bar change in one paint and there's one bar per editor.
+`lint/drawn-caret-guards.test.ts`.
+
+**G4.142 · `caret-color` on the known surfaces only.** The production CSS and Svelte styles declare
+`caret-color` for `[data-caret-drawn]`, the cross-block rule, `.whole-block-input`, the gap caret's
+proxy and `.md-snap-caret-active`, each with its reason, and nothing else: another rule would hide
+or recolor the browser's caret behind the drawn caret's back. `lint/drawn-caret-guards.test.ts`.
+
+**G4.143 · Every caret write asks for a paint.** `caret/widget-offset.ts` writes the native
+selection only inside `createCaretWriter`, whose writes and clears call the `onWrite` the editor
+built it with (`drawnCaret.request`), and `test/caret/caret-writer-request.test.ts` calls every
+writer method once and counts one request each, its table typed over the writer's keys so a new
+method can't skip a row. The frame callback in `caret/drawn-caret.svelte.ts` calls `paint` and
+nothing else, which is what keeps G4.4's allowlisted frame paint read-only.
+`lint/drawn-caret-guards.test.ts`.
 
 ## Accessibility
 

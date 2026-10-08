@@ -9,12 +9,7 @@ import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import { assertInvariant } from '../assert';
 import { checkPlacementEndsWidget } from '../invariants/placement-ends-widget';
-import {
-	placeCaretAtRaw,
-	rawOffsetAt,
-	selectRawRange,
-	selectSurfaceContent
-} from '../caret/widget-offset';
+import { rawOffsetAt, type CaretWriter } from '../caret/widget-offset';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 
@@ -39,39 +34,37 @@ export function readNativeCaretInBlock(
 
 /** Places a collapsed native caret at a `SelectionPoint`, clamped as `parkCaret` clamps: never
  *  behind a hidden marker run. */
-export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
-	placeCaretAtRaw(blockEl, point.offset, { clamp: 'reachable' });
+export function applyCollapsedCaret(
+	writer: CaretWriter,
+	blockEl: HTMLElement,
+	point: SelectionPoint
+): void {
+	writer.placeCaretAtRaw(blockEl, point.offset, { clamp: 'reachable' });
 }
 
 // A restore's caret; the restore's reveal policy decides the scroll.
-function restoreCollapsedCaret(
-	getBlockElByPath: (path: number[]) => HTMLElement | null,
-	point: SelectionPoint
-): boolean {
-	const blockEl = getBlockElByPath(point.path);
+function restoreCollapsedCaret(target: RestoreTarget, point: SelectionPoint): boolean {
+	const blockEl = target.getBlockElByPath(point.path);
 	if (!blockEl) return false;
-	applyCollapsedCaret(blockEl, point);
+	applyCollapsedCaret(target.caretWriter, blockEl, point);
 	blockEl.focus({ preventScroll: true });
 	return true;
 }
 
 /** Selects an editable element's whole content, past its marker prefix: the first Ctrl+A
  *  range and the triple-click one. */
-export function applySurfaceContentRange(el: HTMLElement): void {
-	selectSurfaceContent(el);
+export function applySurfaceContentRange(writer: CaretWriter, el: HTMLElement): void {
+	writer.selectSurfaceContent(el);
 }
 
 /** Selects raw `[anchorOffset, focusOffset]` in one block, backward when the focus comes first. */
 export function applySingleBlockRange(
+	writer: CaretWriter,
 	blockEl: HTMLElement,
 	anchorOffset: number,
 	focusOffset: number
 ): void {
-	selectRawRange(blockEl, anchorOffset, focusOffset);
-}
-
-export function clearNativeSelection(): void {
-	window.getSelection()?.removeAllRanges();
+	writer.selectRawRange(blockEl, anchorOffset, focusOffset);
 }
 
 /** Keeps focus in the editor when a focused block is windowed out, or it would fall to <body>.
@@ -155,6 +148,7 @@ export interface RestoreTarget {
 	caretAt: (point: SelectionPoint) => SelectionPoint;
 	/** Takes focus for a block held whole, which has no text for a caret, as a drag leaves it. */
 	getEditorRoot: () => HTMLElement | null;
+	caretWriter: CaretWriter;
 }
 
 /** Restores an `EditorSelection` to the DOM in one `SelectionState` batch, so the single
@@ -174,20 +168,20 @@ export function applySelectionToDom(selection: EditorSelection, target: RestoreT
 }
 
 function placeRestoredSelection(selection: EditorSelection, target: RestoreTarget): boolean {
-	const { selectionState, getBlockElByPath } = target;
+	const { selectionState, getBlockElByPath, caretWriter: writer } = target;
 	// Classify before touching state, so a single-block restore never passes through a transient
 	// cross-block state (`enterCrossBlock` then `clear`).
 	const route = selectionState.restoreRoute(selection.anchor, selection.focus);
 
 	if (route === 'collapsed') {
 		selectionState.clear();
-		return restoreCollapsedCaret(getBlockElByPath, target.caretAt(selection.anchor));
+		return restoreCollapsedCaret(target, target.caretAt(selection.anchor));
 	}
 
 	if (route === 'whole-block') {
 		const whole = { path: selection.anchor.path.slice(), wholeBlock: true as const };
 		selectionState.enterCrossBlock(whole, whole);
-		clearNativeSelection();
+		writer.clear();
 		const root = target.getEditorRoot();
 		root?.focus({ preventScroll: true });
 		return root !== null;
@@ -199,7 +193,7 @@ function placeRestoredSelection(selection: EditorSelection, target: RestoreTarge
 		selectionState.clear();
 		const blockEl = getBlockElByPath(selection.anchor.path);
 		if (!blockEl) return false;
-		applySingleBlockRange(blockEl, selection.anchor.offset, selection.focus.offset);
+		applySingleBlockRange(writer, blockEl, selection.anchor.offset, selection.focus.offset);
 		blockEl.focus({ preventScroll: true });
 		return true;
 	}
@@ -209,9 +203,9 @@ function placeRestoredSelection(selection: EditorSelection, target: RestoreTarge
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
 	// The stored focus, which normalization may have turned into a cell index.
 	const focus = selectionState.focus ?? selection.focus;
-	if (restoreCollapsedCaret(getBlockElByPath, target.caretAt(focus))) {
+	if (restoreCollapsedCaret(target, target.caretAt(focus))) {
 		return true;
 	}
-	clearNativeSelection();
+	writer.clear();
 	return false;
 }

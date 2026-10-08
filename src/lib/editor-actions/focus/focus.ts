@@ -21,6 +21,7 @@ export function createFocusActions(
 	const gapScope: GapStopScope = {
 		getDoc: () => deps.doc,
 		selection: deps.selectionState,
+		caretWriter: deps.caretWriter,
 		getPresentationMode: deps.reading.mode
 	};
 	const gapStopAt = (parentPath: number[], boundaryIndex: number) =>

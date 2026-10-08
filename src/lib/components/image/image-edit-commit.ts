@@ -16,6 +16,7 @@ import {
 import { selectWidgetWhole } from '../../selection/place-caret';
 import type { WidgetTarget } from '../../selection/primitives';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import type { CaretWriter } from '../../caret/widget-offset';
 import type { Reading } from '../../schema/reading';
 import { widgetNodeIn, widgetSpanAt } from '../blocks/text/widget-adjacency';
 
@@ -25,6 +26,7 @@ export interface ImageEditCommitterDeps {
 	getDoc: () => Document;
 	getEditorEl: () => HTMLElement | null;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	/** The editor's inline range write, which every popover edit goes through. */
 	inlineRange: InlineRangeCommit;
 	events: EditorEvents;
@@ -193,7 +195,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const root = getEditorEl();
 		if (!root) return () => {};
 		const handler = (e: Event) =>
-			selectWidgetWhole(selection, (e as CustomEvent).detail as WidgetTarget);
+			selectWidgetWhole(selection, deps.caretWriter, (e as CustomEvent).detail as WidgetTarget);
 		root.addEventListener('image-widget-select', handler);
 		return () => root.removeEventListener('image-widget-select', handler);
 	}

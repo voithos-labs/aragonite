@@ -9,6 +9,7 @@ import type { UserScrollport } from '../../windowing/scroll-ancestors';
 import type { ScrollOwner } from '../../windowing/scroll-owner';
 import type { SelectionState } from '../selection-state.svelte';
 import type { CaretMemory } from '../../caret/caret-memory';
+import type { CaretWriter } from '../../caret/widget-offset';
 import type { CaretLanding } from '../caret-landing';
 import type { CommitController } from '../../action-contracts';
 import type { CommandDispatchContext } from '../../schema/block-commands';
@@ -29,6 +30,8 @@ export interface CrossBlockDispatchContext {
 	getMyPath: () => number[];
 
 	selection: SelectionState;
+	/** The editor's caret writer, which every caret and range the dispatch puts down goes through. */
+	caretWriter: CaretWriter;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	/** Where a collapse, an extend's parked caret and a command's target block are put down. */

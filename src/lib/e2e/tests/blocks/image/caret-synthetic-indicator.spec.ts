@@ -8,6 +8,9 @@ import {
 	waitForAllImagesLoaded,
 	waitForFirstImageLoaded
 } from './helpers';
+import { caretsShowing, drawnCaretBox } from '../../../carets-showing';
+
+const ONE_DRAWN = { native: false, drawn: 1 };
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
 // Two image widgets in two blocks, each ending its own line, with a plain block between them.
@@ -110,7 +113,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
 	});
 
-	test('a press that puts the caret in text keeps the native caret', async ({ page }) => {
+	test('a press that puts the caret in text shows one caret, the drawn one', async ({ page }) => {
 		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png) trailing words\n');
 		await waitForFirstImageLoaded(page);
 		const para = page
@@ -119,9 +122,9 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		const box = (await para.boundingBox())!;
 		await page.mouse.move(box.x + box.width - 30, box.y + box.height - 12);
 		await page.mouse.down();
-		await expect.poll(() => caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
 		await page.mouse.up();
-		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
 	});
 
 	// One caret is one position. A block clears its own caret marker on the next selection change,
@@ -155,7 +158,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
 	});
 
-	test('the native caret comes back when the synthetic clears', async ({ page }) => {
+	test('the drawn caret comes back when the synthetic clears', async ({ page }) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
@@ -164,7 +167,8 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await page.keyboard.press('a');
 		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
 		// Non-vacuity: the caret is hidden only for the snap, not permanently.
-		expect(await caretColorOfFocusedBlock(page)).not.toBe('rgba(0, 0, 0, 0)');
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+		expect(await drawnCaretBox(page)).not.toBeNull();
 	});
 
 	test('arrow-left into a widget boundary in trailing text does not show synthetic', async ({

@@ -22,6 +22,7 @@ import type { EditorSelection } from '../../selection/primitives';
 import { createSelectionState, type SelectionState } from '../../selection/selection-state.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
 import { restoreLandingOver } from '../harness/restore-landing';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const DOC = parse('zero\n\nabcdef\n\ntwo\n');
 const at = (block: number, offset: number) => ({ path: [block], offset });
@@ -48,8 +49,13 @@ afterEach(() => blockEl.remove());
 
 const PRIOR: Record<Exclude<Kind, 'none'>, (s: SelectionState) => void> = {
 	range: (s) => s.enterCrossBlock(at(0, 1), at(2, 2)),
-	gap: (s) => placeGapCaret(s, { parentPath: [], index: 1 }),
-	widget: (s) => selectWidgetWhole(s, { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 })
+	gap: (s) => placeGapCaret(s, testCaretWriter, { parentPath: [], index: 1 }),
+	widget: (s) =>
+		selectWidgetWhole(s, testCaretWriter, {
+			paragraphPath: [0],
+			sourceStart: 0,
+			preSelectOffset: 0
+		})
 };
 
 interface Writer {
@@ -76,22 +82,27 @@ const WRITERS: Writer[] = [
 	},
 	{
 		name: 'placeGapCaret',
-		write: (s) => placeGapCaret(s, { parentPath: [], index: 2 }),
+		write: (s) => placeGapCaret(s, testCaretWriter, { parentPath: [], index: 2 }),
 		leaves: 'gap',
 		reads: null
 	},
 	{
 		name: 'selectWidgetWhole',
-		write: (s) => selectWidgetWhole(s, { paragraphPath: [1], sourceStart: 2, preSelectOffset: 2 }),
+		write: (s) =>
+			selectWidgetWhole(s, testCaretWriter, {
+				paragraphPath: [1],
+				sourceStart: 2,
+				preSelectOffset: 2
+			}),
 		leaves: 'widget',
 		reads: caret(1, 2)
 	},
 	{
 		name: 'placeCaret',
 		write: (s) =>
-			placeCaret(s, (offset) => {
+			placeCaret(s, testCaretWriter, (offset) => {
 				blockEl.focus();
-				applyCollapsedCaret(blockEl, at(1, offset));
+				applyCollapsedCaret(testCaretWriter, blockEl, at(1, offset));
 			})(3),
 		leaves: 'none',
 		reads: caret(1, 3)
@@ -99,9 +110,9 @@ const WRITERS: Writer[] = [
 	{
 		name: 'selectInBlock',
 		write: (s) =>
-			selectInBlock(s, () => {
+			selectInBlock(s, testCaretWriter, () => {
 				blockEl.focus();
-				applySingleBlockRange(blockEl, 1, 3);
+				applySingleBlockRange(testCaretWriter, blockEl, 1, 3);
 			}),
 		leaves: 'none',
 		reads: { anchor: at(1, 1), focus: at(1, 3) }

@@ -1,8 +1,8 @@
 /**
- * The one place a DOM position is translated to a raw offset and back, and the one place a caret
- * is written from a raw offset (`docs/design/editor.md`). The walk offset (`DomTextOffset`) sums
- * text-node lengths, the leading marker prefix's text included, plus each atomic widget's source
- * length. A raw offset is that minus the prefix length, which this module reads off the DOM.
+ * The one place a DOM position is translated to a raw offset and back, and the one place the
+ * native selection is written, through each editor's caret writer (`docs/design/editor.md`). The
+ * walk offset (`DomTextOffset`) sums text-node lengths, the marker prefix's text included, plus each
+ * atomic widget's source length; a raw offset is that minus the prefix length.
  */
 
 import {
@@ -128,57 +128,90 @@ export function rawSelectionFocus(el: HTMLElement): RawOffset | null {
 	return rawOffsetAt(el, sel.focusNode, sel.focusOffset);
 }
 
-/** Put a collapsed caret at raw offset `raw` in `el`, the one caret writer. Raw 0 lands just after
- *  a marker prefix span, since Chromium bounces a caret placed before it. False when refused. */
-export function placeCaretAtRaw(
-	el: HTMLElement,
-	raw: number,
-	{ clamp }: { clamp: CaretClamp }
-): boolean {
-	const at = clamp === 'reachable' ? clampToLandableRaw(el, Math.max(0, raw)) : raw;
-	const point = caretPointAtRaw(el, at);
-	return writeSelection(point, point);
-}
-
 /**
- * Select raw `[anchor, focus]` in `el`, backward when the focus comes first. An endpoint at raw 0
- * behind a marker prefix lands after the span, as a caret does.
+ * The editor's one writer of the native selection, built once per editor. Every write and clear
+ * calls `onWrite` after it lands, which asks the drawn caret to repaint; a refused write calls
+ * nothing. Methods return false when refused.
  */
-export function selectRawRange(el: HTMLElement, anchor: number, focus: number): boolean {
-	return writeSelection(caretPointAtRaw(el, anchor), caretPointAtRaw(el, focus));
+export interface CaretWriter {
+	/** A collapsed caret at raw offset `raw` in `el`. Raw 0 lands just after a marker prefix span,
+	 *  since Chromium bounces a caret placed before it. */
+	placeCaretAtRaw(el: HTMLElement, raw: number, placement: { clamp: CaretClamp }): boolean;
+	/** Raw `[anchor, focus]` in `el`, backward when the focus comes first; an endpoint at raw 0
+	 *  behind a marker prefix lands after the span, as a caret does. */
+	selectRawRange(el: HTMLElement, anchor: number, focus: number): boolean;
+	/** Moves the live selection's focus to raw `raw` in `el`, keeping its anchor. */
+	extendSelectionToRaw(el: HTMLElement, raw: number): boolean;
+	/** `el`'s content past its marker prefix and short of a hidden structural suffix (the first
+	 *  Ctrl+A, a triple click). With no content, from raw 0's caret to a placeholder `<br>`. */
+	selectSurfaceContent(el: HTMLElement): boolean;
+	/** The nodes `range` already spans, as a node-level writer holds them (a widget whole). */
+	selectDomRange(range: Range): boolean;
+	/** Drops the native selection: a gap caret, a widget or a whole-block range holds none. */
+	clear(): void;
 }
 
-/** Move the live selection's focus to raw `raw` in `el`, keeping its anchor. */
-export function extendSelectionToRaw(el: HTMLElement, raw: number): boolean {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0 || sel.anchorNode === null) return false;
-	return writeSelection(
-		{ node: sel.anchorNode, offset: sel.anchorOffset },
-		caretPointAtRaw(el, raw)
-	);
-}
-
-/** Select `el`'s content past its marker prefix and short of a hidden structural suffix (the first
- *  Ctrl+A, a triple click). With no content, from where raw 0's caret sits to a placeholder `<br>`. */
-export function selectSurfaceContent(el: HTMLElement): boolean {
-	const suffix = hiddenSuffixLength(el);
-	const contentLength = containerDomTextLength(el) - markerPrefixLength(el) - suffix;
-	if ((markerPrefixOf(el) || suffix > 0) && contentLength > 0) {
-		return selectRawRange(el, 0, contentLength);
+export function createCaretWriter(onWrite: () => void): CaretWriter {
+	function writeSelection(anchor: DomPosition, focus: DomPosition): boolean {
+		assertInvariant(
+			'caret-before-break',
+			() => checkCaretBeforeBreak(anchor) ?? checkCaretBeforeBreak(focus)
+		);
+		const sel = window.getSelection();
+		if (!sel) return false;
+		try {
+			sel.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset);
+		} catch {
+			return false;
+		}
+		onWrite();
+		return true;
 	}
-	return writeSelection(caretPointAtRaw(el, 0), endOfContents(el));
+
+	function selectRawRange(el: HTMLElement, anchor: number, focus: number): boolean {
+		return writeSelection(caretPointAtRaw(el, anchor), caretPointAtRaw(el, focus));
+	}
+
+	return {
+		placeCaretAtRaw(el, raw, { clamp }) {
+			const at = clamp === 'reachable' ? clampToLandableRaw(el, Math.max(0, raw)) : raw;
+			const point = caretPointAtRaw(el, at);
+			return writeSelection(point, point);
+		},
+		selectRawRange,
+		extendSelectionToRaw(el, raw) {
+			const sel = window.getSelection();
+			if (!sel || sel.rangeCount === 0 || sel.anchorNode === null) return false;
+			return writeSelection(
+				{ node: sel.anchorNode, offset: sel.anchorOffset },
+				caretPointAtRaw(el, raw)
+			);
+		},
+		selectSurfaceContent(el) {
+			const suffix = hiddenSuffixLength(el);
+			const contentLength = containerDomTextLength(el) - markerPrefixLength(el) - suffix;
+			if ((markerPrefixOf(el) || suffix > 0) && contentLength > 0) {
+				return selectRawRange(el, 0, contentLength);
+			}
+			return writeSelection(caretPointAtRaw(el, 0), endOfContents(el));
+		},
+		selectDomRange(range) {
+			return writeSelection(
+				{ node: range.startContainer, offset: range.startOffset },
+				{ node: range.endContainer, offset: range.endOffset }
+			);
+		},
+		clear() {
+			const sel = window.getSelection();
+			if (!sel) return;
+			sel.removeAllRanges();
+			onWrite();
+		}
+	};
 }
 
-/** Select the nodes `range` already spans, as a node-level writer holds them (a widget whole). */
-export function selectDomRange(range: Range): boolean {
-	return writeSelection(
-		{ node: range.startContainer, offset: range.startOffset },
-		{ node: range.endContainer, offset: range.endOffset }
-	);
-}
-
-/** A DOM Range over raw `[start, end)` for measuring or decorating; caret writes use {@link
- *  placeCaretAtRaw}. From raw 0 it starts after the marker prefix span, holding whole elements. */
+/** A DOM Range over raw `[start, end)` for measuring or decorating; a caret goes through the
+ *  {@link CaretWriter}. From raw 0 it starts after the marker prefix span, holding whole elements. */
 export function rawRangeToDomRange(
 	container: ParentNode,
 	start: number,
@@ -225,21 +258,6 @@ function positionAfterPrefix(container: ParentNode, prefix: HTMLElement): DomPos
 	if (textAfter && !hidden) return { node: textAfter, offset: 0 };
 	const parent = prefix.parentNode!;
 	return { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, prefix) + 1 };
-}
-
-function writeSelection(anchor: DomPosition, focus: DomPosition): boolean {
-	assertInvariant(
-		'caret-before-break',
-		() => checkCaretBeforeBreak(anchor) ?? checkCaretBeforeBreak(focus)
-	);
-	const sel = window.getSelection();
-	if (!sel) return false;
-	try {
-		sel.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset);
-	} catch {
-		return false;
-	}
-	return true;
 }
 
 /** The first non-empty text node after `node` in document order, stopping at an atomic widget,

@@ -12,6 +12,7 @@ import type { RestoreTarget } from '#lib/selection/native-bridge.js';
 import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
 import { stubBlockComponent } from '#lib/testing/headless-actions.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** What `applySelectionToDom` writes into, with a caret at each endpoint's own cell. */
 export function restoreTarget(
@@ -19,6 +20,7 @@ export function restoreTarget(
 	getBlockElByPath: (path: number[]) => HTMLElement | null
 ): RestoreTarget {
 	return {
+		caretWriter: testCaretWriter,
 		selectionState,
 		getBlockElByPath,
 		caretAt: (point) => selectionState.cellLandingFor(point),
@@ -56,6 +58,7 @@ export function restoreLandingOver(
 		};
 	};
 	const landing = createCaretLanding({
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		root: listAt([]),
 		selectionState,

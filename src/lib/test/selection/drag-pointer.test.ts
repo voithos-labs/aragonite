@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installDragListener } from '../../selection/drag-pointer';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 describe('installDragListener: lifetime cleanup', () => {
 	let editorRoot: HTMLElement;
@@ -21,6 +22,7 @@ describe('installDragListener: lifetime cleanup', () => {
 			editorRoot,
 			scrollContainer: editorRoot,
 			selection: createSelectionState(),
+			caretWriter: testCaretWriter,
 			getBlockElByPath: () => null,
 			lifetimeSignal: signal
 		};
@@ -121,6 +123,7 @@ describe('installDragListener: where the drag puts the caret its dispatch caret'
 				editorRoot,
 				scrollContainer: editorRoot,
 				selection,
+				caretWriter: testCaretWriter,
 				getBlockElByPath: (path) => {
 					requested.push(path);
 					return document.createElement('div');

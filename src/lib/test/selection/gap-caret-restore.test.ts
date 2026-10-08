@@ -6,6 +6,7 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import type { GapCaretRestoreDeps } from '#lib/selection/selection-restore.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { stubBlockComponent } from '#lib/testing/headless-actions.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Restoring an undo entry that holds a gap caret: the boundary is clamped into the tree it
 // lands in, and the block it sits against is mounted and brought into view before the caret.
@@ -20,6 +21,7 @@ function harness(overrides: Partial<GapCaretRestoreDeps> = {}) {
 	const deps: GapCaretRestoreDeps = {
 		getDoc: () => doc,
 		selectionState,
+		caretWriter: testCaretWriter,
 		caretMemory: createCaretMemory(),
 		mount: async (path) => {
 			revealed.push(path);

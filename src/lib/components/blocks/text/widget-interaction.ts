@@ -20,13 +20,7 @@ import {
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import { asRawOffset } from '../../../caret/coordinate-spaces';
-import {
-	extendSelectionToRaw as extendSelectionToRawIn,
-	rawOffsetAt,
-	rawSelectionFocus,
-	selectDomRange,
-	selectRawRange
-} from '../../../caret/widget-offset';
+import { rawOffsetAt, rawSelectionFocus, type CaretWriter } from '../../../caret/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../caret/reveal-source';
 import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../caret/widget-edge-snap';
 import {
@@ -66,6 +60,8 @@ export interface WidgetInteractionDeps {
 	getEditorContentWidth: () => number;
 	cursor: SurfaceBackend;
 	selection: SelectionState;
+	/** The editor's caret writer, for the ranges and the widget selections made here. */
+	caretWriter: CaretWriter;
 	blockEdit: BlockEditActions;
 	/** The block's one write to its own text, for a key over a selected widget. */
 	writeText: (write: TextWrite) => ContentWrite;
@@ -330,7 +326,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			},
 			// Re-inserts the exact element the swap detached, still current because the edit
 			// was discarded. The persist path re-renders reactively instead.
-			showRendered: restoreRenderedWidget
+			showRendered: restoreRenderedWidget,
+			caretWriter: deps.caretWriter
 		});
 		revealState = {
 			kernel,
@@ -457,7 +454,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	async function restoreRangeInBlock(span: { start: number; end: number }): Promise<void> {
 		await tick();
 		const el = deps.getEl();
-		if (el) selectRawRange(el, span.start, span.end);
+		if (el) deps.caretWriter.selectRawRange(el, span.start, span.end);
 	}
 
 	// Compared by raw offset, bounds included: a caret at the source's edge may sit in the
@@ -620,7 +617,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const onSource = Array.from(range.getClientRects()).some(
 			(r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
 		);
-		return onSource && selectDomRange(range);
+		return onSource && deps.caretWriter.selectDomRange(range);
 	}
 
 	function isRevealing(): boolean {
@@ -789,7 +786,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			const atSourceOffset = fromTrailingEdge ? widget.end - widget.start : 0;
 			void startReveal(widget, enteredOffset, atSourceOffset);
 		} else {
-			selectWidgetWhole(deps.selection, {
+			selectWidgetWhole(deps.selection, deps.caretWriter, {
 				paragraphPath: deps.myPath,
 				sourceStart: widget.start,
 				preSelectOffset: enteredOffset
@@ -914,7 +911,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	function extendSelectionToRaw(rawOffset: number): void {
 		const el = deps.getEl();
-		if (el) extendSelectionToRawIn(el, rawOffset);
+		if (el) deps.caretWriter.extendSelectionToRaw(el, rawOffset);
 	}
 
 	return {

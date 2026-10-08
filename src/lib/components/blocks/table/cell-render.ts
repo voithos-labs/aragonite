@@ -15,7 +15,7 @@ import { captureFocusedCaret } from '../../../caret/focused-caret';
 import {
 	CONTENT_EMPTY_ATTR,
 	holdsOnlyMarkerChrome,
-	placeCaretAtRaw
+	type CaretWriter
 } from '../../../caret/widget-offset';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
@@ -49,6 +49,8 @@ export interface CellRenderDeps {
 	/** A widget that throws while mounting reports to the editor's `error` event, and still falls
 	 *  back to its raw source. */
 	reportRenderError: (error: unknown) => void;
+	/** The editor's caret writer, which puts the caret back after a rebuild. */
+	caretWriter: CaretWriter;
 }
 
 export interface CellRender {
@@ -143,7 +145,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		// nothing; the attribute is set before the restore, which uses the same traversal.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 
-		if (caret !== null) placeCaretAtRaw(el, caret, { clamp: 'exact' });
+		if (caret !== null) deps.caretWriter.placeCaretAtRaw(el, caret, { clamp: 'exact' });
 	}
 
 	return {

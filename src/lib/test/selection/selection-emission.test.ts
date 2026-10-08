@@ -12,6 +12,7 @@ import { restoreTarget } from '../harness/restore-landing';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface Emission {
 	/** The block the native caret sat in, which is what a subscriber's read-back resolves. */
@@ -48,7 +49,7 @@ function emissionHarness() {
 		selectionState,
 		parkCaretIn(index: number, offset: number): void {
 			blocks[index].focus();
-			applyCollapsedCaret(blocks[index], { path: [index], offset });
+			applyCollapsedCaret(testCaretWriter, blocks[index], { path: [index], offset });
 			emissions.length = 0;
 		},
 		restore(selection: EditorSelection): boolean {
@@ -174,7 +175,7 @@ describe('unbatched entry-path emission counts', () => {
 		state.enterCrossBlock(at(0, 0), at(2, 3));
 		notifies = 0;
 
-		resetForPointerDown(state, makeCaretMemory(), false);
+		resetForPointerDown(state, testCaretWriter, makeCaretMemory(), false);
 
 		// The counter was already 0, so only the clear is a real mutation.
 		expect(notifies).toBe(1);
@@ -185,7 +186,7 @@ describe('unbatched entry-path emission counts', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 
-		resetForPointerDown(state, makeCaretMemory(), false);
+		resetForPointerDown(state, testCaretWriter, makeCaretMemory(), false);
 
 		expect(notifies).toBe(0);
 	});
@@ -199,7 +200,7 @@ describe('unbatched entry-path emission counts', () => {
 			state.setGapCaret({ parentPath: [], index: 1 });
 			notifies = 0;
 
-			resetForPointerDown(state, makeCaretMemory(), isShift);
+			resetForPointerDown(state, testCaretWriter, makeCaretMemory(), isShift);
 
 			expect(state.gapCaret).toBeNull();
 			expect(notifies).toBe(1);
@@ -264,7 +265,14 @@ describe('unbatched entry-path emission counts', () => {
 		const doc = parse('Alpha one\n\nBravo two\n');
 
 		expect(
-			extendFocusToNextBlock(h.selectionState, doc, defaultGrammarView, h.blocks[0], [0])
+			extendFocusToNextBlock(
+				h.selectionState,
+				testCaretWriter,
+				doc,
+				defaultGrammarView,
+				h.blocks[0],
+				[0]
+			)
 		).toBe(true);
 
 		// enterCrossBlockFromKeyboard seeds a collapsed pair, then extendFocus reaches

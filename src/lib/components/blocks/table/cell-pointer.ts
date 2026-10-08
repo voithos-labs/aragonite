@@ -17,6 +17,7 @@ import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';
 import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
 import { caretOffsetAtPoint } from '../../../caret/point-offset';
 import { applySingleBlockRange } from '../../../selection/native-bridge';
+import type { CaretWriter } from '../../../caret/widget-offset';
 import type { PaddingPress } from '../../../selection/cross-block/pointer';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ export interface CellAnchor {
 export interface CellDragContext {
 	editorRoot: HTMLElement;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	lifetimeSignal?: AbortSignal;
 }
 
@@ -87,7 +89,9 @@ export function installCellDragListener(
 	function paintInAnchorCell(clientX: number, clientY: number): void {
 		if (!padding?.press.placed()) return;
 		const focus = caretOffsetAtPoint(padding.surface, clientX, clientY);
-		if (focus !== null) applySingleBlockRange(padding.surface, padding.press.offset, focus);
+		if (focus !== null) {
+			applySingleBlockRange(ctx.caretWriter, padding.surface, padding.press.offset, focus);
+		}
 	}
 
 	function extendToCell(rowIdx: number, colIdx: number): void {

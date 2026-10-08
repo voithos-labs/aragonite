@@ -14,6 +14,7 @@ import {
 	widgetInteractionDeps
 } from './math-widget-fixture';
 import { settleEditor } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 installMathInline();
 
@@ -43,6 +44,7 @@ function mountTwoMathBlock() {
 		widgetInteractionDeps(
 			{ node, el },
 			{
+				caretWriter: testCaretWriter,
 				cursor: new Proxy({}, { get: trap }),
 				blockEdit: {
 					updateBlockContent: recordingWrite(({ index, raw, before, after }) =>

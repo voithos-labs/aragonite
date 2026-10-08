@@ -15,6 +15,7 @@ import { mountTableGrid } from './table-grid';
 
 registerBuiltInBlocks();
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Two 150-wide cells in one row; the block's box is the margin band's reference.
 const TABLE_BOX = { left: 100, right: 400, top: 50, bottom: 90 };
@@ -147,7 +148,7 @@ describe('placeCaretAtPoint landing walk', () => {
 			const caretMemory = createCaretMemory();
 			// The real reset, not a spy: what this case asserts is the selection's fate, and a spy
 			// would pass on a call that ends nothing.
-			endRange = () => resetForPointerDown(selection, caretMemory, false);
+			endRange = () => resetForPointerDown(selection, testCaretWriter, caretMemory, false);
 			selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [2], offset: 4 });
 		});
 

@@ -10,7 +10,8 @@ import {
 	pressKeyAt,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { placeCaretAtRaw, rawSelectionFocus } from '#lib/caret/widget-offset.js';
+import { rawSelectionFocus } from '#lib/caret/widget-offset.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -22,7 +23,7 @@ async function openBreakAt(source: string, at: number, mode: 'source' | 'live') 
 }
 
 function placed(el: HTMLElement, raw: number) {
-	placeCaretAtRaw(el, raw, { clamp: 'exact' });
+	testCaretWriter.placeCaretAtRaw(el, raw, { clamp: 'exact' });
 	const sel = window.getSelection()!;
 	return { raw: rawSelectionFocus(el), node: sel.focusNode, offset: sel.focusOffset };
 }

@@ -10,6 +10,7 @@ import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 import { placeGapCaret } from './place-caret';
+import type { CaretWriter } from '../caret/widget-offset';
 import type { SelectionState } from './selection-state.svelte';
 
 /** The boundary before child `index` of the container at `parentPath`; root is `[]`. */
@@ -67,6 +68,7 @@ function declaresEdge(node: NodeView, edge: 'before' | 'after'): boolean {
 export interface GapStopScope {
 	getDoc: () => DocumentView;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	getPresentationMode: () => PresentationMode;
 }
 
@@ -89,6 +91,6 @@ export function tryGapStop(
 	boundaryIndex: number
 ): boolean {
 	if (!canGapStop(scope, parentPath, boundaryIndex)) return false;
-	placeGapCaret(scope.selection, { parentPath, index: boundaryIndex });
+	placeGapCaret(scope.selection, scope.caretWriter, { parentPath, index: boundaryIndex });
 	return true;
 }

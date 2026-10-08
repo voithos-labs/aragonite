@@ -16,6 +16,7 @@ import {
 	type Probe
 } from './file-rule';
 import { SOURCE, SOURCE_DIR } from './source-paths';
+import { NATIVE_SELECTION_WRITE } from './native-selection-write';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 const keys = (...groups: Record<string, string>[]) => groups.flatMap((g) => Object.keys(g));
@@ -296,29 +297,38 @@ const MANIFESTS: ManifestRule[] = [
 	},
 	{
 		id: 'G4.36 the one file writing the native selection is the caret writer',
-		// Only the two-argument collapse and setPosition: Range.collapse(true) and the editor's own
-		// selectionState.collapse() take one argument or none, and write no caret.
-		matches:
-			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
+		// A one-argument collapse counts on a selection only: Range.collapse(toStart) and the
+		// selection store's own collapse() write no caret.
+		matches: NATIVE_SELECTION_WRITE,
 		declared: {
 			'src/lib/caret/widget-offset.ts':
-				'writeSelection, behind placeCaretAtRaw, the raw range writers and selectDomRange, checks every endpoint against an empty block’s <br> (G1.75)'
+				'createCaretWriter, one per editor: its writes check every endpoint against an empty block’s <br> (G1.75) and ask the drawn caret to repaint'
 		},
 		reason:
-			'a caret written from a raw offset goes through placeCaretAtRaw, which skips the marker prefix and clamps; a range over nodes the caller already holds goes through selectDomRange',
+			'every write or clear of the native selection goes through the editor’s caret writer (EditorServices.caretWriter), which skips the marker prefix, clamps, and asks the drawn caret to repaint',
 		hits: [
 			'sel?.addRange(range);',
+			'window.getSelection()?.removeAllRanges();',
+			'sel.empty();',
 			'sel.setBaseAndExtent(n, 0, n, 0);',
 			'sel.extend(node, 2);',
 			'window.getSelection()?.collapse(node, 2);',
 			'sel.setPosition(node, 2);',
-			'sel.selectAllChildren(node);'
+			'sel.selectAllChildren(node);',
+			'sel.collapseToEnd();',
+			'sel.collapseToStart();',
+			"sel.modify('move', 'forward', 'character');",
+			'sel.collapse(node);',
+			'window.getSelection()?.collapse(node);',
+			'window.getSelection()!.collapse(node);',
+			'sel.setPosition(node);'
 		],
 		misses: [
 			'sel.getRangeAt(0);',
 			'selectionState.collapse();',
+			'ctx.selection.collapse();',
 			'range.collapse(true);',
-			'sel.collapseToEnd();'
+			'range.collapse(toStart);'
 		]
 	},
 	{
@@ -333,7 +343,7 @@ const MANIFESTS: ManifestRule[] = [
 				'measures the caret box a column scan compares, and writes no caret'
 		},
 		reason:
-			'a DOM position built outside the walk module skips the prefix and clamp rules a caret write needs; write a caret with placeCaretAtRaw',
+			'a DOM position built outside the walk module skips the prefix and clamp rules a caret write needs; write a caret through the editor’s caret writer',
 		hits: [
 			'const range = createRangeAtDomTextOffsets(el, a, a);',
 			'findDomTextOffsetTarget(el, t)'
@@ -350,7 +360,7 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/selection/selection-drop.ts': "measures the drop caret's rect"
 		},
 		reason:
-			'a range from raw offsets is for measuring or decorating; a caret goes through placeCaretAtRaw',
+			'a range from raw offsets is for measuring or decorating; a caret goes through the editor’s caret writer',
 		hits: ['rawRangeToDomRange(root, 0, 3)'],
 		misses: ['// rawRangeToDomRange measures']
 	},

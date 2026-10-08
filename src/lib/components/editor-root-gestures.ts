@@ -6,6 +6,7 @@
 
 import type { BlockComponent } from '../block-component';
 import type { CaretMemory } from '../caret/caret-memory';
+import type { CaretWriter } from '../caret/widget-offset';
 import type { CaretLanding } from '../selection/caret-landing';
 import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
@@ -26,6 +27,7 @@ import type { Reading } from '../schema/reading';
 export interface RootGesturesDeps {
 	getDoc: DocumentGetter;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	caretMemory: Pick<CaretMemory, 'forget'>;
 	getBlockElByPath: BlockElLookup;
 	getBlockComponent(path: number[]): BlockComponent | null;
@@ -59,10 +61,12 @@ const DRAG_SLOP_PX = 3;
 export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	const deadSpaceCaret = createDeadSpaceCaret({
 		getBlockComponent: (path) => deps.getBlockComponent(path),
-		resetSelectionForClick: () => resetForPointerDown(deps.selection, deps.caretMemory, false),
+		resetSelectionForClick: () =>
+			resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false),
 		gapScope: {
 			getDoc: deps.getDoc,
 			selection: deps.selection,
+			caretWriter: deps.caretWriter,
 			getPresentationMode: deps.reading.mode
 		},
 		lastBlockIndex: () => deps.getDoc().children.length - 1,
@@ -171,7 +175,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
 			if (!anchor) return;
 			marginDrag = true;
-			resetForPointerDown(deps.selection, deps.caretMemory, false);
+			resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false);
 			// A block that runs its own drag from a nearby click (a table's cell rectangle) takes
 			// it; the generic drag is for blocks that have none.
 			if (!('offset' in anchor)) {
@@ -183,6 +187,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 					editorRoot: root,
 					scrollContainer: deps.getScrollHost() ?? root,
 					selection: deps.selection,
+					caretWriter: deps.caretWriter,
 					getBlockElByPath: deps.getBlockElByPath,
 					lifetimeSignal: deps.getLifetime(),
 					paintSameBlock: () => true
@@ -208,6 +213,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			installMultiClickSelect({
 				editorRoot: root,
 				selection: deps.selection,
+				caretWriter: deps.caretWriter,
 				getBlockElByPath: deps.getBlockElByPath,
 				getScrollContainer: () => deps.getScrollHost() ?? root,
 				lifetimeSignal: deps.getLifetime(),
@@ -219,9 +225,14 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			}),
 			onRoot(root, 'pointerdown', startMarginDrag),
 			onRoot(root, 'mousedown', handleMouseDown),
-			onRoot<MouseEvent>(root, 'contextmenu', (e) => placeContextPress(deps.selection, e), {
-				capture: true
-			})
+			onRoot<MouseEvent>(
+				root,
+				'contextmenu',
+				(e) => placeContextPress(deps.selection, deps.caretWriter, e),
+				{
+					capture: true
+				}
+			)
 		);
 	}
 

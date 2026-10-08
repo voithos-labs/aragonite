@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { asRawOffset } from '../../caret/coordinate-spaces';
 import { createSurfaceBackend } from '../../caret/surface-backend';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 afterEach(() => {
 	document.body.replaceChildren();
@@ -58,7 +59,9 @@ describe('the surface backend counts a widget by its source bytes', () => {
 
 	it('writes a raw offset past the widget into the text after it', () => {
 		const { el } = mountWithWidget();
-		createSurfaceBackend({ getEl: () => el }).setRaw(asRawOffset(9), { clamp: 'exact' });
+		createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).setRaw(asRawOffset(9), {
+			clamp: 'exact'
+		});
 		const { node, offset } = caret();
 		expect(node.textContent).toBe('cd');
 		expect(offset).toBe(1);
@@ -67,7 +70,9 @@ describe('the surface backend counts a widget by its source bytes', () => {
 	it('reads a caret past the widget back as the same raw offset', () => {
 		const { el, tail } = mountWithWidget();
 		window.getSelection()!.collapse(tail, 1);
-		expect(createSurfaceBackend({ getEl: () => el }).getRaw()).toBe(9);
+		expect(createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).getRaw()).toBe(
+			9
+		);
 	});
 });
 
@@ -78,7 +83,9 @@ describe('the surface backend treats adjacent hidden fence lines as one run (#57
 		const closer = fenceLine('```');
 		el.append(opener, closer);
 		el.focus();
-		createSurfaceBackend({ getEl: () => el }).setRaw(asRawOffset(4), { clamp: 'exact' });
+		createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).setRaw(asRawOffset(4), {
+			clamp: 'exact'
+		});
 		const { node, offset } = caret();
 		const between =
 			node === el && el.childNodes[offset - 1] === opener && el.childNodes[offset] === closer;

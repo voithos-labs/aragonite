@@ -7,6 +7,7 @@ import {
 	installRevealAnchorRelease,
 	installSelectionChangeBridge
 } from '#lib/components/editor-root-listeners.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Teardowns collect here so no test leaks a document-level listener into the next.
 const teardowns: (() => void)[] = [];
@@ -142,6 +143,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 
 		let emits = 0;
 		const teardown = installSelectionChangeBridge({
+			caretWriter: testCaretWriter,
 			root,
 			isHostChrome: (node) => !!node && header.contains(node),
 			announceIfMoved: () => emits++,

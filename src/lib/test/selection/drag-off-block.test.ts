@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installDragListener } from '#lib/selection/drag-pointer.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const SOURCE = 'first\n\nsecond\n\nthird\n';
 // Ten pixels of gap between the boxes, the shape a y belonging to no band needs.
@@ -46,6 +47,7 @@ describe('a drag that ends off every block', () => {
 		frame = stubFrame();
 		installDragListener(
 			{
+				caretWriter: testCaretWriter,
 				editorRoot,
 				// Far larger than every point below, so no edge band starts the autoscroll loop and
 				// the stubbed frame stays the drag's own.

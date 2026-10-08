@@ -15,7 +15,7 @@
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
-	const { controller, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { controller, selection, caretWriter } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	let boxEl: HTMLElement | undefined = $state();
 
@@ -77,6 +77,7 @@
 
 	export const containerApi = createContainerBlockComponent({
 		selection,
+		caretWriter,
 		reading,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;

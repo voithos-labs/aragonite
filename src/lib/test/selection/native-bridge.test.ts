@@ -11,6 +11,7 @@ import { parse } from '../../core/parser';
 import { stubBlockComponent } from '../harness/editor-actions';
 import { restoreTarget } from '../harness/restore-landing';
 import { selectWidgetWhole } from '../../selection/place-caret';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 describe('readCurrentSelection: unfocused editor', () => {
 	it('returns null when no block reports a cursor (does not clamp to block 0 offset 0)', () => {
@@ -47,7 +48,11 @@ describe('readCurrentSelection: an image selected whole', () => {
 		const imageEnd = { path: [0], offset: 41 };
 		const blockRefs = [stubBlockComponent({ getCursorOffset: () => 0 })];
 		const selection = createSelectionState({ widgetSpan: () => ({ start: 30, end: 41 }) });
-		selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 30, preSelectOffset: 41 });
+		selectWidgetWhole(selection, testCaretWriter, {
+			paragraphPath: [0],
+			sourceStart: 30,
+			preSelectOffset: 41
+		});
 
 		const result = readCurrentSelection(selection, blockRefs);
 
@@ -109,7 +114,7 @@ describe('applyCollapsedCaret: the reachable clamp lives in the one writer', () 
 
 	it('a collapsed caret at raw 0 lands beside a hidden leading run, never behind it', () => {
 		const { block, content } = mountBlock('live');
-		applyCollapsedCaret(block, { path: [0], offset: 0 });
+		applyCollapsedCaret(testCaretWriter, block, { path: [0], offset: 0 });
 
 		const sel = window.getSelection()!;
 		expect(sel.anchorNode).toBe(content);
@@ -118,7 +123,10 @@ describe('applyCollapsedCaret: the reachable clamp lives in the one writer', () 
 
 	it('source mode is identity: the same offset stays on the painted marker', () => {
 		const { marker } = mountBlock(undefined);
-		applyCollapsedCaret(marker.parentElement as HTMLElement, { path: [0], offset: 0 });
+		applyCollapsedCaret(testCaretWriter, marker.parentElement as HTMLElement, {
+			path: [0],
+			offset: 0
+		});
 
 		expect(window.getSelection()!.anchorNode).toBe(marker.firstChild);
 		expect(window.getSelection()!.anchorOffset).toBe(0);
@@ -191,7 +199,7 @@ describe('applySelectionToDom: restore routing', () => {
 		document.body.appendChild(block);
 		block.focus();
 
-		applySingleBlockRange(block, 10, 0);
+		applySingleBlockRange(testCaretWriter, block, 10, 0);
 
 		const sel = window.getSelection()!;
 		expect(sel.anchorNode === content && sel.focusNode === content).toBe(true);

@@ -23,6 +23,9 @@ import {
 	recordRebuildDepth,
 	recordScreenRead,
 	recordSnapshotClone,
+	markCaretPaint,
+	markCaretRequest,
+	recordCaretFrameMove,
 	resetPerfInstruments,
 	setUndoGauge
 } from '../../perf/instruments';
@@ -48,6 +51,8 @@ const EMPTY: PerfSnapshot = {
 	blockRenderCount: 0,
 	blockRenderMsTotal: 0,
 	keystrokeInPageMs: [],
+	caretPaintMs: [],
+	caretFrameMoves: 0,
 	blockRenderPaths: [],
 	mountedBlockCount: 0,
 	decorationRuns: 0,
@@ -73,6 +78,9 @@ function recordOneOfEach(): void {
 	recordNeighbourPass();
 	markKeystrokeStart();
 	markKeystrokeSettle();
+	markCaretRequest();
+	markCaretPaint();
+	recordCaretFrameMove();
 }
 
 beforeEach(() => {

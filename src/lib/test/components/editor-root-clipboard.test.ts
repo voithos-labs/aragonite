@@ -9,6 +9,7 @@ import { createEditorEvents, type EditorError } from '#lib/editor-events.js';
 import type { BlockComponent } from '#lib/block-component.js';
 import type { PasteImageHook } from '#lib/editor-keys.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Chromium retargets a clipboard event to <body> when the selection has no caret, at a cross-block
 // endpoint or a selected widget; driven through `target`, since a block still holds focus.
@@ -30,7 +31,11 @@ function harness(options: HarnessOptions = {}) {
 
 	const selection = createSelectionState();
 	if (options.widgetBlock) {
-		selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 });
+		selectWidgetWhole(selection, testCaretWriter, {
+			paragraphPath: [0],
+			sourceStart: 0,
+			preSelectOffset: 0
+		});
 	}
 	const doc = parse('hello\n\nworld\n');
 	const pasted: (string | undefined)[] = [];

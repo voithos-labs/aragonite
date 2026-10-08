@@ -14,6 +14,7 @@
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
 	import type { MenuPresence } from '../menu/menu-presence.svelte';
+	import type { CaretWriter } from '../../caret/widget-offset';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
 
 	let {
@@ -26,6 +27,7 @@
 		onDismiss,
 		maxFrameWidth,
 		menuPresence,
+		caretWriter,
 		cropping = $bindable(false)
 	}: {
 		target: WidgetTarget;
@@ -43,6 +45,8 @@
 		maxFrameWidth: () => number;
 		/** The alt field is a popover over the document, so it counts as an open menu. */
 		menuPresence: MenuPresence;
+		/** Drops the native range a double click leaves across the image before a crop. */
+		caretWriter: CaretWriter;
 		cropping?: boolean;
 	} = $props();
 
@@ -276,7 +280,7 @@
 			e.preventDefault();
 			// The double click leaves a native range across the widget; a crop is not a text
 			// gesture, so it goes.
-			document.getSelection()?.removeAllRanges();
+			caretWriter.clear();
 			startCrop();
 		};
 		document.addEventListener('dblclick', onDoubleClick);

@@ -129,6 +129,7 @@
 		controller,
 		pasteCoordinator,
 		caretMemory,
+		caretWriter,
 		selection,
 		getDoc,
 		getEditorRoot,
@@ -214,6 +215,7 @@
 
 	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null,
+		caretWriter,
 		getSnapTarget: () => lastSnapTargetOffset
 	});
 
@@ -319,6 +321,7 @@
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
 		selection,
+		caretWriter,
 		blockEdit,
 		writeText,
 		focusActions,
@@ -413,7 +416,8 @@
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
-		pendingMarks: caretMemory.pendingMarks
+		pendingMarks: caretMemory.pendingMarks,
+		caretWriter
 	});
 
 	const textRender = createTextRender({
@@ -446,7 +450,8 @@
 		},
 		brokenUrlCache,
 		reportRenderError: (error) =>
-			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
+			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } }),
+		caretWriter
 	});
 
 	$effect(() => () => textRender.dispose());
@@ -867,7 +872,8 @@
 		caretBounds,
 		getFocusOffset: () => cursor.getFocusOffset(),
 		// Not offset 0: the start value is the one a caret placement clamps past hidden markers.
-		focusContentStart: () => focus(CURSOR_START)
+		focusContentStart: () => focus(CURSOR_START),
+		caretWriter
 	};
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {

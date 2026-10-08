@@ -62,6 +62,7 @@
 		// the cell's, through the shared editable surface.
 		caretMemory: { captureColumn: captureExitColumn },
 		selection,
+		caretWriter,
 		menuPresence,
 		caretLanding,
 		rangeCoverage
@@ -430,7 +431,7 @@
 			: { rowIdx: rowCount - 1, colIdx: columnCount - 1, at: edge.offset };
 	}
 
-	export const focus = placeCaret(selection, (offset: number) => {
+	export const focus = placeCaret(selection, caretWriter, (offset: number) => {
 		if (rowCount === 0) return;
 		const { rowIdx, colIdx, at } = entryCell(offset);
 		focusCell(rowIdx, colIdx, at);
@@ -511,7 +512,7 @@
 		if (!target || !editorRoot) return false;
 		const [rowIdx, colIdx] = target.path;
 		installCellDragListener(
-			{ editorRoot, selection, lifetimeSignal: editorLifetime },
+			{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime },
 			{ tableEl, tablePath: myPath.slice(), rowIdx, colIdx, columnCount },
 			e
 		);

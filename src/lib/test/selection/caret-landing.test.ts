@@ -20,6 +20,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
 import { stubScrollport } from '../harness/stub-scrollport';
 import { takeDevWarns } from '../support/warn-gate';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface Placement {
 	path: number[];
@@ -92,6 +93,7 @@ function landingOver(source: string, over: Partial<CaretLandingDeps> = {}) {
 		getDoc: () => doc,
 		root: mountingList(doc, [], placements),
 		selectionState: createSelectionState({ getDoc: () => doc }),
+		caretWriter: testCaretWriter,
 		caretMemory,
 		// A stand-in element, so the scroll half has something to bring into view.
 		getBlockElByPath: () => STAND_IN,
@@ -130,6 +132,7 @@ describe('landing a caret', () => {
 		const placements: Placement[] = [];
 		const box: { landing?: ReturnType<typeof createCaretLanding> } = {};
 		box.landing = createCaretLanding({
+			caretWriter: testCaretWriter,
 			getDoc: () => doc,
 			root: mountingList(doc, [], placements, () => box.landing!.noteTreeSwap()),
 			selectionState: createSelectionState({ getDoc: () => doc }),
@@ -204,6 +207,7 @@ describe('bringing a landing into view', () => {
 		const doc = parse('a\n');
 		const scrolling = stubBlockComponent({ focus: () => port.setScrollTop(120) });
 		const landing = createCaretLanding({
+			caretWriter: testCaretWriter,
 			getDoc: () => doc,
 			root: {
 				count: () => 1,

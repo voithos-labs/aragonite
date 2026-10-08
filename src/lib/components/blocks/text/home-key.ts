@@ -7,9 +7,9 @@
 
 import { isAtFirstVisualLine, type CaretBounds } from '../../../caret/visual-lines';
 import {
-	extendSelectionToRaw,
 	landableStartAbutsIsland,
-	markerPrefixOf
+	markerPrefixOf,
+	type CaretWriter
 } from '../../../caret/widget-offset';
 
 export interface HomeKeyDeps {
@@ -20,6 +20,8 @@ export interface HomeKeyDeps {
 	getFocusOffset(): number | null;
 	/** A collapsed caret at the start of the text, through the clamp every caret placement takes. */
 	focusContentStart(): void;
+	/** The editor's caret writer, which Shift+Home extends the selection through. */
+	caretWriter: CaretWriter;
 }
 
 /** True when the key was handled here, its default prevented. */
@@ -35,7 +37,7 @@ export function handleHomeKey(e: KeyboardEvent, deps: HomeKeyDeps): boolean {
 		if (!isAtFirstVisualLine(el, focus, bounds)) return false;
 	}
 	e.preventDefault();
-	if (e.shiftKey) extendSelectionToRaw(el, bounds.start);
+	if (e.shiftKey) deps.caretWriter.extendSelectionToRaw(el, bounds.start);
 	else deps.focusContentStart();
 	return true;
 }

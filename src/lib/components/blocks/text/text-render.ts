@@ -31,7 +31,7 @@ import {
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
 	holdsOnlyMarkerChrome,
-	placeCaretAtRaw
+	type CaretWriter
 } from '../../../caret/widget-offset';
 import { captureFocusedCaret } from '../../../caret/focused-caret';
 import type { IndexedDecoration } from '../../../decorations/buckets';
@@ -84,6 +84,8 @@ export interface TextRenderDeps {
 	/** A widget that throws while mounting reports to the editor's `error` event, and still falls
 	 *  back to its raw source. */
 	reportRenderError: (error: unknown) => void;
+	/** The editor's caret writer, which puts a carried caret back after a rebuild. */
+	caretWriter: CaretWriter;
 }
 
 export interface TextRender {
@@ -232,7 +234,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	}
 
 	function restoreCaret(el: HTMLElement, raw: RawOffset): void {
-		placeCaretAtRaw(el, raw, { clamp: 'exact' });
+		deps.caretWriter.placeCaretAtRaw(el, raw, { clamp: 'exact' });
 		traceCursorRestore(raw);
 	}
 

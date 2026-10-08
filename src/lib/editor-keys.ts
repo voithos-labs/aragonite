@@ -30,6 +30,8 @@ import type { RangeCoverage } from './selection/range-coverage';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { CaretMemory } from './caret/caret-memory';
+import type { CaretWriter } from './caret/widget-offset';
+import type { DrawnCaret } from './caret/drawn-caret.svelte';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
 import type { ScrollOwner } from './windowing/scroll-owner';
 import type { HeightOracle } from './windowing/height-estimator';
@@ -147,6 +149,10 @@ export interface EditorServices {
 	/** How the caret arrived: the sticky column, the side of a hidden marker run and the
 	 *  pending marks, kept and dropped as one. */
 	caretMemory: CaretMemory;
+	/** The one writer of the native selection; each write asks the drawn caret to repaint. */
+	caretWriter: CaretWriter;
+	/** The caret the editor draws; each editable surface registers itself with it. */
+	drawnCaret: DrawnCaret;
 	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
 	 *  or deletes; each typing block takes its own view of it. */
 	autoPairs: AutoPairRecord;
