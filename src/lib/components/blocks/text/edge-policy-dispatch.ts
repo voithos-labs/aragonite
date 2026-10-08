@@ -20,7 +20,8 @@ import {
 	landableRawBounds,
 	markerPrefixOf,
 	revealsNoMarkers,
-	screenVisibilityOf
+	screenVisibilityOf,
+	selectDomRange
 } from '../../../cursor/widget-offset';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
@@ -325,12 +326,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	function selectIslandWhole(el: HTMLElement): void {
-		const sel = window.getSelection();
-		if (!sel) return;
 		const range = document.createRange();
 		range.selectNode(el);
-		sel.removeAllRanges();
-		sel.addRange(range);
+		selectDomRange(range);
 	}
 
 	function handleIsland(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {

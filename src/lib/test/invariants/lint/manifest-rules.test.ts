@@ -295,21 +295,17 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['buildImageEditBytes(image, raw, fields)']
 	},
 	{
-		id: 'G4.36 the files writing the native selection are the one caret writer and the node-range writers',
+		id: 'G4.36 the one file writing the native selection is the caret writer',
 		// Only the two-argument collapse and setPosition: Range.collapse(true) and the editor's own
 		// selectionState.collapse() take one argument or none, and write no caret.
 		matches:
 			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
 		declared: {
 			'src/lib/cursor/widget-offset.ts':
-				'placeCaretAtRaw and the raw range writers: the one translation from a raw offset to a native selection',
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
-				'selects a replace widget whole: a range over one element, not a raw offset',
-			'src/lib/components/blocks/text/widget-interaction.ts':
-				"a double-click selects the revealed token whole, over the reveal's own text node"
+				'writeSelection, behind placeCaretAtRaw, the raw range writers and selectDomRange, checks every endpoint against an empty block’s <br> (G1.75)'
 		},
 		reason:
-			'a caret written from a raw offset goes through placeCaretAtRaw, which skips the marker prefix and clamps; any other native write must be a range over nodes it already holds',
+			'a caret written from a raw offset goes through placeCaretAtRaw, which skips the marker prefix and clamps; a range over nodes the caller already holds goes through selectDomRange',
 		hits: [
 			'sel?.addRange(range);',
 			'sel.setBaseAndExtent(n, 0, n, 0);',

@@ -60,6 +60,19 @@ describe('placeCaretAtRaw', () => {
 		expect(caretAt()).toBe('element@0');
 	});
 
+	// Miss-analysis: every case here placed into a block holding text, so no test read where the
+	// caret goes in a block holding only its placeholder `<br>`.
+	it('raw 0 in an empty block lands before its placeholder <br>', () => {
+		const block = document.createElement('div');
+		block.setAttribute('contenteditable', 'true');
+		block.appendChild(document.createElement('br'));
+		document.body.appendChild(block);
+		placeCaretAtRaw(block, 0, { clamp: 'exact' });
+		expect(caretAt()).toBe('element@0');
+		selectSurfaceContent(block);
+		expect(caretAt()).toBe('element@0');
+	});
+
 	it('raw 0 behind a marker prefix lands after the prefix span, never inside it', () => {
 		const { block } = mount('source', '- ');
 		placeCaretAtRaw(block, 0, { clamp: 'exact' });

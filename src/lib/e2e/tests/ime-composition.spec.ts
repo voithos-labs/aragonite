@@ -193,7 +193,7 @@ const EDITOR_PLACED: EmptyBlockRoute[] = [
 		name: 'Enter at the end of a quote',
 		source: '> quote\n',
 		reach: enterAtEnd,
-		after: (text) => `> quote\n> ${text}\n`
+		after: (text) => `> quote\n>\n> ${text}\n`
 	},
 	{
 		name: 'placeCaret into an empty document',
