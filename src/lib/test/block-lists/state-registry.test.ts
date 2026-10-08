@@ -5,11 +5,11 @@ import {
 	registerBlockListState,
 	getStateForNode,
 	expectStateForNode
-} from '../../reactivity/state-registry';
-import { createBlockListState } from '../../reactivity/block-list-state.svelte';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+} from '../../block-lists/state-registry';
+import { createBlockListState } from '../../block-lists/block-list-state.svelte';
+import type { BlockListState } from '../../block-lists/block-list-state.svelte';
 import type { CstNode } from '../../core/nodes';
-import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
+import { refSlotsOver } from '../../block-lists/child-refs';
 import { takeDevWarns } from '../support/warn-gate';
 
 function makeFakeState(): BlockListState {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
-import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import {

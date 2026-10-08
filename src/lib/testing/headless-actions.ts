@@ -15,8 +15,8 @@ import { withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
-import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
-import type { ChildList } from '../reactivity/child-list';
+import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
+import type { ChildList } from '../block-lists/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import {
 	createCaretLanding,

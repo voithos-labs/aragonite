@@ -14,7 +14,7 @@ clamp reads), and a collapsible kind that declares nothing behaves exactly as it
 Covered by unit tests elsewhere: the decision to expand (finding collapsed ancestors, the check
 for reading mode, degrading when a kind declares nothing) in
 `test/editor-actions/reveal-expand.test.ts` and `test/plugins/expand-door.test.ts`, and stopping
-rather than waiting forever in `test/reactivity/reveal-child-or-wait.test.ts`. What this file
+rather than waiting forever in `test/block-lists/reveal-child-or-wait.test.ts`. What this file
 proves is that the expansion, the mount and the scroll really do compose on the real navigation
 path through a windowed document, in the flush order no unit test can assume.
 

@@ -169,7 +169,7 @@ describe('G4.26 requirement files keep house words out of their body text', () =
  *  Lower a number when a rewrite lands; never raise one. */
 const DOC_BASELINE: Record<string, number> = {
 	'docs/design/caret-placement.md': 1,
-	'docs/design/invariants.md': 97,
+	'docs/design/invariants.md': 95,
 	'docs/contributing/code-style.md': 4,
 	'docs/contributing/first-hour.md': 1,
 	'docs/contributing/rules.md': 2

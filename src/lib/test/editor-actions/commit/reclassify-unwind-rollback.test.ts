@@ -5,7 +5,7 @@ import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { asDocPath } from '#lib/selection/path-math.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
 import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
-import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
 import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import {

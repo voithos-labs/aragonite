@@ -8,7 +8,7 @@ import { metadataOf, type Document } from '#lib/core/nodes.js';
 import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,

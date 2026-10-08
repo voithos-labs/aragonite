@@ -4,7 +4,7 @@
  * The editor root, every container, the table and each table row publish one.
  */
 import type { BlockComponent } from '../block-component';
-import { revealChildOrWait, type RefSlots } from './publish-ref.svelte';
+import { revealChildOrWait, type RefSlots } from './child-refs';
 
 /** One mounted child list, as the descent reads it. Every field is read live. */
 export interface ChildList {

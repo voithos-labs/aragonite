@@ -55,7 +55,7 @@
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
-	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
 	import {
 		selectWholeDocument,
 		extendFocusToNextBlock,

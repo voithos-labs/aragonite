@@ -16,8 +16,8 @@ import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../.
 import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
 import type { CaretMemory } from '../../caret/caret-memory';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
-import type { ChildList } from '../../reactivity/child-list';
+import type { BlockListState } from '../../block-lists/block-list-state.svelte';
+import type { ChildList } from '../../block-lists/child-list';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
 import { withEnterCompletion } from '../enter-completion';

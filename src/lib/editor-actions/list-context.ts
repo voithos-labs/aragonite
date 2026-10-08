@@ -29,8 +29,8 @@ import {
 	liftNestedItem,
 	type ItemMoveCommits
 } from '../tree-operations/list/item-moves';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import { expectStateForNode } from '../reactivity/state-registry';
+import type { BlockListState } from '../block-lists/block-list-state.svelte';
+import { expectStateForNode } from '../block-lists/state-registry';
 import type { NodeScope } from './nested/nested-actions';
 
 export interface ListContextDeps {

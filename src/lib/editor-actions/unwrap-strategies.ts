@@ -16,7 +16,7 @@ import {
 	renumberOrderedList,
 	isItemUserEmpty
 } from '../tree-operations';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
+import type { BlockListState } from '../block-lists/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import { removeEmptiedContainer } from './nested/emptied-container';
 import { mergedElsePrevious } from './merge-fallback';

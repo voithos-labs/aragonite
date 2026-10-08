@@ -8,7 +8,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
-import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import {
 	makeEditorActionsDeps,

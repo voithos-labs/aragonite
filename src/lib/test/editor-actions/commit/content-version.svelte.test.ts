@@ -1,7 +1,7 @@
 // The key itself: a number that moves only when a writer says the bytes moved. Who does the
 // calling is `content-version-doors.test.ts`.
 import { describe, it, expect } from 'vitest';
-import { createContentVersion } from '../../reactivity/content-version.svelte';
+import { createContentVersion } from '../../../editor-actions/commit/content-version.svelte';
 
 describe('content version', () => {
 	it('is stable across reads until a bump: otherwise it is a clock, not a key', () => {

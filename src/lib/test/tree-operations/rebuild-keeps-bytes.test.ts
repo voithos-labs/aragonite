@@ -18,7 +18,7 @@ import { buildQuoteExitReplacement, plainQuote } from '#lib/tree-operations/bloc
 import { liftFirstChild } from '#lib/tree-operations/container-lift.js';
 import { buildExitReplacement } from '#lib/tree-operations/list/exit-replacement.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeContainerHarness,

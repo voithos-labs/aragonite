@@ -28,10 +28,10 @@ import type { CaretPosition } from '../selection/primitives';
 import type { LandingOutcome, RevealPolicy } from '../selection/caret-landing';
 import { survivorAfterRemoval, type RemovalGesture } from '../selection/caret-target';
 import { docPathFrom, extendDocPath } from '../caret/coordinate-spaces';
-import { getStateForNode } from '../reactivity/state-registry';
+import { getStateForNode } from '../block-lists/state-registry';
 import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
+import type { BlockListState } from '../block-lists/block-list-state.svelte';
 import { createLeafTyping } from './leaf-write';
 import { createContainerEditActions } from './container-edit';
 

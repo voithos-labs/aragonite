@@ -7,7 +7,7 @@ import {
 	type StickyColumnDirection
 } from '../block-component';
 import { dispatchFocusByPath, dispatchFocusAtColumn } from './focus/focus-dispatch';
-import type { ChildList } from '../reactivity/child-list';
+import type { ChildList } from '../block-lists/child-list';
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';

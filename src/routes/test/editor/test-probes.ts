@@ -6,7 +6,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { parseConverges } from '#lib/testing/parse-convergence.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { spliceChildren } from '#lib/tree-operations/children.js';
-import { getStateForNode } from '#lib/reactivity/state-registry.js';
+import { getStateForNode } from '#lib/block-lists/state-registry.js';
 import type { BlockKind, CstNode, Document } from '#lib/core/nodes.js';
 import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';

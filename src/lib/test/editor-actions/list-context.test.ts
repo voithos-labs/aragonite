@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { parse } from '#lib/core/parser.js';
 import {
 	makeBlockListState,

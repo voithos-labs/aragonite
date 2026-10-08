@@ -9,7 +9,7 @@ import { makeStubFocus } from '../../harness/editor-actions';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
 import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 import { dispatchKey } from '#lib/test/harness/settle.js';
-import { descendTo } from '#lib/reactivity/child-list.js';
+import { descendTo } from '#lib/block-lists/child-list.js';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));

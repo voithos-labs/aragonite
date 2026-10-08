@@ -25,9 +25,9 @@ import {
 import {
 	createBlockListState,
 	type BlockListState
-} from '../../reactivity/block-list-state.svelte';
+} from '../../block-lists/block-list-state.svelte';
 import type { Reading } from '../../schema/reading';
-import type { ChildList } from '../../reactivity/child-list';
+import type { ChildList } from '../../block-lists/child-list';
 import {
 	createStandardNestedActions,
 	setNestedActionsContexts,

@@ -26,7 +26,7 @@
 	} from '../editor-keys';
 	import { useMountGauge } from '../perf/use-mount-gauge.svelte';
 	import { useMeasuredChild } from '../windowing/use-measured-child.svelte';
-	import { publishRefSlot, type RefSlots } from '../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../block-lists/child-refs';
 	import { devWarn } from '../dev-warn';
 	import { stampBlockContexts } from './stamp-block-contexts';
 

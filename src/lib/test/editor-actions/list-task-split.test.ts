@@ -1,7 +1,7 @@
 // Miss-analysis: the task-aware reader missed the list split, and no case split a to-do.
 
 import { describe, it, expect } from 'vitest';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { Document } from '#lib/core/nodes.js';

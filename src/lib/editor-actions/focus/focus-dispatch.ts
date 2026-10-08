@@ -81,7 +81,7 @@ export function traversalStep(position: FocusPosition): -1 | 0 | 1 {
 }
 
 /** Scrolls nothing into view, so an unmounted target does nothing; a caller that cannot keep
- *  the target mounted goes through `reactivity/child-list.ts :: descendTo`. */
+ *  the target mounted goes through `block-lists/child-list.ts :: descendTo`. */
 export function dispatchFocusByPath(
 	refs: (BlockComponent | undefined)[],
 	path: number[],

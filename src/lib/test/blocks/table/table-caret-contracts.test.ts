@@ -6,7 +6,7 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '#lib/block-component.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
-import { componentAt } from '#lib/reactivity/child-list.js';
+import { componentAt } from '#lib/block-lists/child-list.js';
 
 let restoreLayout: () => void;
 beforeAll(() => {

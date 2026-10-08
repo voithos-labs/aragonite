@@ -10,7 +10,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { getStateForNode } from '#lib/reactivity/state-registry.js';
+import { getStateForNode } from '#lib/block-lists/state-registry.js';
 import { collectEditorSources } from '../invariants/lint/scan-source';
 
 interface Seam {

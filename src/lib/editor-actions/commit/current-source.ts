@@ -5,11 +5,11 @@
  */
 
 import { untrack } from 'svelte';
-import { assertInvariant } from '../assert';
-import type { Document } from '../core/nodes';
-import { serialize } from '../core/serializer';
-import { checkCurrentSource } from '../invariants/current-source';
-import { perfEnabled } from '../perf/instruments';
+import { assertInvariant } from '../../assert';
+import type { Document } from '../../core/nodes';
+import { serialize } from '../../core/serializer';
+import { checkCurrentSource } from '../../invariants/current-source';
+import { perfEnabled } from '../../perf/instruments';
 
 export interface CurrentSourceDeps {
 	version(): number;

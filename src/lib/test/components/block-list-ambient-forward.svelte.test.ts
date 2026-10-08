@@ -9,7 +9,7 @@ import {
 	registerBlockComponent,
 	defineBlockComponent
 } from '#lib/schema/block-component-registry.js';
-import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import { editorMountContext } from '../harness/mount-context';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';

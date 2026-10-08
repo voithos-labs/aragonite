@@ -27,7 +27,7 @@ import { createUndoController } from '#lib/editor-actions/commit/undo-controller
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { rebalanceLiveSplit } from '#lib/components/blocks/text/live-split-rebalance.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { allowDevWarns } from '../support/warn-gate';
 import {
 	registerLiveJoinSeamCleaner,

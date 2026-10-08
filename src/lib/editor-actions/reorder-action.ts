@@ -10,7 +10,7 @@ import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, documentBody, nodeAt } from '../tree-operations/node-primitives';
 import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
-import { expectStateForNode } from '../reactivity/state-registry';
+import { expectStateForNode } from '../block-lists/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';
 import { extendDocPath, docPathFrom } from '../caret/coordinate-spaces';
 import type { EditorActionsDeps, UndoController } from './deps';

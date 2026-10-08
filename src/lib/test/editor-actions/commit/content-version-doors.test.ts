@@ -6,7 +6,7 @@ import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
-import { makeEditorActionsDeps, makeNestedHarness } from '../harness/editor-actions';
+import { makeEditorActionsDeps, makeNestedHarness } from '../../harness/editor-actions';
 
 function topLevelEditor(source: string) {
 	const harness = makeEditorActionsDeps(parse(source));

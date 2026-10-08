@@ -5,7 +5,7 @@
 // row the undo entry held keeps the bytes, so neither route had a test that could see it.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { rangeContext } from '../selection/cross-block/range-context';
 import type { SelectionPoint } from '#lib/selection/primitives.js';

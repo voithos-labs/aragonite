@@ -33,13 +33,13 @@
 	import { createScrollOwner } from '../windowing/scroll-owner';
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
-	import { createContentVersion } from '../reactivity/content-version.svelte';
-	import { createCurrentSource } from '../reactivity/current-source';
+	import { createContentVersion } from '../editor-actions/commit/content-version.svelte';
+	import { createCurrentSource } from '../editor-actions/commit/current-source';
 	import { useRootWindowing } from '../windowing/use-container-windowing.svelte';
 	import { createListTree } from '../windowing/list-tree';
 	import { createLayoutState } from '../windowing/layout-state.svelte';
-	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
-	import { componentAt, type ChildList } from '../reactivity/child-list';
+	import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
+	import { componentAt, type ChildList } from '../block-lists/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
 	import { createSelectionDescription } from '../selection/selection-description';

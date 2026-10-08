@@ -9,7 +9,7 @@ import {
 	mountEditor,
 	pressKeyAt
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { getStateForNode } from '#lib/reactivity/state-registry.js';
+import { getStateForNode } from '#lib/block-lists/state-registry.js';
 import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { EditorInstance } from '#lib/editor-props.js';

@@ -25,8 +25,8 @@
 	} from '../../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
-	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
-	import type { ChildList } from '../../../reactivity/child-list';
+	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
+	import type { ChildList } from '../../../block-lists/child-list';
 	import type { AnyCommandId } from '../../../schema/command-id';
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
 	import SelectionOverlay from '../../SelectionOverlay.svelte';

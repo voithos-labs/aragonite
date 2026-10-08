@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: the cases asked if the child was in range, never if its element was in the DOM.
 import { describe, it, expect, vi } from 'vitest';
-import {
-	revealChildOrWait,
-	publishRefSlot,
-	type RefSlots
-} from '../../reactivity/publish-ref.svelte';
+import { revealChildOrWait, publishRefSlot, type RefSlots } from '../../block-lists/child-refs';
 import { settlesWithin } from '../harness/microtask-settle';
 
 // A windowed block list whose `revealChild` writes a fresh ref one microtask later, as a mount

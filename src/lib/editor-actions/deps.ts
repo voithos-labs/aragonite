@@ -8,7 +8,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
 import type { Reading } from '../schema/reading';
-import type { RefSlots } from '../reactivity/publish-ref.svelte';
+import type { RefSlots } from '../block-lists/child-refs';
 import type { CaretLanding } from '../selection/caret-landing';
 import type { DocumentStamps } from './commit/document-stamp';
 

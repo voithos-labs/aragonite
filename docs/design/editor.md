@@ -402,7 +402,7 @@ Three invariants govern how tree state crosses into Svelte's reactivity. Each pr
 2. **The document is not its own memo key; the content version is.** The `$state` document is mutated in place, so its object identity survives every edit. Anything derived from the whole tree (footnote numbering, a table of contents) keys on the editor's **content version**, a counter each route writing the document's bytes bumps and nothing else moves:
 
    ```ts
-   // reactivity/content-version.svelte.ts
+   // editor-actions/commit/content-version.svelte.ts
    interface ContentVersion {
    	read(): number; // read it inside a $derived, and that derived re-runs on every edit
    	bump(): void; // announce that this write moved the document's bytes
@@ -959,7 +959,7 @@ Nodes need stable IDs for two reasons: Svelte's keyed `{#each}` (without stable 
 
 Both arrays are the `{#each}` key source for their list, and both update atomically with every children mutation: split inserts an ID after the original, merge and delete remove one, reorder moves one, and a kind change keeps the ID at that index (only the node object is swapped).
 
-**The state registry.** A lot of code needs to look up a `BlockListState` (ID array + ref array) from a node reference: the commit scopes, reorder, the list and table contexts, the ancestry collapse, paste, and the cross-block delete. That mapping is a module-global WeakMap keyed by the container node (`reactivity/state-registry.ts`); each `BlockList` registers on mount, and there's no deregister step, because the key _is_ the node, so an entry becomes collectable as soon as the node leaves the tree. Being module-global, the registry is shared by every editor instance on a page, which is safe because instances never share nodes. (The consumer-facing statement of the multi-instance boundary, global grammar and per-instance state, is in [`../guide/consumer-guide.md`](../guide/consumer-guide.md).)
+**The state registry.** A lot of code needs to look up a `BlockListState` (ID array + ref array) from a node reference: the commit scopes, reorder, the list and table contexts, the ancestry collapse, paste, and the cross-block delete. That mapping is a module-global WeakMap keyed by the container node (`block-lists/state-registry.ts`); each `BlockList` registers on mount, and there's no deregister step, because the key _is_ the node, so an entry becomes collectable as soon as the node leaves the tree. Being module-global, the registry is shared by every editor instance on a page, which is safe because instances never share nodes. (The consumer-facing statement of the multi-instance boundary, global grammar and per-instance state, is in [`../guide/consumer-guide.md`](../guide/consumer-guide.md).)
 
 ## 14. Block kinds
 

@@ -7,7 +7,7 @@ import type { BlockComponent } from '#lib/block-component.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
-import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import { createCaretLanding } from '#lib/selection/caret-landing.js';
 import { asDocPath } from '#lib/selection/path-math.js';
 import type { CaretPosition } from '#lib/selection/primitives.js';

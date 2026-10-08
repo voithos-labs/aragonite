@@ -281,8 +281,8 @@ export type {
 	ContainerBlockListProps
 } from './editor-actions/plugin/container';
 export type { Draft, DraftCloseCause, DraftSpec } from './schema/drafts';
-export type { RefSlots } from './reactivity/publish-ref.svelte';
-export type { ChildList } from './reactivity/child-list';
+export type { RefSlots } from './block-lists/child-refs';
+export type { ChildList } from './block-lists/child-list';
 // The one place allowed to import from `components/`, so `editor-actions` keeps no upward
 // value dependency on the component tree.
 export function registerChromeLeaf(kind: AnyBlockKind, opts?: ChromeLeafOptions): void {

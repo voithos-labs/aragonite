@@ -6,7 +6,7 @@ import { createContainerEditActions } from '#lib/editor-actions/container-edit.j
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { createListOverrides } from '#lib/editor-actions/list-overrides.js';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeContainerHarness,

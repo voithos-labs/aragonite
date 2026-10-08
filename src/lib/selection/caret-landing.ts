@@ -13,7 +13,7 @@ import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { BlockElLookup } from '../editor-keys';
 import { isDevChecks } from '../env';
 import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';
-import { descendTo, type ChildList } from '../reactivity/child-list';
+import { descendTo, type ChildList } from '../block-lists/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
 import { firstUsefulRect } from '../caret/visual-lines';

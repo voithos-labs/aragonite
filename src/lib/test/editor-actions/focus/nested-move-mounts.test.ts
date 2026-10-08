@@ -3,8 +3,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CURSOR_START, type BlockComponent } from '#lib/block-component.js';
 import { createNestedFocus } from '#lib/editor-actions/nested/nested-focus.js';
-import type { ChildList } from '#lib/reactivity/child-list.js';
-import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import type { ChildList } from '#lib/block-lists/child-list.js';
+import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import {
 	makeCaretMemory,
 	makeStubFocus,

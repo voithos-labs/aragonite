@@ -650,8 +650,8 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.13 no view-stripping cast outside tree-operations and the commit sequence',
-		population: notUnder(SOURCE_DIR.treeOperations, SOURCE_DIR.commit, SOURCE.cstNodes),
+		id: 'G4.13 no view-stripping cast outside tree-operations and the undo controller',
+		population: notUnder(SOURCE_DIR.treeOperations, SOURCE.undoController, SOURCE.cstNodes),
 		matches: stripsView,
 		mustMatch: [SOURCE.unshare],
 		reason:

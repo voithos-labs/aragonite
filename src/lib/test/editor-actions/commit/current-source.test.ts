@@ -3,10 +3,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { createCurrentSource } from '#lib/reactivity/current-source.js';
+import { createCurrentSource } from '#lib/editor-actions/commit/current-source.js';
 import { checkCurrentSource } from '#lib/invariants/current-source.js';
 import { disablePerfInstruments, enablePerfInstruments } from '#lib/perf/instruments.js';
-import { takeDevWarns } from '../support/warn-gate';
+import { takeDevWarns } from '../../support/warn-gate';
 
 // Counted, since the check's cost is one serialization and an echoing host reads on every key.
 vi.mock('#lib/core/serializer.js', async (importOriginal) => {

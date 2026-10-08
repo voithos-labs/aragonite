@@ -777,7 +777,7 @@ serializes the document again and says so if the two differ. It skips that while
 instruments are armed, and the swap check reads the cache unchecked, since an echoing host reaches
 it on every keystroke. Predicate
 `invariants/current-source.ts :: checkCurrentSource` · run by
-`reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
+`editor-actions/commit/current-source.ts :: createCurrentSource` · `test/editor-actions/commit/current-source.test.ts`.
 
 **G1.53 · Retired.** The rule was: a write made for a document a `source` swap replaced is
 refused, and a dev build says so (`stale-document-write`). The refusal stayed, in every build, in
@@ -1094,7 +1094,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.10  | Every bundled plugin directory is exported, and the pack carries it                       | L       |
 | G4.11  | Exactly the sanctioned paste routes apply paste transforms                                | L       |
 | G4.12  | Caret-edge destructive keys route through the one edge-policy dispatch                    | L       |
-| G4.13  | No view-stripping cast outside `tree-operations/` and the commit ceremony                 | T·L     |
+| G4.13  | No view-stripping cast outside `tree-operations/` and the undo controller                 | T·L     |
 | G4.14  | Every component prop reading the CST is typed as a readonly view                          | L       |
 | G4.15  | Coordinate brands are minted only at their home modules                                   | L       |
 | G4.16  | Bundled plugins import only the public authoring barrel                                   | L       |
@@ -1301,7 +1301,7 @@ allowlisted.
 `lint/manifest-rules.test.ts`.
 
 **G4.13 · The view-to-mutable boundary.** No `as CstNode` or `as Document` view-stripping cast
-outside `tree-operations/` and the commit ceremony. Readers hold bytes-readonly views
+outside `tree-operations/` and the undo controller. Readers hold bytes-readonly views
 (`core/node-views.ts`, G1.9 as a type) and re-enter mutability only through the unshare/clone seam
 or a commit scope's owned view. `lint/file-rules.test.ts`; type pins in
 `test/core/node-views.test.ts`.

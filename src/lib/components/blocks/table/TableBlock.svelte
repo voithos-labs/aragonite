@@ -28,7 +28,7 @@
 	import { useContainerWindowing } from '../../../windowing/use-container-windowing.svelte';
 	import { sliceWindow } from '../../../windowing/window-slice';
 	import { useWindowFloor } from '../../../windowing/use-window-floor.svelte';
-	import { componentAt, type ChildList } from '../../../reactivity/child-list';
+	import { componentAt, type ChildList } from '../../../block-lists/child-list';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';

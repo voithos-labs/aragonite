@@ -24,7 +24,7 @@ vi.mock('svelte', async (original) => ({
 	...(await original<typeof import('svelte')>()),
 	getContext: (key: unknown) => contexts.get(key)
 }));
-vi.mock('#lib/reactivity/block-list-state.svelte.js', () => ({
+vi.mock('#lib/block-lists/block-list-state.svelte.js', () => ({
 	createBlockListState: (getNode: () => NodeView) => ({ getNode })
 }));
 vi.mock('#lib/editor-actions/nested/nested-actions.js', () => ({

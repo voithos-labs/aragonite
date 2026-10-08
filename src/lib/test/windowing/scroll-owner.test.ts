@@ -13,7 +13,7 @@ import { docPathFrom } from '../../caret/coordinate-spaces';
 import { createEditorRects } from '../../editor-rects';
 import type { EditorDoc, EditorServices } from '../../editor-keys';
 import type { ScrollOwner } from '../../windowing/scroll-owner';
-import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
+import { refSlotsOver } from '../../block-lists/child-refs';
 import { createCaretLanding } from '../../selection/caret-landing';
 import { scrollFocusBlockIntoView } from '../../selection/keyboard-extend';
 import { createSelectionState, type SelectionState } from '../../selection/selection-state.svelte';

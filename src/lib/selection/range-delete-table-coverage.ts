@@ -7,7 +7,7 @@ import { deleteSnapshot, type CaretPosition, type SelectionPoint } from './primi
 import { metadataOf, type CstNode } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
+import { expectStateForNode, getStateForNode } from '../block-lists/state-registry';
 import {
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn,

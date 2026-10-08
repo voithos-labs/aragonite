@@ -141,7 +141,7 @@
 		"test:editor:caret": "vitest run src/lib/test/caret",
 		"test:editor:schema": "vitest run src/lib/test/schema",
 		"test:editor:windowing": "vitest run src/lib/test/windowing",
-		"test:editor:reactivity": "vitest run src/lib/test/reactivity",
+		"test:editor:block-lists": "vitest run src/lib/test/block-lists",
 		"test:editor:selection": "vitest run src/lib/test/selection",
 		"test:editor:blocks": "vitest run src/lib/test/blocks",
 		"test:editor:image": "vitest run src/lib/test/image",

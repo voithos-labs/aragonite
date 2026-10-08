@@ -13,7 +13,7 @@ import {
 	createStandardNestedActions,
 	type NestedActionsBundle
 } from '#lib/editor-actions/nested/nested-actions.js';
-import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,

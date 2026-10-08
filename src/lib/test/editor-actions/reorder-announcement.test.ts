@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { mountEveryBlock } from '#lib/test/harness/editor-actions.js';
 import { makeReorderHarness } from './reorder-harness';
 import type { RecordedLanding } from '#lib/testing/headless-actions.js';

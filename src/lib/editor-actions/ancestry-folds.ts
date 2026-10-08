@@ -12,8 +12,8 @@ import {
 } from '../tree-operations/structural-change';
 import { spliceMany } from '../tree-operations/splice-many';
 import { assignIds } from '../block-id';
-import { getStateForNode } from '../reactivity/state-registry';
-import { replaceRefs } from '../reactivity/publish-ref.svelte';
+import { getStateForNode } from '../block-lists/state-registry';
+import { replaceRefs } from '../block-lists/child-refs';
 import type { BlockComponent } from '../block-component';
 import type { EditorActionsDeps } from './deps';
 

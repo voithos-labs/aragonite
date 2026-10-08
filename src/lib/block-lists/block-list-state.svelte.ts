@@ -9,7 +9,7 @@ import type { BlockComponent } from '../block-component';
 import type { NodeView } from '../core/node-views';
 import { assignIds } from '../block-id';
 import { registerBlockListState } from './state-registry';
-import { refSlotsOver, type RefSlots } from './publish-ref.svelte';
+import { refSlotsOver, type RefSlots } from './child-refs';
 
 export interface BlockListState {
 	/** Settable because the ids live on the node, where the write reaches the `$state` proxy.

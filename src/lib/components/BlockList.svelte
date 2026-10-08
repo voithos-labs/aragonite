@@ -10,7 +10,7 @@
 		type EditorServices
 	} from '../editor-keys';
 	import type { WindowResult } from '../windowing/block-window.svelte';
-	import type { RefSlots } from '../reactivity/publish-ref.svelte';
+	import type { RefSlots } from '../block-lists/child-refs';
 	import { isProseKind } from '../core/inline';
 	import { gapEligibleAmong } from '../selection/gap-caret';
 	import { pathsEqual } from '../selection/path-math';

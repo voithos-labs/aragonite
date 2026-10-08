@@ -5,9 +5,9 @@ import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { makeRangeEnv } from './range-context';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { makeBlockListState, makeTableStateAt } from '#lib/test/harness/editor-actions.js';
-import type { BlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { metadataOf, type CstNode } from '#lib/core/nodes.js';
 import type { EditEvent } from '#lib/editor-events.js';
 

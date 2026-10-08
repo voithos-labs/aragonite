@@ -10,7 +10,7 @@ import type { HeightOracle } from '../windowing/height-estimator';
 import type { ListTree } from '../windowing/list-tree';
 import type { OperationsLog } from '../debug/operations-log';
 import type { DecorationEngine } from '../decorations/decoration-state.svelte';
-import type { RefSlots } from '../reactivity/publish-ref.svelte';
+import type { RefSlots } from '../block-lists/child-refs';
 import type { GapCaretPosition } from '../selection/gap-caret';
 import type { GrammarView } from '../schema/block-openers';
 import type { UndoManager } from '../undo/types';
