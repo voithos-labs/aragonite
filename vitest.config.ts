@@ -47,6 +47,9 @@ export default defineConfig({
 		// One VM context per test file in a long-lived worker: jsdom loads once per worker, and every
 		// file imports its modules afresh. `perf:editor` opts out, to time code outside a VM context.
 		pool: 'vmForks',
+		// A VM-pool worker's memory grows across the files it runs; the default recycle point (total
+		// memory over the worker count) lets a full run fill the machine, so recycle at 1 GB.
+		vmMemoryLimit: '1GB',
 		// Transforms persist in `node_modules/.vitest-cache`, so an area run skips most of them.
 		fsModuleCache: true,
 		projects: [
