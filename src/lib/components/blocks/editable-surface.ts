@@ -98,23 +98,13 @@ function withKeydownVerdict(
 
 // ── Selection removal ───────────────────────────────────────────────────────
 
-/** What a block's selection removal hands back: the write it made, false when it declines the
- *  range, or `REMOVED_IN_PLACE` when it splices shown text with no write to wait on. */
-export type SelectionRemoval = ContentWrite | HeldWrite | false | typeof REMOVED_IN_PLACE;
+/** Typed so a block can only answer with its own write, and the command over the selection waits
+ *  until that write has landed. */
+export type SelectionRemoval =
+	ContentWrite | Promise<ContentWrite> | false | typeof REMOVED_IN_PLACE;
 
+/** The answer of a block whose removal splices shown text in place, with no write to wait on. */
 export const REMOVED_IN_PLACE = Symbol('removed-in-place');
-
-declare const held: unique symbol;
-/** A write the block makes only once `schedule` runs it, resolving as that write does. */
-export type HeldWrite = Promise<boolean> & { readonly [held]: true };
-
-/** The only way to make a `HeldWrite`, so its promise is the write's own. */
-export function writeWhen(
-	schedule: (run: () => void) => void,
-	write: () => ContentWrite
-): HeldWrite {
-	return new Promise<boolean>((landed) => schedule(() => landed(write()))) as HeldWrite;
-}
 
 // ── Accessibility attributes ────────────────────────────────────────────────
 
@@ -596,7 +586,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		void deps.controller
 			.undoStep(seed, async () => {
 				const removal = remove(range);
-				if (removal === false || !(await (removal === REMOVED_IN_PLACE || removal))) return;
+				if (!(await (removal === REMOVED_IN_PLACE || removal))) return;
 				// The command reads the caret the removal's render puts back.
 				await tick();
 				if (!isDetached()) run(true);

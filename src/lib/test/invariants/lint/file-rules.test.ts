@@ -2179,8 +2179,10 @@ const WIDGET_LIST: FileRule = {
 const EDIT_SPAN_HOME = SOURCE.codeFenceBoundary;
 const ROGUE_CODE_WRITE = `${SOURCE_DIR.codeBlock}RogueCode.svelte`;
 
-/** Whether a file reads the fence-lines flag, or the mode check behind it, other than where the
- *  flag is derived, as the whole last argument of `editSpan`, or as an early return's last condition. */
+const FENCE_LINES_FLAG = 'fenceLinesShown';
+
+/** Whether a file reads a fence-lines flag, or the mode check behind it, other than `fenceLinesShown`
+ *  where it's derived, as the whole last argument of `editSpan`, or as an early return's last condition. */
 function readsFenceLinesByHand(file: SourceFile): boolean {
 	const code = file.code;
 	const spanArgs: number[] = [];
@@ -2188,20 +2190,21 @@ function readsFenceLinesByHand(file: SourceFile): boolean {
 		const from = call.index + call[0].length;
 		const args = balancedCall(code, from) ?? '';
 		const last = callArguments(args).at(-1) ?? '';
-		if (!/^fenceLines\w*$/.test(last)) return true;
+		if (last !== FENCE_LINES_FLAG) return true;
 		spanArgs.push(from + args.lastIndexOf(last));
 	}
 	const flagReads = [...code.matchAll(/(?<![\w.])fenceLines\w*\b/g)].filter((read) => {
+		if (read[0] !== FENCE_LINES_FLAG) return true;
 		const before = code.slice(0, read.index);
 		const after = code.slice(read.index + read[0].length);
-		const derived = /\b(?:const|let)\s+$/.test(before);
+		const derived = /\b(?:const|let)\s+$/.test(before) && /^\s*=\s*\$derived\(/.test(after);
 		const earlyReturn =
 			/(?:\|\||\bif\s*\()\s*$/.test(before) && /^\s*\)\s*return(?:\s+false)?\s*;/.test(after);
 		return !derived && !earlyReturn && !spanArgs.includes(read.index);
 	});
 	const modeChecks = [
 		...code.matchAll(/(?<![\w.])(?:paintsFocusedMarkers|hidesDelimitersAtCaret)\s*\(/g)
-	].filter((check) => !/\bfenceLines\w*\s*=\s*\$derived\(\s*$/.test(code.slice(0, check.index)));
+	].filter((check) => !/\bfenceLinesShown\s*=\s*\$derived\(\s*$/.test(code.slice(0, check.index)));
 	return flagReads.length > 0 || modeChecks.length > 0;
 }
 
@@ -2244,6 +2247,11 @@ const CODE_EDIT_SPAN: FileRule[] = [
 			at(ROGUE_CODE_WRITE, 'editSpan(node, fenceLinesShown ? range : body, fenceLinesShown);'),
 			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown || true);'),
 			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown && !mode);'),
+			at(
+				ROGUE_CODE_WRITE,
+				'const fenceLinesForced = true;\nconst span = editSpan(node, range, fenceLinesForced);'
+			),
+			at(ROGUE_CODE_WRITE, 'const fenceLinesForced = true;\nif (fenceLinesForced) return;'),
 			at(ROGUE_CODE_WRITE, 'const span = paintsFocusedMarkers(mode) ? range : body;'),
 			at(ROGUE_CODE_WRITE, 'if (hidesDelimitersAtCaret(mode)) return clamp(range);')
 		],
