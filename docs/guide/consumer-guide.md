@@ -120,6 +120,7 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 | `source`           | Seeds the document at mount; a later write replaces it only when it differs from `getSource()` (see [Loading another document](#loading-another-document)); never two-way bound                                                                                                                                                                            |
 | `theme`            | Theme name, reflected to `data-editor-theme` on the editor root: `'dark'` (default), `'light'`, or a name of your own (see [Theming](#theming))                                                                                                                                                                                                            |
 | `presentationMode` | How the document presents, from raw source to fully rendered: `'source'` (default), `'reading'`, `'preview-block'`, `'preview-inline'`, or `'live'` (see [Presentation modes](#presentation-modes))                                                                                                                                                        |
+| `caret`            | Who draws the caret: `'auto'` (default) draws it on a fine pointer, where the browser's own would be, and leaves a touch screen the browser's; `'native'` never draws it and `'drawn'` always does. The selection, IME and screen readers are the browser's either way                                                                                     |
 | `plugins`          | Plugin units installed once at mount, in array order, before the first parse; the array is also the set this editor activates (see [Plugins](#plugins))                                                                                                                                                                                                    |
 | `syntax`           | Switch a GFM syntax off for this editor: `{ indentedCode: false, setextHeading: false }` (see [Switching a syntax off](#switching-a-syntax-off))                                                                                                                                                                                                           |
 | `keybindings`      | Rebind or disable the editor's shortcuts, per instance (see [Rebinding chords](#rebinding-chords))                                                                                                                                                                                                                                                         |
@@ -140,7 +141,7 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 
 **Set once at mount:** `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `onRunCode`, `codeMenuItems`, `scrollMode`, `plugins`, and `syntax`. Set them at mount and leave them; a swap later isn't guaranteed to reach blocks that are already built.
 
-**Read live:** `theme`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `placeholder`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
+**Read live:** `theme`, `caret`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `placeholder`, `presentationMode`, and `keybindings` may change after mount, and `header` re-renders like any other Svelte snippet.
 
 ### Loading another document
 
@@ -791,6 +792,8 @@ Outside this contract sits the editor's own visual language: the syntax and code
 One corner of it you'll prob want anyway is inline code, which reads three tokens, overridden at `.editor` like the rest. `--syntax-code` is the code text (it defaults to the text around it), `--md-inline-code-bg` is the chip's fill, and `--md-inline-code-border` is its outline (transparent until you give it a color). The fill and the outline each have a light and a dark default.
 
 The hint in an empty block (the `placeholder` prop) reads `--md-placeholder-color`. It follows `--color-ui-muted` until you set it at `.editor`.
+
+The caret the editor draws (the `caret` prop) is `--md-caret-color`, which follows `--color-text-primary`, and it blinks every `--md-caret-blink` (`1.06s`, about the browser's own). Set either at `.editor`. A reader with reduced motion gets a caret that doesn't blink.
 
 **A host-chrome token you leave undeclared falls back.** If your host skips the `aragonite-editor-theme` class, declare the whole host-chrome table: anything you leave out resolves to the inline fallback its reads carry (`var(--color-ui-muted, #93938d)`), which is a dark-mode value whatever mode your page is in. The exception is `--color-text-primary` where the text sits on your page: it falls back to `currentColor`, so it inherits your page's own color instead of painting white on it. A menu paints its own dark surface, so its text keeps the dark-mode value.
 

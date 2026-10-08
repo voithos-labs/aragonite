@@ -91,7 +91,8 @@ wrong and the timer is hiding it. The predecessor editor (an earlier attempt at 
 before aragonite) died of exactly that.
 
 **Caught by:** a source scan whose allowlist holds the few timers that order nothing (an
-animation cadence, an undo debounce, a deadline), each with the reason it isn't sequencing. Any
+animation cadence, an undo debounce, a deadline, the drawn caret's paint at the next frame), each
+with the reason it isn't sequencing. Any
 other timer call reds it ([`rules.md`](rules.md) § The bug shape to fear: sibling-path parity shows
 the row).
 

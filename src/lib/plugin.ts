@@ -295,7 +295,7 @@ export { chromeChild } from './editor-actions/plugin/chrome-leaf';
 export { isCollapsedContainer } from './schema/reserved-chrome';
 
 // ── Editable-leaf authoring API (pre-freeze) ─────────────────────────────────
-// A text-editing leaf with the browser's own caret, IME, undo and selection: plain (a commit per
+// A text-editing leaf with a built-in block's caret, IME, undo and selection: plain (a commit per
 // keystroke) or render-first (source while the caret is inside, one commit on blur).
 export { createEditableLeaf } from './components/blocks/editable-leaf';
 export type {

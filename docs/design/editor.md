@@ -668,7 +668,7 @@ A few container-specific operations, for completeness:
 
 ## 10. Selection, search, clipboard
 
-Single-block selection is the browser's: native selection inside the block's contenteditable, the native caret, native `::selection` paint, with only copy/cut intercepted. Except for the click sequence. From the second click of a run the editor takes the gesture over, because the browser's idea of a word depends on the platform (Windows grabs the space after it) and its word walk happily wanders into a rendered formula beside it. So: two clicks select the word, three select the block's content, and dragging from either grows the selection a word or a block at a time, across blocks too.
+Single-block selection is the browser's: native selection inside the block's contenteditable, its caret (drawn by the editor on a fine pointer, at the browser's own position; see The drawn caret, below), native `::selection` paint, with only copy/cut intercepted. Except for the click sequence. From the second click of a run the editor takes the gesture over, because the browser's idea of a word depends on the platform (Windows grabs the space after it) and its word walk happily wanders into a rendered formula beside it. So: two clicks select the word, three select the block's content, and dragging from either grows the selection a word or a block at a time, across blocks too.
 
 - The word comes from segmenting the block's own text with markers and widgets blanked out, which is how double-clicking `_word_` gets you `word` and not the underscores.
 - There's no fourth level on purpose. Mod+A twice already selects the document, and a jittery triple-click that selects everything right before you type is a great way to lose a document.
@@ -681,6 +681,15 @@ A widget **selected whole** (an image after a click on it, or a live `<br>` an a
 - A Shift+click grows a range from the selected widget instead of from that dropped caret, into another block too.
 
 Dragging a selection and dropping it somewhere else is the editor's too. The browser's own drop is two edits, each committed on its own (and the insert lands at offset 0 once the delete re-rendered the block), so `selection/selection-drop.ts` cancels the native pair and moves the source surface's own bytes through the paste transforms as one undo entry. A shape it can't move yet (a drop onto a table cell, or onto a block with no character position) is cancelled outright rather than left to the browser, because the native drop loses bytes on undo. Cancelling takes the browser's drop caret away too, so while the drag is held the editor draws its own where a click would land, and draws none over a shape it will decline.
+
+### The drawn caret
+
+On a fine pointer the editor draws the caret itself: one bar per editor, sitting inside the block it draws for, while the browser's selection stays exactly where it was. Typing, IME and screen readers keep reading the real selection; only the paint is ours. The bar hides the browser's caret on that one editable (an attribute, `data-caret-drawn`) and nowhere else, so the find bar, the link card and any plugin's own field keep their native carets. Where it can't draw (a composition, a shown inline source, beside an inline widget where the snap caret draws, the offset a line soft-wraps at, forced colors, a touch screen, or a host that set the `caret` prop to `'native'`) it steps aside and the browser's caret shows, so there's always exactly one.
+
+Two things move the caret, and each gets painted its own way:
+
+- **The editor writes it.** Every caret and range the editor puts down goes through the editor's one caret writer, `EditorServices.caretWriter` (`caret/widget-offset.ts :: createCaretWriter`), and each write asks for a paint. The paint runs once per task after `tick()`, past Svelte's flush and the block's height measure, so it reads a layout that's already clean and the bar lands in the same frame as the letter. If your code changes the caret's line after the paint without writing the caret, call `drawnCaret.request()` yourself; the dev check G1.76 catches the case where nobody did.
+- **The browser moves it** (an arrow it handles, a click, a drag, IME). That arrives in a later task, so the paint for it runs at the next animation frame, armed by the key or pointer event. It's the one `requestAnimationFrame` that touches the caret, and it only reads and paints, never orders anything (`caret/drawn-caret.svelte.ts`).
 
 ### Cross-block selection
 
