@@ -18,7 +18,7 @@ import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { stubCaretMemory } from '#lib/testing/headless-actions.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 
 function capturingEvent() {
 	const store = new Map<string, string>();

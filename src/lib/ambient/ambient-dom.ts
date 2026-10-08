@@ -1,10 +1,10 @@
 /**
  * Builds the marker prefix span (the "ambient" prefix): the read-only prefix a container block
- * draws in front of its first prose child's text. Reading it back is `cursor/widget-offset.ts`.
+ * draws in front of its first prose child's text. Reading it back is `caret/widget-offset.ts`.
  */
 
 import type { AmbientPrefix } from '../block-component';
-import { DRAG_ANCHOR_ATTR } from '../components/block-content-selector';
+import { DRAG_ANCHOR_ATTR } from '../caret/block-content-selector';
 import { devWarn } from '../dev-warn';
 
 export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {

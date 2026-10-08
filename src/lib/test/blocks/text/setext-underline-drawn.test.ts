@@ -13,7 +13,7 @@ import {
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { landableRawBounds } from '#lib/cursor/widget-offset.js';
+import { landableRawBounds } from '#lib/caret/widget-offset.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

@@ -1,5 +1,5 @@
 /**
- * Checks that the stylesheet and `cursor/widget-offset.ts` agree on which marker runs are hidden:
+ * Checks that the stylesheet and `caret/widget-offset.ts` agree on which marker runs are hidden:
  * the TypeScript side mirrors the stylesheet by hand, since `getComputedStyle` per keystroke is
  * too slow. Once per mode change it compares, per marker family, the stylesheet, the DOM-to-offset
  * traversal and the node-space rule both are stated over. Where no stylesheet hides anything
@@ -8,11 +8,7 @@
 
 import type { InvariantViolation } from '../assert';
 import { familyHidesText, markerFamilyOf, type VisibilityContext } from '../core/inline/visibility';
-import {
-	CONTENT_EMPTY_ATTR,
-	isHiddenMarkerRoot,
-	screenVisibilityOf
-} from '../cursor/widget-offset';
+import { CONTENT_EMPTY_ATTR, isHiddenMarkerRoot, screenVisibilityOf } from '../caret/widget-offset';
 
 interface ProbeCase {
 	name: string;
@@ -69,7 +65,7 @@ export function checkMarkerCssParity(editorRoot: HTMLElement): InvariantViolatio
 		if (!diverged) return null;
 		return {
 			code: 'marker-css-parity',
-			message: `the hidden-run answers disagree about "${diverged.name}": the families in core/inline/visibility.ts, the walk in cursor/widget-offset.ts and styles/editor.css moved apart`,
+			message: `the hidden-run answers disagree about "${diverged.name}": the families in core/inline/visibility.ts, the walk in caret/widget-offset.ts and styles/editor.css moved apart`,
 			detail: read
 		};
 	} finally {

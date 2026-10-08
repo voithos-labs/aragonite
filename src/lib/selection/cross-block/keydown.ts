@@ -3,7 +3,7 @@
 import { CURSOR_START } from '../../block-component';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { Document } from '../../core/nodes';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { commandLandingKind, kindOfPath, replaceRange } from './range-replace';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';

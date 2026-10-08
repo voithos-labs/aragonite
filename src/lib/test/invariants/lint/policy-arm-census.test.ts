@@ -16,7 +16,7 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
  *  and `schema/` sit outside, since the parser and the table's registration name every kind. */
 const GESTURE_ROOTS = [
 	SOURCE_DIR.components,
-	SOURCE_DIR.cursor,
+	SOURCE_DIR.caret,
 	SOURCE_DIR.windowing,
 	SOURCE_DIR.selection,
 	SOURCE_DIR.treeOperations,

@@ -8,7 +8,7 @@ import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionEndpoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
-import { caretOffsetAtPoint } from '../cursor/point-offset';
+import { caretOffsetAtPoint } from '../caret/point-offset';
 import { applyCollapsedCaret, applySingleBlockRange, clearNativeSelection } from './native-bridge';
 import { isWholeBlockEndpoint, type SelectionPoint } from './primitives';
 import { comparePaths } from './path-math';

@@ -1,7 +1,7 @@
 /**
  * Bridges the browser's Selection API and `SelectionPoint`. Callers provide the elements and
  * paths; nothing here walks the tree. A `SelectionPoint` offset counts raw bytes, and every
- * conversion goes through `cursor/widget-offset.ts`.
+ * conversion goes through `caret/widget-offset.ts`.
  */
 
 import { cellPoint, type SelectionPoint, type EditorSelection } from './primitives';
@@ -14,7 +14,7 @@ import {
 	rawOffsetAt,
 	selectRawRange,
 	selectSurfaceContent
-} from '../cursor/widget-offset';
+} from '../caret/widget-offset';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 

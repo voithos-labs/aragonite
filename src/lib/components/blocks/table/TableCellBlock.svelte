@@ -40,14 +40,10 @@
 		landableDomTextBounds,
 		rawSelectionFocus,
 		type RawRange
-	} from '../../../cursor/widget-offset';
-	import {
-		asRawOffset,
-		rowMajorCellIndex,
-		type RawOffset
-	} from '../../../cursor/coordinate-spaces';
-	import { createSurfaceBackend } from '../../../cursor/surface-backend';
-	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
+	} from '../../../caret/widget-offset';
+	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../caret/coordinate-spaces';
+	import { createSurfaceBackend } from '../../../caret/surface-backend';
+	import { getCurrentCursorEditorRelativeX } from '../../../caret/sticky-measure';
 	import { handleEdgeStep, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
@@ -66,7 +62,7 @@
 		extendFocusToPreviousBlock
 	} from '../../../selection/keyboard-extend';
 	import { intraTableRectExtension } from '../../../selection/table-rect-extend';
-	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../caret/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
 	import { cellPoint } from '../../../selection/primitives';

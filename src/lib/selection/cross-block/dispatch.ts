@@ -8,7 +8,7 @@ import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
 import type { UserScrollport } from '../../windowing/scroll-ancestors';
 import type { ScrollOwner } from '../../windowing/scroll-owner';
 import type { SelectionState } from '../selection-state.svelte';
-import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretMemory } from '../../caret/caret-memory';
 import type { CaretLanding } from '../caret-landing';
 import type { CommitController } from '../../action-contracts';
 import type { CommandDispatchContext } from '../../schema/block-commands';

@@ -13,7 +13,7 @@ import {
 	rawTextOfNode,
 	walkOffsetOfRaw,
 	widgetSpanContainingOffset
-} from '../cursor/widget-offset';
+} from '../caret/widget-offset';
 import { devWarn } from '../dev-warn';
 import type { IndexedDecoration } from './buckets';
 import type {

@@ -17,7 +17,7 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { asEditorX, docPathFrom } from '../../../cursor/coordinate-spaces';
+	import { asEditorX, docPathFrom } from '../../../caret/coordinate-spaces';
 	import { observeResize } from '../../../windowing/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/caret-doors';
@@ -566,7 +566,7 @@
 	onkeydown={onTableKeyDown}
 >
 	<!-- No whitespace between the blocks: a stray text node joins the raw-offset traversal
-	     and shifts a remembered caret (cursor/widget-offset.ts). -->
+	     and shifts a remembered caret (caret/widget-offset.ts). -->
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}

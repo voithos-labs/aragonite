@@ -16,11 +16,11 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { makePendingMarks } from '#lib/test/harness/editor-actions.js';
 import { asPresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
-import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 
-export { asRawOffset as at } from '#lib/cursor/coordinate-spaces.js';
+export { asRawOffset as at } from '#lib/caret/coordinate-spaces.js';
 
 /** `updateBlockContent` argument tuples less the write mode, newest last. The anchor is the caret
  *  the key was dispatched at, which the block records at keydown. */

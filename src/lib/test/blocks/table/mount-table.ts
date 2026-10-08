@@ -6,7 +6,7 @@ import TableBlock from '#lib/components/blocks/table/TableBlock.svelte';
 import type { BlockComponent } from '#lib/block-component.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { FocusActions } from '#lib/action-contracts.js';
-import type { CaretMemory } from '#lib/cursor/caret-memory.js';
+import type { CaretMemory } from '#lib/caret/caret-memory.js';
 import { makeCaretMemory, makeStubFocus } from '../../harness/editor-actions';
 import { mountBlock } from '../../harness/mount-block';
 import type { MountContextOverrides } from '../../harness/mount-context';

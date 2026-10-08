@@ -12,7 +12,7 @@ import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import type { Reading } from '#lib/schema/reading.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 
 /** A recorded write less its mode. */
 export type Commit = Omit<RecordedWrite, 'mode'>;

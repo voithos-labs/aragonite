@@ -11,7 +11,7 @@ import type { NodeView } from '../../../core/node-views';
 import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
-import { CONSTRUCT_REVEAL_CLASS, rawOffsetAt } from '../../../cursor/widget-offset';
+import { CONSTRUCT_REVEAL_CLASS, rawOffsetAt } from '../../../caret/widget-offset';
 import { caretShownSelector } from '../../../core/inline/visibility';
 import {
 	isInteractionTraceEnabled,

@@ -9,9 +9,9 @@ import type { PluginActivation } from '../schema/plugin-activation';
 import type { CommitController } from '../action-contracts';
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
-import { rawOffsetAt, rawRangeToDomRange } from '../cursor/widget-offset';
+import { rawOffsetAt, rawRangeToDomRange } from '../caret/widget-offset';
 import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { blockContentElAt } from '../components/block-el-lookup';
+import { blockContentElAt } from '../caret/block-el-lookup';
 import {
 	blockNodeAt,
 	emptyParagraph,
@@ -28,7 +28,7 @@ import { blockNearPoint } from './nearest-block';
 import { findSurfaceForElement } from './path-lookup';
 import { charOffsetOf } from './primitives';
 import { storedAsAt } from '../tree-operations/stored-as';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 
 export interface SelectionDropDeps {
 	editorRoot: HTMLElement;

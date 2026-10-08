@@ -1,7 +1,7 @@
 /**
  * Allowlist and builder for live-rendered inline HTML widgets. They adopt the generic
  * `[data-inline-widget]` marker, so cursor, vertical-skip, and edge-select need no per-kind
- * plumbing (`cursor/widget-offset.ts`).
+ * plumbing (`caret/widget-offset.ts`).
  */
 
 import type { InlineNode } from '../nodes';

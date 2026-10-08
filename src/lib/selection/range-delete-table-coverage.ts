@@ -16,7 +16,7 @@ import {
 } from '../tree-operations/table-mutations';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { blockNodeAt } from '../tree-operations/node-primitives';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 import type { GridCoverage } from './range-coverage';
 import type { CrossBlockMutationContext } from './cross-block/range-replace';
 

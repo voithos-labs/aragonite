@@ -16,7 +16,7 @@ import {
 	rowMajorCellIndex,
 	cellRowCol,
 	type CellRect
-} from '../cursor/coordinate-spaces';
+} from '../caret/coordinate-spaces';
 import { comparePaths } from './path-math';
 import { devWarn } from '../dev-warn';
 

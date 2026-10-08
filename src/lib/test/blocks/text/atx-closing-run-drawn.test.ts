@@ -11,7 +11,7 @@ import {
 	surfaceAt,
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { landableRawBounds } from '#lib/cursor/widget-offset.js';
+import { landableRawBounds } from '#lib/caret/widget-offset.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

@@ -85,7 +85,7 @@ test.describe('table block: rendering', () => {
 	});
 
 	// A whitespace-only text node under one of these containers joins the raw-offset count
-	// (`cursor/widget-offset.ts` counts every text node) and shifts a resting cross-block caret.
+	// (`caret/widget-offset.ts` counts every text node) and shifts a resting cross-block caret.
 	test('no whitespace-only direct text nodes under the table containers (raw-offset-walk contract)', async ({
 		page
 	}) => {

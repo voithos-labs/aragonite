@@ -9,7 +9,7 @@ import { tick } from 'svelte';
 import type { BlockEditActions, ContentWrite, FocusActions } from '../../../action-contracts';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import type { SurfaceBackend } from '../../../cursor/surface-backend';
+import type { SurfaceBackend } from '../../../caret/surface-backend';
 import { selectWidgetWhole } from '../../../selection/caret-doors';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
@@ -19,16 +19,16 @@ import {
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import { asRawOffset } from '../../../cursor/coordinate-spaces';
+import { asRawOffset } from '../../../caret/coordinate-spaces';
 import {
 	extendSelectionToRaw as extendSelectionToRawIn,
 	rawOffsetAt,
 	rawSelectionFocus,
 	selectDomRange,
 	selectRawRange
-} from '../../../cursor/widget-offset';
-import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
-import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../cursor/widget-edge-snap';
+} from '../../../caret/widget-offset';
+import { createSourceReveal, type SourceReveal } from '../../../caret/reveal-source';
+import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../caret/widget-edge-snap';
 import {
 	traceRevealOpen,
 	traceRevealFold,

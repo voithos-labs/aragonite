@@ -5,7 +5,7 @@
  */
 
 import { SELECTION_END } from '../../../block-component';
-import { cellRowCol, type CellRect } from '../../../cursor/coordinate-spaces';
+import { cellRowCol, type CellRect } from '../../../caret/coordinate-spaces';
 import { pathsEqual } from '../../../selection/path-math';
 import type { GridCoverage } from '../../../selection/range-coverage';
 import type { CellCoord } from './table-navigation';

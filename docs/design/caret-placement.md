@@ -32,7 +32,7 @@ flowchart TD
 
 ## 1. The pointer-down
 
-`src/lib/selection/cross-block/pointer.ts` :: `resetForPointerDown` runs first on every pointer-down on a block, and decides what the click forgets: the caret memory (`src/lib/cursor/caret-memory.ts`, holding stage 7's sticky column, stage 6's marker side and the pending marks, which always go together), a gap caret (stage 8), and, unless Shift is held, a live cross-block range. That last one matters most, because a caret dropped inside a range that's still live turns the next keystroke into a replace-everything.
+`src/lib/selection/cross-block/pointer.ts` :: `resetForPointerDown` runs first on every pointer-down on a block, and decides what the click forgets: the caret memory (`src/lib/caret/caret-memory.ts`, holding stage 7's sticky column, stage 6's marker side and the pending marks, which always go together), a gap caret (stage 8), and, unless Shift is held, a live cross-block range. That last one matters most, because a caret dropped inside a range that's still live turns the next keystroke into a replace-everything.
 
 Every editable surface's pointer-down, a plugin's included, goes through `handlePointerDown` in the same file. Mostly the browser places the caret itself, as any contenteditable does, and the editor refines it afterwards. Two presses the editor takes away from the browser:
 
@@ -51,7 +51,7 @@ A click inside a text block: the browser already knows (or the editor does, for 
 
 With a point inside a box, `src/lib/selection/block-hit-test.ts` :: `blockAtPoint` names the block. A container (a quote, a list, an alert) keeps its lines as child blocks, so a point on the container's own box, like a quote's bar, moves down to the child it's level with, however deep (`src/lib/selection/nearest-block.ts` :: `descendToLevelChild`). A drag into the margin takes the same step.
 
-Then the kind names the spot inside the block. A table names a cell through its `caretTargetAtPoint` hook; a block of text (prose, or code, whose box has room around its lines) answers through `src/lib/cursor/point-offset.ts` :: `caretOffsetAtPoint`, the nearest offset. Neither does arithmetic of its own: both read the one DOM-to-offset walk in `src/lib/cursor/widget-offset.ts`, so an image or a hidden marker counts the same whether you clicked or arrowed there.
+Then the kind names the spot inside the block. A table names a cell through its `caretTargetAtPoint` hook; a block of text (prose, or code, whose box has room around its lines) answers through `src/lib/caret/point-offset.ts` :: `caretOffsetAtPoint`, the nearest offset. Neither does arithmetic of its own: both read the one DOM-to-offset walk in `src/lib/caret/widget-offset.ts`, so an image or a hidden marker counts the same whether you clicked or arrowed there.
 
 The probe, for the curious:
 
@@ -72,7 +72,7 @@ Edits' carets come through here too. The commit hands its position to `src/lib/s
 Below the verbs:
 
 - The placement itself is `src/lib/components/blocks/editable-surface.ts` :: `parkCaret`. It focuses the element without scrolling the page, runs the block's own landing rule if it has one (a code block keeps a caret arriving from outside off its fence lines), and resolves the `CURSOR_START` and `CURSOR_END` codes.
-- Then `src/lib/cursor/widget-offset.ts` :: `placeCaretAtRaw` turns the raw offset into a DOM position: past the container's marker prefix, never behind a hidden marker run, and only where a caret can actually sit. In an empty block that's before its placeholder `<br>` (the line break an empty editable holds so it has a line at all, alone or after a list item's marker), since Chromium drops an IME composition started after it.
+- Then `src/lib/caret/widget-offset.ts` :: `placeCaretAtRaw` turns the raw offset into a DOM position: past the container's marker prefix, never behind a hidden marker run, and only where a caret can actually sit. In an empty block that's before its placeholder `<br>` (the line break an empty editable holds so it has a line at all, alone or after a list item's marker), since Chromium drops an IME composition started after it.
 - A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `caret-doors.ts`, which ends what the editor had selected the way `focus` does.
 - The two selections the editor keeps without a DOM caret have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a lint fails any other file that writes either.
 - A lint fails any native selection write outside `widget-offset.ts`.
@@ -84,7 +84,7 @@ Below the verbs:
 - A click on a widget that reveals its source (inline math) should open that source at the point, not put a caret next to it.
 - A click on or beside an atomic widget (an image, an emoji, a decoded entity) lands the browser's caret somewhere in the neighbouring text, since there's no text node under the point.
 
-For the second, `src/lib/cursor/widget-edge-snap.ts` :: `nearestWidgetEdgeSeat` decides which edge of which widget the caret meant:
+For the second, `src/lib/caret/widget-edge-snap.ts` :: `nearestWidgetEdgeSeat` decides which edge of which widget the caret meant:
 
 | Where the click is                                           | The edge                                                                                                          |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -117,19 +117,19 @@ A key nobody claims falls through to the keymap, and a byte it types is placed i
 
 ## 6. Which side of a hidden marker
 
-`src/lib/components/blocks/text/edge-seat.ts` :: `resolveEdgeSeat`. In live mode a construct's markers paint nothing, so one screen position names two raw offsets: just before the `**`, or just after it. The resolver decides which one a typed byte goes to (its symbols call that position a seat). It's asked by the write every insertion ends in (`src/lib/cursor/next-insertion.ts`), after the browser or the paste has put the text in, so a key, a soft keyboard, an IME commit and a paste all land the same way.
+`src/lib/components/blocks/text/edge-seat.ts` :: `resolveEdgeSeat`. In live mode a construct's markers paint nothing, so one screen position names two raw offsets: just before the `**`, or just after it. The resolver decides which one a typed byte goes to (its symbols call that position a seat). It's asked by the write every insertion ends in (`src/lib/caret/next-insertion.ts`), after the browser or the paste has put the text in, so a key, a soft keyboard, an IME commit and a paste all land the same way.
 
 First it tries the offset an arrow picked, if one did. Where the position offers more than one typing offset, a plain ArrowLeft or ArrowRight moves that choice instead of the caret (`src/lib/components/blocks/text/edge-step.ts`, asked before the arrow gets to move anything), and the caret memory records the exact offset it picked. Past that, three things get a say, in order:
 
 1. **The construct's own row** in `src/lib/schema/inline-construct-policy.ts`. A link never extends, whichever side you type on.
-2. **How the caret arrived.** On every keydown the caret memory records whether the caret stepped in from outside, was placed at an end, or just committed a byte (`src/lib/cursor/edge-affinity.ts` reads which from the key), and it forgets all that on any caret move that isn't a key. One exception: an edit that lands the caret at a block's start or end, rather than at a byte, counts as placed at an end. So Backspace on an empty list item under `- **a**` puts the next byte after the `**`, same as at the top level.
+2. **How the caret arrived.** On every keydown the caret memory records whether the caret stepped in from outside, was placed at an end, or just committed a byte (`src/lib/caret/edge-affinity.ts` reads which from the key), and it forgets all that on any caret move that isn't a key. One exception: an edit that lands the caret at a block's start or end, rather than at a byte, counts as placed at an end. So Backspace on an empty list item under `- **a**` puts the next byte after the `**`, same as at the top level.
 3. **The renderer.** A candidate offset is accepted only if what shows on screen afterwards is exactly what showed before, plus the typed byte.
 
 If no candidate passes, it declines and the browser's own placement stands. That's the honest fallback, since it's where the byte was going anyway.
 
 ## 7. Leaving the block
 
-`src/lib/cursor/sticky-column.ts` :: `classifyStickyKey`. The caret leaves the block with an Up or Down arrow. Within one block the browser remembers your column across vertical moves; across blocks it doesn't (each block is its own contenteditable), so the editor does. The rule is decided from the key alone:
+`src/lib/caret/sticky-column.ts` :: `classifyStickyKey`. The caret leaves the block with an Up or Down arrow. Within one block the browser remembers your column across vertical moves; across blocks it doesn't (each block is its own contenteditable), so the editor does. The rule is decided from the key alone:
 
 - a vertical arrow captures the caret's editor-relative x, once (later arrows in the same run don't overwrite it);
 - PageUp, PageDown and a bare modifier tap preserve it;
@@ -155,7 +155,7 @@ A horizontal arrival at a block that starts or ends with a widget enters the wid
 
 Then the landing itself:
 
-- A sticky x, with a block that can take one, goes to `focusAtColumn`: the pixel x on the first or last visual line that can show a caret, which skips a line holding only a widget and a code block's fence lines. The scan behind it (`src/lib/cursor/sticky-measure.ts` :: `findOffsetNearestX`) walks in from the edge you arrive at and stops a few lines past it.
+- A sticky x, with a block that can take one, goes to `focusAtColumn`: the pixel x on the first or last visual line that can show a caret, which skips a line holding only a widget and a code block's fence lines. The scan behind it (`src/lib/caret/sticky-measure.ts` :: `findOffsetNearestX`) walks in from the edge you arrive at and stops a few lines past it.
 - Otherwise `focus` at the start or the end.
 - A numeric position passes through untouched, since a caller with a byte in hand (a split's second half) knows better than the classifier.
 

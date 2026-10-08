@@ -16,7 +16,7 @@ import { createSurfaceWrite, rangeWrite } from '#lib/components/blocks/surface-w
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { LeafRangeEdit } from '#lib/tree-operations/leaf-range.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 
 const NO_CUE = { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} };
 

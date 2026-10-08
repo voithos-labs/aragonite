@@ -4,8 +4,8 @@
 // Miss-analysis: each route kept its own copy of the span and its own tests, and the removal row
 // ran a no-op command, so the line break Enter writes after a declined removal went unseen.
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
-import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
 import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';

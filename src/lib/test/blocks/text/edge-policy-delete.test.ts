@@ -3,7 +3,7 @@
 // structure, the first reachable offset, and the step-over deferral.
 import { describe, expect, it, afterAll, beforeAll } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { asRawOffset } from '#lib/cursor/coordinate-spaces.js';
+import { asRawOffset } from '#lib/caret/coordinate-spaces.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import {
 	at,
@@ -20,7 +20,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '#lib/schema/inline-construct-policy.js';
 import { type CstNode } from '#lib/core/nodes.js';
-import { type EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import { type EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import '#lib/schema/built-in-descriptors.js';
 
 installEdgeDispatchCleanup();

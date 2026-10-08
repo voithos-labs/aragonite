@@ -223,7 +223,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'reads a kind’s rule back to ask it for the block’s text'
 	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
-		specifiers: ['#lib/cursor/widget-offset.js'],
+		specifiers: ['#lib/caret/widget-offset.js'],
 		reason: "no published read of an inline node's raw text out of its parent's bytes"
 	},
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {

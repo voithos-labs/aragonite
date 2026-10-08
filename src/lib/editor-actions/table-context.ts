@@ -17,7 +17,7 @@ import type { CstNode } from '../core/nodes';
 import type { Reading } from '../schema/reading';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
+import { extendDocPath, docPathFrom } from '../caret/coordinate-spaces';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';

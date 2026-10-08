@@ -12,7 +12,7 @@ import { blockNodeAt, documentBody, nodeAt } from '../tree-operations/node-primi
 import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';
-import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
+import { extendDocPath, docPathFrom } from '../caret/coordinate-spaces';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 /** Each move resolves to whether it landed. */

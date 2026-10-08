@@ -8,7 +8,7 @@
 import fc from 'fast-check';
 import { makeRng, type Rng } from '#lib/e2e/simulation/rng.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
-import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { getContentRange } from '#lib/core/inline/index.js';

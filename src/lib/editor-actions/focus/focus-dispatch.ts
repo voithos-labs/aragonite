@@ -11,7 +11,7 @@ import {
 	type FocusPosition,
 	type StickyColumnDirection
 } from '../../block-component';
-import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretMemory } from '../../caret/caret-memory';
 import { consumeStickyLanding, verticalArrival } from './focus-landing';
 
 /** One block list's side of a focus move, the root's or a container's. */

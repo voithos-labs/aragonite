@@ -4,7 +4,7 @@
 
 import type { BlockComponent } from '#lib/block-component.js';
 import type { Document } from '#lib/core/nodes.js';
-import { createCaretMemory, type CaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
 import type { ChildList } from '#lib/reactivity/child-list.js';
 import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
 import { createCaretLanding } from '#lib/selection/caret-landing.js';

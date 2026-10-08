@@ -12,7 +12,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import { charOffsetOf } from './primitives';
 import { comparePaths } from './path-math';
 import { caretPointFor, type RemovalGesture } from './caret-target';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 import {
 	blockNodeAt,
 	bodyUnder,

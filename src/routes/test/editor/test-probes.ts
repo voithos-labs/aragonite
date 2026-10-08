@@ -47,10 +47,10 @@ import {
 	interactionTraceSnapshot
 } from '#lib/debug/interaction-trace.js';
 import type { ClosureBlock } from '#lib/schema/closure.js';
-import { blockContentElAt } from '#lib/components/block-el-lookup.js';
-import { TABLE_CELL_SELECTOR } from '#lib/components/block-content-selector.js';
-import { domDescendants } from '#lib/cursor/dom-walk.js';
-import { isHiddenMarkerText } from '#lib/cursor/widget-offset.js';
+import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
+import { TABLE_CELL_SELECTOR } from '#lib/caret/block-content-selector.js';
+import { domDescendants } from '#lib/caret/dom-walk.js';
+import { isHiddenMarkerText } from '#lib/caret/widget-offset.js';
 import { childIdDrifts } from '#lib/invariants/child-id-parity.js';
 import { isProseLeaf } from '#lib/schema/page-role.js';
 import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';

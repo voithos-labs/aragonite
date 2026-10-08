@@ -4,7 +4,7 @@ Live mode hides the `**` around `**two**`, so the caret right after `two` could 
 closer or past it. A space can't sit inside the closer (`**two **` isn't bold anymore, and the
 markers would show up again), so the space gets written past it: `a **two** `. The caret still
 means inside though, and the next letter takes the space back in with it: `a **two w**`. That's
-the held space (`cursor/held-space.ts`). Anything that moves the caret or picks a side ends it,
+the held space (`caret/held-space.ts`). Anything that moves the caret or picks a side ends it,
 and since the bytes were valid the whole time, ending it changes nothing on screen.
 
 Every way text arrives (a key, a soft keyboard, an IME commit, a paste) goes through the same

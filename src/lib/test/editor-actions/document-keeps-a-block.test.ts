@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { Document } from '#lib/core/nodes.js';
 import { serialize } from '#lib/core/serializer.js';
-import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { handleWholeBlockKeys } from '#lib/editor-actions/container-block-component.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';

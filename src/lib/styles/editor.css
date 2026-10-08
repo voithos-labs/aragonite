@@ -705,7 +705,7 @@
 }
 
 /* A focused construct whose only bytes are its markers shows them dimmed, since it has nothing
-   else to show and no caret position inside; mirrored in `cursor/widget-offset.ts`. */
+   else to show and no caret position inside; mirrored in `caret/widget-offset.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
 	[contenteditable][data-content-empty]:focus-within
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {

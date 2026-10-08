@@ -3,7 +3,7 @@
  * printable key at a caret edge resolves against a declared policy (the inline construct's beside
  * the caret, or the ancestor container's at the content start), never native editing, which would
  * corrupt the bytes those constructs stand for (G4.12). Which side of a hidden delimiter a typed
- * byte lands on is the write's question, not a key's (`cursor/next-insertion.ts`).
+ * byte lands on is the write's question, not a key's (`caret/next-insertion.ts`).
  */
 
 import type { ContentWrite } from '../../../action-contracts';
@@ -14,15 +14,15 @@ import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import { type RawOffset } from '../../../cursor/coordinate-spaces';
-import type { PendingMarks } from '../../../cursor/pending-marks';
+import { type RawOffset } from '../../../caret/coordinate-spaces';
+import type { PendingMarks } from '../../../caret/pending-marks';
 import {
 	landableRawBounds,
 	markerPrefixOf,
 	revealsNoMarkers,
 	screenVisibilityOf,
 	selectDomRange
-} from '../../../cursor/widget-offset';
+} from '../../../caret/widget-offset';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import { createMarkerCompletion } from './marker-completion';

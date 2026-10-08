@@ -22,7 +22,7 @@ import { applyRangesToText } from '../search/replace';
 import type { Match } from '../search/document-scan';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { toEditEvent } from '../editor-events';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 import { documentLineEnding } from '../core/lines';
 
 function descend(root: CstNode, rel: number[]): CstNode | null {

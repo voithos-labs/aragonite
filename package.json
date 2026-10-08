@@ -138,7 +138,7 @@
 		"test:editor:tree-ops": "vitest run src/lib/test/tree-operations",
 		"test:editor:editor-actions": "vitest run src/lib/test/editor-actions",
 		"test:editor:ambient": "vitest run src/lib/test/ambient",
-		"test:editor:cursor": "vitest run src/lib/test/cursor",
+		"test:editor:caret": "vitest run src/lib/test/caret",
 		"test:editor:schema": "vitest run src/lib/test/schema",
 		"test:editor:windowing": "vitest run src/lib/test/windowing",
 		"test:editor:reactivity": "vitest run src/lib/test/reactivity",

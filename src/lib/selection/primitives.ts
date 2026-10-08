@@ -13,7 +13,7 @@ import {
 	docPathFrom,
 	type CellIndex,
 	type RawOffset
-} from '../cursor/coordinate-spaces';
+} from '../caret/coordinate-spaces';
 import { devWarn } from '../dev-warn';
 
 // ── Types ──────────────────────────────────────────────────────────────────

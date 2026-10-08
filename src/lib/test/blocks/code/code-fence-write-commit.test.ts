@@ -3,7 +3,7 @@
 // composition end, hand the write what the browser left as typed bytes, and the write's fence
 // rule reconciles them.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { placeCaretAtRaw } from '#lib/cursor/widget-offset.js';
+import { placeCaretAtRaw } from '#lib/caret/widget-offset.js';
 import { parse } from '#lib/core/parser.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';

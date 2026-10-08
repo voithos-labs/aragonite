@@ -8,7 +8,7 @@ import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
 import { parse } from '#lib/core/parser.js';
 import { computeInlineContent } from '#lib/core/inline/index.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
-import { rawTextOfNode } from '#lib/cursor/widget-offset.js';
+import { rawTextOfNode } from '#lib/caret/widget-offset.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import type { WidgetInteractionDeps } from '#lib/components/blocks/text/widget-interaction.js';
 import type { CstNode, InlineNode } from '#lib/core/nodes.js';

@@ -17,7 +17,7 @@ import {
 } from './range-coverage';
 import type { SharingState } from '../tree-operations/sharing';
 import { displayLength } from '../core/lines';
-import { cellRowCol } from '../cursor/coordinate-spaces';
+import { cellRowCol } from '../caret/coordinate-spaces';
 import { cellIndexOf } from './primitives';
 import {
 	planCrossBlockDeletion,

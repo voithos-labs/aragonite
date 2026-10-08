@@ -501,7 +501,7 @@ entry. Legal bails stay silent by design: blur with no reveal, the cross-block k
 entry while a reveal is already active. Inline closures at
 `components/blocks/text/widget-interaction.ts` (the fold halves) and
 `components/blocks/text/TextEditableBlock.svelte :: performBlockCommand` (the mutation half), plus
-`checkRevealSourceLength` (`inline-transitions.ts`) at the kernel (`cursor/reveal-source.ts`) ·
+`checkRevealSourceLength` (`inline-transitions.ts`) at the kernel (`caret/reveal-source.ts`) ·
 `test/blocks/text/widget-reveal-transitions.test.ts`.
 
 **G1.27 · Composition window.** `compositionend` lands only inside a composition the surface saw
@@ -850,7 +850,7 @@ no content holds one `<br>` so it keeps a line, alone or after a non-editable ma
 `- `), and a caret written after it looks the same as one before it. Chromium tells them apart: a
 composition started after the `<br>` is dropped after its first update, with no `compositionend`, so
 the composed text gets lost or doubled. Every caret and range the editor writes passes
-`cursor/widget-offset.ts :: writeSelection`, which checks both endpoints in dev. Predicate
+`caret/widget-offset.ts :: writeSelection`, which checks both endpoints in dev. Predicate
 `invariants/caret-before-break.ts :: checkCaretBeforeBreak` ·
 `test/invariants/caret-before-break.test.ts`; G4.36 keeps every native selection write in that file.
 
@@ -1026,7 +1026,7 @@ container-only fields register as one unit with `contract` and `rebuildRaw` requ
 `isContainer` derived; a leaf augment carrying a `container` group throws. Retired: G1.3, the
 runtime pairing guard.
 
-**G3.7 · Branded coordinate spaces.** `cursor/coordinate-spaces.ts`: `RawOffset`, `DomTextOffset`,
+**G3.7 · Branded coordinate spaces.** `caret/coordinate-spaces.ts`: `RawOffset`, `DomTextOffset`,
 `EditorX`, `ViewportX`, `CellIndex`, `DocPath`, each minted only at its home module with named
 conversions per direction ("minted", here and in G4.15, in the strict sense: created by the one
 authorized place, and a duplicate throws). Public entries keep `number` and brand once at the
@@ -1039,7 +1039,7 @@ is G1.9 stated as a type: readers hold views, constructors and writers keep `Cst
 unshare seam is the only way back to mutable (G4.13 scans for the casts). Retired: reader-side byte
 writes, and the "read-only by contract" prose on `BlockComponentProps.document`.
 
-**G3.9 · One caret memory.** `src/lib/cursor/caret-memory.ts` :: `createCaretMemory` holds the
+**G3.9 · One caret memory.** `src/lib/caret/caret-memory.ts` :: `createCaretMemory` holds the
 sticky column, the edge affinity and the pending marks. A keydown updates them through `noteKey`,
 and every other caret move (a click, a paste, an undo, a document swap, a blur, a mode switch, a
 caret the host or a menu places through the selection restore) calls `forget`, which drops all
@@ -1312,7 +1312,7 @@ drift compiles; only the doc-owning root (`Editor.svelte`) holds a mutable `Docu
 `lint/file-rules.test.ts`.
 
 **G4.15 · Coordinate-brand mint discipline.** `as <Brand>` casts and the `as*` boundary mints appear
-only in `cursor/coordinate-spaces.ts` and the allowlisted public-entry files; everywhere else
+only in `caret/coordinate-spaces.ts` and the allowlisted public-entry files; everywhere else
 arrives at a brand through a mint or a named conversion. G3.7's runtime-source complement.
 `lint/file-rules.test.ts`.
 
@@ -1467,7 +1467,7 @@ learns that helper.
 `lint/reserved-chord-manifest.test.ts`.
 
 **G4.30 · Hidden-run classification.** One rule, two spaces. `core/inline/visibility.ts` states the
-marker families and the hiding rule, and `cursor/widget-offset.ts` applies it where there's a caret:
+marker families and the hiding rule, and `caret/widget-offset.ts` applies it where there's a caret:
 the walk's landing rule, the read canonicalization, the widget-free walk beside it, and the
 block-edge gates that ask whether a block's own markers paint all read that one answer. A third copy
 disagrees the day a mode or a reveal rule moves, and a caret seated in unpainted text corrupts
@@ -1537,7 +1537,7 @@ today means a kind with no declared live-mode behavior at all.
 `lint/stamp-revealable-parity.test.ts`.
 
 **G4.36 · Caret-write sites.** Every selection written from raw offsets is written in
-`cursor/widget-offset.ts`. A caret goes through `placeCaretAtRaw`, which skips the marker prefix,
+`caret/widget-offset.ts`. A caret goes through `placeCaretAtRaw`, which skips the marker prefix,
 never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so
 an unclamped write says so at the call. A range goes through `selectRawRange`,
 `extendSelectionToRaw` or `selectSurfaceContent`, which skip the prefix the same way and don't
@@ -1709,7 +1709,7 @@ package.json `exports`, so a new published subpath inherits the rule unasked.
 `aragonite`, which belongs to an unrelated npm package. `docs/changelog/` is exempt, since it
 records what shipped under the name of the day. `lint/doc-package-name.test.ts`.
 
-**G4.56 · Iterative walks.** No function under `core/inline/`, `cursor/`, `ambient/` or
+**G4.56 · Iterative walks.** No function under `core/inline/`, `caret/`, `windowing/`, `ambient/` or
 `components/blocks/text/` that reads a node's `children` or `childNodes` may sit on a call cycle,
 its own included, even a cycle through helpers that read neither. Inline nesting depth is
 input-controlled (`**` nests one construct per pair), so a per-level stack frame overflows and

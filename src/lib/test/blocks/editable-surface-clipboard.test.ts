@@ -6,7 +6,7 @@ import {
 	type ClipboardSurfaceDeps
 } from '../../components/blocks/editable-surface';
 import { type ClipboardArm } from '../../components/blocks/clipboard-step';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 import { type PastedImage } from '../../editor-keys';
 
 describe('step order', () => {

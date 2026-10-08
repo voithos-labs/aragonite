@@ -5,7 +5,7 @@
  */
 
 import type { InvariantViolation } from '../assert';
-import { placeholderBreakOf } from '../cursor/placeholder-break';
+import { placeholderBreakOf } from '../caret/placeholder-break';
 
 export function checkCaretBeforeBreak(position: {
 	node: Node;

@@ -15,7 +15,7 @@ import type { NodeView } from '../../core/node-views';
 import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
 import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
-import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretMemory } from '../../caret/caret-memory';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import type { ChildList } from '../../reactivity/child-list';
 import { createNestedBlockEdit } from './nested-block-edit';

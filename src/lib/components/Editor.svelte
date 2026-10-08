@@ -27,8 +27,8 @@
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../editor-keys';
-	import { createCaretMemory } from '../cursor/caret-memory';
-	import { docPathFrom } from '../cursor/coordinate-spaces';
+	import { createCaretMemory } from '../caret/caret-memory';
+	import { docPathFrom } from '../caret/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createScrollOwner } from '../windowing/scroll-owner';
 	import { createScrollHostResolution } from './editor-root-scroll-host';
@@ -145,7 +145,7 @@
 	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
 	import { registerEditorBuiltIns } from './editor-built-ins';
-	import { blockContentElAt } from './block-el-lookup';
+	import { blockContentElAt } from '../caret/block-el-lookup';
 
 	registerEditorBuiltIns();
 	runStartupInvariantChecks();

@@ -531,9 +531,9 @@ const RULES: FileRule[] = [
 			[COORDINATE_HOME]: 'the numeric-space conversions themselves',
 			[DOCPATH_HOME]: 'the DocPath brand and its base conversion (asDocPath)',
 			// Modules that own a coordinate space.
-			'src/lib/cursor/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
-			'src/lib/cursor/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
-			'src/lib/cursor/surface-backend.ts':
+			'src/lib/caret/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
+			'src/lib/caret/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
+			'src/lib/caret/surface-backend.ts':
 				'RawOffset home for the caret intent a block records as a plain number (the snap target)',
 			'src/lib/selection/table-endpoint-snap.ts':
 				'CellIndex home: a row-major cell index from table geometry',
@@ -586,7 +586,7 @@ const RULES: FileRule[] = [
 		id: 'the browser is asked for a caret at a point in one module',
 		matches: /\bcaret(Range|Position)FromPoint\b/,
 		allowed: {
-			'src/lib/cursor/point-offset.ts':
+			'src/lib/caret/point-offset.ts':
 				'caretSeatFromPoint, behind the offset lookups that move a padding point level with a line'
 		},
 		reason:
@@ -786,11 +786,11 @@ const RULES: FileRule[] = [
 		population: (file) => ACTIVE_IDENTITY_RE.test(file.code),
 		matches: (file) => !HOST_AWARE_RE.test(file.code),
 		allowed: {
-			'src/lib/cursor/surface-backend.ts':
+			'src/lib/caret/surface-backend.ts':
 				'the editable surface this backend was built over; a whole-block kind builds none',
 			'src/lib/components/blocks/editable-surface.ts':
 				'the pending-restore guard, reachable only from an editable leaf surface',
-			'src/lib/cursor/reveal-source.ts':
+			'src/lib/caret/reveal-source.ts':
 				'the reveal target is a text surface; the host paints no source',
 			'src/lib/selection/native-bridge.ts':
 				'blockEl is an editable leaf surface; neither entry is reachable from whole-block focus'
@@ -927,7 +927,7 @@ const RULES: FileRule[] = [
 			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`
 		),
 		allowed: {
-			'src/lib/cursor/widget-offset.ts':
+			'src/lib/caret/widget-offset.ts':
 				'the mode a mounted block wears in the DOM, where no hiding attribute means source'
 		},
 		reason:
@@ -1079,7 +1079,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/range-coverage.ts':
 				'decides once what a range covers: the blocks between, the units, the edges, the cells, the rectangle',
 			'src/lib/selection/path-math.ts': 'defines the two path predicates',
-			'src/lib/cursor/coordinate-spaces.ts': 'defines the rectangle two cells span',
+			'src/lib/caret/coordinate-spaces.ts': 'defines the rectangle two cells span',
 			'src/lib/selection/primitives.ts': 'defines the cell index read of a table endpoint',
 			'src/lib/schema/block-kind-descriptor.ts':
 				"defines a table's cell count and the clamp every cell index takes",
@@ -1187,6 +1187,8 @@ const RULES: FileRule[] = [
 /** The directories holding live editing paths; a fenced code body has no inline constructs. */
 const SPLICE_PATHS = [
 	SOURCE_DIR.components,
+	SOURCE.blockContentSelector,
+	SOURCE.blockElLookup,
 	SOURCE_DIR.selection,
 	SOURCE_DIR.editorActions,
 	SOURCE_DIR.treeOperations,
@@ -1407,7 +1409,7 @@ const BARE_FOCUSES: ManifestRule[] = [
 		declared: {
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'a click that reveals a widget’s source focuses the surface under the pointer, already on screen',
-			'src/lib/cursor/reveal-source.ts':
+			'src/lib/caret/reveal-source.ts':
 				'the revealed source takes focus where the click that revealed it landed',
 			'src/lib/components/GapCaret.svelte':
 				'an arrow move arriving on a gap caret keeps the browser’s own scroll to it',
@@ -1763,7 +1765,7 @@ const ROGUE_WRITER = `${SOURCE_DIR.blocks}x/rogue-writer.ts`;
 const TYPED_WRITE_ASKS: ManifestRule[] = [
 	{
 		id: 'G4.101 only the surface write names a typed kind change or completes a typed line',
-		population: under(SOURCE_DIR.components, SOURCE_DIR.selection),
+		population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.selection),
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/surface-write.ts':
@@ -2190,7 +2192,7 @@ const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
 
 const WIDGET_LIST: FileRule = {
 	id: 'G4.125 a component asks which inlines are widgets only in `widget-adjacency.ts`',
-	population: under(SOURCE_DIR.components, SOURCE_DIR.plugins),
+	population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.plugins),
 	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
 	allowed: {
 		[WIDGET_LIST_HOME]:

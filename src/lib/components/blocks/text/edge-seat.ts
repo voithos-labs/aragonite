@@ -6,7 +6,7 @@
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import type { EdgeAffinity, PinnedOffset } from '../../../cursor/edge-affinity';
+import type { EdgeAffinity, PinnedOffset } from '../../../caret/edge-affinity';
 import { constructContentRange, inlineDescendants, readInline } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
@@ -22,13 +22,13 @@ import {
 import type { GrammarView } from '../../../schema/block-openers';
 import type { Reading } from '../../../schema/reading';
 import { insertsExactly } from './screen-diff';
-import type { CaretMemory } from '../../../cursor/caret-memory';
-import type { PlacedEdit, PlaceInsertion } from '../../../cursor/next-insertion';
-import type { HeldSpaceView } from '../../../cursor/held-space';
+import type { CaretMemory } from '../../../caret/caret-memory';
+import type { PlacedEdit, PlaceInsertion } from '../../../caret/next-insertion';
+import type { HeldSpaceView } from '../../../caret/held-space';
 import type { NodeView } from '../../../core/node-views';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { withOwnEnding } from '../surface-write';
-import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
+import { revealsNoMarkers, screenVisibilityOf } from '../../../caret/widget-offset';
 
 export interface EdgeSeat {
 	/** Raw offset the byte must be written at. */
@@ -122,7 +122,7 @@ export interface TypedPlacementDeps {
 	getNode: () => NodeView;
 	reading: Reading;
 	caretMemory: Pick<CaretMemory, 'side'>;
-	/** The block's held space (`cursor/held-space.ts`), read lazily: the block makes it later. */
+	/** The block's held space (`caret/held-space.ts`), read lazily: the block makes it later. */
 	heldSpace: () => HeldSpaceView;
 }
 

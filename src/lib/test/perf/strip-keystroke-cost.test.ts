@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';

@@ -1,6 +1,6 @@
 // Helpers for the blocks whose DOM text is their raw: a code block and a plugin leaf.
 
-import { createCaretAnchor } from '../../cursor/widget-offset';
+import { createCaretAnchor } from '../../caret/widget-offset';
 
 /** Chromium with `white-space: pre` paints no caret on the line after a trailing `\n` unless
  *  something follows; a `<br>` anchors it without touching `textContent`. */

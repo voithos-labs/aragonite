@@ -12,8 +12,8 @@ import { serialize } from '#lib/core/serializer.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { Reading } from '#lib/schema/reading.js';
-import { asDomTextOffset, asRawOffset } from '#lib/cursor/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { asDomTextOffset, asRawOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
@@ -44,7 +44,7 @@ import {
 	pasteContext
 } from '../harness/editor-actions';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
-import { createCaretMemory, type CaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
 import { settleEditor } from '../harness/settle';

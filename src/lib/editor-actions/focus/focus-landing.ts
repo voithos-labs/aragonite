@@ -11,7 +11,7 @@ import {
 	type FocusPosition,
 	type StickyColumnDirection
 } from '../../block-component';
-import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretMemory } from '../../caret/caret-memory';
 
 export async function consumeStickyLanding(
 	block: BlockComponent,

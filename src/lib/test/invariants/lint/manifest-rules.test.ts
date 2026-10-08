@@ -130,7 +130,7 @@ const STAMP_WRITE = /\.(?:toggle|set)Attribute\(\s*CONTENT_EMPTY_ATTR\b/;
 
 const CLASSIFICATION_HOMES: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts': 'the families and the hiding rule',
-	'src/lib/cursor/widget-offset.ts': 'applies them to a live DOM, and owns the reveal branches'
+	'src/lib/caret/widget-offset.ts': 'applies them to a live DOM, and owns the reveal branches'
 };
 
 /** Resolving marker-hiding state either way: a DOM read of the mode root, the block-focus, construct
@@ -167,7 +167,7 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal', 'directive-marker'];
 
 const MARKER_CLASS_FILES: Record<string, string> = {
-	'src/lib/cursor/widget-offset.ts': 'the classification home',
+	'src/lib/caret/widget-offset.ts': 'the classification home',
 	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
 		'creates the directive container chrome: contenteditable="false" and outside every walk container, so the hiding classification excludes it twice over',
 	'src/lib/ambient/ambient-dom.ts': 'creates and identifies the marker-prefix span',
@@ -301,7 +301,7 @@ const MANIFESTS: ManifestRule[] = [
 		matches:
 			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
 		declared: {
-			'src/lib/cursor/widget-offset.ts':
+			'src/lib/caret/widget-offset.ts':
 				'writeSelection, behind placeCaretAtRaw, the raw range writers and selectDomRange, checks every endpoint against an empty block’s <br> (G1.75)'
 		},
 		reason:
@@ -327,9 +327,9 @@ const MANIFESTS: ManifestRule[] = [
 			'(?:createRangeAtDomTextOffsets|findDomTextOffsetTarget|findDomTextLanding)'
 		),
 		declared: {
-			'src/lib/cursor/widget-offset.ts': 'defines the walk and the one caret writer over it',
-			'src/lib/cursor/overlay-rects.ts': "measures a range's client rects, and writes no caret",
-			'src/lib/cursor/sticky-measure.ts':
+			'src/lib/caret/widget-offset.ts': 'defines the walk and the one caret writer over it',
+			'src/lib/caret/overlay-rects.ts': "measures a range's client rects, and writes no caret",
+			'src/lib/caret/sticky-measure.ts':
 				'measures the caret box a column scan compares, and writes no caret'
 		},
 		reason:
@@ -344,7 +344,7 @@ const MANIFESTS: ManifestRule[] = [
 		id: 'G4.36 the files naming rawRangeToDomRange measure or decorate, never place a caret',
 		matches: namesToken('rawRangeToDomRange'),
 		declared: {
-			'src/lib/cursor/widget-offset.ts': 'defines it',
+			'src/lib/caret/widget-offset.ts': 'defines it',
 			'src/lib/decorations/island-dom.ts':
 				'inserts and replaces decoration widgets in a built fragment',
 			'src/lib/selection/selection-drop.ts': "measures the drop caret's rect"

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
 import { makeKeydownEnv, press } from './keydown-env';
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 

@@ -1,0 +1,284 @@
+// @vitest-environment jsdom
+// jsdom lays nothing out, so the browser's rect methods are patched on the prototype (the code
+// under test calls `document.createRange()` itself, so stubbing one range never reaches it).
+// Each fake rect comes from the collapsed range's (startContainer, startOffset), so the code's
+// own candidate scan, line lookup and nearest-X choice all run for real against that geometry.
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { asDomTextOffset, asEditorX } from '../../caret/coordinate-spaces';
+import {
+	getCurrentCursorEditorRelativeX,
+	caretBoxAt,
+	findOffsetNearestX
+} from '../../caret/sticky-measure';
+
+const CHAR_WIDTH = 8;
+const LINE_HEIGHT = 18;
+const EDITOR_LEFT = 30;
+
+// Maps a character offset in one text node to a fake rect. `wrapAt` pushes every offset at or
+// past it onto a second visual line `lineGap` pixels down.
+function rectForOffset(offset: number, wrapAt: number, lineGap: number): DOMRect {
+	const onSecondLine = offset >= wrapAt;
+	const top = onSecondLine ? lineGap : 0;
+	const col = onSecondLine ? offset - wrapAt : offset;
+	const left = col * CHAR_WIDTH;
+	return {
+		left,
+		right: left + CHAR_WIDTH,
+		top,
+		bottom: top + LINE_HEIGHT,
+		width: CHAR_WIDTH,
+		height: LINE_HEIGHT,
+		x: left,
+		y: top,
+		toJSON: () => ({})
+	} as DOMRect;
+}
+
+describe('sticky-measure geometry', () => {
+	let editor: HTMLElement;
+	let block: HTMLElement;
+	let text: Text;
+	let wrapAt = Infinity;
+	// Far enough apart that the two lines' bands never touch; a test that needs real page spacing
+	// narrows it.
+	let lineGap = LINE_HEIGHT * 4;
+	const originalRangeRects = Range.prototype.getClientRects;
+	const originalRangeBox = Range.prototype.getBoundingClientRect;
+	const originalElementBox = Element.prototype.getBoundingClientRect;
+
+	function rectListFor(offset: number): DOMRectList {
+		const rect = rectForOffset(offset, wrapAt, lineGap);
+		return {
+			length: 1,
+			item: (i: number) => (i === 0 ? rect : null),
+			0: rect,
+			[Symbol.iterator]: function* () {
+				yield rect;
+			}
+		} as unknown as DOMRectList;
+	}
+
+	beforeEach(() => {
+		editor = document.createElement('div');
+		editor.className = 'editor';
+		block = document.createElement('div');
+		block.contentEditable = 'true';
+		text = document.createTextNode('hello world');
+		block.appendChild(text);
+		editor.appendChild(block);
+		document.body.appendChild(editor);
+
+		Range.prototype.getClientRects = function (this: Range): DOMRectList {
+			return rectListFor(this.startContainer === text ? this.startOffset : 0);
+		};
+		Range.prototype.getBoundingClientRect = function (this: Range): DOMRect {
+			return rectForOffset(this.startContainer === text ? this.startOffset : 0, wrapAt, lineGap);
+		};
+		Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+			const left = this === editor ? EDITOR_LEFT : 0;
+			return {
+				left,
+				top: 0,
+				right: 0,
+				bottom: 0,
+				width: 0,
+				height: 0,
+				x: left,
+				y: 0,
+				toJSON: () => ({})
+			} as DOMRect;
+		};
+	});
+
+	afterEach(() => {
+		Range.prototype.getClientRects = originalRangeRects;
+		Range.prototype.getBoundingClientRect = originalRangeBox;
+		Element.prototype.getBoundingClientRect = originalElementBox;
+		editor.remove();
+		window.getSelection()?.removeAllRanges();
+		wrapAt = Infinity;
+		lineGap = LINE_HEIGHT * 4;
+	});
+
+	function selectAt(node: Node, offset: number): void {
+		const range = document.createRange();
+		range.setStart(node, offset);
+		range.collapse(true);
+		const sel = window.getSelection()!;
+		sel.removeAllRanges();
+		sel.addRange(range);
+	}
+
+	describe('getCurrentCursorEditorRelativeX', () => {
+		it('returns null when there is no selection range', () => {
+			window.getSelection()?.removeAllRanges();
+			expect(getCurrentCursorEditorRelativeX(block)).toBeNull();
+		});
+
+		it('subtracts the editor-container left from the viewport cursor X', () => {
+			selectAt(text, 5);
+			// The caret rect's left is 5 * CHAR_WIDTH = 40; the editor's left is 30, so 10 relative
+			// to the editor.
+			expect(getCurrentCursorEditorRelativeX(block)).toBe(5 * CHAR_WIDTH - EDITOR_LEFT);
+		});
+
+		// Miss-analysis: every row measured a caret, so a selection's start and moving end never differed.
+		it('over a selection, measures the moving end, not the start', () => {
+			window.getSelection()!.setBaseAndExtent(text, 1, text, 9);
+			expect(getCurrentCursorEditorRelativeX(block)).toBe(9 * CHAR_WIDTH - EDITOR_LEFT);
+			window.getSelection()!.setBaseAndExtent(text, 9, text, 1);
+			expect(getCurrentCursorEditorRelativeX(block)).toBe(1 * CHAR_WIDTH - EDITOR_LEFT);
+		});
+	});
+
+	describe('caretBoxAt', () => {
+		it('returns null when the offset has no resolvable DOM position', () => {
+			const empty = document.createElement('div');
+			editor.appendChild(empty);
+			expect(caretBoxAt(empty, asDomTextOffset(3))).toBeNull();
+		});
+
+		it('returns the measured box at a resolvable offset, under the offset asked for', () => {
+			const probe = caretBoxAt(block, asDomTextOffset(4));
+			expect(probe).not.toBeNull();
+			expect(probe!.offset).toBe(4);
+			expect(probe!.rect.left).toBe(4 * CHAR_WIDTH);
+			expect(probe!.rect.bottom - probe!.rect.top).toBe(LINE_HEIGHT);
+		});
+	});
+
+	describe('findOffsetNearestX', () => {
+		it('returns minOffset when the container is shorter than minOffset', () => {
+			expect(findOffsetNearestX(block, asEditorX(0), 'above', asDomTextOffset(999))).toBe(999);
+		});
+
+		it('returns minOffset when no offset yields a measurable rect', () => {
+			const zeroRect = {
+				left: 0,
+				top: 0,
+				right: 0,
+				bottom: 0,
+				width: 0,
+				height: 0,
+				x: 0,
+				y: 0,
+				toJSON: () => ({})
+			} as DOMRect;
+			Range.prototype.getClientRects = function (): DOMRectList {
+				return {
+					length: 0,
+					item: () => null,
+					[Symbol.iterator]: function* () {}
+				} as unknown as DOMRectList;
+			};
+			Range.prototype.getBoundingClientRect = () => zeroRect;
+			expect(findOffsetNearestX(block, asEditorX(50), 'above', asDomTextOffset(0))).toBe(0);
+		});
+
+		it('on a single line, lands on the offset whose X is nearest the target', () => {
+			// The target X is relative to the editor; the code adds the editor's left back itself.
+			// An editor-relative X of 50 is 80 in the viewport, so the nearest offset is 80/8 = 10.
+			const offset = findOffsetNearestX(block, asEditorX(50), 'above', asDomTextOffset(0));
+			expect(offset).toBe(10);
+		});
+
+		it('above vs below pick the matching X on different wrapped lines', () => {
+			wrapAt = 6; // "hello " on line 1 (offsets 0-5), "world" on line 2 (offsets 6-11).
+			// An editor-relative X of 10 is 40 in the viewport, so column 5 on whichever line `from`
+			// looks at.
+			const above = findOffsetNearestX(block, asEditorX(10), 'above', asDomTextOffset(0));
+			const below = findOffsetNearestX(block, asEditorX(10), 'below', asDomTextOffset(0));
+			expect(above).toBe(5); // column 5 on line 1
+			expect(below).toBe(11); // column 5 on line 2 = offset 6 + 5
+			expect(above).not.toBe(below);
+		});
+
+		// Miss-analysis: the fixture spaced lines four line-heights apart, never a real page's gap.
+		it('keeps the line above out of the search when the lines sit a normal gap apart', () => {
+			block.style.lineHeight = `${LINE_HEIGHT + 2}px`;
+			lineGap = LINE_HEIGHT + 2;
+			wrapAt = 12;
+			text.data = 'a'.repeat(18);
+			// Line 1 runs to column 11, line 2 only to column 6, and the target column sits past
+			// the end of line 2: the answer is line 2's last offset, not line 1's exact match.
+			const target = asEditorX(9 * CHAR_WIDTH - EDITOR_LEFT);
+			expect(findOffsetNearestX(block, target, 'below', asDomTextOffset(0))).toBe(18);
+			expect(findOffsetNearestX(block, target, 'above', asDomTextOffset(0))).toBe(9);
+		});
+
+		it('respects minOffset, excluding the prefix region from candidates', () => {
+			// A viewport X of 0 would otherwise pick offset 0; `minOffset` 4 forbids it.
+			const offset = findOffsetNearestX(
+				block,
+				asEditorX(-EDITOR_LEFT),
+				'above',
+				asDomTextOffset(4)
+			);
+			expect(offset).toBe(4);
+		});
+
+		it('bounds the scan to the probed edge instead of the whole block', () => {
+			// 195 characters at 20 per visual line is 10 lines, with tops spaced far enough apart that
+			// the band never spans two of them. The bounded scan reads far fewer than all 196 offsets.
+			text.data = 'a'.repeat(195);
+			const PER_LINE = 20;
+			const LINE_GAP = LINE_HEIGHT * 3;
+			let rectCalls = 0;
+			const rectAt = (offset: number): DOMRect => {
+				const top = Math.floor(offset / PER_LINE) * LINE_GAP;
+				const left = (offset % PER_LINE) * CHAR_WIDTH;
+				return {
+					left,
+					right: left + CHAR_WIDTH,
+					top,
+					bottom: top + LINE_HEIGHT,
+					width: CHAR_WIDTH,
+					height: LINE_HEIGHT,
+					x: left,
+					y: top,
+					toJSON: () => ({})
+				} as DOMRect;
+			};
+			Range.prototype.getClientRects = function (this: Range): DOMRectList {
+				rectCalls++;
+				const off = this.startContainer === text ? this.startOffset : 0;
+				const rect = rectAt(off);
+				return {
+					length: 1,
+					item: (i: number) => (i === 0 ? rect : null),
+					0: rect,
+					[Symbol.iterator]: function* () {
+						yield rect;
+					}
+				} as unknown as DOMRectList;
+			};
+
+			// 'above' means the first line (offsets 0-19), so column 5 is offset 5.
+			expect(
+				findOffsetNearestX(
+					block,
+					asEditorX(5 * CHAR_WIDTH - EDITOR_LEFT),
+					'above',
+					asDomTextOffset(0)
+				)
+			).toBe(5);
+			const aboveCalls = rectCalls;
+			rectCalls = 0;
+			// 'below' means the last line (offsets 180-195), so column 5 is offset 185.
+			expect(
+				findOffsetNearestX(
+					block,
+					asEditorX(5 * CHAR_WIDTH - EDITOR_LEFT),
+					'below',
+					asDomTextOffset(0)
+				)
+			).toBe(185);
+
+			// Each direction reads only a few lines' worth of offsets, not all ~196.
+			expect(aboveCalls).toBeLessThan(120);
+			expect(rectCalls).toBeLessThan(120);
+		});
+	});
+});

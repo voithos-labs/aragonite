@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '#lib/core/inline/index.js';
 import { createCompositionSeat } from '#lib/components/blocks/text/composition-seat.js';
-import type { PendingMarks } from '#lib/cursor/pending-marks.js';
+import type { PendingMarks } from '#lib/caret/pending-marks.js';
 import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import { makePendingMarks } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';

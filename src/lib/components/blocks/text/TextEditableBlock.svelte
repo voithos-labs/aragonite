@@ -27,7 +27,7 @@
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
-	import { caretSeatInElement } from '../../../cursor/point-offset';
+	import { caretSeatInElement } from '../../../caret/point-offset';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import {
 		createInlineFormatActiveMemo,
@@ -75,9 +75,9 @@
 		revealsNoMarkers,
 		rawSelectionFocus,
 		caretOnPendingBreakLine
-	} from '../../../cursor/widget-offset';
-	import { asRawOffset } from '../../../cursor/coordinate-spaces';
-	import { createSurfaceBackend } from '../../../cursor/surface-backend';
+	} from '../../../caret/widget-offset';
+	import { asRawOffset } from '../../../caret/coordinate-spaces';
+	import { createSurfaceBackend } from '../../../caret/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
 	import type { CommandRun } from '../../../schema/block-commands';
 	import { planTypedCompletion } from '../../../editor-actions/enter-completion';

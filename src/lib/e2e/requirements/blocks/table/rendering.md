@@ -16,7 +16,7 @@
 
 ## Structural invariants
 
-- The table grid containers (`.table-block`, `.table-row`) have no whitespace-only direct child text nodes. Such a node joins the DOM-to-raw offset traversal (cursor/widget-offset.ts counts every text node, aria-hidden markup included) and shifts a cross-block caret left waiting between blocks, so those blocks' boundaries must stay adjacent.
+- The table grid containers (`.table-block`, `.table-row`) have no whitespace-only direct child text nodes. Such a node joins the DOM-to-raw offset traversal (caret/widget-offset.ts counts every text node, aria-hidden markup included) and shifts a cross-block caret left waiting between blocks, so those blocks' boundaries must stay adjacent.
 
 ## User interactions
 

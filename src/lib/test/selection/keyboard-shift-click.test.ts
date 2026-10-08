@@ -8,8 +8,8 @@ vi.mock('../../selection/native-bridge', async (importOriginal) => ({
 	readNativeCaretInBlock: vi.fn(),
 	applySingleBlockRange: vi.fn()
 }));
-vi.mock('../../cursor/point-offset', async (importOriginal) => ({
-	...(await importOriginal<typeof import('../../cursor/point-offset')>()),
+vi.mock('../../caret/point-offset', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../../caret/point-offset')>()),
 	offsetFromViewportPoint: vi.fn()
 }));
 
@@ -17,7 +17,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { handleShiftClick } from '../../selection/keyboard-extend';
 import { applySingleBlockRange, readNativeCaretInBlock } from '../../selection/native-bridge';
 import { selectWidgetWhole } from '../../selection/caret-doors';
-import { offsetFromViewportPoint } from '../../cursor/point-offset';
+import { offsetFromViewportPoint } from '../../caret/point-offset';
 import { parse } from '../../core/parser';
 import type { Document } from '../../core/nodes';
 

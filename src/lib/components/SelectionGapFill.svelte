@@ -6,7 +6,7 @@
 	 */
 	import { getContext, tick } from 'svelte';
 	import { EDITOR_SERVICES_KEY, type EditorServices } from '../editor-keys';
-	import { regionGaps } from '../cursor/overlay-rects';
+	import { regionGaps } from '../caret/overlay-rects';
 	import { observeResize } from '../windowing/observe-resize';
 	import { rangeSpansBlocks } from '../selection/primitives';
 

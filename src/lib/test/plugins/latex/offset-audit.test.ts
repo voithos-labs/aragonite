@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse, serialize, type InlineNode } from '#lib';
 import { computeInlineContent } from '#lib/plugin.js';
-import { rawTextOfNode } from '#lib/cursor/widget-offset.js';
+import { rawTextOfNode } from '#lib/caret/widget-offset.js';
 import { registerMathInline, MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 
 // The render layer's wrapper span around a component widget, with glyph-like text in place of

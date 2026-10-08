@@ -4,7 +4,7 @@
  * a splice that fills or empties a blank line keeps the separators a reload reads.
  */
 
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 import { legalizeWrite, type LegalWrite } from '../tree-operations/content-write';
 import { createPathScope, type CommitScope } from './block-edit-scope';
 import { commitLeafText } from './block-edit-core';

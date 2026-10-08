@@ -5,12 +5,12 @@
  * place that start itself.
  */
 
-import { isAtFirstVisualLine, type CaretBounds } from '../../../cursor/visual-lines';
+import { isAtFirstVisualLine, type CaretBounds } from '../../../caret/visual-lines';
 import {
 	extendSelectionToRaw,
 	landableStartAbutsIsland,
 	markerPrefixOf
-} from '../../../cursor/widget-offset';
+} from '../../../caret/widget-offset';
 
 export interface HomeKeyDeps {
 	getEl(): HTMLElement | null;

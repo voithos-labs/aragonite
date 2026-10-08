@@ -44,7 +44,7 @@ Pick the closest reference and read it fully before you start. It'll answer more
 - `schema/`: the registries you'll touch.
 - `editor-actions/` and `reactivity/`: the primitives a container builds on.
 - `ambient/`: the DOM for the dimmed marker a container lends its first child (a list item's `- `).
-- `cursor/`: caret geometry, offsets across that marker included (`cursor/widget-offset.ts`).
+- `cursor/`: caret geometry, offsets across that marker included (`caret/widget-offset.ts`).
 
 ## Registration
 
@@ -506,7 +506,7 @@ ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorR
 A hand-rolled surface takes on both halves itself:
 
 1. **Feed every keydown to `noteKey`**, as above, with the command the chord resolves to at your block (`schema/commands.ts` :: `commandForKey`), so a rebound block move isn't read as an arrow. It's the only caret-memory call a keydown handler may make, and a scan checks that. Pass the live caret's measure as the third argument, so a capture key has an X to record. `forget()` is for callers with no key to classify (lifecycle, commit, undo, paste).
-2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and reads the surface's `columnWindow` for a block whose first or last line a caret arriving from another block shouldn't land on (a code block's fence lines):
+2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `caret/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and reads the surface's `columnWindow` for a block whose first or last line a caret arriving from another block shouldn't land on (a code block's fence lines):
 
 ```ts
 // components/blocks/editable-surface.ts

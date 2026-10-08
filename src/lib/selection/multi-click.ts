@@ -5,15 +5,15 @@
  * platform, it walks into non-editable widgets, and a marker here never joins a word.
  */
 
-import { asDomTextOffset } from '../cursor/coordinate-spaces';
-import { caretOffsetAtPoint } from '../cursor/point-offset';
+import { asDomTextOffset } from '../caret/coordinate-spaces';
+import { caretOffsetAtPoint } from '../caret/point-offset';
 import type { UserScrollport } from '../windowing/scroll-ancestors';
 import {
 	containerDomTextLength,
 	maskedWalkText,
 	rawOfWalkOffset,
 	walkOffsetOfRaw
-} from '../cursor/widget-offset';
+} from '../caret/widget-offset';
 import { isWholeBlockInputProxy } from '../editor-actions/whole-block-focus-surface';
 import type { BlockElLookup } from '../editor-keys';
 import { installDragListener, type DragGranularity } from './drag-pointer';

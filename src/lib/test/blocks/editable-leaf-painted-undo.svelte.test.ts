@@ -7,9 +7,9 @@ import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
 } from '#lib/schema/keybinding-overrides.js';
-import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
-import { createSurfaceBackend } from '#lib/cursor/surface-backend.js';
-import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
+import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
 import { UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor, pressKey } from '#lib/test/harness/settle.js';

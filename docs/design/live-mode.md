@@ -35,7 +35,7 @@ Take `Some **bold** text` in live mode. Each `**` (a marker run, from here on: t
 
 A live rewrite never trusts its own reading of the bytes. It builds a candidate byte string and asks the render path what that candidate would show, through `renderedText` (`core/inline/visibility.ts`). I'll call that check the painter. The rule it enforces: the screen after the write shows exactly what the gesture claimed, and live drops only bytes the user never saw.
 
-The painter's idea of the screen comes from one rule, `familyHidesText` in the same file, which says which spans a mode leaves on screen. The caret walk (the traversal in `cursor/widget-offset.ts` that maps DOM positions to raw offsets) reads the same rule, and a lint fails any third place that works out what's hidden on its own.
+The painter's idea of the screen comes from one rule, `familyHidesText` in the same file, which says which spans a mode leaves on screen. The caret walk (the traversal in `caret/widget-offset.ts` that maps DOM positions to raw offsets) reads the same rule, and a lint fails any third place that works out what's hidden on its own.
 
 The mode read and the painter, on one block (`reading` is the editor's `Reading`, from `schema/reading.ts`: its grammar, link resolver and mode in one object):
 
@@ -117,7 +117,7 @@ The painted state decides three things: where a caret can land, which side an in
 
 The wiring, for the curious:
 
-- Each block surface marks its walk container (the contenteditable element the caret geometry reads) with the content-empty condition on every render, and the two consumers of the hiding rule, the stylesheet and `cursor/widget-offset.ts`, read that mark under the same modes and over the same marker families.
+- Each block surface marks its walk container (the contenteditable element the caret geometry reads) with the content-empty condition on every render, and the two consumers of the hiding rule, the stylesheet and `caret/widget-offset.ts`, read that mark under the same modes and over the same marker families.
 - The preview modes take the same rule; reading mode doesn't, since it takes no keystrokes.
 - Without the rule such a block would have no position a caret can sit at, and the focus entry every caret route crosses refuses a block like that in dev.
 
@@ -125,17 +125,17 @@ The wiring, for the curious:
 
 A byte typed where a marker run sits is placed by the edge resolver (`components/blocks/text/edge-seat.ts`), which reads the kind's policy first and how the caret arrived second.
 
-It doesn't matter how the text got there. A hardware key, a soft keyboard, an autocorrect replacement, an IME commit, a paste and a character typed over a selection across blocks all end in the same write, and that write is where the text gets moved (`cursor/next-insertion.ts`). The browser (or the paste) puts the text in wherever it likes, the editor reads it back, and the write moves it to the side the caret means (an IME run, which can't be stopped per keystroke, gets moved once at its commit). A composition and a paste both wipe the caret memory before they write, so each grabs the caret's side at its first event and brings it along. Two places decide earlier, though: the auto-pair asks the same question at `beforeinput` (what a delimiter writes depends on where it lands), and a character typed over a selection inside one block goes wherever the join puts it (§ 4.5).
+It doesn't matter how the text got there. A hardware key, a soft keyboard, an autocorrect replacement, an IME commit, a paste and a character typed over a selection across blocks all end in the same write, and that write is where the text gets moved (`caret/next-insertion.ts`). The browser (or the paste) puts the text in wherever it likes, the editor reads it back, and the write moves it to the side the caret means (an IME run, which can't be stopped per keystroke, gets moved once at its commit). A composition and a paste both wipe the caret memory before they write, so each grabs the caret's side at its first event and brings it along. Two places decide earlier, though: the auto-pair asks the same question at `beforeinput` (what a delimiter writes depends on where it lands), and a character typed over a selection inside one block goes wherever the join puts it (§ 4.5).
 
 - A `never-extend` kind (link, autolink, image, escape, hard break) places the byte outside its delimiters, whichever side that lands on. Two halves of a URL are not two URLs, and a byte between an autolink's brackets would rewrite where the link goes.
-- A `symmetric-pair` kind follows how the caret arrived (the caret memory in `cursor/caret-memory.ts` holds which side of the edge the caret meant): stepping in from outside types outside, walking out from inside types inside. A click clears that memory, and with nothing on record the resolver picks the near side, so the construct the caret touches keeps the byte (the Google Docs click default).
+- A `symmetric-pair` kind follows how the caret arrived (the caret memory in `caret/caret-memory.ts` holds which side of the edge the caret meant): stepping in from outside types outside, walking out from inside types inside. A click clears that memory, and with nothing on record the resolver picks the near side, so the construct the caret touches keeps the byte (the Google Docs click default).
 - A caret placed at an end rather than stepped there (Home, End, a range across blocks collapsing onto its own edge, a structural operation landing the caret at a block's start or end) means outside the delimiters, whatever key produced it, since the caret took no step. A selection inside one block collapsed by an arrow is a step, and records that arrow's side.
 - Crossing a hidden edge takes an arrow press of its own (`components/blocks/text/edge-step.ts`). Where the caret's spot offers more than one offset a byte could land at, a plain ArrowLeft or ArrowRight moves the typing offset one boundary that way and leaves the caret where it is. Only once there's no boundary left that way does the press move the caret. It's the two-press boundary Notion and Slack give inline code, applied to every symmetric pair.
   - `**bold**` ending a line: one ArrowRight and the next byte lands past the `**`, still on that line, and the second press moves on to the next block. `***both***` takes a press per run, since inside both, inside the emphasis alone and outside are three typing offsets.
   - Shift extends a range, and Ctrl, Alt and Meta jump a word or the whole line, so none of them stops here. A `never-extend` construct offers only its outside, so a link costs no extra press.
   - Both offsets sit on one pixel, so the side shows another way: each construct the next byte would join wears `md-edge-held`, a faint ring (`--md-edge-held-ring`).
 - Pending marks (§ 4.3) outrank the arrival: a toggle is the newer instruction about the same bytes.
-- A space can't sit right before a closer (`**two **` isn't bold, and its markers would show up again), so a space typed at a hidden closer goes past it: `a **two** `. The caret still means inside though, and the next letter takes the space back in with it, giving `a **two w**`. That's the held space (`cursor/held-space.ts`), and it's what lets you type a whole bold phrase without the bold stopping after the first word.
+- A space can't sit right before a closer (`**two **` isn't bold, and its markers would show up again), so a space typed at a hidden closer goes past it: `a **two** `. The caret still means inside though, and the next letter takes the space back in with it, giving `a **two w**`. That's the held space (`caret/held-space.ts`), and it's what lets you type a whole bold phrase without the bold stopping after the first word.
   - A second space joins the first. A letter after it brings both in.
   - Anything that moves the caret or picks a side ends the hold: an arrow, End, a click, the closer typed over, the construct's own chord (Mod+B in a bold). The bytes were valid the whole time, so ending it changes nothing on screen, and the next letter types outside.
   - Another mark's chord ends the hold too, and still arms its mark, so Mod+I after `a **two** ` then `x` gives `a **two** *x*`, the same bytes as with no space held. (Arming the italic inside the bold would mean a second place deciding where marked text lands, so it doesn't.)
@@ -182,7 +182,7 @@ Where nothing the position admits survives the painter, the byte-literal write s
 
 ### 4.3 Format toggles at a collapsed caret: pending marks
 
-A collapsed-caret toggle (Mod+B with nothing selected) in a mode that paints no delimiter can't write an empty pair (§ 4.1), so it pends the mark instead (`cursor/pending-marks.ts`): a promise held outside the document and spent by exactly one insertion.
+A collapsed-caret toggle (Mod+B with nothing selected) in a mode that paints no delimiter can't write an empty pair (§ 4.1), so it pends the mark instead (`caret/pending-marks.ts`): a promise held outside the document and spent by exactly one insertion.
 
 ```ts
 flipMark(null, 'strong'); // Set { 'strong' }: Mod+B, once
@@ -383,7 +383,7 @@ Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-hard-break.m
 
 - Copy yields the source bytes. Reading mode is the exception: there a copy writes what the browser's selection shows, hidden markers left out.
 - Search matches the source bytes, so a query crossing a construct boundary misses what the screen appears to show.
-- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are the offsets a caret can reach, not its raw ends, and the position after a body's final newline, on a hidden closer's line, is outside them too unless a caret anchor paints that line (`cursor/widget-offset.ts`).
+- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are the offsets a caret can reach, not its raw ends, and the position after a body's final newline, on a hidden closer's line, is outside them too unless a caret anchor paints that line (`caret/widget-offset.ts`).
 - Bytes change only where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, except at § 4.1's painted content-empty chrome, where a block's own structural gate follows the mode and the two modes diverge.
 - Undo granularity is the document's wherever a rendered block reveals its source for editing (block math, a painted code source): a burst of typing there comes back in one press, batched on the same pause the document batches on, and the whole reveal still commits as one document entry on blur.
 - Keystroke latency is a gated perf axis, with live rows beside their source twins (`performance.md`).

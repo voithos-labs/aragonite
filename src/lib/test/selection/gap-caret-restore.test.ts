@@ -4,7 +4,7 @@ import { parse } from '#lib/core/parser.js';
 import { restoreGapCaret } from '#lib/selection/selection-restore.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import type { GapCaretRestoreDeps } from '#lib/selection/selection-restore.js';
-import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { stubBlockComponent } from '#lib/testing/headless-actions.js';
 
 // Restoring an undo entry that holds a gap caret: the boundary is clamped into the tree it

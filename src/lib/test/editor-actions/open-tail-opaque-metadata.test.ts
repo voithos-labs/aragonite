@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, serialize } from '#lib';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';

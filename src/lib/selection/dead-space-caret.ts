@@ -18,10 +18,10 @@ import {
 } from './nearest-block';
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
-import { caretOffsetAtPoint } from '../cursor/point-offset';
+import { caretOffsetAtPoint } from '../caret/point-offset';
 import type { CaretPosition, SelectionEndpoint } from './primitives';
 import type { LandingOutcome } from './caret-landing';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

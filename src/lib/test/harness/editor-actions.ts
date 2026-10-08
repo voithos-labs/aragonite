@@ -12,14 +12,14 @@ import type {
 import type { BlockComponent } from '#lib/block-component.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
-import { createCaretMemory, type CaretMemory } from '#lib/cursor/caret-memory.js';
-import type { PendingMarks } from '#lib/cursor/pending-marks.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
+import type { PendingMarks } from '#lib/caret/pending-marks.js';
 import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
 import type { CommitScope, ScopeCommitArgs } from '#lib/editor-actions/block-edit-scope.js';
 import { asDocPath } from '#lib/selection/path-math.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import type { ContainerBlockComponentDeps } from '#lib/editor-actions/container-block-component.js';
 import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
 import { componentAt, type ChildList } from '#lib/reactivity/child-list.js';

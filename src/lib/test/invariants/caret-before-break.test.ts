@@ -2,7 +2,7 @@
 // G1.75: the caret writer checks every endpoint it writes against an empty block's `<br>`.
 import { describe, it, expect, afterEach } from 'vitest';
 import { checkCaretBeforeBreak } from '../../invariants/caret-before-break';
-import { extendSelectionToRaw } from '../../cursor/widget-offset';
+import { extendSelectionToRaw } from '../../caret/widget-offset';
 import { takeDevWarns } from '../support/warn-gate';
 
 afterEach(() => {

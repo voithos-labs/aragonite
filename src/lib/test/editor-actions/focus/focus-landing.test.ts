@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { consumeStickyLanding } from '#lib/editor-actions/focus/focus-landing.js';
 import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
-import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
-import { createCaretMemory, type CaretMemory } from '#lib/cursor/caret-memory.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
 import { stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 
 function capturedSticky(x: number): CaretMemory {

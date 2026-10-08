@@ -29,7 +29,7 @@ import type { CaretLanding } from './selection/caret-landing';
 import type { RangeCoverage } from './selection/range-coverage';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
-import type { CaretMemory } from './cursor/caret-memory';
+import type { CaretMemory } from './caret/caret-memory';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
 import type { ScrollOwner } from './windowing/scroll-owner';
 import type { HeightOracle } from './windowing/height-estimator';

@@ -35,7 +35,7 @@ import {
 	mountIslandBlock,
 	mountSurface
 } from './edge-policy-fixture';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 
 const LIVE = fixtureReading({}, 'live');
 const IMAGE = 'x **![a](b.png)** y\n';

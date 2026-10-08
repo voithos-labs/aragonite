@@ -3,7 +3,7 @@
 // Miss-analysis: the side was set only by the arrow key's own move, and no test read the caret
 // memory after an edit's landing inside a list or quote.
 import { describe, expect, it } from 'vitest';
-import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import {
 	makeContainerHarness,
 	makeNestedHarness,

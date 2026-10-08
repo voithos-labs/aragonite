@@ -10,7 +10,7 @@ import type { CstNode, ListItemMetadata } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
-import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
+import { extendDocPath, docPathFrom } from '../caret/coordinate-spaces';
 import type { Reading } from '../schema/reading';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { UndoController } from './deps';

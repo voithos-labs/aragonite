@@ -6,7 +6,7 @@ import { beforeAll, beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { registerBlockCompleter } from '#lib/schema/block-completions.js';
-import { rawSelectionFocus } from '#lib/cursor/widget-offset.js';
+import { rawSelectionFocus } from '#lib/caret/widget-offset.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,

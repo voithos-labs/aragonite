@@ -12,7 +12,7 @@ import { placeGapCaret } from './caret-doors';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import { clampCellIndex, countsCells } from '../schema/block-kind-descriptor';
 import type { SelectionState } from './selection-state.svelte';
-import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretMemory } from '../caret/caret-memory';
 
 /**
  * `unresolvable` is decided before anything happens and is the only outcome that leaves the

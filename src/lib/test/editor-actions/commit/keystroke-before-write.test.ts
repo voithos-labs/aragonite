@@ -3,8 +3,8 @@
 // Miss-analysis: the reading-mode rows never read the caret memory after a key.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { createCaretMemory, type CaretMemory } from '#lib/cursor/caret-memory.js';
-import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
 import type { UndoController } from '#lib/editor-actions/deps.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';

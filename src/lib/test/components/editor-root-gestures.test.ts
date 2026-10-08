@@ -7,8 +7,8 @@ import { parse } from '#lib/core/parser.js';
 import type { BlockComponent } from '#lib/block-component.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createCaretMemory } from '#lib/cursor/caret-memory.js';
-import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
 
 // Miss-analysis: the click and margin drag were driven only through Playwright, never a refusal.
 

@@ -5,7 +5,7 @@
  */
 
 import type { BlockComponent } from '../block-component';
-import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretMemory } from '../caret/caret-memory';
 import type { CaretLanding } from '../selection/caret-landing';
 import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';

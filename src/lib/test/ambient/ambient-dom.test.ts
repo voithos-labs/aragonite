@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { placeCaretAtRaw } from '../../cursor/widget-offset';
+import { placeCaretAtRaw } from '../../caret/widget-offset';
 
 describe('buildAmbientSpan', () => {
 	it('string input produces a single text-only span', () => {

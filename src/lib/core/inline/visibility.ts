@@ -1,7 +1,7 @@
 /**
  * What a marker-hiding mode leaves on screen. `inline-render.ts` decides which bytes become which
  * span; this file decides which of those spans the user sees, and it is the one place that rule
- * lives: the DOM traversal (`cursor/widget-offset.ts`) reads it too, and a property test
+ * lives: the DOM traversal (`caret/widget-offset.ts`) reads it too, and a property test
  * (`screen-truth.property.test.ts`) holds the two answers together. Terms: `live-mode.md` § 2.
  */
 

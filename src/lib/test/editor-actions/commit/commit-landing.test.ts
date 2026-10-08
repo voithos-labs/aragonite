@@ -4,7 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
 import type { BlockComponent } from '#lib/block-component.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';

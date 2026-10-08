@@ -6,13 +6,13 @@ import {
 } from '#lib/components/blocks/editable-surface.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { asRawOffset, type RawOffset } from '#lib/cursor/coordinate-spaces.js';
-import { createSurfaceBackend } from '#lib/cursor/surface-backend.js';
-import { rawOffsetAt, type CaretClamp } from '#lib/cursor/widget-offset.js';
+import { asRawOffset, type RawOffset } from '#lib/caret/coordinate-spaces.js';
+import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
+import { rawOffsetAt, type CaretClamp } from '#lib/caret/widget-offset.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { fixtureReading } from './fixture-grammar';
 import { stubBlockEdit, stubCaretMemory } from '#lib/testing/headless-actions.js';
-import type { CaretMemory } from '#lib/cursor/caret-memory.js';
+import type { CaretMemory } from '#lib/caret/caret-memory.js';
 import { commandContext } from '../support/command-context';
 
 export interface SurfaceHarness {

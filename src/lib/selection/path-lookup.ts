@@ -4,7 +4,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { caretChildCount, isCollapsedContainer } from '../schema/reserved-chrome';
-import { TABLE_CELL_SELECTOR } from '../components/block-content-selector';
+import { TABLE_CELL_SELECTOR } from '../caret/block-content-selector';
 
 /** Block immediately after `path` in doc order (children before siblings), else null. */
 export function nextPath(doc: Document, path: number[]): number[] | null {

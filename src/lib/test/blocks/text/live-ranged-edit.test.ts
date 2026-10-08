@@ -6,8 +6,8 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
 import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
-import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
 import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import { registerLiveJoinSeamCleaner } from '#lib/schema/inline-construct-policy.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';

@@ -30,17 +30,17 @@ import type { CommandDispatchContext } from '../../schema/block-commands';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
-import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretMemory } from '../../caret/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { placeCaret, selectInBlock } from '../../selection/caret-doors';
 import { deleteSnapshot } from '../../selection/primitives';
-import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
-import type { SurfaceBackend } from '../../cursor/surface-backend';
-import type { HeldInsertion, PlaceInsertion } from '../../cursor/next-insertion';
-import type { BlockPendingBreak } from '../../cursor/pending-break.svelte';
-import type { HeldSpaceView } from '../../cursor/held-space';
-import { findOffsetNearestX } from '../../cursor/sticky-measure';
-import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
+import { asEditorX, asRawOffset, type RawOffset } from '../../caret/coordinate-spaces';
+import type { SurfaceBackend } from '../../caret/surface-backend';
+import type { HeldInsertion, PlaceInsertion } from '../../caret/next-insertion';
+import type { BlockPendingBreak } from '../../caret/pending-break.svelte';
+import type { HeldSpaceView } from '../../caret/held-space';
+import { findOffsetNearestX } from '../../caret/sticky-measure';
+import { measurePartialRectsInContentEditable } from '../../caret/overlay-rects';
 import {
 	documentLineEnding,
 	normalizeLineEndings,
@@ -69,7 +69,7 @@ import {
 	selectRawRange,
 	walkOffsetOfRaw,
 	type RawRange
-} from '../../cursor/widget-offset';
+} from '../../caret/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import {
 	isInteractionTraceEnabled,

@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 import type { FocusPosition } from '#lib/block-component.js';
 

@@ -3,7 +3,7 @@
 // Miss-analysis: the indent's undo rows ran the command over a selection, never the key at a
 // caret, and none read the caret the undo put back.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { createSurfaceBackend } from '#lib/cursor/surface-backend.js';
+import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,

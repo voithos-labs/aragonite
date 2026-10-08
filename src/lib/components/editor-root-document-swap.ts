@@ -11,7 +11,7 @@ import {
 	buildLinkReferenceMap,
 	type LinkReferenceResolver
 } from '../core/inline/link-reference-resolver';
-import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretMemory } from '../caret/caret-memory';
 import type { LayoutState } from '../windowing/layout-state.svelte';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';

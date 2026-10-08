@@ -7,7 +7,7 @@ import type { BlockEditActions } from '#lib/action-contracts.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { handleWholeBlockKeys } from '#lib/editor-actions/container-block-component.js';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
-import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { recordingFocus } from '#lib/testing/headless-actions.js';
 import { settleEditor } from '../harness/settle';

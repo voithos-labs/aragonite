@@ -1,6 +1,6 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
-import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretMemory } from '../caret/caret-memory';
 import type { BlockElLookup } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';

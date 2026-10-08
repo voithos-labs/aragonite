@@ -10,7 +10,7 @@ declare const docPathBrand: unique symbol;
 /**
  * A path resolved from the document root, which a commit requires of `op.eventPath` and
  * `snapshot.path`, checked at runtime for callers the types don't bind (G1.16). `asDocPath` is
- * the base constructor; `extendDocPath` and `docPathFrom` in `cursor/coordinate-spaces.ts`
+ * the base constructor; `extendDocPath` and `docPathFrom` in `caret/coordinate-spaces.ts`
  * build on it.
  */
 export type DocPath = number[] & { readonly [docPathBrand]: true };

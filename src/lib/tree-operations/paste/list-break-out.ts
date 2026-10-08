@@ -16,7 +16,7 @@ import { assembleListHalf, buildSplitItems } from '../list/list-builders';
 import { orderedBaseOf } from '../list/ordered-markers';
 import { findEnclosingListForPaste } from './find-enclosing-list';
 import { focusIndexBeforeResidue, landedPastePosition, trackedPasteCaret } from './focus-target';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
 import type { CommitSnapshotArg } from '../../action-contracts';

@@ -10,15 +10,15 @@ vi.mock('#lib/selection/native-bridge.js', async (importOriginal) => ({
 	...(await importOriginal<typeof import('#lib/selection/native-bridge.js')>()),
 	readNativeCaretInBlock: vi.fn()
 }));
-vi.mock('#lib/cursor/point-offset.js', async (importOriginal) => ({
-	...(await importOriginal<typeof import('#lib/cursor/point-offset.js')>()),
+vi.mock('#lib/caret/point-offset.js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/caret/point-offset.js')>()),
 	offsetFromViewportPoint: vi.fn()
 }));
 
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { handleShiftClick } from '#lib/selection/keyboard-extend.js';
 import { readNativeCaretInBlock } from '#lib/selection/native-bridge.js';
-import { offsetFromViewportPoint } from '#lib/cursor/point-offset.js';
+import { offsetFromViewportPoint } from '#lib/caret/point-offset.js';
 import { parse } from '#lib/core/parser.js';
 import { restoreLandingOver } from '../harness/restore-landing';
 

@@ -7,7 +7,7 @@ import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
 import { computeInlineContent } from '#lib/core/inline/index.js';
-import { asRawOffset } from '#lib/cursor/coordinate-spaces.js';
+import { asRawOffset } from '#lib/caret/coordinate-spaces.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

@@ -19,7 +19,7 @@ import { readCurrentSelection } from '../../selection/native-bridge';
 import { asDocPath, pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../assert';
 import { checkLandingIsAValue, readCaretWhereabouts } from '../../invariants/landing-value';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';

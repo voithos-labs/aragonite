@@ -6,7 +6,7 @@ import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { resolveEdgeSeat, seatOffsetsAt } from '../../components/blocks/text/edge-seat';
 import { MARKER_FAMILY_SELECTOR, screenVisibility } from '../../core/inline/visibility';
-import type { EdgeAffinity } from '../../cursor/edge-affinity';
+import type { EdgeAffinity } from '../../caret/edge-affinity';
 import { caretPositions, countOnScreen, paintedText } from '#lib/test/harness/painted-text.js';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';

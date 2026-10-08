@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
-import { createSourceReveal } from '#lib/cursor/reveal-source.js';
+import { createSourceReveal } from '#lib/caret/reveal-source.js';
 import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { settleEditor } from '#lib/test/harness/settle.js';
