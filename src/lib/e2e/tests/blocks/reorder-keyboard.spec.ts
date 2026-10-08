@@ -78,95 +78,6 @@ test.describe('keyboard reorder', () => {
 		await editor.bridge.waitForSourceMatches(/---[\s\S]*lead/);
 	});
 
-	// The same empty position by chord, where the join rewrites prose too: a rule flush under a
-	// paragraph is a setext underline, which would take the divider into a heading.
-	test('Alt+ArrowUp lands a divider whole under a paragraph', async () => {
-		await editor.loadContent('Intro\n# Heading\n\n---\n');
-		await editor.getBlock(2).click(); // focus the divider
-		await editor.page.keyboard.press('Alt+ArrowUp');
-
-		await editor.bridge.waitForSourceEquals('Intro\n\n---\n\n# Heading\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
-		expect(await editor.bridge.getBlockKind(1)).toBe('thematicBreak');
-		expect(await editor.parseConverged()).toBe(true);
-	});
-
-	// An HTML block runs to the next blank line, so the move writes one under it where the moved
-	// paragraph took that line away; otherwise the quote and the list would reload as HTML text.
-	test('Alt+ArrowUp leaves the blocks under an HTML block their own', async () => {
-		const source = 'Intro\n<div>\nx\n</div>\n\nSecond\n> quoted line\n- one\n- two\n';
-		await editor.loadContent(source);
-		await editor.page.locator('[contenteditable="true"]', { hasText: 'Second' }).click();
-		await editor.page.keyboard.press('Alt+ArrowUp');
-
-		await editor.bridge.waitForSourceEquals(
-			'Intro\n\nSecond\n\n<div>\nx\n</div>\n\n> quoted line\n- one\n- two\n'
-		);
-		expect(await editor.bridge.getBlockKind(3)).toBe('blockquote');
-		expect(await editor.bridge.getBlockKind(4)).toBe('list');
-		expect(await editor.parseConverged()).toBe(true);
-
-		// The blank line is part of the move, so one undo takes both.
-		await editor.page.keyboard.press('ControlOrMeta+z');
-		await editor.bridge.waitForSourceEquals(source);
-	});
-
-	// A blank line kept the paragraph and the table apart above the heading; moving the heading
-	// away keeps one between them, or the table would reload as the paragraph's text.
-	test('Alt+ArrowUp keeps apart the pair a blank line separated', async () => {
-		const source = 'Intro\n\n# Heading\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
-		await editor.loadContent(source);
-		await editor.page.locator('[contenteditable="true"]', { hasText: 'Heading' }).click();
-		await editor.page.keyboard.press('Alt+ArrowUp');
-
-		await editor.bridge.waitForSourceEquals(
-			'# Heading\n\nIntro\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
-		);
-		expect(await editor.bridge.getBlockKind(2)).toBe('table');
-		expect(await editor.parseConverged()).toBe(true);
-
-		await editor.page.keyboard.press('ControlOrMeta+z');
-		await editor.bridge.waitForSourceEquals(source);
-	});
-
-	// The same rule inside a quote: the quote's HTML block keeps the blank line under it.
-	test('Alt+ArrowUp inside a quote leaves the nested quote its own', async () => {
-		const source = '> <div>\n> x\n> </div>\n>\n> Second\n> > inner\n';
-		await editor.loadContent(source);
-		await editor.page.locator('[contenteditable="true"]', { hasText: 'Second' }).last().click();
-		await editor.page.keyboard.press('Alt+ArrowUp');
-
-		await editor.bridge.waitForSourceEquals('> Second\n>\n> <div>\n> x\n> </div>\n>\n> > inner\n');
-		expect(await editor.parseConverged()).toBe(true);
-
-		await editor.page.keyboard.press('ControlOrMeta+z');
-		await editor.bridge.waitForSourceEquals(source);
-	});
-
-	// With no final line break, the block that gains a follower ends its line and the block that
-	// becomes last gives up its ending, in the document's own line ending.
-	for (const [ending, eol] of [
-		['LF', '\n'],
-		['CRLF', '\r\n']
-	] as const) {
-		for (const { chord, before, caretIn, after } of [
-			{ chord: 'Alt+ArrowUp', before: `a${eol}# b`, caretIn: 'b', after: `# b${eol}a` },
-			{ chord: 'Alt+ArrowDown', before: `# a${eol}b`, caretIn: 'a', after: `b${eol}# a` }
-		]) {
-			test(`${chord} with no final line break keeps both lines apart (${ending})`, async () => {
-				await editor.loadContent(before);
-				await editor.page.locator('[contenteditable="true"]', { hasText: caretIn }).click();
-				await editor.page.keyboard.press(chord);
-
-				await editor.bridge.waitForSourceEquals(after);
-				expect(await editor.parseConverged()).toBe(true);
-
-				await editor.page.keyboard.press('ControlOrMeta+z');
-				await editor.bridge.waitForSourceEquals(before);
-			});
-		}
-	}
-
 	// A move with no sibling in that direction must change nothing and add no undo entry, or it
 	// silently eats a Ctrl+Z; the clamp's unit test skips the keymap dispatch.
 	test('Alt+Arrow at a boundary is a no-op and creates no undo entry', async () => {
@@ -181,13 +92,5 @@ test.describe('keyboard reorder', () => {
 
 		await editor.page.keyboard.press('ControlOrMeta+z'); // undoes the typing, not a stray reorder
 		await editor.bridge.waitForSourceEquals('A\n\nB\n');
-	});
-
-	test('Alt+ArrowDown on the last block is a no-op', async () => {
-		await editor.loadContent('A\n\nB\n');
-		await editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).click();
-		const before = await editor.bridge.getSource();
-		await editor.pressDeclined('Alt+ArrowDown');
-		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

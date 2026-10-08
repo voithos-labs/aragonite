@@ -13,20 +13,10 @@ order. This file covers which blocks show a handle and when, not dragging.
 
 ## Which blocks carry one
 
-- prose carries none: paragraph, heading of either syntax, blockquote, and the note cards
-  (admonition, GitHub alert). They stay reorder units (`reorder-host`, keyboard reorder, a drop
-  neighbour). Each kind declares which it is (its `pageRole`)
-- the list as a whole carries none either: its handle would sit in the gutter on top of its
-  first item's and take the click with it, so hovering the first row would light the list's
-  handle instead. A list moves one item at a time, so the items carry the handles
-- the objects a user picks up whole carry one: code, tables, equations, diagrams, pictures,
-  list items, dividers, `<details>`, and the other plugin cards
-- a paragraph holding nothing but images is a picture, not prose, so it carries one; an image
-  beside words is a prose paragraph again and carries none
-- a picture's handle does not wait for the `blockDragHandles` opt-in either, since dragging is
-  the only way to move one with the pointer, but reading mode still shows no handle anywhere
-- a table shows one handle, its own: there are no per-row or per-column handles, and every row
-  and column action lives in the right-click cell menu
+Which kinds get a handle, and when, is pinned in `test/components/drag-handle-default.svelte.test.ts`
+(see "Pinned below the browser"). Here only the pointer-side behavior of a handle that exists is
+checked: the list shell carries none, so row one owns its gutter, and hovering row one lights that
+row alone.
 
 ## Handle glyph and placement
 
@@ -51,7 +41,6 @@ order. This file covers which blocks show a handle and when, not dragging.
 ## Edge cases
 
 - the handle is hidden (opacity 0) until its block is hovered: CSS alone shows it, with no reactive state
-- a list item's inner content paragraph is not a reorder unit: no handle on it, so the item and its children still show exactly one
 - hovering a nested block does not show an ancestor's handle (the `> ` child selector)
 
 ## Accessibility
@@ -59,8 +48,16 @@ order. This file covers which blocks show a handle and when, not dragging.
 - the handle carries `aria-hidden="true"` and is neither focusable nor named
 - the axe accessibility baseline stays green with handles rendered
 
-## Toggle
+## Pinned below the browser
 
-- `blockDragHandles=false` (via `?dragHandles=false`): no handle renders anywhere, even on hover
-- the prop is opt-in: an `<Editor>` that leaves it out renders no handle (a unit test pins this in
-  `test/components/drag-handle-default.svelte.test.ts`, since this route always passes it explicitly)
+`test/components/drag-handle-default.svelte.test.ts` mounts the editor and counts handles:
+
+- prose carries none: paragraph, both heading syntaxes, a blockquote and its paragraphs, a note card
+- the objects a user picks up whole carry one (code, list items), and a list item's inner paragraph
+  does not, so an item and its children show exactly one
+- an image-only paragraph carries one; an image beside words carries none
+- the only item of a list carries none until a sibling joins it
+- reading mode shows none, not even on an image-only paragraph
+- the handle is the six-dot grip glyph
+- the prop is opt-in, and `blockDragHandles=false` renders no handle (a picture keeps its own, and
+  `reorder-drag.spec.ts` drags it)

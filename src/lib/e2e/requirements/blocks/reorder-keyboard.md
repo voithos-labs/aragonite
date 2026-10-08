@@ -22,37 +22,33 @@ whether or not the drag handles are turned on.
 - Alt+ArrowDown on a focused fenced code block moves the whole block below its
   next sibling; a single undo restores the source as it was before the move.
 - Alt+ArrowUp on a focused thematic break moves it above its previous sibling.
-- A divider moved into a gap whose neighbors had no blank line between them (a heading
-  interrupting the paragraph above it) arrives with one: the paragraph stays a paragraph
-  rather than reading the rule as its setext underline, and the source reloads to the same
-  three blocks.
-- A paragraph moved up out from under an HTML block, whose next line was a quote, leaves a blank
-  line between the HTML block and the quote: an HTML block runs to the next blank line, so without
-  it the quote and the list below would reload as HTML text. One undo restores the source.
-  - Miss-analysis: the join a moved block vacates was only ever pinned between two paragraphs,
-    which rejoin as a reload reads them; no case put a block that ends only at a blank line above
-    it, so the absorption below it went unasked.
-- A heading moved up from between a paragraph (a blank line above the heading) and a table
-  (flush under it) leaves a blank line between the paragraph and the table, so the table stays a
-  table; one undo restores the source. Two blocks flush on both sides of the moved block rejoin.
-  - Miss-analysis: the property suite exempted every pair the moved block stood between from its
-    content check, so the move taking a table, a rule or a quote into the block above passed.
-- Inside a quote, a paragraph moved up out from under the quote's HTML block leaves a blank quote
-  line under the HTML block, so the nested quote below stays a quote; one undo restores the source.
-  - Miss-analysis: the rule for the pair a move leaves was pinned on top-level blocks only, and it
-    ran only there.
 
 ## Edge cases
 
 - A single undo after a reorder restores the source exactly as it was before the move.
-- Alt+ArrowUp on the first sibling / Alt+ArrowDown on the last does nothing
-  (it is clamped: no move, no error).
-- In a document with no final line break, in LF and in CRLF, Alt+ArrowUp on the last block and
-  Alt+ArrowDown on the block above it keep the two blocks on lines of their own: the block that
-  gains a follower ends its line in the document's line ending, the block that becomes last gives
-  up its ending, and the document still has no final line break. One undo restores the source.
-  - Miss-analysis: every reorder fixture and the move property's generator ended the document in
-    a line break, so no move ever took or left an unterminated last line.
+- Alt+ArrowUp on the first sibling does nothing (it is clamped: no move, no error, no undo
+  entry).
+
+## Pinned below the browser
+
+Each of these ran as a keyboard row here and moved to the reorder action's unit tests, which run
+the same move and its undo without a page:
+
+- A divider moved up into a gap whose neighbors had no blank line between them (a heading
+  interrupting the paragraph above it) arrives with one, so the paragraph stays a paragraph rather
+  than reading the rule as its setext underline
+  (`test/editor-actions/reorder-seam-undo.test.ts`).
+- A paragraph moved up out from under an HTML block leaves a blank line before the quote below,
+  and a heading moved up from between a paragraph and a table leaves one before the table, so
+  neither reloads as text of the block above (`reorder-seam-undo.test.ts`,
+  `test/tree-operations/reorder-blank-line-ended.test.ts`, `reorder-vacated-join.test.ts`).
+- Inside a quote, a paragraph moved up out from under the quote's HTML block leaves a blank quote
+  line, so the nested quote below stays a quote (`test/editor-actions/reorder-in-container.test.ts`).
+- In a document with no final line break, in LF and in CRLF, a move up or down keeps the two blocks
+  on lines of their own: the block that gains a follower ends its line in the document's line
+  ending, the block that becomes last gives up its ending
+  (`test/editor-actions/reorder-unterminated-tail.test.ts`).
+- Alt+ArrowDown on the last block does nothing (`reorder-action.test.ts`, the clamp).
 
 ## User interactions
 
