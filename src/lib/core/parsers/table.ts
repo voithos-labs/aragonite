@@ -6,7 +6,7 @@ import {
 	type BlockOpenerResult,
 	type GrammarView
 } from '../../schema/block-openers';
-import { splitRowCells } from './table-line';
+import { matchTableDelimiterRow, splitRowCells } from './table-line';
 
 // ── Header row ─────────────────────────────────────────────────────────────
 
@@ -15,6 +15,17 @@ import { splitRowCells } from './table-line';
 export function tableHeaderCells(text: string): string[] | null {
 	if (!text.includes('|')) return null;
 	return splitRowCells(text);
+}
+
+/** The delimiter that makes the two lines open a table, or null: GFM §4.10 needs a delimiter line
+ *  with the header's cell count. */
+export function matchTableOpening(
+	headerText: string,
+	delimiterText: string
+): { columnCount: number; alignments: TableAlignment[] } | null {
+	const delimiter = matchTableDelimiterRow(delimiterText);
+	const header = tableHeaderCells(headerText);
+	return delimiter && header && header.length === delimiter.columnCount ? delimiter : null;
 }
 
 // ── Block parser ───────────────────────────────────────────────────────────

@@ -170,6 +170,19 @@ describe.each(ENDINGS)('the table rows each route writes, %s', (_, ending) => {
 		expect(rebuilt(table)).toBe(inEnding(`| a | b |\n| --- | --- |\n${lf}`, ending));
 	});
 
+	// A cell written in place keeps its row's spelling; a backslash against a pipe gets a space.
+	it.each([
+		['| 1 | 2 |', 0, 'x\\', '| x\\ | 2 |'],
+		['|1|2|', 0, 'x\\', '|x\\ |2|'],
+		['|1|2|', 1, 'x\\', '|1|x\\ |'],
+		['|  |2|', 0, 'x', '| x |2|'],
+		['|1|', 1, 'y', '|1| y |']
+	])('the row %j, cell %i written %j', (row, cell, text, lf) => {
+		const table = parse(inEnding(`| a | b |\n| --- | --- |\n${row}\n`, ending)).children[0];
+		table.children![1].children![cell].raw = text;
+		expect(rebuilt(table)).toBe(inEnding(`| a | b |\n| --- | --- |\n${lf}\n`, ending));
+	});
+
 	it('the insert menu’s table, landed in the document', async () => {
 		const { deps } = makeEditorActionsDeps(parse(`a${ending}`));
 		const controller = createUndoController(deps);

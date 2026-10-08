@@ -63,6 +63,22 @@ describe('parseClipboardGrid', () => {
 		]);
 	});
 
+	// Miss-analysis: every GFM fixture here had both edge pipes, the one spelling the hand gate knew.
+	it.each([
+		['no edge pipes', 'a | b\n--- | ---\n1 | 2\n'],
+		['a leading pipe only', '| a | b\n| --- | ---\n| 1 | 2\n'],
+		['a trailing pipe only', 'a | b |\n:-- | --: |\n1 | 2 |\n']
+	])('reads a table the parser reads, %s', (_, text) => {
+		expect(parseClipboardGrid(text)).toEqual([
+			['a', 'b'],
+			['1', '2']
+		]);
+	});
+
+	it('a header whose cell count the delimiter does not match is no table, so no grid', () => {
+		expect(parseClipboardGrid('a | b\n--- | --- | ---\n1 | 2\n')).toBeNull();
+	});
+
 	it('plain text, one word, or lines without tabs are not a grid', () => {
 		expect(parseClipboardGrid('hello')).toBeNull();
 		expect(parseClipboardGrid('hello\nworld')).toBeNull();

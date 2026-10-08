@@ -207,7 +207,7 @@ Cross-cutting block-kind metadata lives in `src/lib/schema/`, and both `core/inl
 How it sits in the import graph:
 
 - The schema imports nothing from `tree-operations/`, which reads it.
-- It does import from `core/`, `core/inline/` included, and `core/` imports it back, since each reads the other's registries. Those imports land on small modules that import neither side, so no chain of runtime imports between the two loops back on itself. `src/lib/test/invariants/lint/directory-layering-baseline.ts` lists every import edge between directories, and the directory cycles still waiting to be broken.
+- It does import from `core/`, `core/inline/` included, and `core/` imports it back, since each reads the other's registries. None of those imports closes a loop, though: follow the runtime imports from either side and you never come back to where you started. `src/lib/test/invariants/lint/directory-layering-baseline.ts` lists every import edge between directories, and the directory cycles still waiting to be broken.
 
 ### The block-kind descriptor
 

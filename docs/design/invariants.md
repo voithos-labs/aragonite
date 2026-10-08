@@ -2384,13 +2384,16 @@ anywhere else:
   it `\$\$`, a source split into lines, or a fence test handed a line read off one.
   `test/plugins/latex/math-shape-parity.test.ts` runs every function that reads the split over the
   same shapes, and `math-block-writers.test.ts` pins the bytes a new block is written with.
-- **Table rows.** `src/lib/core/parsers/table-line.ts` reads a row into cells (`rowCellSpans`) and
-  writes a row, a delimiter line and a new table's lines (`tableRowLine`, `tableDelimiterLine`,
-  `newTableLines`). The table's rebuild, a copied rectangle, the Enter completer and the insert menu
-  all call those. The row fails, under `src/lib/` outside that module, a string opening or closing
-  a row on a padded pipe (`'| '`, `' |'`), a template padding an interpolation with a pipe, or a
-  delimiter cell spelled as a string (`':---'`). `test/core/parsers/table-row-writers.test.ts` pins
-  the bytes every route writes, in LF and CRLF documents.
+- **Table rows.** `src/lib/core/parsers/table-line.ts` reads a row (`rowCellSpans`, and
+  `rowEdgePipes` for whether it opens and closes on a pipe). It writes a new row, a delimiter line
+  and a new table's lines (`tableRowLine`, `tableDelimiterLine`, `newTableLines`), and new cells
+  over an existing row (`spliceCells`). The table's rebuild, a copied rectangle, the grid paste, the
+  Enter completer and the insert menu all call those. Outside that module, anywhere in `src/lib/`,
+  the row fails a row edge spelled as a string (`'| '`, or a bare `'|'` joined on with `+`), a
+  template padding an interpolation with a pipe or ending on one, a regex or string test anchored
+  on a row's edge pipe, and a delimiter cell spelled as a string (`':---'`; a comparison with
+  `'---'` is a divider's and passes). `test/core/parsers/table-row-writers.test.ts` pins the bytes
+  every route writes, in LF and CRLF documents.
 
 ## Accessibility
 

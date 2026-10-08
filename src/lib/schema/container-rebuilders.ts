@@ -23,10 +23,10 @@ import {
 	cellText,
 	delimiterCellAlignment,
 	delimiterCellSpelling,
-	endsInEscape,
 	matchTableDelimiterRow,
-	paddedCell,
 	rowCellSpans,
+	rowEdgePipes,
+	spliceCells,
 	splitRowCells,
 	tableDelimiterLine,
 	tableRowLine,
@@ -209,7 +209,7 @@ function readsAsRow(line: string, cells: string[], columns: number, isHeader: bo
 function opensAsBefore(line: string, before: string, spans: CellSpan[]): boolean {
 	const firstCellEnd = spans[0].to;
 	return (
-		/^[ \t]*\|/.test(line) ||
+		rowEdgePipes(line).leading ||
 		(line.startsWith(before.slice(0, firstCellEnd)) && line[firstCellEnd] === '|')
 	);
 }
@@ -242,55 +242,6 @@ function delimiterBytes(
 	const read = matchTableDelimiterRow(written)?.alignments;
 	const reads = read?.length === alignments.length && read.every((a, i) => a === alignments[i]);
 	return (reads ? written : plain) + ending;
-}
-
-interface CellWrite<T> {
-	before: readonly T[];
-	after: readonly T[];
-	spell: (cell: T) => string;
-	/** Trailing empty cells past the line's last one may stay unwritten. */
-	mayStayMissing: boolean;
-}
-
-/** `after` written over a line whose cells read `before`: cells equal from either end keep their
- *  bytes, those between take new text in their old padding, the rest are cut or added. */
-function spliceCells<T>(text: string, spans: CellSpan[], write: CellWrite<T>): string {
-	const { before, after, spell } = write;
-	let head = 0;
-	while (head < before.length && head < after.length && before[head] === after[head]) head++;
-	if (head === before.length && head === after.length) return text;
-	let tail = 0;
-	while (
-		tail < before.length - head &&
-		tail < after.length - head &&
-		before[before.length - 1 - tail] === after[after.length - 1 - tail]
-	) {
-		tail++;
-	}
-	const paired = Math.min(before.length, after.length) - head - tail;
-	let addedEnd = after.length - tail;
-	if (tail === 0 && write.mayStayMissing) {
-		while (addedEnd > head + paired && spell(after[addedEnd - 1]) === '') addedEnd--;
-	}
-	const region = (i: number) => text.slice(spans[i].from, spans[i].to);
-	const pieces: string[] = [];
-	for (let i = 0; i < head; i++) pieces.push(region(i));
-	for (let i = head; i < head + paired; i++)
-		pieces.push(rewriteCell(text, spans[i], spell(after[i])));
-	for (let i = head + paired; i < addedEnd; i++) pieces.push(paddedCell(spell(after[i])));
-	for (let i = before.length - tail; i < before.length; i++) pieces.push(region(i));
-	return text.slice(0, spans[0].from) + pieces.join('|') + text.slice(spans.at(-1)!.to);
-}
-
-/** The cell's region with `value` in place of its text; an empty cell's text goes after one
- *  byte of its padding, so `|  |` becomes `| x |`. */
-function rewriteCell(text: string, span: CellSpan, value: string): string {
-	const { from, start, end, to } = span;
-	const at = start < end ? start : Math.min(from + 1, to);
-	const after = text.slice(start < end ? end : at, to);
-	// A trailing backslash against the next pipe would escape it and join the two cells.
-	const gap = after === '' && text[to] === '|' && endsInEscape(value) ? ' ' : '';
-	return text.slice(from, at) + value + gap + after;
 }
 
 /** The second line of `raw`, its ending included, or null when it has none. */

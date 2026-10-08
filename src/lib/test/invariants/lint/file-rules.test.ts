@@ -1933,12 +1933,14 @@ const MATH_LINE_SEARCH = String.raw`\b(?:displayLines|firstDisplayLine|splitLine
 
 const TABLE_LINE_HOME = SOURCE.tableLine;
 const ROGUE_TABLE_WRITER = `${SOURCE_DIR.schema}rogue.ts`;
-// A string opening or closing a row on a padded pipe: `'| '` or `' |'`.
-const PADDED_PIPE = String.raw`['"\x60]\| ['"\x60]|['"\x60] \|['"\x60]`;
-// A template padding an interpolation with a pipe: `| ${cell}` or `${cell} |`.
-const TEMPLATE_ROW = String.raw`\| \$\{|\$\{[^}\x60]*\} \|`;
-// A delimiter cell spelled as a string.
-const DELIMITER_CELL = String.raw`['"\x60]:?-{3,}:?['"\x60]`;
+// A row edge spelled as a string: a padded pipe (`'| '`, `' |'`), or a bare one joined on with `+`.
+const PADDED_PIPE = String.raw`['"\x60]\| ['"\x60]|['"\x60] \|['"\x60]|['"\x60]\|['"\x60]\s*\+|\+\s*['"\x60]\|['"\x60]`;
+// A template padding an interpolation with a pipe (`| ${cell}`, `${cell} |`), or ending on one.
+const TEMPLATE_ROW = String.raw`\| \$\{|\$\{[^}\x60]*\} \||\}\|\x60`;
+// A row's edge pipe read by hand: a regex anchored on it, or a string test for it.
+const EDGE_PIPE_READ = String.raw`/\^(?:\\s\*|\[ \\t\]\*)?\\\||\\\|(?:\\s\*)?\$/|(?:startsWith|endsWith)\(\s*['"\x60]\|['"\x60]\s*\)`;
+// A delimiter cell spelled as a string; a comparison or search with `---` is a divider's.
+const DELIMITER_CELL = String.raw`(?<!(?:[=!]==?|(?:startsWith|endsWith|includes|indexOf)\()\s*)['"\x60]:?-{3,}:?['"\x60]`;
 
 /** One row per block syntax: the module its bytes are read and written in, and what a copy looks like. */
 const SYNTAX_MODULES: FileRule[] = [
@@ -1983,16 +1985,16 @@ const SYNTAX_MODULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.131 a table’s row and delimiter lines are written in `table-line.ts` only',
+		id: 'G4.131 a table row’s pipes are read and written in `table-line.ts` only',
 		population: under(SOURCE_DIR.library),
-		matches: new RegExp(`${PADDED_PIPE}|${TEMPLATE_ROW}|${DELIMITER_CELL}`),
+		matches: new RegExp(`${PADDED_PIPE}|${TEMPLATE_ROW}|${EDGE_PIPE_READ}|${DELIMITER_CELL}`),
 		allowed: {
 			[TABLE_LINE_HOME]:
-				'the row, delimiter and new-table writers the rebuild, the Enter completer, the copy and the insert menu all call'
+				'the row reader, and the row, delimiter, new-table and in-place writers the rebuild, the Enter completer, the copy, the grid paste and the insert menu all call'
 		},
 		reaches: [TABLE_LINE_HOME],
 		reason:
-			'a second spelling of a table row drifts from the first, so a new table, a copied rectangle and a rebuilt row stop agreeing on bytes: call `tableRowLine`, `tableDelimiterLine` or `newTableLines`',
+			'a second spelling of a table row drifts from the first, so a new table, a copied rectangle, a pasted grid and a rebuilt row stop agreeing on bytes: write a row with `tableRowLine`, `tableDelimiterLine`, `newTableLines` or `spliceCells`, and read one with `rowCellSpans` or `rowEdgePipes`',
 		hits: [
 			at(ROGUE_TABLE_WRITER, "const plain = '| ' + cells.join(' | ') + ' |';"),
 			at(ROGUE_TABLE_WRITER, "return line + ' |';"),
@@ -2002,7 +2004,13 @@ const SYNTAX_MODULES: FileRule[] = [
 			),
 			at(ROGUE_TABLE_WRITER, "const row = `| ${cells.join(' | ')} |`;"),
 			at(ROGUE_TABLE_WRITER, "return [header, cells.map(() => '---'), empty];"),
-			at(ROGUE_TABLE_WRITER, "case 'center': return ':---:';")
+			at(ROGUE_TABLE_WRITER, "case 'center': return ':---:';"),
+			at(ROGUE_TABLE_WRITER, "return '|' + cells.map((c) => ' ' + c + ' ').join('|') + '|';"),
+			at(ROGUE_TABLE_WRITER, "const row = '|' + cells.join(' | ') + '|';"),
+			at(ROGUE_TABLE_WRITER, "const row = `|${cells.map((c) => ` ${c} `).join('|')}|`;"),
+			at(ROGUE_TABLE_WRITER, 'if (!lines.every((l) => /^\\|.*\\|$/.test(l))) return null;'),
+			at(ROGUE_TABLE_WRITER, 'const opens = /^[ \\t]*\\|/.test(line);'),
+			at(ROGUE_TABLE_WRITER, "if (!trimWhitespace(line).startsWith('|')) return null;")
 		],
 		misses: [
 			at(ROGUE_TABLE_WRITER, 'return tableRowLine(cells);'),
@@ -2013,6 +2021,9 @@ const SYNTAX_MODULES: FileRule[] = [
 			at(ROGUE_TABLE_WRITER, "return pieces.join('|');"),
 			at(ROGUE_TABLE_WRITER, '`"${kind}" onEdge is one of ${ON_EDGE_POLICIES.join(\' | \')}`;'),
 			at(ROGUE_TABLE_WRITER, "entry('divider', 'Divider', 'minus', [], '---\\n');"),
+			at(ROGUE_TABLE_WRITER, "if (line === '---') return 'front matter';"),
+			at(ROGUE_TABLE_WRITER, "if (text.startsWith('---')) return null;"),
+			at(ROGUE_TABLE_WRITER, 'const name = /^\\w+/.exec(text);'),
 			"const plain = '| ' + cells.join(' | ') + ' |';"
 		]
 	}

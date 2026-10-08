@@ -6,8 +6,9 @@
  */
 
 import type { NodeView } from '../core/node-views';
-import { isBlankText, trimWhitespace } from '../core/lines';
-import { matchTableDelimiterRow, splitRowCells } from '../core/parsers/table-line';
+import { isBlankText } from '../core/lines';
+import { matchTableOpening } from '../core/parsers/table';
+import { matchTableDelimiterRow, rowEdgePipes, splitRowCells } from '../core/parsers/table-line';
 import { unescapeCellPipes } from '../schema/table-cell-raw';
 import { rectangleCellRaws, type CellPos } from './sub-table-copy';
 
@@ -24,13 +25,19 @@ export function parseClipboardGrid(text: string): string[][] | null {
 	return rows.map((row) => [...row, ...Array<string>(width - row.length).fill('')]);
 }
 
-// Accepts only pipe rows, read by the table parser's own row and delimiter matchers; a cell's
-// pipes are unescaped, as a copied rectangle's are.
+// A table the parser would open, or lines that are all pipe rows; a cell's pipes are unescaped,
+// as a copied rectangle's are.
 function parseGfmRows(lines: string[]): string[][] | null {
-	if (!lines.every((line) => /^\|.*\|$/.test(trimWhitespace(line)))) return null;
+	const opensTable = lines.length >= 2 && matchTableOpening(lines[0], lines[1]) !== null;
+	if (!opensTable && !lines.every(isPipeRow)) return null;
 	const rows = lines.map((line) => splitRowCells(line).map(unescapeCellPipes));
 	if (rows.length >= 2 && matchTableDelimiterRow(lines[1])) rows.splice(1, 1);
 	return rows;
+}
+
+function isPipeRow(line: string): boolean {
+	const { leading, trailing } = rowEdgePipes(line);
+	return leading && trailing;
 }
 
 function parseTsvRows(lines: string[]): string[][] | null {
