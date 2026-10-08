@@ -13,14 +13,14 @@ import {
 	type BlockLookup,
 	typeInto,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { dispatchBeforeInput } from '$lib/test/harness/insertion-routes';
-import { makeSurface } from '$lib/test/harness/editable-surface';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import type { EditorProps, PlaceholderBlock } from '$lib/editor-props';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { dispatchBeforeInput } from '#lib/test/harness/insertion-routes.js';
+import { makeSurface } from '#lib/test/harness/editable-surface.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import type { EditorProps, PlaceholderBlock } from '#lib/editor-props.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 
 installLayoutStubs();
 afterEach(destroyMountedEditors);

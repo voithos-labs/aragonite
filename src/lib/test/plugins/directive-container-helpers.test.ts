@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { chromeChild, declaredPluginKind } from '$lib/plugin';
+import { parse } from '#lib/core/parser.js';
+import { chromeChild, declaredPluginKind } from '#lib/plugin.js';
 import {
 	registerCalloutKind,
 	rebuildCalloutRaw,

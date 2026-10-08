@@ -15,7 +15,7 @@ import {
 	simpleLeafClosure,
 	OPENER_PRIORITIES,
 	type EditorPlugin
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import TocBlock from './TocBlock.svelte';
 import { MAX_HEADING_DEPTH } from './heading-outline';
 

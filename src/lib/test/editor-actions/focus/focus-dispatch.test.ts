@@ -3,14 +3,14 @@ import {
 	dispatchMoveFocus,
 	dispatchFocusByPath,
 	dispatchFocusAtColumn
-} from '$lib/editor-actions/focus/focus-dispatch';
-import { CURSOR_END, CURSOR_START } from '$lib/block-component';
+} from '#lib/editor-actions/focus/focus-dispatch.js';
+import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
 import {
 	stubBlockComponent,
 	makeCaretMemory,
 	makeStubFocus,
 	makeListFocusScope
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 
 describe('dispatchMoveFocus', () => {
 	it('delegates upward when innerIndex < 0', async () => {

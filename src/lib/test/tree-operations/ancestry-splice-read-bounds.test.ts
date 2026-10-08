@@ -5,7 +5,7 @@ import { disablePerfInstruments, enablePerfInstruments } from '../../perf/instru
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // Child spans let a keystroke rewrite one region instead of re-joining the container, which
 // wall-clock time can't show on every host, so these tests count the sibling elements read.

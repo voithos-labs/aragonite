@@ -1,31 +1,31 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
-import { declaredPluginKind } from '$lib/plugin';
-import { isBuiltinBlockKind } from '$lib/core/nodes';
-import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
+import { declaredPluginKind } from '#lib/plugin.js';
+import { isBuiltinBlockKind } from '#lib/core/nodes.js';
+import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
 import {
 	augmentBlockKind,
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
-import { listRegisteredOpeners } from '$lib/schema/block-openers';
-import { checkCopyIsRawByteSlice, runKindConformance } from '$lib/testing';
+} from '#lib/schema/block-kind-descriptor.js';
+import { listRegisteredOpeners } from '#lib/schema/block-openers.js';
+import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import {
 	registerCalloutKind,
 	CALLOUT,
 	CALLOUT_TITLE
 } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
-import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
-import { FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
-import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
-import { ADMONITION, GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
-import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
-import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
-import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
-import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
-import { installPlugins } from '$lib';
+import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
+import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
+import { FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
+import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
+import { ADMONITION, GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
+import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerTocBlock, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
+import { parrotPlugin, PARROT } from '#lib/plugins/parrot/index.js';
+import { installPlugins } from '#lib';
 
 // The generic battery pointed at real plugin kinds, which exist only once their setup installs
 // them, so each case resets and re-installs.
@@ -76,7 +76,7 @@ describe('kind conformance: plugin kinds enroll', () => {
 });
 
 // ── Bundled plugins: the shipped kinds enroll too ────────────────────────────
-// The `$lib/plugins` directory listing is the bundled set, so a plugin directory added or
+// The `src/lib/plugins` directory listing is the bundled set, so a plugin directory added or
 // dropped outside this table fails the check below at once.
 const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },

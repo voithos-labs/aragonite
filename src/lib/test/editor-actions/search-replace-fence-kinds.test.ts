@@ -3,11 +3,11 @@
 // away takes its stranded closer with it, so the block below stays its own.
 // Miss-analysis (GH #566): every fence replace test drove the built-in code block alone.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import type { Document } from '$lib/core/nodes';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
+import { parse, serialize } from '#lib';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import type { Document } from '#lib/core/nodes.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 
 const scan = (doc: Document, query: string) => scanCompiled(doc, query, { caseSensitive: true });
 

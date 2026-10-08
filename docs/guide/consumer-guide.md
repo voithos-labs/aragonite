@@ -69,6 +69,8 @@ Two more that aren't in the snippet but bite early: plugins install once, app-wi
 
 ## What your build needs
 
+aragonite never imports SvelteKit, so it doesn't care which SvelteKit you're on.
+
 Three things. Though, prob already true in sveltekit apps (if thats you, skip ahead).
 
 1. **Node `^20.19.0 || >=22.12.0`.** That floor is Vite's, not ours: the package ships uncompiled Svelte, so your bundler's requirement is the real one.

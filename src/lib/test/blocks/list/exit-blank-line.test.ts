@@ -4,9 +4,13 @@
 // Miss-analysis: the exit rows asserted bytes only, and none compared the tree with a reload of
 // them, so a doubled blank line under an ordered list's middle exit read as a plain byte change.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import type { Document } from '$lib/core/nodes';
-import { describeConvergence } from '$lib/testing/parse-convergence';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import type { Document } from '#lib/core/nodes.js';
+import { describeConvergence } from '#lib/testing/parse-convergence.js';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

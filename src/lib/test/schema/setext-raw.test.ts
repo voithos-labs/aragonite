@@ -6,8 +6,8 @@ import { structuralSuffix } from '../../core/inline';
 import type { CstNode } from '../../core/nodes';
 import { setextHeadingWrite } from '../../schema/setext-raw';
 import type { WriteMode } from '../../schema/block-kind-descriptor';
-import { simpleLeafClosure } from '$lib/plugin';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { simpleLeafClosure } from '#lib/plugin.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const node = (kind: string, raw: string) => ({ kind, leadingTrivia: '', raw }) as CstNode;
 

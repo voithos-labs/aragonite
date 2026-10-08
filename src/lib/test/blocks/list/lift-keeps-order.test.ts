@@ -4,7 +4,11 @@
 // Miss-analysis: every lift fixture lifted the last item of its sublist, or checked the lifted
 // line with a regex, so none read the order of the items left after it.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

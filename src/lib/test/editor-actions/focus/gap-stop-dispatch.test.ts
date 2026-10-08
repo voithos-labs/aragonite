@@ -1,15 +1,15 @@
 // Container-scope parity for the gap stop: the dispatcher asks the same question at its
 // own boundaries instead of delegating them upward.
 import { describe, it, expect, vi } from 'vitest';
-import { dispatchMoveFocus } from '$lib/editor-actions/focus/focus-dispatch';
+import { dispatchMoveFocus } from '#lib/editor-actions/focus/focus-dispatch.js';
 import {
 	stubBlockComponent,
 	makeCaretMemory,
 	makeListFocusScope,
 	makeStubFocus
-} from '$lib/test/harness/editor-actions';
-import type { FocusPosition } from '$lib/block-component';
-import type { MoveFocusOptions } from '$lib/action-contracts';
+} from '#lib/test/harness/editor-actions.js';
+import type { FocusPosition } from '#lib/block-component.js';
+import type { MoveFocusOptions } from '#lib/action-contracts.js';
 
 function dispatch(
 	innerIndex: number,

@@ -3,8 +3,8 @@ import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { createSharingState } from '../tree-operations/sharing';
-import { roundTripCases } from '$lib/test/support/round-trip';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 describe('round-trip: task items', () => {
 	roundTripCases([

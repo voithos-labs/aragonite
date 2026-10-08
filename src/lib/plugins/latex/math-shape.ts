@@ -4,7 +4,7 @@
  * block its bytes reload as. A one-line `$$x^2$$` that takes a line break is the multi-line form.
  */
 
-import { displayLines, firstLineEnding, type FencedSource, type LineEnding } from '$lib/plugin';
+import { displayLines, firstLineEnding, type FencedSource, type LineEnding } from '#lib/plugin.js';
 
 type Line = ReturnType<typeof displayLines>[number];
 

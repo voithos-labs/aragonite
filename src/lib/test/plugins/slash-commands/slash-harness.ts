@@ -5,23 +5,23 @@
  * installed plugin and its editor context instead, so the options are the ones an editor merges.
  */
 import { tick } from 'svelte';
-import { installPlugins, parse, type DocumentView, type EditorEvents } from '$lib';
+import { installPlugins, parse, type DocumentView, type EditorEvents } from '#lib';
 import type {
 	EditorContext,
 	EditorPluginEntry,
 	InlineMenuRegistry,
 	InsertMarkdownOptions
-} from '$lib/plugin';
-import { createEditorEvents, type EditEvent } from '$lib/editor-events';
-import { createInlineMenuState } from '$lib/inline-menu/inline-menu-state.svelte';
-import { insertCatalogue } from '$lib/schema/insert-catalogue';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+} from '#lib/plugin.js';
+import { createEditorEvents, type EditEvent } from '#lib/editor-events.js';
+import { createInlineMenuState } from '#lib/inline-menu/inline-menu-state.svelte.js';
+import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import {
 	createSlashSource,
 	type SlashCommandsOptions
-} from '$lib/plugins/slash-commands/slash-source';
-import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
-import { normalizePluginEntries } from '$lib/schema/plugin-install';
+} from '#lib/plugins/slash-commands/slash-source.js';
+import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
+import { normalizePluginEntries } from '#lib/schema/plugin-install.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { pluginContextDeps } from '../../support/plugin-context-deps';
 

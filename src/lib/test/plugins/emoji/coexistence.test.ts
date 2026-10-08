@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parseInline, type InlineNode } from '$lib';
-import { activateDirectives } from '$lib/plugin';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
-import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
+import { installPlugins, parseInline, type InlineNode } from '#lib';
+import { activateDirectives } from '#lib/plugin.js';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
+import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
 
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const kindsIn = (raw: string) => scan(raw).map((n: InlineNode) => n.kind);

@@ -4,7 +4,7 @@ import { serialize } from '../../core/serializer';
 import { mergeIntoPrevDeepLeaf, mergeWithNext } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A join into a setext heading lands the text on the title line, above the underline: joined past
 // it, `======next` reparses as paragraph text and the heading's structure comes into view.

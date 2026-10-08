@@ -5,15 +5,15 @@
  * which core may not import. Each registration checks first, so calling this twice is safe.
  */
 
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import {
 	registerBlockComponent,
 	defineBlockComponent,
 	isBlockComponentRegistered
-} from '$lib/schema/block-component-registry';
-import { declaredPluginKind } from '$lib/schema/plugin-kind';
-import { registerAsCore } from '$lib/schema/plugin-install';
-import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
+} from '#lib/schema/block-component-registry.js';
+import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
+import { registerAsCore } from '#lib/schema/plugin-install.js';
+import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
 import DirectiveContainerBlock from './DirectiveContainerBlock.svelte';
 import TextEditableBlock from '../text/TextEditableBlock.svelte';
 

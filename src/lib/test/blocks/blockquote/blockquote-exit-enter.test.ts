@@ -3,8 +3,12 @@
 // `createContainerExitOverrides` in without the component naming it, so both keystrokes are
 // driven here rather than set up directly.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import { parse } from '#lib/core/parser.js';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

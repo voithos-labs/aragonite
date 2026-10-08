@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { checkKeymapCoherence } from '$lib/invariants/registry';
-import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS } from '$lib/schema/commands';
+import { checkKeymapCoherence } from '#lib/invariants/registry.js';
+import { ALL_BLOCK_KINDS } from '#lib/core/nodes.js';
+import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS } from '#lib/schema/commands.js';
 
 const knownCommands = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 const isKnown = (id: string) => knownCommands.has(id);

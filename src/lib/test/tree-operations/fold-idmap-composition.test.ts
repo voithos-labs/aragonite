@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
-import { documentBody } from '$lib/tree-operations/node-primitives';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { applyStructuralChangeToIdsRefs } from '$lib/tree-operations/structural-change';
-import { parse } from '$lib/core/parser';
-import type { BlockComponent } from '$lib/block-component';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { applyStructuralChangeToIdsRefs } from '#lib/tree-operations/structural-change.js';
+import { parse } from '#lib/core/parser.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // A reorder whose window a merge then collapses keeps the ids of the blocks it never touched, or
 // every position below the merge remounts.

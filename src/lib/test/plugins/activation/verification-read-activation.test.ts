@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 // Miss-analysis: the reparsing checks only ran with every plugin active, where any grammar agrees.
 import { describe, expect, it, beforeEach } from 'vitest';
-import { installPlugins } from '$lib/schema/plugin-install';
-import { EMOJI_KIND, emojiPlugin } from '$lib/plugins/emoji';
-import { MATH_INLINE, latexPlugin } from '$lib/plugins/latex';
-import { parseInline } from '$lib/core/inline';
-import { screenVisibility } from '$lib/core/inline/visibility';
-import { canWrapRangeAsLink } from '$lib/core/inline/link-source-bytes';
-import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
-import { resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
-import { resolveEdgeDeletion } from '$lib/components/blocks/text/construct-edge-delete';
-import { makeBlockNode } from '$lib/core/nodes';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { EMOJI_KIND, emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { MATH_INLINE, latexPlugin } from '#lib/plugins/latex/index.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { screenVisibility } from '#lib/core/inline/visibility.js';
+import { canWrapRangeAsLink } from '#lib/core/inline/link-source-bytes.js';
+import { resolveMarkedInsertion } from '#lib/components/blocks/text/pending-mark-insert.js';
+import { resolveEdgeSeat } from '#lib/components/blocks/text/edge-seat.js';
+import { resolveEdgeDeletion } from '#lib/components/blocks/text/construct-edge-delete.js';
+import { makeBlockNode } from '#lib/core/nodes.js';
 import { grammarListing } from './grammar-listing';
-import { fixtureReading, topLevelStore } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '#lib/test/harness/fixture-grammar.js';
 
 beforeEach(() => {
 	installPlugins([

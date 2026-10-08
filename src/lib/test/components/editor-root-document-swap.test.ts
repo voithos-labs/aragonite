@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createDocumentSwap, initDocument } from '$lib/components/editor-root-document-swap';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { serialize } from '$lib/core/serializer';
-import type { Document } from '$lib/core/nodes';
-import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createRegistryView } from '$lib/schema/registry-view';
+import { createDocumentSwap, initDocument } from '#lib/components/editor-root-document-swap.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { Document } from '#lib/core/nodes.js';
+import type { LinkReferenceResolver } from '#lib/core/inline/link-reference-resolver.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
 
 // Miss-analysis: the swap was tested one consequence at a time, so a dropped middle step passed.
 

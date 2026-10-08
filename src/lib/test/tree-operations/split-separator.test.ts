@@ -11,12 +11,12 @@ import { probeLineOpensAsProse } from '../../tree-operations/content-write';
 import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { registerBlockOpener } from '../../schema/block-openers';
 import { describeConvergence } from '../harness/parse-converged';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { documentLineEnding } from '$lib/core/lines';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 describe('split separator: the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {

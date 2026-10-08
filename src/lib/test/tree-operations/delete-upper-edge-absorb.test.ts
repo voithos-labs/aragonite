@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { deleteNode } from '$lib/tree-operations/settle';
-import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { deleteNode } from '#lib/tree-operations/settle.js';
+import { mergeIntoPrevDeepLeaf } from '#lib/tree-operations/node-ops.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A merge whose survivor gains indentation can stop interrupting the indentation-delimited block
 // above it, so the neighbour merge checks the survivor's upper edge as well as the lower one.

@@ -4,8 +4,8 @@
 // Driven through the mounted component's real input listener, since the commit lives there.
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
 import { unmount } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import type { EditorServices } from '$lib/editor-keys';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import type { EditorServices } from '#lib/editor-keys.js';
 import { mountBlock } from '../../harness/mount-block';
 import {
 	destroyMountedEditors,

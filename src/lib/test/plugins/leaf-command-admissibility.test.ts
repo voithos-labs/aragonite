@@ -3,14 +3,14 @@
 // block can run: its moves, and none of the text commands it has no body for.
 // Miss-analysis: no test asked `canRunCommand` about a leaf plugin block.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { TOOLBAR_COMMANDS } from '$lib';
+import { TOOLBAR_COMMANDS } from '#lib';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 

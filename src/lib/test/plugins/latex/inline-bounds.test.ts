@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { parseInline } from '$lib';
-import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { parseInline } from '#lib';
+import { registerMathInline, MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 beforeEach(() => {

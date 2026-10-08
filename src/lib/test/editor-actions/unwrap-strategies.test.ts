@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
 	firstChildUnwrapStrategies,
 	middleChildUnwrapStrategies
-} from '$lib/editor-actions/unwrap-strategies';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
-import { serialize } from '$lib/core/serializer';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/editor-actions/unwrap-strategies.js';
+import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { ALL_BLOCK_KINDS } from '#lib/core/nodes.js';
+import { serialize } from '#lib/core/serializer.js';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 describe('unwrapRole declarations resolve to registered strategies', () => {
 	it('every declared role names an implemented strategy', () => {

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
+import { toggleInlineFormat } from '#lib/core/inline/format-toggle.js';
 import { MARK_FORMATS, markersOf, toggleFormat, whole } from './format-toggle-fixture';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // A covered selection unapplies, splitting the construct; an overlapping one wraps the union.
 // Miss-analysis: no unapply case selected a strict sub-range of formatted content.

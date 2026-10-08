@@ -3,13 +3,13 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import {
 	focusMovedOutsideReplacement,
 	previewContentReparse
-} from '$lib/editor-actions/replacement-focus';
-import { parse } from '$lib/core/parser';
-import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
-import { declaredPluginKind } from '$lib/schema/plugin-kind';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import type { NodeView } from '$lib/core/node-views';
+} from '#lib/editor-actions/replacement-focus.js';
+import { parse } from '#lib/core/parser.js';
+import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
+import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import type { NodeView } from '#lib/core/node-views.js';
 
 /** `text` made legal as the only child of `owner`, the way the write hands it to the trial. */
 const legalIn = (node: NodeView, text: string, owner?: NodeView) =>

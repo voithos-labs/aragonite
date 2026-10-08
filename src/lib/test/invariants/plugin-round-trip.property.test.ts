@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { installPlugins } from '$lib';
+import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { latexPlugin, MATH_BLOCK } from '$lib/plugins/latex';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin, DETAILS } from '$lib/plugins/details';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
+import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { latexPlugin, MATH_BLOCK } from '#lib/plugins/latex/index.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { detailsPlugin, DETAILS } from '#lib/plugins/details/index.js';
 import { arbPluginGfmDoc, arbPluginInlineSource, freshOrFixedSeed } from './arbitraries';
 
 /**

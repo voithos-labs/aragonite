@@ -4,24 +4,24 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { takeDevWarns } from '../support/warn-gate';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { makeEditorActionsDeps, type EditorActionsHarness } from '../harness/editor-actions';
-import { parseInline } from '$lib/core/inline';
-import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
-import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { parseInline } from '#lib/core/inline/index.js';
+import { createCompositionSeat } from '#lib/components/blocks/text/composition-seat.js';
+import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { type EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
+} from '#lib/schema/inline-construct-policy.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { type EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
 import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 
 /** An `input` the browser sends mid-composition. */

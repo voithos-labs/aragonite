@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	computeFenceExit,
 	computeTypedFenceExit
-} from '$lib/components/blocks/code/code-fence-exit';
+} from '#lib/components/blocks/code/code-fence-exit.js';
 
 type FenceMeta = Parameters<typeof computeFenceExit>[0]['meta'];
 

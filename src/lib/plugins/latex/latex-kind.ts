@@ -29,7 +29,7 @@ import {
 	type CstNode,
 	type WriteContext,
 	type WriteRule
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import MathInline from './MathInline.svelte';
 import { isFlankingSpace } from './flanking';
 import { registerMathBlockCompleter } from './math-completion';

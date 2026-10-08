@@ -2,24 +2,24 @@
 // The link card without mounting it: committing a url edit, and entering create or edit
 // mode from a caret or a range.
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
-import { createLinkCardCommitter } from '$lib/components/link-card/link-card-commit';
-import { type LinkTarget } from '$lib/components/blocks/text/link-at-point';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { parse } from '#lib/core/parser.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createInlineRangeCommit } from '#lib/editor-actions/inline-range-commit.js';
+import { createLinkCardCommitter } from '#lib/components/link-card/link-card-commit.js';
+import { type LinkTarget } from '#lib/components/blocks/text/link-at-point.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { settleEditor } from '$lib/test/harness/settle';
-import { type NodeView } from '$lib/core/node-views';
-import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
-import { enterLinkCardAtCaret } from '$lib/components/link-card/link-card-entry';
-import { type CstNode } from '$lib/core/nodes';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { makeRenderHarness } from '$lib/test/harness/text-render';
-import { type Reading } from '$lib/schema/reading';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { type NodeView } from '#lib/core/node-views.js';
+import { createLinkCardState } from '#lib/components/link-card/link-card-state.svelte.js';
+import { enterLinkCardAtCaret } from '#lib/components/link-card/link-card-entry.js';
+import { type CstNode } from '#lib/core/nodes.js';
+import { createTextRender } from '#lib/components/blocks/text/text-render.js';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { makeRenderHarness } from '#lib/test/harness/text-render.js';
+import { type Reading } from '#lib/schema/reading.js';
 
 describe('commit', () => {
 	// What the card decides on top of the byte writer: which fields survive a URL edit, and when the

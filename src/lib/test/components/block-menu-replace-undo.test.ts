@@ -3,12 +3,12 @@
 // bytes are no keystroke's.
 // Miss-analysis: every menu test picked a row on an untouched document, never inside a burst.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRootMenus, type BlockMenuModel } from '$lib/components/editor-root-menus';
-import { serialize } from '$lib/core/serializer';
-import { replaceBlockRaw } from '$lib/editor-actions/block-edit-core';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { registerBuiltinBlockContextActions } from '$lib/schema/context-actions';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root-menus.js';
+import { serialize } from '#lib/core/serializer.js';
+import { replaceBlockRaw } from '#lib/editor-actions/block-edit-core.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { registerBuiltinBlockContextActions } from '#lib/schema/context-actions.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';

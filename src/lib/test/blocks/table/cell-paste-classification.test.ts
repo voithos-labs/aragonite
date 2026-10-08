@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { parse } from '#lib/core/parser.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { ensurePasteSurface } from '$lib/test/support/paste-surface';
+} from '#lib/test/harness/editor-actions.js';
+import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
 
 // A cell holds text, never blocks, so blank lines a copy wrapped around the text must not decide
 // the route: read as content, they send a plain text paste down the path that breaks the table.

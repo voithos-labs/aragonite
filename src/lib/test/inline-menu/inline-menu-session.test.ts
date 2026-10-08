@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { registerMathInline } from '$lib/plugins/latex/latex-kind';
+import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
 import {
 	findOpening,
 	isProseOffset,
@@ -7,11 +7,11 @@ import {
 	sessionQuery,
 	stepActive,
 	typedRunStart
-} from '$lib/inline-menu/inline-menu-session';
-import type { InlineMenuSource } from '$lib/inline-menu/types';
-import { resolvedInlineContent } from '$lib/core/inline/inline-cache';
-import type { NodeView } from '$lib/core/node-views';
-import { parse } from '$lib/core/parser';
+} from '#lib/inline-menu/inline-menu-session.js';
+import type { InlineMenuSource } from '#lib/inline-menu/types.js';
+import { resolvedInlineContent } from '#lib/core/inline/inline-cache.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { parse } from '#lib/core/parser.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 const source = (over: Partial<InlineMenuSource> & { name: string; trigger: string }) =>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { blockContentElAt } from '$lib/components/block-el-lookup';
+import { blockContentElAt } from '#lib/components/block-el-lookup.js';
 import { mountTableGrid } from '../selection/table-grid';
 
 // Miss-analysis: the descent into a table cell was tested only through a caret on a mounted table.

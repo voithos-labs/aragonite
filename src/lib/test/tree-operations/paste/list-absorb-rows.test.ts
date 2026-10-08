@@ -4,8 +4,8 @@
 // Miss-analysis: only the unordered marker rows ran below a browser, so the position, numbering and
 // marker-style rows reached the absorb path through real pastes in e2e alone.
 import { describe, it, expect } from 'vitest';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { serialize } from '$lib/core/serializer';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { serialize } from '#lib/core/serializer.js';
 import {
 	makePasteCommit,
 	makeStubBlockEdit,

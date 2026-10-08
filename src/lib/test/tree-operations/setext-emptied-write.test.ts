@@ -6,9 +6,9 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { documentLineEnding } from '$lib/core/lines';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 describe('a content write that empties a setext title', () => {
 	it.each([

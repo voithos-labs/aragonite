@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import type { Component } from 'svelte';
 import type { InlineNode } from '../../core/nodes';
@@ -9,7 +9,7 @@ import {
 	getInlineWidgetComponent,
 	type InlineWidgetComponentProps
 } from '../../core/inline/inline-widgets';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 // A kind the registry has never seen, cast through the closed inline-kind union
 // the way a real inline-widget plugin would.

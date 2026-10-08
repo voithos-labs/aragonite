@@ -5,8 +5,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { mountCode, type MountedCode } from './mount-code';
-import { dispatchKey } from '$lib/test/harness/settle';
-import { makeStubController } from '$lib/test/harness/editor-actions';
+import { dispatchKey } from '#lib/test/harness/settle.js';
+import { makeStubController } from '#lib/test/harness/editor-actions.js';
 
 // Trailing spaces the parser trims out of `meta.info` and keeps in the block's bytes.
 const PADDED = '```js  \nconst x = 1\n```\n';

@@ -12,12 +12,12 @@ import {
 	placeCaret,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import { insertBy } from '$lib/test/harness/insertion-routes';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { EditorProps } from '$lib/editor-props';
-import type { EditorSelection } from '$lib/selection/primitives';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import { insertBy } from '#lib/test/harness/insertion-routes.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { EditorProps } from '#lib/editor-props.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

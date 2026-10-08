@@ -5,7 +5,7 @@ import {
 	MENU_OPENED_IN_READING,
 	type MenuCloseCause,
 	type MenuPresence
-} from '$lib/components/menu/menu-presence.svelte';
+} from '#lib/components/menu/menu-presence.svelte.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 /** Mounts one menu element with `close`, returning its unmount. */

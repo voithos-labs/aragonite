@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { parse } from '#lib/core/parser.js';
 
 // A command's bytes are not typing: a format toggle pressed mid-burst must be its own undo
 // step, so one Ctrl+Z takes the formatting off and leaves the words.

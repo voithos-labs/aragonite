@@ -11,7 +11,7 @@
 		type DocumentView,
 		type EditorRects,
 		type NodeView
-	} from '$lib/plugin';
+	} from '#lib/plugin.js';
 	import type { FootnoteDefMetadata } from './footnote-definition';
 	import { backToReferenceLabel } from './constants';
 	import { collectFootnoteReferences } from './footnote-numbering';

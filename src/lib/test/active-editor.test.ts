@@ -8,7 +8,7 @@ import {
 	isForeignTextEntry,
 	releaseInteractedEditor,
 	__resetActiveEditorForTests
-} from '$lib/active-editor';
+} from '#lib/active-editor.js';
 
 describe('active-editor: body-chord claimant', () => {
 	const a = document.createElement('div');

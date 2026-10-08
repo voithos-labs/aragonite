@@ -4,7 +4,7 @@
 // Miss-analysis: the indent rows over a selection ran across blocks, and the prose Tab rows only
 // ever pressed at a caret, so a selection inside one paragraph reached the literal tab unseen.
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
-import { activateDirectives } from '$lib/plugin';
+import { activateDirectives } from '#lib/plugin.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -12,8 +12,8 @@ import {
 	placeCaret,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt } from '../table/mount-table';
 
 beforeAll(installLayoutStubs);

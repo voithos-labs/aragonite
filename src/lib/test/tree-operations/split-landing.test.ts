@@ -2,11 +2,11 @@
 // Typing carries on inside a construct the split reopened; any other split lands like Home does.
 // Miss-analysis: every landing test split mid-word, so a split before a construct was never asked.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { splitNode } from '$lib/tree-operations';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { CURSOR_EXACT_START, CURSOR_START } from '$lib/block-component';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
+import { parse } from '#lib/core/parser.js';
+import { splitNode } from '#lib/tree-operations/index.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { CURSOR_EXACT_START, CURSOR_START } from '#lib/block-component.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 registerBuiltInBlocks();

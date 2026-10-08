@@ -1,7 +1,7 @@
 <script lang="ts">
 	// An inline widget that renders only the presentation mode and theme, read inside a `$derived`
 	// so the pool's getters drive it rather than a mount-time snapshot.
-	import type { InlineWidgetComponentProps } from '$lib/core/inline/inline-widgets';
+	import type { InlineWidgetComponentProps } from '#lib/core/inline/inline-widgets.js';
 
 	let { getPresentationMode, getTheme }: InlineWidgetComponentProps = $props();
 

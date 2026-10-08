@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	registerBlockKind,
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
+} from '#lib/schema/block-kind-descriptor.js';
 import {
 	registerBlockComponent,
 	getBlockComponent,
 	type BlockComponentEntry
-} from '$lib/schema/block-component-registry';
+} from '#lib/schema/block-component-registry.js';
 import {
 	registerBlockOpener,
 	listRegisteredOpeners,
 	type BlockOpener
-} from '$lib/schema/block-openers';
-import { registerCommand, getCommand } from '$lib/schema/commands';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { testClosure } from '$lib/test/support/closure';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+} from '#lib/schema/block-openers.js';
+import { registerCommand, getCommand } from '#lib/schema/commands.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
+import { testClosure } from '#lib/test/support/closure.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 const minimal = {
 	gapEdges: 'none',

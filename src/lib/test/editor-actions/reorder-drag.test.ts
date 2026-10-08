@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
-import { installReorderDrag } from '$lib/editor-actions/reorder-drag';
-import { parse } from '$lib/core/parser';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { installReorderDrag } from '#lib/editor-actions/reorder-drag.js';
+import { parse } from '#lib/core/parser.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 // Checks the root pointerdown listener's lifecycle: the unmount-mid-drag leak e2e cannot

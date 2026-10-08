@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import { serialize } from '#lib/core/serializer.js';
+import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 
 // An empty replacement removes a block, so it must do what `deleteNode` does: hand the vacated
 // separating line down to the successor, and drop the one a blank predecessor provides.

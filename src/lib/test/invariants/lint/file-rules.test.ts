@@ -16,6 +16,7 @@ import {
 	isProseSurface,
 	languageOf,
 	LEXICAL_CLASSES,
+	quotedSpecifierEnding,
 	type SourceFile
 } from './scan-source';
 import {
@@ -68,7 +69,9 @@ const BENIGN_BRAND_USES =
 /** `as CstNode` / `as Document`, the tail of `as unknown as X` included; an indexed-access
  *  type (`as CstNode['metadata']`) is not a cast back to mutable. */
 const STRIP_CAST_RE = /\bas\s+(CstNode|Document)\b(?!\s*\[\s*')/g;
-const CST_DOCUMENT_IMPORT_RE = /import[^;]*\bDocument\b[^;]*from\s+'[^']*core\/nodes'/;
+const CST_DOCUMENT_IMPORT_RE = new RegExp(
+	String.raw`import[^;]*\bDocument\b[^;]*from\s+` + quotedSpecifierEnding('core/nodes')
+);
 
 /** `as Document` counts only where the CST `Document` is imported; elsewhere it is the DOM one. */
 function stripsView(file: SourceFile): boolean {
@@ -658,6 +661,7 @@ const RULES: FileRule[] = [
 			'const n = doc as unknown as CstNode;',
 			`${CST_IMPORT}const d = view as Document;`,
 			`${CST_IMPORT}const d = (x as Document & { y?: number }).y;`,
+			"import type { Document } from '#lib/core/nodes.js';\nconst d = view as Document;",
 			'x as CstNode | null'
 		],
 		misses: [

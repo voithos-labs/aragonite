@@ -14,7 +14,7 @@ import {
 	isWhitespaceChar,
 	type InlineNode,
 	type PluginInlineKind
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import FootnoteReference from './FootnoteReference.svelte';
 import { FOOTNOTE_REF_KIND } from './constants';
 

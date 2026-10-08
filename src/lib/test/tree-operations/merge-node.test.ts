@@ -6,7 +6,7 @@ import { applyStructuralChangeToIdsRefs } from '../../tree-operations/structural
 import { fixtureReading } from '../harness/fixture-grammar';
 import { settled } from '../harness/settle-funnel';
 import { expectParseConverged } from '../harness/parse-converged';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The two joins production reaches, Delete's forward one and Backspace's backward one, both
 // writing into the surviving block through `joinIntoLeaf`.

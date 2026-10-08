@@ -9,11 +9,11 @@ import {
 	destroyMountedEditors,
 	typeInFirstBlock,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import type { HeightOracle } from '$lib/cursor/height-oracle';
-import type { Document } from '$lib/core/nodes';
-import { ESTIMATE_BASE_FONT_SIZE } from '$lib/cursor/typography-estimates';
-import { settleEditor } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { HeightOracle } from '#lib/cursor/height-oracle.js';
+import type { Document } from '#lib/core/nodes.js';
+import { ESTIMATE_BASE_FONT_SIZE } from '#lib/cursor/typography-estimates.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 interface Seam {
 	getHeightOracle(): HeightOracle;

@@ -1,17 +1,17 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { createInlineRangeCommit } from '#lib/editor-actions/inline-range-commit.js';
 import {
 	makeNestedHarness,
 	makeTopHarness,
 	registerStubBlockListState
-} from '$lib/test/harness/editor-actions';
-import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import type { EditEvent } from '$lib/editor-events';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+} from '#lib/test/harness/editor-actions.js';
+import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import type { EditEvent } from '#lib/editor-events.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 
 // The container fixtures are hand-built, not parser output, so the dev-mode stale-raw and
 // read-back checks read them as stale.

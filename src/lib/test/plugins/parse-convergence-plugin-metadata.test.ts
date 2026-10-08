@@ -7,9 +7,9 @@ import {
 	setPluginMetadata,
 	type CstNode,
 	type PluginBlockKind
-} from '$lib/plugin';
-import { assertParseConverged } from '$lib/testing/parse-convergence';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+} from '#lib/plugin.js';
+import { assertParseConverged } from '#lib/testing/parse-convergence.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 interface TagMetadata {
 	tag: string;

@@ -1,14 +1,14 @@
 // Miss-analysis: no test typed a heading marker into a task paragraph, only outside a list.
 import { describe, it, expect } from 'vitest';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { documentLineEnding } from '$lib/core/lines';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/index.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A write into a task item's first paragraph reads its text the way the parser reads the item:
 // the line after the marker is paragraph text, so typing `# ` there keeps the paragraph and box.

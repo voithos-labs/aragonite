@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { parseInline } from '$lib/core/inline';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
-import type { InlineNode } from '$lib/core/nodes';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import type { LinkReferenceResolver } from '#lib/core/inline/link-reference-resolver.js';
+import type { InlineNode } from '#lib/core/nodes.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	buildLinkEditBytes,
 	buildLinkUnwrapBytes,
 	linkFieldsFromInline
-} from '$lib/core/inline/link-source-bytes';
+} from '#lib/core/inline/link-source-bytes.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // Every case states the displayed bytes the writer is offered, because it checks its candidate

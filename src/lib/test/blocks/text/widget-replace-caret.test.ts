@@ -3,20 +3,20 @@
 // was the only thing selected and the browser keeps no caret of its own.
 // Miss-analysis: GH #440, #441, the widget-splice tests pinned the commit's bytes, never the caret.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { replaceSelectedWidget } from '$lib/components/blocks/text/widget-interaction';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { replaceSelectedWidget } from '#lib/components/blocks/text/widget-interaction.js';
+import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
+import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { mountBodyRow } from '../../harness/editor-actions';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import { createSurfaceWrite, rangeWrite } from '$lib/components/blocks/surface-write';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { LeafRangeEdit } from '$lib/tree-operations/leaf-range';
-import type { NodeView } from '$lib/core/node-views';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { createSurfaceWrite, rangeWrite } from '#lib/components/blocks/surface-write.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { LeafRangeEdit } from '#lib/tree-operations/leaf-range.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
 
 const NO_CUE = { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} };
 

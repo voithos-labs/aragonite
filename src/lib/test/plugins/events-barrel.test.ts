@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as pluginBarrel from '$lib/plugin';
+import * as pluginBarrel from '#lib/plugin.js';
 import type {
 	EditEvent,
 	EditorEventMap,
@@ -7,7 +7,7 @@ import type {
 	EditorError,
 	SourceSwapEvent,
 	OperationKind
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 // The event API is not frozen yet, so the suite pins only the payload types a plugin's `edit`
 // handler needs: a dropped re-export fails here rather than turning `op` into a bare string in a

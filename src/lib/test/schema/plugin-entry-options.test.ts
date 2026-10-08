@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { definePlugin, normalizePluginEntries } from '$lib/schema/plugin-install';
+import { definePlugin, normalizePluginEntries } from '#lib/schema/plugin-install.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 describe('normalizePluginEntries', () => {

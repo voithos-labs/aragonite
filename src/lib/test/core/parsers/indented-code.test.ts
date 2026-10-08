@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
-import { describeRoundTrips } from '$lib/test/support/round-trip';
+import { describeRoundTrips } from '#lib/test/support/round-trip.js';
 
 // GFM §4.4: a paragraph absorbs a following indented line structurally, so the only rule
 // the opener must honor is "no open paragraph to interrupt" — no blank line is required.

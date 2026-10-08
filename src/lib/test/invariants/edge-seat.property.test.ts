@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import fc from 'fast-check';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { resolveEdgeSeat, seatOffsetsAt } from '../../components/blocks/text/edge-seat';
 import { MARKER_FAMILY_SELECTOR, screenVisibility } from '../../core/inline/visibility';
 import type { EdgeAffinity } from '../../cursor/edge-affinity';
-import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
+import { caretPositions, countOnScreen, paintedText } from '#lib/test/harness/painted-text.js';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
 import { renderOptions } from '../harness/fixture-grammar';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // A letter typed at an unpainted delimiter run may never put a delimiter byte on screen, as the
 // renderer draws it; a childless construct declines, so its byte lands between the delimiters.

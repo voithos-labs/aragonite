@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: the depth pins stopped at the renderer and the offset walk, never the walks after.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, expect, it } from 'vitest';
 import type { CstNode, InlineNode } from '../../core/nodes';
 import { parse, MAX_NESTING_DEPTH } from '../../core/parser';

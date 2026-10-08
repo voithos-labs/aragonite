@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { installPlugins } from '$lib';
-import type { EditorContext } from '$lib/plugin';
+import { installPlugins } from '#lib';
+import type { EditorContext } from '#lib/plugin.js';
 import {
 	SLASH_COMMANDS_MENU,
 	SLASH_COMMANDS_OPEN,
 	slashCommandsPlugin
-} from '$lib/plugins/slash-commands';
-import { getCommand, resolveGlobalBinding } from '$lib/schema/commands';
-import { eventToChord } from '$lib/schema/keybindings';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+} from '#lib/plugins/slash-commands/index.js';
+import { getCommand, resolveGlobalBinding } from '#lib/schema/commands.js';
+import { eventToChord } from '#lib/schema/keybindings.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 const slashKey = {
 	key: '/',

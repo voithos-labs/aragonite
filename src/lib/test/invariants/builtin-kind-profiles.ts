@@ -1,15 +1,15 @@
 /**
- * What the generic battery (`$lib/testing/kind-conformance`) needs beyond each built-in
+ * What the generic battery (`src/lib/testing/kind-conformance.ts`) needs beyond each built-in
  * descriptor. A profile exists only where a kind's mechanism is unobservable generically:
  * `table.clipboard` synthesizes a fresh GFM sub-table, which no byte-slice check reaches.
  */
 
-import type { BlockKind } from '$lib/core/nodes';
-import { metadataOf } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { copyRectangleAsSubTable } from '$lib/tree-operations/sub-table-copy';
-import type { KindCellContext, KindConformanceProfile } from '$lib/testing';
+import type { BlockKind } from '#lib/core/nodes.js';
+import { metadataOf } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { copyRectangleAsSubTable } from '#lib/tree-operations/sub-table-copy.js';
+import type { KindCellContext, KindConformanceProfile } from '#lib/testing.js';
 
 // ── table: rectangular copy → synthesized sub-table ──────────────────────────
 

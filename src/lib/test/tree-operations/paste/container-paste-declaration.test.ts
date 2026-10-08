@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { findContainerMatchingUnwrap } from '$lib/tree-operations/paste/container-match';
-import { findListAbsorb } from '$lib/tree-operations/paste/list-absorb';
-import { findListBreakOut } from '$lib/tree-operations/paste/list-break-out';
+import { parse } from '#lib/core/parser.js';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { findContainerMatchingUnwrap } from '#lib/tree-operations/paste/container-match.js';
+import { findListAbsorb } from '#lib/tree-operations/paste/list-absorb.js';
+import { findListBreakOut } from '#lib/tree-operations/paste/list-break-out.js';
 
 describe('containerPaste declaration drives the paste-merge decision', () => {
 	it('kind without containerPaste (paragraph clipboard) never container-matches', () => {

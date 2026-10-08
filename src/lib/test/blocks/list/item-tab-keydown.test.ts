@@ -4,7 +4,11 @@
 // ListItemBlock resolves it against the listItem keymap. Either step breaking stops indenting
 // with no other sign.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

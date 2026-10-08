@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '../core/serializer';
 import { parse } from '../core/parser';
-import { describeRoundTrips, roundTripCases } from '$lib/test/support/round-trip';
+import { describeRoundTrips, roundTripCases } from '#lib/test/support/round-trip.js';
 
 // ── Complex Document Round-Trip Tests ───────────────────────────────────────
 

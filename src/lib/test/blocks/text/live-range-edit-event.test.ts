@@ -3,11 +3,11 @@
 // range and the DOM caret can disagree. The joins are covered through `replaceRangeInLeaf`.
 // Miss-analysis: join tests passed their own range, never a collapsed target away from the caret.
 import { afterEach, describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 import {
 	resolveLiveRangeEdit,
 	type LiveEditCursor
-} from '$lib/components/blocks/text/live-selection-edit';
+} from '#lib/components/blocks/text/live-selection-edit.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 
 const LINK = 'Some [ab](u)text\n';

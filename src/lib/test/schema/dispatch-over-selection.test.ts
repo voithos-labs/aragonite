@@ -4,7 +4,7 @@
 // Miss-analysis: every removal row ran on a block that supplies the removal with no range up, so
 // nothing asked the dispatch about either edge.
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { runCommandById } from '$lib/schema/block-commands';
+import { runCommandById } from '#lib/schema/block-commands.js';
 import { takeDevWarns } from '../support/warn-gate';
 import { commandContextWith } from '../support/command-context';
 

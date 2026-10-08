@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 import {
 	makePasteCommit,
 	makeStubBlockEdit,
 	registerStubBlockListState,
 	pasteContext
 } from '../../harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { buildListBreakOutReplacement } from '$lib/tree-operations/paste/list-break-out';
-import type { Document } from '$lib/core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { buildListBreakOutReplacement } from '#lib/tree-operations/paste/list-break-out.js';
+import type { Document } from '#lib/core/nodes.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // The text after the caret opens a new item on its marker line, and the tree takes its reload.
 // Miss-analysis: GH #446, every split-item fixture put a paragraph after the caret.

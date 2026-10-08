@@ -6,8 +6,8 @@ import {
 	mountEditor,
 	placeCaret,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import type { MountedEditor } from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
 import type { EditorSelection } from '../../selection/primitives';
 
 beforeAll(installLayoutStubs);

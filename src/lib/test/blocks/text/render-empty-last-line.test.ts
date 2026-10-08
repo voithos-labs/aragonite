@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
-import type { CstNode } from '$lib/core/nodes';
-import { makeRenderHarness } from '$lib/test/harness/text-render';
+import { createTextRender } from '#lib/components/blocks/text/text-render.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { makeRenderHarness } from '#lib/test/harness/text-render.js';
 
 // A prose block whose text ends in a line break needs something after the break for the caret.
 // Miss-analysis: GH #467, no prose render test drew a block whose own text ended in a line break.

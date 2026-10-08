@@ -2,8 +2,8 @@
 // Miss-analysis: no test covered the overlay's repaint-on-change bullet, and no unit drove the
 // re-measure triggers.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { BlockComponent } from '$lib/block-component';
-import { wireOverlayRemeasure } from '$lib/cursor/overlay-remeasure';
+import type { BlockComponent } from '#lib/block-component.js';
+import { wireOverlayRemeasure } from '#lib/cursor/overlay-remeasure.js';
 
 let resizeCallback: ResizeObserverCallback | null = null;
 

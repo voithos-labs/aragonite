@@ -1,12 +1,12 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import type { CstNode, PluginBlockKind, PluginInlineKind } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { parseInline } from '$lib/core/inline';
-import { declarePluginKind, declarePluginInlineKind } from '$lib/schema/plugin-kind';
-import { registerDirective } from '$lib/core/directive/registry';
-import { DIRECTIVE_LEAF, DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import type { CstNode, PluginBlockKind, PluginInlineKind } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { declarePluginKind, declarePluginInlineKind } from '#lib/schema/plugin-kind.js';
+import { registerDirective } from '#lib/core/directive/registry.js';
+import { DIRECTIVE_LEAF, DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 
 beforeEach(activateDirectiveGrammar);
 

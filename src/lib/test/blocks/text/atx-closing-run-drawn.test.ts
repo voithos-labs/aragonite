@@ -10,8 +10,8 @@ import {
 	pressKeyAt,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { landableRawBounds } from '$lib/cursor/widget-offset';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { landableRawBounds } from '#lib/cursor/widget-offset.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

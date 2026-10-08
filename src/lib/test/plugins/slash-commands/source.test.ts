@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { installPlugins } from '$lib';
+import { installPlugins } from '#lib';
 import {
 	definePlugin,
 	registerInsertEntry,
 	type EditorContext,
 	type InsertEntry
-} from '$lib/plugin';
-import type { SlashCommandEntry } from '$lib/plugins/slash-commands';
+} from '#lib/plugin.js';
+import type { SlashCommandEntry } from '#lib/plugins/slash-commands/index.js';
 import { slashHarness } from './slash-harness';
 
 describe('the slash list', () => {

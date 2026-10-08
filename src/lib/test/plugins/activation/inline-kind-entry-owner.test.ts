@@ -2,17 +2,17 @@
 // Miss-analysis: every kind-entry activation test registered the entry in the declaring plugin's
 // own setup, so the inline registries answering to the registrant never showed.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import {
 	declarePluginInlineKind,
 	declaredPluginInlineKind,
 	pluginInlineKindOwner
-} from '$lib/schema/plugin-kind';
-import { isInlineWidgetKind, registerInlineWidgetKind } from '$lib/core/inline/inline-widgets';
+} from '#lib/schema/plugin-kind.js';
+import { isInlineWidgetKind, registerInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
 import {
 	getInlineConstructPolicy,
 	registerInlineConstructPolicy
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import { grammarListing } from './grammar-listing';
 
 const MARK = 'owned-mark';

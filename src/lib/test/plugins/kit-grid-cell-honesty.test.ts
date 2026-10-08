@@ -1,9 +1,9 @@
 // Miss-analysis (#576): every container-kit test used built-in kinds, so no test asked what the kit
 // reports for a plugin grid kind.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { registerBlockOpener, type CstNode, type PluginBlockKind } from '$lib/plugin';
-import { runContainerConformance, type ContainerConformanceProfile } from '$lib/testing';
-import { testContainer, testLeaf } from '$lib/test/harness/test-kinds';
+import { registerBlockOpener, type CstNode, type PluginBlockKind } from '#lib/plugin.js';
+import { runContainerConformance, type ContainerConformanceProfile } from '#lib/testing.js';
+import { testContainer, testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const EXCUSED = 'the plugin grid in this suite exists only to probe the cells it asserts';
 

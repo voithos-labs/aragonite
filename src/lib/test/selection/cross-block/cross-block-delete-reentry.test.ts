@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
-import { serialize } from '$lib/core/serializer';
-import type { EditEvent } from '$lib/editor-events';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { EditEvent } from '#lib/editor-events.js';
 import { makeRangeEnv } from './range-context';
 
 const makeEnv = () => makeRangeEnv('# A\n\npara B\n\npara C\n');

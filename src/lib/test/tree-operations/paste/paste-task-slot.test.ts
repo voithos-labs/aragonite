@@ -2,13 +2,13 @@
 // Miss-analysis: GH #666; the paste suites split plain paragraphs and plain items, so no paste
 // ever left text behind a task checkbox for the reload to read differently.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { makeEditorActionsDeps, pasteContext } from '../../harness/editor-actions';
 
 // A paste that splits a task item's first paragraph leaves each half in a slot a checkbox stands

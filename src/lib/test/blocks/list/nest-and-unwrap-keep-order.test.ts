@@ -4,7 +4,11 @@
 // Miss-analysis: every nest fixture gave the item above one sublist and nothing after it, and every
 // unwrap fixture gave the first item a sublist only, so nothing held a paragraph after a sublist.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

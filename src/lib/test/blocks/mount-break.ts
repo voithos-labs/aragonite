@@ -2,12 +2,12 @@
 // whole-block-focus kind, with the editing host it publishes and the stubs its wiring reads.
 
 import { vi } from 'vitest';
-import ThematicBreakBlock from '$lib/components/blocks/ThematicBreakBlock.svelte';
-import type { EditorServices } from '$lib/editor-keys';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
-import { parse } from '$lib/core/parser';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import ThematicBreakBlock from '#lib/components/blocks/ThematicBreakBlock.svelte';
+import type { EditorServices } from '#lib/editor-keys.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/editor-actions/whole-block-focus-surface.js';
+import { parse } from '#lib/core/parser.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeStubFocus } from '../harness/editor-actions';
 import { mountBlock } from '../harness/mount-block';
 

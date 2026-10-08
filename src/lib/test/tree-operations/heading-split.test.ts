@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { splitNode } from '../../tree-operations';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // Enter at the head of an ATX heading's text moves the whole heading down: the marker belongs
 // with its text, where the plain cut would leave an empty heading above demoted prose below.

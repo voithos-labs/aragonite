@@ -4,9 +4,9 @@ import {
 	granularityForClickCount,
 	installMultiClickSelect,
 	wordSpanAt
-} from '$lib/selection/multi-click';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { maskedWalkText } from '$lib/cursor/widget-offset';
+} from '#lib/selection/multi-click.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { maskedWalkText } from '#lib/cursor/widget-offset.js';
 
 const span = (text: string, offset: number) => {
 	const s = wordSpanAt(text, offset);

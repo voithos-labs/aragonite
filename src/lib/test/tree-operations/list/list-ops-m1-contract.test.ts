@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { mergeListItemIntoPrevious } from '$lib/test/harness/list-merge';
-import { checkStaleRaw } from '$lib/invariants/node-shape';
-import { metadataOf } from '$lib/core/nodes';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { mergeListItemIntoPrevious } from '#lib/test/harness/list-merge.js';
+import { checkStaleRaw } from '#lib/invariants/node-shape.js';
+import { metadataOf } from '#lib/core/nodes.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { fixtureGrammar, fixtureReading } from '../../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 describe('mergeListItemIntoPrevious: children-array contract', () => {
 	it('mutates the caller-owned children copy, not a hidden internal array', () => {

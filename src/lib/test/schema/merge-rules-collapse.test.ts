@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { findMergeTarget } from '../../schema/merge-rules';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { CstNode } from '../../core/nodes';
 

@@ -6,9 +6,9 @@
  * adapter itself is proven in `renderer.test.ts`.
  */
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { installPlugins } from '$lib';
-import { latexPlugin } from '$lib/plugins/latex';
-import { mathSlot, type MathRenderer } from '$lib/plugins/latex/math-renderer';
+import { installPlugins } from '#lib';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { mathSlot, type MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 
 const DARK = { theme: 'dark' };
 

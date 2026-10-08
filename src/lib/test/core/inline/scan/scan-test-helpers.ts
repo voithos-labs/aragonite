@@ -1,4 +1,4 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
@@ -8,7 +8,7 @@ import {
 	type LinkReferenceResolver,
 	type ResolvedReference
 } from '../../../../core/inline/link-reference-resolver';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 // ── Coverage assertions ─────────────────────────────────────────────────────
 // Each check runs as plain code and calls `expect` only where it fails: on a flood of tens of

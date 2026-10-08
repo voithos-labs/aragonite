@@ -2,10 +2,10 @@
 	// How an unregistered `:::name` directive renders, built on the same `createContainerBlock`
 	// helper a plugin gets from the public barrel. Its marker is a dimmed line over a left
 	// border, not a card box: a document should look like a document.
-	import { createContainerBlock } from '$lib/editor-actions/plugin/container';
-	import BlockList from '$lib/components/BlockList.svelte';
-	import type { NodeView } from '$lib/core/node-views';
-	import { firstDisplayLine } from '$lib/core/lines';
+	import { createContainerBlock } from '#lib/editor-actions/plugin/container.js';
+	import BlockList from '#lib/components/BlockList.svelte';
+	import type { NodeView } from '#lib/core/node-views.js';
+	import { firstDisplayLine } from '#lib/core/lines.js';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 

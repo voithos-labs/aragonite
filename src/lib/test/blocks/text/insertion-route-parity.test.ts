@@ -10,14 +10,14 @@ import {
 	mountEditor,
 	mountWithCaret,
 	placeCaret
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import {
 	INSERTION_ROUTES,
 	TEXT_HOSTS,
 	dispatchBeforeInput,
 	insertBy
-} from '$lib/test/harness/insertion-routes';
+} from '#lib/test/harness/insertion-routes.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

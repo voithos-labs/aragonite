@@ -1,15 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
-import { setPluginMetadata } from '$lib/core/nodes';
-import { declaredPluginKind } from '$lib/schema/plugin-kind';
-import { getBlockKindDescriptor, isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
+import type { CstNode } from '#lib/core/nodes.js';
+import { setPluginMetadata } from '#lib/core/nodes.js';
+import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
+import {
+	getBlockKindDescriptor,
+	isBlockKindRegistered
+} from '#lib/schema/block-kind-descriptor.js';
 import {
 	DIRECTIVE_CONTAINER,
 	DIRECTIVE_LEAF,
 	registerDirectiveKinds,
 	rebuildDirectiveContainerRaw,
 	type DirectiveContainerMetadata
-} from '$lib/core/directive/kinds';
+} from '#lib/core/directive/kinds.js';
 
 describe('registerDirectiveKinds', () => {
 	it('registers the generic container and leaf fallback kinds', () => {

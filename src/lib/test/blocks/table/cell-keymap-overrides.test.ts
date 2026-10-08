@@ -3,12 +3,12 @@
 // bindings, not checks inside the cell's keydown plan, which runs first. Driven through a mounted
 // Editor with real keystrokes, since a test of either half alone cannot see the override.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt, pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);

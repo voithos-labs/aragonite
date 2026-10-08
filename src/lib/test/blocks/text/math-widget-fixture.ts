@@ -2,19 +2,19 @@
 // stands in faithfully for the render's own widget element: the interaction code reads only those
 // attributes and the source text between the surrounding prose. Mounting the real MathInline
 // (Svelte plus KaTeX) is the e2e's job.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { afterEach, beforeEach } from 'vitest';
-import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import { parse } from '$lib/core/parser';
-import { computeInlineContent } from '$lib/core/inline';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { rawTextOfNode } from '$lib/cursor/widget-offset';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { WidgetInteractionDeps } from '$lib/components/blocks/text/widget-interaction';
-import type { CstNode, InlineNode } from '$lib/core/nodes';
+import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
+import { parse } from '#lib/core/parser.js';
+import { computeInlineContent } from '#lib/core/inline/index.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { rawTextOfNode } from '#lib/cursor/widget-offset.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import type { WidgetInteractionDeps } from '#lib/components/blocks/text/widget-interaction.js';
+import type { CstNode, InlineNode } from '#lib/core/nodes.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { createDraftRegistry } from '$lib/components/draft-registry';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 
 export function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');

@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { rebuildContainerRaw } from '$lib/schema/container-raw';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
 import {
 	assembleListHalf,
 	buildListItemWithContent
-} from '$lib/tree-operations/list/list-builders';
+} from '#lib/tree-operations/list/list-builders.js';
 import {
 	expectParseConverged,
 	parseConverges,
 	describeConvergence
-} from '$lib/test/harness/parse-converged';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+} from '#lib/test/harness/parse-converged.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 // The check on the check. Using the parse comparison wherever a round-trip proves nothing is only
 // sound if it catches the live-tree-versus-raw differences bytes cannot see and stays green on the

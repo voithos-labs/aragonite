@@ -15,11 +15,11 @@ import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { createTextRender } from '../../components/blocks/text/text-render';
 import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
-import { makeRenderHarness } from '$lib/test/harness/text-render';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { commandContext } from '$lib/test/support/command-context';
+import { makeRenderHarness } from '#lib/test/harness/text-render.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { commandContext } from '#lib/test/support/command-context.js';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 

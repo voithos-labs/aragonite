@@ -1,55 +1,59 @@
 import { tick } from 'svelte';
-import type { Editor, EditorProps, PastedImage, PresentationMode } from '$lib';
-import { readBlocks } from '$lib/core/parser';
-import type { GrammarView } from '$lib/schema/block-openers';
-import { serialize } from '$lib/core/serializer';
-import { parseConverges } from '$lib/testing/parse-convergence';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { spliceChildren } from '$lib/tree-operations/children';
-import { getStateForNode } from '$lib/reactivity/state-registry';
-import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
-import type { GapCaretPosition } from '$lib/selection/gap-caret';
-import type { EditorSelection } from '$lib/selection/primitives';
-import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+import type { Editor, EditorProps, PastedImage, PresentationMode } from '#lib';
+import { readBlocks } from '#lib/core/parser.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { serialize } from '#lib/core/serializer.js';
+import { parseConverges } from '#lib/testing/parse-convergence.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { spliceChildren } from '#lib/tree-operations/children.js';
+import { getStateForNode } from '#lib/reactivity/state-registry.js';
+import type { BlockKind, CstNode, Document } from '#lib/core/nodes.js';
+import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+import type { DecorationSource, DecorationSourceHandle } from '#lib/decorations/types.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor,
 	registerBlockKind,
 	tryGetBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
-import { registerBlockComponent } from '$lib/schema/block-component-registry';
+} from '#lib/schema/block-kind-descriptor.js';
+import { registerBlockComponent } from '#lib/schema/block-component-registry.js';
 import type { HarnessSource } from './harness-source.svelte';
 import {
 	isPasteTransformRegistered,
 	registerPasteTransform
-} from '$lib/tree-operations/paste/paste-transforms';
+} from '#lib/tree-operations/paste/paste-transforms.js';
 import {
 	dumpTree,
 	dumpUndoStack,
 	dumpOperationsLog,
 	dumpInteractionTrace
-} from '$lib/debug/inspect';
+} from '#lib/debug/inspect.js';
 import {
 	dumpFocusedInlineTree,
 	isCrossBlockSnapshot,
 	liveSelectionText
 } from '../../debug-panel/panel-sections';
-import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
+import {
+	enablePerfInstruments,
+	resetPerfInstruments,
+	perfSnapshot
+} from '#lib/perf/instruments.js';
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,
 	interactionTraceKeydownCount,
 	interactionTraceSnapshot
-} from '$lib/debug/interaction-trace';
-import type { ClosureBlock } from '$lib/schema/closure';
-import { blockContentElAt } from '$lib/components/block-el-lookup';
-import { TABLE_CELL_SELECTOR } from '$lib/components/block-content-selector';
-import { domDescendants } from '$lib/cursor/dom-walk';
-import { isHiddenMarkerText } from '$lib/cursor/widget-offset';
-import { childIdDrifts } from '$lib/invariants/child-id-parity';
-import { isProseLeaf } from '$lib/schema/page-role';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
+} from '#lib/debug/interaction-trace.js';
+import type { ClosureBlock } from '#lib/schema/closure.js';
+import { blockContentElAt } from '#lib/components/block-el-lookup.js';
+import { TABLE_CELL_SELECTOR } from '#lib/components/block-content-selector.js';
+import { domDescendants } from '#lib/cursor/dom-walk.js';
+import { isHiddenMarkerText } from '#lib/cursor/widget-offset.js';
+import { childIdDrifts } from '#lib/invariants/child-id-parity.js';
+import { isProseLeaf } from '#lib/schema/page-role.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;

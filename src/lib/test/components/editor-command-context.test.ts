@@ -9,10 +9,10 @@ import {
 	mountEditor,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import { definePlugin, registerGlobalCommand } from '$lib/plugin';
-import type { EditorError } from '$lib/editor-events';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import { definePlugin, registerGlobalCommand } from '#lib/plugin.js';
+import type { EditorError } from '#lib/editor-events.js';
 
 beforeEach(() => {
 	installLayoutStubs();

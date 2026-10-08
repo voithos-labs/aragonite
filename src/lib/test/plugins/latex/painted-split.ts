@@ -1,6 +1,6 @@
 // The `$$` or ```math split the painter draws, read back off the DOM it builds.
-import { renderMathSource } from '$lib/plugins/latex/math-source';
-import type { MathSource } from '$lib/plugins/latex/math-shape';
+import { renderMathSource } from '#lib/plugins/latex/math-source.js';
+import type { MathSource } from '#lib/plugins/latex/math-shape.js';
 
 /** Opener and closer read off the fence-line markers, the body and the text past the closer as
  *  painted; null when the painter draws no fence line. */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { declarePluginKind, declaredPluginKind } from '../../schema/plugin-kind';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 describe('declarePluginKind', () => {
 	it('returns the name, branded, for a valid plugin kind', () => {

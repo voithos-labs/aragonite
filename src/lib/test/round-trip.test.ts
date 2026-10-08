@@ -1,4 +1,4 @@
-import { describeRoundTrips } from '$lib/test/support/round-trip';
+import { describeRoundTrips } from '#lib/test/support/round-trip.js';
 
 // ── Leaf Blocks ─────────────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { resolveReorderUnit } from '$lib/tree-operations/reorder-unit';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { testChromeContainer } from '$lib/test/harness/test-kinds';
+import { parse } from '#lib/core/parser.js';
+import { resolveReorderUnit } from '#lib/tree-operations/reorder-unit.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { testChromeContainer } from '#lib/test/harness/test-kinds.js';
 
 describe('resolveReorderUnit', () => {
 	it('top-level block resolves to itself under the document', () => {

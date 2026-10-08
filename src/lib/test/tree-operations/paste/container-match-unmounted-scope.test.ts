@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { serialize } from '$lib/core/serializer';
-import { makePasteCommit, makeStubBlockEdit, pasteContext } from '$lib/test/harness/editor-actions';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { serialize } from '#lib/core/serializer.js';
+import {
+	makePasteCommit,
+	makeStubBlockEdit,
+	pasteContext
+} from '#lib/test/harness/editor-actions.js';
 
 // A cross-block delete has already committed, so an unmounted container must not drop the paste.
 // Miss-analysis: every container-match case registered a state for the outer node first.

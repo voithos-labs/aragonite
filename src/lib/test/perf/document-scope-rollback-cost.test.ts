@@ -2,13 +2,13 @@
 // Miss-analysis: nothing counted what a rollback saves, so a document-scope commit saving every
 // top-level block, for an unwind that only needs the array it replaced, went unnoticed.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { rangeContext } from '../selection/cross-block/range-context';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 const BLOCKS = 500;

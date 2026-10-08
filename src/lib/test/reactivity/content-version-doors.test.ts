@@ -2,10 +2,10 @@
 // that changes the bytes without announcing it serves stale answers. One case per writer (G4.52).
 // Miss-analysis: the earlier suite wrote `$state` directly and never drove a real writer.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
+import { parse } from '#lib/core/parser.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { makeEditorActionsDeps, makeNestedHarness } from '../harness/editor-actions';
 
 function topLevelEditor(source: string) {

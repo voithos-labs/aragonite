@@ -1,15 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib';
-import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
-import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
-import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { isBlockOpenerRegistered, defaultGrammarView } from '$lib/schema/block-openers';
-import { lineOpensAs } from '$lib/schema/container-raw';
+import { parse } from '#lib';
+import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import {
+	getAllRegisteredKinds,
+	getBlockKindDescriptor
+} from '#lib/schema/block-kind-descriptor.js';
+import { isBlockOpenerRegistered, defaultGrammarView } from '#lib/schema/block-openers.js';
+import { lineOpensAs } from '#lib/schema/container-raw.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 
 // The container kind check skips a reparse when the rewritten opener line, read alone,
 // still opens as the kind the node already is. That partition over every registered

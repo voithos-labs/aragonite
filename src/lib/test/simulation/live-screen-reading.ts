@@ -5,17 +5,17 @@
  * attribute, and the block's leading marker, which paints under the same rule (live-mode.md § 4.1).
  */
 
-import type { CstNode, Document } from '$lib/core/nodes';
-import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { getContentRange, isProseKind, parseInline } from '#lib/core/inline/index.js';
 import {
 	CONTENT_VISIBILITY,
 	paintsOnlyChrome,
 	renderedText,
 	screenVisibility,
 	visibleRuns
-} from '$lib/core/inline/visibility';
-import { displayLength } from '$lib/core/lines';
-import { emptyConstructSpans } from '$lib/test/harness/live-oracles';
+} from '#lib/core/inline/visibility.js';
+import { displayLength } from '#lib/core/lines.js';
+import { emptyConstructSpans } from '#lib/test/harness/live-oracles.js';
 import { renderOptions } from '../harness/fixture-grammar';
 
 /** A prose leaf and the path that addresses it. */

@@ -14,9 +14,9 @@ import {
 	type InlineNode,
 	type InlineWidgetEditingPolicy,
 	type PluginInlineKind
-} from '$lib/plugin';
-import { runInlineKindConformance } from '$lib/testing';
-import type { InlineConformanceProfile } from '$lib/testing';
+} from '#lib/plugin.js';
+import { runInlineKindConformance } from '#lib/testing.js';
+import type { InlineConformanceProfile } from '#lib/testing.js';
 import { registerWikiRung, rewriteWikiImage } from '../image/wiki-image-rung';
 
 const A_REASON = 'a substantive reason long enough to clear the documented-excuse floor';

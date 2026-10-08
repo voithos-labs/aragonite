@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createScrollHostResolution } from '$lib/components/editor-root-scroll-host';
+import { createScrollHostResolution } from '#lib/components/editor-root-scroll-host.js';
 
 // Miss-analysis: scroll-host resolution was tested only by e2e, never its caching or self mode.
 

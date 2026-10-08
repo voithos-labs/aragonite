@@ -2,16 +2,17 @@
 // How often a character typed into a code block with hidden fence lines reads the fence regions:
 // once for the edit check, once more for a bracket's wrap, which reads its own selection.
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
 import { mountCode, type MountedCode } from './mount-code';
 
 const regionReads = vi.hoisted(() => ({ count: 0 }));
 
 // Every fence-region read slices the block first, so a slice taken from inside `fenceRegions`
 // counts one read.
-vi.mock('$lib/components/blocks/code/code-renderer', async (importOriginal) => {
-	const real = await importOriginal<typeof import('$lib/components/blocks/code/code-renderer')>();
+vi.mock('#lib/components/blocks/code/code-renderer.js', async (importOriginal) => {
+	const real =
+		await importOriginal<typeof import('#lib/components/blocks/code/code-renderer.js')>();
 	return {
 		...real,
 		sliceFencedCode: (...args: Parameters<typeof real.sliceFencedCode>) => {

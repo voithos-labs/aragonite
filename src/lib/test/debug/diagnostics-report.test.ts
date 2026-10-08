@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDiagnosticsReport } from '$lib/debug/diagnostics-report';
+import { buildDiagnosticsReport } from '#lib/debug/diagnostics-report.js';
 
 const SECRET = 'CONFIDENTIAL-DOCUMENT-BODY';
 

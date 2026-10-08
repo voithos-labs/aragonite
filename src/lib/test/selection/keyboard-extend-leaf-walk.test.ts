@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { extendFocusToPreviousBlock } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import { stateAt, el } from './extend-walk-env';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 describe("extendFocusToPreviousBlock from a container's first leaf", () => {
 	it('Shift+ArrowUp extends to the block above the container, not its last leaf', () => {

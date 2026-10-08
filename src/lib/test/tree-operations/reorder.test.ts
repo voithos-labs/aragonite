@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { reorderChildren, reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { reorderChildren, reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import type { CstNode } from '$lib/core/nodes';
-import type { BodyParent } from '$lib/tree-operations/node-primitives';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { BodyParent } from '#lib/tree-operations/node-primitives.js';
 
 const node = (raw: string) => ({ kind: 'paragraph', raw }) as any;
 const triviaNode = (leadingTrivia: string, raw: string) =>

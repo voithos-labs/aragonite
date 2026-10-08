@@ -1,9 +1,9 @@
 // Miss-analysis: every re-read test compared metadata by value, so none noticed a re-read that
 // replaced an unchanged object and re-ran everything reading it.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { adoptParsedMetadata } from '$lib/schema/container-raw';
+import { installPlugins, parse } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { adoptParsedMetadata } from '#lib/schema/container-raw.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);

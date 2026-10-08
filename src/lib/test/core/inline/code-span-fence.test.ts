@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // Miss-analysis: every fixture came from the scanner, where the renderer and edit code agree.
 import { describe, it, expect } from 'vitest';
-import { constructContentRange, parseInline } from '$lib/core/inline';
-import { renderInlineNodes } from '$lib/core/inline-render';
-import type { InlineNode } from '$lib/core/nodes';
-import { codeSpanFence } from '$lib/core/inline/scan/code-spans';
+import { constructContentRange, parseInline } from '#lib/core/inline/index.js';
+import { renderInlineNodes } from '#lib/core/inline-render.js';
+import type { InlineNode } from '#lib/core/nodes.js';
+import { codeSpanFence } from '#lib/core/inline/scan/code-spans.js';
 import { renderOptions } from '../../harness/fixture-grammar';
 
 /** The code span as the page draws it: the marker text on each side of the `<code>`. */

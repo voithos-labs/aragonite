@@ -4,17 +4,17 @@
 // `inline-conformance-red.test.ts`.
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins } from '$lib';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
-import { INLINE_PRIORITIES } from '$lib/core/inline/scan/plugin-syntax';
-import { declaredPluginInlineKind } from '$lib/plugin';
-import { runInlineKindConformance } from '$lib/testing';
-import type { InlineConformanceProfile } from '$lib/testing';
-import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
-import { footnotesPlugin, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
-import { latexPlugin } from '$lib/plugins/latex';
-import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { installPlugins } from '#lib';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
+import { INLINE_PRIORITIES } from '#lib/core/inline/scan/plugin-syntax.js';
+import { declaredPluginInlineKind } from '#lib/plugin.js';
+import { runInlineKindConformance } from '#lib/testing.js';
+import type { InlineConformanceProfile } from '#lib/testing.js';
+import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
+import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/index.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 
 const MINTS_ONLY_ITS_OWN_KIND =
 	'the rung mints only its own inline kind, which the scan leaves unstamped by design — ' +

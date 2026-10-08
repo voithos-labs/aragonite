@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createRootMenus, type BlockMenuModel } from '$lib/components/editor-root-menus';
-import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';
-import { BLOCK_ACTIONS_LABEL } from '$lib/a11y-strings';
-import { parse } from '$lib/core/parser';
-import { insertCatalogue } from '$lib/schema/insert-catalogue';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root-menus.js';
+import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
+import { BLOCK_ACTIONS_LABEL } from '#lib/a11y-strings.js';
+import { parse } from '#lib/core/parser.js';
+import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 

@@ -4,12 +4,12 @@
 // Miss-analysis: each route kept its own copy of the span and its own tests, and the removal row
 // ran a no-op command, so the line break Enter writes after a declined removal went unseen.
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { codePasteSurface } from '$lib/components/blocks/code/code-paste-surface';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { ensurePasteSurface } from '$lib/test/support/paste-surface';
-import { settleEditor } from '$lib/test/harness/settle';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountCode, type MountedCode } from './mount-code';
 
 // display "```js\nconst x = 1\n```": opener text [0,5) · info string [3,5) · body [6,17) · closer

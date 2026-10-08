@@ -8,8 +8,8 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import {
 	augmentBlockKind,
 	definePluginBlock,
@@ -17,7 +17,7 @@ import {
 	registerBlockOpener,
 	type BlockCommandContext,
 	type EditorPlugin
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import RevealLeafBlock from '../../blocks/fixtures/RevealLeafBlock.svelte';
 import { registerRevealLeafKind } from '../../blocks/fixtures/reveal-leaf';
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { PluginBlockKind } from '$lib/core/nodes';
-import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
+import type { PluginBlockKind } from '#lib/core/nodes.js';
+import { declarePluginKind, declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	registerBlockKind,
 	augmentBlockKind,
@@ -8,9 +8,9 @@ import {
 	tryGetBlockKindDescriptor,
 	FIXED_AT_REGISTRATION,
 	type BlockKindAugmentation
-} from '$lib/schema/block-kind-descriptor';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { testClosure } from '$lib/test/support/closure';
+} from '#lib/schema/block-kind-descriptor.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { testClosure } from '#lib/test/support/closure.js';
 
 const minimal = {
 	gapEdges: 'none',

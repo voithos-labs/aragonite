@@ -2,8 +2,8 @@
 // Miss-analysis: the open inline menu's ARIA was asserted only on the paragraph, never on a leaf.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount, flushSync } from 'svelte';
-import type { InlineMenuCombobox } from '$lib/inline-menu/inline-menu-state.svelte';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import type { InlineMenuCombobox } from '#lib/inline-menu/inline-menu-state.svelte.js';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'combobox-leaf';

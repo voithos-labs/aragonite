@@ -4,7 +4,7 @@
  * the scan, its cache and the pause-while-typing rule stay pure in the sibling modules.
  */
 
-import { definePlugin, type EditorPlugin } from '$lib/plugin';
+import { definePlugin, type EditorPlugin } from '#lib/plugin.js';
 import { createOccurrenceSource } from './occurrence-source';
 
 export interface HighlightOccurrencesOptions {

@@ -5,13 +5,13 @@ import {
 	declaredPluginKind,
 	setPluginMetadata,
 	getPluginMetadata
-} from '$lib/plugin';
-import { runContainerConformance, type ContainerConformanceProfile } from '$lib/testing';
+} from '#lib/plugin.js';
+import { runContainerConformance, type ContainerConformanceProfile } from '#lib/testing.js';
 import {
 	registerMermaidKind,
 	MERMAID,
 	type MermaidMetadata
-} from '$lib/plugins/mermaid/mermaid-kind';
+} from '#lib/plugins/mermaid/mermaid-kind.js';
 
 const MERMAID_KIND = () => declaredPluginKind(MERMAID);
 

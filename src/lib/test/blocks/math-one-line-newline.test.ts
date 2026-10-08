@@ -4,13 +4,13 @@
 // Miss-analysis: every Enter row opened a multi-line source, so none read a one-line `$$` with a
 // line break in it, the shape the painter, the write rule and the parser each read differently.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { parse } from '$lib';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { createSurfaceBackend } from '$lib/cursor/surface-backend';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { parse } from '#lib';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { createSurfaceBackend } from '#lib/cursor/surface-backend.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,

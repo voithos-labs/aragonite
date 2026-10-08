@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
+import { installPlugins } from '#lib';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 // A tab in a body's indentation counts to the next multiple of four columns, as CommonMark
 // expands it (expectations checked against commonmark.js). The document keeps its tab; a child

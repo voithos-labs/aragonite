@@ -5,25 +5,25 @@
 // outside a construct, so their literal splice never had a delimiter run beside it.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import {
 	createTextClipboard,
 	type TextClipboardDeps
-} from '$lib/components/blocks/text/text-clipboard';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { stubCaretMemory } from '$lib/testing/headless-actions';
+} from '#lib/components/blocks/text/text-clipboard.js';
+import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { storedAsAt } from '#lib/tree-operations/stored-as.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { stubCaretMemory } from '#lib/testing/headless-actions.js';
 import { makeEditorActionsDeps, makeStubBlockEdit } from '../../harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { harness as selectedWidget } from './widget-selected-fixture';
@@ -35,7 +35,7 @@ import {
 	mountIslandBlock,
 	mountSurface
 } from './edge-policy-fixture';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
 
 const LIVE = fixtureReading({}, 'live');
 const IMAGE = 'x **![a](b.png)** y\n';

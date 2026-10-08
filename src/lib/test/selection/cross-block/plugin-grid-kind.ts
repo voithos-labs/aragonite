@@ -3,14 +3,14 @@
 // table metadata anywhere), plus the document and the stored-endpoint plan its suites test
 // against.
 
-import { parse } from '$lib/core/parser';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { planCrossBlockFormat } from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
 
 const joinChildren = (node: CstNode, sep: string) =>
 	(node.children ?? []).map((child) => child.raw).join(sep);

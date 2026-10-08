@@ -6,7 +6,7 @@ import {
 	getBlockKindDescriptor,
 	tryGetBlockKindDescriptor
 } from '../../schema/block-kind-descriptor';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 describe('block-kind-descriptor registry', () => {
 	it('has a descriptor for every BlockKind', () => {

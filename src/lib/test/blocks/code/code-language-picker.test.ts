@@ -3,9 +3,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { LanguageFn } from 'highlight.js';
-import { registerLanguage } from '$lib/components/blocks/code/code-languages';
+import { registerLanguage } from '#lib/components/blocks/code/code-languages.js';
 import { mountCode, type MountedCode } from './mount-code';
-import { dispatchKey } from '$lib/test/harness/settle';
+import { dispatchKey } from '#lib/test/harness/settle.js';
 
 const stubGrammar = (() => ({ name: 'stub' })) as unknown as LanguageFn;
 const FENCE = '```js\nconst x = 1\n```\n';

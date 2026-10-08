@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createDraftRegistry } from '$lib/components/draft-registry';
-import type { DraftCloseCause } from '$lib/schema/drafts';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import type { DraftCloseCause } from '#lib/schema/drafts.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 
 function setup() {
 	const stamps = createDocumentStamps();

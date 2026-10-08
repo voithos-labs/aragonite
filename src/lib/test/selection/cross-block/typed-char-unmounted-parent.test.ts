@@ -3,11 +3,11 @@
 // same write as any keystroke, so its kind follows its bytes.
 // Miss-analysis: every typed-character case typed into a mounted list or at the top level.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { makeBlockListState } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeBlockListState } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { makeEnv, makeHandlers, makeBeforeInputEvent } from './typed-char-env';
 
 describe('a typed character inside a container that never mounted', () => {

@@ -4,15 +4,15 @@
 // (the window recompute jumps past it), so a made-up WindowResult is the honest way to test it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import BlockList from '$lib/components/BlockList.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { parse } from '$lib/core/parser';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import type { WindowResult } from '$lib/reactivity/block-window.svelte';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import BlockList from '#lib/components/BlockList.svelte';
+import type { BlockComponent } from '#lib/block-component.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
+import { parse } from '#lib/core/parser.js';
+import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import type { WindowResult } from '#lib/reactivity/block-window.svelte.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { editorMountContext } from '../harness/mount-context';
-import { installEditorDomStubsForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
 
 const BLOCK_COUNT = 6;
 const SLICE_END = 3;

@@ -9,7 +9,7 @@ import {
 	mountEditor,
 	placeCaret,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt, installTableLayoutStubs } from './mount-table';
 
 let restoreLayout: () => void;

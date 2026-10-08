@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib';
-import { normalizeOwnRaw } from '$lib/tree-operations/node-primitives';
-import { documentLineEnding } from '$lib/plugin';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { parse } from '#lib';
+import { normalizeOwnRaw } from '#lib/tree-operations/node-primitives.js';
+import { documentLineEnding } from '#lib/plugin.js';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 // Both math kinds declare a raw-write rule that puts back a closer a truncating write dropped, so
 // bytes written past the block's editable element (a range delete, a paste, a search-replace)

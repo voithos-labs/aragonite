@@ -5,22 +5,22 @@ import { afterEach } from 'vitest';
 import {
 	createEdgePolicyDispatch,
 	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
-import { parse } from '$lib/core/parser';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
-import { stubBlockEdit } from '$lib/testing/headless-actions';
-import type { CstNode } from '$lib/core/nodes';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
-import { asPresentationMode } from '$lib/presentation-mode';
+} from '#lib/components/blocks/text/edge-policy-dispatch.js';
+import { parse } from '#lib/core/parser.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
+import { stubBlockEdit } from '#lib/testing/headless-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { makePendingMarks } from '#lib/test/harness/editor-actions.js';
+import { asPresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
-import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
+import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
+import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
 
-export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
+export { asRawOffset as at } from '#lib/cursor/coordinate-spaces.js';
 
 /** `updateBlockContent` argument tuples less the write mode, newest last. The anchor is the caret
  *  the key was dispatched at, which the block records at keydown. */

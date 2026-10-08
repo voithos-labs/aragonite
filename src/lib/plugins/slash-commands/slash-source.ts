@@ -12,7 +12,7 @@ import {
 	type InlineMenuSource,
 	type InsertEntry,
 	type MenuIconName
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { acceptsQuery, filterEntries, splitQuery, type FilterableEntry } from './filter';
 
 export const SLASH_COMMANDS_MENU = 'slash-commands';

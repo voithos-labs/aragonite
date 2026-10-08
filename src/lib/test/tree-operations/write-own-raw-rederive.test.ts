@@ -4,10 +4,10 @@ import { serialize } from '../../core/serializer';
 import { mergeIntoPrevDeepLeaf } from '../../tree-operations';
 import { writeOwnRaw } from '../../tree-operations/node-primitives';
 import { documentLineEnding } from '../../core/lines';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The in-place write re-derives kind and parse-owned metadata from its bytes whether or not its own
 // rule rewrote them, and the deep-leaf merge reparses what it absorbs.

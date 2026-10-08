@@ -3,11 +3,11 @@
 // toggle taken three times over wraps, strips and wraps again.
 // Miss-analysis: every case toggled once, so a wrap's `** word**` never met a second toggle.
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat, type InlineFormatEdit } from '$lib/core/inline/format-toggle';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
+import { toggleInlineFormat, type InlineFormatEdit } from '#lib/core/inline/format-toggle.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 const PLAIN = 'pre word post';
 const MODES: PresentationMode[] = ['source', 'live'];

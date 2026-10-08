@@ -8,8 +8,8 @@ import {
 	mountEditor,
 	surfaceAt,
 	destroyMountedEditors
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

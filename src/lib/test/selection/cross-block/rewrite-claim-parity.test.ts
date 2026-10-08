@@ -4,10 +4,10 @@
 // one spelling is a gap at the other two (G4.40). The dispatcher's lists may also hold a
 // non-rewrite id (`heading.cycle`).
 import { describe, it, expect } from 'vitest';
-import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { CROSS_BLOCK_RANGE_COMMAND_IDS, RANGE_DECLINED_COMMAND_IDS } from '$lib/schema/commands';
-import { normalizeChord } from '$lib/schema/keybindings';
+import { ALL_BLOCK_KINDS } from '#lib/core/nodes.js';
+import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { CROSS_BLOCK_RANGE_COMMAND_IDS, RANGE_DECLINED_COMMAND_IDS } from '#lib/schema/commands.js';
+import { normalizeChord } from '#lib/schema/keybindings.js';
 import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';

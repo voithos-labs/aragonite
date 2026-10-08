@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions';
-import { convertAlertBlockquoteRaw } from '$lib/plugins/admonitions/gh-alert';
-import { documentLineEnding } from '$lib/plugin';
-import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
+import { installPlugins, parse } from '#lib';
+import { admonitionsPlugin, convertGithubAlerts } from '#lib/plugins/admonitions/index.js';
+import { convertAlertBlockquoteRaw } from '#lib/plugins/admonitions/gh-alert.js';
+import { documentLineEnding } from '#lib/plugin.js';
+import { convertGithubAlertsInDocument } from '#lib/plugins/admonitions/convert-document.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);

@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import type { MultiScopeTarget } from '$lib/action-contracts';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
-import { makeListNode } from '$lib/test/harness/list-fixtures';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import type { MultiScopeTarget } from '#lib/action-contracts.js';
+import type { BlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { makeListNode } from '#lib/test/harness/list-fixtures.js';
 
 const makeContainer = (childRaws: string[]): CstNode =>
 	makeListNode(childRaws, { childIds: childRaws.map((_, i) => `c-${i}`) });

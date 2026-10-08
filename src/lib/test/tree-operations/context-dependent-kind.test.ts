@@ -5,9 +5,9 @@ import { writeTableRow } from '../../schema/container-rebuilders';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({

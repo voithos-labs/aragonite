@@ -3,17 +3,17 @@ import {
 	normalizeKeybindingOverrides,
 	lookupOverride,
 	overrideDecision
-} from '$lib/schema/keybinding-overrides';
+} from '#lib/schema/keybinding-overrides.js';
 import {
 	resolveBinding,
 	resolveKindBinding,
 	isDefaultGlobalChord,
 	resolveGlobalBinding
-} from '$lib/schema/commands';
-import { mintCommandId } from '$lib/schema/command-id';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/schema/commands.js';
+import { mintCommandId } from '#lib/schema/command-id.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 describe('normalizeKeybindingOverrides', () => {
 	it('compiles a global rebind', () => {

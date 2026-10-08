@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hidesDelimitersAtCaret, type PresentationMode } from '$lib/presentation-mode';
+import { hidesDelimitersAtCaret, type PresentationMode } from '#lib/presentation-mode.js';
 
 // Keyed by the union, so a new mode fails `npm run check` here until someone decides whether a
 // rewrite at its caret may drop delimiter bytes.

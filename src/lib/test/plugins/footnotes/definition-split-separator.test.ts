@@ -2,13 +2,13 @@
 // blocks, so without a separator the two children re-emit as continuation lines that
 // reparse back into one paragraph.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { rebuildFootnoteDefRaw } from '$lib/plugins/footnotes/footnote-definition';
-import { splitNode } from '$lib/tree-operations';
-import { describeConvergence } from '$lib/testing/parse-convergence';
+import { installPlugins, parse, serialize } from '#lib';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { rebuildFootnoteDefRaw } from '#lib/plugins/footnotes/footnote-definition.js';
+import { splitNode } from '#lib/tree-operations/index.js';
+import { describeConvergence } from '#lib/testing/parse-convergence.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 describe('footnote definition Enter at the end of the body', () => {
 	beforeEach(() => {

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
-import { parseInline } from '$lib/core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
+import { toggleInlineFormat } from '#lib/core/inline/format-toggle.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
 import { renderOptions } from '../../harness/fixture-grammar';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // Where delimiters are hidden, a write stands only if the screen reads the same (live-mode.md § 2).
 // Miss-analysis: every toggle case selected a bare word, never a slice markdown refuses to wrap.

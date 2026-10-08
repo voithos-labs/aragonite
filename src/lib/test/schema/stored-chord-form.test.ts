@@ -1,11 +1,11 @@
 // The chord tables written by hand hold the normal form, since the resolvers compare stored
 // chords as is and a chord out of modifier order would never match a keypress.
 import { describe, it, expect } from 'vitest';
-import { GLOBAL_KEYMAP, kindKeymap, reservedUiChords } from '$lib/schema/commands';
-import { HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
-import { normalizeChord } from '$lib/schema/keybindings';
-import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
-import { getAllRegisteredKinds } from '$lib/schema/block-kind-descriptor';
+import { GLOBAL_KEYMAP, kindKeymap, reservedUiChords } from '#lib/schema/commands.js';
+import { HARDCODED_CHORD_SITES } from '#lib/schema/reserved-chords.js';
+import { normalizeChord } from '#lib/schema/keybindings.js';
+import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
+import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 
 const denormal = (chords: readonly string[]) => chords.filter((c) => c !== normalizeChord(c));
 

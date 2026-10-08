@@ -17,9 +17,9 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '../../../schema/inline-construct-policy';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import type { Reading } from '$lib/schema/reading';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import type { Reading } from '#lib/schema/reading.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */
 const asBody = (parent: { children?: CstNode[] }) => ({

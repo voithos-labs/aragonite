@@ -1,12 +1,12 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import {
 	makeNestedHarness,
 	makeNode,
 	makeTopHarness,
 	mountEveryBlock
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 
 // The fixtures patch fields onto nodes a reload would read without them.
 afterEach(() => allowDevWarns(['invariant:reads-back']));

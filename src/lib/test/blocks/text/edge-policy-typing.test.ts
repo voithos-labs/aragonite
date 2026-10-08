@@ -2,9 +2,9 @@
 // The caret-edge dispatch's typing branches: marker completion, pending marks, branch
 // order, and what a keystroke reads of the tree.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { asRawOffset, asDomTextOffset } from '$lib/cursor/coordinate-spaces';
+import { parse } from '#lib/core/parser.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { asRawOffset, asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
 import {
 	installEdgeDispatchCleanup,
 	makeEdgeDispatch,
@@ -13,20 +13,20 @@ import {
 	key,
 	type EdgeDispatchHarness
 } from './edge-policy-fixture';
-import { type CstNode, type Document } from '$lib/core/nodes';
-import { type EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { type PendingMarks } from '$lib/cursor/pending-marks';
-import { type InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import { makePendingMarks, makeTopHarness } from '$lib/test/harness/editor-actions';
-import { serialize } from '$lib/core/serializer';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { type CstNode, type Document } from '#lib/core/nodes.js';
+import { type EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import { type PendingMarks } from '#lib/cursor/pending-marks.js';
+import { type InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
+import { makePendingMarks, makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { serialize } from '#lib/core/serializer.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { takeDevWarns } from '../../support/warn-gate';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
-import { applyLiveRangeEdit } from '$lib/components/blocks/text/live-selection-edit';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { storedAsAt } from '#lib/tree-operations/stored-as.js';
+import { applyLiveRangeEdit } from '#lib/components/blocks/text/live-selection-edit.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
 import { mountBlock } from '../../harness/mount-block';
 import { settleEditor } from '../../harness/settle';
 import { noIslands } from '../table/mount-cell';

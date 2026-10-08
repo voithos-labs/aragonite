@@ -25,7 +25,7 @@ import {
 	OPENER_PRIORITIES,
 	type ContainerBodyWrap,
 	type CstNode
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 export const DETAILS = 'details';
 export const DETAILS_SUMMARY = 'details-summary';

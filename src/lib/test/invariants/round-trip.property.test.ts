@@ -11,7 +11,7 @@ import {
 	arbLargeDoc,
 	freshOrFixedSeed
 } from './arbitraries';
-import { describeRoundTrips } from '$lib/test/support/round-trip';
+import { describeRoundTrips } from '#lib/test/support/round-trip.js';
 
 // serialize(parse(s)) === s for all inputs (G2.1). The parser is total and the serializer
 // is pure byte concatenation, so any counterexample is a real defect.

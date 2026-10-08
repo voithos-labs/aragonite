@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { fencedCodeWrite } from '$lib/schema/fenced-code-raw';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { fencedCodeWrite } from '#lib/schema/fenced-code-raw.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 /** The document line ending a write runs under, LF or CRLF. */
 const LF_WRITE = { lineEnding: '\n' } as const;

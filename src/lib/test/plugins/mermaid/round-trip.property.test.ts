@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { freshOrFixedSeed } from '../../invariants/arbitraries';
-import { parse, serialize, type CstNode } from '$lib';
-import { getPluginMetadata } from '$lib/plugin';
-import { registerMermaidKind, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
+import { parse, serialize, type CstNode } from '#lib';
+import { getPluginMetadata } from '#lib/plugin.js';
+import { registerMermaidKind, type MermaidMetadata } from '#lib/plugins/mermaid/mermaid-kind.js';
 
 // Awkward fence shapes for serialize(parse(src)) === src, run in both install states so
 // uninstall safety comes out by construction. Pure byte identity, so even a code line that

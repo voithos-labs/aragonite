@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
 import { makeKeydownEnv, press } from './keydown-env';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 
 // Every key the cross-block dispatcher consumes returns before handleSharedKeydown's sticky
 // decision, and the collapse branches run no commit, so nothing downstream resets the column.

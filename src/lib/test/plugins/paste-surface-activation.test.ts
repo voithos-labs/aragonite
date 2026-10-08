@@ -1,19 +1,19 @@
 // @vitest-environment jsdom
 // Miss-analysis: no test pasted into a plugin kind's block with that plugin left out (GH #394).
 import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { activationFor, type PluginActivation } from '$lib/schema/plugin-activation';
-import { registerPasteTransform } from '$lib/tree-operations/paste/paste-transforms';
-import { getPasteSurface, registerPasteSurface } from '$lib/tree-operations/paste-surfaces';
-import { defaultInlineHook } from '$lib/tree-operations/paste/hooks';
-import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
-import type { BlockComponent } from '$lib/block-component';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { activationFor, type PluginActivation } from '#lib/schema/plugin-activation.js';
+import { registerPasteTransform } from '#lib/tree-operations/paste/paste-transforms.js';
+import { getPasteSurface, registerPasteSurface } from '#lib/tree-operations/paste-surfaces.js';
+import { defaultInlineHook } from '#lib/tree-operations/paste/hooks.js';
+import { registerChromeLeaf } from '#lib/editor-actions/plugin/chrome-leaf.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { makeEditorActionsDeps, makeStubBlockEdit } from '#lib/test/harness/editor-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { BlockComponent } from '#lib/block-component.js';
 import type { Component } from 'svelte';
 import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 

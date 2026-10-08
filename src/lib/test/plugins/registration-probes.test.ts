@@ -10,9 +10,9 @@ import {
 	declarePluginInlineKind,
 	registerPasteTransform,
 	isPasteTransformRegistered
-} from '$lib/plugin';
-import { applyPasteTransforms, resetPluginPlatformForTests } from '$lib/testing';
-import { configureEditorEnv } from '$lib/env';
+} from '#lib/plugin.js';
+import { applyPasteTransforms, resetPluginPlatformForTests } from '#lib/testing.js';
+import { configureEditorEnv } from '#lib/env.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 const KIND = 'probe-declared-kind';

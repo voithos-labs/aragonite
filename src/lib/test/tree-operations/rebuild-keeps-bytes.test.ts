@@ -3,30 +3,30 @@
 // Miss-analysis: every container fixture was written in the rebuild's own spelling, so a rebuild
 // that respelled the whole container wrote back the bytes it read and no test saw lines move.
 import { beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { ListContext } from '$lib/action-contracts';
-import { displayLength, documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { buildQuoteExitReplacement, plainQuote } from '$lib/tree-operations/blockquote';
-import { liftFirstChild } from '$lib/tree-operations/container-lift';
-import { buildExitReplacement } from '$lib/tree-operations/list/exit-replacement';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { ListContext } from '#lib/action-contracts.js';
+import { displayLength, documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { buildQuoteExitReplacement, plainQuote } from '#lib/tree-operations/blockquote.js';
+import { liftFirstChild } from '#lib/tree-operations/container-lift.js';
+import { buildExitReplacement } from '#lib/tree-operations/list/exit-replacement.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
 import {
 	makeBlockListState,
 	makeContainerHarness,
 	makeEditorActionsDeps,
 	makeListContextAt,
 	makeTopHarness
-} from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+} from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 type Bundle = ReturnType<typeof makeContainerHarness>['bundle'];
 

@@ -6,7 +6,7 @@ import { serialize } from '../../core/serializer';
 import { reorderChildrenWithTrivia } from '../../tree-operations/reorder';
 import { documentBody } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // Blocks a paragraph can continue into and blocks it can't, with doubled blank lines, since an
 // extra blank line is a node that doesn't travel with the block below it.

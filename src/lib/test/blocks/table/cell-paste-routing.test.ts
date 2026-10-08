@@ -3,13 +3,13 @@
 // the handling registered for `tableCell`. Either failure breaks the table silently: the generic
 // inline handling taking the paste, or a pasted newline reaching `cell.raw`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { metadataOf } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { metadataOf } from '#lib/core/nodes.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt } from './mount-table';
 
 beforeAll(installLayoutStubs);

@@ -2,22 +2,22 @@
 // Miss-analysis: GH #429, only the split was ever tested against the editor's grammar.
 
 import { beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createRegistryView } from '$lib/schema/registry-view';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockCompleter } from '$lib/schema/block-completions';
-import { mergeWithNext } from '$lib/tree-operations';
-import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
-import { documentBody } from '$lib/tree-operations/node-primitives';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { registerBlockCompleter } from '#lib/schema/block-completions.js';
+import { mergeWithNext } from '#lib/tree-operations/index.js';
+import { reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { describeConvergence } from '../harness/parse-converged';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { makeEditorActionsDeps, makeStubBlockEdit, pasteContext } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 

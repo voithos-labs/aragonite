@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_BLOCK_KINDS, isBuiltinBlockKind } from '$lib/core/nodes';
-import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { checkCopyIsRawByteSlice, runKindConformance } from '$lib/testing';
+import { ALL_BLOCK_KINDS, isBuiltinBlockKind } from '#lib/core/nodes.js';
+import {
+	getAllRegisteredKinds,
+	getBlockKindDescriptor
+} from '#lib/schema/block-kind-descriptor.js';
+import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
 import { BUILTIN_KIND_PROFILES } from './builtin-kind-profiles';
 
 // Swept over the descriptor registry, so registering a built-in kind enrolls it here:

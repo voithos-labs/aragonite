@@ -8,13 +8,13 @@ import {
 	registerBlockOpener,
 	simpleLeafClosure,
 	type EditorPlugin
-} from '$lib/plugin';
-import type { BlockKindRegistration } from '$lib/schema/block-kind-descriptor';
-import type { CstNode, Document, PluginBlockKind } from '$lib/core/nodes';
-import { trimTrailingLineEnding } from '$lib/core/lines';
+} from '#lib/plugin.js';
+import type { BlockKindRegistration } from '#lib/schema/block-kind-descriptor.js';
+import type { CstNode, Document, PluginBlockKind } from '#lib/core/nodes.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { mountBlock, type MountBlockOptions } from '../../harness/mount-block';
-import { settleEditor } from '$lib/test/harness/settle';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 export function registerRevealLeafKind(
 	name: string,

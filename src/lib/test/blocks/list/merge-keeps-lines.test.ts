@@ -4,14 +4,14 @@
 // Miss-analysis: every merge fixture gave the merged item no children, or one sublist, so nothing
 // held a paragraph after a sublist, where the merge moved the paragraph above the sublist's items.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	pressKeyAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

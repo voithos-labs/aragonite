@@ -1,12 +1,12 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import type { MultiScopeTarget } from '$lib/action-contracts';
-import { concatChildren, serialize } from '$lib/core/serializer';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { UndoEntry } from '$lib/undo/types';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import type { MultiScopeTarget } from '#lib/action-contracts.js';
+import { concatChildren, serialize } from '#lib/core/serializer.js';
+import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import type { UndoEntry } from '#lib/undo/types.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { makeListItem, makeListNode } from '#lib/test/harness/list-fixtures.js';
 
 // The scope fixtures are hand-built, not parser output: the stale-raw and read-back checks read
 // them as stale, and the one-block check reads their childless list items as emptied.

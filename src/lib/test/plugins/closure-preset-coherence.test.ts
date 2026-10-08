@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { declaredPluginKind } from '$lib/plugin';
-import { checkClosureCoherence } from '$lib/invariants/registry';
-import { closureCoherenceEntry } from '$lib/schema/registration-checks';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
-import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
+import { declaredPluginKind } from '#lib/plugin.js';
+import { checkClosureCoherence } from '#lib/invariants/registry.js';
+import { closureCoherenceEntry } from '#lib/schema/registration-checks.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { registerTocBlock, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 
 // The blocks built on simpleLeafClosure, checked against their registered descriptors so a

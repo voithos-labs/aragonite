@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { placeGapCaret } from '$lib/selection/caret-doors';
-import { isGapSelection } from '$lib/undo/types';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { parse } from '#lib/core/parser.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { placeGapCaret } from '#lib/selection/caret-doors.js';
+import { isGapSelection } from '#lib/undo/types.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 
 // An undo entry taken with the caret between blocks records that position. Every block here is
 // mounted but reports no caret, so the gap must also beat the declared fallback coordinate.

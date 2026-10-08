@@ -3,8 +3,8 @@
 // Miss-analysis: GH #525, the undo suite ran only the toggle's wrapper, no other command.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { UndoEntry } from '$lib/undo/types';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { UndoEntry } from '#lib/undo/types.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -15,8 +15,8 @@ import {
 	typeInFirstBlock,
 	typeInto,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt, installTableLayoutStubs } from './table/mount-table';
 
 beforeAll(() => {

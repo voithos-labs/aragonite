@@ -3,8 +3,8 @@
 // Miss-analysis: the join rules were pinned on the tree operation alone, so a move through the
 // action with its undo, or a table landing under prose, ran only in a browser.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import { serialize } from '#lib/core/serializer.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { makeReorderHarness } from './reorder-harness';
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |';

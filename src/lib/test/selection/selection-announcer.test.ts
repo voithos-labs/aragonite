@@ -1,8 +1,8 @@
 // Miss-analysis: nothing sat between the editor's snapshot and the event to assert a repeat on.
 import { describe, it, expect } from 'vitest';
-import { createSelectionAnnouncer } from '$lib/selection/selection-announcer';
-import type { EditorSelection } from '$lib/selection/primitives';
-import { caretAt } from '$lib/test/harness/editor-selection';
+import { createSelectionAnnouncer } from '#lib/selection/selection-announcer.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+import { caretAt } from '#lib/test/harness/editor-selection.js';
 
 function harness(script: (EditorSelection | null)[]) {
 	const sent: (EditorSelection | null)[] = [];

@@ -8,9 +8,9 @@ import {
 	registerBlockComponent,
 	defineBlockComponent,
 	containerClosure
-} from '$lib/plugin';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { ContainerBlockComponent } from '$lib/block-component';
+} from '#lib/plugin.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { ContainerBlockComponent } from '#lib/block-component.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext, type MountContextOverrides } from '../../harness/mount-context';
 import OpaqueContainerBlock from './OpaqueContainerBlock.svelte';

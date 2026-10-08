@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import { getPluginMetadata } from '$lib/plugin';
+import { parse, serialize } from '#lib';
+import { getPluginMetadata } from '#lib/plugin.js';
 import {
 	registerDetailsKind,
 	rebuildDetailsRaw,
 	type DetailsMetadata
-} from '$lib/plugins/details/details-kind';
+} from '#lib/plugins/details/details-kind.js';
 
 // Without edits an opaque container emits its `raw` verbatim, so only `rebuildDetailsRaw`
 // is at risk: the three tag lines it builds have to reproduce the authored line ending rather

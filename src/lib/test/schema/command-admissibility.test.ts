@@ -8,12 +8,12 @@ import {
 	dispatchKeyCommand,
 	registerBlockCommand,
 	type KindCommandTarget
-} from '$lib/schema/block-commands';
-import { TOOLBAR_COMMANDS } from '$lib/index';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import type { AnyCommandId } from '$lib/schema/command-id';
-import type { NodeView } from '$lib/core/node-views';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/schema/block-commands.js';
+import { TOOLBAR_COMMANDS } from '#lib/index.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
+import type { AnyCommandId } from '#lib/schema/command-id.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { allowDevWarns } from '../support/warn-gate';
 import { commandContext as context } from '../support/command-context';
 

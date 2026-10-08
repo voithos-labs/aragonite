@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { displayLength } from '$lib/core/lines';
-import type { CstNode } from '$lib/core/nodes';
-import { leafAtRawOffset, rawOffsetOfLeaf } from '$lib/tree-operations/container-offsets';
+import { parse } from '#lib/core/parser.js';
+import { displayLength } from '#lib/core/lines.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { leafAtRawOffset, rawOffsetOfLeaf } from '#lib/tree-operations/container-offsets.js';
 
 // A fix-up that merges blocks tracks the caret as an offset into the merged block's raw, and a
 // container's raw re-prefixes its children's lines, so the offset has to be mapped to a leaf.

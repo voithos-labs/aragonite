@@ -2,10 +2,10 @@
 // Miss-analysis: no test at the leaf rebound or disabled the undo chord a reveal answers.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount } from 'svelte';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'reveal-undo-leaf';

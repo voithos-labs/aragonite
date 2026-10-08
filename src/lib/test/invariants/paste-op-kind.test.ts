@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, type Mock } from 'vitest';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { parse } from '$lib/core/parser';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { parse } from '#lib/core/parser.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor-events';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+} from '#lib/test/harness/editor-actions.js';
+import type { EditEvent } from '#lib/editor-events.js';
+import type { BlockListState } from '#lib/reactivity/block-list-state.svelte.js';
 
 // A paste surfaces under more than one op kind, chosen by the paste strategy rather than the
 // target's depth, so a consumer counting pastes must watch all three (G2.9).

@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
-import { documentBody } from '$lib/tree-operations/node-primitives';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { rebuildContainerRaw } from '$lib/schema/container-raw';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { documentLineEnding } from '$lib/core/lines';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 // A write that leaves a construct open to the end of the file closes it, so the blocks below stand
 // instead of becoming its body.

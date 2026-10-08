@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { configureEditorEnv } from '$lib/env';
+import { configureEditorEnv } from '#lib/env.js';
 import { allowDevWarns, takeDevWarns } from '../support/warn-gate';
-import { registerGlobalCommand } from '$lib/schema/global-commands';
-import { dispatchKeyCommand, runCommandById } from '$lib/schema/block-commands';
+import { registerGlobalCommand } from '#lib/schema/global-commands.js';
+import { dispatchKeyCommand, runCommandById } from '#lib/schema/block-commands.js';
 import {
 	getCommand,
 	resolveBinding,
@@ -11,10 +11,10 @@ import {
 	runGlobalChord,
 	pluginGlobalBinding,
 	type GlobalCommandContext
-} from '$lib/schema/commands';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { definePlugin, installPlugins, type EditorContext } from '$lib/schema/plugin-install';
+} from '#lib/schema/commands.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
 import { commandContext } from '../support/command-context';
 
 const editor = {

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { crossBlockClipboardArm } from '$lib/selection/cross-block/clipboard';
-import { runClipboardCut } from '$lib/components/blocks/clipboard-step';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { parse } from '$lib/core/parser';
-import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
-import type { SelectionState } from '$lib/selection/selection-state.svelte';
+import { crossBlockClipboardArm } from '#lib/selection/cross-block/clipboard.js';
+import { runClipboardCut } from '#lib/components/blocks/clipboard-step.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { parse } from '#lib/core/parser.js';
+import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
+import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
 
 function makeDeps(selection: SelectionState, deleteSpy = vi.fn(async () => {})) {
 	const doc = parse('hello\n\nworld\n');

@@ -1,37 +1,38 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { readFileSync } from 'fs';
-import path from 'path';
+import { existsSync, readFileSync } from 'fs';
 import type { Plugin } from 'vite';
 
 const DEEP_STACK = 'src/lib/**/*.deep.test.ts';
 // Files that hand objects to a native addon, which rejects objects made in another VM context.
 const NODE_REALM = ['src/lib/test/invariants/lint/dev-prebundle.test.ts'];
 
-// The on-disk transform cache keys a file on its own bytes, this config and the lockfile; these
-// files shape a transform too (the consumer example's, for the file a unit test imports from it).
+// The on-disk transform cache keys a file on its own bytes, this config and the lockfile; these files
+// shape a transform too (package.json maps `#lib`; a missing file, such as an unsynced one, reads empty).
 const TRANSFORM_INPUTS = [
-	'svelte.config.js',
+	'package.json',
 	'tsconfig.json',
-	'.svelte-kit/tsconfig.json',
+	'node_modules/$app/tsconfig.json',
 	'examples/consumer/tsconfig.json',
-	'examples/consumer/.svelte-kit/tsconfig.json'
+	'examples/consumer/node_modules/$app/tsconfig.json'
 ];
 
 const keyCacheOnTransformInputs: Plugin = {
 	name: 'aragonite:key-cache-on-transform-inputs',
 	configureVitest({ defineCacheKeyGenerator }) {
-		const inputs = TRANSFORM_INPUTS.map((file) => readFileSync(file, 'utf8')).join('\n');
+		const inputs = TRANSFORM_INPUTS.map((file) =>
+			existsSync(file) ? readFileSync(file, 'utf8') : ''
+		).join('\n');
 		defineCacheKeyGenerator(() => inputs);
 	}
 };
 
 export default defineConfig({
-	plugins: [svelte({ compilerOptions: { hmr: false } }), keyCacheOnTransformInputs],
+	plugins: [
+		svelte({ configFile: false, compilerOptions: { hmr: false } }),
+		keyCacheOnTransformInputs
+	],
 	resolve: {
-		alias: {
-			$lib: path.resolve('./src/lib')
-		},
 		// Client svelte build, so unit tests can drive the runes graph. The default node
 		// resolution picks the server build, where effects are no-ops.
 		conditions: ['browser']

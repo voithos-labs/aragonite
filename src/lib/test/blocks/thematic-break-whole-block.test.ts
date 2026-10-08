@@ -4,15 +4,15 @@
 // focus element the block publishes, and its keydown order (editor-global chord, kind keymap,
 // default keys) with its own reading-mode check.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { displayLength } from '$lib/core/lines';
-import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
+import { displayLength } from '#lib/core/lines.js';
+import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/editor-actions/whole-block-focus-surface.js';
 import {
 	BREAK_INDEX as INDEX,
 	BREAK_RAW as RAW,
 	mountBreak,
 	type MountedBreak
 } from './mount-break';
-import { dispatchKey } from '$lib/test/harness/settle';
+import { dispatchKey } from '#lib/test/harness/settle.js';
 
 let mounted: MountedBreak;
 afterEach(async () => {

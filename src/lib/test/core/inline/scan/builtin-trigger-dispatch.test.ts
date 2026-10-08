@@ -1,9 +1,9 @@
 // For every character, the scanner's switch runs exactly the handler the built-in trigger
 // table (`core/inline/scan/triggers.ts`) lists for it, so the two cannot drift apart.
 import { describe, expect, it, vi } from 'vitest';
-import { scanInline } from '$lib/core/inline/scan';
-import { BUILTIN_TRIGGERS } from '$lib/core/inline/scan/triggers';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { scanInline } from '#lib/core/inline/scan/index.js';
+import { BUILTIN_TRIGGERS } from '#lib/core/inline/scan/triggers.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 const calls = vi.hoisted(() => [] as { handler: unknown; pos: number }[]);
 
@@ -21,11 +21,15 @@ const recordHandlers = vi.hoisted(
 		)
 );
 
-vi.mock('$lib/core/inline/scan/autolinks', async (original) => recordHandlers(await original()));
-vi.mock('$lib/core/inline/scan/brackets', async (original) => recordHandlers(await original()));
-vi.mock('$lib/core/inline/scan/code-spans', async (original) => recordHandlers(await original()));
-vi.mock('$lib/core/inline/scan/emphasis', async (original) => recordHandlers(await original()));
-vi.mock('$lib/core/inline/scan/simple-nodes', async (original) => recordHandlers(await original()));
+vi.mock('#lib/core/inline/scan/autolinks.js', async (original) => recordHandlers(await original()));
+vi.mock('#lib/core/inline/scan/brackets.js', async (original) => recordHandlers(await original()));
+vi.mock('#lib/core/inline/scan/code-spans.js', async (original) =>
+	recordHandlers(await original())
+);
+vi.mock('#lib/core/inline/scan/emphasis.js', async (original) => recordHandlers(await original()));
+vi.mock('#lib/core/inline/scan/simple-nodes.js', async (original) =>
+	recordHandlers(await original())
+);
 
 // The handler the scan loop ran at offset 1 of `[` + char; the `[` defeats the fast bail.
 function handlerRunOn(char: string): unknown {

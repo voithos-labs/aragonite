@@ -3,13 +3,13 @@
 // Miss-analysis: the first version checked a stand-in (a task item holds a paragraph first), which
 // the parser breaks for `- [ ] |b|` over a delimiter row, so it fired on a loadable document.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode, ListItemMetadata } from '$lib/core/nodes';
-import { checkTaskMarkerSlot } from '$lib/invariants/node-shape';
-import { paragraphNode } from '$lib/tree-operations/node-primitives';
-import { assertCommittedNodes } from '$lib/invariants/install';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode, ListItemMetadata } from '#lib/core/nodes.js';
+import { checkTaskMarkerSlot } from '#lib/invariants/node-shape.js';
+import { paragraphNode } from '#lib/tree-operations/node-primitives.js';
+import { assertCommittedNodes } from '#lib/invariants/install.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const check = (node: CstNode) => checkTaskMarkerSlot(node, defaultGrammarView);
 

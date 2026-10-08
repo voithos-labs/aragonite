@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { roundTripCases } from '$lib/test/support/round-trip';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
 
 // Miss-analysis: round-trip suites checked bytes, which folding blanks into `leadingTrivia` keeps.
 

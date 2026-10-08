@@ -4,11 +4,11 @@
 // Miss-analysis: no test had a container that draws a row of its own under a range.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import { parse } from '$lib/core/parser';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
+import { parse } from '#lib/core/parser.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { mountBlockHost, type MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
 
 beforeAll(() => {
 	installEditorDomStubsForTests();

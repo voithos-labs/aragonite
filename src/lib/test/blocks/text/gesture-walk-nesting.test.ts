@@ -1,14 +1,14 @@
 // The gesture paths that read the inline tree walk a deeply nested chain without recursing.
 // Miss-analysis: GH #200's depth tests stopped at render and caret; gesture paths still recursed.
 import { describe, expect, it } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { constructChainAtOffset } from '$lib/components/blocks/text/construct-reveal';
-import { linkConstructAt } from '$lib/components/blocks/text/link-at-point';
-import { clipNodes } from '$lib/components/blocks/text/live-join-seam';
-import { splittableChainAt } from '$lib/components/blocks/text/live-split-rebalance';
-import { constructChainAt } from '$lib/components/blocks/text/pending-mark-insert';
+import { parseInline } from '#lib/core/inline/index.js';
+import type { InlineNode } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { constructChainAtOffset } from '#lib/components/blocks/text/construct-reveal.js';
+import { linkConstructAt } from '#lib/components/blocks/text/link-at-point.js';
+import { clipNodes } from '#lib/components/blocks/text/live-join-seam.js';
+import { splittableChainAt } from '#lib/components/blocks/text/live-split-rebalance.js';
+import { constructChainAt } from '#lib/components/blocks/text/pending-mark-insert.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // Assumes the default V8 stack, as the sibling tests do: raising `--stack-size` makes every one

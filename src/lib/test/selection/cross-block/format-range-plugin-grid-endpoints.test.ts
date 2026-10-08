@@ -3,9 +3,9 @@
 // follows its own rewrite, and a deep grid edge must too.
 // Miss-analysis: every endpoint assertion used a table endpoint, whose cell space no write moves.
 import { describe, expect, it } from 'vitest';
-import type { SelectionPoint } from '$lib/selection/primitives';
-import { collectCrossBlockText } from '$lib/selection/clipboard-text';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });

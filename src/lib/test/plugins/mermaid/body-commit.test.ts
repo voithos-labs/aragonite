@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { joinMermaidBody } from '$lib/plugins/mermaid/mermaid-kind';
+import { joinMermaidBody } from '#lib/plugins/mermaid/mermaid-kind.js';
 
 // The edit textarea rewrites its value to LF, so a commit appending a bare `\n` turns a CRLF
 // diagram's body to LF while its fence lines keep `\r\n`: one edit, a block with mixed

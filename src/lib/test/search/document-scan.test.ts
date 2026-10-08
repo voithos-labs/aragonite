@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { compileMatcher } from '$lib/search/matcher';
-import { scanDocument } from '$lib/search/document-scan';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { compileMatcher } from '#lib/search/matcher.js';
+import { scanDocument } from '#lib/search/document-scan.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const matcherFor = (q: string) => {
 	const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });

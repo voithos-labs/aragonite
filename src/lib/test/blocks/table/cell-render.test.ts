@@ -7,7 +7,7 @@ import type { ResolveLinkUrl } from '../../../editor-keys';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import type { Reading } from '$lib/schema/reading';
+import type { Reading } from '#lib/schema/reading.js';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 

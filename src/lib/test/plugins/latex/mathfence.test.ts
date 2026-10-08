@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import { roundTripCases } from '$lib/test/support/round-trip';
-import { registerMathFence, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
+import { parse, serialize } from '#lib';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
+import { registerMathFence, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
 
 // GitHub's third math form: a fence whose info string starts with `math`. Registered below
 // `fencedCode`, which would otherwise take every fence.

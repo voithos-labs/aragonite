@@ -1,27 +1,27 @@
 // @vitest-environment jsdom
 // The mounted link card: the IME key guard, the Open button's url check, and a rebound
 // open chord.
-import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
+import { createMenuPresence } from '#lib/components/menu/menu-presence.svelte.js';
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync, tick } from 'svelte';
-import { parse } from '$lib/core/parser';
-import { createEditorEvents } from '$lib/editor-events';
-import LinkCard from '$lib/components/link-card/LinkCard.svelte';
-import LinkCardHost from '$lib/components/link-card/LinkCardHost.svelte';
-import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
-import { type InlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
-import { type CaretRestore } from '$lib/selection/caret-restore';
+import { parse } from '#lib/core/parser.js';
+import { createEditorEvents } from '#lib/editor-events.js';
+import LinkCard from '#lib/components/link-card/LinkCard.svelte';
+import LinkCardHost from '#lib/components/link-card/LinkCardHost.svelte';
+import { createLinkCardState } from '#lib/components/link-card/link-card-state.svelte.js';
+import { type InlineRangeCommit } from '#lib/editor-actions/inline-range-commit.js';
+import { type CaretRestore } from '#lib/selection/caret-restore.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { commandContext } from '../../support/command-context';
-import { resolveHref } from '$lib/core/inline-render';
+import { resolveHref } from '#lib/core/inline-render.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	pressKeyAt,
 	destroyMountedEditors
-} from '$lib/test/harness/mount-editor.svelte';
-import { dispatchKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { dispatchKey } from '#lib/test/harness/settle.js';
 
 // A mounted card that an assertion left standing would leak into the next section.
 const liveApps = new Set<() => void>();

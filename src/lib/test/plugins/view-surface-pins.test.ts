@@ -5,11 +5,11 @@
  * or if an implementation widens its view parameter back to the mutable one.
  */
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { DecorationSource, MarkDecoration } from '$lib/decorations/types';
-import type { EditorContext } from '$lib/schema/plugin-install';
-import type { BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { DecorationSource, MarkDecoration } from '#lib/decorations/types.js';
+import type { EditorContext } from '#lib/schema/plugin-install.js';
+import type { BlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 export function compileTimePins(editor: EditorContext): void {
 	// @ts-expect-error raw is serialized bytes, read-only through EditorContext.document

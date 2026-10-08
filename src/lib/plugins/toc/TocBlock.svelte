@@ -6,7 +6,7 @@
 		type DocumentView,
 		type EditorRects,
 		type NodeView
-	} from '$lib/plugin';
+	} from '#lib/plugin.js';
 	import { collectHeadings } from './heading-outline';
 	import { createNavigationQueue } from './navigation-queue';
 	import type { TocOptions } from './toc-plugin';

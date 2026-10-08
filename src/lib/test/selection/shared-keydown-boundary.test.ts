@@ -15,9 +15,9 @@ import {
 	extendFocusToPreviousBlock
 } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { commandContext } from '$lib/test/support/command-context';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { commandContext } from '#lib/test/support/command-context.js';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);

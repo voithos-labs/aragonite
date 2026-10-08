@@ -8,9 +8,9 @@ import {
 	mountEditor,
 	destroyMountedEditors,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import type { CstNode } from '$lib/core/nodes';
-import { getStateForNode } from '$lib/reactivity/state-registry';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { getStateForNode } from '#lib/reactivity/state-registry.js';
 import { collectEditorSources } from '../invariants/lint/scan-source';
 
 interface Seam {
@@ -20,8 +20,8 @@ interface Seam {
 
 // Every height the editor's estimator records, from the mount's own first pass on.
 const records = vi.hoisted((): [string, number][] => []);
-vi.mock('$lib/cursor/height-oracle', async (importOriginal) => {
-	const original = await importOriginal<typeof import('$lib/cursor/height-oracle')>();
+vi.mock('#lib/cursor/height-oracle.js', async (importOriginal) => {
+	const original = await importOriginal<typeof import('#lib/cursor/height-oracle.js')>();
 	return {
 		...original,
 		createHeightOracle: (...args: Parameters<typeof original.createHeightOracle>) => {

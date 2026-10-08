@@ -2,17 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	handleWholeBlockKeys,
 	type WholeBlockKeyDeps
-} from '$lib/editor-actions/container-block-component';
-import { displayLength } from '$lib/core/lines';
-import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import { commandForKey } from '$lib/schema/commands';
+} from '#lib/editor-actions/container-block-component.js';
+import { displayLength } from '#lib/core/lines.js';
+import { createCaretMemory, type CaretMemory } from '#lib/cursor/caret-memory.js';
+import { asEditorX } from '#lib/cursor/coordinate-spaces.js';
+import { commandForKey } from '#lib/schema/commands.js';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
-} from '$lib/schema/keybinding-overrides';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { commandContextWith } from '$lib/test/support/command-context';
+} from '#lib/schema/keybinding-overrides.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { commandContextWith } from '#lib/test/support/command-context.js';
 
 function makeDeps(isReading = () => false, keybindings: KeybindingOverride[] = []) {
 	const splitBlock = vi.fn();

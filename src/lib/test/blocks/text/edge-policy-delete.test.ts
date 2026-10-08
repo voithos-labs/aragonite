@@ -2,9 +2,9 @@
 // The caret-edge dispatch's delete branches: ambient markers, construct edges, setext
 // structure, the first reachable offset, and the step-over deferral.
 import { describe, expect, it, afterAll, beforeAll } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { asRawOffset } from '$lib/cursor/coordinate-spaces';
-import { trimTrailingLineEnding } from '$lib/core/lines';
+import { parse } from '#lib/core/parser.js';
+import { asRawOffset } from '#lib/cursor/coordinate-spaces.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import {
 	at,
 	installEdgeDispatchCleanup,
@@ -14,14 +14,14 @@ import {
 	type EdgeDispatchHarness,
 	mountIslandBlock
 } from './edge-policy-fixture';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
-import { type CstNode } from '$lib/core/nodes';
-import { type EdgeAffinity } from '$lib/cursor/edge-affinity';
-import '$lib/schema/built-in-descriptors';
+} from '#lib/schema/inline-construct-policy.js';
+import { type CstNode } from '#lib/core/nodes.js';
+import { type EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import '#lib/schema/built-in-descriptors.js';
 
 installEdgeDispatchCleanup();
 

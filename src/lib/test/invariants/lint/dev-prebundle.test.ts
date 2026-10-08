@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { resolveConfig } from 'vite';
-import { collectFiles, importSpecifiers, readSource } from './scan-source';
+import { collectFiles, importSpecifiers, isLibrarySpecifier, readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const config = await resolveConfig({ configFile: path.resolve(SOURCE.viteConfig) }, 'serve');
@@ -31,7 +31,8 @@ function appSources() {
 		.map(readSource);
 }
 
-const isPackage = (specifier: string) => !/^[./$]/.test(specifier);
+// A `$` specifier is a SvelteKit module (`$app/paths`), which no pre-bundle holds.
+const isPackage = (specifier: string) => !isLibrarySpecifier(specifier) && !/^[/$]/.test(specifier);
 
 describe('G4.126 the dev server pre-bundles every package before a page asks for it', () => {
 	it('each startup scan entry glob matches a route file', async () => {

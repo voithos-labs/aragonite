@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { INSERT_CHUNK, spliceMany } from '$lib/tree-operations/splice-many';
+import { INSERT_CHUNK, spliceMany } from '#lib/tree-operations/splice-many.js';
 
 /** Past V8's argument limit, so a single spread would raise a RangeError here. */
 const OVER_LIMIT = 200_000;

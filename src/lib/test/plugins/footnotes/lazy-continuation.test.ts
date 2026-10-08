@@ -1,8 +1,8 @@
 // Miss-analysis: no suite compared the definition's extent with cmark-gfm's lazy reading (GH #24).
 // Shapes checked live against api.github.com/markdown.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '$lib/plugins/footnotes';
+import { installPlugins, parse, serialize } from '#lib';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
 
 const NBSP = String.fromCharCode(0xa0);
 

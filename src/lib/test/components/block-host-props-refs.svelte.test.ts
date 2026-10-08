@@ -4,15 +4,18 @@
 // component is checked here; `invariants/lint/block-host-prop-thread` covers the fallback.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import { parse } from '$lib/core/parser';
-import type { BlockComponent } from '$lib/block-component';
-import type { EditorServices } from '$lib/editor-keys';
-import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
+import { parse } from '#lib/core/parser.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { EditorServices } from '#lib/editor-keys.js';
+import {
+	registerBlockComponent,
+	defineBlockComponent
+} from '#lib/schema/block-component-registry.js';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
 import { mountBlockHost } from './mount-host';
 import type { HostProps, MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 beforeAll(installEditorDomStubsForTests);
 

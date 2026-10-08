@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { acceptedBlockAttrs } from '$lib/decorations/reserved-attrs';
+import { acceptedBlockAttrs } from '#lib/decorations/reserved-attrs.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 // The block host is an ancestor of every element the offset traversal walks, so a decoration

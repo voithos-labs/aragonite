@@ -5,12 +5,12 @@
 // one edited source handed to all three.
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
-import { parse } from '$lib';
-import { ownTrailingLineEnding, trimTrailingLineEnding, type LineEnding } from '$lib/plugin';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { reshapeMathEdit } from '$lib/plugins/latex/math-source';
-import { freshOrFixedSeed } from '$lib/test/invariants/arbitraries/property-seed';
+import { parse } from '#lib';
+import { ownTrailingLineEnding, trimTrailingLineEnding, type LineEnding } from '#lib/plugin.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { reshapeMathEdit } from '#lib/plugins/latex/math-source.js';
+import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/property-seed.js';
 import { paintedSplit } from './painted-split';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(688) } as const;

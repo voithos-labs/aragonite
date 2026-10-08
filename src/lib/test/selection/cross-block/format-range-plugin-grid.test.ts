@@ -3,20 +3,20 @@
 // plugin contract, so the toggle's grid branch is reached by kinds with no table metadata, whose
 // endpoints never snap to cell space and arrive as deep `[grid, row, col]` paths.
 // Miss-analysis: every case fed the branch a parsed table lying wholly inside the range.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, expect, it } from 'vitest';
-import { setPluginMetadata } from '$lib/core/nodes';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { setPluginMetadata } from '#lib/core/nodes.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import {
 	applyCrossBlockFormat,
 	crossBlockActiveFormats,
 	planCrossBlockFormat
-} from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
+} from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
-import { documentBody } from '$lib/tree-operations/node-primitives';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 

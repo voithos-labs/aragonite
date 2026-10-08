@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { parse } from '#lib/core/parser.js';
+import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/schema/inline-construct-policy.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 
 // A range replaced inside one block: when the join cleans and when the plain splice stands, where

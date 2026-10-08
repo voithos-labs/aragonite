@@ -2,11 +2,11 @@
 // leaf it wrote for the commit's stale-raw check, or a stale leaf would go unchecked.
 // Miss-analysis: no row drove a same-kind write through the commit.
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createTopLevelScope } from '$lib/editor-actions/block-edit-scope';
-import { commitLeafText } from '$lib/editor-actions/block-edit-core';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createTopLevelScope } from '#lib/editor-actions/block-edit-scope.js';
+import { commitLeafText } from '#lib/editor-actions/block-edit-core.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 
 describe('commitLeafText names the leaf it wrote', () => {
 	it('hands the commit the written copy of a same-kind leaf', async () => {

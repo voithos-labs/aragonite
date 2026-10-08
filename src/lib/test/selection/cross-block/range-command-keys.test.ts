@@ -11,10 +11,10 @@ import {
 	selectRange,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

@@ -5,21 +5,21 @@
 // removal before the write settled ran the break early with every suite green.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { Component } from 'svelte';
-import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import TableCellBlock from '$lib/components/blocks/table/TableCellBlock.svelte';
-import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
-import type { SelectionRemoval } from '$lib/components/blocks/editable-surface';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
+import CodeBlock from '#lib/components/blocks/code/CodeBlock.svelte';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import TableCellBlock from '#lib/components/blocks/table/TableCellBlock.svelte';
+import { TABLE_CONTEXT_KEY } from '#lib/editor-keys.js';
+import type { SelectionRemoval } from '#lib/components/blocks/editable-surface.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
 import {
 	mountBlock,
 	type MountBlockOptions,
 	type MountedBlock
-} from '$lib/test/harness/mount-block';
-import { makeStubBlockEdit } from '$lib/test/harness/editor-actions';
-import { settleEditor } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-block.js';
+import { makeStubBlockEdit } from '#lib/test/harness/editor-actions.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 let mounted: MountedBlock<Record<string, unknown>> | undefined;
 

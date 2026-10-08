@@ -1,25 +1,25 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import type { Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { displayLength } from '$lib/core/lines';
-import { getContentRange, parseInline } from '$lib/core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { isSubsequence } from '$lib/test/harness/live-oracles';
-import { unpaintedResidue } from '$lib/test/simulation/live-screen-reading';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import type { Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { displayLength } from '#lib/core/lines.js';
+import { getContentRange, parseInline } from '#lib/core/inline/index.js';
+import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { isSubsequence } from '#lib/test/harness/live-oracles.js';
+import { unpaintedResidue } from '#lib/test/simulation/live-screen-reading.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import type { PresentationMode } from '$lib/presentation-mode';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 
 /**

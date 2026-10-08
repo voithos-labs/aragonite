@@ -3,7 +3,7 @@
 // builds, so the join-paste reparse honors per-instance enablement. The apply path's side is
 // `test/tree-operations/paste/dispatch-commit.test.ts`.
 import { describe, it, expect } from 'vitest';
-import { createGrammarView } from '$lib/schema/block-openers';
+import { createGrammarView } from '#lib/schema/block-openers.js';
 import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
 import { fixtureReading } from '../../harness/fixture-grammar';
 

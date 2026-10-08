@@ -11,7 +11,7 @@ import {
 } from '../../selection/keyboard-extend';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import { stateAt, el } from './extend-walk-env';
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createGrammarView } from '$lib/schema/block-openers';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { parse } from '#lib/core/parser.js';
+import { createGrammarView } from '#lib/schema/block-openers.js';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 
 // The nested factory must pass deps.grammar as the top-level one does, or a disabled kind's
 // opener typed inside a container creates that kind anyway.

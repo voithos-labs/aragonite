@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { Editor, type EditorProps, type PresentationMode } from '$lib';
+	import { Editor, type EditorProps, type PresentationMode } from '#lib';
 	// `?extraLanguage=on` registers a grammar the editor does not bundle, through the public API a
 	// host uses (`@voithos-labs/aragonite/plugin`): one import, one call, before any editor mounts.
 	// Off by default, because the picker specs measure the language list.
-	import { isLanguageRegistered, registerLanguage } from '$lib/plugin';
+	import { isLanguageRegistered, registerLanguage } from '#lib/plugin.js';
 	import elixir from 'highlight.js/lib/languages/elixir';
-	import { HARNESS_SHOWCASE_CONTENT } from '$lib/e2e/test-content';
-	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+	import { HARNESS_SHOWCASE_CONTENT } from '#lib/e2e/test-content.js';
+	import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 	import DebugPanel from '../../debug-panel/DebugPanel.svelte';
 	import { createPanelState } from '../../debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
@@ -14,7 +14,7 @@
 	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { HarnessSource } from './harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
-	import { slashCommandsPlugin } from '$lib/plugins/slash-commands';
+	import { slashCommandsPlugin } from '#lib/plugins/slash-commands/index.js';
 
 	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
 	const param = (name: string): string | null =>

@@ -3,18 +3,18 @@
 // construct chain filtered to the kinds whose destination is hidden. A link with a blocked scheme
 // resolves like any other, since the card is how a user fixes a blocked URL.
 import { describe, it, expect, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import type { CstNode } from '$lib/core/nodes';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
+import { parse } from '#lib/core/parser.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { createTextRender } from '#lib/components/blocks/text/text-render.js';
 import {
 	LINK_ELEMENT_SELECTOR,
 	linkConstructAt,
 	resolveLinkAtPoint
-} from '$lib/components/blocks/text/link-at-point';
-import { makeRenderHarness } from '$lib/test/harness/text-render';
+} from '#lib/components/blocks/text/link-at-point.js';
+import { makeRenderHarness } from '#lib/test/harness/text-render.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import type { Reading } from '$lib/schema/reading';
+import type { Reading } from '#lib/schema/reading.js';
 
 function mount(source: string): {
 	el: HTMLElement;

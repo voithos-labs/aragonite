@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { asDocPath } from '$lib/selection/path-math';
-import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { beginCommit, endCommit, isCommitInProgress } from '$lib/invariants/commit-scope';
-import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
+import { beginCommit, endCommit, isCommitInProgress } from '#lib/invariants/commit-scope.js';
+import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
 import {
 	stampStructuralChange,
 	type StructuralChange
-} from '$lib/tree-operations/structural-change';
+} from '#lib/tree-operations/structural-change.js';
 
 // The commit brackets its synchronous body with the commit scope so the decorations never read
 // a half-applied tree.

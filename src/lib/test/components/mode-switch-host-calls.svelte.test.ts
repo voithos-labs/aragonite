@@ -11,10 +11,10 @@ import {
 	mountEditor,
 	placeCaret,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 beforeEach(() => {
 	installLayoutStubs();

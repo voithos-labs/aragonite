@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { AnyBlockKind } from '$lib/core/nodes';
-import { checkOpenerRegistry } from '$lib/invariants/registry';
-import { listRegisteredOpeners } from '$lib/schema/block-openers';
-import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import '$lib/core/parser';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
+import { checkOpenerRegistry } from '#lib/invariants/registry.js';
+import { listRegisteredOpeners } from '#lib/schema/block-openers.js';
+import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import '#lib/core/parser.js';
 
 const hasRealDescriptor = (kind: AnyBlockKind) => tryGetBlockKindDescriptor(kind) !== undefined;
 

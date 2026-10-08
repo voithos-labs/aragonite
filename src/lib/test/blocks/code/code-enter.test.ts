@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeCodeEnter } from '$lib/components/blocks/code/code-enter';
+import { computeCodeEnter } from '#lib/components/blocks/code/code-enter.js';
 
 type EnterArgs = Parameters<typeof computeCodeEnter>[0];
 

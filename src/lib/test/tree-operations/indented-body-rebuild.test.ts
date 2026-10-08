@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { documentLineEnding } from '$lib/core/lines';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { installPlugins } from '#lib';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/index.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A rebuild writes a body's blank lines the way the parser reads them: the separator after a
 // block bare, an empty paragraph's own line indented, so one keystroke moves no other byte.

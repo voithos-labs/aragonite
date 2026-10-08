@@ -4,7 +4,7 @@
  * focusable range without `onActivate` starts compiling.
  */
 import { describe, it, expect } from 'vitest';
-import type { AmbientInteractiveRange } from '$lib/block-component';
+import type { AmbientInteractiveRange } from '#lib/block-component.js';
 
 const base = { start: 0, end: 3, className: 'marker', onClick: () => {} };
 

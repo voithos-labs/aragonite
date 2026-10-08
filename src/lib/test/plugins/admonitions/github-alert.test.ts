@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { getPluginMetadata } from '$lib/plugin';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import type { GithubAlertMetadata } from '$lib/plugins/admonitions/kinds';
-import { roundTripCases } from '$lib/test/support/round-trip';
+import { installPlugins, parse } from '#lib';
+import { getPluginMetadata } from '#lib/plugin.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import type { GithubAlertMetadata } from '#lib/plugins/admonitions/kinds.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
 
 // Native GitHub alerts: a blockquote whose first line is exactly `> [!TYPE]` becomes its own
 // `githubAlert` kind, with the marker line in the container raw and metadata only. Every

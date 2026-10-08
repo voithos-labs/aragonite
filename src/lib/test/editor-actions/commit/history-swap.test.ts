@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
 
 function makeSetup() {
 	const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'aaa\n')]);

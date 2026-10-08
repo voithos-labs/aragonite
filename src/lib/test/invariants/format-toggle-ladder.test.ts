@@ -10,10 +10,10 @@ import {
 	toggleInlineFormat,
 	type InlineFormatEdit,
 	type ToggleInlineFormatResult
-} from '$lib/core/inline/format-toggle';
-import { paintsFocusedMarkers, type PresentationMode } from '$lib/presentation-mode';
-import { listInlineMarks } from '$lib/schema/inline-construct-policy';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/core/inline/format-toggle.js';
+import { paintsFocusedMarkers, type PresentationMode } from '#lib/presentation-mode.js';
+import { listInlineMarks } from '#lib/schema/inline-construct-policy.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 /** Shapes the naive reading breaks on: nesting, non-canonical runs, opaque code bytes, escapes and
  *  entities at a construct's edge, multi-unit scalars against a delimiter, edge whitespace. */

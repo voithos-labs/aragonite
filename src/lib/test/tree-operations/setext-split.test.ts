@@ -3,7 +3,7 @@ import { parse } from '../../core/parser';
 import { splitNode } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The setext underline sits after the title, so a plain raw cut strands it in the second
 // half, where `=====` reparses as a junk paragraph and `-----` demotes the heading.

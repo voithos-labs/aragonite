@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { makeRangeEnv } from './range-context';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState, makeTableStateAt } from '$lib/test/harness/editor-actions';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { metadataOf, type CstNode } from '$lib/core/nodes';
-import type { EditEvent } from '$lib/editor-events';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { makeBlockListState, makeTableStateAt } from '#lib/test/harness/editor-actions.js';
+import type { BlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { metadataOf, type CstNode } from '#lib/core/nodes.js';
+import type { EditEvent } from '#lib/editor-events.js';
 
 // A cross-block delete whose whole-row snap splices a table's rows must commit the table as its
 // own scope, keeping the row list's ids and refs in lockstep.

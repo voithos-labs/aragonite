@@ -4,9 +4,9 @@
 // range in, since a toggle over a heading must reach `getContentRange`, not the whole raw.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
-import type { CommandId } from '$lib/schema/commands';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { parse } from '#lib/core/parser.js';
+import type { CommandId } from '#lib/schema/commands.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 

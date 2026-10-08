@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createFocusedSurface } from '$lib/components/editor-root-focused-surface';
-import { parse } from '$lib/core/parser';
-import type { BlockComponent } from '$lib/block-component';
-import type { GapCaretPosition } from '$lib/selection/gap-caret';
+import { createFocusedSurface } from '#lib/components/editor-root-focused-surface.js';
+import { parse } from '#lib/core/parser.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
 
 // Miss-analysis: the entry points were tested only with a caret in a block, never at a gap.
 

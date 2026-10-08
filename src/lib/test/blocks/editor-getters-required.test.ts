@@ -5,14 +5,14 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect } from 'vitest';
-import type { InlineWidgetComponentProps } from '$lib/plugin';
-import type { SvelteWidgetPoolDeps } from '$lib/components/blocks/widget-portal';
-import type { TextRenderDeps } from '$lib/components/blocks/text/text-render';
-import type { CellRenderDeps } from '$lib/components/blocks/table/cell-render';
-import type { GlobalCommandContext } from '$lib/schema/commands';
-import type { GapStopScope } from '$lib/selection/gap-caret';
-import { isReadingMode } from '$lib/presentation-mode';
-import { makeRenderHarness, blockNode } from '$lib/test/harness/text-render';
+import type { InlineWidgetComponentProps } from '#lib/plugin.js';
+import type { SvelteWidgetPoolDeps } from '#lib/components/blocks/widget-portal.js';
+import type { TextRenderDeps } from '#lib/components/blocks/text/text-render.js';
+import type { CellRenderDeps } from '#lib/components/blocks/table/cell-render.js';
+import type { GlobalCommandContext } from '#lib/schema/commands.js';
+import type { GapStopScope } from '#lib/selection/gap-caret.js';
+import { isReadingMode } from '#lib/presentation-mode.js';
+import { makeRenderHarness, blockNode } from '#lib/test/harness/text-render.js';
 
 type OptionalKeys<T> = { [K in keyof T]-?: object extends Pick<T, K> ? K : never }[keyof T];
 type NoneOptional<T> = [OptionalKeys<T>] extends [never] ? true : false;

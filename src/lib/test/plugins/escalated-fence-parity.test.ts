@@ -1,7 +1,7 @@
 // Miss-analysis: every escalation test checked the bytes of one bare rebuild and never edited the
 // block again, so no test compared a live session with a reload of the escalated bytes.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, serialize } from '$lib';
+import { installPlugins, serialize } from '#lib';
 import {
 	declarePluginKind,
 	documentLineEnding,
@@ -14,16 +14,16 @@ import {
 	scanFence,
 	setPluginMetadata,
 	type CstNode
-} from '$lib/plugin';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { createSearchReplace } from '$lib/editor-actions/search-replace';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
-import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
-import { scanCompiled } from '$lib/test/harness/search-replace';
-import { testClosure } from '$lib/test/support/closure';
+} from '#lib/plugin.js';
+import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
+import { scanCompiled } from '#lib/test/harness/search-replace.js';
+import { testClosure } from '#lib/test/support/closure.js';
 
 // ── A third-party kind following the guide's "Code in metadata" recipe ──────
 

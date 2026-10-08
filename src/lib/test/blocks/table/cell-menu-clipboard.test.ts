@@ -5,7 +5,7 @@
 // happens before anything is written.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { mountCell, type MountedCell } from './mount-cell';
 
 // The cell's paste handling is registered by the editor itself; without it the dispatcher falls

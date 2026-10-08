@@ -2,15 +2,15 @@
 // a code block, rather than splitting the block in two.
 // Miss-analysis: the fence rule's tests wrote from outside the block, never by typing (GH #593).
 import { describe, it, expect, beforeEach } from 'vitest';
-import { serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { serialize } from '#lib';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
 import {
 	registerMathBlock,
 	registerMathFence,
 	MATH_BLOCK,
 	MATH_FENCE
-} from '$lib/plugins/latex/latex-kind';
-import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
+} from '#lib/plugins/latex/latex-kind.js';
+import { makeContainerHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 beforeEach(() => {
 	registerMathFence();

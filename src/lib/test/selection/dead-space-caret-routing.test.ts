@@ -3,15 +3,15 @@
 // and the geometry `blocks/table/table-caret-at-point.test.ts`; what only this suite pins is the
 // routing decision, and that a live range ends only once a landing is known.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
-import type { BlockComponent } from '$lib/block-component';
-import { CURSOR_END } from '$lib/block-component';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { createDeadSpaceCaret } from '$lib/selection/dead-space-caret';
+import type { BlockComponent } from '#lib/block-component.js';
+import { CURSOR_END } from '#lib/block-component.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
+import { createDeadSpaceCaret } from '#lib/selection/dead-space-caret.js';
 import { makeEmptyGapScope } from '../harness/editor-actions';
 import { mountTableGrid } from './table-grid';
 
 registerBuiltInBlocks();
-import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 const TABLE_BOX = { left: 100, right: 400, top: 50, bottom: 90 };
 

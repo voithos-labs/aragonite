@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 // The barrel is imported and deliberately never called: activation must be the explicit
 // `activateDirectives()`, never an import side effect. Vitest isolates modules per file.
-import * as pluginBarrel from '$lib/plugin';
+import * as pluginBarrel from '#lib/plugin.js';
 
 describe('directive activation is call-based, not an import side effect', () => {
 	it('exposes activateDirectives as a barrel function', () => {

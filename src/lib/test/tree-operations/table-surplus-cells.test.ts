@@ -2,28 +2,28 @@
 // the header's column count (spec example 204), but the cells past it are bytes the file holds.
 // Miss-analysis: every table test wrote rows as wide as their header.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { metadataOf, type CstNode, type Document } from '$lib/core/nodes';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { rebuildTableRaw } from '$lib/schema/container-rebuilders';
-import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { metadataOf, type CstNode, type Document } from '#lib/core/nodes.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { rebuildTableRaw } from '#lib/schema/container-rebuilders.js';
+import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import {
 	deleteColumn,
 	deleteRow,
 	insertEmptyColumn,
 	insertEmptyRow,
 	moveColumn
-} from '$lib/tree-operations/table-mutations';
-import { sliceTableAtRow } from '$lib/tree-operations/paste/table-slice';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+} from '#lib/tree-operations/table-mutations.js';
+import { sliceTableAtRow } from '#lib/tree-operations/paste/table-slice.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { documentLineEnding } from '$lib/core/lines';
+import { documentLineEnding } from '#lib/core/lines.js';
 
 const WIDE = '| H0 |\n| --- |\n| x | y |\n';
 

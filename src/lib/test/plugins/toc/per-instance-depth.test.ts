@@ -2,10 +2,10 @@
 // Two editors, one process, one installed toc definition, two depths.
 // Miss-analysis: no test mounted a second toc instance, so a process-wide depth went unseen.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { EditorPluginEntry } from '$lib/plugin';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { tocPlugin } from '$lib/plugins/toc/toc-plugin';
-import { destroyMountedEditors, mountEditor } from '$lib/test/harness/mount-editor.svelte';
+import type { EditorPluginEntry } from '#lib/plugin.js';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { tocPlugin } from '#lib/plugins/toc/toc-plugin.js';
+import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
 
 const SOURCE = '# One\n\n## Two\n\n### Three\n\n#### Four\n\n[[toc]]\n';
 
