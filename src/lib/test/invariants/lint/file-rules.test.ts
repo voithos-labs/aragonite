@@ -1184,7 +1184,7 @@ const RULES: FileRule[] = [
 
 // ── G4.89, G4.90 one in-leaf range replace ─────────────────────────────────
 
-/** The directories holding live editing paths; a fenced code body has no inline constructs. */
+/** The directories and files holding live editing paths; a fenced code body has no inline constructs. */
 const SPLICE_PATHS = [
 	SOURCE_DIR.components,
 	SOURCE.blockContentSelector,
@@ -1716,7 +1716,7 @@ function describeOwnerWrites(sources: SourceFile[]): void {
 
 const SELECTION_WRITERS: ManifestRule[] = [
 	{
-		id: 'G4.94 a gap caret or a widget is selected only through the caret doors',
+		id: 'G4.94 a gap caret or a widget is selected only through `place-caret.ts`',
 		matches: /\.(?:setGapCaret|selectWidget)\s*\(/,
 		declared: {
 			'src/lib/selection/place-caret.ts':

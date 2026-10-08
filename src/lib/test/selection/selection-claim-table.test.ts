@@ -5,7 +5,7 @@
 // the restore never met a selected widget, which they left selected.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
-import * as caretDoors from '../../selection/place-caret';
+import * as placeCaretExports from '../../selection/place-caret';
 import {
 	placeCaret,
 	placeGapCaret,
@@ -142,9 +142,9 @@ function liveKinds(s: SelectionState): Kind[] {
 }
 
 describe('one editor-owned selection at a time', () => {
-	it('has a row for every export of the caret doors', () => {
+	it('has a row for every export of `place-caret.ts`', () => {
 		const rows = new Set(WRITERS.map((w) => w.name));
-		expect(Object.keys(caretDoors).filter((name) => !rows.has(name))).toEqual([]);
+		expect(Object.keys(placeCaretExports).filter((name) => !rows.has(name))).toEqual([]);
 	});
 
 	for (const writer of WRITERS) {
