@@ -2098,12 +2098,12 @@ own controls. The manifest is per file, so a new bare focus inside an already de
 
 **G4.93 · One pick of the block a round keeps still.** Which block stays still across a measure
 round is decided once for the whole document, level by level through the block lists
-(`windowing/list-tree.ts :: createListTree`), each level through `windowing/pinned-block.ts ::
+(`windowing/list-tree.ts :: createListTree`), each level through `windowing/steady-block.ts ::
 heldBlock`, and the scroll owner corrects only by the distance `heldDelta` makes from the held
 block's place before and after the round: a brand the types give no other way to make, so a
 hand-written distance or a hand-picked block doesn't compile, and a list can ask for a mount scroll
-by path but never for a position (`test/windowing/pinned-block.test.ts` pins these). The scan holds
-what the types can't: a cast to either brand outside `pinned-block.ts`, and every call to
+by path but never for a position (`test/windowing/steady-block.test.ts` pins these). The scan holds
+what the types can't: a cast to either brand outside `steady-block.ts`, and every call to
 `compensate`, `heldBlock` or `heldDelta`, declared by file, function and count with its reason (the
 tree's one pick and its one distance, and the header slot, which sits above every list), so a call
 moved to another function fails too. `lint/file-rules.test.ts`.

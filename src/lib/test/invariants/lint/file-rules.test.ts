@@ -1497,15 +1497,15 @@ function callSites(file: SourceFile, kinds: CallKind[]): Map<string, number> {
 }
 
 const HELD_BRANDS: FileRule = {
-	id: 'G4.93 only `pinned-block.ts` makes a held block or the distance it moved',
+	id: 'G4.93 only `steady-block.ts` makes a held block or the distance it moved',
 	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
 	allowed: {
-		'src/lib/windowing/pinned-block.ts':
+		'src/lib/windowing/steady-block.ts':
 			'`heldBlock` and `heldDelta`, the one pick and the one distance'
 	},
 	reason:
 		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldDelta` instead',
-	reaches: [SOURCE.pinnedBlock],
+	reaches: [SOURCE.steadyBlock],
 	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
 	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
 };

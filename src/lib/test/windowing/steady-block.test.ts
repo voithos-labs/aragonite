@@ -7,7 +7,7 @@ import {
 	type HeightTable,
 	type HeldBlock,
 	type HeldDelta
-} from '../../windowing/pinned-block';
+} from '../../windowing/steady-block';
 import type { ListScrollWrites } from '../../windowing/list-windowing.svelte';
 
 // Six 100px blocks in the list at path [2], so a focus path outside it is expressible.

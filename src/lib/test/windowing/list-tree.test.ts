@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { HeightModel } from '../../windowing/height-model';
 import { createListTree, type ListLevel } from '../../windowing/list-tree';
-import type { HeightTable } from '../../windowing/pinned-block';
+import type { HeightTable } from '../../windowing/steady-block';
 
 const tableOf = (heights: Record<string, number>): HeightTable => ({
 	model: new HeightModel(Object.values(heights)),

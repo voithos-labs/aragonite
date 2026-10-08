@@ -85,7 +85,7 @@ export const SOURCE = {
 	blockElLookup: 'src/lib/caret/block-el-lookup.ts',
 	scrollOwner: 'src/lib/windowing/scroll-owner.ts',
 	scrollport: 'src/lib/windowing/scrollport.ts',
-	pinnedBlock: 'src/lib/windowing/pinned-block.ts',
+	steadyBlock: 'src/lib/windowing/steady-block.ts',
 	layoutState: 'src/lib/windowing/layout-state.svelte.ts',
 	listWindowing: 'src/lib/windowing/list-windowing.svelte.ts',
 
@@ -226,7 +226,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	blockElLookup: 'export function blockContentElAt',
 	scrollOwner: 'export type PlaceBlock',
 	scrollport: 'export interface ScrollportReader',
-	pinnedBlock: 'export interface HeightTable',
+	steadyBlock: 'export interface HeightTable',
 	layoutState: 'export interface LayoutState',
 	listWindowing: 'export interface ListScrollWrites',
 

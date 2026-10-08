@@ -11,7 +11,7 @@ import type { TargetTop } from './scroll-owner';
 import { createBlockWindow, type BlockWindow, type WindowResult } from './block-window.svelte';
 import { estimateWidth, effectiveViewportHeight, listTopWithinContent } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
-import { focusedIndexIn, type HeightTable } from './pinned-block';
+import { focusedIndexIn, type HeightTable } from './steady-block';
 import type { ListLevel } from './list-tree';
 import type { NodeView } from '../core/node-views';
 import { recordHeightTableBuild } from '../perf/instruments';

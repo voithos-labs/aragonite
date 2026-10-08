@@ -12,7 +12,7 @@ import {
 	type HeightTable,
 	type HeldBlock,
 	type HeldDelta
-} from './pinned-block';
+} from './steady-block';
 
 /** One block list as the tree reads it. */
 export interface ListLevel {

@@ -54,7 +54,7 @@ Some details:
 
 The one your caret is in, if it sits at or below the viewport's top, so the line you're typing in doesn't budge when something above it changes height. Otherwise it's the block at the top of the viewport. A block the edit itself moved (Alt+ArrowUp, say) isn't held, since the whole point of moving it is to watch it move on a page that stays put ("moved" meaning its neighbours changed, not counting blocks the edit added or removed).
 
-The pick is made once per round (next subsection) for the whole document, not once per list. It starts at the top-level list, and whenever the block it picked is a container, it goes down into that container's list and picks again, so it ends on the innermost block. The walk is `src/lib/windowing/list-tree.ts` :: `createListTree`, and every level picks through `src/lib/windowing/pinned-block.ts` :: `heldBlock`, whose types refuse a hand-picked block or a hand-written distance.
+The pick is made once per round (next subsection) for the whole document, not once per list. It starts at the top-level list, and whenever the block it picked is a container, it goes down into that container's list and picks again, so it ends on the innermost block. The walk is `src/lib/windowing/list-tree.ts` :: `createListTree`, and every level picks through `src/lib/windowing/steady-block.ts` :: `heldBlock`, whose types refuse a hand-picked block or a hand-written distance.
 
 ### One round, one scroll write
 
