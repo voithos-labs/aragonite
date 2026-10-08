@@ -47,7 +47,8 @@ const PROJECT_DIRS = [
 	'selection',
 	'sticky-column',
 	'a11y',
-	'search'
+	'search',
+	'clipboard'
 ];
 
 // The second-engine slice, run per release rather than per commit. It carries no known-red
@@ -89,7 +90,6 @@ export default defineConfig({
 			testMatch: '*.spec.ts',
 			testIgnore: [
 				...PROJECT_DIRS.map((dir) => `${dir}/**`),
-				'clipboard/**',
 				'simulation/**',
 				'perf/**',
 				'capture/**',
@@ -131,10 +131,6 @@ export default defineConfig({
 			use: { viewport: { width: 1280, height: 900 } }
 		},
 		...PROJECT_DIRS.map((dir) => ({ name: `e2e-${dir}`, testMatch: `${dir}/**/*.spec.ts` })),
-		{
-			name: 'e2e-clipboard',
-			testMatch: 'clipboard/**/*.spec.ts'
-		},
 		...(WEBKIT
 			? [
 					{
