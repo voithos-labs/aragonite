@@ -214,7 +214,7 @@ describe('the #lib alias', () => {
 		}
 		expect(['#fff', '#libx', 'svelte'].map(isAliasSpelling)).toEqual([false, false, false]);
 		expect(aliasSpecifier(SOURCE.publicBarrel)).toBe('#lib');
-		expect(aliasSpecifier(SOURCE.layoutState)).toBe('#lib/reactivity/layout-state.svelte.js');
+		expect(aliasSpecifier(SOURCE.layoutState)).toBe('#lib/windowing/layout-state.svelte.js');
 		expect(aliasSpecifier(SOURCE_DIR.testSupport)).toBe('#lib/test/support/');
 	});
 

@@ -7,7 +7,7 @@
 import { tick } from 'svelte';
 import { isTextEntrySurface } from '../active-editor';
 import type { CaretMemory } from '../cursor/caret-memory';
-import type { LayoutState } from '../reactivity/layout-state.svelte';
+import type { LayoutState } from '../windowing/layout-state.svelte';
 import type { MenuPresence } from './menu/menu-presence.svelte';
 import type { DraftRegistry } from './draft-registry';
 import { rawOffsetAt } from '../cursor/widget-offset';

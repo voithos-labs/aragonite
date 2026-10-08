@@ -9,7 +9,7 @@ import { CURSOR_END, CURSOR_START, type BlockComponent } from '../block-componen
 import type { DocumentView } from '../core/node-views';
 import type { CaretMemory } from '../cursor/caret-memory';
 import { docPathFrom } from '../cursor/coordinate-spaces';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { BlockElLookup } from '../editor-keys';
 import { isDevChecks } from '../env';
 import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';

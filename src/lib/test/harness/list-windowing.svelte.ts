@@ -8,11 +8,11 @@ import {
 	createListWindowing,
 	type ListWindowing,
 	type ListWindowingDeps
-} from '../../reactivity/list-windowing.svelte';
-import { createListTree, type ListTree } from '../../reactivity/list-tree';
-import type { HeightOracle } from '../../cursor/height-oracle';
-import type { RootListScroll, ScrollOwner, ScrollOwnerDeps } from '../../cursor/scroll-owner';
-import type { Scrollport } from '../../cursor/scrollport';
+} from '../../windowing/list-windowing.svelte';
+import { createListTree, type ListTree } from '../../windowing/list-tree';
+import type { HeightOracle } from '../../windowing/height-estimator';
+import type { RootListScroll, ScrollOwner, ScrollOwnerDeps } from '../../windowing/scroll-owner';
+import type { Scrollport } from '../../windowing/scrollport';
 import type { CstNode } from '../../core/nodes';
 import { stubListEl, stubScrollOwner, stubScrollport } from './stub-scrollport';
 

@@ -325,7 +325,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop: an animation cadence, not ordering',
 			'src/lib/components/blocks/editable-leaf.ts':
 				'rAF fold of a revealed source after a range drag: the blur it answers arrives inside the frame that measured the range',
-			'src/lib/cursor/observe-resize.ts':
+			'src/lib/windowing/observe-resize.ts':
 				'rAF start of a size observation: one begun while a frame delivers resize notifications is skipped and reported as a loop error',
 			'src/lib/components/drag-handle.ts':
 				'rAF placement of the drag handle once its block has laid out; the handle is its own hit target before any hover',
@@ -1338,9 +1338,9 @@ const SCROLL_WRITERS: ManifestRule[] = [
 		id: 'G4.87 only the scroll owner writes the editor’s scroll position',
 		matches: SCROLL_WRITE_RE,
 		declared: {
-			'src/lib/cursor/scroll-owner.ts':
+			'src/lib/windowing/scroll-owner.ts':
 				'the one writer, which asks who owns the position before each write',
-			'src/lib/cursor/scrollport.ts':
+			'src/lib/windowing/scrollport.ts':
 				'the scroll container’s write methods, which only the owner opens',
 			'src/lib/selection/autoscroll.ts':
 				'a drag’s own cadence, driven by the pointer; its pointerdown already dropped any hold',
@@ -1379,8 +1379,8 @@ const SCROLL_WRITERS: ManifestRule[] = [
 		id: 'G4.87 a list asks for a mount scroll by path, from its descent alone',
 		matches: /(?<![\w$])scrollToMount\s*\(/,
 		declared: {
-			'src/lib/cursor/scroll-owner.ts': 'the owner, which works out where from the list tree',
-			'src/lib/reactivity/list-windowing.svelte.ts':
+			'src/lib/windowing/scroll-owner.ts': 'the owner, which works out where from the list tree',
+			'src/lib/windowing/list-windowing.svelte.ts':
 				'`revealChild`, the descent’s one scroll, naming the block and never a position'
 		},
 		reason:
@@ -1447,11 +1447,11 @@ const BARE_FOCUSES: ManifestRule[] = [
 /** Every call that corrects, picks a held block or holds nothing, keyed by path, function and
  *  kind, so a call moved elsewhere fails. `<module>` is a function with a bracketed return type. */
 const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-tree.ts :: descend :: heldBlock': {
+	'src/lib/windowing/list-tree.ts :: descend :: heldBlock': {
 		calls: 1,
 		reason: 'the one pick of the block a measure round keeps still, level by level'
 	},
-	'src/lib/reactivity/list-tree.ts :: movedSince :: held move': {
+	'src/lib/windowing/list-tree.ts :: movedSince :: held move': {
 		calls: 1,
 		reason: 'the one distance the round corrects by, read through the same walk as `resolve`'
 	},
@@ -1495,15 +1495,15 @@ function callSites(file: SourceFile, kinds: CallKind[]): Map<string, number> {
 }
 
 const HELD_BRANDS: FileRule = {
-	id: 'G4.93 only `hold-across.ts` makes a held block or the distance it moved',
+	id: 'G4.93 only `pinned-block.ts` makes a held block or the distance it moved',
 	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
 	allowed: {
-		'src/lib/reactivity/hold-across.ts':
+		'src/lib/windowing/pinned-block.ts':
 			'`heldBlock` and `heldDelta`, the one pick and the one distance'
 	},
 	reason:
 		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldDelta` instead',
-	reaches: [SOURCE.holdAcross],
+	reaches: [SOURCE.pinnedBlock],
 	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
 	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
 };
@@ -1547,20 +1547,20 @@ function describeCorrections(sources: SourceFile[]): void {
 
 /** Every write of a measured height and every registration with a list, keyed like G4.93. */
 const MEASURE_WRITES: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: table write': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyMeasured :: table write': {
 		calls: 1,
 		reason:
 			'the one write of a child’s height into its list’s table, only while that index still holds that id'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: cache write': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyMeasured :: cache write': {
 		calls: 1,
 		reason: 'records the height under the id the child passed'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyHeight :: applyMeasured': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyHeight :: applyMeasured': {
 		calls: 1,
 		reason: 'the batched pass applies each registered child through the one write'
 	},
-	'src/lib/reactivity/use-container-windowing.svelte.ts :: register :: registration': {
+	'src/lib/windowing/use-container-windowing.svelte.ts :: register :: registration': {
 		calls: 1,
 		reason: 'the channel every list provides, which checks the child is its own'
 	}
@@ -1579,8 +1579,8 @@ const MEASURE_CHANNEL: ManifestRule = {
 	matches: /(?<![\w$])CHILD_MEASURE_KEY\b/,
 	declared: {
 		'src/lib/editor-keys.ts': 'defines the key',
-		'src/lib/reactivity/use-container-windowing.svelte.ts': 'every list provides the channel',
-		'src/lib/reactivity/use-measured-child.svelte.ts':
+		'src/lib/windowing/use-container-windowing.svelte.ts': 'every list provides the channel',
+		'src/lib/windowing/use-measured-child.svelte.ts':
 			'the one reader, which registers at mount, re-measures after an edit and on a resize'
 	},
 	reason:
@@ -1632,7 +1632,7 @@ const HEIGHT_LIFETIME: ManifestRule[] = [
 		],
 		misses: [
 			'export function createHeightOracle(opts: HeightOracleOptions): MeasuredHeightOracle {',
-			"import { createHeightOracle } from '../cursor/height-oracle';",
+			"import { createHeightOracle } from '../windowing/height-estimator';",
 			'const layout = createLayoutState();',
 			'// createHeightOracle(opts) builds one.\nconst a = 1;'
 		]
@@ -1663,23 +1663,23 @@ const HEIGHT_LIFETIME: ManifestRule[] = [
 /** The owner's raw writes of its port, keyed like G4.93: `writeScroll`, which closes an open
  *  round before it writes, and the round's own correction beneath it. */
 const OWNER_RAW_WRITES: Record<string, { calls: number; reason: string }> = {
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: absolute': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: absolute': {
 		calls: 1,
 		reason: 'every owner write but the round’s, once the round is closed'
 	},
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: relative': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: relative': {
 		calls: 1,
 		reason: 'the same write, by a distance'
 	},
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: into view': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: into view': {
 		calls: 1,
 		reason: 'a placement’s scroll, once the round is closed'
 	},
-	'src/lib/cursor/scroll-owner.ts :: closeRound :: absolute': {
+	'src/lib/windowing/scroll-owner.ts :: closeRound :: absolute': {
 		calls: 1,
 		reason: 'a held placement put back as the round closes'
 	},
-	'src/lib/cursor/scroll-owner.ts :: closeRound :: relative': {
+	'src/lib/windowing/scroll-owner.ts :: closeRound :: relative': {
 		calls: 1,
 		reason: 'the round’s own correction'
 	}

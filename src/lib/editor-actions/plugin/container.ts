@@ -31,10 +31,10 @@ import {
 } from '../../editor-keys';
 import type { EditorContext } from '../../schema/plugin-install';
 import { componentPluginEditor } from '../../schema/block-component-registry';
-import type { WindowResult } from '../../reactivity/block-window.svelte';
+import type { WindowResult } from '../../windowing/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
 import type { ChildList } from '../../reactivity/child-list';
-import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
+import { useContainerWindowing } from '../../windowing/use-container-windowing.svelte';
 import { createContainerExitOverrides } from '../container-exit-overrides';
 import { delegateMoveFocus } from '../focus/focus-dispatch';
 import {

@@ -10,7 +10,7 @@
 	} from '../../../editor-keys';
 	import type { TableAlignment } from '../../../core/nodes';
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
-	import { useMeasuredChild } from '../../../reactivity/use-measured-child.svelte';
+	import { useMeasuredChild } from '../../../windowing/use-measured-child.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import type { ChildList } from '../../../reactivity/child-list';

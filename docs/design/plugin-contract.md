@@ -511,7 +511,7 @@ Cost contract: an idle source's per-edit re-run is O(sources), never per-block, 
 
 Viewport-space geometry over the rendered document, reached through `EditorContext.rects` (plugin) and `getRects()` (consumer): a block's bounding box; the rects covering an inline range (per visual line on wrapped prose, per cell on a table, with the end marker meaning "through the last measurable position"); the live native caret (null while a cross-block range is live); a `reveal` that mounts a block windowing skipped; and a `scrollTo(path, { block })` that reveals then scrolls.
 
-`scrollTo` doesn't just scroll once. It sets a **reveal anchor** (held in `cursor/scroll-owner.ts`) that the top-level block list re-asserts after every measure pass, because a target past unloaded images would otherwise slide away: the images reserve height off screen and shrink on mount, and the browser clamps the scroll off the target.
+`scrollTo` doesn't just scroll once. It sets a **reveal anchor** (held in `windowing/scroll-owner.ts`) that the top-level block list re-asserts after every measure pass, because a target past unloaded images would otherwise slide away: the images reserve height off screen and shrink on mount, and the browser clamps the scroll off the target.
 
 For the curious, the anchor's finer rules:
 

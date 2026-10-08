@@ -7,7 +7,7 @@
 
 import { asDomTextOffset } from '../cursor/coordinate-spaces';
 import { caretOffsetAtPoint } from '../cursor/point-offset';
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
 import {
 	containerDomTextLength,
 	maskedWalkText,

@@ -4,7 +4,7 @@
  * pointer leaves the originating block.
  */
 
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionEndpoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
@@ -19,7 +19,7 @@ import { blockNearPoint } from './nearest-block';
 
 export interface DragContext {
 	editorRoot: HTMLElement;
-	/** What autoscrolls this drag: an element, or the window (`cursor/scroll-ancestors`). */
+	/** What autoscrolls this drag: an element, or the window (`windowing/scroll-ancestors`). */
 	scrollContainer: UserScrollport;
 	selection: SelectionState;
 	getBlockElByPath: BlockElLookup;

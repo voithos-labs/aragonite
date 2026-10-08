@@ -5,7 +5,7 @@
  */
 
 import { domDescendants } from './dom-walk';
-import { FALLBACK_LINE_HEIGHT } from './typography-estimates';
+import { FALLBACK_LINE_HEIGHT } from '../windowing/typography-estimates';
 import { isHiddenMarkerText } from './widget-offset';
 
 // Fraction of a line height within which the cursor Y counts as the boundary line; under one

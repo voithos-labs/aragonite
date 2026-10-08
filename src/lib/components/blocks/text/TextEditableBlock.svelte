@@ -28,7 +28,7 @@
 	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
 	import { caretSeatInElement } from '../../../cursor/point-offset';
-	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
+	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import {
 		createInlineFormatActiveMemo,
 		toggleInlineFormat

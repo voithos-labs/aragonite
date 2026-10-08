@@ -760,13 +760,13 @@ browser's own caret would get dropped under it. In a dev build `placeCaret`, `se
 
 **G1.47 · A child measures into its own list** (`measures-in-own-list`). Each block list provides
 one measure channel to its direct children, and a child registers through
-`reactivity/use-measured-child.svelte.ts :: useMeasuredChild` with its own path. A child that found
+`windowing/use-measured-child.svelte.ts :: useMeasuredChild` with its own path. A child that found
 a list further up (say, a list item calling the hook after it provided its own inner list) would
 land its height in a table that doesn't index it, so the channel refuses a path that isn't one of
 its own children, and in a dev build says so. Predicate
 `invariants/measures-in-own-list.ts :: checkMeasuresInOwnList` · run by
-`reactivity/use-container-windowing.svelte.ts` ·
-`test/reactivity/measured-child-routes.svelte.test.ts`; G4.97 is the source half.
+`windowing/use-container-windowing.svelte.ts` ·
+`test/windowing/measured-child-routes.svelte.test.ts`; G4.97 is the source half.
 
 **G1.52 · The cached text is the document** (`current-source`). `getSource()` serializes once per
 content version and hands back the same string until the version moves, and a `source` prop write
@@ -1223,7 +1223,7 @@ closed, and anything else trips the scan: the rAF throttles in `selection/autosc
 every drag lifecycle rides); the rAF fold in `components/blocks/editable-leaf.ts` (a revealed source
 folds after a range drag, whose blur arrives inside the frame that measured the range); the rAF
 placement in `components/drag-handle.ts` (the handle waits for its block to lay out); the rAF start
-of a size watch in `cursor/observe-resize.ts` (one begun while the browser reports sizes is skipped
+of a size watch in `windowing/observe-resize.ts` (one begun while the browser reports sizes is skipped
 and logged as a loop error); the `setTimeout` wall-clock undo debounce in
 `editor-actions/commit/text-batch.ts` (a tick-grained microtask can't express "the user stopped
 typing") and the occurrence plugin's own typing pause in
@@ -2049,7 +2049,7 @@ dumps a list. A rewrite that wants to know how its bytes read under the marker a
 instead. `lint/file-rules.test.ts`, with each reader and its reason.
 
 **G4.87 · One writer of the scroll position.** Every write to the editor's scroll position lives
-in `cursor/scroll-owner.ts`, which decides who owns the position before it writes: the browser's
+in `windowing/scroll-owner.ts`, which decides who owns the position before it writes: the browser's
 own anchoring, a held scroll into view, or the plain height correction. Every other module gets
 a `ScrollportReader`, which has no write method, so most strays don't type-check (a test pins
 that with `@ts-expect-error`). The scan catches the rest: `scrollTop` assigned or stepped (`=`,
@@ -2098,12 +2098,12 @@ own controls. The manifest is per file, so a new bare focus inside an already de
 
 **G4.93 · One pick of the block a round keeps still.** Which block stays still across a measure
 round is decided once for the whole document, level by level through the block lists
-(`reactivity/list-tree.ts :: createListTree`), each level through `reactivity/hold-across.ts ::
+(`windowing/list-tree.ts :: createListTree`), each level through `windowing/pinned-block.ts ::
 heldBlock`, and the scroll owner corrects only by the distance `heldDelta` makes from the held
 block's place before and after the round: a brand the types give no other way to make, so a
 hand-written distance or a hand-picked block doesn't compile, and a list can ask for a mount scroll
-by path but never for a position (`test/reactivity/hold-across.test.ts` pins these). The scan holds
-what the types can't: a cast to either brand outside `hold-across.ts`, and every call to
+by path but never for a position (`test/windowing/pinned-block.test.ts` pins these). The scan holds
+what the types can't: a cast to either brand outside `pinned-block.ts`, and every call to
 `compensate`, `heldBlock` or `heldDelta`, declared by file, function and count with its reason (the
 tree's one pick and its one distance, and the header slot, which sits above every list), so a call
 moved to another function fails too. `lint/file-rules.test.ts`.
@@ -2157,18 +2157,18 @@ same over the chains it writes. The scan is `lint/container-rebuild-homes.test.t
 still reaches the list a later chain rebuilds.
 
 **G4.97 · One way a child's height reaches its list.** A block, a list item and a table row each
-measure through `reactivity/use-measured-child.svelte.ts :: useMeasuredChild`, which owns the three
+measure through `windowing/use-measured-child.svelte.ts :: useMeasuredChild`, which owns the three
 times a child is measured (the batch at mount, after an edit, on a resize), and the list writes the
 height in one private function, `applyMeasured`, which records it under the child's id and writes
 the table's entry only while the table still has the child at that index. No list reports its own
 height upward. The scan counts every table write, every cache write and every registration by file
 and function, so a second writer fails, and a manifest keeps the measure channel's key to the file
 that defines it, the one that provides it and the hook. `lint/file-rules.test.ts`, with
-`test/reactivity/measured-child-routes.svelte.test.ts` running every child kind through every
+`test/windowing/measured-child-routes.svelte.test.ts` running every child kind through every
 trigger and failing a new caller of the hook that has no row there; G1.47 is the runtime half.
 
 **G4.98 · One place throws measured heights away.** Heights measured for one view are wrong for
-the next, and `reactivity/layout-state.svelte.ts :: createLayoutState` is the only thing that
+the next, and `windowing/layout-state.svelte.ts :: createLayoutState` is the only thing that
 drops them. A new document or a mode flip calls `forgetMeasuredHeights`, which leaves the width
 version alone (bump it and every list rebuilds, losing the block held in place). A width or
 font-size change calls `rebuildForNewGeometry`, which also bumps the width version every list
@@ -2178,13 +2178,13 @@ Nobody else can even reach the drop. Layout state builds the height estimator it
 out a copy without `dropMeasured`, so the editor root and the block lists only ever hold the reads.
 What a type can't stop gets two scans in `lint/file-rules.test.ts`: a second estimator built (or a
 cast back to the one with the drop) outside layout state, and a width-version write anywhere else.
-`test/reactivity/height-lifetime-routes.svelte.test.ts` runs all four routes, a flip to reading and
+`test/windowing/height-lifetime-routes.svelte.test.ts` runs all four routes, a flip to reading and
 to live included, and the three changes that keep the heights.
 
 **G4.99 · A windowed list keeps its table height while blocks mount.** When the window grows, Svelte
 mounts the new blocks one at a time, and a layout read between two of them sees a list short by the
 rest; at the end of the document the browser pulls the scroll up to fit and never gives it back. So
-every component that renders spacers calls `reactivity/use-window-floor.svelte.ts :: useWindowFloor`
+every component that renders spacers calls `windowing/use-window-floor.svelte.ts :: useWindowFloor`
 with the box around them, which holds that box at its table's whole height until the render ends.
 `lint/file-rules.test.ts` fails a component that renders spacers without it;
 `e2e/tests/plugins/view-swap-end-scroll.spec.ts` drives the swaps that hit it, in both scroll modes

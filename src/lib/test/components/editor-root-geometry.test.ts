@@ -7,7 +7,7 @@ import {
 	installViewportHeightWatcher,
 	installWidthWatcher
 } from '#lib/components/editor-root-geometry.js';
-import { ESTIMATE_BASE_FONT_SIZE } from '#lib/cursor/typography-estimates.js';
+import { ESTIMATE_BASE_FONT_SIZE } from '#lib/windowing/typography-estimates.js';
 import { stubScrollOwner, stubScrollport } from '../harness/stub-scrollport';
 
 // Observable stand-in for the observer jsdom does not implement.

@@ -32,11 +32,11 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createEditorEvents, emitCommandError } from '#lib/editor-events.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { createScrollOwner } from '#lib/cursor/scroll-owner.js';
+import { createScrollOwner } from '#lib/windowing/scroll-owner.js';
 import { createAutoPairRecord } from '#lib/components/blocks/text/auto-pair-record.js';
-import { createHeightOracle } from '#lib/cursor/height-oracle.js';
-import { createListTree } from '#lib/reactivity/list-tree.js';
-import { HEIGHT_ESTIMATES } from '#lib/cursor/typography-estimates.js';
+import { createHeightOracle } from '#lib/windowing/height-estimator.js';
+import { createListTree } from '#lib/windowing/list-tree.js';
+import { HEIGHT_ESTIMATES } from '#lib/windowing/typography-estimates.js';
 import {
 	makeCaretMemory,
 	makeStubBlockEdit,

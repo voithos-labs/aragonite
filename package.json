@@ -140,6 +140,7 @@
 		"test:editor:ambient": "vitest run src/lib/test/ambient",
 		"test:editor:cursor": "vitest run src/lib/test/cursor",
 		"test:editor:schema": "vitest run src/lib/test/schema",
+		"test:editor:windowing": "vitest run src/lib/test/windowing",
 		"test:editor:reactivity": "vitest run src/lib/test/reactivity",
 		"test:editor:selection": "vitest run src/lib/test/selection",
 		"test:editor:blocks": "vitest run src/lib/test/blocks",

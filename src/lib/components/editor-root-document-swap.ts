@@ -12,7 +12,7 @@ import {
 	type LinkReferenceResolver
 } from '../core/inline/link-reference-resolver';
 import type { CaretMemory } from '../cursor/caret-memory';
-import type { LayoutState } from '../reactivity/layout-state.svelte';
+import type { LayoutState } from '../windowing/layout-state.svelte';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { emptyParagraph, ensureEditableContainers } from '../tree-operations';
 import type { UndoManager } from '../undo/types';

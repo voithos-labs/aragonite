@@ -19,8 +19,8 @@ import {
 	CURSOR_START,
 	type StickyColumnDirection
 } from '../../block-component';
-import type { UserScrollport } from '../../cursor/scroll-ancestors';
-import type { ScrollOwner } from '../../cursor/scroll-owner';
+import type { UserScrollport } from '../../windowing/scroll-ancestors';
+import type { ScrollOwner } from '../../windowing/scroll-owner';
 import type { BlockElLookup, DocumentGetter, PasteImageHook } from '../../editor-keys';
 import { emitClipboardError, emitCommandError, type EditorEvents } from '../../editor-events';
 import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';

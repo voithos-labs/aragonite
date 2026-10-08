@@ -6,7 +6,7 @@ import type { Document, ImageFields, InlineNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
-import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
+import { FALLBACK_CONTENT_WIDTH } from '../../windowing/typography-estimates';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import {
 	buildImageEditBytes,

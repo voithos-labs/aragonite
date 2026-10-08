@@ -81,11 +81,11 @@ export const SOURCE = {
 	// ── Caret geometry and windowing ────────────────────────────────────────
 	coordinateBrands: 'src/lib/cursor/coordinate-spaces.ts',
 	domWalk: 'src/lib/cursor/dom-walk.ts',
-	scrollOwner: 'src/lib/cursor/scroll-owner.ts',
-	scrollport: 'src/lib/cursor/scrollport.ts',
-	holdAcross: 'src/lib/reactivity/hold-across.ts',
-	layoutState: 'src/lib/reactivity/layout-state.svelte.ts',
-	listWindowing: 'src/lib/reactivity/list-windowing.svelte.ts',
+	scrollOwner: 'src/lib/windowing/scroll-owner.ts',
+	scrollport: 'src/lib/windowing/scrollport.ts',
+	pinnedBlock: 'src/lib/windowing/pinned-block.ts',
+	layoutState: 'src/lib/windowing/layout-state.svelte.ts',
+	listWindowing: 'src/lib/windowing/list-windowing.svelte.ts',
 
 	// ── Components ──────────────────────────────────────────────────────────
 	editorShell: 'src/lib/components/Editor.svelte',
@@ -222,7 +222,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	domWalk: 'export function* domDescendants',
 	scrollOwner: 'export type PlaceBlock',
 	scrollport: 'export interface ScrollportReader',
-	holdAcross: 'export interface HeightTable',
+	pinnedBlock: 'export interface HeightTable',
 	layoutState: 'export interface LayoutState',
 	listWindowing: 'export interface ListScrollWrites',
 
@@ -298,6 +298,7 @@ export const SOURCE_DIR = {
 	selection: 'src/lib/selection/',
 	crossBlock: 'src/lib/selection/cross-block/',
 	cursor: 'src/lib/cursor/',
+	windowing: 'src/lib/windowing/',
 	ambient: 'src/lib/ambient/',
 	decorations: 'src/lib/decorations/',
 	search: 'src/lib/search/',
@@ -342,6 +343,7 @@ export const SOURCE_DIR_ANCHORS: Record<keyof typeof SOURCE_DIR, string> = {
 	selection: 'path-math.ts',
 	crossBlock: 'range-replace.ts',
 	cursor: 'dom-walk.ts',
+	windowing: 'list-windowing.svelte.ts',
 	ambient: 'ambient-dom.ts',
 	decorations: 'buckets.ts',
 	search: 'document-scan.ts',

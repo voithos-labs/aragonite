@@ -41,7 +41,7 @@ The rest of this section is how that stays true: who's allowed to scroll, which 
 
 ### Who writes the scroll
 
-Every scroll write goes through one module, `src/lib/cursor/scroll-owner.ts`: the corrections, the header slot's growth, a scroll into view, the Shift+Arrow scroll, a plugin keeping its place across a view swap. Before each write it decides who owns the position right now (the browser's own anchoring, a held target, or the plain correction). Everything else only gets a read-only view of the scroller, and a lint catches a write that goes around it.
+Every scroll write goes through one module, `src/lib/windowing/scroll-owner.ts`: the corrections, the header slot's growth, a scroll into view, the Shift+Arrow scroll, a plugin keeping its place across a view swap. Before each write it decides who owns the position right now (the browser's own anchoring, a held target, or the plain correction). Everything else only gets a read-only view of the scroller, and a lint catches a write that goes around it.
 
 Some details:
 
@@ -54,7 +54,7 @@ Some details:
 
 The one your caret is in, if it sits at or below the viewport's top, so the line you're typing in doesn't budge when something above it changes height. Otherwise it's the block at the top of the viewport. A block the edit itself moved (Alt+ArrowUp, say) isn't held, since the whole point of moving it is to watch it move on a page that stays put ("moved" meaning its neighbours changed, not counting blocks the edit added or removed).
 
-The pick is made once per round (next subsection) for the whole document, not once per list. It starts at the top-level list, and whenever the block it picked is a container, it goes down into that container's list and picks again, so it ends on the innermost block. The walk is `src/lib/reactivity/list-tree.ts` :: `createListTree`, and every level picks through `src/lib/reactivity/hold-across.ts` :: `heldBlock`, whose types refuse a hand-picked block or a hand-written distance.
+The pick is made once per round (next subsection) for the whole document, not once per list. It starts at the top-level list, and whenever the block it picked is a container, it goes down into that container's list and picks again, so it ends on the innermost block. The walk is `src/lib/windowing/list-tree.ts` :: `createListTree`, and every level picks through `src/lib/windowing/pinned-block.ts` :: `heldBlock`, whose types refuse a hand-picked block or a hand-written distance.
 
 ### One round, one scroll write
 
@@ -73,13 +73,13 @@ Again, some technical details:
 - Every other scroll write the owner makes (a placement, a landing, the reveal's mount scroll) goes through `writeScroll`, which first measures any blocks still queued and closes the open round, and only then works out where to go. That's why `showRect` takes a read, not a rect: a rect measured before the correction is already stale.
 - A list that needs a block mounted asks the owner to scroll to its path, never to a position.
 - Chrome above the block list (the editor's header slot, or the host page's own) needs no special case in the window math, since a scope only counts the part of itself that overlaps the viewport. The header slot's growth still needs correcting (its height lives outside the height model), so it joins the open round as a distance of its own and shifts by the whole growth, except at the very top, where you're looking at the header anyway.
-- While a window change renders, every list that renders spacers holds its box at its table's whole height with a `min-height` (`src/lib/reactivity/use-window-floor.svelte.ts` :: `useWindowFloor`). Without it, a list mounting the blocks that just came into reach one at a time looks short to any layout read in between, and at the document's end the browser pulls the scroll up to fit and never gives it back (VR-16). The hold comes off when the render's done, before the browser's size reports, or it trips a ResizeObserver loop. A table's grid sets `align-content: start` so a held grid doesn't stretch its rows into the heights they get measured at.
+- While a window change renders, every list that renders spacers holds its box at its table's whole height with a `min-height` (`src/lib/windowing/use-window-floor.svelte.ts` :: `useWindowFloor`). Without it, a list mounting the blocks that just came into reach one at a time looks short to any layout read in between, and at the document's end the browser pulls the scroll up to fit and never gives it back (VR-16). The hold comes off when the render's done, before the browser's size reports, or it trips a ResizeObserver loop. A table's grid sets `align-content: start` so a held grid doesn't stretch its rows into the heights they get measured at.
 
 ### Things that grow after mounting
 
 An image decoding, a font swapping in, a lazy embed: those have to be accounted for too, lest we cause the dreaded slide. So everything a list windows (a block, a list item, a table row) watches its own size, and its list corrects for any change.
 
-- That's one hook, `src/lib/reactivity/use-measured-child.svelte.ts` :: `useMeasuredChild`. It joins the batch at mount, measures again after an edit and on a resize, always into the child's own list under the child's own id. A list never reports its own height to the list above it; that list measures the container's box like any other child.
+- That's one hook, `src/lib/windowing/use-measured-child.svelte.ts` :: `useMeasuredChild`. It joins the batch at mount, measures again after an edit and on a resize, always into the child's own list under the child's own id. A list never reports its own height to the list above it; that list measures the container's box like any other child.
 - Every watched child shares one ResizeObserver per editor, and its callback only records heights. The scroll write comes at the tick after, so nothing the correction moves lands inside the browser's size reports. The observer is made after the editor's own width watcher, so a width change rebuilds the tables before the blocks' reports arrive.
 - A child starts watching its size one frame after it mounts, since a watch begun while the browser is still handing out size reports is skipped (and logged as a ResizeObserver loop error). The mount's own height comes from the batch anyway.
 
@@ -90,7 +90,7 @@ An image decoding, a font swapping in, a lazy embed: those have to be accounted 
 
 ## When and how everything re-measures
 
-Everything that throws heights away (a new document through `source`, and the rewraps below) goes through `src/lib/reactivity/layout-state.svelte.ts` :: `createLayoutState`, the only thing holding the height estimator. It has two ways to do it: `forgetMeasuredHeights` drops the measured cache, and `rebuildForNewGeometry` drops it and bumps the width version (a counter every scope rebuilds its height model off).
+Everything that throws heights away (a new document through `source`, and the rewraps below) goes through `src/lib/windowing/layout-state.svelte.ts` :: `createLayoutState`, the only thing holding the height estimator. It has two ways to do it: `forgetMeasuredHeights` drops the measured cache, and `rebuildForNewGeometry` drops it and bumps the width version (a counter every scope rebuilds its height model off).
 
 **Narrow the window and prose rewraps, so every cached height is wrong.**
 
@@ -110,7 +110,7 @@ Drops the measured cache. That's it actually, so we only eat a little drift inst
 
 ## Nesting
 
-**Why does aragonite nest windowing?** I don't know who keeps asking these stupid questions, but here goes: because large containers need it, for example a long flat list with thousands of items (i dunno, some people are freaky like that). Each layer only ever sees its own children, so a huge nested list is one entry, one height, in its parent's model, and nobody has to look inside. It's also nice this way, because the wiring is just one hook (`reactivity/use-container-windowing.svelte.ts`), so a plugin container inherits windowing by declaring only what's different about it (its DOM selectors, where its children come from, etc.).
+**Why does aragonite nest windowing?** I don't know who keeps asking these stupid questions, but here goes: because large containers need it, for example a long flat list with thousands of items (i dunno, some people are freaky like that). Each layer only ever sees its own children, so a huge nested list is one entry, one height, in its parent's model, and nobody has to look inside. It's also nice this way, because the wiring is just one hook (`windowing/use-container-windowing.svelte.ts`), so a plugin container inherits windowing by declaring only what's different about it (its DOM selectors, where its children come from, etc.).
 
 ## Doing something to a block you can't see
 

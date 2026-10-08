@@ -425,7 +425,7 @@ const windowing = useContainerWindowing({
 | `getListEl`                   | The content-origin element that scrolls with the children, not the viewport          |
 | `isCollapsed`                 | Optional: `true` while only the chrome row should be mounted (a collapsed container) |
 
-You don't report the container's own height anywhere: the block list your container sits in measures its box like any other block's. The one case with work in it is a child that isn't a BlockHost, like a list's items or a table's rows. Each of those measures itself with `useMeasuredChild` (`src/lib/reactivity/use-measured-child.svelte.ts`), handing over the element whose height is the child's (an item's box, a row's first cell). Call it before the child's own `useContainerWindowing`: the hook finds its list through context, and after that call it'd find the child's inner list instead (a dev check catches that one).
+You don't report the container's own height anywhere: the block list your container sits in measures its box like any other block's. The one case with work in it is a child that isn't a BlockHost, like a list's items or a table's rows. Each of those measures itself with `useMeasuredChild` (`src/lib/windowing/use-measured-child.svelte.ts`), handing over the element whose height is the child's (an item's box, a row's first cell). Call it before the child's own `useContainerWindowing`: the hook finds its list through context, and after that call it'd find the child's inner list instead (a dev check catches that one).
 
 ```ts
 // components/blocks/list/ListItemBlock.svelte
@@ -456,7 +456,7 @@ export const containerApi = createContainerBlockComponent({
 });
 ```
 
-A container that renders the spacers itself, in its own `{#each}` like the list and the table do, also calls `useWindowFloor(() => boxEl, () => windowing.window)` (`src/lib/reactivity/use-window-floor.svelte.ts`) during init. A window change mounts the new children one at a time, and the floor holds your box at its full height until they're all in, so a layout read halfway through doesn't see a short list and clamp the scroll to it. A lint test fails a component that renders spacers without it.
+A container that renders the spacers itself, in its own `{#each}` like the list and the table do, also calls `useWindowFloor(() => boxEl, () => windowing.window)` (`src/lib/windowing/use-window-floor.svelte.ts`) during init. A window change mounts the new children one at a time, and the floor holds your box at its full height until they're all in, so a layout read halfway through doesn't see a short list and clamp the scroll to it. A lint test fails a component that renders spacers without it.
 
 Copy from `ListBlock.svelte` (direct-each) or `TableBlock.svelte` (row windowing).
 

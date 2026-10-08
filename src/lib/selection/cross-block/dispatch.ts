@@ -5,8 +5,8 @@
 
 import type { BlockEditActions } from '../../action-contracts';
 import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
-import type { UserScrollport } from '../../cursor/scroll-ancestors';
-import type { ScrollOwner } from '../../cursor/scroll-owner';
+import type { UserScrollport } from '../../windowing/scroll-ancestors';
+import type { ScrollOwner } from '../../windowing/scroll-owner';
 import type { SelectionState } from '../selection-state.svelte';
 import type { CaretMemory } from '../../cursor/caret-memory';
 import type { CaretLanding } from '../caret-landing';
@@ -35,7 +35,7 @@ export interface CrossBlockDispatchContext {
 	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What autoscrolls a drag-select that reaches an edge: the root, the host's scroller, or the
-	 *  window. See `cursor/scroll-ancestors`. */
+	 *  window. See `windowing/scroll-ancestors`. */
 	getScrollHost: () => UserScrollport | null;
 	/** Brings the endpoint a keyboard extend reached to the nearest edge. */
 	scrollOwner: Pick<ScrollOwner, 'place'>;

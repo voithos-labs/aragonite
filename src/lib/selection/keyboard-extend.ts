@@ -14,7 +14,7 @@ import {
 } from './native-bridge';
 import { offsetFromViewportPoint } from '../cursor/point-offset';
 import type { BlockElLookup } from '../editor-keys';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { ScrollOwner } from '../windowing/scroll-owner';
 import {
 	firstPath,
 	lastPath,

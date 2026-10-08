@@ -17,7 +17,13 @@ import {
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 /** Library-internal: the rule binds traversals over aragonite's own tree, which no plugin owns. */
-const SCOPE = [SOURCE_DIR.inline, SOURCE_DIR.cursor, SOURCE_DIR.ambient, SOURCE_DIR.textBlock];
+const SCOPE = [
+	SOURCE_DIR.inline,
+	SOURCE_DIR.cursor,
+	SOURCE_DIR.windowing,
+	SOURCE_DIR.ambient,
+	SOURCE_DIR.textBlock
+];
 
 /** Keyed by `path :: name`, one traversal each, so a file spelling two walkers alike fails below.
  *  Empty by design: a recursive walk overflows on a deep enough document, so an entry says why. */

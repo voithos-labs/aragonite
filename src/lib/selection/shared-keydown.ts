@@ -7,7 +7,7 @@
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { DocumentGetter } from '../editor-keys';
 import type { CaretMemory } from '../cursor/caret-memory';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import type { CommandDispatchContext } from '../schema/block-commands';

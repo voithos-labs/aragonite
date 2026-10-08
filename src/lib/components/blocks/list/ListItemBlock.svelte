@@ -14,8 +14,8 @@
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import { hidesMarkers } from '../../../presentation-mode';
-	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { useMeasuredChild } from '../../../reactivity/use-measured-child.svelte';
+	import { useContainerWindowing } from '../../../windowing/use-container-windowing.svelte';
+	import { useMeasuredChild } from '../../../windowing/use-measured-child.svelte';
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createListItemOverrides } from '../../../editor-actions/list-overrides';

@@ -5,7 +5,7 @@
  * the geometry and a unit test covers the answers that are not geometry.
  */
 import type { BlockComponent } from './block-component';
-import type { ScrollOwner } from './cursor/scroll-owner';
+import type { ScrollOwner } from './windowing/scroll-owner';
 
 export interface EditorRects {
 	/** The block's outermost box, or null when it isn't mounted. */

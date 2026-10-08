@@ -17,6 +17,7 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 const GESTURE_ROOTS = [
 	SOURCE_DIR.components,
 	SOURCE_DIR.cursor,
+	SOURCE_DIR.windowing,
 	SOURCE_DIR.selection,
 	SOURCE_DIR.treeOperations,
 	SOURCE_DIR.decorations,

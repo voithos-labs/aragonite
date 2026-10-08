@@ -6,8 +6,8 @@
 
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
-import type { HeightOracle } from '../cursor/height-oracle';
-import type { ListTree } from '../reactivity/list-tree';
+import type { HeightOracle } from '../windowing/height-estimator';
+import type { ListTree } from '../windowing/list-tree';
 import type { OperationsLog } from '../debug/operations-log';
 import type { DecorationEngine } from '../decorations/decoration-state.svelte';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';

@@ -10,8 +10,8 @@ still holds it may drop it.
 Both cut across callers, so neither is reachable from a spec with one caller, and both
 bite after the scroll's own settle resolves, which is what `plugins/toc-navigation`
 and `search/reveal-past-undecoded-images` (the mount and scroll together) cannot
-see. The ownership rules themselves are unit-pinned in `test/cursor/scroll-owner-placement`
-and `test/cursor/scroll-owner`; this file covers what the user sees.
+see. The ownership rules themselves are unit-pinned in `test/windowing/scroll-owner-placement`
+and `test/windowing/scroll-owner`; this file covers what the user sees.
 
 ## Happy paths
 

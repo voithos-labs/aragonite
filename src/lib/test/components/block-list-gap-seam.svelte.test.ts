@@ -9,7 +9,7 @@ import type { BlockComponent } from '#lib/block-component.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { parse } from '#lib/core/parser.js';
 import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
-import type { WindowResult } from '#lib/reactivity/block-window.svelte.js';
+import type { WindowResult } from '#lib/windowing/block-window.svelte.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { editorMountContext } from '../harness/mount-context';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
