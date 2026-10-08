@@ -26,10 +26,14 @@ describe('G1.75 no selection endpoint after an empty block’s placeholder <br>'
 		expect(checkCaretBeforeBreak({ node: el, offset: 0 })).toBeNull();
 	});
 
-	it('passes a block whose <br> is not alone', () => {
+	it('passes a <br> after text-bearing content and flags one after a non-editable marker', () => {
 		const el = emptyBlock();
 		el.prepend(document.createElement('span'));
 		expect(checkCaretBeforeBreak({ node: el, offset: 2 })).toBeNull();
+
+		el.firstElementChild!.setAttribute('contenteditable', 'false');
+		expect(checkCaretBeforeBreak({ node: el, offset: 2 })?.code).toBe('caret-before-break');
+		expect(checkCaretBeforeBreak({ node: el, offset: 1 })).toBeNull();
 	});
 
 	it('fires from the caret writer when it rewrites an anchor left after the <br>', () => {

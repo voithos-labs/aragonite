@@ -159,14 +159,14 @@ export function extendSelectionToRaw(el: HTMLElement, raw: number): boolean {
 }
 
 /** Select `el`'s content past its marker prefix and short of a hidden structural suffix (the first
- *  Ctrl+A, a triple click). With no content, every child but a placeholder `<br>`. */
+ *  Ctrl+A, a triple click). With no content, from where raw 0's caret sits to a placeholder `<br>`. */
 export function selectSurfaceContent(el: HTMLElement): boolean {
 	const suffix = hiddenSuffixLength(el);
 	const contentLength = containerDomTextLength(el) - markerPrefixLength(el) - suffix;
 	if ((markerPrefixOf(el) || suffix > 0) && contentLength > 0) {
 		return selectRawRange(el, 0, contentLength);
 	}
-	return writeSelection({ node: el, offset: 0 }, endOfContents(el));
+	return writeSelection(caretPointAtRaw(el, 0), endOfContents(el));
 }
 
 /** Select the nodes `range` already spans, as a node-level writer holds them (a widget whole). */

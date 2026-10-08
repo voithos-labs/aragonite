@@ -71,6 +71,12 @@ describe('placeCaretAtRaw', () => {
 		expect(caretAt()).toBe('element@0');
 		selectSurfaceContent(block);
 		expect(caretAt()).toBe('element@0');
+
+		// An emptied list item: the selection starts after the marker, not over it.
+		block.prepend(buildAmbientSpan('- '));
+		selectSurfaceContent(block);
+		const sel = window.getSelection()!;
+		expect([sel.anchorNode, sel.anchorOffset, sel.focusOffset]).toEqual([block, 1, 1]);
 	});
 
 	it('raw 0 behind a marker prefix lands after the prefix span, never inside it', () => {
