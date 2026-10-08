@@ -108,50 +108,75 @@ describe('a chord in a cell mutates the table it names', () => {
 		});
 	}
 
-	// A refused reorder pushes no undo entry: a Ctrl+Z after it takes back the earlier insert.
-	// Miss-analysis: the refusal row asserted only the source, so a no-op that still pushed an entry passed.
-	const REFUSED_MOVES: Array<[string, KeyboardEventInit, [number, number]]> = [
-		['Alt+ArrowUp in the header row', { key: 'ArrowUp', altKey: true }, [0, 0]],
-		['Alt+ArrowDown in the header row', { key: 'ArrowDown', altKey: true }, [0, 0]],
-		['Alt+ArrowUp on the first body row', { key: 'ArrowUp', altKey: true }, [1, 0]],
-		['Alt+ArrowDown on the last body row', { key: 'ArrowDown', altKey: true }, [3, 0]],
-		['Alt+ArrowLeft in the first column', { key: 'ArrowLeft', altKey: true }, [1, 0]],
-		['Alt+ArrowRight in the last column', { key: 'ArrowRight', altKey: true }, [1, 1]]
+	// A refused chord pushes no undo entry, so one Ctrl+Z after it takes back the earlier insert.
+	// Miss-analysis: the refusal rows asserted only the source, so a no-op that still pushed an entry passed.
+	const INSERT_ROW: KeyboardEventInit = { key: 'Enter', ctrlKey: true };
+	const INSERT_COLUMN: KeyboardEventInit = { key: 'ArrowRight', altKey: true, shiftKey: true };
+	// [name, chord, cell pressed in, source, insert pressed in cell (1, 0) first]
+	const REFUSED: Array<[string, KeyboardEventInit, [number, number], string, KeyboardEventInit]> = [
+		['Alt+ArrowUp in the header row', { key: 'ArrowUp', altKey: true }, [0, 0], GRID, INSERT_ROW],
+		[
+			'Alt+ArrowDown in the header row',
+			{ key: 'ArrowDown', altKey: true },
+			[0, 0],
+			GRID,
+			INSERT_ROW
+		],
+		[
+			'Alt+ArrowUp on the first body row',
+			{ key: 'ArrowUp', altKey: true },
+			[1, 0],
+			GRID,
+			INSERT_ROW
+		],
+		[
+			'Alt+ArrowDown on the last body row',
+			{ key: 'ArrowDown', altKey: true },
+			[3, 0],
+			GRID,
+			INSERT_ROW
+		],
+		[
+			'Alt+ArrowLeft in the first column',
+			{ key: 'ArrowLeft', altKey: true },
+			[1, 0],
+			GRID,
+			INSERT_ROW
+		],
+		[
+			'Alt+ArrowRight in the last column',
+			{ key: 'ArrowRight', altKey: true },
+			[1, 1],
+			GRID,
+			INSERT_ROW
+		],
+		// The row case inserts a column, since a second body row would allow the delete.
+		[
+			'Mod+Shift+Backspace with one body row left',
+			{ key: 'Backspace', ctrlKey: true, shiftKey: true },
+			[1, 0],
+			'| A | B |\n| --- | --- |\n| 1 | 2 |\n',
+			INSERT_COLUMN
+		],
+		[
+			'Alt+Shift+Backspace with one column left',
+			{ key: 'Backspace', altKey: true, shiftKey: true },
+			[1, 0],
+			'| A |\n| --- |\n| 1 |\n',
+			INSERT_ROW
+		]
 	];
-	for (const [name, init, [rowIdx, colIdx]] of REFUSED_MOVES) {
-		it(`${name} leaves the table alone and pushes no undo entry`, async () => {
-			mounted = mountEditor({ source: GRID });
-			await pressInCell(mounted!, 2, 0, { key: 'Enter', ctrlKey: true });
+	for (const [name, init, [rowIdx, colIdx], source, insert] of REFUSED) {
+		it(`${name} changes nothing and pushes no undo entry`, async () => {
+			mounted = mountEditor({ source });
+			await pressInCell(mounted!, 1, 0, insert);
 			const inserted = mounted.source();
-			expect(inserted).not.toBe(GRID);
+			expect(inserted).not.toBe(source);
 
 			await pressInCell(mounted!, rowIdx, colIdx, init);
 			expect(mounted.source()).toBe(inserted);
 
 			await pressInCell(mounted!, rowIdx, colIdx, { key: 'z', ctrlKey: true });
-			expect(mounted.source()).toBe(GRID);
-		});
-	}
-
-	// A delete that would leave no body row or no column is refused, and a refusal is not an undo step.
-	const REFUSED: Array<[string, KeyboardEventInit, string]> = [
-		[
-			'Mod+Shift+Backspace with one body row left',
-			{ key: 'Backspace', ctrlKey: true, shiftKey: true },
-			'| A | B |\n| --- | --- |\n| 1 | 2 |\n'
-		],
-		[
-			'Alt+Shift+Backspace with one column left',
-			{ key: 'Backspace', altKey: true, shiftKey: true },
-			'| A |\n| --- |\n| 1 |\n'
-		]
-	];
-	for (const [name, init, source] of REFUSED) {
-		it(`${name} changes nothing`, async () => {
-			mounted = mountEditor({ source });
-
-			await pressInCell(mounted!, 1, 0, init);
-
 			expect(mounted.source()).toBe(source);
 		});
 	}
