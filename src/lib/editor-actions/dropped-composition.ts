@@ -27,6 +27,9 @@ function sentOutsideComposition(signal: CompositionSignal): boolean {
 	if (e.isComposing !== false) return false;
 	// The key that opens or feeds an IME reports `isComposing: false` in Chromium and WebKit.
 	if (e.key === 'Process' || e.keyCode === 229) return false;
+	// A beforeinput only proposes an edit, and Chromium proposes a non-composing insertParagraph for
+	// Enter inside a live composition; plain text typed outside one is what proves it over.
+	if (e.type === 'beforeinput') return e.inputType === 'insertText';
 	// An engine's own composition input types belong to the composition, whatever flag they carry.
 	return !/composition/i.test(e.inputType ?? '');
 }

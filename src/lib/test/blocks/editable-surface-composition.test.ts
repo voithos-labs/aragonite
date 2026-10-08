@@ -114,6 +114,13 @@ describe('composing gate', () => {
 			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
 		});
 
+		// Chromium proposes it for an Enter pressed inside a live composition, which then ends normally.
+		it('a non-composing insertParagraph proposal leaves it open', () => {
+			const { surface, commits } = dropped();
+			surface.onBeforeInput(new InputEvent('beforeinput', { inputType: 'insertParagraph' }));
+			expect(commits).toHaveLength(0);
+		});
+
 		it('a second compositionstart ends the first', () => {
 			const { surface, commits } = dropped();
 			surface.onCompositionStart();
