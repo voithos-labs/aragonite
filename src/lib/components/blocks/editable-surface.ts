@@ -98,6 +98,16 @@ function withKeydownVerdict(
 	};
 }
 
+// ── Selection removal ───────────────────────────────────────────────────────
+
+/** Typed so a block can only answer with its own write, and the command over the selection waits
+ *  until that write has landed. */
+export type SelectionRemoval =
+	ContentWrite | Promise<ContentWrite> | false | typeof REMOVED_IN_PLACE;
+
+/** The answer of a block whose removal splices shown text in place, with no write to wait on. */
+export const REMOVED_IN_PLACE = Symbol('removed-in-place');
+
 // ── Accessibility attributes ────────────────────────────────────────────────
 
 /** What an editable block tells assistive tech: its name, the inline menu's list while one shows
@@ -207,9 +217,8 @@ export interface EditableSurfaceDeps {
 	inputPrelude?: () => void;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
-	/** Deletes `range` of the block's own text, leaving the caret at its start; settles once the
-	 *  bytes land. Omitted where no line break or command removes a selection first. */
-	removeSelection?: (range: RawRange) => PromiseLike<unknown> | void;
+	/** Deletes `range` of the block's own text, leaving the caret at its start. */
+	removeSelection?: (range: RawRange) => SelectionRemoval;
 	/** An undo history the block keeps itself (a shown painted source), asked before the
 	 *  editor's; true when it took the event. */
 	localHistory?: (e: InputEvent) => boolean;
@@ -583,7 +592,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const seed = deleteSnapshot(deps.getMyPath(), range.start);
 		void deps.controller
 			.undoStep(seed, async () => {
-				await remove(range);
+				const removal = remove(range);
+				if (!(await (removal === REMOVED_IN_PLACE || removal))) return;
 				// The command reads the caret the removal's render puts back.
 				await tick();
 				if (!isDetached()) run(true);

@@ -163,7 +163,7 @@ Shift+Enter anywhere inside the text still writes its `\` and line ending right 
 
 Over a selection inside one block, Enter and Shift+Enter take the selection out first, the way Backspace would, then break the line where it started, as one undo entry. It never leaves the block: the "Enter on an empty line" exits and the Enter completions (§ 8) answer to the block as it was when you pressed the key, so a line the removal just emptied doesn't count.
 
-The command dispatch asks the block's `afterSelectionRemoved` to take the selection out before it runs any command in `src/lib/schema/commands.ts` :: `AFTER_SELECTION_REMOVAL_COMMAND_IDS`, then tells the command a removal came first, so the exits stand down. A plugin command opts in with `overSelection` and reads `ctx.afterRemoval`. A line break that comes in as input rather than as a command (a table cell's `<br>`, an editable leaf's own Enter) asks for the same removal itself.
+The command dispatch asks the block's `afterSelectionRemoved` to take the selection out before it runs any command in `src/lib/schema/commands.ts` :: `AFTER_SELECTION_REMOVAL_COMMAND_IDS`, then tells the command a removal came first, so the exits stand down. A block can decline the removal (a code block does, for a range that only covers fence lines the mode hides), and then the command doesn't run at all. Same goes for a removal whose bytes don't land. A plugin command opts in with `overSelection` and reads `ctx.afterRemoval`. A line break that comes in as input rather than as a command (a table cell's `<br>`, an editable leaf's own Enter) asks for the same removal itself.
 
 ### Three block surfaces
 
@@ -207,7 +207,7 @@ Cross-cutting block-kind metadata lives in `src/lib/schema/`, and both `core/inl
 How it sits in the import graph:
 
 - The schema imports nothing from `tree-operations/`, which reads it.
-- It does import from `core/`, `core/inline/` included, and `core/` imports it back, since each reads the other's registries. Most of those imports land on small modules that import neither side, but one chain of runtime imports does loop: `core/parser` → `core/parsers/table-completion` → `schema/container-rebuilders` → `core/parsers/list` → `core/parser`. `src/lib/test/invariants/lint/directory-layering-baseline.ts` lists every import edge between directories, and the directory cycles still waiting to be broken.
+- It does import from `core/`, `core/inline/` included, and `core/` imports it back, since each reads the other's registries. None of those imports closes a loop, though. `src/lib/test/invariants/lint/directory-layering-baseline.ts` lists every import edge between directories, and the directory cycles still waiting to be broken.
 
 ### The block-kind descriptor
 

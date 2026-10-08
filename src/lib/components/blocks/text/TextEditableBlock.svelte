@@ -67,6 +67,7 @@
 	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
 	import { rangeWrite, withOwnEnding } from '../surface-write';
+	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
 		rawOffsetAt,
@@ -266,7 +267,7 @@
 		handleBeforeInput: onBeforeInput,
 		// After a shown source is written: until then the selected text lives in the DOM only.
 		removeSelection: (range) =>
-			new Promise((written) =>
+			new Promise<ContentWrite>((written) =>
 				afterSourceCommit(() =>
 					written(
 						writeText({

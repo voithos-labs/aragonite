@@ -8,7 +8,7 @@ import { displayLines, firstLineEnding, type FencedSource, type LineEnding } fro
 
 type Line = ReturnType<typeof displayLines>[number];
 
-export const BLOCK_FENCE = '$$';
+const BLOCK_FENCE = '$$';
 
 /** A source read as a block, plus the text past its closer, which the parser reads on its own. */
 export interface MathSource extends FencedSource {
@@ -27,40 +27,54 @@ export interface MathEdit {
 export const isMathFenceLine = (text: string): boolean => text === BLOCK_FENCE;
 
 /** A whole block on one line; at four characters or more, its two fences can't overlap. */
-export const isOneLineMath = (text: string): boolean =>
+const isOneLineMath = (text: string): boolean =>
 	text.length >= 4 && text.startsWith(BLOCK_FENCE) && text.endsWith(BLOCK_FENCE);
 
 export const opensMathBlock = (text: string): boolean =>
 	isOneLineMath(text) || isMathFenceLine(text);
 
-/** A lone `$$` line with no closing `$$` line under it: the opener read on for one, the block
- *  became a paragraph, and a closer typed below still makes it math. */
+/** The index of the line closing the block `lines[from]` opens: `from` itself for a one-line
+ *  block, -1 when that line opens none or no line before `end` closes it. */
+export function mathCloserLine(
+	lines: readonly { text: string }[],
+	from: number,
+	end: number
+): number {
+	const opener = lines[from].text;
+	if (isOneLineMath(opener)) return from;
+	if (!isMathFenceLine(opener)) return -1;
+	for (let i = from + 1; i < end; i++) if (isMathFenceLine(lines[i].text)) return i;
+	return -1;
+}
+
+/** A lone `$$` line no later line closes: a paragraph now, which a closer typed below turns into
+ *  math. */
 export function awaitsMathCloser(raw: string): boolean {
 	if (!raw.startsWith(BLOCK_FENCE)) return false;
-	const [opener, ...rest] = displayLines(raw);
-	return isMathFenceLine(opener.text) && !rest.some((line) => isMathFenceLine(line.text));
+	const lines = displayLines(raw);
+	return isMathFenceLine(lines[0].text) && mathCloserLine(lines, 0, lines.length) === -1;
 }
+
+/** The multi-line form's lines around `body`, the shape every writer of a new block gives it. */
+export const mathBlockLines = (body: string): string[] => [BLOCK_FENCE, body, BLOCK_FENCE];
 
 // ── The reading ────────────────────────────────────────────────────────────
 
-/** Line 0 decides, as for the parser: a one-line block, or a fence line the next one closes. Else
+/** Line 0 decides, as for the parser: a one-line block, or a fence line a later one closes. Else
  *  a source ending `$$` is a one-line form holding a line break, and one that doesn't is open. */
 export function readMathSource(text: string): MathSource | null {
 	if (!text.startsWith(BLOCK_FENCE)) return null;
 	const lines = displayLines(text);
 	const [first] = lines;
-	if (isOneLineMath(first.text)) {
-		return cut(text, BLOCK_FENCE.length, first.text.length - BLOCK_FENCE.length);
-	}
-	const fenceLine = isMathFenceLine(first.text) && lines.length > 1;
-	const closer = fenceLine ? lines.findIndex((line, i) => i > 0 && isMathFenceLine(line.text)) : -1;
-	if (closer !== -1) {
-		return cut(text, first.text.length + first.ending.length, lineStart(lines, closer));
-	}
+	const closer = mathCloserLine(lines, 0, lines.length);
+	if (closer === 0) return cut(text, BLOCK_FENCE.length, first.text.length - BLOCK_FENCE.length);
+	const bodyStart = isMathFenceLine(first.text)
+		? first.text.length + first.ending.length
+		: BLOCK_FENCE.length;
+	if (closer > 0) return cut(text, bodyStart, lineStart(lines, closer));
 	if (text.length >= 4 && text.endsWith(BLOCK_FENCE)) {
 		return cut(text, BLOCK_FENCE.length, text.length - BLOCK_FENCE.length);
 	}
-	const bodyStart = fenceLine ? first.text.length + first.ending.length : BLOCK_FENCE.length;
 	return { opener: text.slice(0, bodyStart), body: text.slice(bodyStart), closer: '', after: '' };
 }
 
@@ -108,7 +122,7 @@ function onOwnLines(body: string, caret: number, ending: LineEnding): MathEdit {
 	const bodyStart = BLOCK_FENCE.length;
 	const bodyEnd = bodyStart + body.length;
 	const shift = caret < bodyStart ? 0 : caret <= bodyEnd ? ending.length : 2 * ending.length;
-	return { text: BLOCK_FENCE + ending + body + ending + BLOCK_FENCE, caret: caret + shift };
+	return { text: mathBlockLines(body).join(ending), caret: caret + shift };
 }
 
 /** Line 0 opens `$$` but isn't a whole block or a fence line, and the last line isn't the closer. */

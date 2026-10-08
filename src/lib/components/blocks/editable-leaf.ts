@@ -23,6 +23,7 @@ import {
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
+	REMOVED_IN_PLACE,
 	type EditableSurfaceAttributes
 } from './editable-surface';
 import type { ClipboardCopy } from './clipboard-step';
@@ -276,7 +277,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
 			stepSourceHistory(e, e.inputType === 'historyUndo'),
 		handleBeforeInput: onBeforeInput,
-		removeSelection: (range) => removeRange(range)
+		removeSelection: (range) => {
+			removeRange(range);
+			return REMOVED_IN_PLACE;
+		}
 	});
 
 	const surface = editableSurface.surface;

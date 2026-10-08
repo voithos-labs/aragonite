@@ -21,8 +21,12 @@
 		source: 'Source only'
 	};
 	import { mathSlot } from './math-renderer';
-	import { mathDisplaySource } from './latex-kind';
-	import { mathBodySpan, renderMathSource, reshapeMathEdit } from './math-source';
+	import {
+		mathBodySpan,
+		mathDisplaySource,
+		renderMathSource,
+		reshapeMathEdit
+	} from './math-source';
 	import type { MathBlockLayout } from './math-layout';
 	import type { LatexEditorOptions } from './register';
 

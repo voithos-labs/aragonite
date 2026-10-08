@@ -34,6 +34,8 @@ export const SOURCE = {
 	formatToggle: 'src/lib/core/inline/format-toggle.ts',
 	imageSourceBytes: 'src/lib/core/inline/image-source-bytes.ts',
 	linkSourceBytes: 'src/lib/core/inline/link-source-bytes.ts',
+	tableLine: 'src/lib/core/parsers/table-line.ts',
+	tableParser: 'src/lib/core/parsers/table.ts',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'src/lib/schema/block-openers.ts',
@@ -102,6 +104,7 @@ export const SOURCE = {
 	liveSelectionEdit: 'src/lib/components/blocks/text/live-selection-edit.ts',
 	delimiterAutopair: 'src/lib/components/blocks/text/delimiter-autopair.ts',
 	codeBlockComponent: 'src/lib/components/blocks/code/CodeBlock.svelte',
+	codeFenceBoundary: 'src/lib/components/blocks/code/code-fence-boundary.ts',
 	listBlock: 'src/lib/components/blocks/list/ListBlock.svelte',
 	tableBlock: 'src/lib/components/blocks/table/TableBlock.svelte',
 	tableCell: 'src/lib/components/blocks/table/TableCellBlock.svelte',
@@ -170,6 +173,8 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	formatToggle: 'export interface InlineFormatEdit',
 	imageSourceBytes: 'export function buildImageEditBytes',
 	linkSourceBytes: 'export interface LinkFields',
+	tableLine: 'export function tableRowLine(',
+	tableParser: 'export function matchTableOpening(',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'export interface OpenContext',
@@ -238,6 +243,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	liveSelectionEdit: 'export interface LiveEditCursor',
 	delimiterAutopair: 'export type AutoPairEdit',
 	codeBlockComponent: 'function writeCode(',
+	codeFenceBoundary: 'export function editSpan(',
 	listBlock: 'class="list-block"',
 	tableBlock: 'function mirrorCaretCell(',
 	tableCell: 'function parkCursor(',
@@ -249,7 +255,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 
 	// ── Bundled plugins and styles ──────────────────────────────────────────
 	latexBlockMath: 'function keepSourceFocus(',
-	mathShape: 'export const BLOCK_FENCE',
+	mathShape: 'export function readMathSource(',
 	mermaidBlock: 'function focusSurfaceEl(',
 	editorCss: '.code-tok-keyword {',
 	themeTokens: ':where(.aragonite-editor-theme) {',

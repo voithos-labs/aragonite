@@ -1921,43 +1921,146 @@ const REF_FOCUS: FileRule = {
 	misses: ['ref.focus(offset);', 'blockRefs[i] = ref;', 'const r = refAt(list, i);']
 };
 
-// ── G4.113 one reading of a `$$` math block's shape ────────────────────────
+// ── G4.131 a block syntax's bytes are read and written in its own module only ──
 
 const MATH_SHAPE_HOME = SOURCE.mathShape;
 const ROGUE_MATH_READER = `${SOURCE_DIR.latexPlugin}rogue.ts`;
-const DOLLAR_FENCE = String.raw`(?:\bBLOCK_FENCE\b|\bFENCE\b|['"\x60]\$\$['"\x60])`;
+// The fence constant, or a string opening or closing on the fence: `$$` read or written by hand.
+const DOLLAR_FENCE = String.raw`\b(?:BLOCK_FENCE|FENCE)\b|['"\x60]\$\$|\$\$['"\x60]`;
 // A regex for the fence spells it escaped: `\$\$` in a literal, `\\$\\$` in a string.
 const ESCAPED_FENCE = String.raw`\\\$\\\$|\\\\\$\\\\\$`;
+// A source split into lines, or a fence test handed a line read off one: a closer search by hand.
+const MATH_LINE_SEARCH = String.raw`\b(?:displayLines|firstDisplayLine|splitLines)\s*\(|\b(?:isMathFenceLine|opensMathBlock)\s*\(\s*[\w$.[\]]*\.text\s*\)`;
 
-const MATH_SHAPE: FileRule = {
-	id: 'G4.113 a `$$` block’s shape is read in the math shape module only',
-	population: under(SOURCE_DIR.latexPlugin),
-	matches: new RegExp(
-		String.raw`(?:startsWith|endsWith|indexOf|lastIndexOf|includes)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==|${ESCAPED_FENCE}`
-	),
-	allowed: {
-		[MATH_SHAPE_HOME]:
-			'reads opener, body and closer for the parser, the write rule and the painter'
+const TABLE_LINE_HOME = SOURCE.tableLine;
+const ROGUE_TABLE_WRITER = `${SOURCE_DIR.schema}rogue.ts`;
+// A row edge spelled as a string: a padded pipe (`'| '`, `' |'`), or a bare one joined on with `+`.
+const PADDED_PIPE = String.raw`['"\x60]\| ['"\x60]|['"\x60] \|['"\x60]|['"\x60]\|['"\x60]\s*\+|\+\s*['"\x60]\|['"\x60]`;
+// A template padding an interpolation with a pipe (`| ${cell}`, `${cell} |`), or ending on one.
+const TEMPLATE_ROW = String.raw`\| \$\{|\$\{[^}\x60]*\} \||\}\|\x60`;
+// A row's edge pipe read by hand: a regex anchored on it, a string test, or an index read.
+const EDGE_PIPE_READ = String.raw`/\^(?:\\s|\[[^\]\n]*\]| )?[*+?]?\\\||\\\|(?:\\s|\[[^\]\n]*\]| )?[*+?]?\$/|(?:startsWith|endsWith)\(\s*['"\x60]\|['"\x60]\s*\)|(?:\[\s*0\s*\]|\[[^\]\n]*length\s*-\s*1\s*\]|\.at\(\s*-1\s*\))\s*[!=]==?\s*['"\x60]\|['"\x60]`;
+// A header's cell count compared with a delimiter's: the table opening test written again.
+const OPENING_ARITY =
+	/\.length\s*[!=]==?\s*[\w.?]*columnCount\b|\bcolumnCount\s*[!=]==?\s*[\w.?]*\.length\b/;
+// A delimiter cell spelled as a string; a comparison or search with `---` is a divider's.
+const DELIMITER_CELL = String.raw`(?<!(?:[=!]==?|(?:startsWith|endsWith|includes|indexOf)\()\s*)['"\x60]:?-{3,}:?['"\x60]`;
+
+/** One row per block syntax: the module its bytes are read and written in, and what a copy looks like. */
+const SYNTAX_MODULES: FileRule[] = [
+	{
+		id: 'G4.131 a `$$` block’s opener, body and closer are read and written in `math-shape.ts` only',
+		population: under(SOURCE_DIR.latexPlugin),
+		matches: new RegExp(`${DOLLAR_FENCE}|${ESCAPED_FENCE}|${MATH_LINE_SEARCH}`),
+		allowed: {
+			[MATH_SHAPE_HOME]:
+				'the closer search, the split and the block lines the parser, the write rule, the painter and the completer all ask'
+		},
+		reaches: [MATH_SHAPE_HOME],
+		reason:
+			'a second copy of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: ask `readMathSource`, `mathCloserLine` over a line array, or `mathBlockLines` to write a block',
+		hits: [
+			at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
+			at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
+			at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);'),
+			at(ROGUE_MATH_READER, "if (text.indexOf('$$') === 0) return null;"),
+			at(ROGUE_MATH_READER, "return text.lastIndexOf('$$') === text.length - 2;"),
+			at(ROGUE_MATH_READER, 'if (line.includes(BLOCK_FENCE)) return null;'),
+			at(ROGUE_MATH_READER, 'if (/^\\$\\$/.test(text)) return null;'),
+			at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');"),
+			at(ROGUE_MATH_READER, 'while (i < ctx.end && !isMathFenceLine(ctx.lines[i].text)) i++;'),
+			at(ROGUE_MATH_READER, 'return rest.some((line) => isMathFenceLine(line.text));'),
+			at(ROGUE_MATH_READER, 'const [openerLine] = displayLines(opener);'),
+			at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
+			at(ROGUE_MATH_READER, "registerInsertEntry({ markdown: '$$\\n\\n$$\\n' });"),
+			at(ROGUE_MATH_READER, 'const block = `$$${body}$$`;')
+		],
+		misses: [
+			at(ROGUE_MATH_READER, "return { lines: mathBlockLines(''), caret };"),
+			at(
+				ROGUE_MATH_READER,
+				"registerInsertEntry({ markdown: `${mathBlockLines('').join('\\n')}\\n` });"
+			),
+			at(ROGUE_MATH_READER, 'if (!isMathFenceLine(trimWhitespace(line))) return null;'),
+			at(ROGUE_MATH_READER, 'const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);'),
+			at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
+			at(ROGUE_MATH_READER, "const price = '$' + amount;"),
+			at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
+		]
 	},
-	reaches: [MATH_SHAPE_HOME],
-	reason:
-		'a second reader of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: read it through `math-shape.ts`',
-	hits: [
-		at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
-		at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
-		at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);'),
-		at(ROGUE_MATH_READER, "if (text.indexOf('$$') === 0) return null;"),
-		at(ROGUE_MATH_READER, "return text.lastIndexOf('$$') === text.length - 2;"),
-		at(ROGUE_MATH_READER, 'if (line.includes(BLOCK_FENCE)) return null;'),
-		at(ROGUE_MATH_READER, 'if (/^\\$\\$/.test(text)) return null;'),
-		at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');")
-	],
-	misses: [
-		at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
-		at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
-		at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
-	]
-};
+	{
+		id: 'G4.131 a table row’s pipes are read and written in `table-line.ts` only',
+		population: under(SOURCE_DIR.library),
+		matches: new RegExp(`${PADDED_PIPE}|${TEMPLATE_ROW}|${EDGE_PIPE_READ}|${DELIMITER_CELL}`),
+		allowed: {
+			[TABLE_LINE_HOME]:
+				'the row reader, and the row, delimiter, new-table and in-place writers the rebuild, the Enter completer, the copy, the grid paste and the insert menu all call'
+		},
+		reaches: [TABLE_LINE_HOME],
+		reason:
+			'a second spelling of a table row drifts from the first, so a new table, a copied rectangle, a pasted grid and a rebuilt row stop agreeing on bytes: write a row with `tableRowLine`, `tableDelimiterLine`, `newTableLines` or `spliceCells`, and read one with `rowCellSpans`, `opensOnPipe`, `wrappedInPipes` or `boundaryPipeAt`',
+		hits: [
+			at(ROGUE_TABLE_WRITER, "const plain = '| ' + cells.join(' | ') + ' |';"),
+			at(ROGUE_TABLE_WRITER, "return line + ' |';"),
+			at(
+				ROGUE_TABLE_WRITER,
+				'const line = (cell: string) => `|${` ${cell} |`.repeat(columns)}\\n`;'
+			),
+			at(ROGUE_TABLE_WRITER, "const row = `| ${cells.join(' | ')} |`;"),
+			at(ROGUE_TABLE_WRITER, "return [header, cells.map(() => '---'), empty];"),
+			at(ROGUE_TABLE_WRITER, "case 'center': return ':---:';"),
+			at(ROGUE_TABLE_WRITER, "return '|' + cells.map((c) => ' ' + c + ' ').join('|') + '|';"),
+			at(ROGUE_TABLE_WRITER, "const row = '|' + cells.join(' | ') + '|';"),
+			at(ROGUE_TABLE_WRITER, "const row = `|${cells.map((c) => ` ${c} `).join('|')}|`;"),
+			at(ROGUE_TABLE_WRITER, 'if (!lines.every((l) => /^\\|.*\\|$/.test(l))) return null;'),
+			at(ROGUE_TABLE_WRITER, 'const opens = /^[ \\t]*\\|/.test(line);'),
+			at(ROGUE_TABLE_WRITER, "if (!trimWhitespace(line).startsWith('|')) return null;"),
+			at(ROGUE_TABLE_WRITER, "if (trimWhitespace(line)[0] !== '|') return null;"),
+			at(ROGUE_TABLE_WRITER, "return line.trimEnd().at(-1) === '|';"),
+			at(ROGUE_TABLE_WRITER, "return t[t.length - 1] === '|';"),
+			at(ROGUE_TABLE_WRITER, 'const opens = /^ *\\|/.test(line);'),
+			at(ROGUE_TABLE_WRITER, 'const closes = /\\|[ \\t]*$/.test(line);')
+		],
+		misses: [
+			at(ROGUE_TABLE_WRITER, 'return tableRowLine(cells);'),
+			at(ROGUE_TABLE_WRITER, 'const lines = newTableLines(header, rows - 1);'),
+			at(ROGUE_TABLE_WRITER, 'return `|${width}x${height}`;'),
+			at(ROGUE_TABLE_WRITER, 'const key = `${version}|${start}|${end}`;'),
+			at(ROGUE_TABLE_WRITER, "if (rowText[lo] === '|') lo++;"),
+			at(ROGUE_TABLE_WRITER, "if (rowText[hi - 1] === '|') hi--;"),
+			at(ROGUE_TABLE_WRITER, "return pieces.join('|');"),
+			at(ROGUE_TABLE_WRITER, '`"${kind}" onEdge is one of ${ON_EDGE_POLICIES.join(\' | \')}`;'),
+			at(ROGUE_TABLE_WRITER, "entry('divider', 'Divider', 'minus', [], '---\\n');"),
+			at(ROGUE_TABLE_WRITER, "if (line === '---') return 'front matter';"),
+			at(ROGUE_TABLE_WRITER, "if (text.startsWith('---')) return null;"),
+			at(ROGUE_TABLE_WRITER, 'const name = /^\\w+/.exec(text);'),
+			"const plain = '| ' + cells.join(' | ') + ' |';"
+		]
+	},
+	{
+		id: 'G4.131 whether two lines open a table is decided in `matchTableOpening` only',
+		population: under(SOURCE_DIR.library),
+		matches: OPENING_ARITY,
+		allowed: {
+			[SOURCE.tableParser]: '`matchTableOpening`, which the parser and the grid paste both ask'
+		},
+		reaches: [SOURCE.tableParser],
+		reason:
+			'a second test for whether two lines open a table drifts from the parser’s, so a paste and a reload disagree on what is a table: ask `matchTableOpening`',
+		hits: [
+			at(
+				ROGUE_TABLE_WRITER,
+				'if (delimiter && header && header.length === delimiter.columnCount) {'
+			),
+			at(ROGUE_TABLE_WRITER, 'return delim?.columnCount !== cells.length ? null : delim;')
+		],
+		misses: [
+			at(ROGUE_TABLE_WRITER, 'const delimiter = matchTableOpening(lines[0], lines[1]);'),
+			at(ROGUE_TABLE_WRITER, 'if (row.children.length < meta.columnCount) pad(row);'),
+			'if (header.length === delimiter.columnCount) return delimiter;'
+		]
+	}
+];
 
 // ── G4.114 one paint decision for a block under a range ─────────────────────
 
@@ -2223,16 +2326,109 @@ function describeDomPresence(sources: SourceFile[]): void {
 	});
 }
 
+// ── G4.130 one span for every ranged write to a code block ──────────────────
+
+const EDIT_SPAN_HOME = SOURCE.codeFenceBoundary;
+const ROGUE_CODE_WRITE = `${SOURCE_DIR.codeBlock}RogueCode.svelte`;
+
+const FENCE_LINES_FLAG = 'fenceLinesShown';
+
+/** Whether a file reads a fence-lines flag, or the mode check behind it, other than `fenceLinesShown`
+ *  where it's derived, as the whole last argument of `editSpan`, or as an early return's last condition. */
+function readsFenceLinesByHand(file: SourceFile): boolean {
+	const code = file.code;
+	const spanArgs: number[] = [];
+	for (const call of code.matchAll(/(?<![\w.])editSpan\s*\(/g)) {
+		const from = call.index + call[0].length;
+		const args = balancedCall(code, from) ?? '';
+		const last = callArguments(args).at(-1) ?? '';
+		if (last !== FENCE_LINES_FLAG) return true;
+		spanArgs.push(from + args.lastIndexOf(last));
+	}
+	const flagReads = [...code.matchAll(/(?<![\w.])fenceLines\w*\b/g)].filter((read) => {
+		if (read[0] !== FENCE_LINES_FLAG) return true;
+		const before = code.slice(0, read.index);
+		const after = code.slice(read.index + read[0].length);
+		const derived = /\b(?:const|let)\s+$/.test(before) && /^\s*=\s*\$derived\(/.test(after);
+		const earlyReturn =
+			/(?:\|\||\bif\s*\()\s*$/.test(before) && /^\s*\)\s*return(?:\s+false)?\s*;/.test(after);
+		return !derived && !earlyReturn && !spanArgs.includes(read.index);
+	});
+	const modeChecks = [
+		...code.matchAll(/(?<![\w.])(?:paintsFocusedMarkers|hidesDelimitersAtCaret)\s*\(/g)
+	].filter((check) => !/\bfenceLinesShown\s*=\s*\$derived\(\s*$/.test(code.slice(0, check.index)));
+	return flagReads.length > 0 || modeChecks.length > 0;
+}
+
+const CODE_EDIT_SPAN: FileRule[] = [
+	{
+		id: 'G4.130 a code block range is clamped to its body in `code-fence-boundary.ts` only',
+		population: under(SOURCE_DIR.library),
+		matches: /(?<![\w.])(?<!function\s+)clampRangeToBody\s*\(/,
+		allowed: {
+			[EDIT_SPAN_HOME]: '`editSpan` and the caret clamp',
+			[`${SOURCE_DIR.codeBlock}code-indent.ts`]:
+				'an indent keeps every fence line unindented in every mode, a line rule rather than an edit span'
+		},
+		reaches: [EDIT_SPAN_HOME],
+		reason:
+			'a route that clamps its own range keeps its own copy of the span a code block edit rewrites, and the copies drift: ask `editSpan`',
+		hits: [
+			at(ROGUE_CODE_WRITE, 'const span = clampRangeToBody(node, range);'),
+			at(`${SOURCE_DIR.selection}x.ts`, 'return clampRangeToBody (node, { start, end });')
+		],
+		misses: [
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, "import { clampRangeToBody } from './code-fence-boundary';"),
+			at(ROGUE_CODE_WRITE, 'export function clampRangeToBody(node, range) {}')
+		]
+	},
+	{
+		id: 'G4.130 a code block reads whether its fence lines show only for `editSpan` or an early return',
+		population: under(SOURCE_DIR.codeBlock),
+		matches: readsFenceLinesByHand,
+		allowed: { [EDIT_SPAN_HOME]: '`editSpan` itself, which picks the span from the flag' },
+		reaches: [SOURCE.codeBlockComponent, EDIT_SPAN_HOME],
+		reason:
+			'whether the fence lines show decides the span a code block edit rewrites, and any other read of it picks that span by hand: pass the flag to `editSpan`, or return early on it before the block takes the edit',
+		hits: [
+			at(ROGUE_CODE_WRITE, 'const sel = fenceLinesShown ? range : clamp(range);'),
+			at(ROGUE_CODE_WRITE, 'if (fenceLinesShown) return range;'),
+			at(ROGUE_CODE_WRITE, 'if (!fenceLinesShown && crosses) write(clamp(range));'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, true);'),
+			at(ROGUE_CODE_WRITE, 'editSpan(node, fenceLinesShown ? range : body, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown || true);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown && !mode);'),
+			at(
+				ROGUE_CODE_WRITE,
+				'const fenceLinesForced = true;\nconst span = editSpan(node, range, fenceLinesForced);'
+			),
+			at(ROGUE_CODE_WRITE, 'const fenceLinesForced = true;\nif (fenceLinesForced) return;'),
+			at(ROGUE_CODE_WRITE, 'const span = paintsFocusedMarkers(mode) ? range : body;'),
+			at(ROGUE_CODE_WRITE, 'if (hidesDelimitersAtCaret(mode)) return clamp(range);')
+		],
+		misses: [
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(\n\tnode,\n\trange,\n\tfenceLinesShown\n);'),
+			at(ROGUE_CODE_WRITE, 'if (composing || !el || fenceLinesShown) return false;'),
+			at(ROGUE_CODE_WRITE, 'if (!sel || sel.start === sel.end || fenceLinesShown) return;'),
+			at(ROGUE_CODE_WRITE, 'const fenceLinesShown = $derived(paintsFocusedMarkers(mode));'),
+			at(`${SOURCE_DIR.textBlock}x.ts`, 'const span = paintsFocusedMarkers(mode) ? range : body;')
+		]
+	}
+];
+
 const SOURCES = collectEditorSources();
 describeFileRules(
 	[
 		...RULES,
 		...LEAF_RANGE_RULES,
 		REF_FOCUS,
-		MATH_SHAPE,
 		RANGE_PAINT,
 		PIECES_UNDER_ORDER_CHECK,
-		WIDGET_LIST
+		WIDGET_LIST,
+		...CODE_EDIT_SPAN,
+		...SYNTAX_MODULES
 	],
 	SOURCES
 );

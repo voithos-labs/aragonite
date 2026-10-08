@@ -10,8 +10,7 @@ import {
 	type BlockOpenerResult,
 	type GrammarView
 } from '../../schema/block-openers';
-import { parseTable, tableHeaderCells } from './table';
-import { matchTableDelimiterRow } from './table-line';
+import { matchTableOpening, parseTable } from './table';
 import { matchThematicBreak } from './thematic-break';
 
 export function parseParagraph(
@@ -22,11 +21,8 @@ export function parseParagraph(
 	grammar: GrammarView
 ): BlockOpenerResult {
 	if (startIndex + 1 < endIndex) {
-		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
-		const header = tableHeaderCells(lines[startIndex].text);
-		// GFM §4.10: a header/delimiter count mismatch is no table; accepting it would
-		// truncate surplus header cells out of the model.
-		if (delimiter && header && header.length === delimiter.columnCount) {
+		const delimiter = matchTableOpening(lines[startIndex].text, lines[startIndex + 1].text);
+		if (delimiter) {
 			return parseTable(lines, startIndex, endIndex, leadingTrivia, delimiter, grammar);
 		}
 	}

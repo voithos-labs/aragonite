@@ -1177,7 +1177,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
 | G4.111 | A block's editable element writes its own text only through the surface write             | L       |
 | G4.112 | An indent key over a range reaches list items through one route, never removing the range | L       |
-| G4.113 | A `$$` math block's shape is read only in the math shape module                           | L       |
+| G4.113 | _Retired_: the `$$` shape is G4.131's `$$` row                                            | L       |
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 | G4.115 | A clipboard payload is written only by a copy                                             | L       |
 | G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
@@ -1187,6 +1187,8 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.126 | The dev server bundles every package the app imports before a page asks for it            | L       |
 | G4.127 | Every branch on whether a DOM exists says what runs without one                           | L       |
 | G4.128 | Every registered block kind shows the empty-block hint, or says why it's never asked      | harness |
+| G4.130 | A code block edit over a range takes its span from `editSpan` only                        | L       |
+| G4.131 | A block syntax's bytes are read and written in its own module only                        | L       |
 | G4.133 | An e2e spec switches the presentation mode only through a helper that waits for it        | L       |
 
 ### The entries
@@ -2259,13 +2261,9 @@ range owns to the range; a list item running its own Tab there would move itself
 a command insertion for the range replace is built in `selection/cross-block/keydown.ts` only, whose
 candidate test leaves Tab out, so no route removes a range for Tab. `lint/file-rules.test.ts`.
 
-**G4.113 · One reading of a math block's shape.** A `$$` source is an opener, a body and a
-closer, and the parser's line tests, the block's write rule and the painter that draws its source
-all read that split from `src/lib/plugins/latex/math-shape.ts`. A second copy drifts, and the
-one-line `$$x^2$$` with a line break in it is where copies disagree: the screen, the bytes and a
-reload then show three different blocks. `lint/file-rules.test.ts` fails a test for `$$`
-anywhere else under `src/lib/plugins/latex/`: a `startsWith`, `endsWith`, `indexOf`,
-`lastIndexOf`, `includes` or equality against the fence, or a regex spelling it `\$\$`.
+**G4.113 · Retired.** The rule was: a `$$` source's opener, body and closer are read only in
+`src/lib/plugins/latex/math-shape.ts`. It still holds, as G4.131's `$$` row, which also fails a
+closer search written by hand.
 
 **G4.114 · One paint decision under a range.** Whether a block under a cross-block range paints one
 box, paints its selected text, or paints nothing is decided by
@@ -2374,6 +2372,56 @@ place, `components/blocks/placeholder-hint.svelte.ts`, which every block built o
 editable element could skip it. `test/components/placeholder-every-kind.svelte.test.ts` mounts every
 registered kind, bundled plugins included: each one either shows the hint in an empty fixture,
 or carries a reason it's never asked (a container, a cell, no blank form).
+
+**G4.130 · One span for every write over a code block range.** Where the mode shows a code
+block's fence lines, an edit over a range rewrites the range. Where it hides them, it rewrites the
+range's part inside the body, and a range on fence structure alone writes nothing. A range lying
+inside the info string is written as is. `src/lib/components/blocks/code/code-fence-boundary.ts`
+:: `editSpan` answers that, and every route that writes over a range in the block asks it: the
+browser's delete and type-over, an IME composition, a typed bracket's wrap, cut, paste, and the
+removal before a command over the selection. When that removal declines, the editable surface
+doesn't run the command, so Enter over fence structure alone writes nothing either. A selection
+drag never gets there, since a range from the body onto a hidden fence line carries that line's
+ending and the drop declines line breaks. Two rows in `lint/file-rules.test.ts` keep it there:
+`clampRangeToBody(` is called only in that module and in `code-indent.ts` (an indent leaves every
+fence line alone in every mode, a line rule rather than a span). And in the code block's folder,
+the fence-lines flag, `fenceLinesShown` (or the mode check behind it), is read in three places
+only: where it's derived with `$derived(…)`, as the whole last argument of an `editSpan` call, and
+as the last condition of an early return. Every `editSpan` call has to pass `fenceLinesShown`
+itself last, so `fenceLinesShown || true` fails, and so does a flag under another name
+(`fenceLinesForced`), `fenceLinesShown ? …` or `if (fenceLinesShown) return range;`.
+`test/blocks/code/code-fence-edit-span.test.ts` runs each route over the same ranges in both modes.
+
+**G4.131 · A block syntax's bytes are read and written in its own module.** Two routes that
+each read a block's syntax drift: one learns a case the other doesn't, and then the screen, the
+bytes a write stores and a reload show three different blocks. So each block syntax gets one
+module, and `lint/file-rules.test.ts` keeps a row per syntax (`SYNTAX_MODULES`) that fails a copy
+anywhere else:
+
+- **`$$` math.** `src/lib/plugins/latex/math-shape.ts` splits a `$$` source into an opener, a body
+  and a closer (`readMathSource`), finds the line that closes a block (`mathCloserLine`, which the
+  parser hands its own lines), and writes a new block's lines (`mathBlockLines`, which the Enter
+  completer, the insert menu and the write rule's reshape build from). The ` ```math ` form is the
+  code fence's syntax, which `sliceFencedSource` reads, and `math-source.ts` :: `sliceMathSource`
+  is the one place that picks between the two. The row fails, under `src/lib/plugins/latex/`
+  outside that module, the fence constant, a string opening or closing on `$$`, a regex spelling
+  it `\$\$`, a source split into lines, or a fence test handed a line read off one.
+  `test/plugins/latex/math-shape-parity.test.ts` runs every function that reads the split over the
+  same shapes, and `math-block-writers.test.ts` pins the bytes a new block is written with.
+- **Table rows.** `src/lib/core/parsers/table-line.ts` reads a row (`rowCellSpans`, plus
+  `opensOnPipe`, `wrappedInPipes` and `boundaryPipeAt` for its pipes). It writes a new row, a
+  delimiter line and a new table's lines (`tableRowLine`, `tableDelimiterLine`, `newTableLines`),
+  and new cells over an existing row (`spliceCells`). The table's rebuild, a copied rectangle, the
+  grid paste, the Enter completer and the insert menu all call those. Outside that module, anywhere
+  in `src/lib/`, the row fails a row edge spelled as a string (`'| '`, or a bare `'|'` joined on
+  with `+`), a template padding an interpolation with a pipe or ending on one, a regex, string test
+  or index read (`[0]`, `[length - 1]`, `.at(-1)`) of a row's edge pipe, and a delimiter cell
+  spelled as a string (`':---'`; `'---'` compared or searched for is a divider's and passes).
+  `test/core/parsers/table-row-writers.test.ts` pins the bytes every route writes, in LF and CRLF
+  documents.
+- **Table opening.** Whether two lines open a table is `src/lib/core/parsers/table.ts` ::
+  `matchTableOpening`, which the parser and the grid paste both ask. A second row fails a header's
+  cell count compared with a delimiter's `columnCount` anywhere else in `src/lib/`.
 
 **G4.133 · An e2e mode switch waits for the mode.** A mode the editor never applies leaves it in
 source mode, which paints every marker, so most live-mode assertions pass there too and a spec

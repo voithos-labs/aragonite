@@ -63,6 +63,38 @@ describe('parseClipboardGrid', () => {
 		]);
 	});
 
+	// Miss-analysis: every GFM fixture here had both edge pipes, the one spelling the hand gate knew.
+	it.each([
+		['no edge pipes', 'a | b\n--- | ---\n1 | 2\n'],
+		['a leading pipe only', '| a | b\n| --- | ---\n| 1 | 2\n'],
+		['a trailing pipe only', 'a | b |\n:-- | --: |\n1 | 2 |\n']
+	])('reads a table the parser reads, %s', (_, text) => {
+		expect(parseClipboardGrid(text)).toEqual([
+			['a', 'b'],
+			['1', '2']
+		]);
+	});
+
+	it('a header whose cell count the delimiter does not match is no table, so no grid', () => {
+		expect(parseClipboardGrid('a | b\n--- | --- | ---\n1 | 2\n')).toBeNull();
+	});
+
+	// Miss-analysis: no pipe-row fixture ended its last cell in an escaped pipe.
+	it('a line wrapped in pipes is a grid row even when its last pipe is escaped', () => {
+		expect(parseClipboardGrid('| a | b\\|')).toEqual([['a', 'b|']]);
+	});
+
+	it('pipe rows with no delimiter need a pipe at both ends', () => {
+		expect(parseClipboardGrid('| a | b\n| c | d')).toBeNull();
+	});
+
+	it('a tab-holding payload that opens a table is read as the table', () => {
+		expect(parseClipboardGrid('a\tz | b\n--- | ---\nx | y')).toEqual([
+			['a\tz', 'b'],
+			['x', 'y']
+		]);
+	});
+
 	it('plain text, one word, or lines without tabs are not a grid', () => {
 		expect(parseClipboardGrid('hello')).toBeNull();
 		expect(parseClipboardGrid('hello\nworld')).toBeNull();

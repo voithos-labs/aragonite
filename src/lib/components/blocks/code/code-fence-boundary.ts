@@ -1,13 +1,13 @@
 /**
  * Pure decisions that keep a caret and an edit off a fenced code block's fence lines where the
  * mode hides them; there, editable content is the body plus the opener's info string. Where the
- * mode paints them, edits land and the fence write rule keeps one opener and one closer.
- * Display-text coordinates throughout.
+ * mode paints them, edits land and the fence write rule keeps one opener and one closer. Every
+ * route that writes a range asks `editSpan`. Display-text coordinates throughout.
  */
 
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
-import { displayLength, trimTrailingLineEnding } from '../../../core/lines';
+import { displayLength } from '../../../core/lines';
 import { fenceAnatomy } from '../../../core/parsers/fence-syntax';
 import { sliceFencedCode, type FencedCodeSlice } from './code-renderer';
 import type { RawRange } from '../../../cursor/widget-offset';
@@ -69,13 +69,23 @@ export function crossesFenceBoundary(node: NodeView, range: RawRange): boolean {
 	return !(lo >= body.start && hi <= body.end);
 }
 
-/**
- * The span a ranged edit actually rewrites: the range itself while it stays inside
- * one content region, its intersection with the body once it reaches structure.
- */
-export function fenceEditSpan(node: NodeView, range: RawRange): RawRange {
+/** The span a ranged edit rewrites: the range where the fence lines show. Where they're hidden, its
+ *  body part once it reaches them, or null with no body left, never a body edge nobody pointed at. */
+export function editSpan(
+	node: NodeView,
+	range: RawRange,
+	fenceLinesShown: boolean
+): RawRange | null {
 	const span = orderedRange(range);
-	return crossesFenceBoundary(node, span) ? clampRangeToBody(node, span) : span;
+	if (fenceLinesShown || !crossesFenceBoundary(node, span)) return span;
+	const body = clampRangeToBody(node, span);
+	return body.start === body.end ? null : body;
+}
+
+/** Whether `editSpan` kept `range` whole, so the range never reached a hidden fence line. */
+export function spanKeepsRange(range: RawRange, span: RawRange | null): boolean {
+	const ordered = orderedRange(range);
+	return span !== null && span.start === ordered.start && span.end === ordered.end;
 }
 
 /**
@@ -86,28 +96,6 @@ export function clampCaretToBody(node: NodeView, offset: number): number {
 	const caret = { start: offset, end: offset };
 	if (!crossesFenceBoundary(node, caret)) return offset;
 	return clampRangeToBody(node, caret).start;
-}
-
-/** A range that reached the fence lines and keeps no body after the clamp is declined, rather
- *  than moved to a body edge the user never pointed at. */
-export function isStructureOnlyRange(node: NodeView, range: RawRange): boolean {
-	const ordered = orderedRange(range);
-	if (!crossesFenceBoundary(node, ordered)) return false;
-	const span = clampRangeToBody(node, ordered);
-	return span.start === span.end;
-}
-
-/**
- * The one splice over a range in place where the fence lines are hidden: the browser's delete
- * and type-over, through the beforeinput check, and cut. Null when there is nothing to rewrite.
- */
-export function computeFenceRangedEdit(
-	node: NodeView,
-	range: RawRange,
-	insert: string
-): FenceRangedEdit | null {
-	if (isStructureOnlyRange(node, range)) return null;
-	return computeRangedEdit(trimTrailingLineEnding(node.raw), fenceEditSpan(node, range), insert);
 }
 
 /** `insert` spliced over `range` of `display`; null when it changes nothing, so no undo entry is used. */
@@ -170,7 +158,7 @@ function fenceRegions(node: NodeView): FenceRegions {
 	};
 }
 
-export function orderedRange(range: RawRange): RawRange {
+function orderedRange(range: RawRange): RawRange {
 	return {
 		start: Math.min(range.start, range.end),
 		end: Math.max(range.start, range.end)

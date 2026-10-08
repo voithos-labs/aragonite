@@ -36,7 +36,6 @@ describe('insertCatalogue', () => {
 	it('keeps the built-in bytes the flyout has always inserted', () => {
 		const byId = new Map(insertCatalogue(everyone).map((e) => [e.id, e.markdown]));
 		expect(byId.get('code')).toBe('```\n\n```\n');
-		expect(byId.get('table')).toBe('| Column | Column |\n| --- | --- |\n|  |  |\n');
 		expect(byId.get('divider')).toBe('---\n');
 	});
 

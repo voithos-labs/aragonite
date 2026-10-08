@@ -22,10 +22,15 @@ import {
 import {
 	cellText,
 	delimiterCellAlignment,
-	endsInEscape,
+	delimiterCellSpelling,
 	matchTableDelimiterRow,
+	boundaryPipeAt,
+	opensOnPipe,
 	rowCellSpans,
+	spliceCells,
 	splitRowCells,
+	tableDelimiterLine,
+	tableRowLine,
 	type CellSpan
 } from '../core/parsers/table-line';
 import {
@@ -164,7 +169,7 @@ function tableRowBytes(
 	const text = trimTrailingLineEnding(row.raw);
 	const own = ownTrailingLineEnding(row.raw);
 	const ending = own || (followed ? lineEnding : '');
-	const plain = '| ' + cells.join(' | ') + ' |';
+	const plain = tableRowLine(cells);
 	// A blank line, or more than one, is no row's bytes.
 	if (isBlankLine(text) || text.includes('\n')) return plain + (own || lineEnding);
 	const spans = rowCellSpans(text);
@@ -205,8 +210,8 @@ function readsAsRow(line: string, cells: string[], columns: number, isHeader: bo
 function opensAsBefore(line: string, before: string, spans: CellSpan[]): boolean {
 	const firstCellEnd = spans[0].to;
 	return (
-		/^[ \t]*\|/.test(line) ||
-		(line.startsWith(before.slice(0, firstCellEnd)) && line[firstCellEnd] === '|')
+		opensOnPipe(line) ||
+		(line.startsWith(before.slice(0, firstCellEnd)) && boundaryPipeAt(line, firstCellEnd))
 	);
 }
 
@@ -216,7 +221,7 @@ function delimiterBytes(
 	lineEnding: LineEnding,
 	rowsFollow: boolean
 ): string {
-	const plain = '| ' + alignments.map(formatAlignmentCell).join(' | ') + ' |';
+	const plain = tableDelimiterLine(alignments);
 	if (previous === null) return plain + lineEnding;
 	const text = trimTrailingLineEnding(previous);
 	// The delimiter is the table's own line, so it ends when a row follows it.
@@ -232,61 +237,12 @@ function delimiterBytes(
 	const written = spliceCells(text, spans, {
 		before: before as TableAlignment[],
 		after: alignments,
-		spell: (a) => spellings.get(a) ?? formatAlignmentCell(a),
+		spell: (a) => spellings.get(a) ?? delimiterCellSpelling(a),
 		mayStayMissing: false
 	});
 	const read = matchTableDelimiterRow(written)?.alignments;
 	const reads = read?.length === alignments.length && read.every((a, i) => a === alignments[i]);
 	return (reads ? written : plain) + ending;
-}
-
-interface CellWrite<T> {
-	before: readonly T[];
-	after: readonly T[];
-	spell: (cell: T) => string;
-	/** Trailing empty cells past the line's last one may stay unwritten. */
-	mayStayMissing: boolean;
-}
-
-/** `after` written over a line whose cells read `before`: cells equal from either end keep their
- *  bytes, those between take new text in their old padding, the rest are cut or added. */
-function spliceCells<T>(text: string, spans: CellSpan[], write: CellWrite<T>): string {
-	const { before, after, spell } = write;
-	let head = 0;
-	while (head < before.length && head < after.length && before[head] === after[head]) head++;
-	if (head === before.length && head === after.length) return text;
-	let tail = 0;
-	while (
-		tail < before.length - head &&
-		tail < after.length - head &&
-		before[before.length - 1 - tail] === after[after.length - 1 - tail]
-	) {
-		tail++;
-	}
-	const paired = Math.min(before.length, after.length) - head - tail;
-	let addedEnd = after.length - tail;
-	if (tail === 0 && write.mayStayMissing) {
-		while (addedEnd > head + paired && spell(after[addedEnd - 1]) === '') addedEnd--;
-	}
-	const region = (i: number) => text.slice(spans[i].from, spans[i].to);
-	const pieces: string[] = [];
-	for (let i = 0; i < head; i++) pieces.push(region(i));
-	for (let i = head; i < head + paired; i++)
-		pieces.push(rewriteCell(text, spans[i], spell(after[i])));
-	for (let i = head + paired; i < addedEnd; i++) pieces.push(' ' + spell(after[i]) + ' ');
-	for (let i = before.length - tail; i < before.length; i++) pieces.push(region(i));
-	return text.slice(0, spans[0].from) + pieces.join('|') + text.slice(spans.at(-1)!.to);
-}
-
-/** The cell's region with `value` in place of its text; an empty cell's text goes after one
- *  byte of its padding, so `|  |` becomes `| x |`. */
-function rewriteCell(text: string, span: CellSpan, value: string): string {
-	const { from, start, end, to } = span;
-	const at = start < end ? start : Math.min(from + 1, to);
-	const after = text.slice(start < end ? end : at, to);
-	// A trailing backslash against the next pipe would escape it and join the two cells.
-	const gap = after === '' && text[to] === '|' && endsInEscape(value) ? ' ' : '';
-	return text.slice(from, at) + value + gap + after;
 }
 
 /** The second line of `raw`, its ending included, or null when it has none. */
@@ -295,21 +251,4 @@ function secondLine(raw: string): string | null {
 	if (first < 0 || first + 1 === raw.length) return null;
 	const second = raw.indexOf('\n', first + 1);
 	return second < 0 ? raw.slice(first + 1) : raw.slice(first + 1, second + 1);
-}
-
-function formatAlignmentCell(a: TableAlignment): string {
-	switch (a) {
-		case 'left':
-			return ':---';
-		case 'center':
-			return ':---:';
-		case 'right':
-			return '---:';
-		case 'none':
-			return '---';
-		default: {
-			const _exhaustive: never = a;
-			throw new Error(`Unknown alignment: ${_exhaustive}`);
-		}
-	}
 }

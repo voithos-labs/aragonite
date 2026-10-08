@@ -58,6 +58,10 @@ stack would show up as a document that moved. The six declines the code carries,
   break and drag it). Moving it needs the structural paste route, which this handler does not
   take, so the spec asserts the source paragraph still holds both its lines, not just that the
   bytes match
+  - a code block taken whole in live mode is cancelled by the same decline. Live mode hides the
+    fence lines, and any range reaching one from the body carries the line ending between them,
+    so the drop never cuts a fence byte you can't see. Covered by triple-clicking the block, whose
+    range takes both hidden fence lines
 - **a drop on a block that holds no character position**: cancelled, covered twice: a drop onto a
   thematic break, and a drop onto a table cell, whose offsets are cell indices rather than
   character positions. There is no offset to insert at
