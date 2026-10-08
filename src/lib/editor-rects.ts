@@ -1,8 +1,8 @@
 /**
  * Viewport-space geometry over the rendered document, the public face of the measurement calls
  * block components expose. Offsets mean what `measurePartialRects` means for that block (raw
- * offsets on prose, cell coordinates in a grid). jsdom reports boxes of about zero size, so e2e
- * covers this file rather than unit tests.
+ * offsets on prose, cell coordinates in a grid). jsdom reports boxes of about zero size, so e2e covers
+ * the geometry and a unit test covers the answers that are not geometry.
  */
 import type { BlockComponent } from './block-component';
 import type { ScrollOwner } from './cursor/scroll-owner';

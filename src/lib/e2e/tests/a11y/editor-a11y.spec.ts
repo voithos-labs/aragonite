@@ -12,37 +12,38 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await editor.goto();
 	});
 
-	test('default content has no new violations', async ({ page }) => {
+	// One document through each presentation mode. Each mode draws its own set of elements and
+	// contrasts, so each step is its own axe pass under its own allowlist key.
+	test('default content has no new violations in any presentation mode', async ({ page }) => {
 		await editor.loadContent(DEFAULT_CONTENT);
 		await editor.waitForRenderFlush();
-		await expectNoNewA11yViolations(page, 'default');
-	});
 
-	test('reading mode has no new violations', async ({ page }) => {
-		// Reading mode is axe-relevant on its own: contenteditable=false + aria-readonly,
-		// markers hidden by CSS, synthesized bullets, and visible-undimmed ordered numbers.
-		await editor.loadContent(DEFAULT_CONTENT);
-		await clickModeToggle(page, 'reading');
-		await editor.waitForRenderFlush();
-		await expectNoNewA11yViolations(page, 'reading-mode');
-	});
+		await test.step('source', async () => {
+			await expectNoNewA11yViolations(page, 'default');
+		});
 
-	test('preview-block has no new violations', async ({ page }) => {
-		// Live editing with markers hidden by focus-keyed CSS, plus rendered bullets on unfocused
-		// list items: a different set of elements and contrasts from reading and source.
-		await editor.loadContent(DEFAULT_CONTENT);
-		await clickModeToggle(page, 'preview-block');
-		await editor.waitForRenderFlush();
-		await expectNoNewA11yViolations(page, 'preview-block');
-	});
+		await test.step('reading', async () => {
+			// contenteditable=false + aria-readonly, markers hidden by CSS, synthesized bullets, and
+			// visible-undimmed ordered numbers.
+			await clickModeToggle(page, 'reading');
+			await editor.waitForRenderFlush();
+			await expectNoNewA11yViolations(page, 'reading-mode');
+		});
 
-	test('preview-inline has no new violations', async ({ page }) => {
-		// This mode marks each construct's markers with a data attribute and hides them until the
-		// caret is near, so those attributes and the shown spans get their own axe pass.
-		await editor.loadContent(DEFAULT_CONTENT);
-		await clickModeToggle(page, 'preview-inline');
-		await editor.waitForRenderFlush();
-		await expectNoNewA11yViolations(page, 'preview-inline');
+		await test.step('preview-block', async () => {
+			// Live editing with markers hidden by focus-keyed CSS, plus rendered bullets on unfocused
+			// list items.
+			await clickModeToggle(page, 'preview-block');
+			await editor.waitForRenderFlush();
+			await expectNoNewA11yViolations(page, 'preview-block');
+		});
+
+		await test.step('preview-inline', async () => {
+			// Each construct's markers carry a data attribute and hide until the caret is near.
+			await clickModeToggle(page, 'preview-inline');
+			await editor.waitForRenderFlush();
+			await expectNoNewA11yViolations(page, 'preview-inline');
+		});
 	});
 
 	test('cross-block selection announces via live region and has no new violations', async ({

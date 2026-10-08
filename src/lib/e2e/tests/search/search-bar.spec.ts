@@ -141,53 +141,61 @@ test.describe('search: toggles', () => {
 		await editor.goto();
 	});
 
-	test('case toggle narrows the match set to the case-sensitive subset', async ({ page }) => {
-		await editor.loadContent('Alpha and alpha and ALPHA\n');
-		await openFind(editor);
-		await typeQuery(editor, 'alpha');
-		await expect(count(page)).toHaveText(/1\s*\/\s*3/);
-
-		await page.getByRole('button', { name: 'Match case' }).click();
-		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
-	});
-
-	test('whole-word toggle drops substring-only matches', async ({ page }) => {
-		await editor.loadContent('cat catalog scatter cat\n');
-		await openFind(editor);
-		await typeQuery(editor, 'cat');
-		await expect(count(page)).toHaveText(/1\s*\/\s*4/);
-
-		await page.getByRole('button', { name: 'Whole word' }).click();
-		await expect(count(page)).toHaveText(/1\s*\/\s*2/);
-	});
-
-	test('regex toggle interprets the query as a pattern', async ({ page }) => {
-		await editor.loadContent('a1 b2 c3 plain\n');
-		await openFind(editor);
-		await typeQuery(editor, '[a-c][0-9]');
-		// As a literal, the bracket query matches nothing.
-		await expect(count(page)).toHaveText(/No results/);
-
-		await page.getByRole('button', { name: 'Regex' }).click();
-		await expect(count(page)).toHaveText(/1\s*\/\s*3/);
-	});
-
-	test('invalid regex shows an error state with no count and no highlights', async ({ page }) => {
+	// The bar stays open across steps and each toggle stays on, so every step clears the query and
+	// reads its own document under the options the steps before it left.
+	test('each toggle reshapes the match set, and an invalid regex shows an error state', async ({
+		page
+	}) => {
 		const pageErrors = capturePageErrors(page);
 
-		await editor.loadContent('some text here\n');
-		await openFind(editor);
-		await page.getByRole('button', { name: 'Regex' }).click();
-		// Clicking the toggle moved focus off the find input; refocus before typing.
-		await findInput(page).click();
-		await typeQuery(editor, '(');
+		await test.step('case toggle narrows the match set to the case-sensitive subset', async () => {
+			await editor.loadContent('Alpha and alpha and ALPHA\n');
+			await openFind(editor);
+			await findInput(page).fill('');
+			await typeQuery(editor, 'alpha');
+			await expect(count(page)).toHaveText(/1\s*\/\s*3/);
 
-		// Positively assert the error state (the readout carries the `error` class and
-		// the compiler's message), not merely the absence of a count.
-		await expect(count(page)).toHaveClass(/error/);
-		await expect(count(page)).not.toHaveText(/\d+\s*\/\s*\d+/);
-		await expect(count(page)).not.toHaveText(/No results/);
-		await expect(overlays(page)).toHaveCount(0);
+			await page.getByRole('button', { name: 'Match case' }).click();
+			await expect(count(page)).toHaveText(/1\s*\/\s*1/);
+		});
+
+		await test.step('whole-word toggle drops substring-only matches', async () => {
+			await editor.loadContent('cat catalog scatter cat\n');
+			await openFind(editor);
+			await findInput(page).fill('');
+			await typeQuery(editor, 'cat');
+			await expect(count(page)).toHaveText(/1\s*\/\s*4/);
+
+			await page.getByRole('button', { name: 'Whole word' }).click();
+			await expect(count(page)).toHaveText(/1\s*\/\s*2/);
+		});
+
+		await test.step('regex toggle interprets the query as a pattern', async () => {
+			await editor.loadContent('a1 b2 c3 plain\n');
+			await openFind(editor);
+			await findInput(page).fill('');
+			await typeQuery(editor, '[a-c][0-9]');
+			// As a literal, the bracket query matches nothing.
+			await expect(count(page)).toHaveText(/No results/);
+
+			await page.getByRole('button', { name: 'Regex' }).click();
+			await expect(count(page)).toHaveText(/1\s*\/\s*3/);
+		});
+
+		await test.step('invalid regex shows an error state with no count and no highlights', async () => {
+			await editor.loadContent('some text here\n');
+			await openFind(editor);
+			await findInput(page).fill('');
+			await typeQuery(editor, '(');
+
+			// Positively assert the error state (the readout carries the `error` class and
+			// the compiler's message), not merely the absence of a count.
+			await expect(count(page)).toHaveClass(/error/);
+			await expect(count(page)).not.toHaveText(/\d+\s*\/\s*\d+/);
+			await expect(count(page)).not.toHaveText(/No results/);
+			await expect(overlays(page)).toHaveCount(0);
+		});
+
 		expect(pageErrors).toEqual([]);
 	});
 });

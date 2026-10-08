@@ -12,8 +12,6 @@ replacement inside table cells.
 ## Edge cases
 
 - A regex `$1` capture reference expands in the replacement.
-- A replacement that introduces a heading marker changes the block's kind.
-- A regex-mode replacement with a `\n` escape splits the matched block into two (the single-line replace input cannot carry a real newline).
 - Replace All is a single undo: one Ctrl+Z restores the entire original document.
 
 ## User interactions
@@ -21,3 +19,9 @@ replacement inside table cells.
 - Find counts matches inside table cells; the matching cells highlight.
 - Replace All fixes the text inside every matching table cell.
 - Single Replace on a table-cell match rewrites only that cell.
+
+## Pinned below the browser
+
+A replacement that introduces a heading marker changes the block's kind, and a regex-mode replacement
+with a `\n` escape splits the matched block in two (the single-line replace input cannot carry a real
+newline). `test/editor-actions/search-replace.test.ts` and `test/search/replace.test.ts` pin both.

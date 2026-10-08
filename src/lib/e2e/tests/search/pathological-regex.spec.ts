@@ -30,37 +30,39 @@ test.describe('search: a pathological regex query', () => {
 		await findInput(page).click(); // the toggle took focus off the input
 	});
 
-	test('the editor keeps accepting input while the scan runs', async ({ page }) => {
-		// Elapsed time is the check: a frozen main thread still lands every keystroke eventually, so
-		// only the clock tells a scan that left the main thread from one that did not.
+	// One query pays the scan deadline once: the editor stays live while it runs, the overrun reads
+	// as a state, and a cheap query after it searches again.
+	test('the scan stays off the main thread, ends in a reported state, and recovers', async ({
+		page
+	}) => {
+		const pageErrors = capturePageErrors(page);
 		const startedAt = Date.now();
 
-		await typeQuery(editor, PATHOLOGICAL_QUERY);
-		await editor.focusBlockEnd(0);
-		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('readyX', 3000);
+		await test.step('the editor keeps accepting input while the scan runs', async () => {
+			// Elapsed time is the check: a frozen main thread still lands every keystroke eventually, so
+			// only the clock tells a scan that left the main thread from one that did not.
+			await typeQuery(editor, PATHOLOGICAL_QUERY);
+			await editor.focusBlockEnd(0);
+			await editor.typeText('X');
+			await editor.bridge.waitForSourceContains('readyX', 3000);
 
-		expect(Date.now() - startedAt).toBeLessThan(MAIN_THREAD_BUDGET_MS);
-		await expect(findInput(page)).toHaveValue(PATHOLOGICAL_QUERY);
-	});
+			expect(Date.now() - startedAt).toBeLessThan(MAIN_THREAD_BUDGET_MS);
+			await expect(findInput(page)).toHaveValue(PATHOLOGICAL_QUERY);
+		});
 
-	test('the deadline overrun reports a too-slow state and paints nothing', async ({ page }) => {
-		const pageErrors = capturePageErrors(page);
-		await typeQuery(editor, PATHOLOGICAL_QUERY);
+		await test.step('the deadline overrun reports a too-slow state and paints nothing', async () => {
+			await expect(count(page)).toHaveText('Regex too slow', { timeout: 8000 });
+			await expect(count(page)).toHaveClass(/error/);
+			await expect(overlays(page)).toHaveCount(0);
+		});
 
-		await expect(count(page)).toHaveText('Regex too slow', { timeout: 8000 });
-		await expect(count(page)).toHaveClass(/error/);
-		await expect(overlays(page)).toHaveCount(0);
+		await test.step('a cheap query after an overrun searches again', async () => {
+			await findInput(page).fill('read.');
+			await expect(count(page)).toHaveText(/1\s*\/\s*1/);
+			await expect(overlays(page)).toHaveCount(1);
+		});
+
 		// A terminated scan is a state the bar shows, not a rejection that escapes.
 		expect(pageErrors).toEqual([]);
-	});
-
-	test('a cheap query after an overrun searches again', async ({ page }) => {
-		await typeQuery(editor, PATHOLOGICAL_QUERY);
-		await expect(count(page)).toHaveText('Regex too slow', { timeout: 8000 });
-
-		await findInput(page).fill('read.');
-		await expect(count(page)).toHaveText(/1\s*\/\s*1/);
-		await expect(overlays(page)).toHaveCount(1);
 	});
 });
