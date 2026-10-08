@@ -65,27 +65,9 @@ test.describe('the drawn caret', () => {
 	});
 
 	test.describe('sits on the browser’s caret position', () => {
-		const LONG = 'wrap '.repeat(60).trim();
 		const ROWS: Array<[string, string, (ep: EditorPage, page: Page) => Promise<void>]> = [
 			['at the start of a line', 'hello world\n', (ep) => ep.focusBlock(0, 0)],
 			['at the end of a line', 'hello world\n', (ep) => ep.focusBlock(0, 11)],
-			[
-				'at the start of a wrapped line’s second visual line',
-				`${LONG}\n`,
-				async (ep, page) => {
-					await ep.focusBlock(0, 0);
-					await page.keyboard.press('ArrowDown');
-					await page.keyboard.press('Home');
-				}
-			],
-			[
-				'at the end of a wrapped line’s first visual line',
-				`${LONG}\n`,
-				async (ep, page) => {
-					await ep.focusBlock(0, 0);
-					await page.keyboard.press('End');
-				}
-			],
 			[
 				'in an empty block',
 				'first\n',
@@ -229,22 +211,12 @@ test.describe('the drawn caret', () => {
 		expect(animation).toBe('none');
 	});
 
-	test('forced colors paint the caret in the system text color', async ({ page }) => {
+	test('forced colors keep the browser’s caret', async ({ page }) => {
 		await page.emulateMedia({ forcedColors: 'active' });
 		await editor.loadContent('hello world\n');
 		await editor.focusBlock(0, 3);
-		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-		const paint = await page.locator('.md-drawn-caret').evaluate((bar) => {
-			const probe = document.createElement('div');
-			probe.style.color = 'CanvasText';
-			document.body.appendChild(probe);
-			const text = getComputedStyle(probe).color;
-			probe.remove();
-			const style = getComputedStyle(bar);
-			return { background: style.backgroundColor, text, adjust: style.forcedColorAdjust };
-		});
-		expect(paint.adjust).toBe('none');
-		expect(paint.background).toBe(paint.text);
+		await page.keyboard.type('x');
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_NATIVE);
 	});
 
 	test('the caret prop: native never draws, drawn draws, and a live switch swaps in place', async ({
@@ -299,11 +271,18 @@ test.describe('the drawn caret', () => {
 
 // ── Soft wraps, against the browser's own painted caret ────────────────────
 
-/** The column and top of the red caret the browser paints in `clip`, or null while it blinks off. */
+interface PaintedCaret {
+	left: number;
+	top: number;
+	bottom: number;
+}
+
+/** The column and the span of the red caret the browser paints in `clip`, or null while it blinks
+ *  off. */
 async function paintedRedCaret(
 	page: Page,
 	clip: { x: number; y: number; width: number; height: number }
-): Promise<{ left: number; top: number } | null> {
+): Promise<PaintedCaret | null> {
 	const shot = await page.screenshot({ clip, caret: 'initial' });
 	return page.evaluate(
 		async ({ b64, clip }) => {
@@ -318,30 +297,33 @@ async function paintedRedCaret(
 			const { data } = ctx.getImageData(0, 0, img.width, img.height);
 			let left = Infinity;
 			let top = Infinity;
+			let bottom = -Infinity;
 			for (let y = 0; y < img.height; y++) {
 				for (let x = 0; x < img.width; x++) {
 					const i = (y * img.width + x) * 4;
 					if (data[i] > 200 && data[i + 1] < 60 && data[i + 2] < 60) {
 						left = Math.min(left, x);
 						top = Math.min(top, y);
+						bottom = Math.max(bottom, y + 1);
 					}
 				}
 			}
-			return left === Infinity ? null : { left: clip.x + left, top: clip.y + top };
+			if (left === Infinity) return null;
+			return { left: clip.x + left, top: clip.y + top, bottom: clip.y + bottom };
 		},
 		{ b64: shot.toString('base64'), clip }
 	);
 }
 
 /** Where the browser paints its own caret now, red and found by eye, retried past a blink. */
-async function browserCaret(page: Page): Promise<{ left: number; top: number }> {
+async function browserCaret(page: Page): Promise<PaintedCaret> {
 	await setCaretProp(page, 'native');
 	await page.addStyleTag({
 		content: '.editor [contenteditable] { caret-color: rgb(255, 0, 0) !important; }'
 	});
 	const block = (await page.locator('.text-editable-block').first().boundingBox())!;
 	const clip = { x: block.x - 4, y: block.y - 4, width: block.width + 8, height: block.height + 8 };
-	let found: { left: number; top: number } | null = null;
+	let found: PaintedCaret | null = null;
 	await expect
 		.poll(async () => (found = await paintedRedCaret(page, clip)), { timeout: 5000 })
 		.not.toBeNull();
@@ -358,38 +340,60 @@ test.describe('the drawn caret at a soft wrap', () => {
 		await editor.loadContent(`${LONG}\n`);
 	});
 
-	/** The drawn caret's box, then the browser's painted caret at the same selection. */
-	async function compareAtWrap(page: Page): Promise<void> {
-		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-		const drawn = (await drawnCaretBox(page))!;
+	/** Exactly one caret shows; a drawn one sits on the line, and at the x, the browser paints its
+	 *  own caret at for the same selection. */
+	async function oneCaretOnTheBrowsersLine(page: Page): Promise<'drawn' | 'native'> {
+		// A key the browser handles moves the caret in a later task; its paint lands by the frame.
+		await page.evaluate(
+			() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+		);
+		await expect
+			.poll(async () => {
+				const showing = await caretsShowing(page);
+				return showing.drawn + (showing.native ? 1 : 0);
+			})
+			.toBe(1);
+		const drawn = await drawnCaretBox(page);
+		if (!drawn) return 'native';
 		const painted = await browserCaret(page);
-		expect(
-			Math.abs(drawn.top - painted.top),
-			`line ${drawn.top} vs ${painted.top}`
-		).toBeLessThanOrEqual(2);
+		// The same line: WebKit paints its own caret the full line box tall past a wrap, taller than
+		// the text, so the drawn bar's middle is what has to fall inside it.
+		const middle = drawn.top + drawn.height / 2;
+		expect(middle, `line ${drawn.top} vs ${painted.top}..${painted.bottom}`).toBeGreaterThan(
+			painted.top
+		);
+		expect(middle).toBeLessThan(painted.bottom);
 		expect(
 			Math.abs(drawn.left - painted.left),
 			`x ${drawn.left} vs ${painted.left}`
 		).toBeLessThanOrEqual(1);
+		return 'drawn';
 	}
 
-	test('End on a wrapped line puts it on the browser’s line', async ({ page }) => {
+	test('End on a wrapped line: the browser’s own caret, at the wrap', async ({ page }) => {
 		await editor.focusBlock(0, 0);
 		await page.keyboard.press('End');
-		await compareAtWrap(page);
+		expect(await oneCaretOnTheBrowsersLine(page)).toBe('native');
 	});
 
-	test('ArrowRight across a wrap puts it on the browser’s line', async ({ page }) => {
+	test('Home on the second visual line: the browser’s own caret, at the wrap', async ({ page }) => {
+		await editor.focusBlock(0, 0);
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.press('Home');
+		expect(await oneCaretOnTheBrowsersLine(page)).toBe('native');
+	});
+
+	test('ArrowRight across a wrap: the drawn caret, on the browser’s line', async ({ page }) => {
 		await editor.focusBlock(0, 0);
 		await page.keyboard.press('End');
 		await page.keyboard.press('ArrowRight');
-		await compareAtWrap(page);
+		expect(await oneCaretOnTheBrowsersLine(page)).toBe('drawn');
 	});
 
-	test('typing at a wrap puts it on the browser’s line', async ({ page }) => {
+	test('typing at a wrap: one caret, on the browser’s line', async ({ page }) => {
 		await editor.focusBlock(0, 0);
 		await page.keyboard.press('End');
 		await page.keyboard.type('x');
-		await compareAtWrap(page);
+		await oneCaretOnTheBrowsersLine(page);
 	});
 });

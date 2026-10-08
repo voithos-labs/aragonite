@@ -77,6 +77,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		rangeCoverage: () => null,
 		search: {} as EditorServices['search'],
 		caretMemory: makeCaretMemory(),
+		// A bare mount draws no caret.
+		drawnCaret: { request: () => {}, register: () => () => {} },
 		autoPairs: createAutoPairRecord(),
 		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
 		scrollOwner: {} as EditorServices['scrollOwner'],

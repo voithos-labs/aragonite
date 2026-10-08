@@ -22,6 +22,7 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'caret -> core',
 	'caret -> debug',
 	'caret -> invariants',
+	'caret -> perf',
 	'caret -> presentation-mode.ts',
 	'caret -> schema',
 	'caret -> windowing',

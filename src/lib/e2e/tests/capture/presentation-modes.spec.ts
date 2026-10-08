@@ -98,7 +98,11 @@ for (const theme of ['light', 'dark'] as const) {
 			const ep = await openPanel(page, mode);
 			// The editor paints the extra room itself, so a shorter panel matches the tallest exactly.
 			await ep.editorContainer.evaluate((el, px) => (el.style.minHeight = `${px}px`), tallest);
-			shots.push((await ep.editorContainer.screenshot()).toString('base64'));
+			// Playwright hides the browser's caret; the drawn one goes too, as no part of the picture.
+			const shot = await ep.editorContainer.screenshot({
+				style: '.md-drawn-caret { display: none !important; }'
+			});
+			shots.push(shot.toString('base64'));
 		}
 
 		await page.setContent(compositionHtml(shots, theme));

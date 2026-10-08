@@ -13,6 +13,7 @@ const DRAWING: DrawnCaretReads = {
 	collapsed: true,
 	source: { drawable: true },
 	besideWidget: false,
+	atSoftWrap: false,
 	caret: { left: 40.3, top: 25, bottom: 45 },
 	host: { left: 10, top: 20, scale: 1 },
 	devicePixelRatio: 1
@@ -39,6 +40,7 @@ const NATIVE: Array<[string, Partial<DrawnCaretReads>]> = [
 	['the anchor sits outside every registered surface', { source: null }],
 	['a composition or a shown inline source owns the caret', { source: { drawable: false } }],
 	['the caret sits beside an inline widget', { besideWidget: true }],
+	['the caret sits where a line soft-wraps', { atSoftWrap: true }],
 	['the range measures to no rect', { caret: null }],
 	['the surface has no host box to draw in', { host: null }]
 ];

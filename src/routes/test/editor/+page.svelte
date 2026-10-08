@@ -99,6 +99,12 @@
 	// form through `__test.setPlaceholder` with no remount.
 	let placeholder = $state<EditorProps['placeholder']>(param('placeholder') ?? undefined);
 
+	// `?caret=native|drawn` starts with that prop; the prop reads live, like the mode.
+	const CARET_MODES = ['auto', 'native', 'drawn'] as const;
+	let caret = $state<NonNullable<EditorProps['caret']>>(
+		CARET_MODES.find((m) => m === param('caret')) ?? 'auto'
+	);
+
 	// The testids are pinned by the presentation e2e.
 	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
 		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
@@ -131,6 +137,9 @@
 			},
 			setPlaceholder: (value) => {
 				placeholder = value;
+			},
+			setCaret: (mode) => {
+				caret = mode;
 			}
 		});
 	});
@@ -229,6 +238,7 @@
 					{keybindings}
 					{presentationMode}
 					{placeholder}
+					{caret}
 					{onRunCode}
 					{codeMenuItems}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}

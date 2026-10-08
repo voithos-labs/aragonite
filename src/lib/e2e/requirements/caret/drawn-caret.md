@@ -12,8 +12,6 @@ browser's own, or the snap caret beside an inline widget.
 - The drawn caret sits on the browser's caret position (within a pixel) at each of these places:
   - the start of a line
   - the end of a line
-  - the start of a wrapped line's second visual line
-  - the end of a wrapped line's first visual line
   - an empty block
   - a heading
   - a list item
@@ -34,15 +32,19 @@ browser's own, or the snap caret beside an inline widget.
 - An input the editor doesn't draw for (the find bar) keeps the browser's caret, and the drawn one draws nothing
 - During an IME composition the browser's caret shows; after the commit, the drawn one
 - Reduced motion: the drawn caret doesn't blink
-- Forced colors: the drawn caret paints in the system text color
+- Forced colors: the browser's caret shows, since forced colors keep it visible whatever the editor sets, and the drawn one draws nothing
 - A coarse pointer keeps the browser's caret
 - The `caret` prop: `native` never draws, `drawn` draws, and switching between them live swaps the caret in place
 - The bar is hidden from assistive tech, and the focused editable and its selection are what they would be without it
 
 ## Soft wraps
 
-Each compared once against the browser's own painted caret (a red caret, found in a screenshot):
+The range at the offset where a line wraps reads as the first line's end, whichever line the
+browser draws its caret on, so there the drawn caret steps aside. Each row shows exactly one caret,
+and a drawn one is compared once against the browser's own painted caret (a red caret, found in a
+screenshot):
 
-- End on a wrapped line puts the drawn caret on the line the browser draws its caret on
-- ArrowRight across a wrap puts it on the browser's line
-- Typing at a wrap puts it on the browser's line
+- End on a wrapped line: the browser's own caret, at the wrap
+- Home on the second visual line: the browser's own caret, at the wrap
+- ArrowRight across a wrap: the drawn caret, on the browser's line
+- Typing at a wrap: one caret, on the browser's line

@@ -2,13 +2,13 @@
 
 When a click-snap places the cursor at a `contenteditable=false`-adjacent position, Chromium often cannot render a caret of its own. The editor paints a blinking synthetic caret on the matching widget edge (`md-snap-after` / `md-snap-before` class) so the user can see where typing will land.
 
-Exactly one caret paints for one caret position. Where the cursor lands in a text node the editor can see the browser's caret and holds its own back; at an element-level offset it cannot see it, and Chromium renders one there often enough to double up, so the block's own caret is hidden for as long as the synthetic one is up. The rule and the way it works hold for every kind; the matching case for inline math (on a route with plugins installed) is `plugins/latex-inline-caret-paint.md`.
+Exactly one caret paints for one caret position. Where the cursor lands in a text node the synthetic caret holds back and the usual caret shows (on a fine pointer that's the drawn one, `caret/drawn-caret.md`); at an element-level offset it cannot see it, and Chromium renders one there often enough to double up, so the block's own caret is hidden for as long as the synthetic one is up. The rule and the way it works hold for every kind; the matching case for inline math (on a route with plugins installed) is `plugins/latex-inline-caret-paint.md`.
 
 ## Happy paths
 
 - A snap-target widget renders a synthetic caret on the matching edge with an `::before` overlay (absolute-positioned, ~1.5px thin)
-- The block's own caret goes transparent while the synthetic one is painted, and comes back when the snap clears
-- The block's caret goes dark from the pointer-down, not from the click: the pointer-down places the browser's caret before the click sets the synthetic one up, and at the element-level offset beside the widget Chromium paints it at the line box's height, a taller stroke for as long as the button is down, then the synthetic one (the flash a text-height widget like an emoji showed). A pointer-down that lands in a text node keeps the browser's caret
+- The block's own caret goes transparent while the synthetic one is painted, and when the snap clears exactly one caret shows again, the drawn one
+- The block's caret goes dark from the pointer-down, not from the click: the pointer-down places the browser's caret before the click sets the synthetic one up, and at the element-level offset beside the widget Chromium paints it at the line box's height, a taller stroke for as long as the button is down, then the synthetic one (the flash a text-height widget like an emoji showed). A pointer-down that lands in a text node shows exactly one caret, the drawn one
   - Miss-analysis: every indicator test read the paint once the click had completed, so the window between the pointer-down and the click, where the browser's caret is the only one on screen, was never observed
 - In live mode, an image inside a link or emphasis gets the same synthetic caret as a bare one when you click past it, and the browser's caret goes dark the same way. The click finds the image through its wrapper, so the paint has to as well
   - Miss-analysis: every indicator test clicked past a bare image, so nothing saw the paint read only the block's top-level inlines while the click read nested ones too

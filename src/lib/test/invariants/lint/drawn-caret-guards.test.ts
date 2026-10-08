@@ -1,5 +1,5 @@
 /**
- * The drawn caret's source guards. One module writes its element and the class that hides the
+ * The drawn caret's source guards. One module writes its element and the attribute that hides the
  * browser's caret (G4.141); `caret-color` is declared only for the surfaces that hide it on purpose
  * (G4.142); and every native selection write sits inside the per-editor caret writer, whose writes
  * ask for a repaint, while the paint at an animation frame only paints (G4.143).
@@ -13,22 +13,29 @@ import { SOURCE } from './source-paths';
 const DRAWN_CARET = 'src/lib/caret/drawn-caret.svelte.ts';
 const CARET_WRITER = 'src/lib/caret/widget-offset.ts';
 
-// ── G4.141 one writer for the element and the class ─────────────────────────
+// ── G4.141 one writer for the element and the mark ──────────────────────────
 
 const ONE_WRITER: ManifestRule[] = [
 	{
-		id: 'G4.141 only the drawn caret names the class that hides the browser’s caret',
-		matches: /md-caret-drawn/,
+		id: 'G4.141 only the drawn caret names the attribute that hides the browser’s caret',
+		matches: /data-caret-drawn/,
 		declared: { [DRAWN_CARET]: 'adds it to the surface it draws for, in the paint that draws' },
 		reason:
-			'the class and the drawn bar change in one paint, so the page never shows two carets or none; a surface asks for a repaint instead of writing the class',
-		hits: ["el.classList.add('md-caret-drawn');", '<div class:md-caret-drawn={drawn}>'],
-		misses: ["el.classList.add('md-caret-draw');", '// md-caret-drawn hides the native caret']
+			'the mark and the drawn bar change in one paint, so the page never shows two carets or none; a surface asks for a repaint instead of writing the mark',
+		hits: ["el.setAttribute('data-caret-drawn', '');", '<div data-caret-drawn={drawn}>'],
+		misses: [
+			"el.setAttribute('data-caret-draw', '');",
+			'// data-caret-drawn hides the native caret'
+		]
 	},
 	{
 		id: 'G4.141 only the drawn caret makes the drawn caret’s element',
 		matches: /md-drawn-caret/,
-		declared: { [DRAWN_CARET]: 'makes the one element per editor and moves it between hosts' },
+		declared: {
+			[DRAWN_CARET]: 'makes the one element per editor and moves it between hosts',
+			'src/lib/caret/block-content-selector.ts':
+				'names the bar among a block host’s children, so a lookup of block content skips it'
+		},
 		reason: 'one element per editor is what keeps the drawn caret one caret',
 		hits: ["bar.className = 'md-drawn-caret';", "root.querySelector('.md-drawn-caret')"],
 		misses: ["const name = 'md-drawn';"]
@@ -41,7 +48,7 @@ describeManifests(ONE_WRITER, collectEditorSources());
 
 /** Each rule allowed to set `caret-color`, by file and selector. */
 const CARET_COLOR_RULES: Record<string, string> = {
-	[`${SOURCE.editorCss} :: :where(.editor) .md-caret-drawn`]:
+	[`${SOURCE.editorCss} :: :where(.editor) [data-caret-drawn]`]:
 		'the surface the drawn caret is drawing for, in the paint that draws it',
 	[`${SOURCE.editorCss} :: :where(.editor)[data-cross-block] [contenteditable]`]:
 		'a cross-block range, whose overlay paints and whose parked caret takes paste only',
@@ -59,7 +66,7 @@ const CARET_COLOR_REASON =
 /** Every rule declaring `caret-color` in `code`, keyed `relPath :: selector`. */
 function caretColorRules(relPath: string, code: string): string[] {
 	const keys: string[] = [];
-	for (const match of code.matchAll(/caret-color\s*:/g)) {
+	for (const match of code.matchAll(/(?<![\w-])caret-color\s*:/g)) {
 		const open = code.lastIndexOf('{', match.index);
 		const before = Math.max(code.lastIndexOf('}', open), code.lastIndexOf('{', open - 1));
 		const selector = code
@@ -81,9 +88,9 @@ describe('G4.142 caret-color is declared only for the known surfaces', () => {
 		expect(found.sort(), CARET_COLOR_REASON).toEqual(Object.keys(CARET_COLOR_RULES).sort());
 	});
 
-	it('reads the selector of every rule, nested or not', () => {
+	it('reads the selector of every rule, nested or not, and no custom property', () => {
 		const css =
-			'a { color: red; }\n@media (x) {\n\t.b .c {\n\t\tcaret-color: auto;\n\t}\n}\n.d{caret-color:red}';
+			'a { color: red; }\n@media (x) {\n\t.b .c {\n\t\tcaret-color: auto;\n\t}\n}\n.d{caret-color:red}\n.e { --md-caret-color: red; }';
 		expect(caretColorRules('x.css', css)).toEqual(['x.css :: .b .c', 'x.css :: .d']);
 	});
 });

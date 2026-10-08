@@ -36,6 +36,7 @@ import { placeCaret, selectInBlock } from '../../selection/place-caret';
 import { deleteSnapshot } from '../../selection/primitives';
 import { asEditorX, asRawOffset, type RawOffset } from '../../caret/coordinate-spaces';
 import type { SurfaceBackend } from '../../caret/surface-backend';
+import type { DrawnCaret } from '../../caret/drawn-caret.svelte';
 import type { HeldInsertion, PlaceInsertion } from '../../caret/next-insertion';
 import type { BlockPendingBreak } from '../../caret/pending-break.svelte';
 import type { HeldSpaceView } from '../../caret/held-space';
@@ -167,6 +168,8 @@ export interface EditableSurfaceDeps {
 	selection: SelectionState;
 	/** The editor's one writer of the native selection. */
 	caretWriter: CaretWriter;
+	/** The caret the editor draws, which this surface's element registers with while mounted. */
+	drawnCaret: Pick<DrawnCaret, 'register'>;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
@@ -231,11 +234,14 @@ export interface EditableSurfaceDeps {
 }
 
 export interface EditableSurface {
-	/** Spread on the editable element: its accessibility attributes, the empty block's hint, and
-	 *  the attachment that hint reads focus and composition through. */
+	/** Spread on the editable element: its accessibility attributes, the empty block's hint, the
+	 *  attachment that hint reads focus through, and the drawn caret's registration. */
 	attributes(combobox: InlineMenuCombobox | null): EditableSurfaceAttributes & {
 		[attachment: symbol]: unknown;
 	};
+	/** Registers the element with the drawn caret while it is mounted; `attributes` carries it, and
+	 *  a surface that spreads no attributes attaches it on its own. */
+	caretSource(el: HTMLElement): () => void;
 	crossBlock: CrossBlockHandlers;
 	sharedCtx: SharedKeydownContext;
 	surface: EditableSurfaceMethods;
@@ -640,6 +646,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// Taken once: Svelte re-runs an attachment only when the function under its key changes.
 	const trackKey = createAttachmentKey();
+	const caretSourceKey = createAttachmentKey();
+
+	// A composition or a shown inline source owns the caret, so the browser's own shows then.
+	const caretSource = (el: HTMLElement) =>
+		deps.drawnCaret.register({
+			el,
+			drawable: () => !deps.getComposing() && !deps.isInputSuppressed?.()
+		});
 
 	// The role is `combobox` only while inline menu rows show: `textbox` carries no
 	// `aria-expanded`, so a screen reader would hear nothing about the list.
@@ -654,12 +668,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			'aria-autocomplete': combobox ? ('list' as const) : undefined,
 			'aria-placeholder': hint,
 			'data-placeholder': hint,
-			[trackKey]: placeholder.track
+			[trackKey]: placeholder.track,
+			[caretSourceKey]: caretSource
 		};
 	}
 
 	return {
 		attributes,
+		caretSource,
 		crossBlock,
 		sharedCtx,
 		surface,

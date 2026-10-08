@@ -993,3 +993,48 @@
 	:is(.md-marker, .md-ref-label).md-construct-reveal {
 	display: inline;
 }
+
+/* The caret the editor draws on a fine pointer (`caret/drawn-caret.svelte.ts`), one per editor:
+   the paint sets its position and height inline, and it shows only while it draws a caret. */
+:where(.editor) .md-drawn-caret {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1px;
+	pointer-events: none;
+	background-color: var(--md-caret-color);
+	animation: md-caret-blink-a var(--md-caret-blink) step-end infinite;
+}
+
+/* Two identical keyframes: the paint switches between them to restart the blink on a move. */
+:where(.editor) .md-drawn-caret[data-blink='b'] {
+	animation-name: md-caret-blink-b;
+}
+
+:where(.editor) .md-drawn-caret:not([data-caret-state='text']) {
+	display: none;
+}
+
+/* Only the editable the drawn caret draws for hides the browser's caret, so any other field keeps
+   its own. */
+:where(.editor) [data-caret-drawn] {
+	caret-color: transparent;
+}
+
+@keyframes md-caret-blink-a {
+	50% {
+		opacity: 0;
+	}
+}
+
+@keyframes md-caret-blink-b {
+	50% {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:where(.editor) .md-drawn-caret {
+		animation: none;
+	}
+}

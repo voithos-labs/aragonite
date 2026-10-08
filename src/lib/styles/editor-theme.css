@@ -143,6 +143,9 @@
 	/* Ring on the construct the caret is inside at a hidden edge, where both sides share a pixel.
 	   Neutral grey, legible over the inline-code tint in either mode. */
 	--md-edge-held-ring: rgba(128, 128, 128, 0.55);
+	/* The drawn caret: the text color, and the browser's own blink period. */
+	--md-caret-color: var(--color-text-primary, currentColor);
+	--md-caret-blink: 1.06s;
 
 	/* Menu elevation, per mode, since a shadow tuned for a near-black surface vanishes over a white
 	   one; editor-owned because a host palette names colors, not elevation. */

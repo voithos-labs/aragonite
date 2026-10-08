@@ -84,6 +84,10 @@ export interface EditorProps {
 	 *  background, so the name should match the page; an `aragonite-editor-theme`
 	 *  wrapper keys its own palette off the same attribute set on the wrapper. */
 	theme?: string;
+	/** Who draws the caret, read live. `'auto'` (default) draws it on a fine pointer and leaves a
+	 *  touch screen the browser's own; `'drawn'` always draws it, `'native'` never does. The
+	 *  browser's selection is the same either way, so IME and screen readers don't change. */
+	caret?: 'auto' | 'native' | 'drawn';
 	/** How the document presents, read live like `theme`; `'source'` by default. The consumer
 	 *  guide's Presentation modes section describes what each mode shows and allows. */
 	presentationMode?: PresentationMode;
