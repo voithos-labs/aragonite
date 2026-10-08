@@ -200,11 +200,22 @@ const EDITOR_PLACED: EmptyBlockRoute[] = [
 		source: '\n',
 		reach: (editor) => editor.focusBlockStart(0),
 		after: (text) => `${text}\n`
-	}
+	},
+	...['- ', '1. ', '- [ ] '].map((marker): EmptyBlockRoute => ({
+		name: `Ctrl+A in an emptied "${marker.trim()}" item`,
+		source: `${marker}a\n`,
+		async reach(editor) {
+			await editor.focusBlockEnd(0);
+			await editor.page.keyboard.press('Backspace');
+			await editor.page.keyboard.press('ControlOrMeta+a');
+		},
+		after: (text) => `${marker}${text}\n`
+	}))
 ];
 
-/** Routes where the browser places the caret, or a marker span sits before the break. */
-const CONTROLS: EmptyBlockRoute[] = [
+/** Routes that already passed and must stay so: a click puts the caret before the `<br>` itself,
+ *  and Enter in a list item puts it between the marker and the `<br>`. */
+const ALREADY_PASSING: EmptyBlockRoute[] = [
 	{
 		name: 'a click into an empty document',
 		source: '\n',
@@ -227,7 +238,7 @@ const SEQUENCES = [
 
 for (const mode of ['source', 'live'] as const) {
 	test.describe(`IME composition into an empty block (${mode})`, () => {
-		for (const route of [...EDITOR_PLACED, ...CONTROLS]) {
+		for (const route of [...EDITOR_PLACED, ...ALREADY_PASSING]) {
 			for (const sequence of SEQUENCES) {
 				test(`${route.name}: ${sequence.name} commits once`, async ({ page }) => {
 					const editor = new EditorPage(page);

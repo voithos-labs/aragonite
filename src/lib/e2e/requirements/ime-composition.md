@@ -29,13 +29,15 @@ event order and the wiring from the real contenteditable listeners down to the C
 - Composing into an empty block the editor put the caret in commits once, with no stray first
   update and nothing doubled. The routes are Enter at the end of a paragraph or a quote, a
   Backspace that empties a paragraph, the arrows back into an empty paragraph, Tab into an empty
-  table cell, and `placeCaret` into an empty document, each in source and live mode, each with a
-  one-update composition (`か`) and a several-update one (`k`, `か`, `かん`, then `漢`).
+  table cell, `placeCaret` into an empty document, and Ctrl+A in an emptied list, ordered or task
+  item, each in source and live mode, each with a one-update composition (`か`) and a
+  several-update one (`k`, `か`, `かん`, then `漢`).
   - Miss-analysis: every composition here started in a block that already had text, so nobody
-    composed after an empty block's `<br>`, the one spot where Chromium drops the composition.
-- Two controls compose the same way and pass with or without that fix: a click into an empty
-  document (the browser puts the caret before the `<br>` itself) and Enter at the end of a list
-  item (its marker span sits before the `<br>`).
+    composed after an empty block's trailing `<br>` (alone, or after a list item's marker), where
+    Chromium drops the composition.
+- Two routes already worked and have to stay that way: a click into an empty document (the browser
+  puts the caret before the `<br>` itself) and Enter at the end of a list item (the caret lands
+  between the marker and the `<br>`).
 - Undo after a composed commit restores the pre-composition text in one step: the whole
   composition is a single undo entry (the commit goes through one `updateBlockContent`,
   whose debounced snapshot anchors at the pre-composition offset).
