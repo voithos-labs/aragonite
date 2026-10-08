@@ -119,6 +119,19 @@ test.describe('IME composition', () => {
 		await editor.bridge.waitForSourceEquals('alpha\n\nbeta\n');
 	});
 
+	// Chromium's beforeinput and input for that key say `isComposing: false`; only its keydown is true.
+	test('a Backspace inside a live composition leaves it to the IME', async ({ page }) => {
+		await editor.loadContent('hello\n');
+		await editor.focusBlockEnd(0);
+		const ime = await attachIme(page);
+
+		await ime.compose('かん');
+		await page.keyboard.press('Backspace');
+		await ime.commit('漢');
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('hello漢\n');
+	});
+
 	test('undo after a composed commit restores the pre-composition text in one step', async ({
 		page
 	}) => {
@@ -262,17 +275,42 @@ for (const mode of ['source', 'live'] as const) {
 test.describe('a composition Chromium drops', () => {
 	test.use({ expectWarns: ['composition'] });
 
+	/** The paragraph Enter opens under `hello`, with the caret after its `<br>`. */
+	async function caretAfterBreak(editor: EditorPage): Promise<void> {
+		await editor.loadContent('hello\n');
+		await enterAtEnd(editor);
+		await editor.page.evaluate(() => {
+			const el = document.activeElement!;
+			const end = el.childNodes.length;
+			window.getSelection()!.setBaseAndExtent(el, end, el, end);
+		});
+	}
+
+	const KEYS = [
+		{ key: 'ArrowUp', then: 'End', after: 'helloQ\n\nか\n' },
+		{ key: 'Enter', then: null, after: 'hello\n\nか\n\nQ\n' }
+	];
+	for (const { key, then, after } of KEYS) {
+		test(`a dropped update, then ${key}: the key ends it and acts`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await caretAfterBreak(editor);
+			const ime = await attachIme(page);
+			await ime.compose('か');
+
+			await page.keyboard.press(key);
+			await expect.poll(() => editor.bridge.getSource()).toContain('hello\n\nか\n');
+			if (then) await page.keyboard.press(then);
+			await page.keyboard.type('Q');
+			await expect.poll(() => editor.bridge.getSource()).toBe(after);
+		});
+	}
+
 	for (const sequence of SEQUENCES) {
 		test(`${sequence.name}: the block saves what it shows and keeps saving`, async ({ page }) => {
 			const editor = new EditorPage(page);
 			await editor.goto();
-			await editor.loadContent('hello\n');
-			await enterAtEnd(editor);
-			await page.evaluate(() => {
-				const el = document.activeElement!;
-				const end = el.childNodes.length;
-				window.getSelection()!.setBaseAndExtent(el, end, el, end);
-			});
+			await caretAfterBreak(editor);
 			const ime = await attachIme(page);
 
 			for (const update of sequence.updates) await ime.compose(update);

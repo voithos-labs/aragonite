@@ -114,10 +114,11 @@ describe('composing gate', () => {
 			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
 		});
 
-		// Chromium proposes it for an Enter pressed inside a live composition, which then ends normally.
-		it('a non-composing insertParagraph proposal leaves it open', () => {
+		// Chromium sends both for a key pressed inside a live composition, which then ends normally.
+		it('a key’s own non-composing beforeinput and input leave it open', () => {
 			const { surface, commits } = dropped();
 			surface.onBeforeInput(new InputEvent('beforeinput', { inputType: 'insertParagraph' }));
+			surface.onInput(new InputEvent('input', { inputType: 'deleteContentBackward' }));
 			expect(commits).toHaveLength(0);
 		});
 

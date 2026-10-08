@@ -40,9 +40,15 @@ event order and the wiring from the real contenteditable listeners down to the C
   between the marker and the `<br>`).
 - A composition Chromium drops (the spec puts the caret after an empty block's `<br>` by hand,
   since no route does any more) saves what the block shows, the stray update included, warns under
-  `composition`, and the block keeps saving the next key.
+  `composition`, and the next key still saves. A dropped update followed by ArrowUp or Enter ends
+  there too: the key's own keydown ends it, then the arrow moves and Enter splits.
   - Miss-analysis: no row ever let a composition go unended, so a block that stopped saving after
     one was never seen.
+- A Backspace inside a live composition is the IME's: compose `かん`, Backspace, commit `漢`, and
+  the source reads `hello漢`, with no `composition` warning. Chromium's beforeinput and input for
+  that key say they aren't composing, and only its keydown tells the truth.
+  - Miss-analysis: the dropped-composition check was proved only on drops and plain typing, and no
+    row pressed a key inside a live composition, so reading that key's input as a drop went unseen.
 - Undo after a composed commit restores the pre-composition text in one step: the whole
   composition is a single undo entry (the commit goes through one `updateBlockContent`,
   whose debounced snapshot anchors at the pre-composition offset).
