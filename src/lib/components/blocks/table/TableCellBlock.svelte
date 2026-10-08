@@ -210,6 +210,15 @@
 		heldSpace: () => editableSurface.heldSpace
 	});
 
+	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
+	const compositionSeat = createCompositionSeat({
+		getDisplayText: () => trimTrailingLineEnding(node.raw),
+		getInlines: () => resolvedInlineContent(node, reading),
+		reading,
+		consumePendingMarks: caretMemory.pendingMarks.consume,
+		restorePendingMarks: caretMemory.pendingMarks.restore
+	});
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -228,7 +237,7 @@
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		stepEdge: edgeStep.step,
 		readText: () => readCellText(),
-		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
+		compositionSeat,
 		placeInsertion: typedPlacement.insertion,
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
@@ -241,15 +250,6 @@
 			})
 	});
 	const { writeText } = editableSurface;
-
-	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
-	const compositionSeat = createCompositionSeat({
-		getDisplayText: () => trimTrailingLineEnding(node.raw),
-		getInlines: () => resolvedInlineContent(node, reading),
-		reading,
-		consumePendingMarks: caretMemory.pendingMarks.consume,
-		restorePendingMarks: caretMemory.pendingMarks.restore
-	});
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
@@ -581,18 +581,6 @@
 	// ── Event handlers ─────────────────────────────────────────────────────
 
 	const onInput = editableSurface.onInput;
-	// Captured before the shared handler: its cross-block half clears the arrival side, and the
-	// first `input` during the composition resets that side to the typed one.
-	function onCompositionStart(): void {
-		compositionSeat.noteStart();
-		editableSurface.onCompositionStart();
-	}
-
-	function onCompositionEnd(): void {
-		editableSurface.onCompositionEnd();
-		compositionSeat.noteEnd();
-	}
-
 	// Callers guard `el` first.
 	function cellPlanState(offset: number): CellKeyState {
 		// A cell has no marker prefix, so these are raw offsets; they follow what is on screen,
@@ -1089,8 +1077,8 @@
 	onpaste={onPaste}
 	onfocus={onFocus}
 	onblur={onBlur}
-	oncompositionstart={onCompositionStart}
-	oncompositionend={onCompositionEnd}
+	oncompositionstart={editableSurface.onCompositionStart}
+	oncompositionend={editableSurface.onCompositionEnd}
 ></div>
 
 <style>

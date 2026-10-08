@@ -24,6 +24,7 @@ import {
 	extendSelectionToRaw as extendSelectionToRawIn,
 	rawOffsetAt,
 	rawSelectionFocus,
+	selectDomRange,
 	selectRawRange
 } from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
@@ -619,11 +620,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const onSource = Array.from(range.getClientRects()).some(
 			(r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
 		);
-		const selection = window.getSelection();
-		if (!onSource || !selection) return false;
-		selection.removeAllRanges();
-		selection.addRange(range);
-		return true;
+		return onSource && selectDomRange(range);
 	}
 
 	function isRevealing(): boolean {

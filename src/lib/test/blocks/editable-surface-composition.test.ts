@@ -24,6 +24,10 @@ import { createCaretMemory } from '$lib/cursor/caret-memory';
 import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
 import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 
+/** An `input` the browser sends mid-composition. */
+const composingInput = (): InputEvent =>
+	new InputEvent('input', { inputType: 'insertCompositionText', isComposing: true });
+
 describe('composing gate', () => {
 	// Input inside the composition window never commits; the end commits once with the offsets captured at start.
 
@@ -38,9 +42,9 @@ describe('composing gate', () => {
 			surface.onCompositionStart();
 
 			el.textContent = 'helloか';
-			surface.onInput();
+			surface.onInput(composingInput());
 			el.textContent = 'helloかん';
-			surface.onInput();
+			surface.onInput(composingInput());
 			expect(commits).toHaveLength(0);
 
 			surface.onCompositionEnd();
@@ -70,8 +74,59 @@ describe('composing gate', () => {
 			surface.onCompositionEnd();
 
 			el.textContent = 'hello!';
-			surface.onInput();
+			surface.onInput(new InputEvent('input', { inputType: 'insertText', data: '!' }));
 			expect(commits.map((c) => c.text)).toEqual(['hello', 'hello!']);
+		});
+	});
+
+	// Miss-analysis: the first fix ended a dropped composition only at `input`, and no row sent a
+	// key, a beforeinput or a second compositionstart first.
+	describe('editable surface: a dropped composition ends at the next signal', () => {
+		function dropped() {
+			const harness = makeSurface();
+			harness.el.textContent = 'hello';
+			harness.surface.onCompositionStart();
+			harness.el.textContent = 'helloか';
+			return harness;
+		}
+
+		it('a non-composing key ends it; the IME’s own key does not', () => {
+			const { surface, commits } = dropped();
+			surface.onKeyDown(new KeyboardEvent('keydown', { key: 'Process', keyCode: 229 }));
+			expect(commits).toHaveLength(0);
+
+			surface.onKeyDown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+			expect(commits.map((c) => c.text)).toEqual(['helloか']);
+			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
+		});
+
+		it('a non-composing beforeinput ends it before the block hears it', () => {
+			let commitsSeen = -1;
+			const { surface, commits, el } = makeSurface({
+				handleBeforeInput: () => (commitsSeen = commits.length)
+			});
+			el.textContent = 'hello';
+			surface.onCompositionStart();
+			el.textContent = 'helloか';
+
+			surface.onBeforeInput(new InputEvent('beforeinput', { inputType: 'insertText', data: 'x' }));
+			expect(commitsSeen).toBe(1);
+			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
+		});
+
+		// Chromium sends both for a key pressed inside a live composition, which then ends normally.
+		it('a key’s own non-composing beforeinput and input leave it open', () => {
+			const { surface, commits } = dropped();
+			surface.onBeforeInput(new InputEvent('beforeinput', { inputType: 'insertParagraph' }));
+			surface.onInput(new InputEvent('input', { inputType: 'deleteContentBackward' }));
+			expect(commits).toHaveLength(0);
+		});
+
+		it('a second compositionstart ends the first', () => {
+			const { surface, commits } = dropped();
+			surface.onCompositionStart();
+			expect(commits.map((c) => c.text)).toEqual(['helloか']);
+			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
 		});
 	});
 
@@ -186,23 +241,20 @@ describe('composed text placement', () => {
 			heldSpace: () => caretMemory.heldSpace.forBlock({})
 		});
 		const surface = makeSurface({
-			relocateComposedText: (after, composedAt) => seat.relocate(after, composedAt),
+			compositionSeat: seat,
 			caretMemory,
 			getNode: () => node,
 			overrides: { placeInsertion: placement.insertion }
 		});
 		surface.el.textContent = source;
 
-		// Browser order as the block wires it: the caret capture first, then the block's own start.
 		// The commit leaves the caret after the composed run.
 		const compose = (domAfter: string, caretAt: number): void => {
 			surface.setCaret(caretAt);
-			seat.noteStart();
 			surface.surface.onCompositionStart();
 			surface.el.textContent = domAfter;
 			surface.setCaret(caretAt + domAfter.length - source.length);
 			surface.surface.onCompositionEnd();
-			seat.noteEnd();
 		};
 		const selectRange = (start: number, end: number): void => {
 			rawSelection = { start, end };

@@ -26,6 +26,29 @@ event order and the wiring from the real contenteditable listeners down to the C
   downward, so the caret sits in the block the removal keeps.
   - Miss-analysis: every composition here started inside one block, where nothing gets removed
     first, so the two undo entries a range composition left behind were never seen.
+- Composing into an empty block the editor put the caret in commits once, with no stray first
+  update and nothing doubled. The routes are Enter at the end of a paragraph or a quote, a
+  Backspace that empties a paragraph, the arrows back into an empty paragraph, Tab into an empty
+  table cell, `placeCaret` into an empty document, and Ctrl+A in an emptied list, ordered or task
+  item, each in source and live mode, each with a one-update composition (`か`) and a
+  several-update one (`k`, `か`, `かん`, then `漢`).
+  - Miss-analysis: every composition here started in a block that already had text, so nobody
+    composed after an empty block's trailing `<br>` (alone, or after a list item's marker), where
+    Chromium drops the composition.
+- Two routes already worked and have to stay that way: a click into an empty document (the browser
+  puts the caret before the `<br>` itself) and Enter at the end of a list item (the caret lands
+  between the marker and the `<br>`).
+- A composition Chromium drops (the spec puts the caret after an empty block's `<br>` by hand,
+  since no route does any more) saves what the block shows, the stray update included, warns under
+  `composition`, and the next key still saves. A dropped update followed by ArrowUp or Enter ends
+  there too: the key's own keydown ends it, then the arrow moves and Enter splits.
+  - Miss-analysis: no row ever let a composition go unended, so a block that stopped saving after
+    one was never seen.
+- A Backspace inside a live composition is the IME's: compose `かん`, Backspace, commit `漢`, and
+  the source reads `hello漢`, with no `composition` warning. Chromium's beforeinput and input for
+  that key say they aren't composing, and only its keydown tells the truth.
+  - Miss-analysis: the dropped-composition check was proved only on drops and plain typing, and no
+    row pressed a key inside a live composition, so reading that key's input as a drop went unseen.
 - Undo after a composed commit restores the pre-composition text in one step: the whole
   composition is a single undo entry (the commit goes through one `updateBlockContent`,
   whose debounced snapshot anchors at the pre-composition offset).

@@ -29,7 +29,7 @@ export interface SurfaceHarness {
  *  and sets the caret by hand since jsdom has none. The block is an empty last line by default. */
 export function makeSurface(
 	options: {
-		relocateComposedText?: EditableSurfaceDeps['relocateComposedText'];
+		compositionSeat?: EditableSurfaceDeps['compositionSeat'];
 		presentationMode?: string;
 		handleBeforeInput?: EditableSurfaceDeps['handleBeforeInput'];
 		handleKeydown?: EditableSurfaceDeps['handleKeydown'];
@@ -104,7 +104,7 @@ export function makeSurface(
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
 		readText: () => el.textContent ?? '',
-		relocateComposedText: options.relocateComposedText,
+		compositionSeat: options.compositionSeat,
 		handleKeydown: options.handleKeydown ?? (async () => {}),
 		handleBeforeInput: options.handleBeforeInput,
 		...options.overrides

@@ -148,8 +148,7 @@ const crossed: RawOffset = dom;
 
 The allowed conversions are named functions in `src/lib/cursor/coordinate-spaces.ts`
 (`toRawOffset`, `toDomTextOffset`, and friends). A source scan also fails any native selection
-write outside `widget-offset.ts`, apart from a few declared files that select nodes they already
-hold.
+write outside `widget-offset.ts`.
 
 **Spec:** `docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
 

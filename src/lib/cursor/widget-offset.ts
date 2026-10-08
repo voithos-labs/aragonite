@@ -31,6 +31,9 @@ import {
 	type RawOffset
 } from './coordinate-spaces';
 import { domDescendants } from './dom-walk';
+import { placeholderBreakOf } from './placeholder-break';
+import { assertInvariant } from '../assert';
+import { checkCaretBeforeBreak } from '../invariants/caret-before-break';
 
 // ── Raw offsets and the caret ────────────────────────────────────────────────
 
@@ -156,15 +159,18 @@ export function extendSelectionToRaw(el: HTMLElement, raw: number): boolean {
 }
 
 /** Select `el`'s content past its marker prefix and short of a hidden structural suffix (the first
- *  Ctrl+A, a triple click). With no content, the whole contents, marker included. */
+ *  Ctrl+A, a triple click). With no content, from where raw 0's caret sits to a placeholder `<br>`. */
 export function selectSurfaceContent(el: HTMLElement): boolean {
 	const suffix = hiddenSuffixLength(el);
 	const contentLength = containerDomTextLength(el) - markerPrefixLength(el) - suffix;
 	if ((markerPrefixOf(el) || suffix > 0) && contentLength > 0) {
 		return selectRawRange(el, 0, contentLength);
 	}
-	const range = document.createRange();
-	range.selectNodeContents(el);
+	return writeSelection(caretPointAtRaw(el, 0), endOfContents(el));
+}
+
+/** Select the nodes `range` already spans, as a node-level writer holds them (a widget whole). */
+export function selectDomRange(range: Range): boolean {
 	return writeSelection(
 		{ node: range.startContainer, offset: range.startOffset },
 		{ node: range.endContainer, offset: range.endOffset }
@@ -190,11 +196,20 @@ export function rawRangeToDomRange(
 	return range;
 }
 
-/** Where a caret at raw `raw` goes in the DOM: the end of an empty container's contents when the
- *  walk finds no position at all. */
+/** Where a caret at raw `raw` goes in the DOM: {@link endOfContents} when the walk finds no
+ *  position at all. */
 function caretPointAtRaw(el: HTMLElement, raw: number): DomPosition {
 	const pos = findDomTextOffsetTarget(el, walkOffsetOfRaw(el, Math.max(0, raw)));
-	return pos ?? { node: el, offset: el.childNodes.length };
+	return pos ?? endOfContents(el);
+}
+
+/** The end of a container's contents, before an empty block's placeholder `<br>`. */
+function endOfContents(container: ParentNode): DomPosition {
+	const br = placeholderBreakOf(container);
+	const offset = br
+		? Array.prototype.indexOf.call(container.childNodes, br)
+		: container.childNodes.length;
+	return { node: container, offset };
 }
 
 /**
@@ -213,6 +228,10 @@ function positionAfterPrefix(container: ParentNode, prefix: HTMLElement): DomPos
 }
 
 function writeSelection(anchor: DomPosition, focus: DomPosition): boolean {
+	assertInvariant(
+		'caret-before-break',
+		() => checkCaretBeforeBreak(anchor) ?? checkCaretBeforeBreak(focus)
+	);
 	const sel = window.getSelection();
 	if (!sel) return false;
 	try {
@@ -510,8 +529,9 @@ export function createRangeAtDomTextOffsets(
 	};
 	const startPos = findDomTextOffsetTarget(container, start);
 	if (!startPos) {
-		range.selectNodeContents(container);
-		range.collapse(false);
+		const end = endOfContents(container);
+		range.setStart(end.node, end.offset);
+		range.collapse(true);
 		return range;
 	}
 	try {

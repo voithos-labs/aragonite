@@ -115,7 +115,7 @@ export interface EditableLeafSurfaceProps extends EditableSurfaceAttributes {
 	/** Reading mode makes a plain leaf's always-mounted source inert. */
 	contenteditable: 'true' | 'false';
 	spellcheck: 'false';
-	oninput: () => void;
+	oninput: (e: Event) => void;
 	onbeforeinput: (e: InputEvent) => void;
 	onkeydown: (e: KeyboardEvent) => void | Promise<void>;
 	oncopy: (e: ClipboardEvent) => void;
@@ -553,7 +553,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setCaret(reshaped?.caret ?? start + insert.length);
 		// Started after the edit, so the pause measured is the one the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
-		if (mode === 'plain') editableSurface.onInput();
+		if (mode === 'plain') editableSurface.commitInput();
 	}
 
 	// ── Clipboard ────────────────────────────────────────────────────────────
@@ -750,8 +750,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const surfaceHandlers = {
 		tabindex: 0,
 		spellcheck: 'false' as const,
-		oninput: () => {
-			editableSurface.onInput();
+		oninput: (e: Event) => {
+			editableSurface.onInput(e);
 			noteShownSource();
 		},
 		onbeforeinput: editableSurface.onBeforeInput,

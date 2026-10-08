@@ -25,7 +25,7 @@ describe('caret memory', () => {
 			const { surface, el } = makeSurface({ caretMemory });
 
 			el.textContent = 'x';
-			surface.onInput();
+			surface.onInput(new InputEvent('input'));
 
 			expect(caretMemory.column()).toBeNull();
 			expect(caretMemory.side()).toBe('near');
@@ -53,7 +53,7 @@ describe('pre-edit caret', () => {
 			surface.onBeforeInput(insertText('xyz'));
 			setCaret(6);
 			el.textContent = 'abcxyz tail';
-			surface.onInput();
+			surface.onInput(new InputEvent('input'));
 
 			expect(commits).toEqual([{ text: 'abcxyz tail', preEdit: 3, saved: 6 }]);
 		});
@@ -113,7 +113,7 @@ describe('pre-edit caret', () => {
 			surface.onBeforeInput(insertText('x'));
 			surface.notePreEditOffset(2);
 			el.textContent = 'ab';
-			surface.onInput();
+			surface.onInput(new InputEvent('input'));
 
 			expect(commits.map((c) => c.preEdit)).toEqual([2]);
 		});

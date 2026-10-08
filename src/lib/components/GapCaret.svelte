@@ -19,6 +19,7 @@
 	import { runGlobalChord } from '../schema/commands';
 	import { eventToChord } from '../schema/keybindings';
 	import { isReadingMode } from '../presentation-mode';
+	import { createCaretHostInput } from '../editor-actions/caret-host-input';
 
 	let {
 		index,
@@ -38,7 +39,6 @@
 	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
 
 	let proxyEl: HTMLElement | undefined = $state();
-	let composing = false;
 
 	const isReading = $derived(isReadingMode(policies.presentationMode));
 
@@ -100,22 +100,7 @@
 		}
 	}
 
-	function onBeforeInput(event: InputEvent): void {
-		// The browser owns this element between compositionstart and compositionend, as it does
-		// everywhere in the editor: refusing here would swallow the composition.
-		if (composing) return;
-		event.preventDefault();
-		if (event.inputType === 'insertText' && event.data) mint(event.data);
-	}
-
-	function onCompositionEnd(): void {
-		composing = false;
-		const composed = proxyEl?.textContent ?? '';
-		// This element only holds a caret; nothing serializes it. Whatever the IME left belongs
-		// to the new paragraph, and the element goes back to empty either way.
-		if (proxyEl) proxyEl.textContent = '';
-		if (composed) mint(composed);
-	}
+	const hostInput = createCaretHostInput(() => proxyEl, mint);
 
 	function onFocusOut(event: FocusEvent): void {
 		const next = event.relatedTarget;
@@ -138,9 +123,9 @@
 		aria-label={GAP_CARET_LABEL}
 		spellcheck="false"
 		onkeydown={onKeyDown}
-		onbeforeinput={onBeforeInput}
-		oncompositionstart={() => (composing = true)}
-		oncompositionend={onCompositionEnd}
+		onbeforeinput={hostInput.onBeforeInput}
+		oncompositionstart={hostInput.onCompositionStart}
+		oncompositionend={hostInput.onCompositionEnd}
 		onfocusout={onFocusOut}
 	></div>
 </div>
