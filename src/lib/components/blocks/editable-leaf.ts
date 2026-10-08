@@ -277,6 +277,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
 			stepSourceHistory(e, e.inputType === 'historyUndo'),
 		handleBeforeInput: onBeforeInput,
+		// The leaf splices the text it shows in place, so the removal is done once this returns.
 		removeSelection: (range) => {
 			removeRange(range);
 			return true;

@@ -118,7 +118,7 @@
 		readText: () => plainTextOf(el),
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
-		removeSelection: (range) => removeRange(range, 'selection-removal') !== null
+		removeSelection: (range) => removeRange(range, 'selection-removal') ?? false
 	});
 	export const afterSelectionRemoved = editableSurface.afterSelectionRemoved;
 

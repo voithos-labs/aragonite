@@ -270,16 +270,17 @@
 		handleBeforeInput: onBeforeInput,
 		// After a shown source is written: until then the selected text lives in the DOM only.
 		removeSelection: (range) =>
-			new Promise((removed) =>
-				afterSourceCommit(() => {
-					writeText({
-						...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
-						intent: 'command',
-						mode: 'authored',
-						source: 'selection-removal'
-					});
-					removed(true);
-				})
+			new Promise<boolean>((landed) =>
+				afterSourceCommit(() =>
+					landed(
+						writeText({
+							...rangeWrite(replaceRangeInLeaf(node, range, '', storedAs())),
+							intent: 'command',
+							mode: 'authored',
+							source: 'selection-removal'
+						})
+					)
+				)
 			)
 	});
 	const { writeText, pendingBreak } = editableSurface;

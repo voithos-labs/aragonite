@@ -163,7 +163,7 @@ Shift+Enter anywhere inside the text still writes its `\` and line ending right 
 
 Over a selection inside one block, Enter and Shift+Enter take the selection out first, the way Backspace would, then break the line where it started, as one undo entry. It never leaves the block: the "Enter on an empty line" exits and the Enter completions (§ 8) answer to the block as it was when you pressed the key, so a line the removal just emptied doesn't count.
 
-The command dispatch asks the block's `afterSelectionRemoved` to take the selection out before it runs any command in `src/lib/schema/commands.ts` :: `AFTER_SELECTION_REMOVAL_COMMAND_IDS`, then tells the command a removal came first, so the exits stand down. A block can decline the removal (a code block does, for a range on its hidden fence lines alone), and then the command doesn't run at all. A plugin command opts in with `overSelection` and reads `ctx.afterRemoval`. A line break that comes in as input rather than as a command (a table cell's `<br>`, an editable leaf's own Enter) asks for the same removal itself.
+The command dispatch asks the block's `afterSelectionRemoved` to take the selection out before it runs any command in `src/lib/schema/commands.ts` :: `AFTER_SELECTION_REMOVAL_COMMAND_IDS`, then tells the command a removal came first, so the exits stand down. A block can decline the removal (a code block does, for a range on its hidden fence lines alone), and a removal whose bytes don't land counts the same: the command doesn't run at all. A plugin command opts in with `overSelection` and reads `ctx.afterRemoval`. A line break that comes in as input rather than as a command (a table cell's `<br>`, an editable leaf's own Enter) asks for the same removal itself.
 
 ### Three block surfaces
 

@@ -217,8 +217,8 @@ export interface EditableSurfaceDeps {
 	inputPrelude?: () => void;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
-	/** Deletes `range` of the block's own text, leaving the caret at its start; settles once the
-	 *  bytes land, false when the block declines the range, so the gesture over it does nothing. */
+	/** Deletes `range` of the block's own text, leaving the caret at its start; resolves once the
+	 *  bytes land, to whether they did, and is false when the block declines the range. */
 	removeSelection?: (range: RawRange) => PromiseLike<boolean> | boolean;
 	/** An undo history the block keeps itself (a shown painted source), asked before the
 	 *  editor's; true when it took the event. */
