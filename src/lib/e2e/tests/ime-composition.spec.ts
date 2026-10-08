@@ -256,3 +256,32 @@ for (const mode of ['source', 'live'] as const) {
 		}
 	});
 }
+
+// No route places the caret after the `<br>` any more, so the spec puts it there to make Chromium
+// drop the composition, the state the block has to recover from.
+test.describe('a composition Chromium drops', () => {
+	test.use({ expectWarns: ['composition'] });
+
+	for (const sequence of SEQUENCES) {
+		test(`${sequence.name}: the block saves what it shows and keeps saving`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await editor.loadContent('hello\n');
+			await enterAtEnd(editor);
+			await page.evaluate(() => {
+				const el = document.activeElement!;
+				const end = el.childNodes.length;
+				window.getSelection()!.setBaseAndExtent(el, end, el, end);
+			});
+			const ime = await attachIme(page);
+
+			for (const update of sequence.updates) await ime.compose(update);
+			await ime.commit(sequence.commit);
+			const shown = await editor.getBlockText(1);
+			await expect.poll(() => editor.bridge.getSource()).toBe(`hello\n\n${shown}\n`);
+
+			await page.keyboard.type('x');
+			await expect.poll(() => editor.bridge.getSource()).toBe(`hello\n\n${shown}x\n`);
+		});
+	}
+});

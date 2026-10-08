@@ -33,4 +33,14 @@ describe('caret host input', () => {
 		input.onBeforeInput(beforeInput('insertText', 'a', false));
 		expect(inserted).toEqual(['k漢', 'a']);
 	});
+
+	it('ends a dropped composition at a second compositionstart', () => {
+		const { el, inserted, input } = host();
+		input.onCompositionStart();
+		el.textContent = 'k';
+		input.onCompositionStart();
+
+		expect(inserted).toEqual(['k']);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
+	});
 });

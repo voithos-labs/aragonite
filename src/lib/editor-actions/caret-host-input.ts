@@ -4,7 +4,7 @@
  * to empty. Every other input is refused at `beforeinput`.
  */
 
-import { endsDroppedComposition } from './dropped-composition';
+import { reportDroppedComposition } from './dropped-composition';
 
 export interface CaretHostInput {
 	onBeforeInput(event: InputEvent): void;
@@ -26,11 +26,17 @@ export function createCaretHostInput(
 		return text;
 	}
 
+	function endComposition(): void {
+		composing = false;
+		const text = takeHostText();
+		if (text) insert(text);
+	}
+
 	return {
 		onBeforeInput(event) {
 			// The browser owns the host between compositionstart and compositionend, as it does
 			// everywhere in the editor: refusing here would swallow the composition.
-			if (composing && !endsDroppedComposition(event, composing)) return;
+			if (composing && !reportDroppedComposition(event, composing)) return;
 			composing = false;
 			event.preventDefault();
 			const typed = event.inputType === 'insertText' ? (event.data ?? '') : '';
@@ -38,12 +44,9 @@ export function createCaretHostInput(
 			if (text) insert(text);
 		},
 		onCompositionStart() {
+			if (reportDroppedComposition('compositionstart', composing)) endComposition();
 			composing = true;
 		},
-		onCompositionEnd() {
-			composing = false;
-			const text = takeHostText();
-			if (text) insert(text);
-		}
+		onCompositionEnd: endComposition
 	};
 }

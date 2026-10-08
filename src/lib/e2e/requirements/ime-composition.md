@@ -38,6 +38,11 @@ event order and the wiring from the real contenteditable listeners down to the C
 - Two routes already worked and have to stay that way: a click into an empty document (the browser
   puts the caret before the `<br>` itself) and Enter at the end of a list item (the caret lands
   between the marker and the `<br>`).
+- A composition Chromium drops (the spec puts the caret after an empty block's `<br>` by hand,
+  since no route does any more) saves what the block shows, the stray update included, warns under
+  `composition`, and the block keeps saving the next key.
+  - Miss-analysis: no row ever let a composition go unended, so a block that stopped saving after
+    one was never seen.
 - Undo after a composed commit restores the pre-composition text in one step: the whole
   composition is a single undo entry (the commit goes through one `updateBlockContent`,
   whose debounced snapshot anchors at the pre-composition offset).

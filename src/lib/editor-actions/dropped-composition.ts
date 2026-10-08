@@ -1,19 +1,32 @@
+/**
+ * How a holder of a composing flag hears that the browser dropped a composition without a
+ * `compositionend`. Every holder asks on every signal it reads the flag at (a key, a beforeinput,
+ * an input, a new compositionstart), or a dropped composition leaves it refusing every later edit.
+ */
+
 import { devWarn } from '../dev-warn';
 
-/**
- * True when `e` is an input the browser sent outside a composition while the caller still holds
- * one open: the browser dropped it without a `compositionend`, so the caller ends it here. Every
- * holder of a composing flag asks this on its input events, or a dropped composition leaves it
- * refusing every later edit.
- */
-export function endsDroppedComposition(e: Event, open: boolean): boolean {
-	const { isComposing, inputType } = e as Partial<InputEvent>;
-	if (!open || isComposing !== false) return false;
-	// An engine's own composition input types belong to the composition, whatever flag they carry.
-	if (/composition/i.test(inputType ?? '')) return false;
+/** What a composing-flag holder heard: the event, or `compositionstart` where it gets none. */
+export type CompositionSignal = Event | 'compositionstart';
+
+/** Whether `signal` arrived outside a composition the caller holds open; warns when it did, since
+ *  the caller then commits whatever the browser left on screen. */
+export function reportDroppedComposition(signal: CompositionSignal, open: boolean): boolean {
+	if (!open || !sentOutsideComposition(signal)) return false;
+	const name = signal === 'compositionstart' ? signal : signal.type;
 	devWarn(
 		'composition',
-		`a non-composing ${e.type} (${inputType}) arrived with no compositionend, so the browser dropped the composition; the editor ended it here`
+		`a ${name} arrived outside the open composition with no compositionend, so the browser dropped it; the editor ended it here`
 	);
 	return true;
+}
+
+function sentOutsideComposition(signal: CompositionSignal): boolean {
+	if (signal === 'compositionstart') return true;
+	const e = signal as Partial<InputEvent & KeyboardEvent>;
+	if (e.isComposing !== false) return false;
+	// The key that opens or feeds an IME reports `isComposing: false` in Chromium and WebKit.
+	if (e.key === 'Process' || e.keyCode === 229) return false;
+	// An engine's own composition input types belong to the composition, whatever flag they carry.
+	return !/composition/i.test(e.inputType ?? '');
 }

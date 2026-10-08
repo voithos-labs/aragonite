@@ -80,7 +80,10 @@ import { assertInvariant } from '../../assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
 import type { Reading } from '../../schema/reading';
 import type { CompositionSeat } from './text/composition-seat';
-import { endsDroppedComposition } from '../../editor-actions/dropped-composition';
+import {
+	reportDroppedComposition,
+	type CompositionSignal
+} from '../../editor-actions/dropped-composition';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
@@ -254,7 +257,9 @@ export interface EditableSurface {
 	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
 	 *  caret the undo entry restores is read here. */
 	onBeforeInput: (e: InputEvent) => void;
-	onInput: (e?: Event) => void;
+	onInput: (e: Event) => void;
+	/** The input commit for an edit the block spliced itself, which has no event to read. */
+	commitInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
@@ -464,6 +469,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// A keydown that writes for itself fires no beforeinput, so the caret is read here too.
 	const onKeyDown = withKeydownVerdict(async (e) => {
+		endsDroppedComposition(e);
 		if (!e.isComposing) recordPreEditOffset();
 		await deps.handleKeydown(e);
 	});
@@ -471,6 +477,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// Synchronous to the block's handler: the block's `preventDefault` only counts inside this
 	// listener's microtask checkpoint.
 	function onBeforeInput(e: InputEvent): void {
+		endsDroppedComposition(e);
 		if (!e.isComposing) recordPreEditOffset();
 		if (deps.localHistory?.(e) || runSharedBeforeInput(e)) return;
 		deps.handleBeforeInput?.(e);
@@ -491,10 +498,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		return true;
 	}
 
-	/** The DOM `input` handler; a leaf that splices its own text calls it with no event. */
-	function onInput(e?: Event): void {
-		if (e && endsDroppedComposition(e, deps.getComposing())) return endComposition();
-		commitDomRead(false);
+	function onInput(e: Event): void {
+		if (!endsDroppedComposition(e)) commitDomRead(false);
 	}
 
 	function commitDomRead(fromComposition: boolean): void {
@@ -532,6 +537,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function onCompositionStart(): void {
 		if (!deps.getEl()) return;
+		endsDroppedComposition('compositionstart');
 		// Captured first: the cross-block step below clears the arrival side.
 		deps.compositionSeat?.noteStart();
 		traceCompositionStart();
@@ -550,7 +556,15 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		endComposition();
 	}
 
-	// The browser's `compositionend`, or the input that showed it dropped the composition.
+	// Every signal a held composing flag is read at (a key, a beforeinput, an input, a new
+	// composition) asks here first, so a composition the browser dropped ends before it is read.
+	function endsDroppedComposition(signal: CompositionSignal): boolean {
+		if (!reportDroppedComposition(signal, deps.getComposing())) return false;
+		endComposition();
+		return true;
+	}
+
+	// The browser's `compositionend`, or a signal showing the browser dropped the composition.
 	function endComposition(): void {
 		traceCompositionEnd();
 		deps.setComposing(false);
@@ -614,6 +628,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		onKeyDown,
 		onBeforeInput,
 		onInput,
+		commitInput: () => commitDomRead(false),
 		onCompositionStart,
 		onCompositionEnd,
 		getPreEditOffset: () => preEditOffset,
