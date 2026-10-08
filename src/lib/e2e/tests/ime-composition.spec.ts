@@ -136,3 +136,112 @@ test.describe('IME composition', () => {
 		await editor.bridge.waitForSourceEquals('hello world\n');
 	});
 });
+
+// ── Composing into an empty block ───────────────────────────────────────────
+
+interface EmptyBlockRoute {
+	name: string;
+	source: string;
+	/** Leaves the caret in an empty block the way a user gets there. */
+	reach(editor: EditorPage): Promise<void>;
+	/** The document once `text` is composed into that block. */
+	after(text: string): string;
+}
+
+const enterAtEnd = async (editor: EditorPage): Promise<void> => {
+	await editor.focusBlockEnd(0);
+	await editor.page.keyboard.press('Enter');
+};
+
+/** Every route where the editor, not the browser, puts the caret into the empty block. */
+const EDITOR_PLACED: EmptyBlockRoute[] = [
+	{
+		name: 'Enter at the end of a paragraph',
+		source: 'hello\n',
+		reach: enterAtEnd,
+		after: (text) => `hello\n\n${text}\n`
+	},
+	{
+		name: 'Backspace emptying a paragraph',
+		source: 'x\n\na\n',
+		async reach(editor) {
+			await editor.focusBlockEnd(1);
+			await editor.page.keyboard.press('Backspace');
+		},
+		after: (text) => `x\n\n${text}\n`
+	},
+	{
+		name: 'arrows back into an empty paragraph',
+		source: 'hello\n',
+		async reach(editor) {
+			await enterAtEnd(editor);
+			await editor.page.keyboard.press('ArrowUp');
+			await editor.page.keyboard.press('ArrowDown');
+		},
+		after: (text) => `hello\n\n${text}\n`
+	},
+	{
+		name: 'Tab into an empty table cell',
+		source: '| H | I |\n| - | - |\n| a |  |\n',
+		async reach(editor) {
+			await editor.page.locator('.table-cell').nth(2).click();
+			await editor.page.keyboard.press('Tab');
+		},
+		after: (text) => `| H | I |\n| - | - |\n| a | ${text} |\n`
+	},
+	{
+		name: 'Enter at the end of a quote',
+		source: '> quote\n',
+		reach: enterAtEnd,
+		after: (text) => `> quote\n> ${text}\n`
+	},
+	{
+		name: 'placeCaret into an empty document',
+		source: '\n',
+		reach: (editor) => editor.focusBlockStart(0),
+		after: (text) => `${text}\n`
+	}
+];
+
+/** Routes where the browser places the caret, or a marker span sits before the break. */
+const CONTROLS: EmptyBlockRoute[] = [
+	{
+		name: 'a click into an empty document',
+		source: '\n',
+		reach: (editor) => editor.clickBlock(0),
+		after: (text) => `${text}\n`
+	},
+	{
+		name: 'Enter at the end of a list item',
+		source: '- a\n',
+		reach: enterAtEnd,
+		after: (text) => `- a\n- ${text}\n`
+	}
+];
+
+/** One candidate committed as is, and a romaji run converted on commit. */
+const SEQUENCES = [
+	{ name: 'a single update', updates: ['か'], commit: 'か' },
+	{ name: 'several updates', updates: ['k', 'か', 'かん'], commit: '漢' }
+];
+
+for (const mode of ['source', 'live'] as const) {
+	test.describe(`IME composition into an empty block (${mode})`, () => {
+		for (const route of [...EDITOR_PLACED, ...CONTROLS]) {
+			for (const sequence of SEQUENCES) {
+				test(`${route.name}: ${sequence.name} commits once`, async ({ page }) => {
+					const editor = new EditorPage(page);
+					await editor.goto(mode === 'live' ? '?presentationMode=live' : '');
+					await editor.loadContent(route.source);
+					await route.reach(editor);
+					const ime = await attachIme(page);
+
+					for (const update of sequence.updates) await ime.compose(update);
+					await ime.commit(sequence.commit);
+
+					await expect.poll(() => editor.bridge.getSource()).toBe(route.after(sequence.commit));
+				});
+			}
+		}
+	});
+}
