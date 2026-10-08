@@ -517,7 +517,10 @@ The details:
   `playwright test --list` reports for the spec, so a test generated in a loop counts once per
   row. That last rule is allowlisted, and an entry there states its reason: an equal
   count is refuted by measurement (one test routinely walks several bullets), so padding the
-  suite to satisfy a count is never the fix.
+  suite to satisfy a count is never the fix. Bullets under a `## Pinned below the browser`
+  heading don't count, since a unit test runs them instead. Each one names that test by its
+  backticked path from `src/lib/`, and the lint fails a bullet that names none, or names a file
+  that isn't there.
 - `e2e/tests/perf/` holds two families, and the basename decides which project collects a spec:
   `*.perf.spec.ts` goes to the env-gated `e2e-perf` (and `e2e-perf-prod`), `vr-*.spec.ts`
   directly under `perf/` goes to `e2e-vr`, which rides `npm test`. Name a spec into the wrong

@@ -25,14 +25,18 @@ and has no behavior of its own.
   which is what the method resolves from.
 - a focused table cell takes the call: the insertion lands in the cell's bytes through the published ref, matching a paste there
 
+## Held by another spec
+
+A single-line snippet inserted mid-paragraph splices inline at the caret and leaves the block count
+alone. The paste at a caret in `e2e/tests/clipboard/single-block/basics.spec.ts` takes the same
+route and checks that.
+
 ## Pinned below the browser
 
 `insertMarkdown` and a paste share one route, so these ran as rows here and moved to the
 tests of that route (`test/blocks/editable-surface-clipboard.test.ts` holds the order of its steps
 and the payload it hands the cross-block branch):
 
-- A single-line snippet inserted mid-paragraph splices inline at the caret and leaves the block count
-  (the paste at a caret in `single-block/basics.spec.ts`, which takes the same route).
 - List items inserted inside a same-type list absorb as siblings of the target item
   (`test/tree-operations/paste/list-absorb-rows.test.ts`).
 - A structural insertion is one undo entry (`test/tree-operations/paste/paste-undo-caret.test.ts`).

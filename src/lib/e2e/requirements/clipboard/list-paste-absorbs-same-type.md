@@ -17,12 +17,13 @@ Design reason: the user copied a list of the same type; flattening preserves the
 
 ## Pinned below the browser
 
-`test/tree-operations/paste/list-absorb-rows.test.ts` pastes into a list at the same positions without a
-page, and each row ends as the whole list. An ordered paste at the start of an item lands the pasted
-items before it, in the middle of an item splits it and sandwiches the pasted items between the halves,
-and at the end of a middle item lands between it and the rest, with numbering continuous through all
-three. An unordered paste at the end of an item absorbs as flat siblings, and a single pasted item slots
-in as one new sibling. A list that does not start at 1 keeps counting from its own first number, and
-pasted items with a different ordered-marker suffix (`1) ` into a `1. ` list) take the enclosing list's
-style. A clipboard with no trailing newline still absorbs as separate items, and a trailing slice of a
-word-boundary split keeps its leading space in its marker (`7.  third`), the same as Enter there.
+Each row pastes into a list without a page and checks the whole list after, numbering included:
+
+- An ordered paste at the start of an item lands the pasted items before it (`test/tree-operations/paste/list-absorb-rows.test.ts`).
+- An ordered paste in the middle of an item splits it and puts the pasted items between the halves (`test/tree-operations/paste/list-absorb-rows.test.ts`).
+- An ordered paste at the end of a middle item lands between it and the rest (`test/tree-operations/paste/list-absorb-rows.test.ts`).
+- An unordered paste at the end of an item absorbs as flat siblings (`test/tree-operations/paste/list-absorb-rows.test.ts`).
+- A single pasted item slots in as one new sibling (`test/tree-operations/paste/list-absorb-rows.test.ts`).
+- A list that doesn't start at 1 keeps counting from its own first number (`test/tree-operations/paste/list-absorb-rows.test.ts`).
+- Pasted items with a different ordered-marker suffix (`1) ` into a `1. ` list) take the enclosing list's style (`test/tree-operations/paste/list-absorb-rows.test.ts`).
+- A clipboard with no trailing newline still absorbs as separate items, and the trailing slice of a word-boundary split keeps its leading space after its marker (`7.  third`), the same as Enter there (`test/tree-operations/paste/list-absorb-rows.test.ts`).

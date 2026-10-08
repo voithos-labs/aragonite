@@ -53,11 +53,17 @@ row alone.
 `test/components/drag-handle-default.svelte.test.ts` mounts the editor and counts handles:
 
 - prose carries none: paragraph, both heading syntaxes, a blockquote and its paragraphs, a note card
+  (`test/components/drag-handle-default.svelte.test.ts`)
 - the objects a user picks up whole carry one (code, list items), and a list item's inner paragraph
   does not, so an item and its children show exactly one
+  (`test/components/drag-handle-default.svelte.test.ts`)
 - an image-only paragraph carries one; an image beside words carries none
+  (`test/components/drag-handle-default.svelte.test.ts`)
 - the only item of a list carries none until a sibling joins it
+  (`test/components/drag-handle-default.svelte.test.ts`)
 - reading mode shows none, not even on an image-only paragraph
-- the handle is the six-dot grip glyph
+  (`test/components/drag-handle-default.svelte.test.ts`)
+- the handle is the six-dot grip glyph (`test/components/drag-handle-default.svelte.test.ts`)
 - the prop is opt-in, and `blockDragHandles=false` renders no handle (a picture keeps its own, and
-  `reorder-drag.spec.ts` drags it)
+  `e2e/tests/blocks/reorder-drag.spec.ts` drags it)
+  (`test/components/drag-handle-default.svelte.test.ts`)

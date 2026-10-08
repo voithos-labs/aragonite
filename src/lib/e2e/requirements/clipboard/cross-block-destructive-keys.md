@@ -26,7 +26,7 @@ keys over the same range without a page:
   `test/selection/cross-block/keydown-command-candidates.test.ts`).
 - Ctrl+B marks each block's own span, deletes nothing, and the range survives the press, which is
   what keeps it off shifted indices; a delete there is the `****` regression (#107)
-  (`keydown-command-candidates.test.ts`).
+  (`test/selection/cross-block/keydown-command-candidates.test.ts`).
 - Tab over two paragraphs deletes nothing and keeps the range
   (`test/selection/cross-block/range-indent.test.ts`).
 

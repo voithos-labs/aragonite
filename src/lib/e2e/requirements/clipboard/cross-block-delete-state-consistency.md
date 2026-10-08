@@ -39,6 +39,7 @@ falling out of sync.
 
 A delete spanning a blockquote and the paragraph before it, and a delete from a paragraph into a table
 body cell, leave every registered `BlockListState` in step with its children. Both run in
-`test/selection/cross-block/cross-block-delete-sync.test.ts` and `cross-block-delete-table-scope.test.ts`.
+`test/selection/cross-block/cross-block-delete-sync.test.ts` and
+`test/selection/cross-block/cross-block-delete-table-scope.test.ts`.
 The cell delete was the stale-row-ids regression: the endpoint table was never a commit scope, so its
 row state kept the ids from before the whole-row snap.

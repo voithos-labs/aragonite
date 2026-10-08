@@ -40,15 +40,16 @@ the same move and its undo without a page:
   (`test/editor-actions/reorder-seam-undo.test.ts`).
 - A paragraph moved up out from under an HTML block leaves a blank line before the quote below,
   and a heading moved up from between a paragraph and a table leaves one before the table, so
-  neither reloads as text of the block above (`reorder-seam-undo.test.ts`,
-  `test/tree-operations/reorder-blank-line-ended.test.ts`, `reorder-vacated-join.test.ts`).
+  neither reloads as text of the block above (`test/editor-actions/reorder-seam-undo.test.ts`,
+  `test/tree-operations/reorder-blank-line-ended.test.ts`,
+  `test/tree-operations/reorder-vacated-join.test.ts`).
 - Inside a quote, a paragraph moved up out from under the quote's HTML block leaves a blank quote
   line, so the nested quote below stays a quote (`test/editor-actions/reorder-in-container.test.ts`).
 - In a document with no final line break, in LF and in CRLF, a move up or down keeps the two blocks
   on lines of their own: the block that gains a follower ends its line in the document's line
   ending, the block that becomes last gives up its ending
   (`test/editor-actions/reorder-unterminated-tail.test.ts`).
-- Alt+ArrowDown on the last block does nothing (`reorder-action.test.ts`, the clamp).
+- Alt+ArrowDown on the last block does nothing (`test/editor-actions/reorder-action.test.ts`).
 
 ## User interactions
 

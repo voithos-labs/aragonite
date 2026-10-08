@@ -41,9 +41,11 @@ reports boxes of about zero size, so the geometry is tested end to end.
 
 ## Pinned below the browser
 
-`test/cursor/editor-rects.test.ts` pins the answers that are not geometry:
+The answers that aren't geometry run without a page:
 
 - `reveal` on a path it cannot mount (out of range, no block there) resolves `false`
-- `scrollTo` on a path it cannot mount resolves `false`
+  (`test/cursor/editor-rects.test.ts`)
+- `scrollTo` on a path it cannot mount resolves `false` (`test/cursor/editor-rects.test.ts`)
 - `caretRect` returns `null` while a cross-block selection is active, when nothing in the editor is
   focused, when the caret sits outside the editor or in the host's header snippet
+  (`test/cursor/editor-rects.test.ts`)

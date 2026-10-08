@@ -14,8 +14,9 @@
 
 Backspace, Delete and typing over a cross-block range, and Ctrl+X removing it, ran as rows here and
 moved to `test/selection/cross-block/keydown-destructive-gate.test.ts`,
-`cross-block-typed-char.test.ts` and `range-replace.test.ts`, which press the same keys over the
-same ranges without a page.
+`test/selection/cross-block/cross-block-typed-char.test.ts` and
+`test/selection/cross-block/range-replace.test.ts`, which press the same keys over the same ranges
+without a page.
 
 ## Miss-analysis
 

@@ -46,14 +46,16 @@ set-once at mount) and swaps its per-image response through `window.__test.image
 
 ## Pinned below the browser
 
-`test/blocks/editable-surface-clipboard.test.ts` runs the paste handler without a page and pins:
+These run the paste handler without a page:
 
 - Two images in one paste land at the captured caret in clipboard order, as one insertion and one
-  undo entry.
-- A hook that returns `null` inserts nothing, emits no error and does not fall back to `text/plain`.
-- A caret moved while a slow hook is still resolving does not redirect the insertion.
+  undo entry (`test/blocks/editable-surface-clipboard.test.ts`).
+- A hook that returns `null` inserts nothing, emits no error and does not fall back to `text/plain`
+  (`test/blocks/editable-surface-clipboard.test.ts`).
+- A caret moved while a slow hook is still resolving does not redirect the insertion
+  (`test/blocks/editable-surface-clipboard.test.ts`).
 - A non-image attachment (a `.txt`) leaves the paste on the `text/plain` path, and the hook is not
-  called.
+  called (`test/blocks/editable-surface-clipboard.test.ts`).
 
 ## User interactions
 
