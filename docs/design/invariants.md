@@ -1550,7 +1550,7 @@ clamp, and a caller selecting nodes it already holds (a widget whole) hands its 
 - the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
   that measure with it);
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
-- the surfaces building `focus` from `placeCaret` in `place-caret`.
+- the surfaces building `focus` from `placeCaret` (`selection/place-caret.ts`).
 
 `lint/manifest-rules.test.ts`.
 
