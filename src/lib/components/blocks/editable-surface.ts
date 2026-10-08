@@ -79,6 +79,8 @@ import {
 import { assertInvariant } from '../../assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
 import type { Reading } from '../../schema/reading';
+import type { CompositionSeat } from './text/composition-seat';
+import { endsDroppedComposition } from '../../editor-actions/dropped-composition';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
@@ -204,12 +206,9 @@ export interface EditableSurfaceDeps {
 	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the current DOM content as the block's displayed text, for the input commit. */
 	readText: () => string;
-	/** What a composed run's commit writes when the composition opened over a range or with pending
-	 *  marks, both captured at its start; null keeps the text as read. */
-	relocateComposedText?: (
-		after: string,
-		composedAt: number
-	) => { raw: string; caret: number } | null;
+	/** What a composition opened over (pending marks, a range), captured at its start and placing
+	 *  the run it commits; omitted where a commit writes the text as read. */
+	compositionSeat?: CompositionSeat;
 	/** Moves a typed insertion to the side of a hidden edge the caret means; omitted where the block
 	 *  draws every marker. Every insertion route writes through it (`next-insertion.ts`). */
 	placeInsertion?: PlaceInsertion;
@@ -255,7 +254,7 @@ export interface EditableSurface {
 	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
 	 *  caret the undo entry restores is read here. */
 	onBeforeInput: (e: InputEvent) => void;
-	onInput: () => void;
+	onInput: (e?: Event) => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
@@ -492,9 +491,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		return true;
 	}
 
-	/** The DOM `input` handler. Arity zero on purpose: it is bound straight to the event, so a
-	 *  parameter here would be the InputEvent. */
-	function onInput(): void {
+	/** The DOM `input` handler; a leaf that splices its own text calls it with no event. */
+	function onInput(e?: Event): void {
+		if (e && endsDroppedComposition(e, deps.getComposing())) return endComposition();
 		commitDomRead(false);
 	}
 
@@ -515,7 +514,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// where a record waits, which is that record's insertion.
 		const rewritten =
 			fromComposition && revealsNoMarkers(el) && !held?.waitsAt(preEditOffset)
-				? (deps.relocateComposedText?.(text, preEditOffset) ?? null)
+				? (deps.compositionSeat?.relocate(text, preEditOffset) ?? null)
 				: null;
 		void writeText({
 			text: rewritten?.raw ?? text,
@@ -533,6 +532,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function onCompositionStart(): void {
 		if (!deps.getEl()) return;
+		// Captured first: the cross-block step below clears the arrival side.
+		deps.compositionSeat?.noteStart();
 		traceCompositionStart();
 		// Capture before `crossBlock.handleCompositionStart()`, whose delete moves the caret.
 		preEditOffset = deps.backend.getRaw() ?? 0;
@@ -546,10 +547,16 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// `onCompositionStart` always sets the flag, so an unpaired end means a consumer
 		// wired compositionend without compositionstart (G1.27).
 		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
+		endComposition();
+	}
+
+	// The browser's `compositionend`, or the input that showed it dropped the composition.
+	function endComposition(): void {
 		traceCompositionEnd();
 		deps.setComposing(false);
 		commitDomRead(true);
 		crossBlock.handleCompositionEnd();
+		deps.compositionSeat?.noteEnd();
 	}
 
 	const caret: ClipboardCaretIO = {

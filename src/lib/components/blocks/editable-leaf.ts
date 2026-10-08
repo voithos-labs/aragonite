@@ -115,7 +115,7 @@ export interface EditableLeafSurfaceProps extends EditableSurfaceAttributes {
 	/** Reading mode makes a plain leaf's always-mounted source inert. */
 	contenteditable: 'true' | 'false';
 	spellcheck: 'false';
-	oninput: () => void;
+	oninput: (e?: Event) => void;
 	onbeforeinput: (e: InputEvent) => void;
 	onkeydown: (e: KeyboardEvent) => void | Promise<void>;
 	oncopy: (e: ClipboardEvent) => void;

@@ -186,23 +186,20 @@ describe('composed text placement', () => {
 			heldSpace: () => caretMemory.heldSpace.forBlock({})
 		});
 		const surface = makeSurface({
-			relocateComposedText: (after, composedAt) => seat.relocate(after, composedAt),
+			compositionSeat: seat,
 			caretMemory,
 			getNode: () => node,
 			overrides: { placeInsertion: placement.insertion }
 		});
 		surface.el.textContent = source;
 
-		// Browser order as the block wires it: the caret capture first, then the block's own start.
 		// The commit leaves the caret after the composed run.
 		const compose = (domAfter: string, caretAt: number): void => {
 			surface.setCaret(caretAt);
-			seat.noteStart();
 			surface.surface.onCompositionStart();
 			surface.el.textContent = domAfter;
 			surface.setCaret(caretAt + domAfter.length - source.length);
 			surface.surface.onCompositionEnd();
-			seat.noteEnd();
 		};
 		const selectRange = (start: number, end: number): void => {
 			rawSelection = { start, end };

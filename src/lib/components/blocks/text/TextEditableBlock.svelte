@@ -242,6 +242,24 @@
 	// Set on the block's first focus: until then a render has no shown marker or ring to re-apply.
 	let caretHasEntered = false;
 
+	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
+	const compositionSeat = createCompositionSeat({
+		getDisplayText: () => getDisplayText(),
+		getInlines: () => resolvedInlineContent(node, reading),
+		reading,
+		consumePendingMarks: caretMemory.pendingMarks.consume,
+		restorePendingMarks: caretMemory.pendingMarks.restore,
+		getRawSelection: () => cursor.getRawSelection(),
+		// The in-leaf range replace `handleLiveSelectionEdit` uses, as the displayed text the
+		// composition commit writes.
+		resolveRangeEdit: (range, typed) => {
+			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
+			if (edit.matchesBrowserEdit) return null;
+			const { text, caretAfter } = rangeWrite(edit);
+			return { raw: text, caret: caretAfter };
+		}
+	});
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -260,7 +278,7 @@
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		readText: () => readRawText(),
-		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
+		compositionSeat,
 		placeInsertion: typedPlacement.insertion,
 		inputPrelude: () => {
 			markKeystrokeStart();
@@ -399,24 +417,6 @@
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
 		pendingMarks: caretMemory.pendingMarks
-	});
-
-	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
-	const compositionSeat = createCompositionSeat({
-		getDisplayText: () => getDisplayText(),
-		getInlines: () => resolvedInlineContent(node, reading),
-		reading,
-		consumePendingMarks: caretMemory.pendingMarks.consume,
-		restorePendingMarks: caretMemory.pendingMarks.restore,
-		getRawSelection: () => cursor.getRawSelection(),
-		// The in-leaf range replace `handleLiveSelectionEdit` uses, as the displayed text the
-		// composition commit writes.
-		resolveRangeEdit: (range, typed) => {
-			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
-			if (edit.matchesBrowserEdit) return null;
-			const { text, caretAfter } = rangeWrite(edit);
-			return { raw: text, caret: caretAfter };
-		}
 	});
 
 	const textRender = createTextRender({
@@ -855,18 +855,6 @@
 		return el ? rawTextOfContent(el, node.raw, structuralSuffix(node)) : '';
 	}
 
-	// Captured before the shared handler: its cross-block half clears the arrival side, and the
-	// first `input` during the composition resets that side to the typed one.
-	function onCompositionStart(): void {
-		compositionSeat.noteStart();
-		editableSurface.onCompositionStart();
-	}
-
-	function onCompositionEnd(): void {
-		editableSurface.onCompositionEnd();
-		compositionSeat.noteEnd();
-	}
-
 	// Built once, not per keydown: every typed character passes both key handlers.
 	const pendingBreakKeyDeps: PendingBreakKeyDeps = {
 		pendingBreak,
@@ -1143,8 +1131,8 @@
 	onclick={onClick}
 	onblur={onBlur}
 	onfocus={onFocus}
-	oncompositionstart={onCompositionStart}
-	oncompositionend={onCompositionEnd}
+	oncompositionstart={editableSurface.onCompositionStart}
+	oncompositionend={editableSurface.onCompositionEnd}
 ></div>
 
 <style>

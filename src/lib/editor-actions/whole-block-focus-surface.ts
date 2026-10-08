@@ -8,6 +8,7 @@
 
 import { onMount } from 'svelte';
 import { devWarn } from '../dev-warn';
+import { createCaretHostInput } from './caret-host-input';
 
 // ── Editable-target guards ───────────────────────────────────────────────────
 
@@ -105,29 +106,12 @@ export interface WholeBlockInputProxy {
 
 export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): WholeBlockInputProxy {
 	let proxy: HTMLElement | null = null;
-	let composing = false;
+	const hostInput = createCaretHostInput(() => proxy, deps.mint);
 
 	/** Every read of the declared element inside the proxy goes through the demotion, so a kind
 	 *  supplying its own `getFocusEl` (without the composed fallback) is held to the rule too. */
 	const declaredSurface = (): HTMLElement | null =>
 		demoteDeclaredFromTabOrder(deps.getFocusEl() ?? null);
-
-	function onBeforeInput(event: InputEvent): void {
-		// The browser owns the host between compositionstart and compositionend (the editor's
-		// standing IME rule); refusing here swallows the composition.
-		if (composing) return;
-		event.preventDefault();
-		if (event.inputType === 'insertText' && event.data) deps.mint(event.data);
-	}
-
-	function onCompositionEnd(): void {
-		composing = false;
-		const composed = proxy?.textContent ?? '';
-		// A caret host, never something a serializer reads: whatever the IME left belongs to the
-		// new paragraph, and the host goes back to empty either way.
-		if (proxy) proxy.textContent = '';
-		if (composed) deps.mint(composed);
-	}
 
 	// A click or a Tab lands natively on the kind's own element, where no beforeinput fires;
 	// without this hand-off the first character after a click goes through keydown again.
@@ -171,9 +155,9 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 		// order is a second stop Shift+Tab lands on, where no input can arrive.
 		proxy.tabIndex = 0;
 		declaredSurface();
-		proxy.addEventListener('beforeinput', onBeforeInput as EventListener);
-		proxy.addEventListener('compositionstart', () => (composing = true));
-		proxy.addEventListener('compositionend', onCompositionEnd);
+		proxy.addEventListener('beforeinput', hostInput.onBeforeInput as EventListener);
+		proxy.addEventListener('compositionstart', hostInput.onCompositionStart);
+		proxy.addEventListener('compositionend', hostInput.onCompositionEnd);
 		box.addEventListener('focusin', onFocusIn);
 		box.appendChild(proxy);
 		return () => {

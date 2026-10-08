@@ -7,12 +7,13 @@ import { BREAK_INDEX as INDEX, mountBreak, type MountedBreak } from './mount-bre
 
 /** The shape an AltGr production arrives in: no keydown branch admits it, so the editing host is
  *  the only input path it has. */
-function beforeInput(host: HTMLElement, data: string): InputEvent {
+function beforeInput(host: HTMLElement, data: string, isComposing = false): InputEvent {
 	const event = new InputEvent('beforeinput', {
 		bubbles: true,
 		cancelable: true,
-		inputType: 'insertText',
-		data
+		inputType: isComposing ? 'insertCompositionText' : 'insertText',
+		data,
+		isComposing
 	});
 	host.dispatchEvent(event);
 	return event;
@@ -78,7 +79,7 @@ describe('thematic break: the hidden editing host', () => {
 		mounted.instance.parkCaret(0);
 		mounted.host.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 
-		const event = beforeInput(mounted.host, 'に');
+		const event = beforeInput(mounted.host, 'に', true);
 
 		expect(mounted.blockEdit.insertParagraph).not.toHaveBeenCalled();
 		expect(event.defaultPrevented).toBe(false);

@@ -96,7 +96,7 @@ describe('a composed (IME) cell edit commits once, through the same escape', () 
 
 		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 		el.textContent = 'x|y';
-		el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		el.dispatchEvent(new InputEvent('input', { bubbles: true, isComposing: true }));
 		await mounted.settle();
 		// While a composition runs the document is untouched: the commit is suppressed.
 		expect(mounted.source()).toBe(GRID);
