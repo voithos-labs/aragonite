@@ -47,7 +47,8 @@ contributes zero `textContent` but several raw bytes.
 
 ## Pinned below the browser
 
-The cell hands its bytes to the same inline renderer a paragraph uses, so these run on a mounted cell:
+The cell hands its bytes to the same inline renderer a paragraph uses, so these run on the cell renderer alone, over a bare element:
 
-- `*x*`, `**x**`, a code span, `~~x~~` and an inline link render one `<em>`, `<strong>`, `<code class="inline-code-content">`, `<s>` and `<a class="md-link-content" href="u">` holding `x`, with dimmed markers (`test/blocks/table/cell-render.test.ts`).
+- `*x*`, `**x**`, a code span and `~~x~~` render one `<em>`, `<strong>`, `<code class="inline-code-content">` and `<s>` holding `x`, and the emphasis keeps its dimmed markers (`test/blocks/table/cell-render.test.ts`).
+- `[t](https://example.com)` renders an `<a class="md-link-content">` with that href (`test/blocks/table/cell-render.test.ts`).
 - An image stays its own source text in a cell, never an `<img>` or a widget, with its two markers split from the alt (`test/blocks/table/cell-render.test.ts`).

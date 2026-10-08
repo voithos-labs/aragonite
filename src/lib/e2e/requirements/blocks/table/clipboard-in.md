@@ -61,5 +61,5 @@ A grid is data for the cells rather than a block to splice between them, which i
 
 The text a cell takes in runs on a mounted cell, where the paste event is dispatched and the document read back:
 
-- Plain text lands at the caret or replaces the selected range, and a paste of text containing `|` escapes every pipe to `|` so the row keeps its column count (`test/blocks/table/cell-paste-routing.test.ts`).
+- Plain text lands at the caret or replaces the selected range, and a paste of text containing `|` escapes every pipe to `\|` so the row keeps its column count (`test/blocks/table/cell-paste-routing.test.ts`).
 - Newlines collapse to a single space and the edges are trimmed, and text a copy wrapped in blank lines (one content paragraph) still takes this inline path with the table whole (`test/blocks/table/cell-paste-classification.test.ts`).

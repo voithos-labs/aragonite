@@ -30,7 +30,7 @@ the plain ArrowUp/ArrowDown caret move).
 
 ## Pinned below the browser
 
-These run the chord in a mounted cell, and the second pair also checks the undo stack:
+These run the chord in a mounted cell:
 
 - Alt+ArrowDown and Alt+ArrowUp move an interior body row past its neighbour
   (`test/blocks/table/cell-table-chords.test.ts`, `test/editor-actions/table-row-reorder-target.test.ts`); where the caret lands is `e2e/tests/blocks/table/action-landing.spec.ts`.

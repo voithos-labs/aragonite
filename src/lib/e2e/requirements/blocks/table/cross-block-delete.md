@@ -79,6 +79,6 @@ Backspace, Delete and cut over cells of one table go by what the selection cover
 
 ## Pinned below the browser
 
-A whole row or column goes, and a row or column of a table at any depth goes the same way, with the caret landing in the cell that took its place and one Ctrl+Z bringing it back (`test/selection/cross-block/nested-grid-coverage-delete.test.ts`, run for a top-level table, a quote, a list item, a quote in a quote and an open details). The e2e rows that dragged over a row or a column are gone, since the drag itself is held by the whole-table rows above.
+A whole row or column goes, and a row or column of a table at any depth goes the same way, with the caret landing in the cell that took its place and one Ctrl+Z bringing it back (`test/selection/cross-block/nested-grid-coverage-delete.test.ts`, run for a top-level table, a quote, a list item, a quote in a quote and an open details). The drag itself is held by the whole-table, partial-range and header-only drag rows above.
 
 Miss-analysis: every coverage row used a top-level table, and Backspace only asked what a selection covers when it sat at the top level, so a nested table got its cells cleared and no test ever looked.
