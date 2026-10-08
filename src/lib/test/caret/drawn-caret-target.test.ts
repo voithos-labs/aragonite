@@ -15,7 +15,7 @@ const DRAWING: DrawnCaretReads = {
 	besideWidget: false,
 	atSoftWrap: false,
 	clipped: false,
-	misdrawn: false,
+	atCodeChipEdge: false,
 	caret: { left: 40.3, top: 25, bottom: 45 },
 	host: { left: 10, top: 20, scale: 1 },
 	devicePixelRatio: 1
@@ -44,7 +44,7 @@ const NATIVE: Array<[string, Partial<DrawnCaretReads>]> = [
 	['the caret sits beside an inline widget', { besideWidget: true }],
 	['the caret sits where a line soft-wraps', { atSoftWrap: true }],
 	['a scroller inside the block clips the caret out of view', { clipped: true }],
-	['the engine paints its own caret off the range here', { misdrawn: true }],
+	['the caret sits at a code chip’s edge', { atCodeChipEdge: true }],
 	['the range measures to no rect', { caret: null }],
 	['the surface has no host box to draw in', { host: null }]
 ];

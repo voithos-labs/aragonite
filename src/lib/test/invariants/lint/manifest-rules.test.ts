@@ -320,6 +320,7 @@ const MANIFESTS: ManifestRule[] = [
 			"sel.modify('move', 'forward', 'character');",
 			'sel.collapse(node);',
 			'window.getSelection()?.collapse(node);',
+			'window.getSelection()!.collapse(node);',
 			'sel.setPosition(node);'
 		],
 		misses: [

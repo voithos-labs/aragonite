@@ -688,7 +688,7 @@ On a fine pointer the editor draws the caret itself: one bar per editor, sitting
 
 - a composition, or a shown inline source;
 - beside an inline widget, where the snap caret draws;
-- anywhere the range's box isn't where the browser paints its caret: the spaces a line soft-wraps in, a caret a scroller inside the block has clipped out of view (a code block scrolled sideways), and WebKit at a code chip's edge;
+- anywhere the range's box isn't where the browser paints its caret: the spaces a line soft-wraps in, a caret a scroller inside the block has clipped out of view (a code block scrolled sideways; the bar comes back when it scrolls into view), and a code chip's edge, where each engine paints its caret on its own side of the chip's padding;
 - forced colors, a touch screen, or a host that set the `caret` prop to `'native'`.
 
 Two things move the caret, and each gets painted its own way:

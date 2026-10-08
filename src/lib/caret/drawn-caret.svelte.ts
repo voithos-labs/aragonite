@@ -9,7 +9,7 @@
 import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { engineQuirks, measureCaret } from './drawn-caret-measure';
+import { caretHost, measureCaret } from './drawn-caret-measure';
 import {
 	drawnCaretTarget,
 	type DrawnCaretReads,
@@ -77,7 +77,6 @@ export function caretMedia(): CaretMedia | null {
 export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	const sources = new Map<HTMLElement, CaretSource>();
 	const media = caretMedia();
-	const quirks = engineQuirks();
 	let bar: HTMLElement | null = null;
 	let drawnFor: HTMLElement | null = null;
 	let painted: PaintedCaret | null = null;
@@ -134,7 +133,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const draws = drawsCaret(deps.caretMode(), media);
 		const drawable = owned?.drawable() ?? false;
 		const measured =
-			draws && owned && range?.collapsed && drawable ? measureCaret(owned.el, range, quirks) : null;
+			draws && owned && range?.collapsed && drawable ? measureCaret(owned.el, range) : null;
 		const { selection } = deps;
 		return {
 			source: owned,
@@ -156,7 +155,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 				besideWidget: measured?.besideWidget ?? false,
 				atSoftWrap: measured?.atSoftWrap ?? false,
 				clipped: measured?.clipped ?? false,
-				misdrawn: measured?.misdrawn ?? false,
+				atCodeChipEdge: measured?.atCodeChipEdge ?? false,
 				caret: measured?.caret ?? null,
 				host: measured?.hostBox ?? null,
 				devicePixelRatio: window.devicePixelRatio || 1
@@ -227,10 +226,14 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		armFrame();
 	}
 
-	// An inner scroller (a wide table, a code block's overflow) moves the text under the bar; the
-	// page's own scroll moves the block and the bar together.
+	// A scroller between the caret's editable and its host (a wide table, a code block) moves the
+	// caret, drawn or clipped; the page's own scroll moves the block and the bar together.
 	function onScroll(e: Event): void {
-		if (drawnFor && e.target instanceof Node && bar?.parentElement?.contains(e.target)) request();
+		const active = document.activeElement;
+		const scroller = e.target;
+		if (!(active instanceof HTMLElement) || !(scroller instanceof Node)) return;
+		const between = scroller.contains(active) && caretHost(active)?.contains(scroller);
+		if (between && sources.has(active)) request();
 	}
 
 	function install(root: HTMLElement): () => void {

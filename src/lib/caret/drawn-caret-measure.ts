@@ -1,8 +1,8 @@
 /**
  * What the drawn caret's paint reads off the layout: the caret's box, the block host the bar draws
  * in, and the places where the range's box isn't where the browser paints its own caret (beside a
- * widget, at a soft wrap, clipped by an inner scroller, an engine that paints off a code chip's
- * edge). Reads only; the target decides what to draw from these.
+ * widget, at a soft wrap, clipped by an inner scroller, at a code chip's edge). Reads only; the
+ * target decides what to draw from these.
  */
 
 import { firstUsefulRect, neighbourCaretRect, type CaretRect } from './visual-lines';
@@ -19,28 +19,18 @@ export interface CaretMeasure {
 	atSoftWrap: boolean;
 	/** A scroller between the editable and its host clips the caret's box out of view. */
 	clipped: boolean;
-	/** The engine paints its own caret off the range's box here (WebKit at a code chip's edge). */
-	misdrawn: boolean;
+	/** The caret sits at a code chip's edge, where each engine paints on its own side of the
+	 *  chip's padding. */
+	atCodeChipEdge: boolean;
 }
 
-/** Engine quirks the measure has to know, read once per editor. */
-export interface EngineQuirks {
-	/** WebKit paints its caret a few pixels off the range's box at an inline code chip's edge. */
-	offAtCodeChipEdge: boolean;
+/** The element the bar draws in for a caret in `surface`: its block host. */
+export function caretHost(surface: HTMLElement): HTMLElement | null {
+	return surface.closest<HTMLElement>('[data-block-path]') ?? surface.parentElement;
 }
 
-/** The quirks of the engine this page runs in. Apple's vendor string is WebKit's. */
-export function engineQuirks(): EngineQuirks {
-	const vendor = (typeof navigator === 'undefined' ? undefined : navigator.vendor) ?? '';
-	return { offAtCodeChipEdge: vendor.startsWith('Apple') };
-}
-
-export function measureCaret(
-	surface: HTMLElement,
-	range: Range,
-	quirks: EngineQuirks
-): CaretMeasure | null {
-	const host = surface.closest<HTMLElement>('[data-block-path]') ?? surface.parentElement;
+export function measureCaret(surface: HTMLElement, range: Range): CaretMeasure | null {
+	const host = caretHost(surface);
 	if (!host) return null;
 	const own = firstUsefulRect(range);
 	const caret = own ?? neighbourCaretRect(range);
@@ -58,7 +48,7 @@ export function measureCaret(
 			surface.classList.contains(SNAP_CARET_CLASS) || (own === null && touchesWidget(range)),
 		atSoftWrap: own !== null && atSoftWrap(range, surface),
 		clipped: caret !== null && clippedBetween(surface, host, caret),
-		misdrawn: quirks.offAtCodeChipEdge && atCodeChipEdge(range, surface)
+		atCodeChipEdge: atCodeChipEdge(range, surface)
 	};
 }
 

@@ -39,8 +39,8 @@ export interface DrawnCaretReads {
 	atSoftWrap: boolean;
 	/** A scroller inside the block clips the caret's box, and the browser's caret with it. */
 	clipped: boolean;
-	/** The engine paints its own caret off the range's box here. */
-	misdrawn: boolean;
+	/** The caret sits at a code chip's edge, where the browser paints off the range's box. */
+	atCodeChipEdge: boolean;
 	caret: ClientCaretBox | null;
 	host: HostBox | null;
 	devicePixelRatio: number;
@@ -78,7 +78,7 @@ export function drawnCaretTarget(reads: DrawnCaretReads): DrawnCaretTarget {
 
 // Where the range's box isn't where the browser's own caret is, the browser's caret is the truth.
 function offTheRange(reads: DrawnCaretReads): boolean {
-	return reads.besideWidget || reads.atSoftWrap || reads.clipped || reads.misdrawn;
+	return reads.besideWidget || reads.atSoftWrap || reads.clipped || reads.atCodeChipEdge;
 }
 
 function hides(reads: DrawnCaretReads): boolean {
