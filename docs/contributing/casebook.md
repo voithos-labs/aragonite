@@ -92,9 +92,8 @@ before aragonite) died of exactly that.
 
 **Caught by:** a source scan whose allowlist holds the few timers that order nothing (an
 animation cadence, an undo debounce, a deadline, the drawn caret's paint at the next frame), each
-with the reason it isn't sequencing. Any
-other timer call reds it ([`rules.md`](rules.md) § The bug shape to fear: sibling-path parity shows
-the row).
+with the reason it isn't sequencing. Any other timer call reds it ([`rules.md`](rules.md) § The bug
+shape to fear: sibling-path parity shows the row).
 
 **Spec:** `docs/design/editor.md` § 11 (the commit's tick step) and § 16 (how the predecessor
 died). ([rule 3](rules.md#the-five-rules))

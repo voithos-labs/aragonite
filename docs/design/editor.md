@@ -684,12 +684,17 @@ Dragging a selection and dropping it somewhere else is the editor's too. The bro
 
 ### The drawn caret
 
-On a fine pointer the editor draws the caret itself: one bar per editor, sitting inside the block it draws for, while the browser's selection stays exactly where it was. Typing, IME and screen readers keep reading the real selection; only the paint is ours. The bar hides the browser's caret on that one editable (an attribute, `data-caret-drawn`) and nowhere else, so the find bar, the link card and any plugin's own field keep their native carets. Where it can't draw (a composition, a shown inline source, beside an inline widget where the snap caret draws, the offset a line soft-wraps at, forced colors, a touch screen, or a host that set the `caret` prop to `'native'`) it steps aside and the browser's caret shows, so there's always exactly one.
+On a fine pointer the editor draws the caret itself: one bar per editor, sitting inside the block it draws for, while the browser's selection stays exactly where it was, so typing, IME and screen readers keep reading the real one. An attribute on that one editable (`data-caret-drawn`) hides the browser's caret there and nowhere else, so the find bar, the link card and any plugin's own field keep their native carets. Where it can't draw, it steps aside and the browser's caret shows, so there's always exactly one:
+
+- a composition, or a shown inline source;
+- beside an inline widget, where the snap caret draws;
+- anywhere the range's box isn't where the browser paints its caret: the spaces a line soft-wraps in, a caret a scroller inside the block has clipped out of view (a code block scrolled sideways), and WebKit at a code chip's edge;
+- forced colors, a touch screen, or a host that set the `caret` prop to `'native'`.
 
 Two things move the caret, and each gets painted its own way:
 
-- **The editor writes it.** Every caret and range the editor puts down goes through the editor's one caret writer, `EditorServices.caretWriter` (`caret/widget-offset.ts :: createCaretWriter`), and each write asks for a paint. The paint runs once per task after `tick()`, past Svelte's flush and the block's height measure, so it reads a layout that's already clean and the bar lands in the same frame as the letter. If your code changes the caret's line after the paint without writing the caret, call `drawnCaret.request()` yourself; the dev check G1.76 catches the case where nobody did.
-- **The browser moves it** (an arrow it handles, a click, a drag, IME). That arrives in a later task, so the paint for it runs at the next animation frame, armed by the key or pointer event. It's the one `requestAnimationFrame` that touches the caret, and it only reads and paints, never orders anything (`caret/drawn-caret.svelte.ts`).
+- **The editor writes it.** Every caret and range the editor puts down goes through the editor's one caret writer, `EditorServices.caretWriter` (`caret/widget-offset.ts :: createCaretWriter`), and each write asks for a paint. The paint runs once per task after `tick()`, past Svelte's flush and the block's height measure, so it reads a layout that's already clean and the bar lands in the same frame as the letter. If your code changes the caret's line after the paint without writing the caret, call `EditorServices.drawnCaret.request()` yourself. The dev check G1.76 catches a missing one only at a `selectionchange` that finds no paint pending, so don't count on it.
+- **The browser moves it** (an arrow it handles, a click, a drag, IME). That arrives in a later task, so the paint for it runs at the next animation frame, armed by the key or pointer event. It's the one `requestAnimationFrame` that touches the caret, and it only reads and paints (`caret/drawn-caret.svelte.ts`).
 
 ### Cross-block selection
 

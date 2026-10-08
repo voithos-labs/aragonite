@@ -856,14 +856,17 @@ the composed text gets lost or doubled. Every caret and range the editor writes 
 `invariants/caret-before-break.ts :: checkCaretBeforeBreak` ·
 `test/invariants/caret-before-break.test.ts`; G4.36 keeps every native selection write in that file.
 
-**G1.76 · The drawn caret agrees** (`drawn-caret-agrees`). At every `selectionchange`, before the
-frame paint it arms, a caret still at the position the last paint drew must still measure where the
-bar sits, within a pixel. Something that changed the caret's line after the paint without writing
-the caret (and so without asking for a paint) leaves the bar a frame or more behind; the fix is a
-`drawnCaret.request()` where the change is made. A reflow of the editable (its size moved) is left
-to its size observer, which repaints. Predicate `invariants/drawn-caret.ts ::
-checkDrawnCaretAgrees` · run in `caret/drawn-caret.svelte.ts` · every e2e run through the shared
-invariant watcher, and `e2e/tests/caret/drawn-caret.spec.ts`.
+**G1.76 · The drawn caret agrees** (`drawn-caret-agrees`). It runs at a `selectionchange` that finds
+no paint request and no frame paint pending: a caret still at the position the last paint drew must
+still measure where the bar sits, within a pixel. Something that changed the caret's line after the
+paint without writing the caret (and so without asking for a paint) leaves the bar behind; the fix
+is `EditorServices.drawnCaret.request()` where the change is made. A typed key, a click or a press
+arms a frame paint before its `selectionchange` arrives, so on those paths the check doesn't run,
+and it compares the range with itself, so it can't see a range that's wrong to begin with (that's
+what the target's fallbacks are for). A reflow of the editable is left to its size observer.
+Predicate `invariants/drawn-caret.ts :: checkDrawnCaretAgrees` · run in
+`caret/drawn-caret.svelte.ts` · every e2e run through the shared invariant watcher, and
+`e2e/tests/caret/drawn-caret.spec.ts`.
 
 **G1.77 · One caret showing** (`one-caret-showing`). After every paint, the `data-caret-drawn`
 attribute (which hides the browser's caret) sits on exactly the editable the bar draws for, and on
@@ -1570,8 +1573,9 @@ clamp, and a caller selecting nodes it already holds (a widget whole) hands its 
 `selectDomRange`. The scan pins four file lists, each with per-file reasons and compared as sets:
 
 - the files calling a native selection writer (`addRange`, `setBaseAndExtent`, `extend`,
-  `selectAllChildren`, `removeAllRanges`, `empty`, and the two-argument `collapse` and
-  `setPosition`), which is `widget-offset.ts` alone;
+  `selectAllChildren`, `removeAllRanges`, `empty`, `collapseToStart`, `collapseToEnd`, `modify`,
+  `setPosition`, a two-argument `collapse`, and a one-argument `collapse` on a selection), which is
+  `widget-offset.ts` alone (the shape is `lint/native-selection-write.ts`, which G4.143 reads too);
 - the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
   that measure with it);
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
@@ -2470,8 +2474,9 @@ checkboxes, `clickModeButton` for the showcase's and the changelog's buttons). E
 button outside `mode-switch.ts` and the two specs it allows by name.
 
 **G4.141 · One writer for the drawn caret.** `data-caret-drawn` (the attribute that hides the
-browser's caret) and `md-drawn-caret` (the bar) are named in `caret/drawn-caret.svelte.ts` alone, so
-the class and the bar change in one paint and there's one bar per editor.
+browser's caret) and `md-drawn-caret` (the bar) are named in `caret/drawn-caret.svelte.ts` alone
+(the bar also in `caret/block-content-selector.ts`, so a block-content lookup skips it), so the
+attribute and the bar change in one paint and there's one bar per editor.
 `lint/drawn-caret-guards.test.ts`.
 
 **G4.142 · `caret-color` on the known surfaces only.** The production CSS and Svelte styles declare
