@@ -4,6 +4,8 @@
 
 - Select text via Shift+Arrow then Ctrl+C, paste at end of block: appends the copied text
 - Paste at start of block: prepends
+  - Miss-analysis: both paste rows copied the whole block, so the result read `StartStart` at
+    either end and a paste that landed at the wrong end still passed.
 - Select text then Ctrl+V: replaces selection with clipboard content
 - Select text then type characters: replaces selection with typed text
 

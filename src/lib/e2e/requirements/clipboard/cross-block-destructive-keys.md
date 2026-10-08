@@ -16,8 +16,7 @@ key, in one undo unit.
 
 ## Pinned below the browser
 
-The plain-prose keys ran as e2e scenarios here and moved to the unit tests, which press the same
-keys over the same range without a page:
+These press the plain-prose keys over a range across two blocks, without a page:
 
 - Enter splits at the merge target and Shift+Enter writes a hard break there, Ctrl+2 makes the
   merged block a level-2 heading and Ctrl+0 strips a heading prefix from it: each deletes the

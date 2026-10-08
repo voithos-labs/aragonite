@@ -37,7 +37,7 @@ for. The keyboard move is the opposite: the caret travels with the block.
 
 - Every reorder fixture separated its blocks with blank lines, so no gap a move landed in ever
   lacked a blank-line separator; the one shape that does, a heading interrupting the paragraph
-  above it, was never dragged past. It is now pinned for a drop and for the chords in
+  above it, was never dragged past. A drop there is pinned in
   `test/editor-actions/reorder-seam-undo.test.ts` (a table dropped flush under a paragraph stays a
-  table), and as a property over every kind pair in
+  table), and every move from one position to another as a property over every kind pair in
   `test/tree-operations/reorder-lands-whole.property.test.ts`.

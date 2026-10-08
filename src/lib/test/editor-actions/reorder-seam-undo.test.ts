@@ -1,7 +1,7 @@
 // A move that writes a blank line at a join does it through the reorder action, and one undo
 // takes the move and the blank line back together.
 // Miss-analysis: the join rules were pinned on the tree operation alone, so a move through the
-// action with its undo, a divider or a table landing under prose, ran only in a browser.
+// action with its undo, or a table landing under prose, ran only in a browser.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
@@ -23,13 +23,6 @@ const CASES = [
 		move: { path: [1], by: -1 },
 		after: `# Heading\n\nIntro\n\n${TABLE}\n`,
 		kinds: ['heading', 'paragraph', 'table']
-	},
-	{
-		label: 'a divider moved up lands whole under a paragraph, not as its setext underline',
-		before: 'Intro\n# Heading\n\n---\n',
-		move: { path: [2], by: -1 },
-		after: 'Intro\n\n---\n\n# Heading\n',
-		kinds: ['paragraph', 'thematicBreak', 'heading']
 	},
 	{
 		label: 'a table dropped flush under a paragraph stays a table',

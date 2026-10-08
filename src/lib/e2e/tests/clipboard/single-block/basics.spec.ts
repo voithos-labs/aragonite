@@ -9,9 +9,8 @@ test.describe('single-block clipboard: basics', () => {
 		await editor.goto();
 	});
 
-	// One key apart (End vs Home); the copy path is identical. The copy is part of the block, so
-	// the two results differ and a paste at the wrong end fails its row.
-	// Miss-analysis: both rows copied the whole block, so the result read `StartStart` at either end.
+	// One key apart (End vs Home). The copy is part of the block, so a paste at the wrong end
+	// reads differently and fails its row.
 	for (const [position, key, expected] of [
 		['end appends', 'End', 'StartSt'],
 		['start prepends', 'Home', 'StStart']

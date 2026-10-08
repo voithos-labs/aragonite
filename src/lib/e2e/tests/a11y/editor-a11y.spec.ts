@@ -12,8 +12,8 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await editor.goto();
 	});
 
-	// One document through each presentation mode. Each mode draws its own set of elements and
-	// contrasts, so each step is its own axe pass under its own allowlist key.
+	// One document through each presentation mode, one axe pass per mode, labelled by mode. The
+	// shared allowlist waives contrast, which `code-token-contrast.test.ts` checks without a browser.
 	test('default content has no new violations in any presentation mode', async ({ page }) => {
 		await editor.loadContent(DEFAULT_CONTENT);
 		await editor.waitForRenderFlush();

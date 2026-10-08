@@ -13,14 +13,16 @@ order. This file covers which blocks show a handle and when, not dragging.
 
 ## Which blocks carry one
 
-Which kinds get a handle, and when, is pinned in `test/components/drag-handle-default.svelte.test.ts`
-(see "Pinned below the browser"). Here only the pointer-side behavior of a handle that exists is
-checked: the list shell carries none, so row one owns its gutter, and hovering row one lights that
-row alone.
+The objects a user picks up whole carry a handle: code, tables, equations, diagrams, pictures,
+list items, dividers, `<details>`, and the other plugin cards. A table shows one handle, its own:
+there are no per-row or per-column handles, and every row and column action lives in the
+right-click cell menu.
+
+- the list as a whole carries none: its handle would sit in the gutter on top of its first item's
+  and take the click, so hovering the first row lights that row's handle alone
 
 ## Handle glyph and placement
 
-- the handle is the lucide `grip-vertical` glyph (six dots), 16px, muted
 - the handle sits within the first line-height of the block's own box, measured on hover, not
   on its first line of text: a card pads above that text, so a handle level with the first code
   line would hang below the card's top edge. A code card, an equation, a table and a picture
@@ -50,12 +52,12 @@ row alone.
 
 ## Pinned below the browser
 
-`test/components/drag-handle-default.svelte.test.ts` mounts the editor and counts handles:
+These mount the editor without a page and count handles:
 
 - prose carries none: paragraph, both heading syntaxes, a blockquote and its paragraphs, a note card
   (`test/components/drag-handle-default.svelte.test.ts`)
-- the objects a user picks up whole carry one (code, list items), and a list item's inner paragraph
-  does not, so an item and its children show exactly one
+- code and list items carry one, and a list item's inner paragraph doesn't, so an item and its
+  children show exactly one
   (`test/components/drag-handle-default.svelte.test.ts`)
 - an image-only paragraph carries one; an image beside words carries none
   (`test/components/drag-handle-default.svelte.test.ts`)
@@ -63,7 +65,8 @@ row alone.
   (`test/components/drag-handle-default.svelte.test.ts`)
 - reading mode shows none, not even on an image-only paragraph
   (`test/components/drag-handle-default.svelte.test.ts`)
-- the handle is the six-dot grip glyph (`test/components/drag-handle-default.svelte.test.ts`)
+- the handle is the lucide `grip-vertical` glyph, six dots
+  (`test/components/drag-handle-default.svelte.test.ts`)
 - the prop is opt-in, and `blockDragHandles=false` renders no handle (a picture keeps its own, and
   `e2e/tests/blocks/reorder-drag.spec.ts` drags it)
   (`test/components/drag-handle-default.svelte.test.ts`)

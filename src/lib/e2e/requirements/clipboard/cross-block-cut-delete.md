@@ -12,11 +12,14 @@
 
 ## Pinned below the browser
 
-Backspace, Delete and typing over a cross-block range, and Ctrl+X removing it, ran as rows here and
-moved to `test/selection/cross-block/keydown-destructive-gate.test.ts`,
-`test/selection/cross-block/cross-block-typed-char.test.ts` and
-`test/selection/cross-block/range-replace.test.ts`, which press the same keys over the same ranges
-without a page.
+These press keys over a cross-block range without a page:
+
+- Backspace and Delete delete the range and leave cross-block mode
+  (`test/selection/cross-block/keydown-destructive-gate.test.ts`).
+- A typed character lands in the merged block, and the delete and the character share one undo
+  entry (`test/selection/cross-block/cross-block-typed-char.test.ts`).
+- Backspace, a cut and a typed character each leave the expected bytes and one undo entry holding
+  the document as it stood (`test/selection/cross-block/range-replace.test.ts`).
 
 ## Miss-analysis
 

@@ -31,25 +31,27 @@ whether or not the drag handles are turned on.
 
 ## Pinned below the browser
 
-Each of these ran as a keyboard row here and moved to the reorder action's unit tests, which run
-the same move and its undo without a page:
+These moves run without a page, through the reorder action or the tree operation under it:
 
-- A divider moved up into a gap whose neighbors had no blank line between them (a heading
-  interrupting the paragraph above it) arrives with one, so the paragraph stays a paragraph rather
-  than reading the rule as its setext underline
-  (`test/editor-actions/reorder-seam-undo.test.ts`).
-- A paragraph moved up out from under an HTML block leaves a blank line before the quote below,
-  and a heading moved up from between a paragraph and a table leaves one before the table, so
-  neither reloads as text of the block above (`test/editor-actions/reorder-seam-undo.test.ts`,
-  `test/tree-operations/reorder-blank-line-ended.test.ts`,
+- A move that would leave a divider flush under a paragraph writes a blank line between them, so
+  the rule doesn't read as the paragraph's setext underline
+  (`test/tree-operations/reorder-lands-whole.property.test.ts`,
   `test/tree-operations/reorder-vacated-join.test.ts`).
-- Inside a quote, a paragraph moved up out from under the quote's HTML block leaves a blank quote
-  line, so the nested quote below stays a quote (`test/editor-actions/reorder-in-container.test.ts`).
-- In a document with no final line break, in LF and in CRLF, a move up or down keeps the two blocks
-  on lines of their own: the block that gains a follower ends its line in the document's line
-  ending, the block that becomes last gives up its ending
-  (`test/editor-actions/reorder-unterminated-tail.test.ts`).
-- Alt+ArrowDown on the last block does nothing (`test/editor-actions/reorder-action.test.ts`).
+- A paragraph moved up out from under an HTML block leaves a blank line before the quote below, so
+  the quote and the list after it don't reload as HTML text
+  (`test/editor-actions/reorder-seam-undo.test.ts`,
+  `test/tree-operations/reorder-blank-line-ended.test.ts`).
+- A heading moved up from between a paragraph and a table flush under it leaves a blank line before
+  the table, so the table stays a table (`test/editor-actions/reorder-seam-undo.test.ts`,
+  `test/tree-operations/reorder-vacated-join.test.ts`).
+- Inside a quote, the same two moves leave a blank quote line, so the nested quote stays a quote
+  and the table stays a table (`test/editor-actions/reorder-in-container.test.ts`).
+- In a document with no final line break, in LF and in CRLF, Alt+ArrowUp on the last block and
+  Alt+ArrowDown on the block above it keep the two blocks on lines of their own: the block that
+  gains a follower ends its line in the document's line ending, and the block that becomes last
+  gives up its ending (`test/editor-actions/reorder-unterminated-tail.test.ts`).
+- A move down from the last sibling does nothing. Every container shares one clamp, and
+  `test/editor-actions/reorder-action.test.ts` runs it on the last item of a list.
 
 ## User interactions
 
