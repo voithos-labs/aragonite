@@ -25,13 +25,20 @@ mutating the global tables.
 
 ## Pinned below the browser
 
-These run against the mounted editor, in `range-command-keys.test.ts`, `keybinding-overrides.test.ts` and `item-tab-keydown.test.ts`:
-
-- a malformed chord (`'Ctrl+B'`) is dropped and does not bind bare B
-- a `kind:'listItem'` override disabling Tab, and a global disable of Tab, each stop the list indent as the key travels up to the container (the leaf never takes Tab inside a list)
+- a malformed chord (`'Ctrl+B'`) is dropped and does not bind bare B, in `keybinding-overrides.test.ts`, which reads the override list on its own, with no editor
+- a `kind:'listItem'` override disabling Tab, and a global disable of Tab, each stop the list indent as the key travels up to the container (the leaf never takes Tab inside a list), in `item-tab-keydown.test.ts`
   - Miss-analysis: every override row drove a leaf block, so none saw the list item's own key handler
-- over a selection spanning blocks, a command key removes the selection and then runs at the caret that's left, and the bindings decide which keys those are: a disabled `Mod+2` or `Enter` (global, or scoped to the paragraphs the selection lands in) removes nothing and the selection stays, a split bound to `Mod+J` on headings does nothing over paragraphs, and a heading rebound to `Mod+Alt+2` or a split rebound to `Alt+Enter` removes the selection and runs
-  - Miss-analysis: the cross-block command-key rows only pressed the default chords, where the literal keys and the keymap agree, so nothing saw a disabled key delete the selection or a rebound one do nothing; and every kind-scoped row pressed the key in a block of the landing's kind, so none saw the block holding focus run its own Enter under the live selection
+- over a selection spanning blocks, a command key removes the selection and then runs at the caret that's left, and the bindings decide which keys those are. These run against the mounted editor in `range-command-keys.test.ts`:
+  - `Mod+1` disabled: nothing's removed and the selection stays
+  - `Enter` disabled: the same
+  - the heading rebound to `Mod+Alt+1`: that chord removes the selection and makes the heading
+  - the split rebound to `Alt+Enter`: that chord removes the selection and splits
+  - Miss-analysis: the cross-block command-key rows only pressed the default chords, where the literal keys and the keymap agree, so nothing saw a disabled key delete the selection or a rebound one do nothing
+  - `Mod+1` disabled on paragraphs only, with the selection landing in a paragraph: nothing's removed and the selection stays
+  - `Enter` disabled on paragraphs only: the same
+  - a split bound to `Mod+J` on headings only, pressed over paragraphs: nothing happens and the selection stays
+  - `Enter` disabled on paragraphs only, over a selection from a paragraph into a heading with the caret's end in the heading: nothing happens, since the selection would land in the paragraph, and the heading doesn't split under it either
+  - Miss-analysis: every kind-scoped row pressed the key in a block of the landing's kind, so none saw the block holding focus run its own Enter under the live selection
 
 ## User interactions (real keys, every leaf dispatch surface)
 

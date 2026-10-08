@@ -58,4 +58,4 @@ These run against the mounted blocks in `container-overlay-routing.svelte.test.t
 ## Error / degenerate cases
 
 - Block content changes while cross-block selection exists: overlay should reflect new layout via reactivity. The overlay re-measures on its block's scroll container scrolling, the editor root scrolling and the block's box resizing, and stops once the block goes; `overlay-remeasure.test.ts` pins that
-  - Miss-analysis: the bullet was only ever read off the page after a scroll, so no test knew which triggers re-measure the overlay or that disposing stops them
+  - Miss-analysis: no test covered this bullet, and no unit drove the re-measure triggers

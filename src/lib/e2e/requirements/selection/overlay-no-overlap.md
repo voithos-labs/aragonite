@@ -18,12 +18,13 @@ and in live mode, and reads the rects off the page rather than off a screenshot.
 
 ## Edge cases
 
-- A range ending in a table cell: the start's strips and the table's cell rects don't overlap. A
-  backward range, from a list item up into a heading, paints the same as forward, nothing overlaps
-- A drag inside a rule holds it whole (one box); Shift+ArrowDown and a Shift+click then grow the
-  range into the paragraph below, and the rule's box and that paragraph's lines don't overlap.
-  Wrapped rows set with a line-height under the glyphs' own height, so each row's text box
-  reaches into the next: the start line and the strip under it still don't overlap
+- Each of these paints with nothing overlapping:
+  - a range ending in a table cell: the start's strips and the table's cell rects
+  - a backward range, from a list item up into a heading: it paints the same as forward
+  - a drag inside a rule holds it whole (one box), then Shift+ArrowDown and a Shift+click grow
+    the range into the paragraph below: the rule's box and that paragraph's lines
+  - wrapped rows set with a line-height under the glyphs' own height, so each row's text box
+    reaches into the next: the start line and the strip under it
 
 ## Error cases
 

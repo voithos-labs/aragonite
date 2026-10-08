@@ -44,7 +44,7 @@ is its only user.
 
 ## Pinned below the browser
 
-These run against the mounted editor in `command-door.test.ts`, `format-command-arms.test.ts`, `command-undo-caret.test.ts` and `command-door-seam.test.ts`:
+These run in `command-door.test.ts`, `format-command-arms.test.ts`, `command-undo-caret.test.ts` and `command-door-seam.test.ts`:
 
 - the emphasis, strikethrough and inline-code ids each write their own delimiter pair, and nothing else moves
 - a caret with no selection, in a mode that paints the delimiters, takes the toggle as an empty pair

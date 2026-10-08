@@ -14,4 +14,10 @@ Select some text inside one block and press a key that breaks the line, and the 
 
 ## Pinned below the browser
 
-Enter and Shift+Enter over a selection in a paragraph or heading, Enter in a code block, Enter in a table cell (it moves to the cell below and adds a row at the bottom, so the selected text stays), and Enter over the whole of a list item or a code block's last line (the item stays and a new empty one opens below it, and the caret stays inside the block) run against the mounted editor in `break-over-selection.test.ts` and `break-over-selection-exits.test.ts`, in both modes. Each already carries its own miss-analysis.
+- These run against the mounted editor in both modes, in `break-over-selection.test.ts` and `break-over-selection-exits.test.ts`. Each already carries its own miss-analysis.
+  - Enter over a selection in a paragraph or a heading
+  - Shift+Enter over a selection in a paragraph or a heading
+  - Enter over a selection in a code block
+  - Enter over a selection in a table cell: it moves to the cell below and adds a row at the bottom, so the selected text stays
+  - Enter over the whole of a list item: the item stays, a new empty one opens below it, and the caret stays inside the list
+  - Enter over the whole of a code block's last line: the emptied line stays, a new one opens below it, and the caret stays inside the block

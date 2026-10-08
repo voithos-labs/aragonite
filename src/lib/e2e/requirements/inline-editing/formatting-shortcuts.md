@@ -11,6 +11,11 @@ Keyboard shortcuts that wrap or unwrap selected text with bold/italic markers.
 - Ctrl+I on already-italic text removes \* markers
 - Ctrl+B on an inner word flanked by \*\* markers strips the markers rather than double-wrapping
 
-A selection inside a longer bold run splits the run rather than double-wrapping, and one spanning bold runs and plain text bolds as a single run that absorbs the inner markers. Both run against the mounted editor in `format-toggle-coverage.test.ts`; the split's regression (the shortcut wrote `**text **text2****`) carries the miss-analysis that every unapply scenario aligned the selection with a construct boundary, so nothing saw a strict sub-range fall through to the wrap branch.
-
 Formatting with no selection is its own concern: see `formatting-at-caret.md`.
+
+## Pinned below the browser
+
+These call the toggle function directly in `format-toggle-coverage.test.ts`, with no editor:
+
+- a selection inside a longer bold run splits the run rather than double-wrapping
+- a selection spanning bold runs and plain text bolds as one run, absorbing the inner markers

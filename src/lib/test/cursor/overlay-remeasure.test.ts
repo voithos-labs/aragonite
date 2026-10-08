@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Miss-analysis: the overlay's repaint-on-change bullet was only ever read off the page after a
-// scroll, so no test knew which triggers re-measure it or that disposing stops them.
+// Miss-analysis: no test covered the overlay's repaint-on-change bullet, and no unit drove the
+// re-measure triggers.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { BlockComponent } from '$lib/block-component';
 import { wireOverlayRemeasure } from '$lib/cursor/overlay-remeasure';
