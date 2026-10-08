@@ -3,7 +3,7 @@
 import { CURSOR_START } from '../../block-component';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { Document } from '../../core/nodes';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { commandLandingKind, kindOfPath, replaceRange } from './range-replace';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
@@ -31,7 +31,7 @@ import { pathsEqual } from '../path-math';
 import { intraTableRectExtension } from '../table-rect-extend';
 import { cellPoint } from '../primitives';
 import { applySurfaceContentRange } from '../native-bridge';
-import { selectInBlock } from '../caret-doors';
+import { selectInBlock } from '../place-caret';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

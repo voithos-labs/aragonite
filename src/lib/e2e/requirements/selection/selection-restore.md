@@ -47,7 +47,7 @@ override the scroll the host wrote last.
   restore keeps settling and its boolean is unaffected. Only another programmatic reveal can
   change the outcome, and the user is not one: a host that branches on `false` must not be
   sent down its fallback by ordinary interaction. Pinned in a unit test over the scroll owner
-  (`test/cursor/scroll-owner-placement`), where a release and a newer placement can be told
+  (`test/windowing/scroll-owner-placement`), where a release and a newer placement can be told
   apart without a browser.
 
 ## Error cases

@@ -37,7 +37,7 @@ import type { PasteDispatchContext } from './dispatch';
 import type { CommitSnapshotArg } from '../../action-contracts';
 import type { MultiScopeTarget } from './paste-deps';
 import type { SharingState } from '../sharing';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 
 interface ContainerUnwrap {
 	outerPath: number[];

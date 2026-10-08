@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';

@@ -2,7 +2,7 @@
 // the new sublist's rebuild (which no commit makes for it) lost the moved item and stayed green.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,

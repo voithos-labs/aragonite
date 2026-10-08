@@ -5,9 +5,9 @@
  */
 
 import type { BlockComponent } from '../block-component';
-import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretMemory } from '../caret/caret-memory';
 import type { CaretLanding } from '../selection/caret-landing';
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import { placeContextPress, resetForPointerDown } from '../selection/cross-block/pointer';
 import { createDeadSpaceCaret } from '../selection/dead-space-caret';

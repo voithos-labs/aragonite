@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { tryGapStop } from '../../selection/gap-caret';
-import { placeGapCaret } from '../../selection/caret-doors';
+import { placeGapCaret } from '../../selection/place-caret';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import type { PresentationMode } from '../../presentation-mode';
 

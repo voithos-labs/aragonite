@@ -2,7 +2,7 @@
 // Miss-analysis: the caret checks asked where a caret went, never whether its block paints at all.
 import { describe, it, expect, afterEach } from 'vitest';
 import { checkLandableCaret } from '../../invariants/landable-caret';
-import { CONTENT_EMPTY_ATTR } from '../../cursor/widget-offset';
+import { CONTENT_EMPTY_ATTR } from '../../caret/widget-offset';
 
 function block(mode: string | undefined, marker: string, stamped = false): HTMLElement {
 	const root = document.createElement('div');

@@ -7,7 +7,7 @@
 
 import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
-import type { ChildList } from './reactivity/child-list';
+import type { ChildList } from './block-lists/child-list';
 import type { AnyCommandId } from './schema/command-id';
 import type { BlockCommandTarget, CommandRun } from './schema/block-commands';
 

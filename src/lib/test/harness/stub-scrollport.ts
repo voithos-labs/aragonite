@@ -3,13 +3,13 @@
  * values, and jsdom reports zero geometry for all of them, so a mounted list needs this stub to
  * observe anything at all.
  */
-import { withRelativeScroll, type Scrollport } from '../../cursor/scrollport';
+import { withRelativeScroll, type Scrollport } from '../../windowing/scrollport';
 import {
 	createScrollOwner,
 	type ScrollOwner,
 	type ScrollOwnerDeps
-} from '../../cursor/scroll-owner';
-import type { UserScrollport } from '../../cursor/scroll-ancestors';
+} from '../../windowing/scroll-owner';
+import type { UserScrollport } from '../../windowing/scroll-ancestors';
 
 export interface StubScrollportOpts {
 	viewportHeight: number;

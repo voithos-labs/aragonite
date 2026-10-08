@@ -3,7 +3,7 @@ import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { commitGridLineDelete } from '#lib/selection/range-delete-table-coverage.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { makeTableMutations } from './table-mutations-harness';
 import type { EditEvent } from '#lib/editor-events.js';

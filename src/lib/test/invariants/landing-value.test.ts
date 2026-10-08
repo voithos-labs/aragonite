@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { checkLandingIsAValue, readCaretWhereabouts } from '#lib/invariants/landing-value.js';
 import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { asDocPath } from '#lib/selection/path-math.js';
 import { makeTopHarness } from '../harness/editor-actions';
 import { takeDevWarns } from '../support/warn-gate';

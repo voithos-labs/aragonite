@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { parse } from '#lib/core/parser.js';
 import {
 	makeBlockListState,
@@ -11,7 +11,7 @@ import {
 	makeStubBlockEdit,
 	pasteContext
 } from '#lib/test/harness/editor-actions.js';
-import type { BlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import type { EditEvent } from '#lib/editor-events.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 

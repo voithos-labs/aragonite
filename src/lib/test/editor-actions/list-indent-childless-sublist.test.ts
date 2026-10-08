@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { rebuildListItemRaw, rebuildListRaw } from '#lib/schema/container-rebuilders.js';
 import {
 	makeBlockListState,

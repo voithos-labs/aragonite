@@ -9,7 +9,7 @@ import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-component';
 import { displayLength } from '../../core/lines';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { isCollapsedContainer, isReservedChromeChild } from '../../schema/reserved-chrome';
 import { isStrictAncestorOf } from '../../selection/path-math';

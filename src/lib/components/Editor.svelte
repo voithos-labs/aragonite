@@ -27,19 +27,19 @@
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../editor-keys';
-	import { createCaretMemory } from '../cursor/caret-memory';
-	import { docPathFrom } from '../cursor/coordinate-spaces';
+	import { createCaretMemory } from '../caret/caret-memory';
+	import { docPathFrom } from '../caret/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
-	import { createScrollOwner } from '../cursor/scroll-owner';
+	import { createScrollOwner } from '../windowing/scroll-owner';
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
-	import { createContentVersion } from '../reactivity/content-version.svelte';
-	import { createCurrentSource } from '../reactivity/current-source';
-	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
-	import { createListTree } from '../reactivity/list-tree';
-	import { createLayoutState } from '../reactivity/layout-state.svelte';
-	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
-	import { componentAt, type ChildList } from '../reactivity/child-list';
+	import { createContentVersion } from '../editor-actions/commit/content-version.svelte';
+	import { createCurrentSource } from '../editor-actions/commit/current-source';
+	import { useRootWindowing } from '../windowing/use-container-windowing.svelte';
+	import { createListTree } from '../windowing/list-tree';
+	import { createLayoutState } from '../windowing/layout-state.svelte';
+	import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
+	import { componentAt, type ChildList } from '../block-lists/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
 	import { createSelectionDescription } from '../selection/selection-description';
@@ -145,7 +145,7 @@
 	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
 	import { registerEditorBuiltIns } from './editor-built-ins';
-	import { blockContentElAt } from './block-el-lookup';
+	import { blockContentElAt } from '../caret/block-el-lookup';
 
 	registerEditorBuiltIns();
 	runStartupInvariantChecks();

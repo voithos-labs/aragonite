@@ -65,7 +65,7 @@ export function cycleHeading(
 }
 
 /** A GFM hard break (a backslash at end of line) at `offset`, ended with `ending`, the typed break's;
- *  at the end of the text's line the pending break writes it instead (`cursor/pending-break.svelte.ts`). */
+ *  at the end of the text's line the pending break writes it instead (`caret/pending-break.svelte.ts`). */
 export function insertHardBreak(
 	raw: string,
 	offset: number,

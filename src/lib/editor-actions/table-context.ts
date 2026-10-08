@@ -17,12 +17,12 @@ import type { CstNode } from '../core/nodes';
 import type { Reading } from '../schema/reading';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
+import { extendDocPath, docPathFrom } from '../caret/coordinate-spaces';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import { getStateForNode } from '../reactivity/state-registry';
+import type { BlockListState } from '../block-lists/block-list-state.svelte';
+import { getStateForNode } from '../block-lists/state-registry';
 import { assertInvariant } from '../assert';
 import {
 	columnAligned,

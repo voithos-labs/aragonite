@@ -5,7 +5,7 @@
  * autoscroll brings the others into view.
  */
 
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { ReorderAction } from './reorder-action';
 import { createPointerDragSession } from '../selection/pointer-session';
 import { readBlockPath } from '../selection/path-lookup';
@@ -24,7 +24,7 @@ export interface ReorderDragOverlay {
 export interface ReorderDragContext {
 	editorRoot: HTMLElement;
 	/** What autoscrolls when the drag reaches an edge, per scroll mode: the root, the host's scroll
-	 *  container, or the window. Never `editorRoot` directly (`cursor/scroll-ancestors`). */
+	 *  container, or the window. Never `editorRoot` directly (`windowing/scroll-ancestors`). */
 	getScrollHost: () => UserScrollport | null;
 	moveReorderUnit: ReorderAction['moveReorderUnit'];
 	overlay: ReorderDragOverlay;

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '#lib/editor-actions/container-block-component.js';
 import type { BlockComponent } from '#lib/block-component.js';
-import { descendTo, type ChildList } from '#lib/reactivity/child-list.js';
+import { descendTo, type ChildList } from '#lib/block-lists/child-list.js';
 import {
 	makeShimChildList,
 	makeShimDeps,

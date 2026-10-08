@@ -6,8 +6,8 @@
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { DocumentGetter } from '../editor-keys';
-import type { CaretMemory } from '../cursor/caret-memory';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { CaretMemory } from '../caret/caret-memory';
+import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import type { CommandDispatchContext } from '../schema/block-commands';
@@ -18,9 +18,9 @@ import {
 	extendFocusToPreviousBlock,
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
-import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
-import { landableRawBounds } from '../cursor/widget-offset';
-import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
+import { getCurrentCursorEditorRelativeX } from '../caret/sticky-measure';
+import { landableRawBounds } from '../caret/widget-offset';
+import { isAtFirstVisualLine, isAtLastVisualLine } from '../caret/visual-lines';
 import { endsSelectAllRun, eventToChord } from '../schema/keybindings';
 import { isDefaultGlobalChord } from '../schema/commands';
 

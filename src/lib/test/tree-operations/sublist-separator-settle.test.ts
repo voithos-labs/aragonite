@@ -9,7 +9,7 @@ import {
 	createStandardNestedActions,
 	type NestedActionsBundle
 } from '#lib/editor-actions/nested/nested-actions.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,

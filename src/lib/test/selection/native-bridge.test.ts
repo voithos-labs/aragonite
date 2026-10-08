@@ -10,7 +10,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { stubBlockComponent } from '../harness/editor-actions';
 import { restoreTarget } from '../harness/restore-landing';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 
 describe('readCurrentSelection: unfocused editor', () => {
 	it('returns null when no block reports a cursor (does not clamp to block 0 offset 0)', () => {

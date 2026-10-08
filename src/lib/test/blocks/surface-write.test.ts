@@ -9,7 +9,7 @@ import type { NodeView } from '#lib/core/node-views.js';
 import { createSurfaceWrite, type TextWrite } from '#lib/components/blocks/surface-write.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { stubBlockEdit } from '#lib/testing/headless-actions.js';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 
 const TYPED: Omit<TextWrite, 'text' | 'caretAfter'> = {
 	intent: 'typed',

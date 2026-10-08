@@ -10,7 +10,7 @@ import { metadataOf } from '../../../core/nodes';
 import { displayLength } from '../../../core/lines';
 import { fenceAnatomy } from '../../../core/parsers/fence-syntax';
 import { sliceFencedCode, type FencedCodeSlice } from './code-renderer';
-import type { RawRange } from '../../../cursor/widget-offset';
+import type { RawRange } from '../../../caret/widget-offset';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 

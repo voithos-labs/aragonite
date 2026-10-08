@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
-import { createBlockListState } from '#lib/reactivity/block-list-state.svelte.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { findMergeTarget } from '#lib/schema/merge-rules.js';

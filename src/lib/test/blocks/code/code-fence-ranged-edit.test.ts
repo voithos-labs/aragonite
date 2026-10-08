@@ -4,9 +4,9 @@
 // a fence line and where a refused gesture leaves the caret. The span each write route takes over
 // a range is in `code-fence-edit-span.test.ts`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
-import { createSurfaceBackend } from '#lib/cursor/surface-backend.js';
+import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
 import { mountCode, type MountedCode } from './mount-code';
 import { settleEditor } from '#lib/test/harness/settle.js';
 

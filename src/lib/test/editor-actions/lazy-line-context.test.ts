@@ -7,7 +7,7 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { commitLeafTextAt } from '#lib/editor-actions/block-edit-core.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';

@@ -23,7 +23,7 @@ import { createTableMutationsContext } from '../../editor-actions/table-context'
 import { replaceRange } from '../../selection/cross-block/range-replace';
 import { rangeContext } from '../selection/cross-block/range-context';
 import type { SelectionPoint } from '../../selection/primitives';
-import { registerBlockListState } from '../../reactivity/state-registry';
+import { registerBlockListState } from '../../block-lists/state-registry';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,

@@ -32,8 +32,8 @@ import { parseReplacement } from '../../tree-operations/paste/replacement-parse'
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { countsCells } from '../../schema/block-kind-descriptor';
 import { dispatchKeyCommand } from '../../schema/block-commands';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
-import { getStateForNode } from '../../reactivity/state-registry';
+import { docPathFrom } from '../../caret/coordinate-spaces';
+import { getStateForNode } from '../../block-lists/state-registry';
 import { emitClipboardError } from '../../editor-events';
 import { assertInvariant } from '../../assert';
 import { isDevChecks } from '../../env';

@@ -511,7 +511,7 @@ Cost contract: an idle source's per-edit re-run is O(sources), never per-block, 
 
 Viewport-space geometry over the rendered document, reached through `EditorContext.rects` (plugin) and `getRects()` (consumer): a block's bounding box; the rects covering an inline range (per visual line on wrapped prose, per cell on a table, with the end marker meaning "through the last measurable position"); the live native caret (null while a cross-block range is live); a `reveal` that mounts a block windowing skipped; and a `scrollTo(path, { block })` that reveals then scrolls.
 
-`scrollTo` doesn't just scroll once. It sets a **reveal anchor** (held in `cursor/scroll-owner.ts`) that the top-level block list re-asserts after every measure pass, because a target past unloaded images would otherwise slide away: the images reserve height off screen and shrink on mount, and the browser clamps the scroll off the target.
+`scrollTo` doesn't just scroll once. It sets a **reveal anchor** (held in `windowing/scroll-owner.ts`) that the top-level block list re-asserts after every measure pass, because a target past unloaded images would otherwise slide away: the images reserve height off screen and shrink on mount, and the browser clamps the scroll off the target.
 
 For the curious, the anchor's finer rules:
 
@@ -700,7 +700,7 @@ Persistent version history (post-v1 app-infra) needs `EditEvent` to distinguish 
 
 The contract's rules are guarded by the invariant catalog (`docs/design/invariants.md`):
 
-- The view types (`core/node-views.ts`): every plugin-visible read surface is bytes-readonly at compile time, and the G4.13 lint keeps view-to-mutable casts confined to `tree-operations/` plus the commit steps.
+- The view types (`core/node-views.ts`): every plugin-visible read surface is bytes-readonly at compile time, and the G4.13 lint keeps view-to-mutable casts confined to `tree-operations/` plus the undo controller.
 - Readonly-view prop parity (G4.14): a block component annotating its `node`/`document` props with the mutable types is caught by a source-scan lint; the registration boundary erases prop types, so the drift would otherwise compile.
 - Bundled-plugin import boundary (G4.16): a source-scan lint holds every file under `src/lib/plugins/` to the public authoring barrel, its own plugin dir, or, in a `renderer.ts`, its one declared engine, so a bundled plugin reaching a deep `#lib` path (the repo's import alias for `src/lib`) proves the barrel is missing a surface (fix the barrel, not the import). The bundled set is whatever ships under `src/lib/plugins/`, one `@voithos-labs/aragonite/plugins/<name>` subpath each; everything under `src/routes/test/plugins/` is a harness fixture and is never packaged.
 - Bundled-plugin test boundary (G4.63): the same rule one layer out, over the bundled plugins' own suites. A file under a per-plugin test directory imports only `@voithos-labs/aragonite`, `/plugin` and `/testing`, its own plugin's source, another plugin's published subpath, or the copyable in-repo test support, so those suites are the standing proof that the three published entry points are enough to test a plugin, not only to build one. An exception to the rule sits on an allowlist naming the public entry point it waits for.

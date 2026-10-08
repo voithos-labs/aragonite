@@ -3,8 +3,8 @@
 // prose: a widget counts its source bytes, and adjacent hidden spans are one run.
 // Miss-analysis: the plain-text walk was tested without widgets or adjacent spans (#498, #572).
 import { describe, it, expect, afterEach } from 'vitest';
-import { asRawOffset } from '../../cursor/coordinate-spaces';
-import { createSurfaceBackend } from '../../cursor/surface-backend';
+import { asRawOffset } from '../../caret/coordinate-spaces';
+import { createSurfaceBackend } from '../../caret/surface-backend';
 
 afterEach(() => {
 	document.body.replaceChildren();

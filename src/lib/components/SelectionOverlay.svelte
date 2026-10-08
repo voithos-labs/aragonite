@@ -12,8 +12,8 @@
 		classifyBlockForSelection,
 		endpointMeasureSpan
 	} from '../selection/primitives';
-	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
-	import { mergeRectsPerLine, reachLineEdges, type LocalRect } from '../cursor/overlay-rects';
+	import { wireOverlayRemeasure } from '../caret/overlay-remeasure';
+	import { mergeRectsPerLine, reachLineEdges, type LocalRect } from '../caret/overlay-rects';
 	import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
 
 	let {

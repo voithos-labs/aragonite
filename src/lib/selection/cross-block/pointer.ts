@@ -2,11 +2,11 @@
 
 import type { CrossBlockDispatchContext, PointerPressOptions } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
-import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretMemory } from '../../caret/caret-memory';
 import { handleShiftClick } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
 import { applyCollapsedCaret, clearNativeSelection } from '../native-bridge';
-import { isInPaddingRow, offsetFromViewportPoint } from '../../cursor/point-offset';
+import { isInPaddingRow, offsetFromViewportPoint } from '../../caret/point-offset';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '../../dev-warn';
 import { isWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
@@ -24,7 +24,7 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
 }
 
 /** The pointerdown reset every cross-block-aware block shares, the pointer counterpart of
- *  `caret-doors.ts`: a plain click ends any range, so a fresh drag starts its own. */
+ *  `place-caret.ts`: a plain click ends any range, so a fresh drag starts its own. */
 export function resetForPointerDown(
 	selection: SelectionState,
 	caretMemory: Pick<CaretMemory, 'forget'>,

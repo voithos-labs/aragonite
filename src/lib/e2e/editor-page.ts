@@ -2,7 +2,7 @@ import type { Page, Locator } from '@playwright/test';
 import { EditorBridge } from './editor-bridge';
 import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
-import { BLOCK_CONTENT_LOCATOR_SELECTOR } from '../components/block-content-selector';
+import { BLOCK_CONTENT_LOCATOR_SELECTOR } from '../caret/block-content-selector';
 import { PAST_TYPING_PAUSE_MS } from './page-probes';
 import { gotoReady } from './goto-ready';
 import { pointAtRaw } from './text-runs';
@@ -11,7 +11,7 @@ import type { PresentationMode } from '../presentation-mode';
 
 // Re-exported so a spec's in-`evaluate` block-content lookup uses the one selector definition
 // instead of inlining `:not(.selection-overlay)`.
-export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
+export { BLOCK_CONTENT_SELECTOR } from '../caret/block-content-selector';
 
 export class EditorPage {
 	readonly editorContainer: Locator;

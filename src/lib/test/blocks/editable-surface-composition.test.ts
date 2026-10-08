@@ -19,8 +19,8 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '#lib/schema/inline-construct-policy.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
-import { type EdgeAffinity } from '#lib/cursor/edge-affinity.js';
-import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { type EdgeAffinity } from '#lib/caret/edge-affinity.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
 import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 

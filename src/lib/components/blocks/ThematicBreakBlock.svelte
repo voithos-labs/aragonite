@@ -7,7 +7,7 @@
 	} from '../../editor-actions/container-block-component';
 	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
 	import { blockAccessibleName } from '../../a11y-strings';
-	import { placeCaret } from '../../selection/caret-doors';
+	import { placeCaret } from '../../selection/place-caret';
 	import { wireSurfaceContexts } from './surface-wiring.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();

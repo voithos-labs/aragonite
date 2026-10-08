@@ -5,7 +5,7 @@ import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
 import { asDocPath } from '#lib/selection/path-math.js';
-import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 
 // What an undo entry records while an image is selected whole, when the user's caret is the one

@@ -5,7 +5,7 @@ import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { makeRangeEnv } from './range-context';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { makeBlockListState } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import type { EditEvent } from '#lib/editor-events.js';

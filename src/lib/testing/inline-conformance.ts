@@ -31,7 +31,7 @@ import {
 	isScanProbeTrigger,
 	type InlineRung
 } from '../core/inline/scan/plugin-syntax';
-import { containerDomTextLength } from '../cursor/widget-offset';
+import { containerDomTextLength } from '../caret/widget-offset';
 import {
 	assert,
 	assertIs,

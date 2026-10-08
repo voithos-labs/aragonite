@@ -8,7 +8,7 @@ import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import { rawOffsetAt } from '../../../cursor/widget-offset';
+import { rawOffsetAt } from '../../../caret/widget-offset';
 import { isCardEditableInlineKind } from '../../../schema/inline-construct-policy';
 import { constructChainAtOffset } from './construct-reveal';
 import type { Reading } from '../../../schema/reading';

@@ -62,7 +62,7 @@ import {
 } from '../tree-operations/content-write';
 import { createPathScope, type CommitScope } from './block-edit-scope';
 import type { EditorRoot } from './deps';
-import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
+import { docPathFrom, extendDocPath } from '../caret/coordinate-spaces';
 import { mergedElseNext, mergedElsePrevious } from './merge-fallback';
 import { previewContentReparse, unlessFocusMoved } from './replacement-focus';
 import type { Landing } from '../selection/primitives';

@@ -7,16 +7,16 @@
 import { assertInvariant } from '../assert';
 import { CURSOR_END, CURSOR_START, type BlockComponent } from '../block-component';
 import type { DocumentView } from '../core/node-views';
-import type { CaretMemory } from '../cursor/caret-memory';
-import { docPathFrom } from '../cursor/coordinate-spaces';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { CaretMemory } from '../caret/caret-memory';
+import { docPathFrom } from '../caret/coordinate-spaces';
+import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { BlockElLookup } from '../editor-keys';
 import { isDevChecks } from '../env';
 import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';
-import { descendTo, type ChildList } from '../reactivity/child-list';
+import { descendTo, type ChildList } from '../block-lists/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
-import { firstUsefulRect } from '../cursor/visual-lines';
+import { firstUsefulRect } from '../caret/visual-lines';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
 import {

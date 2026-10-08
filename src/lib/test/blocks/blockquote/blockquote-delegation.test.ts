@@ -9,7 +9,7 @@ import { parse } from '#lib/core/parser.js';
 import { editorMountContext } from '../../harness/mount-context';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { allowDevWarns } from '#lib/test/support/warn-gate.js';
-import { componentAt } from '#lib/reactivity/child-list.js';
+import { componentAt } from '#lib/block-lists/child-list.js';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));

@@ -11,7 +11,7 @@ import {
 	makeEditorActionsDeps,
 	makeTopHarness
 } from '#lib/test/harness/editor-actions.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { asDocPath } from '#lib/selection/path-math.js';
 import { fixtureReading } from '../../harness/fixture-grammar';

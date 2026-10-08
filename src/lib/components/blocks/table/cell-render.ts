@@ -11,12 +11,12 @@ import type { ResolveLinkUrl } from '../../../editor-keys';
 import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import { captureFocusedCaret } from '../../../cursor/focused-caret';
+import { captureFocusedCaret } from '../../../caret/focused-caret';
 import {
 	CONTENT_EMPTY_ATTR,
 	holdsOnlyMarkerChrome,
 	placeCaretAtRaw
-} from '../../../cursor/widget-offset';
+} from '../../../caret/widget-offset';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';

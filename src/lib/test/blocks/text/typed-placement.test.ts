@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
-import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';

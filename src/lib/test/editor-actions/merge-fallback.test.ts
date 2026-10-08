@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mergedElseNext, mergedElsePrevious } from '#lib/editor-actions/merge-fallback.js';
 import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 
 // The one owner of the interior-merge fallbacks, shared by block-edit-core's two merges and
 // unwrap-strategies.listItemCascadeMiddle. Tested here so a dropped fallback fails at the

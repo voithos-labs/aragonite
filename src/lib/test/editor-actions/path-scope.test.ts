@@ -2,7 +2,7 @@
 // read of the container otherwise, and none where no container stands.
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { docPathFrom } from '#lib/cursor/coordinate-spaces.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createPathScope } from '#lib/editor-actions/block-edit-scope.js';
 import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';

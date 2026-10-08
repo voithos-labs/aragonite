@@ -9,14 +9,14 @@
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
-	import { asRawOffset } from '../../../cursor/coordinate-spaces';
+	import { asRawOffset } from '../../../caret/coordinate-spaces';
 	import {
 		CONTENT_EMPTY_ATTR,
 		holdsOnlyMarkerChrome,
 		selectRawRange,
 		type RawRange
-	} from '../../../cursor/widget-offset';
-	import { createSurfaceBackend } from '../../../cursor/surface-backend';
+	} from '../../../caret/widget-offset';
+	import { createSurfaceBackend } from '../../../caret/surface-backend';
 	import { handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,

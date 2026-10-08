@@ -12,7 +12,7 @@ import type { StoredAs } from '../../schema/stored-as';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { replaceRangeInLeaf } from '../leaf-range';
 import {
 	documentLineEnding,
@@ -22,7 +22,7 @@ import {
 	withLineEnding,
 	type LineEnding
 } from '../../core/lines';
-import type { TextEdit } from '../../cursor/next-insertion';
+import type { TextEdit } from '../../caret/next-insertion';
 import {
 	getPasteSurface,
 	isPasteSurfaceRegistered,

@@ -10,7 +10,7 @@ import type { WriteMode } from '../../schema/block-kind-descriptor';
 import type { LeafRangeEdit } from '../../tree-operations/leaf-range';
 import type { KindCue } from '../kind-cue.svelte';
 import type { BlockAutoPairs } from './text/auto-pair-record';
-import type { HeldInsertion, TextEdit } from '../../cursor/next-insertion';
+import type { HeldInsertion, TextEdit } from '../../caret/next-insertion';
 import { shownKind } from '../../core/parsers/heading';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { withStoredCaret } from '../../editor-actions/stored-caret';

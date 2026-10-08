@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
-import { asRawOffset, asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
+import { asRawOffset, asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
 import {
 	installEdgeDispatchCleanup,
 	makeEdgeDispatch,
@@ -14,8 +14,8 @@ import {
 	type EdgeDispatchHarness
 } from './edge-policy-fixture';
 import { type CstNode, type Document } from '#lib/core/nodes.js';
-import { type EdgeAffinity } from '#lib/cursor/edge-affinity.js';
-import { type PendingMarks } from '#lib/cursor/pending-marks.js';
+import { type EdgeAffinity } from '#lib/caret/edge-affinity.js';
+import { type PendingMarks } from '#lib/caret/pending-marks.js';
 import { type InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import { makePendingMarks, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -26,7 +26,7 @@ import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.sve
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { applyLiveRangeEdit } from '#lib/components/blocks/text/live-selection-edit.js';
-import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
 import { mountBlock } from '../../harness/mount-block';
 import { settleEditor } from '../../harness/settle';
 import { noIslands } from '../table/mount-cell';

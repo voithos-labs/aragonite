@@ -13,7 +13,7 @@ import {
 	trimTrailingLineEnding
 } from '../../../core/lines';
 import { fenceAnatomy, type FenceRun } from '../../../core/parsers/fence-syntax';
-import { createCaretAnchor } from '../../../cursor/widget-offset';
+import { createCaretAnchor } from '../../../caret/widget-offset';
 import { devWarn } from '../../../dev-warn';
 import { assertInvariant } from '../../../assert';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';

@@ -3,7 +3,7 @@
 // child 0 only and drawn only by a prose block, so when child 0 is a nested list (`- - a`) the
 // outer marker is dropped on purpose. A control case reads both through `markerPrefixOf`.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { markerPrefixOf } from '#lib/cursor/widget-offset.js';
+import { markerPrefixOf } from '#lib/caret/widget-offset.js';
 import {
 	installLayoutStubs,
 	mountEditor,

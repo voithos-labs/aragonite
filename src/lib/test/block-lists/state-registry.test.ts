@@ -1,0 +1,188 @@
+import { describe, it, expect } from 'vitest';
+import { DEV } from 'esm-env';
+import { tick } from 'svelte';
+import {
+	registerBlockListState,
+	getStateForNode,
+	expectStateForNode
+} from '../../block-lists/state-registry';
+import { createBlockListState } from '../../block-lists/block-list-state.svelte';
+import type { BlockListState } from '../../block-lists/block-list-state.svelte';
+import type { CstNode } from '../../core/nodes';
+import { refSlotsOver } from '../../block-lists/child-refs';
+import { takeDevWarns } from '../support/warn-gate';
+
+function makeFakeState(): BlockListState {
+	const innerBlockRefs: BlockListState['innerBlockRefs'] = [];
+	return { innerBlockIds: [], innerBlockRefs, refSlots: refSlotsOver(innerBlockRefs) };
+}
+
+function makeFakeNode(kind: CstNode['kind'] = 'list'): CstNode {
+	return { kind, leadingTrivia: '', raw: '' } as CstNode;
+}
+
+describe('state-registry', () => {
+	describe('registerBlockListState / getStateForNode', () => {
+		it('resolves a registered state by node reference', () => {
+			const node = makeFakeNode();
+			const state = makeFakeState();
+			registerBlockListState(node, state);
+			expect(getStateForNode(node)).toBe(state);
+		});
+
+		it('returns undefined for an unregistered node', () => {
+			const node = makeFakeNode();
+			expect(getStateForNode(node)).toBeUndefined();
+		});
+
+		it('overwrites the existing entry on re-register', () => {
+			const node = makeFakeNode();
+			const first = makeFakeState();
+			const second = makeFakeState();
+			registerBlockListState(node, first);
+			registerBlockListState(node, second);
+			expect(getStateForNode(node)).toBe(second);
+		});
+
+		it('keeps entries for different nodes independent', () => {
+			const nodeA = makeFakeNode('list');
+			const nodeB = makeFakeNode('blockquote');
+			const stateA = makeFakeState();
+			const stateB = makeFakeState();
+			registerBlockListState(nodeA, stateA);
+			registerBlockListState(nodeB, stateB);
+			expect(getStateForNode(nodeA)).toBe(stateA);
+			expect(getStateForNode(nodeB)).toBe(stateB);
+		});
+	});
+
+	describe('expectStateForNode', () => {
+		it('returns the registered state when present', () => {
+			const node = makeFakeNode();
+			const state = makeFakeState();
+			registerBlockListState(node, state);
+			expect(expectStateForNode(node)).toBe(state);
+		});
+
+		it('throws with the node kind when no state is registered', () => {
+			const node = makeFakeNode('list');
+			expect(() => expectStateForNode(node)).toThrowError(/list/);
+		});
+	});
+
+	describe('dev-mode contested-claim warning', () => {
+		/** A torn-down mount's `bind:this` entries are cleared; a live one's are not. */
+		function stateWithRefs(mounted: boolean): BlockListState {
+			const innerBlockRefs: BlockListState['innerBlockRefs'] = [
+				mounted ? ({} as BlockListState['innerBlockRefs'][number]) : undefined
+			];
+			return { innerBlockIds: ['a'], innerBlockRefs, refSlots: refSlotsOver(innerBlockRefs) };
+		}
+
+		it.runIf(DEV)(
+			'warns when a second LIVE component claims a node the first still renders',
+			async () => {
+				const node = makeFakeNode();
+				registerBlockListState(node, stateWithRefs(true));
+				registerBlockListState(node, stateWithRefs(true));
+
+				await tick();
+				const fires = takeDevWarns();
+				expect(fires).toHaveLength(1);
+				expect(fires[0].message).toContain('two live components');
+			}
+		);
+
+		// On a remount the losing mount is torn down in the same flush and holds no refs, so a
+		// warning here would fire on every list indent.
+		it('stays silent when the loser was torn down in the same flush', async () => {
+			const node = makeFakeNode();
+			const loser = stateWithRefs(true);
+			registerBlockListState(node, loser);
+			registerBlockListState(node, stateWithRefs(true));
+			loser.innerBlockRefs[0] = undefined;
+
+			await tick();
+			expect(takeDevWarns()).toEqual([]);
+		});
+
+		// After a third registration, reporting the earlier pair would name a winner that has lost
+		// the node.
+		it('stays silent when a later registration superseded the contested winner', async () => {
+			const node = makeFakeNode();
+			registerBlockListState(node, stateWithRefs(true));
+			registerBlockListState(node, stateWithRefs(true));
+			registerBlockListState(node, stateWithRefs(true));
+
+			await tick();
+			// The second clash (the 2nd against the 3rd) is still current and reports; the first is not.
+			expect(takeDevWarns()).toHaveLength(1);
+		});
+
+		it('does not warn on a fresh registration', async () => {
+			const node = makeFakeNode();
+			registerBlockListState(node, makeFakeState());
+
+			await tick();
+			expect(takeDevWarns()).toEqual([]);
+		});
+	});
+
+	describe('createBlockListState ↔ registry integration', () => {
+		it('seeds innerBlockIds to one unique id per child', () => {
+			const node: CstNode = {
+				kind: 'blockquote',
+				leadingTrivia: '',
+				raw: '',
+				metadata: { quoteDepth: 1 },
+				innerPrefix: '',
+				children: ['a\n', 'b\n', 'c\n'].map((raw) => ({
+					kind: 'paragraph',
+					leadingTrivia: '',
+					raw
+				})),
+				innerSuffix: ''
+			};
+			const state = createBlockListState(() => node);
+			expect(state.innerBlockIds).toHaveLength(3);
+			expect(new Set(state.innerBlockIds).size).toBe(3);
+		});
+
+		it('registers the state for the node on creation', () => {
+			const node: CstNode = {
+				kind: 'list',
+				leadingTrivia: '',
+				raw: '',
+				metadata: { ordered: false },
+				innerPrefix: '',
+				children: [
+					{
+						kind: 'listItem',
+						leadingTrivia: '',
+						raw: '',
+						metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+					}
+				],
+				innerSuffix: ''
+			};
+			const state = createBlockListState(() => node);
+			expect(getStateForNode(node)).toBe(state);
+		});
+
+		it('re-registration by createBlockListState overwrites the previous entry', () => {
+			const node: CstNode = {
+				kind: 'list',
+				leadingTrivia: '',
+				raw: '',
+				metadata: { ordered: false },
+				innerPrefix: '',
+				children: [],
+				innerSuffix: ''
+			};
+			const first = createBlockListState(() => node);
+			const second = createBlockListState(() => node);
+			expect(getStateForNode(node)).toBe(second);
+			expect(getStateForNode(node)).not.toBe(first);
+		});
+	});
+});

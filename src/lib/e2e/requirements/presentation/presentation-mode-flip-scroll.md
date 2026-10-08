@@ -21,7 +21,7 @@ change was to the height estimator, and never the presentation project, whose
 specs exercise the same mode-switch code. A change to shared code takes the gate
 of every project that drives it, not the one its files sort under. Its headless
 half now lives with every other route that throws measured heights away, in
-`reactivity/height-lifetime-routes`.
+`windowing/height-lifetime-routes`.
 
 ## Happy paths
 

@@ -4,7 +4,7 @@
  * scroll is written to `document.scrollingElement`: measuring the scrolling element would put
  * the document's full height into the edge math.
  */
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
 
 const EDGE_THRESHOLD_PX = 30;
 

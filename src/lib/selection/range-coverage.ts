@@ -19,7 +19,7 @@ import {
 	pathsEqual,
 	type DocPath
 } from './path-math';
-import { cellRectBounds, docPathFrom, type CellRect } from '../cursor/coordinate-spaces';
+import { cellRectBounds, docPathFrom, type CellRect } from '../caret/coordinate-spaces';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { isBlankParagraph } from '../core/parser';
 import { countsCells, isGridKind, tableCellCount } from '../schema/block-kind-descriptor';

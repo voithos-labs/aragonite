@@ -1,0 +1,52 @@
+// @vitest-environment jsdom
+// Indenting a list item moves the item's node into a new parent, so a mount on its way out
+// and a fresh one register it at once. The registry has to read that as a handover rather than
+// corruption, and has to land on the new one: the entry must be the live mount's state, or
+// every later commit on that list addresses refs nothing renders.
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { getStateForNode } from '#lib/block-lists/state-registry.js';
+import { takeDevWarns } from '../support/warn-gate';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { EditorInstance } from '#lib/editor-props.js';
+
+type DocumentReader = EditorInstance & { __test: { getDocument(): Document } };
+
+beforeAll(installLayoutStubs);
+
+let mounted: ReturnType<typeof mountEditor>;
+afterEach(async () => {
+	if (mounted) await mounted.destroy();
+});
+
+function nodeAtPath(editor: ReturnType<typeof mountEditor>, path: number[]): CstNode {
+	let node = (editor.instance as DocumentReader).__test.getDocument() as unknown as CstNode;
+	for (const i of path) node = node.children![i];
+	return node;
+}
+
+describe('list indent hands the item node to its new mount', () => {
+	it('lands the registry on the live mount without reporting a contested claim', async () => {
+		mounted = mountEditor({ source: '- alpha\n- beta\n' });
+
+		const stateBeforeIndent = getStateForNode(nodeAtPath(mounted, [0, 1]));
+		expect(stateBeforeIndent?.innerBlockRefs[0], 'the pre-indent mount is live').toBeDefined();
+
+		await pressKeyAt(mounted, [0, 1, 0], 0, { key: 'Tab' });
+		await mounted.settle();
+		expect(mounted.source()).toBe('- alpha\n  - beta\n');
+
+		// The moved item, now the nested list's only child.
+		const stateAfterIndent = getStateForNode(nodeAtPath(mounted, [0, 0, 1, 0]));
+		expect(stateAfterIndent, 'the moved node resolves a state').toBeDefined();
+		expect(stateAfterIndent, 'the fresh mount won the claim').not.toBe(stateBeforeIndent);
+		expect(stateAfterIndent!.innerBlockRefs[0], 'the winner renders the item').toBeDefined();
+		expect(stateBeforeIndent!.innerBlockRefs[0], 'the loser was torn down').toBeUndefined();
+
+		expect(takeDevWarns(), 'no contested claim was reported').toEqual([]);
+	});
+});

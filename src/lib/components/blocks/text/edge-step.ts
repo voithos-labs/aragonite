@@ -6,11 +6,11 @@
  */
 
 import type { InlineNode } from '../../../core/nodes';
-import type { CaretMemory } from '../../../cursor/caret-memory';
-import type { HeldSpaceView } from '../../../cursor/held-space';
+import type { CaretMemory } from '../../../caret/caret-memory';
+import type { HeldSpaceView } from '../../../caret/held-space';
 import { constructContentRange, inlineDescendants } from '../../../core/inline';
-import { classifyArrivalKey, edgeStepDirection } from '../../../cursor/edge-affinity';
-import { revealsNoMarkers, screenVisibilityOf } from '../../../cursor/widget-offset';
+import { classifyArrivalKey, edgeStepDirection } from '../../../caret/edge-affinity';
+import { revealsNoMarkers, screenVisibilityOf } from '../../../caret/widget-offset';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import type { Reading } from '../../../schema/reading';
 import { edgeStep, edgeStops, seatOffsetsAt, typingOffset } from './edge-seat';

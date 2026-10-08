@@ -17,18 +17,18 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { asEditorX, docPathFrom } from '../../../cursor/coordinate-spaces';
-	import { observeResize } from '../../../cursor/observe-resize';
+	import { asEditorX, docPathFrom } from '../../../caret/coordinate-spaces';
+	import { observeResize } from '../../../windowing/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
-	import { placeCaret } from '../../../selection/caret-doors';
+	import { placeCaret } from '../../../selection/place-caret';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { tableCaretAtPoint } from './table-caret-at-point';
 	import { selectedCells } from './selected-cells';
-	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { sliceWindow } from '../../../reactivity/window-slice';
-	import { useWindowFloor } from '../../../reactivity/use-window-floor.svelte';
-	import { componentAt, type ChildList } from '../../../reactivity/child-list';
+	import { useContainerWindowing } from '../../../windowing/use-container-windowing.svelte';
+	import { sliceWindow } from '../../../windowing/window-slice';
+	import { useWindowFloor } from '../../../windowing/use-window-floor.svelte';
+	import { componentAt, type ChildList } from '../../../block-lists/child-list';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
@@ -566,7 +566,7 @@
 	onkeydown={onTableKeyDown}
 >
 	<!-- No whitespace between the blocks: a stray text node joins the raw-offset traversal
-	     and shifts a remembered caret (cursor/widget-offset.ts). -->
+	     and shifts a remembered caret (caret/widget-offset.ts). -->
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}

@@ -6,14 +6,14 @@ import type { Document, ImageFields, InlineNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
-import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
+import { FALLBACK_CONTENT_WIDTH } from '../../windowing/typography-estimates';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import {
 	buildImageEditBytes,
 	imageFieldsFromInline,
 	sameImageFields
 } from '../../core/inline/image-source-bytes';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 import type { WidgetTarget } from '../../selection/primitives';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { Reading } from '../../schema/reading';

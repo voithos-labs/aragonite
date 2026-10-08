@@ -127,7 +127,7 @@ guard [`rules.md`](rules.md) shows as its example).
 ## DOM to raw offset translation has one home
 
 The DOM ↔ raw translation (raw: a node's verbatim source bytes, markers included) lives in
-`src/lib/cursor/widget-offset.ts`. It turns a DOM position back into raw with `rawOffsetAt`, and
+`src/lib/caret/widget-offset.ts`. It turns a DOM position back into raw with `rawOffsetAt`, and
 writes the selection from raw offsets: `placeCaretAtRaw` for a caret (which has to say whether it
 clamps), `selectRawRange` and friends for a range. Offset math done anywhere else agrees with it
 right up until it doesn't (a second walk once counted a widget by its text instead of its bytes).
@@ -146,7 +146,7 @@ const crossed: RawOffset = dom;
 // error TS2322: Type 'DomTextOffset' is not assignable to type 'RawOffset'.
 ```
 
-The allowed conversions are named functions in `src/lib/cursor/coordinate-spaces.ts`
+The allowed conversions are named functions in `src/lib/caret/coordinate-spaces.ts`
 (`toRawOffset`, `toDomTextOffset`, and friends). A source scan also fails any native selection
 write outside `widget-offset.ts`.
 

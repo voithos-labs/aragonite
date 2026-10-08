@@ -9,7 +9,7 @@ import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { nodeAt } from '../tree-operations/node-primitives';
 import { countsCells } from '../schema/block-kind-descriptor';
-import { rowMajorCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
+import { rowMajorCellIndex, cellRowCol } from '../caret/coordinate-spaces';
 import { cellIndexOf, type SelectionPoint } from './primitives';
 import { pathsEqual } from './path-math';
 

@@ -325,7 +325,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop: an animation cadence, not ordering',
 			'src/lib/components/blocks/editable-leaf.ts':
 				'rAF fold of a revealed source after a range drag: the blur it answers arrives inside the frame that measured the range',
-			'src/lib/cursor/observe-resize.ts':
+			'src/lib/windowing/observe-resize.ts':
 				'rAF start of a size observation: one begun while a frame delivers resize notifications is skipped and reported as a loop error',
 			'src/lib/components/drag-handle.ts':
 				'rAF placement of the drag handle once its block has laid out; the handle is its own hit target before any hover',
@@ -531,9 +531,9 @@ const RULES: FileRule[] = [
 			[COORDINATE_HOME]: 'the numeric-space conversions themselves',
 			[DOCPATH_HOME]: 'the DocPath brand and its base conversion (asDocPath)',
 			// Modules that own a coordinate space.
-			'src/lib/cursor/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
-			'src/lib/cursor/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
-			'src/lib/cursor/surface-backend.ts':
+			'src/lib/caret/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
+			'src/lib/caret/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
+			'src/lib/caret/surface-backend.ts':
 				'RawOffset home for the caret intent a block records as a plain number (the snap target)',
 			'src/lib/selection/table-endpoint-snap.ts':
 				'CellIndex home: a row-major cell index from table geometry',
@@ -586,7 +586,7 @@ const RULES: FileRule[] = [
 		id: 'the browser is asked for a caret at a point in one module',
 		matches: /\bcaret(Range|Position)FromPoint\b/,
 		allowed: {
-			'src/lib/cursor/point-offset.ts':
+			'src/lib/caret/point-offset.ts':
 				'caretSeatFromPoint, behind the offset lookups that move a padding point level with a line'
 		},
 		reason:
@@ -650,8 +650,8 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.13 no view-stripping cast outside tree-operations and the commit sequence',
-		population: notUnder(SOURCE_DIR.treeOperations, SOURCE_DIR.commit, SOURCE.cstNodes),
+		id: 'G4.13 no view-stripping cast outside tree-operations and the undo controller',
+		population: notUnder(SOURCE_DIR.treeOperations, SOURCE.undoController, SOURCE.cstNodes),
 		matches: stripsView,
 		mustMatch: [SOURCE.unshare],
 		reason:
@@ -786,11 +786,11 @@ const RULES: FileRule[] = [
 		population: (file) => ACTIVE_IDENTITY_RE.test(file.code),
 		matches: (file) => !HOST_AWARE_RE.test(file.code),
 		allowed: {
-			'src/lib/cursor/surface-backend.ts':
+			'src/lib/caret/surface-backend.ts':
 				'the editable surface this backend was built over; a whole-block kind builds none',
 			'src/lib/components/blocks/editable-surface.ts':
 				'the pending-restore guard, reachable only from an editable leaf surface',
-			'src/lib/cursor/reveal-source.ts':
+			'src/lib/caret/reveal-source.ts':
 				'the reveal target is a text surface; the host paints no source',
 			'src/lib/selection/native-bridge.ts':
 				'blockEl is an editable leaf surface; neither entry is reachable from whole-block focus'
@@ -927,7 +927,7 @@ const RULES: FileRule[] = [
 			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`
 		),
 		allowed: {
-			'src/lib/cursor/widget-offset.ts':
+			'src/lib/caret/widget-offset.ts':
 				'the mode a mounted block wears in the DOM, where no hiding attribute means source'
 		},
 		reason:
@@ -1079,7 +1079,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/range-coverage.ts':
 				'decides once what a range covers: the blocks between, the units, the edges, the cells, the rectangle',
 			'src/lib/selection/path-math.ts': 'defines the two path predicates',
-			'src/lib/cursor/coordinate-spaces.ts': 'defines the rectangle two cells span',
+			'src/lib/caret/coordinate-spaces.ts': 'defines the rectangle two cells span',
 			'src/lib/selection/primitives.ts': 'defines the cell index read of a table endpoint',
 			'src/lib/schema/block-kind-descriptor.ts':
 				"defines a table's cell count and the clamp every cell index takes",
@@ -1184,9 +1184,11 @@ const RULES: FileRule[] = [
 
 // ── G4.89, G4.90 one in-leaf range replace ─────────────────────────────────
 
-/** The directories holding live editing paths; a fenced code body has no inline constructs. */
+/** The directories and files holding live editing paths; a fenced code body has no inline constructs. */
 const SPLICE_PATHS = [
 	SOURCE_DIR.components,
+	SOURCE.blockContentSelector,
+	SOURCE.blockElLookup,
 	SOURCE_DIR.selection,
 	SOURCE_DIR.editorActions,
 	SOURCE_DIR.treeOperations,
@@ -1338,9 +1340,9 @@ const SCROLL_WRITERS: ManifestRule[] = [
 		id: 'G4.87 only the scroll owner writes the editor’s scroll position',
 		matches: SCROLL_WRITE_RE,
 		declared: {
-			'src/lib/cursor/scroll-owner.ts':
+			'src/lib/windowing/scroll-owner.ts':
 				'the one writer, which asks who owns the position before each write',
-			'src/lib/cursor/scrollport.ts':
+			'src/lib/windowing/scrollport.ts':
 				'the scroll container’s write methods, which only the owner opens',
 			'src/lib/selection/autoscroll.ts':
 				'a drag’s own cadence, driven by the pointer; its pointerdown already dropped any hold',
@@ -1379,8 +1381,8 @@ const SCROLL_WRITERS: ManifestRule[] = [
 		id: 'G4.87 a list asks for a mount scroll by path, from its descent alone',
 		matches: /(?<![\w$])scrollToMount\s*\(/,
 		declared: {
-			'src/lib/cursor/scroll-owner.ts': 'the owner, which works out where from the list tree',
-			'src/lib/reactivity/list-windowing.svelte.ts':
+			'src/lib/windowing/scroll-owner.ts': 'the owner, which works out where from the list tree',
+			'src/lib/windowing/list-windowing.svelte.ts':
 				'`revealChild`, the descent’s one scroll, naming the block and never a position'
 		},
 		reason:
@@ -1407,7 +1409,7 @@ const BARE_FOCUSES: ManifestRule[] = [
 		declared: {
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'a click that reveals a widget’s source focuses the surface under the pointer, already on screen',
-			'src/lib/cursor/reveal-source.ts':
+			'src/lib/caret/reveal-source.ts':
 				'the revealed source takes focus where the click that revealed it landed',
 			'src/lib/components/GapCaret.svelte':
 				'an arrow move arriving on a gap caret keeps the browser’s own scroll to it',
@@ -1447,11 +1449,11 @@ const BARE_FOCUSES: ManifestRule[] = [
 /** Every call that corrects, picks a held block or holds nothing, keyed by path, function and
  *  kind, so a call moved elsewhere fails. `<module>` is a function with a bracketed return type. */
 const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-tree.ts :: descend :: heldBlock': {
+	'src/lib/windowing/list-tree.ts :: descend :: heldBlock': {
 		calls: 1,
 		reason: 'the one pick of the block a measure round keeps still, level by level'
 	},
-	'src/lib/reactivity/list-tree.ts :: movedSince :: held move': {
+	'src/lib/windowing/list-tree.ts :: movedSince :: held move': {
 		calls: 1,
 		reason: 'the one distance the round corrects by, read through the same walk as `resolve`'
 	},
@@ -1495,15 +1497,15 @@ function callSites(file: SourceFile, kinds: CallKind[]): Map<string, number> {
 }
 
 const HELD_BRANDS: FileRule = {
-	id: 'G4.93 only `hold-across.ts` makes a held block or the distance it moved',
+	id: 'G4.93 only `steady-block.ts` makes a held block or the distance it moved',
 	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
 	allowed: {
-		'src/lib/reactivity/hold-across.ts':
+		'src/lib/windowing/steady-block.ts':
 			'`heldBlock` and `heldDelta`, the one pick and the one distance'
 	},
 	reason:
 		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldDelta` instead',
-	reaches: [SOURCE.holdAcross],
+	reaches: [SOURCE.steadyBlock],
 	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
 	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
 };
@@ -1547,20 +1549,20 @@ function describeCorrections(sources: SourceFile[]): void {
 
 /** Every write of a measured height and every registration with a list, keyed like G4.93. */
 const MEASURE_WRITES: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: table write': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyMeasured :: table write': {
 		calls: 1,
 		reason:
 			'the one write of a child’s height into its list’s table, only while that index still holds that id'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: cache write': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyMeasured :: cache write': {
 		calls: 1,
 		reason: 'records the height under the id the child passed'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyHeight :: applyMeasured': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyHeight :: applyMeasured': {
 		calls: 1,
 		reason: 'the batched pass applies each registered child through the one write'
 	},
-	'src/lib/reactivity/use-container-windowing.svelte.ts :: register :: registration': {
+	'src/lib/windowing/use-container-windowing.svelte.ts :: register :: registration': {
 		calls: 1,
 		reason: 'the channel every list provides, which checks the child is its own'
 	}
@@ -1579,8 +1581,8 @@ const MEASURE_CHANNEL: ManifestRule = {
 	matches: /(?<![\w$])CHILD_MEASURE_KEY\b/,
 	declared: {
 		'src/lib/editor-keys.ts': 'defines the key',
-		'src/lib/reactivity/use-container-windowing.svelte.ts': 'every list provides the channel',
-		'src/lib/reactivity/use-measured-child.svelte.ts':
+		'src/lib/windowing/use-container-windowing.svelte.ts': 'every list provides the channel',
+		'src/lib/windowing/use-measured-child.svelte.ts':
 			'the one reader, which registers at mount, re-measures after an edit and on a resize'
 	},
 	reason:
@@ -1632,7 +1634,7 @@ const HEIGHT_LIFETIME: ManifestRule[] = [
 		],
 		misses: [
 			'export function createHeightOracle(opts: HeightOracleOptions): MeasuredHeightOracle {',
-			"import { createHeightOracle } from '../cursor/height-oracle';",
+			"import { createHeightOracle } from '../windowing/height-estimator';",
 			'const layout = createLayoutState();',
 			'// createHeightOracle(opts) builds one.\nconst a = 1;'
 		]
@@ -1663,23 +1665,23 @@ const HEIGHT_LIFETIME: ManifestRule[] = [
 /** The owner's raw writes of its port, keyed like G4.93: `writeScroll`, which closes an open
  *  round before it writes, and the round's own correction beneath it. */
 const OWNER_RAW_WRITES: Record<string, { calls: number; reason: string }> = {
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: absolute': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: absolute': {
 		calls: 1,
 		reason: 'every owner write but the round’s, once the round is closed'
 	},
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: relative': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: relative': {
 		calls: 1,
 		reason: 'the same write, by a distance'
 	},
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: into view': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: into view': {
 		calls: 1,
 		reason: 'a placement’s scroll, once the round is closed'
 	},
-	'src/lib/cursor/scroll-owner.ts :: closeRound :: absolute': {
+	'src/lib/windowing/scroll-owner.ts :: closeRound :: absolute': {
 		calls: 1,
 		reason: 'a held placement put back as the round closes'
 	},
-	'src/lib/cursor/scroll-owner.ts :: closeRound :: relative': {
+	'src/lib/windowing/scroll-owner.ts :: closeRound :: relative': {
 		calls: 1,
 		reason: 'the round’s own correction'
 	}
@@ -1714,14 +1716,14 @@ function describeOwnerWrites(sources: SourceFile[]): void {
 
 const SELECTION_WRITERS: ManifestRule[] = [
 	{
-		id: 'G4.94 a gap caret or a widget is selected only through the caret doors',
+		id: 'G4.94 a gap caret or a widget is selected only through `place-caret.ts`',
 		matches: /\.(?:setGapCaret|selectWidget)\s*\(/,
 		declared: {
-			'src/lib/selection/caret-doors.ts':
+			'src/lib/selection/place-caret.ts':
 				'`placeGapCaret` and `selectWidgetWhole`, which end the browser’s own range in the same batch'
 		},
 		reason:
-			'a gap caret or a widget selected outside `selection/caret-doors.ts` can leave a browser caret live beside it: call `placeGapCaret` or `selectWidgetWhole`',
+			'a gap caret or a widget selected outside `selection/place-caret.ts` can leave a browser caret live beside it: call `placeGapCaret` or `selectWidgetWhole`',
 		hits: [
 			'selection.setGapCaret(pos);',
 			'deps.selection.selectWidget({ paragraphPath, sourceStart, preSelectOffset });',
@@ -1763,7 +1765,7 @@ const ROGUE_WRITER = `${SOURCE_DIR.blocks}x/rogue-writer.ts`;
 const TYPED_WRITE_ASKS: ManifestRule[] = [
 	{
 		id: 'G4.101 only the surface write names a typed kind change or completes a typed line',
-		population: under(SOURCE_DIR.components, SOURCE_DIR.selection),
+		population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.selection),
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/surface-write.ts':
@@ -2190,7 +2192,7 @@ const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
 
 const WIDGET_LIST: FileRule = {
 	id: 'G4.125 a component asks which inlines are widgets only in `widget-adjacency.ts`',
-	population: under(SOURCE_DIR.components, SOURCE_DIR.plugins),
+	population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.plugins),
 	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
 	allowed: {
 		[WIDGET_LIST_HOME]:

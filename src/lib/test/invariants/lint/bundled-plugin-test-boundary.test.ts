@@ -50,7 +50,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/editor-actions/commit/history.js',
 			'#lib/editor-actions/container-edit.js',
 			'#lib/editor-actions/nested/nested-actions.js',
-			'#lib/reactivity/block-list-state.svelte.js'
+			'#lib/block-lists/block-list-state.svelte.js'
 		],
 		reason:
 			'no headless editor-actions environment on the testing barrel: the conformance kits ' +
@@ -97,7 +97,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/editor-actions/commit/undo-controller.js',
 			'#lib/editor-actions/container-edit.js',
 			'#lib/editor-actions/nested/nested-actions.js',
-			'#lib/reactivity/block-list-state.svelte.js',
+			'#lib/block-lists/block-list-state.svelte.js',
 			'#lib/invariants/node-shape.js',
 			'#lib/schema/block-kind-descriptor.js'
 		],
@@ -110,7 +110,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/editor-actions/commit/undo-controller.js',
 			'#lib/editor-actions/paste-coordinator.js',
 			'#lib/invariants/node-shape.js',
-			'#lib/reactivity/state-registry.js',
+			'#lib/block-lists/state-registry.js',
 			'#lib/schema/block-openers.js',
 			'#lib/tree-operations/paste/dispatch.js'
 		],
@@ -223,7 +223,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'reads a kind’s rule back to ask it for the block’s text'
 	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
-		specifiers: ['#lib/cursor/widget-offset.js'],
+		specifiers: ['#lib/caret/widget-offset.js'],
 		reason: "no published read of an inline node's raw text out of its parent's bytes"
 	},
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {

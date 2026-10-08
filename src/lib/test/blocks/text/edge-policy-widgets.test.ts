@@ -3,11 +3,11 @@
 // opening on a widget, and the caret a write stores.
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
 import { computeInlineContent } from '#lib/core/inline/index.js';
-import { asRawOffset } from '#lib/cursor/coordinate-spaces.js';
+import { asRawOffset } from '#lib/caret/coordinate-spaces.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

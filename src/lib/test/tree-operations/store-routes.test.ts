@@ -12,8 +12,8 @@ import { serialize } from '#lib/core/serializer.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { Reading } from '#lib/schema/reading.js';
-import { asDomTextOffset, asRawOffset } from '#lib/cursor/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { asDomTextOffset, asRawOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
@@ -27,7 +27,7 @@ import { createUndoController } from '#lib/editor-actions/commit/undo-controller
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { rebalanceLiveSplit } from '#lib/components/blocks/text/live-split-rebalance.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { allowDevWarns } from '../support/warn-gate';
 import {
 	registerLiveJoinSeamCleaner,
@@ -44,7 +44,7 @@ import {
 	pasteContext
 } from '../harness/editor-actions';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
-import { createCaretMemory, type CaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
 import { settleEditor } from '../harness/settle';
@@ -59,7 +59,7 @@ import {
 import { registerCalloutForTests } from '../selection/chrome-plugins';
 import { collectEditorSources, EDITOR_SRC } from '../invariants/lint/scan-source';
 import { replaceSelectedWidget } from '#lib/components/blocks/text/widget-interaction.js';
-import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.

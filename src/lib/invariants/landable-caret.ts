@@ -7,7 +7,7 @@
  */
 
 import { hidesMarkers, type PresentationMode } from '../presentation-mode';
-import { paintsNoLandableContent } from '../cursor/widget-offset';
+import { paintsNoLandableContent } from '../caret/widget-offset';
 import type { InvariantViolation } from '../assert';
 
 export function checkLandableCaret(

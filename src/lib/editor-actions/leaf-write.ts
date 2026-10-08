@@ -9,7 +9,7 @@ import type { CstNode } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';
 import { assertInvariant } from '../assert';
 import { assertReadsBack } from '../invariants/install';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 import { caretTargetFor } from '../selection/caret-target';
 import type { CaretPosition } from '../selection/primitives';
 import type { DocPath } from '../selection/path-math';

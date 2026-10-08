@@ -42,9 +42,9 @@ Pick the closest reference and read it fully before you start. It'll answer more
 
 - `components/blocks/`: the reference components.
 - `schema/`: the registries you'll touch.
-- `editor-actions/` and `reactivity/`: the primitives a container builds on.
+- `editor-actions/`, `block-lists/` and `windowing/`: the primitives a container builds on.
 - `ambient/`: the DOM for the dimmed marker a container lends its first child (a list item's `- `).
-- `cursor/`: caret geometry, offsets across that marker included (`cursor/widget-offset.ts`).
+- `caret/`: caret geometry, offsets across that marker included (`caret/widget-offset.ts`).
 
 ## Registration
 
@@ -425,7 +425,7 @@ const windowing = useContainerWindowing({
 | `getListEl`                   | The content-origin element that scrolls with the children, not the viewport          |
 | `isCollapsed`                 | Optional: `true` while only the chrome row should be mounted (a collapsed container) |
 
-You don't report the container's own height anywhere: the block list your container sits in measures its box like any other block's. The one case with work in it is a child that isn't a BlockHost, like a list's items or a table's rows. Each of those measures itself with `useMeasuredChild` (`src/lib/reactivity/use-measured-child.svelte.ts`), handing over the element whose height is the child's (an item's box, a row's first cell). Call it before the child's own `useContainerWindowing`: the hook finds its list through context, and after that call it'd find the child's inner list instead (a dev check catches that one).
+You don't report the container's own height anywhere: the block list your container sits in measures its box like any other block's. The one case with work in it is a child that isn't a BlockHost, like a list's items or a table's rows. Each of those measures itself with `useMeasuredChild` (`src/lib/windowing/use-measured-child.svelte.ts`), handing over the element whose height is the child's (an item's box, a row's first cell). Call it before the child's own `useContainerWindowing`: the hook finds its list through context, and after that call it'd find the child's inner list instead (a dev check catches that one).
 
 ```ts
 // components/blocks/list/ListItemBlock.svelte
@@ -456,7 +456,7 @@ export const containerApi = createContainerBlockComponent({
 });
 ```
 
-A container that renders the spacers itself, in its own `{#each}` like the list and the table do, also calls `useWindowFloor(() => boxEl, () => windowing.window)` (`src/lib/reactivity/use-window-floor.svelte.ts`) during init. A window change mounts the new children one at a time, and the floor holds your box at its full height until they're all in, so a layout read halfway through doesn't see a short list and clamp the scroll to it. A lint test fails a component that renders spacers without it.
+A container that renders the spacers itself, in its own `{#each}` like the list and the table do, also calls `useWindowFloor(() => boxEl, () => windowing.window)` (`src/lib/windowing/use-window-floor.svelte.ts`) during init. A window change mounts the new children one at a time, and the floor holds your box at its full height until they're all in, so a layout read halfway through doesn't see a short list and clamp the scroll to it. A lint test fails a component that renders spacers without it.
 
 Copy from `ListBlock.svelte` (direct-each) or `TableBlock.svelte` (row windowing).
 
@@ -506,7 +506,7 @@ ctx.caretMemory.noteKey(e, commandAtBlock(e, ctx), () => getCurrentCursorEditorR
 A hand-rolled surface takes on both halves itself:
 
 1. **Feed every keydown to `noteKey`**, as above, with the command the chord resolves to at your block (`schema/commands.ts` :: `commandForKey`), so a rebound block move isn't read as an arrow. It's the only caret-memory call a keydown handler may make, and a scan checks that. Pass the live caret's measure as the third argument, so a capture key has an X to record. `forget()` is for callers with no key to classify (lifecycle, commit, undo, paste).
-2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `cursor/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and reads the surface's `columnWindow` for a block whose first or last line a caret arriving from another block shouldn't land on (a code block's fence lines):
+2. **Implement `focusAtColumn(x, from)`** with `findOffsetNearestX(el, x, from)` from `caret/sticky-measure.ts`: place the cursor at the nearest offset on the first (`from === 'above'`) or last (`from === 'below'`) visual line that can show a caret. The editable surface's version, which also keeps the scan out of the marker region and reads the surface's `columnWindow` for a block whose first or last line a caret arriving from another block shouldn't land on (a code block's fence lines):
 
 ```ts
 // components/blocks/editable-surface.ts

@@ -75,7 +75,7 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 });
 
 // The swap is the one byte writer in the component rather than the action bundles (G4.52); the
-// others are tested without a DOM in `reactivity/content-version-doors`.
+// others are tested without a DOM in `editor-actions/commit/content-version-doors`.
 describe('a `source` prop swap moves the content version', () => {
 	it('announces the replaced document, and nothing when the prop is rewritten unchanged', async () => {
 		const { instance: editor, props } = mountSource('one\n\ntwo\n');

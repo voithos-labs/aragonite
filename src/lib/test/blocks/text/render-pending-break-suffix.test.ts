@@ -11,7 +11,7 @@ import {
 	pressKeyAt,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { hiddenSuffixLength, rawTextOfContent } from '#lib/cursor/widget-offset.js';
+import { hiddenSuffixLength, rawTextOfContent } from '#lib/caret/widget-offset.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

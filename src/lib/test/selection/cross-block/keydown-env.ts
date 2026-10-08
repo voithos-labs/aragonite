@@ -12,7 +12,7 @@ import { createCrossBlockCommands } from '#lib/selection/cross-block/format-togg
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
-import { createCaretMemory } from '#lib/cursor/caret-memory.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride

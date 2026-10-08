@@ -33,21 +33,17 @@
 	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { applyDelimiterAutoPair } from '../text/delimiter-autopair';
-	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
+	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import {
 		rawTextOfNode,
 		containerDomTextLength,
 		landableDomTextBounds,
 		rawSelectionFocus,
 		type RawRange
-	} from '../../../cursor/widget-offset';
-	import {
-		asRawOffset,
-		rowMajorCellIndex,
-		type RawOffset
-	} from '../../../cursor/coordinate-spaces';
-	import { createSurfaceBackend } from '../../../cursor/surface-backend';
-	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
+	} from '../../../caret/widget-offset';
+	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../caret/coordinate-spaces';
+	import { createSurfaceBackend } from '../../../caret/surface-backend';
+	import { getCurrentCursorEditorRelativeX } from '../../../caret/sticky-measure';
 	import { handleEdgeStep, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
@@ -59,14 +55,14 @@
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
-	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
 	import {
 		selectWholeDocument,
 		extendFocusToNextBlock,
 		extendFocusToPreviousBlock
 	} from '../../../selection/keyboard-extend';
 	import { intraTableRectExtension } from '../../../selection/table-rect-extend';
-	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../caret/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
 	import { cellPoint } from '../../../selection/primitives';

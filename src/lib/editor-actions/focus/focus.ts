@@ -10,7 +10,7 @@ import type { EditorActionsDeps, UndoController } from '../deps';
 import { emptyParagraph } from '../../tree-operations';
 import { documentLineEnding } from '../../core/lines';
 import { dispatchMoveFocus, type MoveFocusScope } from './focus-dispatch';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { tryGapStop, type GapStopScope } from '../../selection/gap-caret';
 import { isReadingMode } from '../../presentation-mode';
 

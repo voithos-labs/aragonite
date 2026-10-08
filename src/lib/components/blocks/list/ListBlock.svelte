@@ -5,13 +5,13 @@
 	import { EDITOR_SERVICES_KEY, LIST_CONTEXT_KEY, type EditorServices } from '../../../editor-keys';
 	import { createListContext } from '../../../editor-actions/list-context';
 	import { createListOverrides } from '../../../editor-actions/list-overrides';
-	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { sliceWindow } from '../../../reactivity/window-slice';
-	import { useWindowFloor } from '../../../reactivity/use-window-floor.svelte';
+	import { useContainerWindowing } from '../../../windowing/use-container-windowing.svelte';
+	import { sliceWindow } from '../../../windowing/window-slice';
+	import { useWindowFloor } from '../../../windowing/use-window-floor.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import ListItemBlock from './ListItemBlock.svelte';
-	import type { ChildList } from '../../../reactivity/child-list';
+	import type { ChildList } from '../../../block-lists/child-list';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 

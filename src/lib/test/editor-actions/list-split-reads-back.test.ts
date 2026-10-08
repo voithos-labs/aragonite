@@ -6,7 +6,7 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { metadataOf, type Document, type ListItemMetadata } from '#lib/core/nodes.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { rebalanceLiveSplit } from '#lib/components/blocks/text/live-split-rebalance.js';
 import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {

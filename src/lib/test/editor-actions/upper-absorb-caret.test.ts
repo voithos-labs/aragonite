@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { replaceRefs } from '#lib/reactivity/publish-ref.svelte.js';
+import { replaceRefs } from '#lib/block-lists/child-refs.js';
 import {
 	stubBlockComponent,
 	makeNestedHarness,

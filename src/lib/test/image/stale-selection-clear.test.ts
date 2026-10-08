@@ -7,7 +7,7 @@ import { createImageEditCommitter } from '../../components/image/image-edit-comm
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { createEditorEvents } from '../../editor-events';

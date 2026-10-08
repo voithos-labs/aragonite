@@ -8,7 +8,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import Editor from '#lib/components/Editor.svelte';
 import type { EditorInstance, EditorProps } from '#lib/editor-props.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { placeCaretAtRaw, selectRawRange } from '#lib/cursor/widget-offset.js';
+import { placeCaretAtRaw, selectRawRange } from '#lib/caret/widget-offset.js';
 import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 
 /** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */

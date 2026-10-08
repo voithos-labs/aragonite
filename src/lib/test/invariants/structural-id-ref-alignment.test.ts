@@ -15,8 +15,8 @@ import {
 } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import type { BlockComponent } from '#lib/block-component.js';
-import type { BlockListState } from '#lib/reactivity/block-list-state.svelte.js';
-import { replaceRefs } from '#lib/reactivity/publish-ref.svelte.js';
+import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import { replaceRefs } from '#lib/block-lists/child-refs.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { TOP_SLOT } from '#lib/test/harness/fixture-grammar.js';

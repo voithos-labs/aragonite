@@ -16,8 +16,8 @@ import {
 	type EditorPolicies,
 	type EditorServices
 } from '../../editor-keys';
-import { asRawOffset } from '../../cursor/coordinate-spaces';
-import { createSurfaceBackend } from '../../cursor/surface-backend';
+import { asRawOffset } from '../../caret/coordinate-spaces';
+import { createSurfaceBackend } from '../../caret/surface-backend';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
 	createEditableSurface,
@@ -35,13 +35,13 @@ import {
 	clampToLandableRaw,
 	holdsOnlyMarkerChrome,
 	type RawRange
-} from '../../cursor/widget-offset';
+} from '../../caret/widget-offset';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { assertInvariant } from '../../assert';
 import { checkRenderedTextFidelity } from '../../invariants/render-fidelity';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
-import { placeCaret } from '../../selection/caret-doors';
-import { createSourceReveal } from '../../cursor/reveal-source';
+import { placeCaret } from '../../selection/place-caret';
+import { createSourceReveal } from '../../caret/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { isBlankText, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';

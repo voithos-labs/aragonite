@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createEditorRootClipboard } from '#lib/components/editor-root-clipboard.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
-import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { registerEditor, __resetActiveEditorForTests } from '#lib/active-editor.js';
 import { parse } from '#lib/core/parser.js';
 import { createEditorEvents, type EditorError } from '#lib/editor-events.js';

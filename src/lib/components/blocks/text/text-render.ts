@@ -24,7 +24,7 @@ import {
 	renderInlineNodes,
 	type ImageLoadPolicy
 } from '../../../core/inline-render';
-import type { RawOffset } from '../../../cursor/coordinate-spaces';
+import type { RawOffset } from '../../../caret/coordinate-spaces';
 import {
 	BLOCK_PREFIX_ATTR,
 	BLOCK_SUFFIX_ATTR,
@@ -32,8 +32,8 @@ import {
 	createCaretAnchor,
 	holdsOnlyMarkerChrome,
 	placeCaretAtRaw
-} from '../../../cursor/widget-offset';
-import { captureFocusedCaret } from '../../../cursor/focused-caret';
+} from '../../../caret/widget-offset';
+import { captureFocusedCaret } from '../../../caret/focused-caret';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';

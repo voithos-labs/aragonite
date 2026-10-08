@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { createDocumentSwap, initDocument } from '#lib/components/editor-root-document-swap.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
-import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { Document } from '#lib/core/nodes.js';
 import type { LinkReferenceResolver } from '#lib/core/inline/link-reference-resolver.js';

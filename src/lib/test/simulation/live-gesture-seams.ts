@@ -8,7 +8,7 @@
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import type { EdgeAffinity } from '#lib/cursor/edge-affinity.js';
+import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -25,8 +25,8 @@ import {
 	CONTENT_EMPTY_ATTR,
 	holdsOnlyMarkerChrome,
 	isHiddenMarkerText
-} from '#lib/cursor/widget-offset.js';
-import { asRawOffset, type RawOffset } from '#lib/cursor/coordinate-spaces.js';
+} from '#lib/caret/widget-offset.js';
+import { asRawOffset, type RawOffset } from '#lib/caret/coordinate-spaces.js';
 import { createEdgePolicyDispatch } from '#lib/components/blocks/text/edge-policy-dispatch.js';
 import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
 import { keepsKindAt } from '#lib/core/inline/live-edit/read-back.js';
@@ -57,7 +57,7 @@ import {
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 
 export type GestureKind =
 	| 'type'

@@ -9,13 +9,13 @@
 		FOCUS_KEY,
 		type EditorServices
 	} from '../editor-keys';
-	import type { WindowResult } from '../reactivity/block-window.svelte';
-	import type { RefSlots } from '../reactivity/publish-ref.svelte';
+	import type { WindowResult } from '../windowing/block-window.svelte';
+	import type { RefSlots } from '../block-lists/child-refs';
 	import { isProseKind } from '../core/inline';
 	import { gapEligibleAmong } from '../selection/gap-caret';
 	import { pathsEqual } from '../selection/path-math';
-	import { sliceWindow } from '../reactivity/window-slice';
-	import { useWindowFloor } from '../reactivity/use-window-floor.svelte';
+	import { sliceWindow } from '../windowing/window-slice';
+	import { useWindowFloor } from '../windowing/use-window-floor.svelte';
 	import BlockHost from './BlockHost.svelte';
 	import GapCaret from './GapCaret.svelte';
 

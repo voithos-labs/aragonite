@@ -501,7 +501,7 @@ entry. Legal bails stay silent by design: blur with no reveal, the cross-block k
 entry while a reveal is already active. Inline closures at
 `components/blocks/text/widget-interaction.ts` (the fold halves) and
 `components/blocks/text/TextEditableBlock.svelte :: performBlockCommand` (the mutation half), plus
-`checkRevealSourceLength` (`inline-transitions.ts`) at the kernel (`cursor/reveal-source.ts`) ·
+`checkRevealSourceLength` (`inline-transitions.ts`) at the kernel (`caret/reveal-source.ts`) ·
 `test/blocks/text/widget-reveal-transitions.test.ts`.
 
 **G1.27 · Composition window.** `compositionend` lands only inside a composition the surface saw
@@ -755,18 +755,18 @@ still be selected: one that is would look selected while the keys go to the care
 browser's own caret would get dropped under it. In a dev build `placeCaret`, `selectInBlock` and
 `applySelectionToDom` check it inside their batch, before anyone hears about the placement. Predicate
 `invariants/placement-ends-widget.ts :: checkPlacementEndsWidget` · run by
-`selection/caret-doors.ts` and `selection/native-bridge.ts` ·
+`selection/place-caret.ts` and `selection/native-bridge.ts` ·
 `test/invariants/placement-ends-widget.test.ts`; G4.94 is the source half.
 
 **G1.47 · A child measures into its own list** (`measures-in-own-list`). Each block list provides
 one measure channel to its direct children, and a child registers through
-`reactivity/use-measured-child.svelte.ts :: useMeasuredChild` with its own path. A child that found
+`windowing/use-measured-child.svelte.ts :: useMeasuredChild` with its own path. A child that found
 a list further up (say, a list item calling the hook after it provided its own inner list) would
 land its height in a table that doesn't index it, so the channel refuses a path that isn't one of
 its own children, and in a dev build says so. Predicate
 `invariants/measures-in-own-list.ts :: checkMeasuresInOwnList` · run by
-`reactivity/use-container-windowing.svelte.ts` ·
-`test/reactivity/measured-child-routes.svelte.test.ts`; G4.97 is the source half.
+`windowing/use-container-windowing.svelte.ts` ·
+`test/windowing/measured-child-routes.svelte.test.ts`; G4.97 is the source half.
 
 **G1.52 · The cached text is the document** (`current-source`). `getSource()` serializes once per
 content version and hands back the same string until the version moves, and a `source` prop write
@@ -777,7 +777,7 @@ serializes the document again and says so if the two differ. It skips that while
 instruments are armed, and the swap check reads the cache unchecked, since an echoing host reaches
 it on every keystroke. Predicate
 `invariants/current-source.ts :: checkCurrentSource` · run by
-`reactivity/current-source.ts :: createCurrentSource` · `test/reactivity/current-source.test.ts`.
+`editor-actions/commit/current-source.ts :: createCurrentSource` · `test/editor-actions/commit/current-source.test.ts`.
 
 **G1.53 · Retired.** The rule was: a write made for a document a `source` swap replaced is
 refused, and a dev build says so (`stale-document-write`). The refusal stayed, in every build, in
@@ -850,7 +850,7 @@ no content holds one `<br>` so it keeps a line, alone or after a non-editable ma
 `- `), and a caret written after it looks the same as one before it. Chromium tells them apart: a
 composition started after the `<br>` is dropped after its first update, with no `compositionend`, so
 the composed text gets lost or doubled. Every caret and range the editor writes passes
-`cursor/widget-offset.ts :: writeSelection`, which checks both endpoints in dev. Predicate
+`caret/widget-offset.ts :: writeSelection`, which checks both endpoints in dev. Predicate
 `invariants/caret-before-break.ts :: checkCaretBeforeBreak` ·
 `test/invariants/caret-before-break.test.ts`; G4.36 keeps every native selection write in that file.
 
@@ -1026,7 +1026,7 @@ container-only fields register as one unit with `contract` and `rebuildRaw` requ
 `isContainer` derived; a leaf augment carrying a `container` group throws. Retired: G1.3, the
 runtime pairing guard.
 
-**G3.7 · Branded coordinate spaces.** `cursor/coordinate-spaces.ts`: `RawOffset`, `DomTextOffset`,
+**G3.7 · Branded coordinate spaces.** `caret/coordinate-spaces.ts`: `RawOffset`, `DomTextOffset`,
 `EditorX`, `ViewportX`, `CellIndex`, `DocPath`, each minted only at its home module with named
 conversions per direction ("minted", here and in G4.15, in the strict sense: created by the one
 authorized place, and a duplicate throws). Public entries keep `number` and brand once at the
@@ -1039,7 +1039,7 @@ is G1.9 stated as a type: readers hold views, constructors and writers keep `Cst
 unshare seam is the only way back to mutable (G4.13 scans for the casts). Retired: reader-side byte
 writes, and the "read-only by contract" prose on `BlockComponentProps.document`.
 
-**G3.9 · One caret memory.** `src/lib/cursor/caret-memory.ts` :: `createCaretMemory` holds the
+**G3.9 · One caret memory.** `src/lib/caret/caret-memory.ts` :: `createCaretMemory` holds the
 sticky column, the edge affinity and the pending marks. A keydown updates them through `noteKey`,
 and every other caret move (a click, a paste, an undo, a document swap, a blur, a mode switch, a
 caret the host or a menu places through the selection restore) calls `forget`, which drops all
@@ -1094,7 +1094,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.10  | Every bundled plugin directory is exported, and the pack carries it                       | L       |
 | G4.11  | Exactly the sanctioned paste routes apply paste transforms                                | L       |
 | G4.12  | Caret-edge destructive keys route through the one edge-policy dispatch                    | L       |
-| G4.13  | No view-stripping cast outside `tree-operations/` and the commit ceremony                 | T·L     |
+| G4.13  | No view-stripping cast outside `tree-operations/` and the undo controller                 | T·L     |
 | G4.14  | Every component prop reading the CST is typed as a readonly view                          | L       |
 | G4.15  | Coordinate brands are minted only at their home modules                                   | L       |
 | G4.16  | Bundled plugins import only the public authoring barrel                                   | L       |
@@ -1173,7 +1173,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.90  | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 | G4.91  | A focus call that may scroll the editor says why                                          | L       |
 | G4.93  | A measure round keeps only the block `heldBlock` picks, level by level                    | L       |
-| G4.94  | A gap caret or a widget is selected only in `caret-doors.ts`, and held in one store       | L       |
+| G4.94  | A gap caret or a widget is selected only in `place-caret.ts`, and held in one store       | L       |
 | G4.95  | What a range covers is decided in the range coverage only                                 | L       |
 | G4.96  | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
 | G4.97  | A child's height reaches its list's table only through `useMeasuredChild`                 | L       |
@@ -1223,7 +1223,7 @@ closed, and anything else trips the scan: the rAF throttles in `selection/autosc
 every drag lifecycle rides); the rAF fold in `components/blocks/editable-leaf.ts` (a revealed source
 folds after a range drag, whose blur arrives inside the frame that measured the range); the rAF
 placement in `components/drag-handle.ts` (the handle waits for its block to lay out); the rAF start
-of a size watch in `cursor/observe-resize.ts` (one begun while the browser reports sizes is skipped
+of a size watch in `windowing/observe-resize.ts` (one begun while the browser reports sizes is skipped
 and logged as a loop error); the `setTimeout` wall-clock undo debounce in
 `editor-actions/commit/text-batch.ts` (a tick-grained microtask can't express "the user stopped
 typing") and the occurrence plugin's own typing pause in
@@ -1301,7 +1301,7 @@ allowlisted.
 `lint/manifest-rules.test.ts`.
 
 **G4.13 · The view-to-mutable boundary.** No `as CstNode` or `as Document` view-stripping cast
-outside `tree-operations/` and the commit ceremony. Readers hold bytes-readonly views
+outside `tree-operations/` and the undo controller. Readers hold bytes-readonly views
 (`core/node-views.ts`, G1.9 as a type) and re-enter mutability only through the unshare/clone seam
 or a commit scope's owned view. `lint/file-rules.test.ts`; type pins in
 `test/core/node-views.test.ts`.
@@ -1312,7 +1312,7 @@ drift compiles; only the doc-owning root (`Editor.svelte`) holds a mutable `Docu
 `lint/file-rules.test.ts`.
 
 **G4.15 · Coordinate-brand mint discipline.** `as <Brand>` casts and the `as*` boundary mints appear
-only in `cursor/coordinate-spaces.ts` and the allowlisted public-entry files; everywhere else
+only in `caret/coordinate-spaces.ts` and the allowlisted public-entry files; everywhere else
 arrives at a brand through a mint or a named conversion. G3.7's runtime-source complement.
 `lint/file-rules.test.ts`.
 
@@ -1467,7 +1467,7 @@ learns that helper.
 `lint/reserved-chord-manifest.test.ts`.
 
 **G4.30 · Hidden-run classification.** One rule, two spaces. `core/inline/visibility.ts` states the
-marker families and the hiding rule, and `cursor/widget-offset.ts` applies it where there's a caret:
+marker families and the hiding rule, and `caret/widget-offset.ts` applies it where there's a caret:
 the walk's landing rule, the read canonicalization, the widget-free walk beside it, and the
 block-edge gates that ask whether a block's own markers paint all read that one answer. A third copy
 disagrees the day a mode or a reveal rule moves, and a caret seated in unpainted text corrupts
@@ -1537,7 +1537,7 @@ today means a kind with no declared live-mode behavior at all.
 `lint/stamp-revealable-parity.test.ts`.
 
 **G4.36 · Caret-write sites.** Every selection written from raw offsets is written in
-`cursor/widget-offset.ts`. A caret goes through `placeCaretAtRaw`, which skips the marker prefix,
+`caret/widget-offset.ts`. A caret goes through `placeCaretAtRaw`, which skips the marker prefix,
 never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so
 an unclamped write says so at the call. A range goes through `selectRawRange`,
 `extendSelectionToRaw` or `selectSurfaceContent`, which skip the prefix the same way and don't
@@ -1550,7 +1550,7 @@ clamp, and a caller selecting nodes it already holds (a widget whole) hands its 
 - the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
   that measure with it);
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
-- the surfaces building `focus` from `caret-doors`' `placeCaret`.
+- the surfaces building `focus` from `placeCaret` (`selection/place-caret.ts`).
 
 `lint/manifest-rules.test.ts`.
 
@@ -1709,7 +1709,7 @@ package.json `exports`, so a new published subpath inherits the rule unasked.
 `aragonite`, which belongs to an unrelated npm package. `docs/changelog/` is exempt, since it
 records what shipped under the name of the day. `lint/doc-package-name.test.ts`.
 
-**G4.56 · Iterative walks.** No function under `core/inline/`, `cursor/`, `ambient/` or
+**G4.56 · Iterative walks.** No function under `core/inline/`, `caret/`, `windowing/`, `ambient/` or
 `components/blocks/text/` that reads a node's `children` or `childNodes` may sit on a call cycle,
 its own included, even a cycle through helpers that read neither. Inline nesting depth is
 input-controlled (`**` nests one construct per pair), so a per-level stack frame overflows and
@@ -2049,7 +2049,7 @@ dumps a list. A rewrite that wants to know how its bytes read under the marker a
 instead. `lint/file-rules.test.ts`, with each reader and its reason.
 
 **G4.87 · One writer of the scroll position.** Every write to the editor's scroll position lives
-in `cursor/scroll-owner.ts`, which decides who owns the position before it writes: the browser's
+in `windowing/scroll-owner.ts`, which decides who owns the position before it writes: the browser's
 own anchoring, a held scroll into view, or the plain height correction. Every other module gets
 a `ScrollportReader`, which has no write method, so most strays don't type-check (a test pins
 that with `@ts-expect-error`). The scan catches the rest: `scrollTop` assigned or stepped (`=`,
@@ -2098,18 +2098,18 @@ own controls. The manifest is per file, so a new bare focus inside an already de
 
 **G4.93 · One pick of the block a round keeps still.** Which block stays still across a measure
 round is decided once for the whole document, level by level through the block lists
-(`reactivity/list-tree.ts :: createListTree`), each level through `reactivity/hold-across.ts ::
+(`windowing/list-tree.ts :: createListTree`), each level through `windowing/steady-block.ts ::
 heldBlock`, and the scroll owner corrects only by the distance `heldDelta` makes from the held
 block's place before and after the round: a brand the types give no other way to make, so a
 hand-written distance or a hand-picked block doesn't compile, and a list can ask for a mount scroll
-by path but never for a position (`test/reactivity/hold-across.test.ts` pins these). The scan holds
-what the types can't: a cast to either brand outside `hold-across.ts`, and every call to
+by path but never for a position (`test/windowing/steady-block.test.ts` pins these). The scan holds
+what the types can't: a cast to either brand outside `steady-block.ts`, and every call to
 `compensate`, `heldBlock` or `heldDelta`, declared by file, function and count with its reason (the
 tree's one pick and its one distance, and the header slot, which sits above every list), so a call
 moved to another function fails too. `lint/file-rules.test.ts`.
 
 **G4.94 · The editor's own selections have one store and one set of writers.** A gap caret and an
-inline widget selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
+inline widget selected whole are written only through `selection/place-caret.ts` (`placeGapCaret`,
 `selectWidgetWhole`), which clear the browser's own range in the same batch, and a selected widget
 is held only in `selection/selection-state.svelte.ts`, whose one private writer ends the range and
 the gap caret as it takes the widget. Two manifest rows, both ways: a `.setGapCaret(` or
@@ -2157,18 +2157,18 @@ same over the chains it writes. The scan is `lint/container-rebuild-homes.test.t
 still reaches the list a later chain rebuilds.
 
 **G4.97 · One way a child's height reaches its list.** A block, a list item and a table row each
-measure through `reactivity/use-measured-child.svelte.ts :: useMeasuredChild`, which owns the three
+measure through `windowing/use-measured-child.svelte.ts :: useMeasuredChild`, which owns the three
 times a child is measured (the batch at mount, after an edit, on a resize), and the list writes the
 height in one private function, `applyMeasured`, which records it under the child's id and writes
 the table's entry only while the table still has the child at that index. No list reports its own
 height upward. The scan counts every table write, every cache write and every registration by file
 and function, so a second writer fails, and a manifest keeps the measure channel's key to the file
 that defines it, the one that provides it and the hook. `lint/file-rules.test.ts`, with
-`test/reactivity/measured-child-routes.svelte.test.ts` running every child kind through every
+`test/windowing/measured-child-routes.svelte.test.ts` running every child kind through every
 trigger and failing a new caller of the hook that has no row there; G1.47 is the runtime half.
 
 **G4.98 · One place throws measured heights away.** Heights measured for one view are wrong for
-the next, and `reactivity/layout-state.svelte.ts :: createLayoutState` is the only thing that
+the next, and `windowing/layout-state.svelte.ts :: createLayoutState` is the only thing that
 drops them. A new document or a mode flip calls `forgetMeasuredHeights`, which leaves the width
 version alone (bump it and every list rebuilds, losing the block held in place). A width or
 font-size change calls `rebuildForNewGeometry`, which also bumps the width version every list
@@ -2178,13 +2178,13 @@ Nobody else can even reach the drop. Layout state builds the height estimator it
 out a copy without `dropMeasured`, so the editor root and the block lists only ever hold the reads.
 What a type can't stop gets two scans in `lint/file-rules.test.ts`: a second estimator built (or a
 cast back to the one with the drop) outside layout state, and a width-version write anywhere else.
-`test/reactivity/height-lifetime-routes.svelte.test.ts` runs all four routes, a flip to reading and
+`test/windowing/height-lifetime-routes.svelte.test.ts` runs all four routes, a flip to reading and
 to live included, and the three changes that keep the heights.
 
 **G4.99 · A windowed list keeps its table height while blocks mount.** When the window grows, Svelte
 mounts the new blocks one at a time, and a layout read between two of them sees a list short by the
 rest; at the end of the document the browser pulls the scroll up to fit and never gives it back. So
-every component that renders spacers calls `reactivity/use-window-floor.svelte.ts :: useWindowFloor`
+every component that renders spacers calls `windowing/use-window-floor.svelte.ts :: useWindowFloor`
 with the box around them, which holds that box at its table's whole height until the render ends.
 `lint/file-rules.test.ts` fails a component that renders spacers without it;
 `e2e/tests/plugins/view-swap-end-scroll.spec.ts` drives the swaps that hit it, in both scroll modes
@@ -2327,9 +2327,8 @@ listed edge that's gone fails until its line is deleted. What the scan can't do 
 someone adds, so that's a reviewer's job, and in a slice that moves files the baseline's diff may
 only rename nodes along the move map: any other new line gets named in the slice's report with its
 imports (a slice: one batch of work landing together; the move map: its list of old and new paths).
-Counting runtime edges, two directory cycles are still in it, {`core`, `schema`, `cursor`,
-`invariants`, `tree-operations`, `debug`} and {`selection`, `editor-actions`, `components`,
-`ambient`}. One rule doesn't wait for the list to shrink: nothing in `tree-operations/` imports from
+Counting runtime edges, two directory cycles are still in it, {`core`, `schema`, `caret`,
+`windowing`, `invariants`, `tree-operations`, `debug`} and {`selection`, `editor-actions`}. One rule doesn't wait for the list to shrink: nothing in `tree-operations/` imports from
 `editor-actions/` or `components/`, listed or not, since a pure tree mutation reaching up there is a
 cycle no behavior test notices. An import the scan can't resolve to a file fails too, so nothing
 drops out of the graph unseen. `lint/directory-layering.test.ts`.

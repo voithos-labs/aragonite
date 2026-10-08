@@ -281,8 +281,8 @@ export type {
 	ContainerBlockListProps
 } from './editor-actions/plugin/container';
 export type { Draft, DraftCloseCause, DraftSpec } from './schema/drafts';
-export type { RefSlots } from './reactivity/publish-ref.svelte';
-export type { ChildList } from './reactivity/child-list';
+export type { RefSlots } from './block-lists/child-refs';
+export type { ChildList } from './block-lists/child-list';
 // The one place allowed to import from `components/`, so `editor-actions` keeps no upward
 // value dependency on the component tree.
 export function registerChromeLeaf(kind: AnyBlockKind, opts?: ChromeLeafOptions): void {
@@ -407,7 +407,7 @@ export type { EditorRects } from './editor-rects';
 // ── Caret geometry (pre-freeze) ──────────────────────────────────────────────
 // What a kind answers `caretTargetAtPoint` with, the helper that turns a point in your element
 // into the nearest offset, and the value for wherever the leaf ends.
-export { caretOffsetAtPoint } from './cursor/point-offset';
+export { caretOffsetAtPoint } from './caret/point-offset';
 export type { CaretTarget } from './schema/block-kind-descriptor';
 export { CURSOR_END } from './block-component';
 export type { CursorEnd } from './block-component';

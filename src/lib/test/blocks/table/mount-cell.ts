@@ -8,7 +8,7 @@ import type { BlockComponent } from '#lib/block-component.js';
 import type { TableContext } from '#lib/action-contracts.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
-import { refSlotsOver } from '#lib/reactivity/publish-ref.svelte.js';
+import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import type { EditorPolicies, EditorServices } from '#lib/editor-keys.js';
 import { TABLE_CONTEXT_KEY } from '#lib/editor-keys.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';

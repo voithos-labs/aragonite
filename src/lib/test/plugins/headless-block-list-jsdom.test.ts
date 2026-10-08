@@ -2,7 +2,7 @@
 // Miss-analysis: every container-kit suite ran in node, where Svelte compiles effects away.
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { getStateForNode } from '#lib/reactivity/state-registry.js';
+import { getStateForNode } from '#lib/block-lists/state-registry.js';
 import { mountBlockListState } from '#lib/testing/headless-block-list.svelte.js';
 
 describe('the conformance kits’ block-list state under a DOM test environment', () => {

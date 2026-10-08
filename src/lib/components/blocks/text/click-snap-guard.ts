@@ -1,7 +1,7 @@
 /** Shared checks about the caret and the key, used across a text block's editable element. */
 
 import { isCharacterKey } from '../../../schema/keybindings';
-import { isHiddenMarkerText } from '../../../cursor/widget-offset';
+import { isHiddenMarkerText } from '../../../caret/widget-offset';
 
 /** Caret in a text node the user can see: the browser draws a caret there, so the editor's own
  *  caret indicator is not needed. Hidden marker text renders nothing, so it does not count. */

@@ -3,7 +3,7 @@ import { parse } from '../../core/parser';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { registerBlockListState } from '../../reactivity/state-registry';
+import { registerBlockListState } from '../../block-lists/state-registry';
 import type { EditorActionsDeps } from '../../editor-actions/deps';
 import {
 	makeBlockListState,

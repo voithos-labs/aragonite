@@ -18,7 +18,7 @@ import { containerScopeState } from './parent-scope';
 import { buildSplitItems } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
 import { focusIndexBeforeResidue } from './focus-target';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import type { PasteDispatchContext } from './dispatch';
 import type { CommitSnapshotArg } from '../../action-contracts';
 

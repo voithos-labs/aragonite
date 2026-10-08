@@ -6,7 +6,7 @@
 
 import type { CommitController } from '../../action-contracts';
 import { ownTrailingLineEnding } from '../../core/lines';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import type { DocumentGetter } from '../../editor-keys';
 import type { CrossBlockCommandRouter } from '../../schema/block-commands';
 import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-construct-policy';

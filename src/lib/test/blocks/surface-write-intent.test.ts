@@ -9,7 +9,7 @@ import { createSurfaceWrite, type WriteIntent } from '#lib/components/blocks/sur
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { stubBlockEdit } from '#lib/testing/headless-actions.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
-import { createInsertionRecords } from '#lib/cursor/next-insertion.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 
 function writerFor() {
 	const node: NodeView = { kind: 'paragraph', leadingTrivia: '', raw: 'ab\n' };

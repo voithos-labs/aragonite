@@ -7,7 +7,7 @@ import { parse } from '#lib/core/parser.js';
 import { createTableMutationsContext } from '#lib/editor-actions/table-context.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { registerBlockListState } from '#lib/reactivity/state-registry.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,

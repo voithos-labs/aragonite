@@ -13,7 +13,7 @@ import { mountBlockHost, type MountedHost } from './mount-host';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { makeShimChildList } from '#lib/test/harness/editor-actions.js';
-import { componentAt } from '#lib/reactivity/child-list.js';
+import { componentAt } from '#lib/block-lists/child-list.js';
 
 // The vitest setup registers the built-in descriptors only, but the container
 // assertions need BlockHost to dispatch a real blockquote.

@@ -4,8 +4,8 @@
 // Miss-analysis: the undo suites read back bytes and entry counts, and the one caret suite drove
 // commands over body-only selections, where the caret after a clamped delete equals the one before.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { asDomTextOffset } from '#lib/cursor/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/cursor/widget-offset.js';
+import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import {
 	destroyMountedEditors,

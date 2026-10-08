@@ -6,7 +6,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { parseConverges } from '#lib/testing/parse-convergence.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { spliceChildren } from '#lib/tree-operations/children.js';
-import { getStateForNode } from '#lib/reactivity/state-registry.js';
+import { getStateForNode } from '#lib/block-lists/state-registry.js';
 import type { BlockKind, CstNode, Document } from '#lib/core/nodes.js';
 import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
@@ -47,10 +47,10 @@ import {
 	interactionTraceSnapshot
 } from '#lib/debug/interaction-trace.js';
 import type { ClosureBlock } from '#lib/schema/closure.js';
-import { blockContentElAt } from '#lib/components/block-el-lookup.js';
-import { TABLE_CELL_SELECTOR } from '#lib/components/block-content-selector.js';
-import { domDescendants } from '#lib/cursor/dom-walk.js';
-import { isHiddenMarkerText } from '#lib/cursor/widget-offset.js';
+import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
+import { TABLE_CELL_SELECTOR } from '#lib/caret/block-content-selector.js';
+import { domDescendants } from '#lib/caret/dom-walk.js';
+import { isHiddenMarkerText } from '#lib/caret/widget-offset.js';
 import { childIdDrifts } from '#lib/invariants/child-id-parity.js';
 import { isProseLeaf } from '#lib/schema/page-role.js';
 import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';

@@ -1,8 +1,9 @@
 /**
  * Every traversal over an inline tree or its rendered DOM is iterative (G4.56): inline nesting
  * depth comes from the input, so one call frame per level overflows the stack and strands the
- * block in a fallback it cannot recover from. The scan covers `core/inline/`, `cursor/`, `ambient/`
- * and the live gesture code in `components/blocks/text/`, whose join rebuild walks the same way.
+ * block in a fallback it cannot recover from. The scan covers `core/inline/`, `caret/`, `windowing/`,
+ * `ambient/` and the live gesture code in `components/blocks/text/`, whose join rebuild walks the
+ * same way.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -17,7 +18,13 @@ import {
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 /** Library-internal: the rule binds traversals over aragonite's own tree, which no plugin owns. */
-const SCOPE = [SOURCE_DIR.inline, SOURCE_DIR.cursor, SOURCE_DIR.ambient, SOURCE_DIR.textBlock];
+const SCOPE = [
+	SOURCE_DIR.inline,
+	SOURCE_DIR.caret,
+	SOURCE_DIR.windowing,
+	SOURCE_DIR.ambient,
+	SOURCE_DIR.textBlock
+];
 
 /** Keyed by `path :: name`, one traversal each, so a file spelling two walkers alike fails below.
  *  Empty by design: a recursive walk overflows on a deep enough document, so an entry says why. */

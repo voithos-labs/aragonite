@@ -12,7 +12,7 @@ import {
 } from '../../selection/path-lookup';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import type { CstNode } from '../../core/nodes';
-import { TABLE_CELL_SELECTOR } from '../../components/block-content-selector';
+import { TABLE_CELL_SELECTOR } from '../../caret/block-content-selector';
 import { mountTableGrid } from './table-grid';
 import { para, bq, doc } from './cst-builders';
 
