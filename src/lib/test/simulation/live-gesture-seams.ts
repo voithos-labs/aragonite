@@ -58,6 +58,7 @@ import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export type GestureKind =
 	| 'type'
@@ -393,6 +394,7 @@ async function pressEdgeKey(
 		holdInsertion: () => createInsertionRecords([]).hold({}, gesture.affinity, placement.insertion)
 	});
 	const dispatch = createEdgePolicyDispatch({
+		caretWriter: testCaretWriter,
 		get node() {
 			return nodeAt(h.doc, leaf.path) as CstNode;
 		},

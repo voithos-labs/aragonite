@@ -73,6 +73,7 @@ import {
 	type RecordedLanding
 } from '#lib/testing/headless-actions.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // ── CST node factory ─────────────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ export { stubBlockComponent };
 export function makeGapScope(source: string): GapStopScope {
 	const doc = parse(source);
 	return {
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		selection: createSelectionState(),
 		getPresentationMode: () => 'source'
@@ -251,6 +253,7 @@ export function makeShimDeps(
 	over: Partial<ContainerBlockComponentDeps> = {}
 ): ContainerBlockComponentDeps {
 	const deps: ContainerBlockComponentDeps = {
+		caretWriter: testCaretWriter,
 		selection: createSelectionState(),
 		reading: fixtureReading(),
 		get innerBlockRefs() {

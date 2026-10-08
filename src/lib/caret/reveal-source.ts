@@ -5,7 +5,7 @@
  */
 
 import { tick } from 'svelte';
-import { placeCaretAtRaw } from './widget-offset';
+import type { CaretWriter } from './widget-offset';
 import { assertInvariant } from '../assert';
 import { checkRevealSourceLength } from '../invariants/inline-transitions';
 
@@ -26,6 +26,8 @@ export interface SourceRevealDeps {
 	showSource(): void;
 	/** Swap the editable source back for the rendered view (inverse of showSource). */
 	showRendered(): void;
+	/** The editor's caret writer, which places the caret on either side of the swap. */
+	caretWriter: CaretWriter;
 }
 
 export interface SourceReveal {
@@ -40,7 +42,7 @@ export function createSourceReveal(deps: SourceRevealDeps): SourceReveal {
 	// Offset 0 of a source that opens with hidden markers (a block hiding its `$$` fence lines) is
 	// before those markers, where typing would land outside the fence, so the write clamps.
 	function placeCaret(container: HTMLElement, blockSourceOffset: number): void {
-		placeCaretAtRaw(container, blockSourceOffset, { clamp: 'reachable' });
+		deps.caretWriter.placeCaretAtRaw(container, blockSourceOffset, { clamp: 'reachable' });
 	}
 
 	async function reveal(atSourceOffset = 0): Promise<void> {

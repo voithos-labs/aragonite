@@ -8,14 +8,14 @@ import {
 	domTextOffsetAtNode,
 	findDomTextLanding,
 	findDomTextOffsetTarget,
-	isHiddenMarkerText,
-	placeCaretAtRaw
+	isHiddenMarkerText
 } from '../../caret/widget-offset';
 import { findFirstTextNode, findLastTextNode } from '../../caret/visual-lines';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { createSurfaceBackend } from '../../caret/surface-backend';
 import { applyCollapsedCaret } from '../../selection/native-bridge';
 import { caretIsInTextContent } from '../../components/blocks/text/click-snap-guard';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface Fixture {
 	block: HTMLElement;
@@ -235,7 +235,7 @@ function describePosition(pos: { node: Node; offset: number } | null): string {
 
 describe('caret writes never caret position a range in hidden marker text', () => {
 	function cursorIO(block: HTMLElement) {
-		return createSurfaceBackend({ getEl: () => block });
+		return createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => block });
 	}
 
 	it('setRaw lands in visible content for a run-interior offset', () => {
@@ -266,13 +266,13 @@ describe('caret writes never caret position a range in hidden marker text', () =
 
 	it('applyCollapsedCaret lands in visible content for a run-interior offset', () => {
 		const fx = mount({ mode: 'live' });
-		applyCollapsedCaret(fx.block, { path: [0], offset: 1 });
+		applyCollapsedCaret(testCaretWriter, fx.block, { path: [0], offset: 1 });
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 
 	it('placeCaretAtRaw lands in visible content for a run-interior offset', () => {
 		const fx = mount({ mode: 'live' });
-		placeCaretAtRaw(fx.block, 1, { clamp: 'exact' });
+		testCaretWriter.placeCaretAtRaw(fx.block, 1, { clamp: 'exact' });
 		expect(caretPosition()).toEqual({ node: fx.body, offset: 0 });
 	});
 

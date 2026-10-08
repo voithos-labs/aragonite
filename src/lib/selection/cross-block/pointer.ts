@@ -5,7 +5,8 @@ import type { SelectionState } from '../selection-state.svelte';
 import type { CaretMemory } from '../../caret/caret-memory';
 import { handleShiftClick } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
-import { applyCollapsedCaret, clearNativeSelection } from '../native-bridge';
+import { applyCollapsedCaret } from '../native-bridge';
+import type { CaretWriter } from '../../caret/widget-offset';
 import { isInPaddingRow, offsetFromViewportPoint } from '../../caret/point-offset';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '../../dev-warn';
@@ -27,6 +28,7 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
  *  `place-caret.ts`: a plain click ends any range, so a fresh drag starts its own. */
 export function resetForPointerDown(
 	selection: SelectionState,
+	writer: CaretWriter,
 	caretMemory: Pick<CaretMemory, 'forget'>,
 	isShift: boolean
 ): void {
@@ -37,7 +39,7 @@ export function resetForPointerDown(
 	selection.clearGapCaret();
 	if (!isShift && selection.isCrossBlock) {
 		selection.clear();
-		clearNativeSelection();
+		writer.clear();
 	}
 }
 
@@ -53,8 +55,8 @@ function handlePointerDown(
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	resetForPointerDown(selection, ctx.caretMemory, e.shiftKey);
-	const padding = armPaddingPress(el, myPath, e);
+	resetForPointerDown(selection, ctx.caretWriter, ctx.caretMemory, e.shiftKey);
+	const padding = armPaddingPress(ctx.caretWriter, el, myPath, e);
 
 	if (e.shiftKey) {
 		const prevActive = document.activeElement;
@@ -65,6 +67,7 @@ function handlePointerDown(
 		const prevFocusPath = findBlockPathForElement(prevActive);
 		const handled = handleShiftClick(
 			selection,
+			ctx.caretWriter,
 			el,
 			myPath,
 			e.clientX,
@@ -106,6 +109,7 @@ function handlePointerDown(
 				// mode, so the two resolve separately.
 				scrollContainer: ctx.getScrollHost() ?? root,
 				selection,
+				caretWriter: ctx.caretWriter,
 				getBlockElByPath: ctx.getBlockElByPath,
 				lifetimeSignal,
 				paintSameBlock: () => press.paintSameBlock === true || padding?.placed() === true
@@ -132,7 +136,12 @@ const armedPresses = new WeakMap<HTMLElement, AbortController>();
 
 // Mac and Linux place a press above the first line or below the last at that line's start or
 // end. The mousedown is cancelled, not the pointerdown, which would swallow a double click's.
-function armPaddingPress(el: HTMLElement, path: number[], e: PointerEvent): PaddingPress | null {
+function armPaddingPress(
+	writer: CaretWriter,
+	el: HTMLElement,
+	path: number[],
+	e: PointerEvent
+): PaddingPress | null {
 	armedPresses.get(el)?.abort();
 	if (e.button !== 0 || !e.isPrimary || e.shiftKey || !el.isContentEditable) return null;
 	if (!isInPaddingRow(el, e.clientX, e.clientY)) return null;
@@ -147,7 +156,7 @@ function armPaddingPress(el: HTMLElement, path: number[], e: PointerEvent): Padd
 		if (down.button !== 0 || down.detail > 1) return;
 		down.preventDefault();
 		el.focus({ preventScroll: true });
-		applyCollapsedCaret(el, { path, offset });
+		applyCollapsedCaret(writer, el, { path, offset });
 		placed = true;
 	};
 	el.addEventListener('mousedown', place, { signal: armed.signal });
@@ -156,7 +165,11 @@ function armPaddingPress(el: HTMLElement, path: number[], e: PointerEvent): Padd
 
 /** A right-click places a collapsed caret where a primary click would, before a menu reads it.
  *  Bound in the capture phase at the editor root, so it runs ahead of every block's own menu. */
-export function placeContextPress(selection: SelectionState, e: MouseEvent): void {
+export function placeContextPress(
+	selection: SelectionState,
+	writer: CaretWriter,
+	e: MouseEvent
+): void {
 	if (e.button !== 2 || selection.isCrossBlock) return;
 	const surface = editingHostOf(e.target);
 	if (!surface || !isInPaddingRow(surface, e.clientX, e.clientY)) return;
@@ -164,7 +177,7 @@ export function placeContextPress(selection: SelectionState, e: MouseEvent): voi
 	if (!(window.getSelection()?.isCollapsed ?? true)) return;
 	const offset = offsetFromViewportPoint(surface, e.clientX, e.clientY);
 	const path = findBlockPathForElement(surface);
-	if (offset !== null && path) applyCollapsedCaret(surface, { path, offset });
+	if (offset !== null && path) applyCollapsedCaret(writer, surface, { path, offset });
 }
 
 function editingHostOf(target: EventTarget | null): HTMLElement | null {

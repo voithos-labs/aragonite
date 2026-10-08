@@ -18,6 +18,7 @@ import {
 	type MountedEditor
 } from '../harness/mount-editor.svelte';
 import { pressKey, settleEditor } from '../harness/settle';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 // One definition for both runs of a row: installing a second is refused with a warning.
@@ -48,7 +49,7 @@ async function mathSourceAfter(editor: MountedEditor<Seam>, after: string): Prom
 /** A `beforeinput` as the browser sends it: its target range is the caret, or the `back`
  *  characters before it for a delete. */
 function inputAtCaret(el: HTMLElement, inputType: string, back = 0): void {
-	const at = createSurfaceBackend({ getEl: () => el }).getRaw() ?? 0;
+	const at = createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).getRaw() ?? 0;
 	const target = createRangeAtDomTextOffsets(el, asDomTextOffset(at - back), asDomTextOffset(at));
 	const e = new InputEvent('beforeinput', { inputType, bubbles: true, cancelable: true });
 	Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });

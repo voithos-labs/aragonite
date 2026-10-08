@@ -36,6 +36,7 @@ import {
 	mountSurface
 } from './edge-policy-fixture';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const LIVE = fixtureReading({}, 'live');
 const IMAGE = 'x **![a](b.png)** y\n';
@@ -111,7 +112,11 @@ function clipboardOver(source: string, start = IMAGE_RANGE.start) {
 	const { deps: actions } = makeEditorActionsDeps(source, { reading: LIVE });
 	const blockEdit = makeStubBlockEdit();
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: start, preSelectOffset: start });
+	selectWidgetWhole(selection, testCaretWriter, {
+		paragraphPath: [0],
+		sourceStart: start,
+		preSelectOffset: start
+	});
 	const deps = {
 		get node() {
 			return actions.doc.children[0] as CstNode;

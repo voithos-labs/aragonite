@@ -1117,7 +1117,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.33  | Live-mode byte candidates verify against what actually paints                             | L       |
 | G4.34  | Link bytes are written only through the one seam module                                   | L       |
 | G4.35  | A construct stamps its markers exactly when its policy row says revealable                | L       |
-| G4.36  | A selection is written from raw offsets only in `widget-offset.ts`                        | L       |
+| G4.36  | The native selection is written only by the editor's caret writer in `widget-offset.ts`   | L       |
 | G4.37  | Every surface rendering into a caret-walk container stamps content-empty                  | L       |
 | G4.38  | Every editable surface publishes each of `EDITABLE_SURFACE_MEMBERS`                       | L       |
 | G4.39  | Every text-surface component publishes `runCommand`                                       | L       |
@@ -1536,17 +1536,19 @@ block rather than by reveal, and its row is what seats a typed byte outside them
 today means a kind with no declared live-mode behavior at all.
 `lint/stamp-revealable-parity.test.ts`.
 
-**G4.36 · Caret-write sites.** Every selection written from raw offsets is written in
-`caret/widget-offset.ts`. A caret goes through `placeCaretAtRaw`, which skips the marker prefix,
-never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so
-an unclamped write says so at the call. A range goes through `selectRawRange`,
-`extendSelectionToRaw` or `selectSurfaceContent`, which skip the prefix the same way and don't
-clamp, and a caller selecting nodes it already holds (a widget whole) hands its range to
-`selectDomRange`. The scan pins four file lists, each with per-file reasons and compared as sets:
+**G4.36 · Caret-write sites.** Every write to the native selection goes through the editor's caret
+writer, `caret/widget-offset.ts :: createCaretWriter`, one per editor on
+`EditorServices.caretWriter`, which calls the `onWrite` it was built with after each write and
+clear. A caret goes through its `placeCaretAtRaw`, which skips the marker prefix, never lands behind
+a hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so an unclamped write
+says so at the call. A range goes through `selectRawRange`, `extendSelectionToRaw` or
+`selectSurfaceContent`, which skip the prefix the same way and don't clamp, and a caller selecting
+nodes it already holds (a widget whole) hands its range to `selectDomRange`. The scan pins four file
+lists, each with per-file reasons and compared as sets:
 
 - the files calling a native selection writer (`addRange`, `setBaseAndExtent`, `extend`,
-  `selectAllChildren`, and the two-argument `collapse` and `setPosition`), which is
-  `widget-offset.ts` alone;
+  `selectAllChildren`, `removeAllRanges`, `empty`, and the two-argument `collapse` and
+  `setPosition`), which is `widget-offset.ts` alone;
 - the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
   that measure with it);
 - the files naming `rawRangeToDomRange` (measuring and decorating only);

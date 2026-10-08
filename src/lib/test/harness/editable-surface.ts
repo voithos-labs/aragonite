@@ -14,6 +14,7 @@ import { fixtureReading } from './fixture-grammar';
 import { stubBlockEdit, stubCaretMemory } from '#lib/testing/headless-actions.js';
 import type { CaretMemory } from '#lib/caret/caret-memory.js';
 import { commandContext } from '../support/command-context';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
@@ -56,7 +57,7 @@ export function makeSurface(
 	let composing = false;
 	const commits: SurfaceHarness['commits'] = [];
 	const seats: number[] = [];
-	const writer = createSurfaceBackend({ getEl: () => el });
+	const writer = createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el });
 	const recording: BlockEditActions = {
 		...stubBlockEdit(),
 		updateBlockContent: (_index, text, _mode, preEdit, saved) => {
@@ -84,6 +85,7 @@ export function makeSurface(
 		},
 		requestCaret: () => {},
 		selection: { isCrossBlock: false },
+		caretWriter: testCaretWriter,
 		caretMemory: options.caretMemory ?? stubCaretMemory(),
 		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 		focusActions: {},

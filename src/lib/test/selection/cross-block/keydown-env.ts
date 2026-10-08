@@ -26,6 +26,7 @@ import { stubScrollOwner, stubScrollport } from '../../harness/stub-scrollport';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { commandContextWith } from '../../support/command-context';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -103,6 +104,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		getEl: () => getBlockElByPath(opts.myPath ?? [0]),
 		getMyPath: () => opts.myPath ?? [0],
 		selection,
+		caretWriter: testCaretWriter,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath,
 		// Real, so a scroll to a mounted endpoint reaches that element's `scrollIntoView`.

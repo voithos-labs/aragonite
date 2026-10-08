@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createSurfaceBackend } from '../../caret/surface-backend';
 import { asRawOffset } from '../../caret/coordinate-spaces';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Fixture: a list item's prose element: the marker span "- " (traversal offsets [0,2)) then
 // the block's own raw text "hello" (traversal [2,7), raw [0,5)).
@@ -33,7 +34,11 @@ function mount(): void {
 }
 
 function cursorIO(snapTarget: number | null = null) {
-	return createSurfaceBackend({ getEl: () => el, getSnapTarget: () => snapTarget });
+	return createSurfaceBackend({
+		caretWriter: testCaretWriter,
+		getEl: () => el,
+		getSnapTarget: () => snapTarget
+	});
 }
 
 function select(startNode: Node, startOffset: number, endNode: Node, endOffset: number): void {
@@ -192,7 +197,10 @@ describe('clampOutOfMarkerPrefix', () => {
 	// The element can be gone before a click reaches it: a widget's own handler navigates, the
 	// window re-slices, and the block unmounts mid-dispatch.
 	it('does nothing once the surface is gone', () => {
-		createSurfaceBackend({ getEl: () => null }).clampOutOfMarkerPrefix();
+		createSurfaceBackend({
+			caretWriter: testCaretWriter,
+			getEl: () => null
+		}).clampOutOfMarkerPrefix();
 		expect(window.getSelection()!.rangeCount).toBe(0);
 	});
 });

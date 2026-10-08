@@ -17,6 +17,7 @@ import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { key, makeEdgeDispatch } from './edge-policy-fixture';
 import { settleEditor } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 installMathInline();
 
@@ -32,6 +33,7 @@ function mount(source: string, widgetKind: string) {
 		widgetInteractionDeps(
 			{ node, el },
 			{
+				caretWriter: testCaretWriter,
 				cursor: new Proxy({}, { get: () => () => {} }),
 				selection,
 				blockEdit: { updateBlockContent: recordingWrite() },

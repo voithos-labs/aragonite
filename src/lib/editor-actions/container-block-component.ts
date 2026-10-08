@@ -24,6 +24,7 @@ import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { CaretMemory } from '../caret/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
+import type { CaretWriter } from '../caret/widget-offset';
 import { placeCaret } from '../selection/place-caret';
 import { rangeOwnsKey, type RangeKeyReads } from '../selection/cross-block/keydown';
 import {
@@ -148,6 +149,7 @@ export interface ContainerBlockComponentDeps {
 	/** Ends a live cross-block range when `focus` places a caret: focusing a whole block
 	 *  reaches no child to borrow it from. */
 	readonly selection: SelectionState;
+	readonly caretWriter: CaretWriter;
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
 	/** The same children as a descent reads them: their count, ref slots, render window and
 	 *  collapse. `childList()` publishes it. */
@@ -204,7 +206,9 @@ export function createContainerBlockComponent(
 			return deps.editable ?? true;
 		},
 		focusable: true,
-		focus: placeCaret(deps.selection, (offset) => walkInto(offset, (child, at) => child.focus(at))),
+		focus: placeCaret(deps.selection, deps.caretWriter, (offset) =>
+			walkInto(offset, (child, at) => child.focus(at))
+		),
 		parkCaret,
 		getCursorOffset() {
 			const focusEl = deps.getFocusEl?.();

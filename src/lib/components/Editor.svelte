@@ -28,6 +28,7 @@
 		type ResolveLinkUrl
 	} from '../editor-keys';
 	import { createCaretMemory } from '../caret/caret-memory';
+	import { createCaretWriter } from '../caret/widget-offset';
 	import { docPathFrom } from '../caret/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createScrollOwner } from '../windowing/scroll-owner';
@@ -274,6 +275,7 @@
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const caretMemory = createCaretMemory();
+	const caretWriter = createCaretWriter(() => {});
 	const autoPairs = createAutoPairRecord();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
@@ -534,6 +536,7 @@
 		getDoc: () => doc,
 		root: rootList,
 		selectionState,
+		caretWriter,
 		caretMemory,
 		getBlockElByPath,
 		getEditorRoot: () => editorEl ?? null,
@@ -563,6 +566,7 @@
 		sharing,
 		caretMemory,
 		selectionState,
+		caretWriter,
 		getBlockElByPath,
 		caretLanding,
 		events,
@@ -747,6 +751,7 @@
 		rangeCoverage: () => coverage,
 		search: searchState,
 		caretMemory,
+		caretWriter,
 		autoPairs,
 		scrollOwner,
 		linkCard,
@@ -831,6 +836,7 @@
 	const rootGestures = createRootGestures({
 		getDoc,
 		selection: selectionState,
+		caretWriter,
 		caretMemory,
 		getBlockElByPath,
 		getBlockComponent,
@@ -932,7 +938,8 @@
 			root: editorEl,
 			isHostChrome,
 			announceIfMoved: selectionAnnouncer.announceIfMoved,
-			selection: selectionState
+			selection: selectionState,
+			caretWriter
 		});
 	});
 
@@ -950,6 +957,7 @@
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
 		selection: selectionState,
+		caretWriter,
 		getDoc,
 		getBlockElByPath,
 		caretLanding,

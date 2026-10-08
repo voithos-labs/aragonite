@@ -29,6 +29,7 @@ import type { EditableSurfaceDeps } from './editable-surface';
 export type SharedSurfaceDeps = Pick<
 	EditableSurfaceDeps,
 	| 'selection'
+	| 'caretWriter'
 	| 'getDoc'
 	| 'getBlockElByPath'
 	| 'focusActions'
@@ -68,6 +69,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		caretLanding,
 		pasteCoordinator,
 		caretMemory,
+		caretWriter,
 		selection,
 		activePlugins,
 		events,
@@ -87,6 +89,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 
 	const deps: SharedSurfaceDeps = {
 		selection,
+		caretWriter,
 		getDoc,
 		getBlockElByPath,
 		focusActions,

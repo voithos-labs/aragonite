@@ -21,6 +21,7 @@ import { readNativeCaretInBlock } from '#lib/selection/native-bridge.js';
 import { offsetFromViewportPoint } from '#lib/caret/point-offset.js';
 import { parse } from '#lib/core/parser.js';
 import { restoreLandingOver } from '../harness/restore-landing';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const BREAK_DOC = 'Above text\n\n---\n\ntail text\n';
 const clickOffset = vi.mocked(offsetFromViewportPoint);
@@ -39,7 +40,7 @@ describe('whole-block endpoints arriving from an entry path', () => {
 		clickOffset.mockReturnValue(1);
 		anchorCaret.mockReturnValue({ path: [0], offset: 6 });
 
-		expect(handleShiftClick(s, el(), [1], 0, 0, el(), [0])).toBe(true);
+		expect(handleShiftClick(s, testCaretWriter, el(), [1], 0, 0, el(), [0])).toBe(true);
 		expect(s.focus).toEqual({ path: [1], offset: 3 });
 	});
 

@@ -5,6 +5,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { collapseCrossBlock } from '../../selection/keyboard-extend';
 import { restoreLandingOver } from '../harness/restore-landing';
 import { registerDetailsKind } from '../../plugins/details/details-kind';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // [0] 2-column table (header + 2 body rows = 6 cells), [1] paragraph.
 const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\ntail\n');
@@ -36,7 +37,7 @@ describe('collapseCrossBlock over an intra-table rectangle', () => {
 			{ path: [0], offset: 4 }
 		);
 
-		await collapseCrossBlock(selection, 'end', doc, restore);
+		await collapseCrossBlock(selection, testCaretWriter, 'end', doc, restore);
 
 		// Cell 4 of a 2-column table = row 2, col 0.
 		expect(revealed.at(-1)).toEqual([0, 2, 0]);
@@ -52,7 +53,7 @@ describe('collapseCrossBlock over an intra-table rectangle', () => {
 			{ path: [0], offset: 2 }
 		);
 
-		await collapseCrossBlock(selection, 'start', doc, restore);
+		await collapseCrossBlock(selection, testCaretWriter, 'start', doc, restore);
 
 		expect(revealed.at(-1)).toEqual([0, 1, 0]);
 		expect(getBlockElByPath).toHaveBeenCalledWith([0, 1, 0]);
@@ -66,7 +67,7 @@ describe('collapseCrossBlock over an intra-table rectangle', () => {
 			{ path: [1], offset: 2 }
 		);
 
-		await collapseCrossBlock(selection, 'end', doc, restore);
+		await collapseCrossBlock(selection, testCaretWriter, 'end', doc, restore);
 
 		expect(revealed.at(-1)).toEqual([1]);
 	});
@@ -82,7 +83,7 @@ describe('collapseCrossBlock past a closed details', () => {
 		const { landing, revealed } = restoreLandingOver(closed, selection);
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1, 1], offset: 6 });
 
-		await collapseCrossBlock(selection, 'end', closed, landing.restore);
+		await collapseCrossBlock(selection, testCaretWriter, 'end', closed, landing.restore);
 
 		expect(revealed.at(-1)).toEqual([1, 0]);
 		expect(revealed).not.toContainEqual([1, 1]);

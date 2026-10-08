@@ -20,6 +20,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { commandContext } from '#lib/test/support/command-context.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 
@@ -50,6 +51,7 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 		// Cast only the members this fixture does not stand up, never the whole context, so a new
 		// required reader fails to type-check here.
 		ctx: {
+			caretWriter: testCaretWriter,
 			// No plugins stood up here, so every installed one is active.
 			commands: commandContext(),
 			reading: fixtureReading(),

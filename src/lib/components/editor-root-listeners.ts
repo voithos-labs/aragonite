@@ -6,6 +6,7 @@
 import { tick } from 'svelte';
 import { findSurfacePathForElement } from '../selection/path-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
+import type { CaretWriter } from '../caret/widget-offset';
 import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 
 // ── Listener plumbing ───────────────────────────────────────────────
@@ -93,6 +94,7 @@ export interface SelectionChangeBridgeDeps {
 	announceIfMoved(): void;
 	/** Read for an inline widget selected whole, which owns the keys while it is. */
 	selection: Pick<SelectionState, 'widget'>;
+	caretWriter: CaretWriter;
 }
 
 /** Announces caret motion the editor did not make (a click, a move within one block), and drops
@@ -109,7 +111,7 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// The paragraph keeps focus while its widget is selected, and the browser puts a caret at
 		// its start on any mouse input. A drag's range and a caret in a popover field stay.
 		if (sel.isCollapsed && deps.selection.widget !== null && inBlockSurface(anchorNode)) {
-			sel.removeAllRanges();
+			deps.caretWriter.clear();
 			return;
 		}
 		deps.announceIfMoved();

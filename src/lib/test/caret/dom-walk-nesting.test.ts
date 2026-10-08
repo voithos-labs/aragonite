@@ -9,9 +9,9 @@ import {
 	containerDomTextLength,
 	createRangeAtDomTextOffsets,
 	domTextOffsetAtNode,
-	placeCaretAtRaw,
 	rawTextOfNode
 } from '../../caret/widget-offset';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // The rendered DOM is as deep as the source asks. The cap is jsdom's O(depth²) selector cost and
 // assumes the default V8 stack: a raised `--stack-size` lets even a recursive walk pass.
@@ -83,7 +83,7 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 			.mockImplementation((node, offset) => void seated.push([node, offset]));
 
 		try {
-			expect(placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
+			expect(testCaretWriter.placeCaretAtRaw(block, 0, { clamp: 'exact' })).toBe(true);
 		} finally {
 			write.mockRestore();
 		}

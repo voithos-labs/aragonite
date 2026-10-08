@@ -44,6 +44,7 @@ import {
 	makeStubFocus
 } from './editor-actions';
 import { fixtureReading } from './fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -67,6 +68,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 	const selection = createSelectionState();
 	const stamps = createDocumentStamps();
 	return {
+		caretWriter: testCaretWriter,
 		events: createEditorEvents(),
 		// Real, not a cast: BlockHost and its overlays call four members of the decorations
 		// service during mount, and one with no sources answers all of them honestly.

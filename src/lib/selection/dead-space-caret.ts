@@ -81,7 +81,10 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			// The reset runs first, as for a block below: it clears the gap caret, so nothing may
 			// run between it and `placeGapCaret`, which also ends a live range (G2.12).
 			deps.resetSelectionForClick();
-			placeGapCaret(deps.gapScope.selection, { parentPath: [], index: boundary });
+			placeGapCaret(deps.gapScope.selection, deps.gapScope.caretWriter, {
+				parentPath: [],
+				index: boundary
+			});
 			return true;
 		}
 		const band = nearestBand(

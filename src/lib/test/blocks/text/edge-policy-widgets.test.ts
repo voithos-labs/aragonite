@@ -30,6 +30,7 @@ import { mountWidgetBlock } from './math-widget-fixture';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { type BlockEditActions } from '#lib/action-contracts.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 installEdgeDispatchCleanup();
 
@@ -130,7 +131,7 @@ describe('decoration widgets', () => {
 			const h = makeEdgeDispatch(node, el, {
 				hasIslands: () => true,
 				enterWidget: (widget, fromTrailingEdge) =>
-					selectWidgetWhole(selection, {
+					selectWidgetWhole(selection, testCaretWriter, {
 						paragraphPath: [0],
 						sourceStart: widget.start,
 						preSelectOffset: fromTrailingEdge ? widget.end : widget.start

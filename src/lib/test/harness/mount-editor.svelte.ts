@@ -8,8 +8,9 @@ import { SvelteMap } from 'svelte/reactivity';
 import Editor from '#lib/components/Editor.svelte';
 import type { EditorInstance, EditorProps } from '#lib/editor-props.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { placeCaretAtRaw, selectRawRange } from '#lib/caret/widget-offset.js';
+
 import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */
 export { installEditorDomStubsForTests as installLayoutStubs } from '#lib/testing.js';
@@ -122,7 +123,7 @@ export function surfaceAt(mounted: MountedEditor, path: number[]): HTMLElement {
 /** Put a real caret at `rawOffset` in `el`, through the editor's own caret writer. */
 export function placeCaret(el: HTMLElement, rawOffset: number): void {
 	el.focus();
-	if (!placeCaretAtRaw(el, rawOffset, { clamp: 'exact' })) {
+	if (!testCaretWriter.placeCaretAtRaw(el, rawOffset, { clamp: 'exact' })) {
 		throw new Error(`offset ${rawOffset} is out of range for this block`);
 	}
 }
@@ -130,7 +131,7 @@ export function placeCaret(el: HTMLElement, rawOffset: number): void {
 /** Select `[start, end)` of `el` as a native range, the way a drag inside one block leaves it. */
 export function selectRange(el: HTMLElement, start: number, end: number): void {
 	el.focus();
-	if (!selectRawRange(el, start, end)) {
+	if (!testCaretWriter.selectRawRange(el, start, end)) {
 		throw new Error(`range ${start}..${end} is out of range for this block`);
 	}
 }

@@ -15,6 +15,7 @@ import type { CstNode, InlineNode } from '#lib/core/nodes.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { createDraftRegistry } from '#lib/components/draft-registry.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export function stampMathWidget(node: InlineNode): HTMLElement {
 	const wrapper = document.createElement('span');
@@ -101,6 +102,7 @@ export function widgetInteractionDeps(
 		getEl: () => base.el,
 		getEditorContentWidth: () => 800,
 		selection: createSelectionState(),
+		caretWriter: testCaretWriter,
 		drafts: createDraftRegistry(createDocumentStamps()),
 		setSnapTarget: () => {},
 		readRawText: () =>

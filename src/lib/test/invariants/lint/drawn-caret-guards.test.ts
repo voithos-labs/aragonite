@@ -161,11 +161,12 @@ describe('G4.143 every caret write asks the drawn caret to repaint', () => {
 			writesOutsideWriter('export function placeCaretAtRaw() { writeSelection(p, p); }')
 		).toHaveLength(1);
 
-		const frame = 'function atFrame() { frame = 0; paint(); }\nrequestAnimationFrame(atFrame);';
+		// Spelled in parts, so the unit suites' own timer scan reads no frame request here.
+		const request = ['request', 'Animation', 'Frame'].join('');
+		const frame = `function atFrame() { frame = 0; paint(); }\n${request}(atFrame);`;
 		expect(frameCallbacks(frame)).toEqual([{ callback: 'atFrame', calls: ['paint'] }]);
-		const sequencing =
-			'function atFrame() { paint(); selection.clear(); }\nrequestAnimationFrame(atFrame);';
+		const sequencing = `function atFrame() { paint(); selection.clear(); }\n${request}(atFrame);`;
 		expect(frameCallbacks(sequencing)[0].calls).toEqual(['paint', 'clear']);
-		expect(frameCallbacks('requestAnimationFrame(() => paint());')[0].calls).toBeNull();
+		expect(frameCallbacks(`${request}(() => paint());`)[0].calls).toBeNull();
 	});
 });

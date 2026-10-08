@@ -17,6 +17,7 @@ import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { LeafRangeEdit } from '#lib/tree-operations/leaf-range.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const NO_CUE = { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} };
 
@@ -55,7 +56,7 @@ function fixture() {
 	const log: string[] = [];
 	let finishWrite = () => {};
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, {
+	selectWidgetWhole(selection, testCaretWriter, {
 		paragraphPath: [0],
 		sourceStart: WIDGET.start,
 		preSelectOffset: 2
@@ -120,7 +121,11 @@ describe('replacing a selected widget', () => {
 		const cell = () => row.deps.doc.children[0].children![1].children![0];
 		const parked: (number | null)[] = [];
 		const selection = createSelectionState();
-		selectWidgetWhole(selection, { paragraphPath: [0, 1, 0], sourceStart: 1, preSelectOffset: 1 });
+		selectWidgetWhole(selection, testCaretWriter, {
+			paragraphPath: [0, 1, 0],
+			sourceStart: 1,
+			preSelectOffset: 1
+		});
 		const deps = {
 			get node() {
 				return cell();

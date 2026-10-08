@@ -8,6 +8,7 @@ import { makeCaretMemory } from '#lib/test/harness/editor-actions.js';
 import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { commandContext } from '#lib/test/support/command-context.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // The shared keydown must prevent a plugin-global chord's default yet return false, so the block's
 // own `dispatchKeyCommand` still runs it; true would swallow every plugin-global chord.
@@ -27,6 +28,7 @@ const noCross: CrossBlockHandlers = {
 function makeCtx(): SharedKeydownContext {
 	const el = document.createElement('div');
 	return {
+		caretWriter: testCaretWriter,
 		// No plugins stood up here, so every installed one is active.
 		commands: commandContext(),
 		reading: fixtureReading(),

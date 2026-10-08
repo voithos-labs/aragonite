@@ -19,6 +19,7 @@ import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export { asRawOffset as at } from '#lib/caret/coordinate-spaces.js';
 
@@ -68,6 +69,7 @@ export function makeEdgeDispatch(
 		}
 	};
 	const deps: EdgePolicyDispatchDeps = {
+		caretWriter: testCaretWriter,
 		get node() {
 			return readNode();
 		},

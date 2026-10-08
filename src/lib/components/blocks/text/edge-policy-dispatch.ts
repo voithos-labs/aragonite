@@ -21,7 +21,7 @@ import {
 	markerPrefixOf,
 	revealsNoMarkers,
 	screenVisibilityOf,
-	selectDomRange
+	type CaretWriter
 } from '../../../caret/widget-offset';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
@@ -101,6 +101,8 @@ export interface EdgePolicyDispatchDeps {
 	/** The constructs a toggle at a collapsed caret promised the next insertion. Read and spent
 	 *  here: the first byte after the chord is the insertion they were waiting for. */
 	pendingMarks: PendingMarks;
+	/** The editor's caret writer, which selects a decoration widget whole. */
+	caretWriter: CaretWriter;
 }
 
 export interface EdgePolicyDispatch {
@@ -328,7 +330,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function selectIslandWhole(el: HTMLElement): void {
 		const range = document.createRange();
 		range.selectNode(el);
-		selectDomRange(range);
+		deps.caretWriter.selectDomRange(range);
 	}
 
 	function handleIsland(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {

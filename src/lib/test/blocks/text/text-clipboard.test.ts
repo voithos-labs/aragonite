@@ -19,6 +19,7 @@ import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { stubCaretMemory } from '#lib/testing/headless-actions.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -51,7 +52,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 	const commits: Commit[] = [];
 	const selection = createSelectionState();
 	if (options.selectWidget !== false) {
-		selectWidgetWhole(selection, {
+		selectWidgetWhole(selection, testCaretWriter, {
 			paragraphPath: [0],
 			sourceStart,
 			preSelectOffset: options.preSelectOffset ?? sourceStart
@@ -241,7 +242,11 @@ function foldSettleHarness() {
 	const node: CstNode = doc.children[0];
 	const order: string[] = [];
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 4, preSelectOffset: 4 });
+	selectWidgetWhole(selection, testCaretWriter, {
+		paragraphPath: [0],
+		sourceStart: 4,
+		preSelectOffset: 4
+	});
 
 	let releaseWrite!: () => void;
 	const writeGate = new Promise<void>((resolve) => {

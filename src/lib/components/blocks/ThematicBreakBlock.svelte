@@ -13,7 +13,8 @@
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	const wiring = wireSurfaceContexts();
-	const { blockEdit, focusActions, caretMemory, selection, reading, commands } = wiring.deps;
+	const { blockEdit, focusActions, caretMemory, caretWriter, selection, reading, commands } =
+		wiring.deps;
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
 	const isReading = () => reading.mode() === 'reading';
@@ -37,7 +38,7 @@
 
 	// The block is its own focus target, so the offset means nothing here, but the live
 	// range still has to be ended: nothing below places a DOM caret that would collapse it.
-	export const focus = placeCaret(selection, parkCaret);
+	export const focus = placeCaret(selection, caretWriter, parkCaret);
 
 	export function parkCaret(_offset: number): void {
 		if (el) inputProxy.focus(el);

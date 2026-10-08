@@ -66,8 +66,8 @@ import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
 	rawOfWalkOffset,
 	revealsNoMarkers,
-	selectRawRange,
 	walkOffsetOfRaw,
+	type CaretWriter,
 	type RawRange
 } from '../../caret/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
@@ -165,6 +165,8 @@ export interface EditableSurfaceDeps {
 
 	// ── Cross-block context ───────────────────────────────────────────────────
 	selection: SelectionState;
+	/** The editor's one writer of the native selection. */
+	caretWriter: CaretWriter;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
@@ -312,6 +314,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
 		selection: deps.selection,
+		caretWriter: deps.caretWriter,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
 		caretLanding: deps.caretLanding,
@@ -339,6 +342,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getIndex: deps.getIndex,
 		crossBlock,
 		selection: deps.selection,
+		caretWriter: deps.caretWriter,
 		caretMemory: deps.caretMemory,
 		history: deps.history,
 		focus: deps.focusActions,
@@ -367,7 +371,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.backend.setRaw(asRawOffset(requested), { clamp: 'reachable' });
 	}
 
-	const focus = placeCaret(deps.selection, parkCaret);
+	const focus = placeCaret(deps.selection, deps.caretWriter, parkCaret);
 
 	// A column placement stops on a painted glyph by measuring, so it writes its offset exact.
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -398,7 +402,11 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function setSelection(start: number, end: number): void {
 		const el = deps.getEl();
-		if (el) selectInBlock(deps.selection, () => selectRawRange(el, start, end));
+		if (el) {
+			selectInBlock(deps.selection, deps.caretWriter, () =>
+				deps.caretWriter.selectRawRange(el, start, end)
+			);
+		}
 	}
 
 	function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {

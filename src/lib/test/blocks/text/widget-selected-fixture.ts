@@ -13,6 +13,7 @@ import type { Reading } from '#lib/schema/reading.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** A recorded write less its mode. */
 export type Commit = Omit<RecordedWrite, 'mode'>;
@@ -29,7 +30,11 @@ export function harness(
 	const commits: Commit[] = [];
 	const carets: (number | null)[] = [];
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+	selectWidgetWhole(selection, testCaretWriter, {
+		paragraphPath: [0],
+		sourceStart,
+		preSelectOffset: sourceStart
+	});
 
 	const trap = () => {
 		throw new Error('unexpected dep access on the selected-widget resize path');

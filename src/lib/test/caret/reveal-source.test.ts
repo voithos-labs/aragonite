@@ -8,6 +8,7 @@ import {
 	domTextOffsetAtNode,
 	rawTextOfNode
 } from '../../caret/widget-offset';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // The paragraph "a $x^2$ b", whose math renders as one widget the caret cannot enter. Source
 // offsets, marker prefix excluded: "a " = [0,2), the widget = [2,7), " b" = [7,9).
@@ -53,6 +54,7 @@ function mountBlock(ambientPrefix = ''): HTMLElement {
 function depsFor(el: HTMLElement) {
 	let sourceNode: Text | null = null;
 	return {
+		caretWriter: testCaretWriter,
 		get container() {
 			return el;
 		},

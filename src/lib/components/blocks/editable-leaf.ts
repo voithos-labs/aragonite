@@ -215,6 +215,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const {
 		blockEdit,
 		caretMemory,
+		caretWriter,
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -246,7 +247,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	const sourceText = (): string => trimTrailingLineEnding(deps.getNode().raw);
 
-	const backend = createSurfaceBackend({ getEl: () => deps.getEl() });
+	const backend = createSurfaceBackend({ getEl: () => deps.getEl(), caretWriter });
 	// A leaf's text is its raw, so a computed caret lands exactly where the edit put it.
 	const setCaret = (offset: number): void =>
 		backend.setRaw(asRawOffset(offset), { clamp: 'exact' });
@@ -319,7 +320,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			endDraft();
 			clearSourceHistory();
 			setRevealed(false);
-		}
+		},
+		caretWriter
 	});
 
 	// A line the kind adds takes the block's ending, else the document's.
@@ -402,7 +404,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		surface.parkCaret(offset);
 	}
 
-	const focus = placeCaret(selection, parkCaret);
+	const focus = placeCaret(selection, caretWriter, parkCaret);
 
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		void (async () => {
@@ -727,7 +729,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;
 		// Showing the source places a caret, so the pointer-down reset runs; not through
 		// `crossBlock.handlePointerDown`, which hit-tests the source text, not the rendered view.
-		resetForPointerDown(selection, caretMemory, false);
+		resetForPointerDown(selection, caretWriter, caretMemory, false);
 		void revealSource(revealOffsetAt(e));
 	}
 

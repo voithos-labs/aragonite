@@ -9,6 +9,7 @@ import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
 import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
 import { mountCode, type MountedCode } from './mount-code';
 import { settleEditor } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // display "```js\nconst x = 1\n```": opener text [0,5) · body [6,17] · closer text [18,21).
 const SOURCE = '```js\nconst x = 1\n```\n';
@@ -164,7 +165,11 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		(mounted.instance as unknown as { focus(offset: number): void }).focus(asked);
 
 		const range = window.getSelection()!.getRangeAt(0);
-		expect(createSurfaceBackend({ getEl: () => mounted.el }).rawRangeOf(range)).toEqual({
+		expect(
+			createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => mounted.el }).rawRangeOf(
+				range
+			)
+		).toEqual({
 			start: seated,
 			end: seated
 		});
@@ -179,7 +184,9 @@ describe('CodeBlock: fence-crossing ranged edits', () => {
 		select(18, 21);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 
-		expect(createSurfaceBackend({ getEl: () => mounted.el }).getRaw()).toBe(17);
+		expect(
+			createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => mounted.el }).getRaw()
+		).toBe(17);
 		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});
 });

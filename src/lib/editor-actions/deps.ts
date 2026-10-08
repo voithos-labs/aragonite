@@ -1,6 +1,7 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
 import type { CaretMemory } from '../caret/caret-memory';
+import type { CaretWriter } from '../caret/widget-offset';
 import type { BlockElLookup } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';
@@ -29,6 +30,8 @@ export interface EditorActionsDeps {
 	sharing: SharingState;
 	caretMemory: CaretMemory;
 	selectionState: SelectionState;
+	/** The editor's one writer of the native selection. */
+	caretWriter: CaretWriter;
 	getBlockElByPath: BlockElLookup;
 	/** Where every commit's caret and every restored selection is put down, and the counter an
 	 *  undo, redo or swap bumps. */

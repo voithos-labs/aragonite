@@ -14,6 +14,7 @@ import {
 import type { CstNode } from '#lib/core/nodes.js';
 import { placeCaretAt } from './math-widget-fixture';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 	let el: HTMLElement;
@@ -63,6 +64,7 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 			},
 			getEl: () => el,
 			getEditorContentWidth: trap,
+			caretWriter: testCaretWriter,
 			cursor: new Proxy({}, { get: trap }),
 			selection: new Proxy({}, { get: trap }),
 			blockEdit: new Proxy({}, { get: trap }),

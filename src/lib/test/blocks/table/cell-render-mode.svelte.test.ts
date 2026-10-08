@@ -10,6 +10,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import ModeReadingWidget from '../fixtures/ModeReadingWidget.svelte';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const WIDGET_SOURCE = '%%w%%';
 
@@ -39,6 +40,7 @@ function mountCell(raw: string) {
 	let mode = $state<PresentationMode>('source');
 	let theme = $state('light');
 	const render = createCellRender({
+		caretWriter: testCaretWriter,
 		get el() {
 			return el;
 		},

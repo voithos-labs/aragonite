@@ -6,6 +6,7 @@ import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { placeGapCaret } from '#lib/selection/place-caret.js';
 import { isGapSelection } from '#lib/undo/types.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // An undo entry taken with the caret between blocks records that position. Every block here is
 // mounted but reports no caret, so the gap must also beat the declared fallback coordinate.
@@ -22,7 +23,7 @@ function harness() {
 describe('an undo entry pushed while a gap is live records the gap', () => {
 	it('the new block stores the boundary it was created at, not its snapshot coordinate', async () => {
 		const h = harness();
-		placeGapCaret(h.deps.selectionState, AT_BOUNDARY);
+		placeGapCaret(h.deps.selectionState, testCaretWriter, AT_BOUNDARY);
 
 		await h.actions.insertParagraph(1, 'x');
 
@@ -33,7 +34,7 @@ describe('an undo entry pushed while a gap is live records the gap', () => {
 
 	it('captureCurrentState carries it too, so the redo side of a swap keeps the gap', () => {
 		const h = harness();
-		placeGapCaret(h.deps.selectionState, AT_BOUNDARY);
+		placeGapCaret(h.deps.selectionState, testCaretWriter, AT_BOUNDARY);
 
 		expect(h.controller.captureCurrentState().selection).toEqual({ gapCaret: AT_BOUNDARY });
 	});
@@ -56,7 +57,7 @@ describe('an undo entry pushed while a gap is live records the gap', () => {
 	// to find the document that boundary was valid in.
 	it('names a boundary that resolves in its own snapshot', async () => {
 		const h = harness();
-		placeGapCaret(h.deps.selectionState, AT_BOUNDARY);
+		placeGapCaret(h.deps.selectionState, testCaretWriter, AT_BOUNDARY);
 
 		await h.actions.insertParagraph(1, 'x');
 

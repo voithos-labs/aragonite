@@ -299,15 +299,17 @@ const MANIFESTS: ManifestRule[] = [
 		// Only the two-argument collapse and setPosition: Range.collapse(true) and the editor's own
 		// selectionState.collapse() take one argument or none, and write no caret.
 		matches:
-			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
+			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren|removeAllRanges|empty)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
 		declared: {
 			'src/lib/caret/widget-offset.ts':
-				'writeSelection, behind placeCaretAtRaw, the raw range writers and selectDomRange, checks every endpoint against an empty block’s <br> (G1.75)'
+				'createCaretWriter, one per editor: its writes check every endpoint against an empty block’s <br> (G1.75) and ask the drawn caret to repaint'
 		},
 		reason:
-			'a caret written from a raw offset goes through placeCaretAtRaw, which skips the marker prefix and clamps; a range over nodes the caller already holds goes through selectDomRange',
+			'every write or clear of the native selection goes through the editor’s caret writer (EditorServices.caretWriter), which skips the marker prefix, clamps, and asks the drawn caret to repaint',
 		hits: [
 			'sel?.addRange(range);',
+			'window.getSelection()?.removeAllRanges();',
+			'sel.empty();',
 			'sel.setBaseAndExtent(n, 0, n, 0);',
 			'sel.extend(node, 2);',
 			'window.getSelection()?.collapse(node, 2);',
@@ -333,7 +335,7 @@ const MANIFESTS: ManifestRule[] = [
 				'measures the caret box a column scan compares, and writes no caret'
 		},
 		reason:
-			'a DOM position built outside the walk module skips the prefix and clamp rules a caret write needs; write a caret with placeCaretAtRaw',
+			'a DOM position built outside the walk module skips the prefix and clamp rules a caret write needs; write a caret through the editor’s caret writer',
 		hits: [
 			'const range = createRangeAtDomTextOffsets(el, a, a);',
 			'findDomTextOffsetTarget(el, t)'
@@ -350,7 +352,7 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/selection/selection-drop.ts': "measures the drop caret's rect"
 		},
 		reason:
-			'a range from raw offsets is for measuring or decorating; a caret goes through placeCaretAtRaw',
+			'a range from raw offsets is for measuring or decorating; a caret goes through the editor’s caret writer',
 		hits: ['rawRangeToDomRange(root, 0, 3)'],
 		misses: ['// rawRangeToDomRange measures']
 	},

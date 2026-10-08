@@ -10,6 +10,7 @@ import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import type { CaretMemory } from '../caret/caret-memory';
 import { createInsertionRecords } from '../caret/next-insertion';
+import { createCaretWriter } from '../caret/widget-offset';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
@@ -180,6 +181,8 @@ export function createHeadlessActions(
 			getDoc: () => doc,
 			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
 		}),
+		// A headless suite has no drawn caret to repaint.
+		caretWriter: createCaretWriter(() => {}),
 		getBlockElByPath: () => null,
 		get caretLanding() {
 			return caretLanding;
@@ -200,6 +203,7 @@ export function createHeadlessActions(
 			getDoc: () => doc,
 			root: rootList,
 			selectionState: deps.selectionState,
+			caretWriter: deps.caretWriter,
 			// Read live: a suite may swap in its own caret memory after building the deps.
 			caretMemory: {
 				forget: () => deps.caretMemory.forget(),

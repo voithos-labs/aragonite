@@ -11,6 +11,7 @@ import { createSourceReveal } from '#lib/caret/reveal-source.js';
 import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { settleEditor } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 installMathInline();
 
@@ -75,6 +76,7 @@ describe('reveal transitions: settle-window re-entry (G1.26)', () => {
 describe('reveal transitions: the shared core source-length precondition (G1.26)', () => {
 	it('a source not spanning its [sourceStart, sourceEnd) range fires at reveal entry', async () => {
 		const reveal = createSourceReveal({
+			caretWriter: testCaretWriter,
 			get container() {
 				return null;
 			},

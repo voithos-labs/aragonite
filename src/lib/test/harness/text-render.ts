@@ -11,6 +11,7 @@ import type { IndexedDecoration } from '#lib/decorations/buckets.js';
 import type { ReplaceDecoration, WidgetDecoration } from '#lib/decorations/types.js';
 import type { Reading } from '#lib/schema/reading.js';
 import { fixtureReading } from './fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -51,6 +52,7 @@ export function makeRenderHarness(
 	let policy: ImageLoadPolicy = overrides.imageLoadPolicy ?? 'auto';
 	let version = 0;
 	const deps: TextRenderDeps = {
+		caretWriter: testCaretWriter,
 		get el() {
 			return el;
 		},

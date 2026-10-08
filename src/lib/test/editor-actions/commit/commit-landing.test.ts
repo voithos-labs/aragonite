@@ -14,6 +14,7 @@ import type { CaretPosition } from '#lib/selection/primitives.js';
 import { makeTopHarness, stubBlockComponent } from '../../harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { takeDevWarns } from '../../support/warn-gate';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const deleteSecond = (children: unknown[]): StructuralChange => {
 	children.splice(1, 1);
@@ -100,6 +101,7 @@ describe.each(COMMIT_ROUTES)('a landing across an undo, through %s', (_route, co
 		let mount!: () => void;
 		const mounted = new Promise<void>((resolve) => (mount = resolve));
 		const landing = createCaretLanding({
+			caretWriter: testCaretWriter,
 			getDoc: () => h.deps.doc,
 			root: {
 				count: () => h.deps.doc.children.length,

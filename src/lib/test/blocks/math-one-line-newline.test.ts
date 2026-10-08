@@ -22,6 +22,7 @@ import {
 } from '../harness/mount-editor.svelte';
 import { pressKey, settleEditor } from '../harness/settle';
 import { dispatchBeforeInput, dispatchPaste } from '../harness/insertion-routes';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 // One definition for every row: installing a second is refused with a warning.
@@ -56,7 +57,8 @@ async function showSourceAt(editor: MountedEditor<Seam>, offset: number): Promis
 	return el;
 }
 
-const caretIn = (el: HTMLElement) => createSurfaceBackend({ getEl: () => el }).getRaw();
+const caretIn = (el: HTMLElement) =>
+	createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).getRaw();
 
 async function blur(el: HTMLElement): Promise<void> {
 	el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));

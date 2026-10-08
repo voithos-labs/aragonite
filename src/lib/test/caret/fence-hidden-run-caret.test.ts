@@ -3,7 +3,8 @@
 // range from raw offsets never starts or ends in one, and a caret write never lands in one.
 // Miss-analysis: the walk's suite had no `data-presentation` root, so hidden runs had no fixture.
 import { describe, it, expect, afterEach } from 'vitest';
-import { isHiddenMarkerText, placeCaretAtRaw, rawRangeToDomRange } from '../../caret/widget-offset';
+import { isHiddenMarkerText, rawRangeToDomRange } from '../../caret/widget-offset';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface Fixture {
 	block: HTMLElement;
@@ -88,13 +89,13 @@ describe('rawRangeToDomRange: hidden fence lines are opaque', () => {
 describe('placeCaretAtRaw: the corrupting landing', () => {
 	it('never drops the caret inside the hidden opener fence', () => {
 		const fx = mount('live');
-		placeCaretAtRaw(fx.block, 0, { clamp: 'exact' });
+		testCaretWriter.placeCaretAtRaw(fx.block, 0, { clamp: 'exact' });
 		expect(isHiddenMarkerText(caretNode(), fx.block)).toBe(false);
 	});
 
 	it('drops it in the fence text in source mode, where the bytes are visible', () => {
 		const fx = mount();
-		placeCaretAtRaw(fx.block, 0, { clamp: 'exact' });
+		testCaretWriter.placeCaretAtRaw(fx.block, 0, { clamp: 'exact' });
 		expect(caretNode()).toBe(fx.openerText);
 	});
 });

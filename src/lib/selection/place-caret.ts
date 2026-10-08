@@ -8,7 +8,7 @@
 import { assertInvariant } from '../assert';
 import { checkPlacementEndsWidget } from '../invariants/placement-ends-widget';
 import type { GapCaretPosition } from './gap-caret';
-import { clearNativeSelection } from './native-bridge';
+import type { CaretWriter } from '../caret/widget-offset';
 import type { WidgetTarget } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 
@@ -16,20 +16,25 @@ import type { SelectionState } from './selection-state.svelte';
  *  a caret between the state write and the DOM placement. */
 export function placeCaret(
 	selection: SelectionState,
+	writer: CaretWriter,
 	parkCaret: (offset: number) => void
 ): (offset: number) => void {
-	return (offset) => putDown(selection, () => parkCaret(offset));
+	return (offset) => putDown(selection, writer, () => parkCaret(offset));
 }
 
 /** Puts a browser range down inside one block (a first Mod+A, a block's `setSelection`) the way
  *  `placeCaret` puts a caret down: whatever the editor had selected ends first. */
-export function selectInBlock(selection: SelectionState, select: () => void): void {
-	putDown(selection, select);
+export function selectInBlock(
+	selection: SelectionState,
+	writer: CaretWriter,
+	select: () => void
+): void {
+	putDown(selection, writer, select);
 }
 
-function putDown(selection: SelectionState, place: () => void): void {
+function putDown(selection: SelectionState, writer: CaretWriter, place: () => void): void {
 	selection.batch(() => {
-		endLiveCaretClaim(selection);
+		endLiveCaretClaim(selection, writer);
 		place();
 		assertInvariant('placement-ends-widget', () => checkPlacementEndsWidget(selection.widget));
 		// A plain caret or range changes no field the state checks, so subscribers hear of the
@@ -40,27 +45,35 @@ function putDown(selection: SelectionState, place: () => void): void {
 
 /** The only place gap-caret state is written. The native selection is cleared in the batch
  *  because no browser caret may outlive the gap caret. */
-export function placeGapCaret(selection: SelectionState, pos: GapCaretPosition): void {
+export function placeGapCaret(
+	selection: SelectionState,
+	writer: CaretWriter,
+	pos: GapCaretPosition
+): void {
 	selection.batch(() => {
-		endLiveCaretClaim(selection);
+		endLiveCaretClaim(selection, writer);
 		selection.setGapCaret(pos);
-		clearNativeSelection();
+		writer.clear();
 	});
 }
 
 /** The only place a widget is selected whole. The native selection is cleared in the batch,
  *  because no browser caret may outlive the widget selection taking its place. */
-export function selectWidgetWhole(selection: SelectionState, target: WidgetTarget): void {
+export function selectWidgetWhole(
+	selection: SelectionState,
+	writer: CaretWriter,
+	target: WidgetTarget
+): void {
 	selection.batch(() => {
 		selection.selectWidget(target);
-		clearNativeSelection();
+		writer.clear();
 	});
 }
 
 /** Ends whatever the editor had selected (a range, a gap caret, a widget) before a new caret
  *  lands. The native clear covers a whole-block range, which sets no DOM range of its own. */
-function endLiveCaretClaim(selection: SelectionState): void {
+function endLiveCaretClaim(selection: SelectionState, writer: CaretWriter): void {
 	const hadRange = selection.isCrossBlock;
 	if (hadRange || selection.gapCaret !== null || selection.widget !== null) selection.clear();
-	if (hadRange) clearNativeSelection();
+	if (hadRange) writer.clear();
 }

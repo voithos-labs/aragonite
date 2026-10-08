@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { placeCaret } from '../../selection/place-caret';
 import { createSelectionState } from '../../selection/selection-state.svelte';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const at = (block: number, offset: number) => ({ path: [block], offset });
 
@@ -31,7 +32,7 @@ describe('placeCaret: the safe caret entry point', () => {
 	it('ends a live cross-block range and lands the caret', () => {
 		const h = liveRange();
 
-		placeCaret(h.selection, h.park)(7);
+		placeCaret(h.selection, testCaretWriter, h.park)(7);
 
 		expect(h.selection.isCrossBlock).toBe(false);
 		expect(h.landed).toBe(7);
@@ -53,7 +54,7 @@ describe('placeCaret: the safe caret entry point', () => {
 	it('notifies once, after the caret has landed', () => {
 		const h = liveRange();
 
-		placeCaret(h.selection, h.park)(7);
+		placeCaret(h.selection, testCaretWriter, h.park)(7);
 
 		expect(h.emissions).toEqual([{ isCrossBlock: false, landed: 7 }]);
 	});
@@ -65,7 +66,7 @@ describe('placeCaret: the safe caret entry point', () => {
 		let landed: number | null = null;
 		const selection = createSelectionState({ onChange: () => landings.push(landed) });
 
-		placeCaret(selection, (offset) => {
+		placeCaret(selection, testCaretWriter, (offset) => {
 			landed = offset;
 		})(3);
 
@@ -84,7 +85,7 @@ describe('placeCaret: the safe caret entry point', () => {
 
 		const h = liveRange();
 		// A whole-block placement sets no DOM range of its own, as a thematic break's does.
-		placeCaret(h.selection, () => {})(0);
+		placeCaret(h.selection, testCaretWriter, () => {})(0);
 
 		expect(window.getSelection()?.rangeCount).toBe(0);
 		el.remove();
@@ -98,7 +99,7 @@ describe('placeCaret: the safe caret entry point', () => {
 		h.selection.setGapCaret({ parentPath: [], index: 1 });
 		h.emissions.length = 0;
 
-		placeCaret(h.selection, h.park)(7);
+		placeCaret(h.selection, testCaretWriter, h.park)(7);
 
 		expect(h.selection.gapCaret).toBeNull();
 		expect(h.landed).toBe(7);
@@ -112,10 +113,10 @@ describe('placeCaret: the safe caret entry point', () => {
 			onChange: ({ placementOnly }) => flushes.push(placementOnly)
 		});
 
-		placeCaret(selection, () => {})(3);
+		placeCaret(selection, testCaretWriter, () => {})(3);
 		selection.batch(() => {
 			selection.enterCrossBlock(at(0, 0), at(2, 4));
-			placeCaret(selection, () => {})(3);
+			placeCaret(selection, testCaretWriter, () => {})(3);
 		});
 
 		expect(flushes).toEqual([true, false]);
@@ -125,7 +126,7 @@ describe('placeCaret: the safe caret entry point', () => {
 		const h = liveRange();
 
 		h.selection.batch(() => {
-			placeCaret(h.selection, h.park)(7);
+			placeCaret(h.selection, testCaretWriter, h.park)(7);
 			expect(h.emissions).toEqual([]);
 		});
 

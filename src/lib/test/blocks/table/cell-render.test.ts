@@ -8,6 +8,7 @@ import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import type { Reading } from '#lib/schema/reading.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -46,6 +47,7 @@ function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = 
 	let node = makeCell(raw);
 	let islands: Island[] = [];
 	const render = createCellRender({
+		caretWriter: testCaretWriter,
 		get el() {
 			return el;
 		},
