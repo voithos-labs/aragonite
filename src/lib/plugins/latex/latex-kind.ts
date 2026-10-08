@@ -36,6 +36,7 @@ import { registerMathBlockCompleter } from './math-completion';
 import {
 	awaitsMathCloser,
 	legalMathSource,
+	mathBlockLines,
 	mathCloserLine,
 	opensMathBlock,
 	readMathSource
@@ -200,7 +201,7 @@ export function registerMathBlock(): void {
 		// The open source takes Enter as a literal newline and never splits, so neither edge
 		// can grow a neighbouring block.
 		gapEdges: 'both',
-		conformanceFixture: '$$\nx^2\n$$\n',
+		conformanceFixture: `${mathBlockLines('x^2').join('\n')}\n`,
 		caretTargetAtPoint: mathCaretAtPoint,
 		rawWrite: mathBlockWrite,
 		closure: simpleLeafClosure({

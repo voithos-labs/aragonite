@@ -1920,31 +1920,30 @@ const REF_FOCUS: FileRule = {
 	misses: ['ref.focus(offset);', 'blockRefs[i] = ref;', 'const r = refAt(list, i);']
 };
 
-// ── G4.131 a grammar's bytes are read and written in its own module only ──────
+// ── G4.131 a block syntax's bytes are read and written in its own module only ──
 
 const MATH_SHAPE_HOME = SOURCE.mathShape;
 const ROGUE_MATH_READER = `${SOURCE_DIR.latexPlugin}rogue.ts`;
-const DOLLAR_FENCE = String.raw`(?:\bBLOCK_FENCE\b|\bFENCE\b|['"\x60]\$\$['"\x60])`;
+// The fence constant, or a string opening or closing on the fence: `$$` read or written by hand.
+const DOLLAR_FENCE = String.raw`\b(?:BLOCK_FENCE|FENCE)\b|['"\x60]\$\$|\$\$['"\x60]`;
 // A regex for the fence spells it escaped: `\$\$` in a literal, `\\$\\$` in a string.
 const ESCAPED_FENCE = String.raw`\\\$\\\$|\\\\\$\\\\\$`;
 // A source split into lines, or a fence test handed a line read off one: a closer search by hand.
 const MATH_LINE_SEARCH = String.raw`\b(?:displayLines|firstDisplayLine|splitLines)\s*\(|\b(?:isMathFenceLine|opensMathBlock)\s*\(\s*[\w$.[\]]*\.text\s*\)`;
 
-/** One row per grammar: where its bytes are read and written, and the shapes a copy takes. */
-const GRAMMAR_MODULES: FileRule[] = [
+/** One row per block syntax: the module its bytes are read and written in, and what a copy looks like. */
+const SYNTAX_MODULES: FileRule[] = [
 	{
-		id: 'G4.131 a `$$` block’s opener, body and closer are read in `math-shape.ts` only',
+		id: 'G4.131 a `$$` block’s opener, body and closer are read and written in `math-shape.ts` only',
 		population: under(SOURCE_DIR.latexPlugin),
-		matches: new RegExp(
-			String.raw`(?:startsWith|endsWith|indexOf|lastIndexOf|includes)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==|${ESCAPED_FENCE}|${MATH_LINE_SEARCH}`
-		),
+		matches: new RegExp(`${DOLLAR_FENCE}|${ESCAPED_FENCE}|${MATH_LINE_SEARCH}`),
 		allowed: {
 			[MATH_SHAPE_HOME]:
-				'the closer search and the split the parser, the write rule and the painter all ask'
+				'the closer search, the split and the block lines the parser, the write rule, the painter and the completer all ask'
 		},
 		reaches: [MATH_SHAPE_HOME],
 		reason:
-			'a second reader of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: ask `readMathSource`, or `mathCloserLine` over a line array',
+			'a second copy of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: ask `readMathSource`, `mathCloserLine` over a line array, or `mathBlockLines` to write a block',
 		hits: [
 			at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
 			at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
@@ -1956,13 +1955,21 @@ const GRAMMAR_MODULES: FileRule[] = [
 			at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');"),
 			at(ROGUE_MATH_READER, 'while (i < ctx.end && !isMathFenceLine(ctx.lines[i].text)) i++;'),
 			at(ROGUE_MATH_READER, 'return rest.some((line) => isMathFenceLine(line.text));'),
-			at(ROGUE_MATH_READER, 'const [openerLine] = displayLines(opener);')
+			at(ROGUE_MATH_READER, 'const [openerLine] = displayLines(opener);'),
+			at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
+			at(ROGUE_MATH_READER, "registerInsertEntry({ markdown: '$$\\n\\n$$\\n' });"),
+			at(ROGUE_MATH_READER, 'const block = `$$${body}$$`;')
 		],
 		misses: [
-			at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
+			at(ROGUE_MATH_READER, "return { lines: mathBlockLines(''), caret };"),
+			at(
+				ROGUE_MATH_READER,
+				"registerInsertEntry({ markdown: `${mathBlockLines('').join('\\n')}\\n` });"
+			),
 			at(ROGUE_MATH_READER, 'if (!isMathFenceLine(trimWhitespace(line))) return null;'),
 			at(ROGUE_MATH_READER, 'const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);'),
 			at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
+			at(ROGUE_MATH_READER, "const price = '$' + amount;"),
 			at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
 		]
 	}
@@ -2205,7 +2212,7 @@ describeFileRules(
 		PIECES_UNDER_ORDER_CHECK,
 		WIDGET_LIST,
 		...CODE_EDIT_SPAN,
-		...GRAMMAR_MODULES
+		...SYNTAX_MODULES
 	],
 	SOURCES
 );

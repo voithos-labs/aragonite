@@ -1177,7 +1177,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.109 | A container built around another's children starts from that container's bytes            | L       |
 | G4.111 | A block's editable element writes its own text only through the surface write             | L       |
 | G4.112 | An indent key over a range reaches list items through one route, never removing the range | L       |
-| G4.113 | _Retired_: the `$$` shape is G4.131's first row                                           | L       |
+| G4.113 | _Retired_: the `$$` shape is G4.131's `$$` row                                            | L       |
 | G4.114 | How a block paints under a range is decided in the selection model only                   | L       |
 | G4.115 | A clipboard payload is written only by a copy                                             | L       |
 | G4.116 | The pending break answers a text block's key before the shared keymap                     | L       |
@@ -1186,7 +1186,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.125 | A component asks which inlines are widgets only in `widget-adjacency.ts`                  | L       |
 | G4.126 | The dev server bundles every package the app imports before a page asks for it            | L       |
 | G4.130 | A code block edit over a range takes its span from `editSpan` only                        | L       |
-| G4.131 | A grammar's bytes are read and written in its own module only                             | L       |
+| G4.131 | A block syntax's bytes are read and written in its own module only                        | L       |
 
 ### The entries
 
@@ -2367,23 +2367,22 @@ the fence-lines flag (or the mode check behind it) is read only where it's deriv
 or `if (fenceLinesShown) return range;` fails.
 `test/blocks/code/code-fence-edit-span.test.ts` runs each route over the same ranges in both modes.
 
-**G4.131 · A grammar's bytes are read and written in its own module.** Two routes that each read
-a block's syntax drift: one learns a case the other doesn't, and then the screen, the bytes a write
-stores and a reload show three different blocks. So each grammar gets one module, and
-`lint/file-rules.test.ts` keeps a row per grammar (`GRAMMAR_MODULES`) that fails a copy anywhere
-else:
+**G4.131 · A block syntax's bytes are read and written in its own module.** Two routes that
+each read a block's syntax drift: one learns a case the other doesn't, and then the screen, the
+bytes a write stores and a reload show three different blocks. So each block syntax gets one
+module, and `lint/file-rules.test.ts` keeps a row per syntax (`SYNTAX_MODULES`) that fails a copy
+anywhere else:
 
 - **`$$` math.** `src/lib/plugins/latex/math-shape.ts` splits a `$$` source into an opener, a body
-  and a closer (`readMathSource`) and finds the line that closes a block (`mathCloserLine`, which
-  the parser hands its own lines). The parser, the check for a paragraph still waiting on its
-  closer, the write rule, the painter, the body span, the rendered formula and the edit's reshape
-  all ask it. The ` ```math ` form is the code fence's syntax, which `sliceFencedSource` reads,
-  and `math-source.ts` :: `sliceMathSource` is the one place that picks between the two. The row
-  fails, under `src/lib/plugins/latex/` outside that module, a `startsWith`, `endsWith`,
-  `indexOf`, `lastIndexOf`, `includes` or equality against the fence, a regex spelling it `\$\$`,
-  a source split into lines, or a fence test handed a line read off one.
-  `test/plugins/latex/math-shape-parity.test.ts` runs every one of those readers over the same
-  shapes.
+  and a closer (`readMathSource`), finds the line that closes a block (`mathCloserLine`, which the
+  parser hands its own lines), and writes a new block's lines (`mathBlockLines`, which the Enter
+  completer, the insert menu and the write rule's reshape build from). The ` ```math ` form is the
+  code fence's syntax, which `sliceFencedSource` reads, and `math-source.ts` :: `sliceMathSource`
+  is the one place that picks between the two. The row fails, under `src/lib/plugins/latex/`
+  outside that module, the fence constant, a string opening or closing on `$$`, a regex spelling
+  it `\$\$`, a source split into lines, or a fence test handed a line read off one.
+  `test/plugins/latex/math-shape-parity.test.ts` runs every function that reads the split over the
+  same shapes, and `math-block-writers.test.ts` pins the bytes a new block is written with.
 
 ## Accessibility
 

@@ -17,7 +17,7 @@ describe('block math is dormant until registered', () => {
 });
 
 // Which lines open a block is `math-shape-parity.test.ts`'s; these pin the node and its neighbours.
-describe('block math recognition', () => {
+describe('a parsed math block', () => {
 	beforeEach(registerMathBlock);
 
 	it('parses a fence to a single source-holding leaf (no children)', () => {

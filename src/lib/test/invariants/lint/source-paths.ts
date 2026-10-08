@@ -249,7 +249,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 
 	// ── Bundled plugins and styles ──────────────────────────────────────────
 	latexBlockMath: 'function keepSourceFocus(',
-	mathShape: 'export const BLOCK_FENCE',
+	mathShape: 'export function readMathSource(',
 	mermaidBlock: 'function focusSurfaceEl(',
 	editorCss: '.code-tok-keyword {',
 	themeTokens: ':where(.aragonite-editor-theme) {',

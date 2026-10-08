@@ -10,13 +10,13 @@ import {
 	type AnyBlockKind,
 	type CompletionResult
 } from '$lib/plugin';
-import { BLOCK_FENCE, isMathFenceLine } from './math-shape';
+import { isMathFenceLine, mathBlockLines } from './math-shape';
 
 /** Exactly the fence and nothing else: `$$x$$` is already a whole block and `$$ x` opens no
  *  multi-line form, so neither is an attempt at the pair this completes. */
 export function tryCompleteMathBlock(line: string): CompletionResult | null {
 	if (!isMathFenceLine(trimWhitespace(line))) return null;
-	return { lines: [BLOCK_FENCE, '', BLOCK_FENCE], caret: { path: [], line: 1, column: 0 } };
+	return { lines: mathBlockLines(''), caret: { path: [], line: 1, column: 0 } };
 }
 
 export function registerMathBlockCompleter(kind: AnyBlockKind): void {

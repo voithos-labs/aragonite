@@ -8,7 +8,7 @@ import { displayLines, firstLineEnding, type FencedSource, type LineEnding } fro
 
 type Line = ReturnType<typeof displayLines>[number];
 
-export const BLOCK_FENCE = '$$';
+const BLOCK_FENCE = '$$';
 
 /** A source read as a block, plus the text past its closer, which the parser reads on its own. */
 export interface MathSource extends FencedSource {
@@ -37,8 +37,8 @@ export const opensMathBlock = (text: string): boolean =>
  *  block, -1 when that line opens none or no line before `end` closes it. */
 export function mathCloserLine(
 	lines: readonly { text: string }[],
-	from = 0,
-	end = lines.length
+	from: number,
+	end: number
 ): number {
 	const opener = lines[from].text;
 	if (isOneLineMath(opener)) return from;
@@ -47,13 +47,16 @@ export function mathCloserLine(
 	return -1;
 }
 
-/** A lone `$$` line with no closing `$$` line under it: the opener read on for one, the block
- *  became a paragraph, and a closer typed below still makes it math. */
+/** A lone `$$` line no later line closes: a paragraph now, which a closer typed below turns into
+ *  math. */
 export function awaitsMathCloser(raw: string): boolean {
 	if (!raw.startsWith(BLOCK_FENCE)) return false;
 	const lines = displayLines(raw);
-	return isMathFenceLine(lines[0].text) && mathCloserLine(lines) === -1;
+	return isMathFenceLine(lines[0].text) && mathCloserLine(lines, 0, lines.length) === -1;
 }
+
+/** The multi-line form's lines around `body`, the shape every writer of a new block gives it. */
+export const mathBlockLines = (body: string): string[] => [BLOCK_FENCE, body, BLOCK_FENCE];
 
 // ── The reading ────────────────────────────────────────────────────────────
 
@@ -63,7 +66,7 @@ export function readMathSource(text: string): MathSource | null {
 	if (!text.startsWith(BLOCK_FENCE)) return null;
 	const lines = displayLines(text);
 	const [first] = lines;
-	const closer = mathCloserLine(lines);
+	const closer = mathCloserLine(lines, 0, lines.length);
 	if (closer === 0) return cut(text, BLOCK_FENCE.length, first.text.length - BLOCK_FENCE.length);
 	const bodyStart = isMathFenceLine(first.text)
 		? first.text.length + first.ending.length
@@ -119,7 +122,7 @@ function onOwnLines(body: string, caret: number, ending: LineEnding): MathEdit {
 	const bodyStart = BLOCK_FENCE.length;
 	const bodyEnd = bodyStart + body.length;
 	const shift = caret < bodyStart ? 0 : caret <= bodyEnd ? ending.length : 2 * ending.length;
-	return { text: BLOCK_FENCE + ending + body + ending + BLOCK_FENCE, caret: caret + shift };
+	return { text: mathBlockLines(body).join(ending), caret: caret + shift };
 }
 
 /** Line 0 opens `$$` but isn't a whole block or a fence line, and the last line isn't the closer. */

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Every reader of a math block's opener, body and closer, over the same shapes, held to the one
-// split: `readMathSource` for `$$`, the code fence's own for ```math. The parser's side reads a
+// Every function that reads a math block's opener, body and closer, over the same shapes, held to
+// one split: `readMathSource` for `$$`, the code fence's own for ```math. The parser's side reads a
 // block's stored bytes, its line ending kept; the painter's side reads the source being edited.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib';
@@ -23,6 +23,7 @@ import {
 	reshapeMathEdit
 } from '$lib/plugins/latex/math-source';
 import { awaitsMathCloser, readMathSource, type MathSource } from '$lib/plugins/latex/math-shape';
+import { paintedSplit } from './painted-split';
 
 beforeEach(registerMathBlock);
 
@@ -64,6 +65,7 @@ const shapes = (rows: Row[]): Shape[] =>
 const DOLLAR_SHAPES = shapes([
 	['closed multi-line', '$$\nx^2\n$$', parts('$$\n', 'x^2\n', '$$'), true],
 	['unclosed multi-line', '$$\nx^2', parts('$$\n', 'x^2', ''), false],
+	['unclosed, CRLF', '$$\r\nx^2', parts('$$\r\n', 'x^2', ''), false],
 	['one-line', '$$x^2$$', parts('$$', 'x^2', '$$'), true],
 	['one-line with padding', '$$ x^2 $$', parts('$$', ' x^2 ', '$$'), true],
 	['one-line, emptied', '$$$$', parts('$$', '', '$$'), true],
@@ -72,7 +74,9 @@ const DOLLAR_SHAPES = shapes([
 	['a blank body line', '$$\n\n$$', parts('$$\n', '\n', '$$'), true],
 	['a blank line inside the body', '$$\nx\n\ny\n$$', parts('$$\n', 'x\n\ny\n', '$$'), true],
 	['a lone fence line', '$$', parts('$$', '', ''), false],
+	['a lone fence line, CRLF', '$$', parts('$$', '', ''), false, '\r\n'],
 	['text on the opener line, unclosed', '$$ x\ny', parts('$$', ' x\ny', ''), false],
+	['opener with a trailing space', '$$ \nx^2\n$$', parts('$$', ' \nx^2\n', '$$'), false],
 	['opener indented one space', ' $$\nx^2\n$$', null, false],
 	['opener indented three spaces', '   $$\nx^2\n$$', null, false],
 	['opener indented four spaces', '    $$\nx^2\n$$', null, false],
@@ -99,7 +103,7 @@ const FENCE_SHAPES = shapes([
 	['```math, CRLF', '```math\r\nx^2\r\n```', parts('```math\r\n', 'x^2\r\n', '```'), true]
 ]);
 
-// ── Each reader's view of the split ──────────────────────────────────────────
+// ── Each route's view of the split ───────────────────────────────────────────
 
 const MATH_FIXTURE = '$$\nx\n$$';
 
@@ -114,25 +118,6 @@ function writeRuleText(raw: string, eol: LineEnding): string {
 	return tryGetBlockKindDescriptor(node.kind)!.rawWrite!.text!(raw);
 }
 
-/** The opener, closer and trailing text the painter draws, read off its fence-line markers. */
-function paintedSplit(text: string): Omit<MathSource, 'body'> | null {
-	const nodes = Array.from(renderMathSource(text).childNodes);
-	const fenceAt = nodes.flatMap((node, i) =>
-		node instanceof Element && node.classList.contains('md-fence-line') ? [i] : []
-	);
-	if (fenceAt.length === 0) return null;
-	const opener = fenceAt[0] === 0 ? (nodes[0].textContent ?? '') : '';
-	const closerAt = fenceAt.find((i) => i > 0);
-	const closerLine = closerAt === undefined ? null : (nodes[closerAt] as Element);
-	const markers = closerLine?.querySelectorAll('.md-marker') ?? [];
-	const past = closerAt === undefined ? [] : nodes.slice(closerAt + 1);
-	return {
-		opener,
-		closer: markers.length > 0 ? (markers[markers.length - 1].textContent ?? '') : '',
-		after: past.map((node) => node.textContent).join('')
-	};
-}
-
 /** A closed source whose body has no line to put a caret on: the edit gives it one. */
 const isBare = (source: MathSource | null): boolean =>
 	source !== null &&
@@ -143,9 +128,9 @@ const isBare = (source: MathSource | null): boolean =>
 const BOTH_FORMS = [...DOLLAR_SHAPES, ...FENCE_SHAPES];
 const DOLLAR_SOURCES = DOLLAR_SHAPES.filter((shape) => shape.split !== null);
 
-type Reader = [name: string, check: (shape: Shape) => void, shapes: Shape[]];
+type Route = [name: string, check: (shape: Shape) => void, shapes: Shape[]];
 
-const READERS: Reader[] = [
+const ROUTES: Route[] = [
 	[
 		'the parser',
 		({ text, eol, block }) => {
@@ -179,9 +164,10 @@ const READERS: Reader[] = [
 	[
 		'the blur’s write',
 		({ text, eol, split }) => {
-			const written = readMathSource(blurWrite(text, eol));
+			const shown = reshapeMathEdit(text, 0, eol)?.text ?? text;
+			const written = readMathSource(blurWrite(shown, eol));
 			expect(written?.closer, 'the written source closes').toBe('$$');
-			expect(written && fenceBodyAsDrawn(written)).toBe(fenceBodyAsDrawn(split!));
+			expect(written && fenceBodyAsDrawn(written)).toBe(fenceBodyAsDrawn(readMathSource(shown)!));
 			expect(written?.after).toBe(split!.after);
 		},
 		DOLLAR_SOURCES
@@ -190,8 +176,7 @@ const READERS: Reader[] = [
 		'the painter',
 		({ text, split }) => {
 			expect(renderMathSource(text).textContent).toBe(text);
-			const expected = split && { opener: split.opener, closer: split.closer, after: split.after };
-			expect(paintedSplit(text)).toEqual(expected);
+			expect(paintedSplit(text)).toEqual(split && { ...split, body: fenceBodyAsDrawn(split) });
 		},
 		BOTH_FORMS
 	],
@@ -215,15 +200,15 @@ const READERS: Reader[] = [
 		'the edit’s reshape',
 		({ text, eol, split }) => {
 			const edit = reshapeMathEdit(text, 0, eol);
-			if (isBare(split)) {
-				const completed = edit && (readMathSource(edit.text) ?? sliceFencedSource(edit.text));
-				expect(completed?.closer).toBe(split!.closer);
-				expect(completed?.body).toMatch(/^\r?\n$/);
-				return;
-			}
-			const shown = edit ? (readMathSource(edit.text) ?? sliceFencedSource(edit.text)) : split;
-			expect(shown && fenceBodyAsDrawn(shown)).toBe(split && fenceBodyAsDrawn(split));
-			expect(shown?.closer).toBe(split?.closer);
+			const holdsBreak =
+				split?.opener === '$$' && split.closer === '$$' && split.body.includes('\n');
+			expect(edit !== null, 'the edit reshapes the source').toBe(isBare(split) || holdsBreak);
+			if (!edit) return;
+			const shown = readMathSource(edit.text) ?? sliceFencedSource(edit.text);
+			expect(shown?.closer).toBe(split!.closer);
+			// A bare block gains one empty body line; any other reshape keeps every body byte.
+			if (isBare(split)) expect(shown?.body).toMatch(/^\r?\n$/);
+			else expect(shown && fenceBodyAsDrawn(shown)).toBe(split!.body);
 		},
 		BOTH_FORMS
 	]
@@ -248,8 +233,8 @@ describe('the ```math split is the code fence’s', () => {
 	}
 });
 
-for (const [reader, check, population] of READERS) {
-	describe(`${reader} reads the split`, () => {
+for (const [route, check, population] of ROUTES) {
+	describe(`${route} reads the split`, () => {
 		for (const shape of population) {
 			it(`${shape.label} (${JSON.stringify(shape.text)})`, () => check(shape));
 		}
