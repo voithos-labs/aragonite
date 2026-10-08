@@ -269,6 +269,7 @@ These checks run in three kinds of place:
 | G1.58 | An indent key over a range keeps every word it holds, in order                             | A·N     |
 | G1.61 | A list move keeps the order its text reads in                                              | A·P·N   |
 | G1.71 | A command key over a range runs in the kind of block whose keymap claimed it               | A·N     |
+| G1.75 | No selection endpoint the editor writes sits after an empty block's placeholder `<br>`     | A·N     |
 
 ### The entries
 
@@ -843,6 +844,15 @@ same pick. After the removal, dev checks the command runs in a block of the kind
 compares kinds only, since a join can move the caret's offset. Predicate
 `invariants/command-key-landing.ts :: checkCommandLanding` · run by
 `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
+
+**G1.75 · The caret goes before an empty block's `<br>`** (`caret-before-break`). An editable with
+no content holds one `<br>` so it keeps a line, and a caret written after it looks the same as one
+before it. Chromium tells them apart: a composition started after the `<br>` is dropped after its
+first update, with no `compositionend`, so the composed text gets lost or doubled. Every caret and
+range the editor writes passes `cursor/widget-offset.ts :: writeSelection`, which checks both
+endpoints in dev. Predicate `invariants/caret-before-break.ts :: checkCaretBeforeBreak` ·
+`test/invariants/caret-before-break.test.ts`; G4.36 keeps every native selection write in that
+file.
 
 ## Group 2: property and regression tested
 
@@ -1528,11 +1538,12 @@ today means a kind with no declared live-mode behavior at all.
 never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or `exact`), so
 an unclamped write says so at the call. A range goes through `selectRawRange`,
 `extendSelectionToRaw` or `selectSurfaceContent`, which skip the prefix the same way and don't
-clamp. The scan pins four file lists, each with per-file reasons and compared as sets:
+clamp, and a caller selecting nodes it already holds (a widget whole) hands its range to
+`selectDomRange`. The scan pins four file lists, each with per-file reasons and compared as sets:
 
 - the files calling a native selection writer (`addRange`, `setBaseAndExtent`, `extend`,
-  `selectAllChildren`, and the two-argument `collapse` and `setPosition`), which outside
-  `widget-offset.ts` are only files selecting nodes they already hold;
+  `selectAllChildren`, and the two-argument `collapse` and `setPosition`), which is
+  `widget-offset.ts` alone;
 - the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
   that measure with it);
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
