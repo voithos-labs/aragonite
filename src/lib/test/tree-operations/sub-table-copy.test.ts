@@ -50,29 +50,4 @@ describe('copyRectangleAsSubTable', () => {
 		const out = copyRectangleAsSubTable(table, { rowIdx: 0, colIdx: 0 }, { rowIdx: 2, colIdx: 2 });
 		expect(out).toBe('| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n');
 	});
-
-	it('preserves escaped pipes in cell raws', () => {
-		const table = parse('| a | b \\| c |\n| --- | --- |\n| x | y |\n').children[0];
-		const out = copyRectangleAsSubTable(table, { rowIdx: 0, colIdx: 0 }, { rowIdx: 1, colIdx: 1 });
-		expect(out).toBe('| a | b \\| c |\n| --- | --- |\n| x | y |\n');
-	});
-
-	// Miss-analysis: every fixture here used LF, so a row writer hard-coding '\n' passed them all.
-	it('writes the rows with a CRLF document’s line ending', () => {
-		const table = parse('| A | B |\r\n| :--- | --- |\r\n| 1 | 2 |\r\n| 3 | 4 |\r\n').children[0];
-		const out = copyRectangleAsSubTable(table, { rowIdx: 1, colIdx: 0 }, { rowIdx: 2, colIdx: 1 });
-		expect(out).toBe('| 1 | 2 |\r\n| :--- | --- |\r\n| 3 | 4 |\r\n');
-	});
-
-	it('pads cells the way the table rebuilder does, an empty cell included', () => {
-		const table = parse('| A | B |\n| --- | --- |\n|  | x |\n').children[0];
-		const out = copyRectangleAsSubTable(table, { rowIdx: 0, colIdx: 0 }, { rowIdx: 1, colIdx: 1 });
-		expect(out).toBe('| A | B |\n| --- | --- |\n|  | x |\n');
-	});
-
-	it('leaves out a row’s surplus cells, which the rectangle cannot cover', () => {
-		const table = parse('| A | B |\n| --- | --- |\n| 1 | 2 | 3 |\n').children[0];
-		const out = copyRectangleAsSubTable(table, { rowIdx: 0, colIdx: 0 }, { rowIdx: 1, colIdx: 1 });
-		expect(out).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-	});
 });

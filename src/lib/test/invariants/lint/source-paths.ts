@@ -33,6 +33,7 @@ export const SOURCE = {
 	formatToggle: 'src/lib/core/inline/format-toggle.ts',
 	imageSourceBytes: 'src/lib/core/inline/image-source-bytes.ts',
 	linkSourceBytes: 'src/lib/core/inline/link-source-bytes.ts',
+	tableLine: 'src/lib/core/parsers/table-line.ts',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'src/lib/schema/block-openers.ts',
@@ -169,6 +170,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	formatToggle: 'export interface InlineFormatEdit',
 	imageSourceBytes: 'export function buildImageEditBytes',
 	linkSourceBytes: 'export interface LinkFields',
+	tableLine: 'export function tableRowLine(',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'export interface OpenContext',

@@ -3,6 +3,7 @@
  * Markdown it inserts. The right-click flyout, `EditorInstance.getInsertCatalogue()` and a plugin's
  * `editor.insertCatalogue` all read this one list, so no two of them can disagree.
  */
+import { newTableLines } from '../core/parsers/table-line';
 import { isMenuIconName, type MenuIconName } from '../menu-icons';
 import { legalFenceInfo } from './fenced-code-raw';
 import type { PluginActivation } from './plugin-activation';
@@ -134,8 +135,8 @@ function parseTableSize(argument: string): TableSize | null {
 }
 
 function tableMarkdown({ columns, rows }: TableSize): string {
-	const line = (cell: string) => `|${` ${cell} |`.repeat(columns)}\n`;
-	return line('Column') + line('---') + line('').repeat(rows - 1);
+	const header = Array<string>(columns).fill('Column');
+	return `${newTableLines(header, rows - 1).join('\n')}\n`;
 }
 
 function sizeLabel({ columns, rows }: TableSize): string {

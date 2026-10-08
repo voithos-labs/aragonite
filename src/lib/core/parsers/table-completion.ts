@@ -4,11 +4,10 @@
  * `core/parser.ts`, the guaranteed load path the built-in openers already ride.
  */
 
-import type { CstNode } from '../nodes';
-import { trimTrailingLineEnding, trimWhitespace } from '../lines';
+import { trimWhitespace } from '../lines';
 import { registerBlockCompleter, type CompletionResult } from '../../schema/block-completions';
-import { writeTableRow } from '../../schema/container-rebuilders';
 import { tableHeaderCells } from './table';
+import { newTableLines } from './table-line';
 
 // `parseTable` puts the header at child 0 and synthesizes the delimiter from metadata, so the
 // first body row is child 1.
@@ -21,29 +20,11 @@ export function tryCompleteTableRow(line: string): CompletionResult | null {
 	const cells = tableHeaderCells(line);
 	if (!cells || cells.length < 2) return null;
 	return {
-		lines: [
-			canonicalRow(cells),
-			canonicalRow(cells.map(() => '---')),
-			canonicalRow(cells.map(() => ''))
-		],
+		lines: newTableLines(cells, 1),
 		caret: { path: FIRST_BODY_CELL, line: 0, column: 0 }
 	};
 }
 
 export function registerTableCompleter(): void {
 	registerBlockCompleter('table', { tryComplete: tryCompleteTableRow });
-}
-
-/** Through the row rebuilder, so a completed row is spelled the way any new row is. The caller
- *  owns line endings, so the rebuilder's is trimmed back off. */
-function canonicalRow(cells: string[]): string {
-	const row: CstNode = {
-		kind: 'tableRow',
-		leadingTrivia: '',
-		raw: '',
-		metadata: { isHeader: false },
-		children: cells.map((raw) => ({ kind: 'tableCell', leadingTrivia: '', raw }))
-	};
-	writeTableRow(row, '\n');
-	return trimTrailingLineEnding(row.raw);
 }

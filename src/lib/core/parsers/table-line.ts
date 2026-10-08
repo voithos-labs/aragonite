@@ -1,6 +1,6 @@
 /**
- * How one table line reads: its cells and where each sits, the parser's split and the one the
- * table rebuild writes back into. It imports no parser or registry, so the rebuilders can use it.
+ * How one table line reads (its cells and where each sits) and how a row or delimiter line is
+ * written. It imports no parser or registry, so the parser, the rebuilders and the menus can use it.
  */
 
 import type { TableAlignment } from '../nodes';
@@ -86,7 +86,8 @@ export function matchTableDelimiterRow(
 	return { columnCount: alignments.length, alignments };
 }
 
-/** The alignment one delimiter cell spells, or null when it is no delimiter cell. */
+/** The alignment one delimiter cell spells, or null when it is no delimiter cell;
+ *  `delimiterCellSpelling` writes it. */
 export function delimiterCellAlignment(text: string): TableAlignment | null {
 	if (!/^:?-+:?$/.test(text)) return null;
 	const left = text.startsWith(':');
@@ -94,4 +95,48 @@ export function delimiterCellAlignment(text: string): TableAlignment | null {
 	if (left && right) return 'center';
 	if (left) return 'left';
 	return right ? 'right' : 'none';
+}
+
+// ── Writing a line ─────────────────────────────────────────────────────────
+
+/** A row's line in the padded spelling, `| a | b |`, each cell's text as given. */
+export function tableRowLine(cells: readonly string[]): string {
+	return '|' + cells.map(paddedCell).join('|') + '|';
+}
+
+/** The delimiter line for `alignments`, in the row's padded spelling: `| --- | :---: |`. */
+export function tableDelimiterLine(alignments: readonly TableAlignment[]): string {
+	return tableRowLine(alignments.map(delimiterCellSpelling));
+}
+
+/** A new table's lines: the header, a delimiter with no alignment, and `bodyRows` empty rows. */
+export function newTableLines(header: readonly string[], bodyRows: number): string[] {
+	const empty = tableRowLine(header.map(() => ''));
+	return [
+		tableRowLine(header),
+		tableDelimiterLine(header.map(() => 'none')),
+		...Array<string>(bodyRows).fill(empty)
+	];
+}
+
+/** A cell's text as it sits between two pipes: one space of padding on each side. */
+export function paddedCell(text: string): string {
+	return ` ${text} `;
+}
+
+export function delimiterCellSpelling(alignment: TableAlignment): string {
+	switch (alignment) {
+		case 'left':
+			return ':---';
+		case 'center':
+			return ':---:';
+		case 'right':
+			return '---:';
+		case 'none':
+			return '---';
+		default: {
+			const _exhaustive: never = alignment;
+			throw new Error(`Unknown alignment: ${_exhaustive}`);
+		}
+	}
 }

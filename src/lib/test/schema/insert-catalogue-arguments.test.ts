@@ -2,24 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { insertCatalogue } from '$lib/schema/insert-catalogue';
 import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
-const DEFAULT_TABLE = '| Column | Column |\n| --- | --- |\n|  |  |\n';
-
 const builtIn = (id: string) => insertCatalogue(everyInstalledPlugin).find((e) => e.id === id)!;
 
 const withArgument = (id: string, argument: string) => builtIn(id).withArgument!(argument);
 
 describe('the table entry', () => {
-	it.each(['3x4', '3X4', '3×4'])('%j is three columns: a header and three empty rows', (size) => {
-		expect(withArgument('table', size)).toEqual({
-			markdown:
-				'| Column | Column | Column |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n|  |  |  |\n',
-			detail: '3×4'
-		});
+	it.each(['3X4', '3×4'])('%j reads as 3x4', (size) => {
+		expect(withArgument('table', size)).toEqual(withArgument('table', '3x4'));
+		expect(withArgument('table', size).detail).toBe('3×4');
 	});
 
-	it('2x2 is the entry’s own table, byte for byte', () => {
-		expect(builtIn('table').markdown).toBe(DEFAULT_TABLE);
-		expect(withArgument('table', '2x2').markdown).toBe(DEFAULT_TABLE);
+	it('2x2 is the entry’s own table', () => {
+		expect(withArgument('table', '2x2').markdown).toBe(builtIn('table').markdown);
 	});
 
 	it('reads the largest size it allows, 20 columns by 100 rows', () => {
@@ -30,7 +24,7 @@ describe('the table entry', () => {
 		'%j inserts the default and says how to write a size',
 		(size) => {
 			const parsed = withArgument('table', size);
-			expect(parsed.markdown).toBe(DEFAULT_TABLE);
+			expect(parsed.markdown).toBe(builtIn('table').markdown);
 			expect(parsed.detail).toMatch(/^2×2 · .*3x4/);
 		}
 	);

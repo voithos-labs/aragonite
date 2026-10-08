@@ -1931,6 +1931,15 @@ const ESCAPED_FENCE = String.raw`\\\$\\\$|\\\\\$\\\\\$`;
 // A source split into lines, or a fence test handed a line read off one: a closer search by hand.
 const MATH_LINE_SEARCH = String.raw`\b(?:displayLines|firstDisplayLine|splitLines)\s*\(|\b(?:isMathFenceLine|opensMathBlock)\s*\(\s*[\w$.[\]]*\.text\s*\)`;
 
+const TABLE_LINE_HOME = SOURCE.tableLine;
+const ROGUE_TABLE_WRITER = `${SOURCE_DIR.schema}rogue.ts`;
+// A string opening or closing a row on a padded pipe: `'| '` or `' |'`.
+const PADDED_PIPE = String.raw`['"\x60]\| ['"\x60]|['"\x60] \|['"\x60]`;
+// A template padding an interpolation with a pipe: `| ${cell}` or `${cell} |`.
+const TEMPLATE_ROW = String.raw`\| \$\{|\$\{[^}\x60]*\} \|`;
+// A delimiter cell spelled as a string.
+const DELIMITER_CELL = String.raw`['"\x60]:?-{3,}:?['"\x60]`;
+
 /** One row per block syntax: the module its bytes are read and written in, and what a copy looks like. */
 const SYNTAX_MODULES: FileRule[] = [
 	{
@@ -1971,6 +1980,40 @@ const SYNTAX_MODULES: FileRule[] = [
 			at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
 			at(ROGUE_MATH_READER, "const price = '$' + amount;"),
 			at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
+		]
+	},
+	{
+		id: 'G4.131 a table’s row and delimiter lines are written in `table-line.ts` only',
+		population: under(SOURCE_DIR.library),
+		matches: new RegExp(`${PADDED_PIPE}|${TEMPLATE_ROW}|${DELIMITER_CELL}`),
+		allowed: {
+			[TABLE_LINE_HOME]:
+				'the row, delimiter and new-table writers the rebuild, the Enter completer, the copy and the insert menu all call'
+		},
+		reaches: [TABLE_LINE_HOME],
+		reason:
+			'a second spelling of a table row drifts from the first, so a new table, a copied rectangle and a rebuilt row stop agreeing on bytes: call `tableRowLine`, `tableDelimiterLine` or `newTableLines`',
+		hits: [
+			at(ROGUE_TABLE_WRITER, "const plain = '| ' + cells.join(' | ') + ' |';"),
+			at(ROGUE_TABLE_WRITER, "return line + ' |';"),
+			at(
+				ROGUE_TABLE_WRITER,
+				'const line = (cell: string) => `|${` ${cell} |`.repeat(columns)}\\n`;'
+			),
+			at(ROGUE_TABLE_WRITER, "const row = `| ${cells.join(' | ')} |`;"),
+			at(ROGUE_TABLE_WRITER, "return [header, cells.map(() => '---'), empty];"),
+			at(ROGUE_TABLE_WRITER, "case 'center': return ':---:';")
+		],
+		misses: [
+			at(ROGUE_TABLE_WRITER, 'return tableRowLine(cells);'),
+			at(ROGUE_TABLE_WRITER, 'const lines = newTableLines(header, rows - 1);'),
+			at(ROGUE_TABLE_WRITER, 'return `|${width}x${height}`;'),
+			at(ROGUE_TABLE_WRITER, 'const key = `${version}|${start}|${end}`;'),
+			at(ROGUE_TABLE_WRITER, "if (rowText[lo] === '|') lo++;"),
+			at(ROGUE_TABLE_WRITER, "return pieces.join('|');"),
+			at(ROGUE_TABLE_WRITER, '`"${kind}" onEdge is one of ${ON_EDGE_POLICIES.join(\' | \')}`;'),
+			at(ROGUE_TABLE_WRITER, "entry('divider', 'Divider', 'minus', [], '---\\n');"),
+			"const plain = '| ' + cells.join(' | ') + ' |';"
 		]
 	}
 ];

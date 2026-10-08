@@ -22,10 +22,14 @@ import {
 import {
 	cellText,
 	delimiterCellAlignment,
+	delimiterCellSpelling,
 	endsInEscape,
 	matchTableDelimiterRow,
+	paddedCell,
 	rowCellSpans,
 	splitRowCells,
+	tableDelimiterLine,
+	tableRowLine,
 	type CellSpan
 } from '../core/parsers/table-line';
 import {
@@ -164,7 +168,7 @@ function tableRowBytes(
 	const text = trimTrailingLineEnding(row.raw);
 	const own = ownTrailingLineEnding(row.raw);
 	const ending = own || (followed ? lineEnding : '');
-	const plain = '| ' + cells.join(' | ') + ' |';
+	const plain = tableRowLine(cells);
 	// A blank line, or more than one, is no row's bytes.
 	if (isBlankLine(text) || text.includes('\n')) return plain + (own || lineEnding);
 	const spans = rowCellSpans(text);
@@ -216,7 +220,7 @@ function delimiterBytes(
 	lineEnding: LineEnding,
 	rowsFollow: boolean
 ): string {
-	const plain = '| ' + alignments.map(formatAlignmentCell).join(' | ') + ' |';
+	const plain = tableDelimiterLine(alignments);
 	if (previous === null) return plain + lineEnding;
 	const text = trimTrailingLineEnding(previous);
 	// The delimiter is the table's own line, so it ends when a row follows it.
@@ -232,7 +236,7 @@ function delimiterBytes(
 	const written = spliceCells(text, spans, {
 		before: before as TableAlignment[],
 		after: alignments,
-		spell: (a) => spellings.get(a) ?? formatAlignmentCell(a),
+		spell: (a) => spellings.get(a) ?? delimiterCellSpelling(a),
 		mayStayMissing: false
 	});
 	const read = matchTableDelimiterRow(written)?.alignments;
@@ -273,7 +277,7 @@ function spliceCells<T>(text: string, spans: CellSpan[], write: CellWrite<T>): s
 	for (let i = 0; i < head; i++) pieces.push(region(i));
 	for (let i = head; i < head + paired; i++)
 		pieces.push(rewriteCell(text, spans[i], spell(after[i])));
-	for (let i = head + paired; i < addedEnd; i++) pieces.push(' ' + spell(after[i]) + ' ');
+	for (let i = head + paired; i < addedEnd; i++) pieces.push(paddedCell(spell(after[i])));
 	for (let i = before.length - tail; i < before.length; i++) pieces.push(region(i));
 	return text.slice(0, spans[0].from) + pieces.join('|') + text.slice(spans.at(-1)!.to);
 }
@@ -295,21 +299,4 @@ function secondLine(raw: string): string | null {
 	if (first < 0 || first + 1 === raw.length) return null;
 	const second = raw.indexOf('\n', first + 1);
 	return second < 0 ? raw.slice(first + 1) : raw.slice(first + 1, second + 1);
-}
-
-function formatAlignmentCell(a: TableAlignment): string {
-	switch (a) {
-		case 'left':
-			return ':---';
-		case 'center':
-			return ':---:';
-		case 'right':
-			return '---:';
-		case 'none':
-			return '---';
-		default: {
-			const _exhaustive: never = a;
-			throw new Error(`Unknown alignment: ${_exhaustive}`);
-		}
-	}
 }
