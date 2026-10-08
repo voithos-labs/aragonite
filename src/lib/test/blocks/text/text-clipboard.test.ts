@@ -10,7 +10,7 @@ import {
 	createTextClipboard,
 	type TextClipboardDeps
 } from '#lib/components/blocks/text/text-clipboard.js';
-import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { Commit } from './widget-selected-fixture';

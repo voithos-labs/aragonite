@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
-import { placeGapCaret } from '#lib/selection/caret-doors.js';
+import { placeGapCaret } from '#lib/selection/place-caret.js';
 import { isGapSelection } from '#lib/undo/types.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 

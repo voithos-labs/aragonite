@@ -31,7 +31,7 @@ import { pathsEqual } from '../path-math';
 import { intraTableRectExtension } from '../table-rect-extend';
 import { cellPoint } from '../primitives';
 import { applySurfaceContentRange } from '../native-bridge';
-import { selectInBlock } from '../caret-doors';
+import { selectInBlock } from '../place-caret';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

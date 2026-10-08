@@ -2,7 +2,7 @@
 // G1.46: a block's focus and the restore check, as they place, that no widget stayed selected.
 import { describe, it, expect } from 'vitest';
 import { checkPlacementEndsWidget } from '../../invariants/placement-ends-widget';
-import { placeCaret, selectWidgetWhole } from '../../selection/caret-doors';
+import { placeCaret, selectWidgetWhole } from '../../selection/place-caret';
 import { applySelectionToDom } from '../../selection/native-bridge';
 import { createSelectionState, type SelectionState } from '../../selection/selection-state.svelte';
 import { restoreTarget } from '../harness/restore-landing';

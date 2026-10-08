@@ -13,7 +13,7 @@ import {
 	imageFieldsFromInline,
 	sameImageFields
 } from '../../core/inline/image-source-bytes';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 import type { WidgetTarget } from '../../selection/primitives';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { Reading } from '../../schema/reading';

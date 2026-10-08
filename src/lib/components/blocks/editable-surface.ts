@@ -32,7 +32,7 @@ import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretMemory } from '../../caret/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import { placeCaret, selectInBlock } from '../../selection/caret-doors';
+import { placeCaret, selectInBlock } from '../../selection/place-caret';
 import { deleteSnapshot } from '../../selection/primitives';
 import { asEditorX, asRawOffset, type RawOffset } from '../../caret/coordinate-spaces';
 import type { SurfaceBackend } from '../../caret/surface-backend';

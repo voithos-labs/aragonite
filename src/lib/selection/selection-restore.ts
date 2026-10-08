@@ -8,7 +8,7 @@ import type { DocumentView } from '../core/node-views';
 import type { BlockComponent } from '../block-component';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { cellPoint, type SelectionPoint } from './primitives';
-import { placeGapCaret } from './caret-doors';
+import { placeGapCaret } from './place-caret';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import { clampCellIndex, countsCells } from '../schema/block-kind-descriptor';
 import type { SelectionState } from './selection-state.svelte';

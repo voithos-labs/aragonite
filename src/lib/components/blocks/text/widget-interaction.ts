@@ -10,7 +10,7 @@ import type { BlockEditActions, ContentWrite, FocusActions } from '../../../acti
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { SurfaceBackend } from '../../../caret/surface-backend';
-import { selectWidgetWhole } from '../../../selection/caret-doors';
+import { selectWidgetWhole } from '../../../selection/place-caret';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,

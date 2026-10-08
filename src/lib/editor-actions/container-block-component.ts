@@ -24,7 +24,7 @@ import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { CaretMemory } from '../caret/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { placeCaret } from '../selection/caret-doors';
+import { placeCaret } from '../selection/place-caret';
 import { rangeOwnsKey, type RangeKeyReads } from '../selection/cross-block/keydown';
 import {
 	focusWholeBlockEl,

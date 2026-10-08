@@ -9,7 +9,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
-import { placeGapCaret } from './caret-doors';
+import { placeGapCaret } from './place-caret';
 import type { SelectionState } from './selection-state.svelte';
 
 /** The boundary before child `index` of the container at `parentPath`; root is `[]`. */

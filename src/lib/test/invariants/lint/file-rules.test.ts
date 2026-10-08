@@ -1719,11 +1719,11 @@ const SELECTION_WRITERS: ManifestRule[] = [
 		id: 'G4.94 a gap caret or a widget is selected only through the caret doors',
 		matches: /\.(?:setGapCaret|selectWidget)\s*\(/,
 		declared: {
-			'src/lib/selection/caret-doors.ts':
+			'src/lib/selection/place-caret.ts':
 				'`placeGapCaret` and `selectWidgetWhole`, which end the browser’s own range in the same batch'
 		},
 		reason:
-			'a gap caret or a widget selected outside `selection/caret-doors.ts` can leave a browser caret live beside it: call `placeGapCaret` or `selectWidgetWhole`',
+			'a gap caret or a widget selected outside `selection/place-caret.ts` can leave a browser caret live beside it: call `placeGapCaret` or `selectWidgetWhole`',
 		hits: [
 			'selection.setGapCaret(pos);',
 			'deps.selection.selectWidget({ paragraphPath, sourceStart, preSelectOffset });',

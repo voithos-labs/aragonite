@@ -24,7 +24,7 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
 }
 
 /** The pointerdown reset every cross-block-aware block shares, the pointer counterpart of
- *  `caret-doors.ts`: a plain click ends any range, so a fresh drag starts its own. */
+ *  `place-caret.ts`: a plain click ends any range, so a fresh drag starts its own. */
 export function resetForPointerDown(
 	selection: SelectionState,
 	caretMemory: Pick<CaretMemory, 'forget'>,

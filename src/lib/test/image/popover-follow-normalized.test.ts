@@ -5,7 +5,7 @@ import { tick } from 'svelte';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';

@@ -62,7 +62,7 @@ The probe, for the curious:
 
 ## 3. The one way in
 
-`src/lib/selection/caret-doors.ts` :: `placeCaret`. Every caret the editor places (as opposed to the browser) goes through one of two verbs:
+`src/lib/selection/place-caret.ts` :: `placeCaret`. Every caret the editor places (as opposed to the browser) goes through one of two verbs:
 
 - `focus` ends whatever the editor had selected (a live range, a gap caret, a widget selected whole), then places the caret. It also announces where it put it, so a `selectionChange` subscriber hears the arrival before anything can be typed there (`editor.md` § 12).
 - `parkCaret` only places. It's reserved for the selection-extend paths, where the range has to stay live while an endpoint moves, and its callers are an allowlist.
@@ -73,7 +73,7 @@ Below the verbs:
 
 - The placement itself is `src/lib/components/blocks/editable-surface.ts` :: `parkCaret`. It focuses the element without scrolling the page, runs the block's own landing rule if it has one (a code block keeps a caret arriving from outside off its fence lines), and resolves the `CURSOR_START` and `CURSOR_END` codes.
 - Then `src/lib/caret/widget-offset.ts` :: `placeCaretAtRaw` turns the raw offset into a DOM position: past the container's marker prefix, never behind a hidden marker run, and only where a caret can actually sit. In an empty block that's before its placeholder `<br>` (the line break an empty editable holds so it has a line at all, alone or after a list item's marker), since Chromium drops an IME composition started after it.
-- A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `caret-doors.ts`, which ends what the editor had selected the way `focus` does.
+- A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `place-caret.ts`, which ends what the editor had selected the way `focus` does.
 - The two selections the editor keeps without a DOM caret have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a lint fails any other file that writes either.
 - A lint fails any native selection write outside `widget-offset.ts`.
 

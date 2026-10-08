@@ -4,7 +4,7 @@ import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
 } from '#lib/components/blocks/text/widget-interaction.js';
-import { selectWidgetWhole } from '#lib/selection/caret-doors.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';

@@ -2,7 +2,7 @@
 // What `placeCaret` adds on top of `parkCaret`, each block's own caret primitive (tested in the
 // blocks' own suites).
 import { describe, it, expect } from 'vitest';
-import { placeCaret } from '../../selection/caret-doors';
+import { placeCaret } from '../../selection/place-caret';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 
 const at = (block: number, offset: number) => ({ path: [block], offset });

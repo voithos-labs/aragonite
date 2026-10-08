@@ -358,7 +358,7 @@ const MANIFESTS: ManifestRule[] = [
 		id: 'G4.36 the files building a public focus from placeCaret are the declared surfaces',
 		matches: new RegExp(
 			String.raw`import\s*(?:type\s*)?\{[^}]*(?<!\w)placeCaret\b[^}]*\}\s*from\s*` +
-				quotedSpecifierEnding('caret-doors')
+				quotedSpecifierEnding('place-caret')
 		),
 		declared: {
 			'src/lib/components/blocks/editable-leaf.ts': 'the plugin leaf surface',
@@ -369,10 +369,10 @@ const MANIFESTS: ManifestRule[] = [
 		},
 		reason: 'a new surface building its focus is a new caret writer',
 		hits: [
-			"import { placeCaret } from '../../selection/caret-doors';",
-			"import { placeCaret } from '#lib/selection/caret-doors.js';"
+			"import { placeCaret } from '../../selection/place-caret';",
+			"import { placeCaret } from '#lib/selection/place-caret.js';"
 		],
-		misses: ["import { focusAtColumn } from '../../selection/caret-doors';"]
+		misses: ["import { focusAtColumn } from '../../selection/place-caret';"]
 	},
 	{
 		id: 'G4.36 the files naming checkLandableCaret are the definition and its one caller',

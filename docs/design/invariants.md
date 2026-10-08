@@ -755,7 +755,7 @@ still be selected: one that is would look selected while the keys go to the care
 browser's own caret would get dropped under it. In a dev build `placeCaret`, `selectInBlock` and
 `applySelectionToDom` check it inside their batch, before anyone hears about the placement. Predicate
 `invariants/placement-ends-widget.ts :: checkPlacementEndsWidget` · run by
-`selection/caret-doors.ts` and `selection/native-bridge.ts` ·
+`selection/place-caret.ts` and `selection/native-bridge.ts` ·
 `test/invariants/placement-ends-widget.test.ts`; G4.94 is the source half.
 
 **G1.47 · A child measures into its own list** (`measures-in-own-list`). Each block list provides
@@ -1173,7 +1173,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.90  | A paste inside one block cuts its selection through the range replace, with its text      | L       |
 | G4.91  | A focus call that may scroll the editor says why                                          | L       |
 | G4.93  | A measure round keeps only the block `heldBlock` picks, level by level                    | L       |
-| G4.94  | A gap caret or a widget is selected only in `caret-doors.ts`, and held in one store       | L       |
+| G4.94  | A gap caret or a widget is selected only in `place-caret.ts`, and held in one store       | L       |
 | G4.95  | What a range covers is decided in the range coverage only                                 | L       |
 | G4.96  | A commit rebuilds each container once, and a mutation leaves that rebuild to it           | L       |
 | G4.97  | A child's height reaches its list's table only through `useMeasuredChild`                 | L       |
@@ -1550,7 +1550,7 @@ clamp, and a caller selecting nodes it already holds (a widget whole) hands its 
 - the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
   that measure with it);
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
-- the surfaces building `focus` from `caret-doors`' `placeCaret`.
+- the surfaces building `focus` from `placeCaret` in `place-caret`.
 
 `lint/manifest-rules.test.ts`.
 
@@ -2109,7 +2109,7 @@ tree's one pick and its one distance, and the header slot, which sits above ever
 moved to another function fails too. `lint/file-rules.test.ts`.
 
 **G4.94 · The editor's own selections have one store and one set of writers.** A gap caret and an
-inline widget selected whole are written only through `selection/caret-doors.ts` (`placeGapCaret`,
+inline widget selected whole are written only through `selection/place-caret.ts` (`placeGapCaret`,
 `selectWidgetWhole`), which clear the browser's own range in the same batch, and a selected widget
 is held only in `selection/selection-state.svelte.ts`, whose one private writer ends the range and
 the gap caret as it takes the widget. Two manifest rows, both ways: a `.setGapCaret(` or

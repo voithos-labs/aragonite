@@ -16,7 +16,7 @@ import {
 	type MeasuredBlock,
 	type ProbedHit
 } from './nearest-block';
-import { placeGapCaret } from './caret-doors';
+import { placeGapCaret } from './place-caret';
 import { canGapStop, type GapStopScope } from './gap-caret';
 import { caretOffsetAtPoint } from '../caret/point-offset';
 import type { CaretPosition, SelectionEndpoint } from './primitives';
@@ -116,7 +116,7 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		// The reset waits for a known caret target, so a declined point leaves a live range painted
 		// and the next printable key replaces the whole of it.
 		deps.resetSelectionForClick();
-		// Both calls end a live range (`selection/caret-doors.ts`); `focusByPath` reaches the
+		// Both calls end a live range (`selection/place-caret.ts`); `focusByPath` reaches the
 		// leaf's own `focus`.
 		if (landing.path.length === 0) component.focus(landing.offset);
 		else component.focusByPath!(landing.path, landing.offset);

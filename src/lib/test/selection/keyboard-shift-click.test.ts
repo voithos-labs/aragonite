@@ -16,7 +16,7 @@ vi.mock('../../caret/point-offset', async (importOriginal) => ({
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { handleShiftClick } from '../../selection/keyboard-extend';
 import { applySingleBlockRange, readNativeCaretInBlock } from '../../selection/native-bridge';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 import { offsetFromViewportPoint } from '../../caret/point-offset';
 import { parse } from '../../core/parser';
 import type { Document } from '../../core/nodes';

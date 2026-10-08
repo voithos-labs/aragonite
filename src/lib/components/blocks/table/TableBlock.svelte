@@ -20,7 +20,7 @@
 	import { asEditorX, docPathFrom } from '../../../caret/coordinate-spaces';
 	import { observeResize } from '../../../windowing/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
-	import { placeCaret } from '../../../selection/caret-doors';
+	import { placeCaret } from '../../../selection/place-caret';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { tableCaretAtPoint } from './table-caret-at-point';

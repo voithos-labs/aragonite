@@ -5,13 +5,13 @@
 // the restore never met a selected widget, which they left selected.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '../../core/parser';
-import * as caretDoors from '../../selection/caret-doors';
+import * as caretDoors from '../../selection/place-caret';
 import {
 	placeCaret,
 	placeGapCaret,
 	selectInBlock,
 	selectWidgetWhole
-} from '../../selection/caret-doors';
+} from '../../selection/place-caret';
 import {
 	applyCollapsedCaret,
 	applySingleBlockRange,

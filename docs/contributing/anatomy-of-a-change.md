@@ -79,7 +79,7 @@ selection: EditorSelection | GapCaretSelection;
 
 Still nothing painted, and the wave already carried a bug fix: the native pointerdown handling
 left a live gap standing, where every other caret claim goes through
-`src/lib/selection/caret-doors.ts` and ends it there. One entry path out of several missing a rule
+`src/lib/selection/place-caret.ts` and ends it there. One entry path out of several missing a rule
 its siblings carried is the bug shape behind most of the corruption found here
 ([`rules.md` § The bug shape to fear](rules.md#the-bug-shape-to-fear-sibling-path-parity)), and it
 turned up before there was anything on screen to notice it with.
