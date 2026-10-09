@@ -3,14 +3,30 @@ import type { Page } from '@playwright/test';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * `[[note]]` links as inline widgets that follow on a plain click, the limestone integration
- * reproduced in the harness (`routes/test/plugins/wikilinks`): `revealSource` for editing and
- * `plainClickActivates` for navigation. Seed `wikilinks`: a link mid-prose (block 0) and a typing
- * target (block 1).
+ * `[[note]]` links as inline widgets in a host whose links follow on a plain click, the limestone
+ * integration reproduced in the harness (`routes/test/plugins/wikilinks`): `revealSource` for
+ * editing, `claimsActivationClick` for navigation, and the editor's `linkClick: 'plain'`. Seed
+ * `wikilinks`: a link mid-prose (block 0), a typing target (block 1), a Markdown link (block 2).
  * Requirements: e2e/requirements/plugins/wikilinks.md.
  */
 
 const link = (editor: PluginsPage) => editor.page.locator('.wikilink[data-target="Meeting notes"]');
+
+const markdownLink = (editor: PluginsPage) =>
+	editor.page.locator('a.md-link-content', { hasText: 'the docs' });
+
+/** Records the URLs the editor's default link activation opens, instead of opening them. */
+async function recordOpens(page: Page): Promise<() => Promise<string[]>> {
+	await page.evaluate(() => {
+		const probe = window as Window & { __opened?: string[] };
+		probe.__opened = [];
+		window.open = ((url: string) => {
+			probe.__opened!.push(url);
+			return null;
+		}) as typeof window.open;
+	});
+	return () => page.evaluate(() => (window as Window & { __opened?: string[] }).__opened ?? []);
+}
 
 const activations = (page: Page) =>
 	page.evaluate(
@@ -68,6 +84,33 @@ test.describe('wikilinks that follow on a plain click', () => {
 		await editor.waitForRenderFlush();
 		await expect(link(editor)).toHaveCount(1);
 		expect(await editor.bridge.getSource()).toContain('See [[Meeting notes]] for today');
+	});
+
+	test('a plain click on a Markdown link follows it too, and opens no link card', async ({
+		page
+	}) => {
+		const opened = await recordOpens(page);
+
+		await markdownLink(editor).click();
+		await editor.waitForRenderFlush();
+
+		expect(await opened()).toEqual(['https://example.com/']);
+		await expect(page.locator('[data-link-card]')).toHaveCount(0);
+	});
+
+	test('in source mode, where links show their syntax, a plain click edits instead', async ({
+		page
+	}) => {
+		await editor.setPresentationMode('source');
+		await editor.waitForRenderFlush();
+		const opened = await recordOpens(page);
+
+		await markdownLink(editor).click();
+		await clickLink(editor);
+
+		expect(await opened()).toEqual([]);
+		expect(await activations(page)).toEqual([]);
+		await expect(link(editor)).toHaveCount(0);
 	});
 
 	test('a drag that starts on the link selects and follows nothing', async ({ page }) => {

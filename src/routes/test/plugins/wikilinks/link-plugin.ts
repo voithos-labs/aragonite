@@ -1,8 +1,8 @@
 /**
  * `[[note]]` links inside the text, limestone's integration reproduced here: a `[[` recognizer
- * declares a plugin inline kind whose widget paints the note's name, follows on a plain click
- * (`plainClickActivates`) and shows its source when the caret arrows in (`revealSource`). The
- * widget asks the editor's `isActivationClick` prop, as a host's link component would.
+ * declares a plugin inline kind whose widget paints the note's name, follows on the click the
+ * host picked (`claimsActivationClick`) and shows its source when the caret arrows in
+ * (`revealSource`).
  */
 import {
 	definePlugin,
@@ -33,7 +33,7 @@ export function wikiLinksPlugin(): EditorPlugin {
 			registerInlineWidgetKind(link, {
 				isWidget: () => true,
 				component: WikiLink,
-				editing: { revealSource: true, claimsActivationClick: true, plainClickActivates: true }
+				editing: { revealSource: true, claimsActivationClick: true }
 			});
 		}
 	});

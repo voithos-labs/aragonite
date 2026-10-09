@@ -5,9 +5,7 @@
 	let { isActivationClick }: InlineWidgetComponentProps = $props();
 
 	function onClick(e: MouseEvent): void {
-		if (isActivationClick(e.ctrlKey || e.metaKey)) {
-			(e.currentTarget as HTMLElement).dataset.acted = '';
-		}
+		if (isActivationClick(e)) (e.currentTarget as HTMLElement).dataset.acted = '';
 	}
 </script>
 

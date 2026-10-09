@@ -221,8 +221,10 @@
 		// A tag mid-prose, one opening a line (the case a bare `#` heading opener contests),
 		// one inside a heading's own content, and a plain typing target.
 		tags: 'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
-		// A link mid-prose with text either side to put the caret in, and a typing target.
-		wikilinks: 'See [[Meeting notes]] for today\n\nType here\n',
+		// A link mid-prose with text either side to put the caret in, a typing target, and a
+		// Markdown link to follow on the same click.
+		wikilinks:
+			'See [[Meeting notes]] for today\n\nType here\n\nRead [the docs](https://example.com/) first\n',
 		'tags-marks':
 			'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
 		// `project` appears twice so it ranks first; the code span and the link destination are
@@ -240,6 +242,8 @@
 	// per seed, so no other suite's DOM gains extra buttons.
 	const MODE_TOGGLE_SEEDS = ['mathblock', 'details'];
 	const THEME_TOGGLE_SEEDS = ['mermaid'];
+	// The seeds whose links follow on a plain click, as a host that opts in.
+	const PLAIN_LINK_CLICK_SEEDS = ['wikilinks'];
 	let theme = $state<'dark' | 'light'>('dark');
 	let editor = $state<ReturnType<typeof Editor>>();
 
@@ -345,6 +349,7 @@
 		{plugins}
 		{presentationMode}
 		{theme}
+		linkClick={PLAIN_LINK_CLICK_SEEDS.includes(data.seed ?? '') ? 'plain' : 'modifier'}
 		scrollMode={data.scrollMode}
 		blockDragHandles
 	/>
