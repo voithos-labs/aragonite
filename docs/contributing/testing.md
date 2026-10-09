@@ -810,8 +810,8 @@ seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/
 
 The engine is in `src/lib/e2e/simulation/`; the specs are in `tests/simulation/`, with
 requirements one-to-one in `requirements/simulation/`. The note set spans genres: a class note,
-a feature tour, a project plan, a three-level outline, reading notes, meeting minutes, a README,
-plus a short smoke. Every run asserts that typing a note gives the same document as loading it,
+a feature tour, a project plan, a three-level outline, reading notes, meeting minutes, and a
+README. Every run asserts that typing a note gives the same document as loading it,
 and several notes deliberately include a construct no test used to reach: deep bullet nesting in
 the outline, a nested `> >` blockquote in the reading notes.
 
@@ -863,20 +863,20 @@ timing-independent source. The full capture suite finishes in seconds.
 
 | Command                                                                                       | Scope                                                                                                                                                                                                                               |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test:e2e:simulation`                                                                 | The sessions that need no extra variable: smoke notes, multi-seed fuzz, and the loaded-ops sessions (tables, math, plugins, directives, decorations, IME composition, error collection). All ride `npm test`.                       |
+| `npm run test:e2e:simulation`                                                                 | The sessions that need no extra variable: the fenced-code and image smoke, multi-seed fuzz, and the loaded-ops sessions (tables, math, plugins, directives, decorations, IME composition, error collection). All ride `npm test`.   |
 | `node scripts/run-with-env.mjs SIM_CAPTURE=1 -- npx playwright test --project=e2e-simulation` | Adds the two capture suites (every note, screenshotted), writing PNGs and a per-checkpoint `manifest.json` to `simulation-captures/` for the visual review. On bash, `SIM_CAPTURE=1 npm run test:e2e:simulation` is the same thing. |
 
 One session on its own, to see the shape of a run (the full script runs them all, four at a
 time):
 
 ```
-$ npm run test:e2e:isolated -- --project=e2e-simulation transcription-smoke.spec.ts
+$ npm run test:e2e:isolated -- --project=e2e-simulation fenced-code-image-smoke.spec.ts
 
 Running 1 test using 1 worker
 
-  ✓  1 [e2e-simulation] › src\lib\e2e\tests\simulation\transcription-smoke.spec.ts:14:2 › note-taking simulation: transcription smoke › drives a short note from empty and the invariant suite holds (9.9s)
+  ✓  1 [e2e-simulation] › src/lib/e2e/tests/simulation/fenced-code-image-smoke.spec.ts:17:2 › note-taking simulation: fenced-code + image smoke › builds the code-and-image biology note and the invariant suite holds (…)
 
-  1 passed (12.7s)
+  1 passed (…)
 ```
 
 A new feature gets a new simulation gesture. The simulation is the best test this repo has at
