@@ -1041,7 +1041,7 @@ unguarded.
 | G4.145 | A click decides whether it follows a link or widget through the shared rule only          | L       |
 | G4.146 | A release tells a click from a drag only through the editor's press tracker               | L       |
 | G4.147 | Every change to the caret memory repaints the drawn caret, and a no-op asks nothing       | harness |
-| G4.148 | The caret's look adds no inline-tree walk, trial insertion or paint to a plain key        | harness |
+| G4.148 | The caret's look adds no inline-tree walk, parse or paint to a key outside brackets       | harness |
 | G4.149 | A preview of the next insertion runs a write's own spend, and changes no record           | harness |
 
 ### The entries
@@ -1929,11 +1929,12 @@ every key. `test/caret/caret-memory-repaint.test.ts` reads the methods off the o
 joins its table of changes or its exemptions (reads, the column, a write's own hold), each with a
 reason.
 
-**G4.148 · The look costs a plain key nothing.** A letter typed mid-word, live and source, in a block
-of one construct and of two hundred: one look answer however often the key paints, no trial
-insertion, parse or screen read, the same nodes visited in both blocks, and the same paints as
-before the look. `test/caret/caret-look-cost.svelte.test.ts` on the `caretLook*` counters;
-`test/blocks/text/next-byte.test.ts` pins the shortcut's condition from both sides.
+**G4.148 · The look costs a key outside brackets nothing.** A letter typed mid-word with no `[…]` or
+`<…>` around it, live and source, in a block of one construct and of two hundred: one look answer
+however often the key paints, no trial insertion, parse or screen read, the same nodes visited in
+both blocks, and the same paints as before the look. `test/caret/caret-look-cost.svelte.test.ts` on
+the `caretLook*` counters; `test/blocks/text/next-byte.test.ts` pins the shortcut's condition from
+both sides.
 
 **G4.149 · The preview is the spend, dry.** `caret/next-insertion.ts :: createInsertionRecords` runs
 one loop for a write's hold and for the preview the caret's look reads, and a record's `apply`
