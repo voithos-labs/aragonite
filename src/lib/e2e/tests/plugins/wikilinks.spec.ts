@@ -164,6 +164,43 @@ test.describe('wikilinks that follow on a plain click', () => {
 		expect(await opened()).toEqual([]);
 	});
 
+	test('Edit link in the right-click menu shows the link source, following nothing', async ({
+		page
+	}) => {
+		const box = await link(editor).boundingBox();
+		if (!box) throw new Error('no link box');
+
+		await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+		await page.getByRole('menuitem', { name: 'Edit link' }).click();
+		await editor.waitForRenderFlush();
+
+		await expect(link(editor)).toHaveCount(0);
+		expect(await activations(page)).toEqual([]);
+	});
+
+	test('Edit link on a Markdown link opens its card, field focused, following nothing', async ({
+		page
+	}) => {
+		const opened = await recordOpens(page);
+
+		await markdownLink(editor).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Edit link' }).click();
+
+		await expect(page.locator('[data-link-card]')).toBeVisible();
+		await expect(page.locator('[data-link-card] input')).toBeFocused();
+		expect(await opened()).toEqual([]);
+	});
+
+	test('Mod+K with the caret beside the link shows its source', async ({ page }) => {
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ControlOrMeta+k');
+		await editor.waitForRenderFlush();
+
+		await expect(link(editor)).toHaveCount(0);
+		expect(await activations(page)).toEqual([]);
+	});
+
 	test('a drag that starts on the link selects and follows nothing', async ({ page }) => {
 		const box = await link(editor).boundingBox();
 		if (!box) throw new Error('no link box');

@@ -22,6 +22,9 @@ link in block 2.
 - In source mode a link shows its syntax, so a plain click there edits it: the widget shows its
   source and the Markdown link opens nothing.
 - A drag that starts on the link selects and activates nothing.
+- Edit link in the right-click menu on the link shows its source, and follows nothing.
+- Edit link on a Markdown link opens its card with focus in the URL field, and follows nothing.
+- Mod+K with the caret beside the link shows its source.
 - A double-click follows once, on the link and on a Markdown link: the second press of a
   double-click isn't a fresh click on what it lands on.
 - A drag inside a Markdown link's text selects it and opens nothing.
