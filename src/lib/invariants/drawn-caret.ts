@@ -4,6 +4,7 @@
  */
 
 import type { InvariantViolation } from '../assert';
+import { hidesBrowserCaret, type DrawnCaretTarget } from '../caret/drawn-caret-target';
 
 interface CaretAt {
 	node: Node | null;
@@ -33,12 +34,15 @@ export function checkDrawnCaretAgrees(
 	};
 }
 
-/** Null when `attribute` marks exactly `drawnFor` under `root`, or nothing when it is null. */
+/** Null when `attribute` marks exactly `source` under `root` for a target that hides the browser's
+ *  caret, and nothing for any other target. */
 export function checkOneCaretShowing(
 	root: HTMLElement,
 	attribute: string,
-	drawnFor: HTMLElement | null
+	target: DrawnCaretTarget,
+	source: HTMLElement | null
 ): InvariantViolation | null {
+	const drawnFor = hidesBrowserCaret(target) ? source : null;
 	const marked = root.querySelectorAll(`[${attribute}]`);
 	const ok = drawnFor ? marked.length === 1 && marked[0] === drawnFor : marked.length === 0;
 	if (ok) return null;

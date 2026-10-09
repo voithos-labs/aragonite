@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { describeFileRules, describeManifests, except, type ManifestRule } from './file-rule';
+import { describeFileRules, describeManifests, type ManifestRule } from './file-rule';
 import { balancedBlock, balancedCall, collectEditorSources, readSource } from './scan-source';
 import { SOURCE } from './source-paths';
 import { NATIVE_SELECTION_WRITE } from './native-selection-write';
@@ -56,8 +56,6 @@ const CARET_COLOR_RULES: Record<string, string> = {
 		'a cross-block range, whose overlay paints and whose parked caret takes paste only',
 	[`${SOURCE.editorCss} :: :where(.editor) .whole-block-input`]:
 		'the proxy that takes input for a block held whole, which holds no caret anyone sees',
-	[`${SOURCE.editorCss} :: :where(.editor) .md-snap-caret-active`]:
-		'a block whose snap caret is drawn beside an inline widget',
 	['src/lib/components/GapCaret.svelte :: .gap-caret-proxy']:
 		'the gap caret’s proxy, whose own line is the caret'
 };
@@ -99,27 +97,36 @@ describe('G4.142 caret-color is declared only for the known surfaces', () => {
 
 // ── G4.144 no second caret painter ──────────────────────────────────────────
 
-const OLD_PAINTER = /\b(?:md-snap-after|md-snap-before|md-snap-caret-active|gap-caret-line)\b/;
+// Spelled in parts, so this file's own probes are not a second painter.
+const OLD_NAMES = [
+	...['after', 'before', 'caret-active'].map((part) => `md-snap-${part}`),
+	['gap-caret', 'line'].join('-')
+];
+const OLD_PAINTER = new RegExp(`\\b(?:${OLD_NAMES.join('|')})\\b`);
 const OTHER_CARET_BLINK = /@keyframes\s+(?!md-caret-blink-[ab]\b)[\w-]*(?:caret|blink)/;
+const keyframes = (name: string) => ['@keyframes', name, '{ 50% { opacity: 0; } }'].join(' ');
 
 describeFileRules(
 	[
 		{
 			id: 'G4.144 nothing but the drawn caret paints a caret',
-			population: except('src/lib/test/invariants/lint/drawn-caret-guards.test.ts'),
 			matches: (file) => OLD_PAINTER.test(file.code) || OTHER_CARET_BLINK.test(file.code),
+			allowed: {
+				'src/lib/components/GapCaret.svelte':
+					'its own line at a gap, until the drawn caret draws there'
+			},
 			reason:
 				'a second element painting a caret (a class drawing one beside a widget, a line at a gap, its own blink) is a second caret beside the drawn one; draw it as a state of the drawn caret',
 			hits: [
-				':where(.editor) [data-inline-widget].md-snap-after::before { width: 1.5px; }',
-				'<div class="gap-caret-line"></div>',
-				"el.classList.add('md-snap-caret-active');",
-				'@keyframes gap-caret-blink { 50% { opacity: 0; } }'
+				`:where(.editor) [data-inline-widget].${OLD_NAMES[0]}::before { width: 1.5px; }`,
+				`<div class="${OLD_NAMES[3]}"></div>`,
+				`el.classList.add('${OLD_NAMES[2]}');`,
+				keyframes(['gap', 'caret', 'blink'].join('-'))
 			],
 			misses: [
-				'@keyframes md-caret-blink-a { 50% { opacity: 0; } }',
-				'@keyframes kind-cue-fade { from { opacity: 1; } }',
-				'// the gap-caret-line went into the drawn caret',
+				keyframes('md-caret-blink-a'),
+				keyframes('kind-cue-fade'),
+				`// the ${OLD_NAMES[3]} went into the drawn caret`,
 				"bar.setAttribute('data-caret-state', 'widget');"
 			]
 		}

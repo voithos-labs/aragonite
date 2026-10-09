@@ -1,10 +1,11 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { waitForFirstImageLoaded } from './helpers';
+import { expectBarAfterWidget } from '../../../carets-showing';
 
 /**
  * Two image widgets sitting flush share a boundary (A.end === B.start) with no text node, so the
- * caret is the editor's own snap-after-A marker and the caret-edge dispatch must resolve it by
+ * caret is the editor's own bar after A and the caret-edge dispatch must resolve it by
  * which key was pressed: document order always answers A. The direction logic is unit-tested in
  * `widget-adjacency.test.ts`.
  */
@@ -19,9 +20,13 @@ async function snapAfterFirstWidget(editor: EditorPage): Promise<void> {
 		return { x: a.right + 2, y: a.top + a.height / 2 };
 	});
 	await editor.page.mouse.click(point.x, point.y);
-	// Assert the edge, not just "some snap caret exists": every key test below depends on the caret
+	// Assert the edge, not just "some drawn caret exists": every key test below depends on the caret
 	// at A's trailing edge, so a wrong landing must fail here rather than downstream.
-	await expect(editor.page.locator('[data-image-widget]').first()).toHaveClass(/md-snap-after/);
+	await expectBarAfterWidget(
+		editor.page,
+		editor.page.locator('[data-image-widget]').first(),
+		'image'
+	);
 }
 
 test.describe('caret at a shared adjacent-widget boundary', () => {

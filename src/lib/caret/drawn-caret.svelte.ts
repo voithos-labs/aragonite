@@ -1,20 +1,22 @@
 /**
  * The caret the editor draws itself: one bar per editor, inside the block it draws for, with the
- * browser's own caret hidden only on that editable. The native selection never moves, so typing,
+ * browser's own caret hidden only on that editable. It also draws where the browser can't: beside
+ * an inline widget and across a gap between blocks. The native selection never moves, so typing,
  * IME and screen readers read the real one. A paint runs once per task after Svelte's flush, or at
- * the next frame for a move the browser made; it reads layout and writes only the bar and the mark
- * on the editable.
+ * the next frame for a move the browser made; it reads layout and writes only the bar and the mark.
  */
 
 import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { caretHost, measureCaret } from './drawn-caret-measure';
+import { caretHost, hostBox, measureCaret } from './drawn-caret-measure';
 import {
 	drawnCaretTarget,
+	hidesBrowserCaret,
 	type DrawnCaretReads,
 	type DrawnCaretRect,
-	type DrawnCaretTarget
+	type DrawnCaretTarget,
+	type WidgetEdgeBox
 } from './drawn-caret-target';
 import { markCaretPaint, markCaretRequest, recordCaretFrameMove } from '../perf/instruments';
 import { assertInvariant } from '../assert';
@@ -30,13 +32,28 @@ export interface CaretSource {
 	readonly el: HTMLElement;
 	/** False while a composition or a shown inline source owns the caret: the native one shows. */
 	drawable(): boolean;
+	/** How an editable with inline widgets draws the caret beside one; absent where it has none. */
+	readonly widgetEdge?: WidgetEdgeSource;
+}
+
+/** The widget edges an editable can draw at, keyed by the owner object it made at construction. */
+export interface WidgetEdgeSource {
+	readonly owner: object;
+	/** The bar beside the widget at `offset`, or null when no widget sits there. */
+	box(offset: number): WidgetEdgeBox | null;
+	/** A pointer-down left the browser's caret beside a widget, where it flashes taller. */
+	pressed(): boolean;
 }
 
 export interface DrawnCaret {
 	/** Paints once this task's flush has landed; a second call in the task adds nothing. */
 	request(): void;
-	/** Returns the unregister, for the editable's teardown. */
+	/** Returns the unregister, for the editable's teardown; it releases the owner's widget edge. */
 	register(source: CaretSource): () => void;
+	/** Holds the widget edge a click meant, one per editor; null releases it if `owner` holds it. */
+	armWidgetEdge(owner: object, offset: number | null): void;
+	/** The offset `owner` holds, or null; a plain read, outside any effect. */
+	widgetEdgeFor(owner: object): number | null;
 }
 
 export interface DrawnCaretDeps {
@@ -56,7 +73,7 @@ export interface CaretMedia {
 	forcedColors: { readonly current: boolean };
 }
 
-/** Whether this editor draws its caret, read at each paint. Forced colors force the browser's
+/** Whether this editor draws its text caret, read at each paint. Forced colors force the browser's
  *  caret visible whatever `caret-color` says, so a drawn one there would be a second caret. */
 export function drawsCaret(mode: CaretMode, media: CaretMedia | null): boolean {
 	if (media?.forcedColors.current) return false;
@@ -80,7 +97,10 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	let bar: HTMLElement | null = null;
 	let drawnFor: HTMLElement | null = null;
 	let painted: PaintedCaret | null = null;
+	let drawnAt = '';
+	let drawnIn: Element | null = null;
 	let blink: 'a' | 'b' = 'a';
+	const widgetEdge = createWidgetEdgeHolder(request);
 	let requested = false;
 	let frame = 0;
 	let watched: { el: Element; stop: () => void } | null = null;
@@ -120,7 +140,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const target = drawnCaretTarget(read.reads);
 		draw(target, read, atFrame);
 		assertInvariant('one-caret-showing', () =>
-			checkOneCaretShowing(root, DRAWN_ATTR, target.state === 'text' ? drawnFor : null)
+			checkOneCaretShowing(root, DRAWN_ATTR, target, read.source?.el ?? null)
 		);
 	}
 
@@ -129,18 +149,24 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const active = document.activeElement;
 		const source = active instanceof HTMLElement ? (sources.get(active) ?? null) : null;
 		const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
-		const owned = source && range && source.el.contains(range.startContainer) ? source : null;
+		// A widget edge holds even where the browser dropped its range.
+		const owned = source && (!range || source.el.contains(range.startContainer)) ? source : null;
 		const draws = drawsCaret(deps.caretMode(), media);
 		const drawable = owned?.drawable() ?? false;
+		const edge = owned ? readWidgetEdge(owned) : null;
 		const measured =
-			draws && owned && range?.collapsed && drawable ? measureCaret(owned.el, range) : null;
+			draws && owned && range?.collapsed && drawable && !edge
+				? measureCaret(owned.el, range)
+				: null;
+		const host = measured?.host ?? (edge && owned ? caretHost(owned.el) : null);
 		const { selection } = deps;
 		return {
 			source: owned,
 			range,
-			host: measured?.host ?? null,
+			host,
 			reads: {
 				draws,
+				forcedColors: media?.forcedColors.current ?? false,
 				reading: deps.isReading(),
 				windowFocused: document.hasFocus(),
 				focused: active !== null && root.contains(active),
@@ -152,52 +178,74 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 				},
 				collapsed: !range || range.collapsed,
 				source: owned ? { drawable } : null,
+				gap: false,
+				widgetEdge: edge,
 				besideWidget: measured?.besideWidget ?? false,
 				atSoftWrap: measured?.atSoftWrap ?? false,
 				clipped: measured?.clipped ?? false,
 				atCodeChipEdge: measured?.atCodeChipEdge ?? false,
 				caret: measured?.caret ?? null,
-				host: measured?.hostBox ?? null,
+				host: measured?.hostBox ?? (host ? hostBox(host) : null),
 				devicePixelRatio: window.devicePixelRatio || 1
 			}
 		};
 	}
 
+	function readWidgetEdge(source: CaretSource): DrawnCaretReads['widgetEdge'] {
+		const edges = source.widgetEdge;
+		if (!edges) return null;
+		const offset = widgetEdge.heldFor(edges.owner);
+		const box = offset === null ? null : edges.box(offset);
+		if (box) return { box };
+		return edges.pressed() ? { box: null } : null;
+	}
+
 	function draw(target: DrawnCaretTarget, read: CaretRead, atFrame: boolean): void {
-		if (target.state !== 'text' || !read.source || !read.host || !read.range) {
-			markDrawnFor(null);
+		markDrawnFor(hidesBrowserCaret(target) ? (read.source?.el ?? null) : null);
+		const rect = 'rect' in target ? target.rect : null;
+		if (!rect || !read.host) {
 			bar?.setAttribute('data-caret-state', target.state);
+			if (bar) bar.hidden = true;
 			painted = null;
+			drawnAt = '';
 			return;
 		}
 		const el = (bar ??= createBar());
 		if (el.parentElement !== read.host) read.host.appendChild(el);
-		const { rect } = target;
 		const transform = `translate(${rect.x}px, ${rect.y}px)`;
 		const height = `${rect.height}px`;
-		if (el.style.transform !== transform || el.style.height !== height || !painted) {
+		const width = 'width' in rect ? `${rect.width}px` : '';
+		const at = `${target.state} ${transform} ${height} ${width}`;
+		if (at !== drawnAt || el.parentElement !== drawnIn) {
 			// An editor-made move is painted by its own request; one the frame finds is the browser's.
-			if (atFrame && painted) recordCaretFrameMove();
+			if (atFrame && drawnAt) recordCaretFrameMove();
 			el.style.transform = transform;
 			el.style.height = height;
+			el.style.width = width;
 			// Two identical keyframe names: switching restarts the blink, so a moved caret shows solid.
 			blink = blink === 'a' ? 'b' : 'a';
 			el.setAttribute('data-blink', blink);
+			drawnAt = at;
+			drawnIn = el.parentElement;
 		}
-		el.setAttribute('data-caret-state', 'text');
-		markDrawnFor(read.source.el);
-		painted = {
-			node: read.range.startContainer,
-			offset: read.range.startOffset,
-			rect,
-			surface: read.source.el,
-			surfaceSize: sizeOf(read.source.el)
-		};
-		watchSurface(read.source.el);
+		el.setAttribute('data-caret-state', target.state);
+		el.hidden = false;
+		painted =
+			target.state === 'text' && read.source && read.range
+				? {
+						node: read.range.startContainer,
+						offset: read.range.startOffset,
+						rect,
+						surface: read.source.el,
+						surfaceSize: sizeOf(read.source.el)
+					}
+				: null;
+		if (read.source) watchSurface(read.source.el);
 	}
 
 	function markDrawnFor(el: HTMLElement | null): void {
-		if (drawnFor !== el) drawnFor?.removeAttribute(DRAWN_ATTR);
+		if (drawnFor === el) return;
+		drawnFor?.removeAttribute(DRAWN_ATTR);
 		el?.setAttribute(DRAWN_ATTR, '');
 		drawnFor = el;
 	}
@@ -260,6 +308,8 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 			bar?.remove();
 			bar = null;
 			painted = null;
+			drawnAt = '';
+			drawnIn = null;
 		};
 	}
 
@@ -285,7 +335,30 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 			request();
 			return () => {
 				if (sources.get(source.el) === source) sources.delete(source.el);
+				if (source.widgetEdge) widgetEdge.release(source.widgetEdge.owner);
 			};
+		},
+		armWidgetEdge: widgetEdge.arm,
+		widgetEdgeFor: widgetEdge.heldFor
+	};
+}
+
+/** The one widget edge an editor holds, keyed by its owner; `onChange` hears every change. */
+export function createWidgetEdgeHolder(onChange: () => void) {
+	let held: { owner: object; offset: number } | null = null;
+	return {
+		arm(owner: object, offset: number | null): void {
+			const holds = held?.owner === owner;
+			if (offset === null ? !holds : holds && held?.offset === offset) return;
+			held = offset === null ? null : { owner, offset };
+			onChange();
+		},
+		heldFor(owner: object): number | null {
+			return held?.owner === owner ? held.offset : null;
+		},
+		/** For a torn-down owner, whose edge nothing will draw again. */
+		release(owner: object): void {
+			if (held?.owner === owner) held = null;
 		}
 	};
 }

@@ -229,11 +229,15 @@ test.describe('the drawn caret', () => {
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await editor.loadContent('hello world\n');
 		await editor.focusBlock(0, 3);
-		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-		const animation = await page
-			.locator('.md-drawn-caret')
-			.evaluate((bar) => getComputedStyle(bar).animationName);
-		expect(animation).toBe('none');
+		// Each move switches the blink between its two keyframes, so both are read.
+		for (const letter of ['x', 'y']) {
+			await page.keyboard.type(letter);
+			await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+			const animation = await page
+				.locator('.md-drawn-caret')
+				.evaluate((bar) => getComputedStyle(bar).animationName);
+			expect(animation).toBe('none');
+		}
 	});
 
 	test('reduced motion draws the widget and gap bars without a blink', async ({ page }) => {

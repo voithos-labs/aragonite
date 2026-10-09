@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { waitForFirstImageLoaded } from '../blocks/image/helpers';
 import { pointAtRaw, pointInGap } from '../../text-runs';
+import { expectBarAfterWidget } from '../../carets-showing';
 
 // Clicks in the root's own padding and below the last block
 // (`requirements/selection/dead-space-click.md`). Both must place a caret: focusing the root
@@ -189,7 +190,7 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(focusedKind).not.toBe('table');
 	});
 
-	// Chromium paints no caret against a widget the caret cannot enter, so the editor's own marker is
+	// Chromium paints no caret against a widget the caret cannot enter, so the editor's own bar is
 	// the only sign the landing is visible.
 	test('a click beside a widget-only line lands the caret on the widget’s edge', async () => {
 		await editor.loadContent('lead\n\n![cat](/test-fixtures/sample.png)\n\ntail\n');
@@ -201,7 +202,7 @@ test.describe('dead-space clicks place a caret', () => {
 
 		await editor.page.mouse.click(margin.x, margin.y);
 
-		await expect(editor.page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		await expectBarAfterWidget(editor.page, editor.page.locator('[data-image-widget]'), 'image');
 		// The snap lands where the click already resolved, after the image; a real keystroke, since the
 		// caret-edge dispatch that reaches a position beside the widget only runs on keydown.
 		await editor.typeSlowly('Z');

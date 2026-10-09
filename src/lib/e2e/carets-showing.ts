@@ -1,8 +1,8 @@
 /**
  * What caret a user sees right now, read off the page: the browser's own caret in the focused
- * editable, and every caret the editor draws (the drawn caret's bar, or the snap caret beside a
- * widget). Every row about the drawn caret asserts exactly one of them shows, and the rows that
- * need the browser's own painted caret find it red in a screenshot.
+ * editable, and every caret the editor draws (the drawn caret's bar, at a text caret, beside a
+ * widget or across a gap). Every row about the drawn caret asserts exactly one of them shows, and
+ * the rows that need the browser's own painted caret find it red in a screenshot.
  */
 
 import { expect, type Locator, type Page } from '@playwright/test';
@@ -29,13 +29,10 @@ export function caretsShowing(page: Page): Promise<CaretsShowing> {
 		const color = active ? getComputedStyle(active).caretColor : '';
 		const native =
 			document.hasFocus() && collapsed && color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)';
-		const bars = [...document.querySelectorAll<HTMLElement>('.md-drawn-caret')].filter(
-			(bar) => bar.dataset.caretState === 'text' && getComputedStyle(bar).display !== 'none'
+		const drawn = [...document.querySelectorAll<HTMLElement>('.md-drawn-caret')].filter(
+			(bar) => getComputedStyle(bar).display !== 'none'
 		).length;
-		const snaps = document.querySelectorAll(
-			'.md-snap-caret-active .md-snap-after, .md-snap-caret-active .md-snap-before'
-		).length;
-		return { native, drawn: bars + snaps };
+		return { native, drawn };
 	});
 }
 
@@ -266,6 +263,6 @@ export async function caretsUnderForcedColors(page: Page, clip: Clip): Promise<n
 	const drawn = (await drawnBar(page)) ? 1 : 0;
 	const hide = await page.addStyleTag({ content: '.md-drawn-caret { display: none !important; }' });
 	const native = (await blinksIn(page, clip)) ? 1 : 0;
-	await hide.evaluate((style) => style.remove());
+	await hide.evaluate((style) => (style as HTMLStyleElement).remove());
 	return drawn + native;
 }

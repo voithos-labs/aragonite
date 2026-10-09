@@ -239,7 +239,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	selectionOverlay: 'function textLineHeight(',
 	editableLeaf: 'export type EditableLeafMode',
 	surfaceWrite: 'export type WriteIntent',
-	textBlockComponent: 'function armSnapTarget(',
+	textBlockComponent: 'const widgetEdgeOwner = {};',
 	textRender: 'export interface TextRenderDeps',
 	textClipboard: 'export interface TextClipboardDeps',
 	edgePolicyDispatch: 'export type EdgePolicy',
