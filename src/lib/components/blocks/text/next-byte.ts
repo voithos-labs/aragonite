@@ -105,13 +105,13 @@ export function createNextByte(source: NextByteSource): (caret: number) => NextB
 }
 
 /** Whether a letter typed at `caret` changes no construct: no delimiter (all punctuation) beside
- *  it, and no open `[` or `<` before it, whose label, tag or autolink a letter inside can change. */
+ *  it, and no `[` or `<` before it with a `]` or `>` after it, as a label, tag or autolink has. */
 export function typesInPlace(display: string, caret: number): boolean {
 	return (
 		isPlain(characterBefore(display, caret)) &&
 		isPlain(characterAt(display, caret)) &&
-		!opensBefore(display, caret, '[', ']') &&
-		!opensBefore(display, caret, '<', '>')
+		!spanAround(display, caret, '[', ']') &&
+		!spanAround(display, caret, '<', '>')
 	);
 }
 
@@ -123,10 +123,11 @@ const PLAIN = /^[\p{L}\p{N}\p{M}\s]$/u;
 /** No character at all (the text's edge) is plain too. */
 const isPlain = (character: string): boolean => character === '' || PLAIN.test(character);
 
-/** Whether an `open` comes before `at` with no `close` after it. */
-function opensBefore(display: string, at: number, open: string, close: string): boolean {
+/** Whether an `open` comes before `at` and a `close` at or after it: the shape of any span read
+ *  whole that could hold the letter, whatever closer rules that span has. */
+function spanAround(display: string, at: number, open: string, close: string): boolean {
 	if (at === 0) return false;
-	return display.lastIndexOf(open, at - 1) > display.lastIndexOf(close, at - 1);
+	return display.lastIndexOf(open, at - 1) >= 0 && display.indexOf(close, at) >= 0;
 }
 
 /** The character starting at `at`, a surrogate pair whole. */

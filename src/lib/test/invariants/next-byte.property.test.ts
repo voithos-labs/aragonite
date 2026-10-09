@@ -47,7 +47,7 @@ const word = fc
 	.map((letters) => letters.join(''));
 
 /** Awkward shapes: an escape, an image, a surrogate pair, an empty pair, an intraword underscore,
- *  a tag one letter short of valid HTML, and a label the document defines. */
+ *  tags one letter short of valid HTML, labels the document defines, and closers that don't close. */
 const leaf = fc.oneof(
 	{ weight: 4, arbitrary: word },
 	fc.constant('😀'),
@@ -56,13 +56,17 @@ const leaf = fc.oneof(
 	fc.constant('****'),
 	fc.constant('b_c_d'),
 	fc.constant('<b 1c="*">'),
-	fc.constant('[foo*]')
+	fc.constant('<b x=">" 1c="*">'),
+	fc.constant('[foo*]'),
+	fc.constant('[foo\\]b*]'),
+	fc.constant('[c `]` d*]')
 );
 
-/** Defines `[foo*]` for every case, in a block of its own after the line. */
-const DEFINITION = '\n[foo*]: /u\n';
-const DEFINES_FOO: LinkReferenceResolver = (label) =>
-	normalizeLinkLabel(label) === 'foo*' ? { url: '/u' } : undefined;
+/** Defines two of those labels for every case, in a block of its own after the line. */
+const DEFINITION = '\n[foo*]: /u\n[foo\\]b*]: /u\n';
+const DEFINED = new Set(['foo*', 'foo\\]b*']);
+const RESOLVE_DEFINED: LinkReferenceResolver = (label) =>
+	DEFINED.has(normalizeLinkLabel(label)) ? { url: '/u' } : undefined;
 
 const { inline } = fc.letrec<{ inline: string; wrapped: string; joined: string }>((tie) => ({
 	inline: fc.oneof(
@@ -144,7 +148,7 @@ function marksAround(text: string, at: number): string[] {
 			if (node.children) visit(node.children);
 		}
 	};
-	visit(parseInline(text, 0, text.length, DEFINES_FOO));
+	visit(parseInline(text, 0, text.length, RESOLVE_DEFINED));
 	return listInlineMarks()
 		.map((entry) => entry.kind as string)
 		.filter((kind) => covering.has(kind));

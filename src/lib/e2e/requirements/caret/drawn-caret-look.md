@@ -1,6 +1,6 @@
 # The drawn caret's look
 
-The drawn caret shows what the next letter you type will look like: a heavier bar for bold, a bar slanted from its foot for italic, and a small tick across it for strikethrough. They stack, so bold italic is a slanted heavy bar. Inside inline code it stays the plain bar, since code has no shape of its own.
+The drawn caret shows what the next letter you type will look like: a heavier bar for bold, a bar slanted from its foot for italic, and a small tick across it for strikethrough. They stack, so bold italic is a slanted heavy bar. Inside inline code it stays the plain bar.
 
 In live mode this is how you tell inside from outside. Both sides of a hidden closer sit on the same pixel, so after `bold` in `a **bold** b` the caret can mean "type bold" or "type plain" without moving. Its shape says which, and so does the faint ring on the construct. So every scenario below reads the shape, then types a letter and checks the bytes agree with it.
 

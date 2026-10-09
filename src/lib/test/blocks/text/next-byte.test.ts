@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // What the next typed letter would carry, and when the answer can skip the trial insertion: only
-// where no character beside the caret could open or close a construct and no record waits there.
+// where no character beside the caret could open or close a construct, no `[` or `<` before the
+// caret has its closer after it, and no record waits there.
 import { describe, expect, it } from 'vitest';
 import { createNextByte, nextByte, typesInPlace } from '#lib/components/blocks/text/next-byte.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
@@ -116,6 +117,23 @@ describe('nextByte', () => {
 		['inside a defined label a letter breaks', '*[foo*]', 3, DEFINES_FOO, ['emphasis']]
 	])('asks the trial insertion %s', (_name, display, caret, resolver, marks) => {
 		expect(answer(display, caret, null, [], resolver)).toEqual({ marks, trials: 1 });
+	});
+
+	/** A document defining one reference label. */
+	const defining =
+		(defined: string): LinkReferenceResolver =>
+		(label) =>
+			normalizeLinkLabel(label) === defined ? { url: '/u' } : undefined;
+
+	// Miss-analysis: the open-span check copied the closer rule and missed its exceptions, a `>` in
+	// a quoted attribute, an escaped `]`, a `]` in a code span.
+	it.each([
+		['a `>` in a quoted attribute', '*<a x=">" 1b="*">', 10, undefined],
+		['an escaped `]` in a defined label', '*[foo\\]bar*]', 8, defining('foo\\]bar*')],
+		['a `]` in a code span in a defined label', '*[a `]` foo*]', 9, defining('a `]` foo*')]
+	])('takes the trial insertion past %s', (_name, display, caret, resolver) => {
+		const tried = answer(display, caret, null, [waitingAt(caret)], resolver);
+		expect(answer(display, caret, null, [], resolver)).toEqual(tried);
 	});
 
 	it('reads pending marks through the insertion the chord promised', () => {
