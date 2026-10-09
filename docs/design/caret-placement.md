@@ -93,7 +93,7 @@ For the second, `src/lib/caret/widget-edge-snap.ts` :: `nearestWidgetEdgeSeat` d
 | beside one                                                   | the nearest, comparing rows before columns, so a click past a line's end never reaches a widget on the line below |
 | above or below one (the strip a box leaves around a picture) | the one on the side the click landed                                                                              |
 
-The widgets it measures are every widget the block draws, a picture inside a link or emphasis included (`src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn`). Where no text node sits beside that edge, the block paints its own caret there and hides the browser's.
+The widgets it measures are every widget the block draws, a picture inside a link or emphasis included (`src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn`). Where no text node sits beside that edge, the block hands the edge to the drawn caret, which draws the caret there and hides the browser's.
 
 The snap does nothing when the browser already put the caret in visible text, or when the surface holds a range (the second and third clicks of a run are a word or block selection, `src/lib/selection/multi-click.ts`, not a caret).
 
@@ -141,7 +141,7 @@ A chord bound to a block move (Alt+ArrowUp, unless a consumer rebinds it) moves 
 
 `src/lib/selection/gap-caret.ts` :: `tryGapStop`, asked by `src/lib/editor-actions/focus/focus.ts` :: `moveFocus` on every directional move, at the boundary the move crosses. Some boundaries have no block on either side that can host a caret (a table right above a code fence, say), so without this there'd be nowhere to type between them.
 
-The stop leaves the caret at the boundary instead of entering the next block only when both kinds facing the boundary declared that edge in their descriptor's `gapEdges` (no kind is named at the read site). Never in reading mode, and never for a targeted landing (a numeric offset, a consumer's `setSelection`). A stopped move goes through the gap's own entry (`placeGapCaret`, stage 3) and never reaches stage 9. The caret then sits on a hidden proxy under a painted line, and a typed character makes a paragraph there; the rest of that story is `docs/design/editor.md` § 10.
+The stop leaves the caret at the boundary instead of entering the next block only when both kinds facing the boundary declared that edge in their descriptor's `gapEdges` (no kind is named at the read site). Never in reading mode, and never for a targeted landing (a numeric offset, a consumer's `setSelection`). A stopped move goes through the gap's own entry (`placeGapCaret`, stage 3) and never reaches stage 9. The caret then sits on a hidden proxy, the drawn caret's bar lies across the boundary, and a typed character makes a paragraph there; the rest of that story is `docs/design/editor.md` § 10.
 
 ## 9. Arriving
 

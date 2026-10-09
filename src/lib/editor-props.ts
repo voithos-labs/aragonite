@@ -85,9 +85,10 @@ export interface EditorProps {
 	 *  wrapper keys its own palette off the same attribute set on the wrapper. */
 	theme?: string;
 	/** Who draws the caret, read live. `'auto'` (default) draws it on a fine pointer and leaves a
-	 *  touch screen the browser's own; `'drawn'` draws it on any pointer, `'native'` never does.
-	 *  Forced colors keep the browser's caret whatever this says. The selection is the browser's
-	 *  either way, so IME and screen readers don't change. */
+	 *  touch screen the browser's own; `'drawn'` draws it on any pointer; `'native'` keeps the
+	 *  browser's wherever the browser can draw one, so beside an inline widget and at a gap between
+	 *  blocks the editor still draws. Forced colors keep the browser's caret whatever this says.
+	 *  The selection is the browser's either way, so IME and screen readers don't change. */
 	caret?: 'auto' | 'native' | 'drawn';
 	/** How the document presents, read live like `theme`; `'source'` by default. The consumer
 	 *  guide's Presentation modes section describes what each mode shows and allows. */
