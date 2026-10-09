@@ -13,7 +13,7 @@ import {
 	INLINE_PRIORITIES,
 	type EditorPlugin,
 	type InlineNode
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import WikiLink from './WikiLink.svelte';
 
 export const WIKILINK_KIND = 'harness-wikilink';

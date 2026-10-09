@@ -1,18 +1,19 @@
 <script lang="ts">
 	/**
-	 * The rendered link: the note's name, followed on any click as a link on a web page is. A host
+	 * The rendered link: the note's name, followed on a click as a link on a web page is. A host
 	 * opens the note there; the harness only records it, so a spec can check that the click
 	 * reached the widget and that the editor left it mounted.
 	 */
-	import type { InlineWidgetComponentProps } from '$lib/plugin';
+	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '#lib/plugin.js';
 
-	let { source }: InlineWidgetComponentProps = $props();
+	let { source, getPresentationMode }: InlineWidgetComponentProps = $props();
 
 	const target = $derived(source.slice(2, -2));
 
 	function onClick(e: MouseEvent): void {
 		// A drag that began and ended on the link is a selection, not a click on it
 		if (!(window.getSelection()?.isCollapsed ?? true)) return;
+		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, getPresentationMode())) return;
 		e.preventDefault();
 		const probe = window as Window & { __linkActivations?: string[] };
 		(probe.__linkActivations ??= []).push(target);
