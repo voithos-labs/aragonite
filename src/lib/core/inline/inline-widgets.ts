@@ -9,7 +9,7 @@ import type { Component } from 'svelte';
 import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../nodes';
 import type { DocumentView, NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
-import type { ActivationClick, ClickModifiers } from '../../activation-click';
+import type { ActivationClick, ClickInput } from '../../activation-click';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { createInlineKindRegistry } from '../../schema/plugin-registry';
@@ -67,7 +67,7 @@ export interface InlineWidgetComponentProps {
 	computeInlineContent: (node: NodeView) => InlineNode[];
 	/** Whether a click is this widget's to act on: false unless the kind claims the activation
 	 *  click, then the host's gesture in the mode in force. The editor shows no source for these. */
-	isActivationClick: (click: ClickModifiers) => boolean;
+	isActivationClick: (click: ClickInput) => boolean;
 }
 
 /** The closed vocabularies as values, so the published conformance kit checks a registration
@@ -106,7 +106,7 @@ export interface InlineWidgetEditingPolicy {
  *  hidden for it, and the widget's component (its `isActivationClick` prop) acts on it. */
 export function widgetActivates(
 	policy: InlineWidgetEditingPolicy | undefined,
-	click: ClickModifiers,
+	click: ClickInput,
 	activationClick: ActivationClick
 ): boolean {
 	return policy?.claimsActivationClick === true && activationClick(click);

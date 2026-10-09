@@ -28,7 +28,7 @@ export type { PluginSetupContext, OnEditorCallback, EditorContext } from './sche
 export type { InsertMarkdownOptions } from './editor-props';
 // The names every presentation-mode read reports, the `data-presentation` attribute included.
 export type { PresentationMode } from './presentation-mode';
-export type { ClickModifiers } from './activation-click';
+export type { ClickInput } from './activation-click';
 // The single-block shortcut: one kind, one component, one register step.
 export { definePluginBlock } from './schema/define-plugin-block';
 

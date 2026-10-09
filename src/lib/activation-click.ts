@@ -11,13 +11,13 @@ export type LinkClick = 'modifier' | 'plain';
 
 /** What the rule reads off a click; a `MouseEvent` is one. Without `detail` and `target` it reads
  *  as one click with nothing selected, which is how the cursor asks where a plain click follows. */
-export type ClickModifiers = Pick<MouseEvent, 'ctrlKey' | 'metaKey'> &
+export type ClickInput = Pick<MouseEvent, 'ctrlKey' | 'metaKey'> &
 	Partial<Pick<MouseEvent, 'detail' | 'target'>>;
 
 /** One editor's answer for a click on something that goes somewhere. */
-export type ActivationClick = (click: ClickModifiers) => boolean;
+export type ActivationClick = (click: ClickInput) => boolean;
 
-export function isModifiedClick(click: ClickModifiers): boolean {
+export function isModifiedClick(click: ClickInput): boolean {
 	return click.ctrlKey || click.metaKey;
 }
 

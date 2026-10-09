@@ -33,8 +33,8 @@ export function removeAll(...removers: (() => void)[]): () => void {
 
 // ── Install bundles ─────────────────────────────────────────────────
 
-/** Ctrl/Cmd+click always follows a link, so CSS shows the pointer off `data-mod-active`; reset on
- *  blur and visibility loss, so a key released while unfocused cannot stick it. */
+/** Ctrl/Cmd+click follows a link in every mode, so CSS shows the pointer off `data-mod-active`;
+ *  reset on blur and visibility loss, so a key released while unfocused cannot stick it. */
 export function installModActiveTracker(root: HTMLElement): () => void {
 	// Track the last reflected state so ordinary typing never touches the DOM,
 	// keeping the attribute write off the keystroke hot path (perf:check).

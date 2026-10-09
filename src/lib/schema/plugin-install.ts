@@ -11,7 +11,7 @@ import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
-import type { ClickModifiers } from '../activation-click';
+import type { ClickInput } from '../activation-click';
 import type { InsertEntry } from './insert-catalogue';
 import type { Draft, DraftSpec } from './drafts';
 
@@ -76,7 +76,7 @@ export interface EditorContext<Options = unknown> {
 	readonly theme: string;
 	/** Whether a click on a link your block draws (a footnote's back-link, say) should follow it,
 	 *  by the host's `linkClick` and the mode. Pass the click event. */
-	readonly isActivationClick: (click: ClickModifiers) => boolean;
+	readonly isActivationClick: (click: ClickInput) => boolean;
 }
 
 // ── Process-global install state ─────────────────────────────────────────────

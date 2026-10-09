@@ -51,9 +51,9 @@ import type { Reading } from '../../../schema/reading';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../surface-write';
 import type { DraftRegistry } from '../../draft-registry';
 import type { Draft } from '../../../schema/drafts';
-import type { ActivationClick, ClickModifiers } from '../../../activation-click';
+import type { ActivationClick, ClickInput } from '../../../activation-click';
 
-const NO_MODIFIERS: ClickModifiers = { ctrlKey: false, metaKey: false };
+const PLAIN_CLICK: ClickInput = { ctrlKey: false, metaKey: false };
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
@@ -93,8 +93,8 @@ export interface WidgetInteractionDeps {
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
 export interface WidgetPress {
-	/** The click's modifier keys, which decide whether a widget that goes somewhere follows it. */
-	click?: ClickModifiers;
+	/** The click itself, which decides whether a widget that goes somewhere follows it. */
+	click?: ClickInput;
 	/** `MouseEvent.detail`; two or more is a double-click, which selects the token it just opened. */
 	clickCount?: number;
 	/** The pointer travelled between press and release, so the gesture was a drag. Showing a
@@ -850,7 +850,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				if (
 					widgetActivates(
 						widgetEditing(hit.inline.kind),
-						press.click ?? NO_MODIFIERS,
+						press.click ?? PLAIN_CLICK,
 						deps.activationClick
 					)
 				) {

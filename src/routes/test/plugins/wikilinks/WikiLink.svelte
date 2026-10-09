@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * The rendered link: the note's name, followed on a click as a link on a web page is. A host
+	 * The rendered link: the note's name, followed on the click the host picked for links. A host
 	 * opens the note there; the harness only records it, so a spec can check that the click
 	 * reached the widget and that the editor left it mounted.
 	 */
