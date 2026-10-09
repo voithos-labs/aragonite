@@ -13,6 +13,7 @@ import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './windowing/scroll-ancestors';
 import type { ScrollportReader } from './windowing/scrollport';
 import type { PresentationMode } from './presentation-mode';
+import type { ActivationClick } from './activation-click';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
@@ -207,6 +208,9 @@ export interface EditorPolicies {
 	/** For a renderer that paints rather than styles: a plugin emitting its own colored
 	 *  markup (a diagram SVG) cannot pick the theme up from CSS, so it needs the name. */
 	theme: ThemeGetter;
+	/** Whether a click follows what it lands on (a link, a widget that goes somewhere): the one
+	 *  answer every such route reads, with the mode and the `linkClick` prop read at the click. */
+	activationClick: ActivationClick;
 	keybindingOverrides: KeybindingOverridesGetter;
 	/** Set-once host import hook for image-bearing pastes. Required-nullable: a mount must
 	 *  answer, and `undefined` deliberately leaves the paste on the plain-text path. */

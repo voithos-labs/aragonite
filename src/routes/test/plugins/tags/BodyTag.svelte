@@ -9,7 +9,7 @@
 	let { source, isActivationClick }: InlineWidgetComponentProps = $props();
 
 	function onClick(e: MouseEvent): void {
-		if (!isActivationClick(e.ctrlKey || e.metaKey)) return;
+		if (!isActivationClick(e)) return;
 		e.preventDefault();
 		const probe = window as Window & { __tagActivations?: string[] };
 		(probe.__tagActivations ??= []).push(source.slice(1));

@@ -13,6 +13,7 @@ import type {
 } from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
+import type { LinkClick } from './activation-click';
 import type { KeybindingOverride } from './schema/keybinding-overrides';
 import type { EditorSelection } from './selection/primitives';
 import type { EditorEvents } from './editor-events';
@@ -93,6 +94,11 @@ export interface EditorProps {
 	/** How the document presents, read live like `theme`; `'source'` by default. The consumer
 	 *  guide's Presentation modes section describes what each mode shows and allows. */
 	presentationMode?: PresentationMode;
+	/** Which click follows a link, or a widget that goes somewhere, in live mode, read live:
+	 *  `'modifier'` (default) is Ctrl/Cmd-click, and `'plain'` any click, as on a web page, with the
+	 *  caret reaching a link by the arrow keys. Reading mode follows any click; source and preview
+	 *  modes, which show a link's syntax, keep Ctrl/Cmd. */
+	linkClick?: LinkClick;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
 	/** Plugins installed once, in array order, at mount. Set-once: a later change to this

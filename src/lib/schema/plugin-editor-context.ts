@@ -11,6 +11,7 @@ import type { EditorRects } from '../editor-rects';
 import type { InsertMarkdownOptions } from '../editor-props';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
+import type { ActivationClick } from '../activation-click';
 import { insertCatalogue } from './insert-catalogue';
 import type { Reading } from './reading';
 import type { Draft, DraftSpec } from './drafts';
@@ -55,6 +56,7 @@ export function createEditorPluginContexts(deps: {
 	getDocumentGeneration: () => number;
 	getPresentationMode: () => PresentationMode;
 	getTheme: () => string;
+	activationClick: ActivationClick;
 	activation: PluginActivation;
 	/** The instance's own entry points; the context only delegates. */
 	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
@@ -116,7 +118,8 @@ export function createEditorPluginContexts(deps: {
 				},
 				get theme() {
 					return deps.getTheme();
-				}
+				},
+				isActivationClick: (click) => deps.activationClick(click)
 			};
 			contexts.set(pluginName, ctx);
 		}

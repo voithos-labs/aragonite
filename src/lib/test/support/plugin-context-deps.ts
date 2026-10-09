@@ -39,6 +39,7 @@ export const pluginContextDeps = (
 	getDocumentGeneration: () => 0,
 	getPresentationMode: () => 'source' as const,
 	getTheme: () => 'dark',
+	activationClick: () => false,
 	activation: everyInstalledPlugin as PluginActivation,
 	insertMarkdown: (async () => false) as (
 		md: string,

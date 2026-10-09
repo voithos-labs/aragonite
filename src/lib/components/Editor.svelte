@@ -57,6 +57,7 @@
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
+	import { bindActivationClick } from '../activation-click';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './link-reference-map';
 	import {
 		buildLinkReferenceMap,
@@ -172,6 +173,7 @@
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
+		linkClick = 'modifier',
 		caret = 'auto',
 		scrollMode = 'self',
 		plugins,
@@ -264,6 +266,7 @@
 		mode: () => outgoingMode ?? effectiveMode,
 		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(outgoingMode ?? effectiveMode)
 	};
+	const activationClick = bindActivationClick(reading.mode, () => linkClick);
 	// The root list's child component refs, plain rather than `$state` (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
 	const blockRefSlots = refSlotsOver(blockRefs);
@@ -644,6 +647,7 @@
 		// The one place the mode enters command dispatch, read back through `pluginEditor`.
 		getPresentationMode: reading.mode,
 		getTheme: () => theme,
+		activationClick,
 		activation: activePlugins,
 		// Called at use, never here: both read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
@@ -791,6 +795,7 @@
 		placeholder: () => placeholderPolicy,
 		presentationMode: reading.mode,
 		theme: () => theme,
+		activationClick,
 		keybindingOverrides: () => overridesMap,
 		// An accessor, not the `onPasteImage,` shorthand, which would capture the prop's value.
 		get onPasteImage() {
@@ -857,6 +862,7 @@
 		getLifetime: () => lifetimeController.signal,
 		isHostChrome,
 		activateLink,
+		activationClick,
 		linkCard,
 		reading
 	});

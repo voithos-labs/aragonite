@@ -160,7 +160,8 @@
 		imageLoadPolicy,
 		brokenImageUrls: brokenUrlCache,
 		theme: getTheme,
-		onPasteImage
+		onPasteImage,
+		activationClick
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const readOnly = $derived(reading.mode() === 'reading');
@@ -341,6 +342,7 @@
 		},
 		isCrossBlock: () => selection.isCrossBlock,
 		drafts,
+		activationClick,
 		get reading() {
 			return reading;
 		}
@@ -449,6 +451,7 @@
 		getDocument: () => getDoc(),
 		getContentVersion,
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),
+		activationClick,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
@@ -1019,7 +1022,7 @@
 		lastClickClientY = null;
 		cursor.clampOutOfMarkerPrefix();
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
-			modified: e.ctrlKey || e.metaKey,
+			click: e,
 			clickCount: e.detail,
 			// A release that travelled ends a drag rather than a click: showing the source there
 			// would unmount the widget the drag just painted a range across.

@@ -40,7 +40,7 @@
 	}
 
 	function onClick(e: MouseEvent): void {
-		if (isActivationClick(e.ctrlKey || e.metaKey)) jumpToDefinition();
+		if (isActivationClick(e)) jumpToDefinition();
 	}
 
 	function onKeydown(e: KeyboardEvent): void {

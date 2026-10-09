@@ -9,6 +9,7 @@ import type { Component } from 'svelte';
 import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../nodes';
 import type { DocumentView, NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
+import type { ActivationClick, ClickModifiers } from '../../activation-click';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { createInlineKindRegistry } from '../../schema/plugin-registry';
@@ -64,15 +65,9 @@ export interface InlineWidgetComponentProps {
 	/** `EditorContext.computeInlineContent` for the widget's editor: it parses as that editor draws,
 	 *  and it's a new function whenever the document's definitions change. */
 	computeInlineContent: (node: NodeView) => InlineNode[];
-	/** Whether a click is this widget's to act on, given `e.ctrlKey || e.metaKey`. The editor
-	 *  answers from the kind's editing policy and leaves the source hidden for exactly these. */
-	isActivationClick: (modified: boolean) => boolean;
-}
-
-/** The Ctrl/Cmd chord that follows a link while editing, or any click in reading mode, which has
- *  no caret to place. An inline widget reads its `isActivationClick` prop instead. */
-export function isWidgetActivationClick(modified: boolean, mode: PresentationMode): boolean {
-	return modified || mode === 'reading';
+	/** Whether a click is this widget's to act on: false unless the kind claims the activation
+	 *  click, then the host's gesture in the mode in force. The editor shows no source for these. */
+	isActivationClick: (click: ClickModifiers) => boolean;
 }
 
 /** The closed vocabularies as values, so the published conformance kit checks a registration
@@ -102,31 +97,19 @@ export interface InlineWidgetEditingPolicy {
 	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
-	/** The widget's own component acts on the Ctrl/Cmd chord ({@link isWidgetActivationClick}),
-	 *  so the editable element does not show the source, which would unmount the widget. */
+	/** The widget goes somewhere on a click, as a link does, so the click the host picked for
+	 *  links is its component's to act on and shows no source, which would unmount the widget. */
 	claimsActivationClick?: boolean;
-	/** The component acts on any click, as a link on a web page does, and the caret arrowing in
-	 *  shows the source instead. Implies `claimsActivationClick`. */
-	plainClickActivates?: boolean;
-}
-
-/** Which clicks a widget's own component acts on: none, the chord, or any click. */
-export type WidgetClickClaim = 'none' | 'chord' | 'any';
-
-export function widgetClickClaim(policy: InlineWidgetEditingPolicy | undefined): WidgetClickClaim {
-	if (policy?.plainClickActivates) return 'any';
-	return policy?.claimsActivationClick ? 'chord' : 'none';
 }
 
 /** The one answer both sides of a click on a widget read: the editable element leaves the source
- *  hidden for it, and the widget's component (through its prop of this name) acts on it. */
-export function isActivationClick(
-	claim: WidgetClickClaim,
-	modified: boolean,
-	mode: PresentationMode
+ *  hidden for it, and the widget's component (its `isActivationClick` prop) acts on it. */
+export function widgetActivates(
+	policy: InlineWidgetEditingPolicy | undefined,
+	click: ClickModifiers,
+	activationClick: ActivationClick
 ): boolean {
-	if (claim === 'any') return true;
-	return claim === 'chord' && isWidgetActivationClick(modified, mode);
+	return policy?.claimsActivationClick === true && activationClick(click);
 }
 
 export interface InlineWidgetEditingContext {

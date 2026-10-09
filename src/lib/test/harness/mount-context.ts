@@ -46,6 +46,7 @@ import {
 import { fixtureReading } from './fixture-grammar';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { createWidgetEdgeHolder, type DrawnCaret } from '#lib/caret/drawn-caret.svelte.js';
+import { bindActivationClick } from '#lib/activation-click.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -137,6 +138,10 @@ function stubbedPolicies(): EditorPolicies {
 		placeholder: () => null,
 		presentationMode: () => 'source',
 		theme: () => 'dark',
+		activationClick: bindActivationClick(
+			() => 'source',
+			() => 'modifier'
+		),
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		onPasteImage: undefined,
 		onRunCode: undefined,

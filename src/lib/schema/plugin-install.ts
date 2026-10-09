@@ -11,6 +11,7 @@ import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
+import type { ClickModifiers } from '../activation-click';
 import type { InsertEntry } from './insert-catalogue';
 import type { Draft, DraftSpec } from './drafts';
 
@@ -73,6 +74,9 @@ export interface EditorContext<Options = unknown> {
 	/** A getter, so always live: the theme name written to `data-editor-theme`. The `themeChange`
 	 *  event signals a change. Only a plugin that draws its own colors needs it. */
 	readonly theme: string;
+	/** Whether a click on something your block makes go somewhere (a footnote's back-link, say)
+	 *  follows it: the host's link gesture, in the mode in force. Pass the click event. */
+	readonly isActivationClick: (click: ClickModifiers) => boolean;
 }
 
 // ── Process-global install state ─────────────────────────────────────────────

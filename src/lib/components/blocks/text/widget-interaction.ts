@@ -14,9 +14,8 @@ import { selectWidgetWhole } from '../../../selection/place-caret';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,
-	isActivationClick,
 	isCharacterLikeWidget,
-	widgetClickClaim
+	widgetActivates
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
@@ -52,6 +51,9 @@ import type { Reading } from '../../../schema/reading';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../surface-write';
 import type { DraftRegistry } from '../../draft-registry';
 import type { Draft } from '../../../schema/drafts';
+import type { ActivationClick, ClickModifiers } from '../../../activation-click';
+
+const NO_MODIFIERS: ClickModifiers = { ctrlKey: false, metaKey: false };
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
@@ -83,14 +85,16 @@ export interface WidgetInteractionDeps {
 	/** The grammar the widgets were rendered with, and the presentation mode: reading mode shows
 	 *  no source and edits no widget. */
 	get reading(): Reading;
+	/** Whether a click follows a widget that goes somewhere, rather than showing its source. */
+	activationClick: ActivationClick;
 	/** Where the block's bytes are stored, read when a selected widget is replaced. */
 	storedAs: () => StoredAs;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
 export interface WidgetPress {
-	/** Ctrl or Cmd held at the click, the chord a widget claiming its activation click acts on. */
-	modified?: boolean;
+	/** The click's modifier keys, which decide whether a widget that goes somewhere follows it. */
+	click?: ClickModifiers;
 	/** `MouseEvent.detail`; two or more is a double-click, which selects the token it just opened. */
 	clickCount?: number;
 	/** The pointer travelled between press and release, so the gesture was a drag. Showing a
@@ -844,10 +848,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				// Returns rather than falls through: the edge-snap below would focus this block and
 				// place a caret, stealing back what the widget's own navigation just landed.
 				if (
-					isActivationClick(
-						widgetClickClaim(widgetEditing(hit.inline.kind)),
-						press.modified ?? false,
-						deps.reading.mode()
+					widgetActivates(
+						widgetEditing(hit.inline.kind),
+						press.click ?? NO_MODIFIERS,
+						deps.activationClick
 					)
 				) {
 					return;

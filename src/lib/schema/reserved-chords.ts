@@ -28,10 +28,16 @@ export interface HardcodedChordSite {
 
 export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
+		file: 'activation-click.ts',
+		chords: [],
+		keys: [],
+		note: 'Ctrl/Cmd on a click that may follow a link or a widget, read for every such route: no keystroke is consumed.'
+	},
+	{
 		file: 'components/editor-root-gestures.ts',
 		chords: [],
 		keys: [],
-		note: 'Mod-click link activation: no keystroke is consumed.'
+		note: 'A modified press declines the margin drag, and a live-mode Mod-click skips the link card: no keystroke is consumed.'
 	},
 	{
 		file: 'components/editor-root-keydown.ts',
@@ -112,7 +118,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/table/TableCellBlock.svelte',
 		chords: ['Shift+ArrowUp', 'Shift+ArrowDown'],
 		keys: ['ArrowDown', 'ArrowUp', 'Enter'],
-		note: 'Starts the intra-table rectangle before the prose extend can walk the next leaf; the second modifier read is the widget activation click, which consumes no keystroke.'
+		note: 'Starts the intra-table rectangle before the prose extend can walk the next leaf.'
 	},
 	{
 		file: 'components/blocks/table/cell-keydown-plan.ts',
@@ -123,7 +129,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/text/TextEditableBlock.svelte',
 		chords: [],
 		keys: [],
-		note: 'Its modifier reads are on pointer events (Shift extends a selection instead of dragging a widget, and a click activates a widget), so it consumes no keystroke.'
+		note: 'Its modifier read is on a pointer event (Shift extends a selection instead of dragging a widget), so it consumes no keystroke.'
 	},
 	{
 		file: 'components/blocks/text/home-key.ts',
@@ -242,18 +248,6 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		chords: [],
 		keys: [],
 		note: 'The arrow exit for a plugin editor declines every modified key rather than claiming one.'
-	},
-	{
-		file: 'plugins/footnotes/FootnoteDefinition.svelte',
-		chords: [],
-		keys: [],
-		note: 'Mod-click on the `[^label]` marker jumps back to the reference: no keystroke is consumed.'
-	},
-	{
-		file: 'plugins/footnotes/FootnoteReference.svelte',
-		chords: [],
-		keys: [' ', 'Enter'],
-		note: 'Mod-click jump to the definition, the link click’s gesture; Enter and Space on the reference, a tab stop in reading mode only, are bare keys.'
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',

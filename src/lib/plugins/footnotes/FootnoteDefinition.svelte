@@ -7,7 +7,6 @@
 		BlockList,
 		createContainerBlock,
 		getPluginMetadata,
-		isWidgetActivationClick,
 		type DocumentView,
 		type EditorRects,
 		type NodeView
@@ -60,7 +59,7 @@
 	});
 
 	function onMarkerClick(e: MouseEvent): void {
-		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, getPresentationMode())) return;
+		if (!getEditor()?.isActivationClick(e)) return;
 		// Skips the block's caret handling and the editor's root click handler on purpose:
 		// jumping is the only thing this click does.
 		e.preventDefault();
@@ -81,7 +80,9 @@
 	}
 
 	// True where a plain click already jumps, so the pointer shape matches what a click does.
-	const plainClickJumps = $derived(isWidgetActivationClick(false, getPresentationMode()));
+	const plainClickJumps = $derived(
+		getEditor()?.isActivationClick({ ctrlKey: false, metaKey: false }) ?? false
+	);
 
 	export { containerApi };
 </script>

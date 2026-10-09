@@ -53,6 +53,7 @@ function mountCell(raw: string) {
 		getDocument: () => undefined,
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
+		activationClick: () => false,
 		reportRenderError: () => {},
 		get islands() {
 			return [];

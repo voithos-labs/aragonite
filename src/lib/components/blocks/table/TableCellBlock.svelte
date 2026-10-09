@@ -147,7 +147,8 @@
 	const {
 		theme: getTheme,
 		resolveLinkUrl,
-		onPasteImage
+		onPasteImage,
+		activationClick
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { contentVersion: getContentVersion, lifetime: editorLifetime } =
 		getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -276,6 +277,7 @@
 		setSnapTarget: () => {},
 		setPendingCursor: parkCursor,
 		readRawText: () => readCellText(),
+		activationClick,
 		setRevealing: (value) => {
 			revealing = value;
 		},
@@ -529,6 +531,7 @@
 		getDocument: () => getDoc(),
 		getContentVersion,
 		navigateTo: (path) => rects.navigateTo(path),
+		activationClick,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
@@ -1047,7 +1050,7 @@
 		lastClickClientX = null;
 		lastClickClientY = null;
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
-			modified: e.ctrlKey || e.metaKey,
+			click: e,
 			clickCount: e.detail
 		});
 	}
