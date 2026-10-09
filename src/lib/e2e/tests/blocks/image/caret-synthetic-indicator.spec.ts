@@ -12,7 +12,7 @@ import {
 	caretsShowing,
 	drawnBar,
 	drawnCaretBox,
-	expectBarAfterWidget
+	expectBarBesideWidget
 } from '../../../carets-showing';
 import { filler } from '../../selection/gap-caret-fixtures';
 
@@ -73,7 +73,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
 		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-		await expectBarAfterWidget(page, page.locator('[data-image-widget]'), 'image');
+		await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
 	});
 
 	// The block holding the bar can unmount with it; the next click elsewhere still draws one caret.
@@ -93,7 +93,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await expect.poll(() => imageB.evaluate((w) => w.querySelector('img')!.complete)).toBe(true);
 		await clickPastWidget(page, imageB);
 		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-		await expectBarAfterWidget(page, imageB, 'image');
+		await expectBarBesideWidget(page, imageB, 'image');
 		expect((await drawnBar(page))!.host).toBe('[151]');
 
 		// The jump back unmounts B, caret and all; A comes back with no edge of its own.
@@ -118,7 +118,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 			await clickPastImageRightEdge(page);
 
 			await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-			await expectBarAfterWidget(page, page.locator('[data-image-widget]'), 'image');
+			await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
 		});
 	}
 
@@ -138,7 +138,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 
 		await page.mouse.up();
 		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-		await expectBarAfterWidget(page, page.locator('[data-image-widget]'), 'image');
+		await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
 	});
 
 	test('a press that puts the caret in text shows one caret, the drawn one', async ({ page }) => {
@@ -230,7 +230,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		});
 		await page.keyboard.press('Enter');
 		await clickPastImageRightEdge(page);
-		await expectBarAfterWidget(page, page.locator('[data-image-widget]'), 'image');
+		await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
 	});
 
 	test('synthetic caret clears when clicking into a different paragraph', async ({ page }) => {

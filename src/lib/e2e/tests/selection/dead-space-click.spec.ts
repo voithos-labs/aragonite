@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { waitForFirstImageLoaded } from '../blocks/image/helpers';
 import { pointAtRaw, pointInGap } from '../../text-runs';
-import { expectBarAfterWidget } from '../../carets-showing';
+import { expectBarBesideWidget } from '../../carets-showing';
 
 // Clicks in the root's own padding and below the last block
 // (`requirements/selection/dead-space-click.md`). Both must place a caret: focusing the root
@@ -202,7 +202,7 @@ test.describe('dead-space clicks place a caret', () => {
 
 		await editor.page.mouse.click(margin.x, margin.y);
 
-		await expectBarAfterWidget(editor.page, editor.page.locator('[data-image-widget]'), 'image');
+		await expectBarBesideWidget(editor.page, editor.page.locator('[data-image-widget]'), 'image');
 		// The snap lands where the click already resolved, after the image; a real keystroke, since the
 		// caret-edge dispatch that reaches a position beside the widget only runs on keydown.
 		await editor.typeSlowly('Z');

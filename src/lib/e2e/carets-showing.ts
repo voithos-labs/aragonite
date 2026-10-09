@@ -77,12 +77,13 @@ export function drawnBar(page: Page): Promise<DrawnBar | null> {
 	});
 }
 
-/** The bar after a widget, where its click put the caret: 1.5px wide, its right side 1px past a
+/** The bar beside a widget, where its click put the caret: 1.5px wide, its outer side 1px past a
  *  text-height widget at the widget's full height, or 4px past an image and 4px short at each end. */
-export async function expectBarAfterWidget(
+export async function expectBarBesideWidget(
 	page: Page,
 	widget: Locator,
-	look: 'text-height' | 'image'
+	look: 'text-height' | 'image',
+	side: 'before' | 'after' = 'after'
 ): Promise<void> {
 	await expect.poll(async () => (await drawnBar(page))?.state).toBe('widget');
 	const bar = (await drawnBar(page))!.box;
@@ -90,7 +91,7 @@ export async function expectBarAfterWidget(
 	const inset = look === 'image' ? 4 : 0;
 	const past = look === 'image' ? 4 : 1;
 	const want = {
-		left: w.x + w.width + past - 1.5,
+		left: side === 'after' ? w.x + w.width + past - 1.5 : w.x - past,
 		top: w.y + inset,
 		height: w.height - 2 * inset,
 		width: 1.5

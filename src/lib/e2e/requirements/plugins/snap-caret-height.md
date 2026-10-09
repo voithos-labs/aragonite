@@ -13,3 +13,7 @@ at any prose offset of the same paragraph. It's 1.5px wide, its right side 1px p
     so a caret inset from the widget's box to about half the line's height passed them all
 - the same beside a decoded entity ending the line: the rule is the kind-agnostic one for a
   text-height widget, not the emoji's
+- click left of an emoji that starts the line: the drawn caret stands before it, its left side 1px
+  past the emoji's, at the emoji's full height
+  - Miss-analysis: every parity row clicked past a widget's end, so the side a click before a
+    widget lands on was never measured against the old caret

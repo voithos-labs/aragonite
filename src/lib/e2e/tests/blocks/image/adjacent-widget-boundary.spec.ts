@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { waitForFirstImageLoaded } from './helpers';
-import { expectBarAfterWidget } from '../../../carets-showing';
+import { expectBarBesideWidget } from '../../../carets-showing';
 
 /**
  * Two image widgets sitting flush share a boundary (A.end === B.start) with no text node, so the
@@ -22,7 +22,7 @@ async function snapAfterFirstWidget(editor: EditorPage): Promise<void> {
 	await editor.page.mouse.click(point.x, point.y);
 	// Assert the edge, not just "some drawn caret exists": every key test below depends on the caret
 	// at A's trailing edge, so a wrong landing must fail here rather than downstream.
-	await expectBarAfterWidget(
+	await expectBarBesideWidget(
 		editor.page,
 		editor.page.locator('[data-image-widget]').first(),
 		'image'

@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
-import { drawnBar, expectBarAfterWidget } from '../../carets-showing';
+import { drawnBar, expectBarBesideWidget } from '../../carets-showing';
 
 // The caret the editor draws beside a text-height widget against the browser's own caret in the
 // same paragraph (`requirements/plugins/snap-caret-height.md`), on the emoji seed so an emoji is
@@ -32,7 +32,7 @@ test.describe('the drawn caret beside a text-height widget', () => {
 			const widget = page.locator('[data-inline-widget]');
 			const box = (await widget.boundingBox())!;
 			await page.mouse.click(box.x + box.width + 30, box.y + box.height / 2);
-			await expectBarAfterWidget(page, widget, 'text-height');
+			await expectBarBesideWidget(page, widget, 'text-height');
 
 			const drawn = (await drawnBar(page))!.box;
 			const native = await proseCaretBox(page);
@@ -42,4 +42,14 @@ test.describe('the drawn caret beside a text-height widget', () => {
 			expect(Math.abs(drawn.top - native.top)).toBeLessThanOrEqual(tolerance);
 		});
 	}
+
+	test('before an emoji starting the line, it sits 1px left of the emoji', async ({ page }) => {
+		const editor = new PluginsPage(page);
+		await editor.gotoPlugins('emoji');
+		await editor.loadContent(':tada: some prose\n');
+		const widget = page.locator('[data-inline-widget]');
+		const box = (await widget.boundingBox())!;
+		await page.mouse.click(box.x - 6, box.y + box.height / 2);
+		await expectBarBesideWidget(page, widget, 'text-height', 'before');
+	});
 });

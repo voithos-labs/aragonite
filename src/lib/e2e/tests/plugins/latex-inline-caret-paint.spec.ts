@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
-import { caretsShowing, expectBarAfterWidget } from '../../carets-showing';
+import { caretsShowing, expectBarBesideWidget } from '../../carets-showing';
 
 /**
  * Exactly one caret shows per caret position at an inline-math widget's edge: the plugin
@@ -22,6 +22,6 @@ test.describe('inline math: one caret per caret position', () => {
 		// draws no caret at, so the editor draws it.
 		await page.mouse.click(box.x + box.width + 25, box.y + box.height / 2);
 		await expect.poll(() => caretsShowing(page)).toEqual({ native: false, drawn: 1 });
-		await expectBarAfterWidget(page, page.locator('[data-inline-widget]'), 'text-height');
+		await expectBarBesideWidget(page, page.locator('[data-inline-widget]'), 'text-height');
 	});
 });

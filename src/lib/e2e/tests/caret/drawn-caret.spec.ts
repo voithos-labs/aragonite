@@ -7,7 +7,7 @@ import {
 	caretsUnderForcedColors,
 	drawnBar,
 	drawnCaretBox,
-	expectBarAfterWidget,
+	expectBarBesideWidget,
 	nativeCaretBox,
 	setCaretProp,
 	type CaretBox
@@ -182,7 +182,7 @@ test.describe('the drawn caret', () => {
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
 		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-		await expectBarAfterWidget(page, page.locator('[data-image-widget]'), 'image');
+		await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
 	});
 
 	test('typing mid-word writes nothing on the editable but what the render writes', async ({
