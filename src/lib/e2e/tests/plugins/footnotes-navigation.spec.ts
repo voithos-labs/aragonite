@@ -62,6 +62,22 @@ test.describe('footnote jump: reference to definition', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('live mode: Ctrl+click still jumps with a range selected in the reference paragraph', async ({
+		page
+	}) => {
+		await editor.setPresentationMode('live');
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
+
+		await editor
+			.refs()
+			.nth(0)
+			.click({ modifiers: ['Control'] });
+
+		await expect.poll(() => activeBlockPath(page)).toEqual([defA, 0]);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('the second reference jumps to its own definition, not the first one', async ({ page }) => {
 		await editor.setPresentationMode('source');
 
