@@ -177,12 +177,16 @@ test.describe('the drawn caret', () => {
 		await expect.poll(() => caretsShowing(page)).toEqual(NONE);
 	});
 
-	test('beside an image the bar draws at the image’s edge, the one caret', async ({ page }) => {
+	// The browser can't draw beside an image, so `native` leaves that caret to the editor too.
+	test('under the native caret prop, the bar still draws beside an image', async ({ page }) => {
+		await setCaretProp(page, 'native');
 		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
 		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
 		await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
+		await page.keyboard.type('x');
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_NATIVE);
 	});
 
 	test('typing mid-word writes nothing on the editable but what the render writes', async ({

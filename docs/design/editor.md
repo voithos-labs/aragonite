@@ -691,7 +691,7 @@ On a fine pointer the editor draws the caret itself: one bar per editor, sitting
 - anywhere the range's box isn't where the browser paints its caret: the spaces a line soft-wraps in, a caret a scroller inside the block has clipped out of view (a code block scrolled sideways; the bar comes back when it scrolls into view), and a code chip's edge, where each engine paints its caret on its own side of the chip's padding;
 - forced colors, a touch screen, or a host that set the `caret` prop to `'native'`. Beside a widget and at a gap, only forced colors do.
 
-A click beside a widget hands the drawn caret the edge it meant (`EditorServices.drawnCaret` :: `armWidgetEdge`). The editor holds one such edge, keyed by an object the block made for itself, and drops it when that block unmounts, so a block that windows out with the caret beside its widget leaves nothing drawn behind. Typing, an arrow key or a click elsewhere lets it go.
+A click beside a widget hands the drawn caret the edge it meant (`EditorServices.drawnCaret` :: `armWidgetEdge`), keyed by an object the block makes for itself. The editor holds one such edge, and a paint only reads it back through the focused block's own key. Typing, an arrow key or a click elsewhere lets it go.
 
 Two things move the caret, and each gets painted its own way:
 

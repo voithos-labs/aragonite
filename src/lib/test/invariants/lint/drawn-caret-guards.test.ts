@@ -2,8 +2,8 @@
  * The drawn caret's source guards. One module writes its element and the attribute that hides the
  * browser's caret (G4.141); `caret-color` is declared only for the surfaces that hide it on purpose
  * (G4.142); and every native selection write sits inside the per-editor caret writer, whose writes
- * ask for a repaint, while the paint at an animation frame only paints (G4.143). No other painter
- * of a caret exists anywhere under `src/lib` (G4.144).
+ * ask for a repaint, while the paint at an animation frame only paints (G4.143). The class names
+ * and blink of the widget and gap carets' own painters appear nowhere in `src/lib` (G4.144).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -95,7 +95,7 @@ describe('G4.142 caret-color is declared only for the known surfaces', () => {
 	});
 });
 
-// ── G4.144 no second caret painter ──────────────────────────────────────────
+// ── G4.144 no widget or gap painter of their own ────────────────────────────
 
 // Spelled in parts, so this file's own probes are not a second painter.
 const OLD_NAMES = [
@@ -109,7 +109,7 @@ const keyframes = (name: string) => ['@keyframes', name, '{ 50% { opacity: 0; } 
 describeFileRules(
 	[
 		{
-			id: 'G4.144 nothing but the drawn caret paints a caret',
+			id: 'G4.144 the old widget and gap caret painters stay gone',
 			matches: (file) => OLD_PAINTER.test(file.code) || OTHER_CARET_BLINK.test(file.code),
 			reason:
 				'a second element painting a caret (a class drawing one beside a widget, a line at a gap, its own blink) is a second caret beside the drawn one; draw it as a state of the drawn caret',

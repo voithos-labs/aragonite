@@ -10,4 +10,4 @@ The rule, how it works and which way the caret is restored live with the image p
 
 ## Notes
 
-- Playwright screenshots never capture the browser's caret in Chromium without a forced color, so the check reads which carets are live (`caretsShowing`), and the bar's box against the widget's.
+- Playwright screenshots never capture the browser's caret in Chromium unless a test recolours it, so the check reads which carets are live (`caretsShowing`), and the bar's box against the widget's.

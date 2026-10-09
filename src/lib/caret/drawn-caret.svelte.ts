@@ -353,7 +353,8 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	};
 }
 
-/** The one widget edge an editor holds, keyed by its owner; `onChange` hears every change. */
+/** The one widget edge an editor holds, keyed by its owner; `onChange` hears every `arm` that
+ *  changes it, and `release` changes it silently. */
 export function createWidgetEdgeHolder(onChange: () => void) {
 	let held: { owner: object; offset: number } | null = null;
 	return {

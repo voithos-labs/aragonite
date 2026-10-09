@@ -131,8 +131,8 @@ declaration cuts both ways: the named fire must arrive, or the spec fails on tha
 A minority of runtime guards are inline closures where their machinery runs, not shared predicates:
 G1.15, the five commit-and-parse guards G1.19 through G1.23, and the interaction halves of G1.26.
 What they check isn't a CST node's shape but a transient value the machinery builds mid-flight (a
-prepared commit scope, an unshare chain, an owned table view, an in-flight reveal). Those exist only mid-commit, mid-parse, mid-gesture or
-mid-render. There's no stable object to hand a pure predicate, and no way for a test to reconstruct
+prepared commit scope, an unshare chain, an owned table view, an in-flight reveal). Those exist only
+mid-commit, mid-parse or mid-gesture. There's no stable object to hand a pure predicate, and no way for a test to reconstruct
 the exact state on its own.
 
 So they're guarded through the machinery that produces them, or through the console channel above,
@@ -656,10 +656,12 @@ the splice path · `test/schema/child-spans.test.ts`, `test/schema/child-spans-s
 
 **G1.39 · One synthetic caret.** Beside a non-editable inline widget and at a gap between blocks
 the browser draws no caret, so the editor draws one, and across the editor at most one shows. Held
-by construction: the drawn caret is one element per editor that moves to wherever it draws, and the
-widget edge a click meant is one per editor, dropped when its block unregisters, so a block unmounted
-with the caret beside its widget leaves nothing drawn. `caret/drawn-caret.svelte.ts` · G4.141's and
-G4.144's scans · `e2e/tests/blocks/image/caret-synthetic-indicator.spec.ts`.
+by construction, twice over: the drawn caret is one element per editor, and each paint moves it into
+the host it draws in, so a block that unmounts with it inside leaves nothing behind; and a paint reads
+the widget edge a click meant only through the focused editable's own owner, which no unmounted
+block's editable can be. (Releasing a torn-down owner's edge is tidying: nothing can read it.)
+`caret/drawn-caret.svelte.ts` · G4.141's and G4.144's scans ·
+`e2e/tests/blocks/image/caret-synthetic-indicator.spec.ts`.
 
 **G1.40 · Built-in presentation facts** (`builtin-presentation-facts`). A plugin kind can leave
 `pageRole` and `estimateHeight` out and get defaults (an object, with the container or prose height
@@ -866,9 +868,9 @@ Predicate `invariants/drawn-caret.ts :: checkDrawnCaretAgrees` · run in
 **G1.77 · One caret showing** (`one-caret-showing`). After every paint, the `data-caret-drawn`
 attribute (which hides the browser's caret) sits on exactly the editable the bar draws for, and on
 none while the bar draws nothing, so the page never shows two carets or none. The one exception is
-a pointer-down beside a widget, where the attribute goes on before the click draws the bar, since the
-browser's caret flashes taller there. An attribute, since
-Svelte rewrites an editable's whole class list when its kind changes. Predicate
+a pointer-down beside a widget, where the attribute goes on before the click draws the bar, since
+the browser's caret flashes taller there. An attribute, since Svelte rewrites an editable's whole
+class list when its kind changes. Predicate
 `invariants/drawn-caret.ts :: checkOneCaretShowing` · run after each paint in
 `caret/drawn-caret.svelte.ts` · `e2e/tests/caret/drawn-caret.spec.ts` (`caretsShowing`, exactly one
 caret in every row).
@@ -1222,7 +1224,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.141 | Only the drawn caret writes its element and the mark hiding the browser's caret           | L       |
 | G4.142 | `caret-color` is declared only for the known surfaces                                     | L       |
 | G4.143 | Every caret write asks the drawn caret to repaint, and its frame paint only paints        | T·L     |
-| G4.144 | Nothing but the drawn caret paints a caret                                                | L       |
+| G4.144 | The old widget and gap caret painters stay gone                                           | L       |
 
 ### The entries
 
@@ -2490,7 +2492,7 @@ method can't skip a row. The frame callback in `caret/drawn-caret.svelte.ts` cal
 nothing else, which is what keeps G4.4's allowlisted frame paint read-only.
 `lint/drawn-caret-guards.test.ts`.
 
-**G4.144 · No second caret painter.** Nothing under `src/lib`, tests included, names the classes
+**G4.144 · The old widget and gap caret painters stay gone.** Nothing under `src/lib`, tests included, names the classes
 the old widget and gap carets painted with (`md-snap-after`, `md-snap-before`,
 `md-snap-caret-active`, `gap-caret-line`) or declares a caret blink `@keyframes` other than
 `md-caret-blink-a`/`-b`. A second element painting a caret is a second caret; draw a new one as a

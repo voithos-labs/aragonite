@@ -40,8 +40,8 @@ export function hostBox(host: HTMLElement): HostBox {
 	};
 }
 
-/** The bar on one side of `widget`: 1.5px wide, 1px past a text-height widget's edge at its full
- *  height, or 4px clear of an image's frame and 4px short of each end, so it reads as a caret. */
+/** The bar on one side of `widget`; an image's is held clear of its frame and short of its ends,
+ *  so it reads as a caret rather than part of the border. */
 export function widgetEdgeBox(widget: HTMLElement, side: 'before' | 'after'): WidgetEdgeBox {
 	const r = widget.getBoundingClientRect();
 	const image = widget.matches(IMAGE_WIDGET);

@@ -63,8 +63,6 @@ export interface MountContextOverrides {
 	doc?: Partial<EditorDoc>;
 }
 
-/** A member a bare mount calls gets its empty production factory, since a partial stub breaks
- *  when a component reaches one more member; the rest keep a `{}` cast. */
 /** Draws no caret, but holds the widget edge a click meant the way the editor's drawn caret does. */
 function bareDrawnCaret(): DrawnCaret {
 	const widgetEdge = createWidgetEdgeHolder(() => {});
@@ -76,6 +74,8 @@ function bareDrawnCaret(): DrawnCaret {
 	};
 }
 
+/** A member a bare mount calls gets its empty production factory, since a partial stub breaks
+ *  when a component reaches one more member; the rest keep a `{}` cast. */
 function stubbedServices(getDoc: () => DocumentView): EditorServices {
 	const selection = createSelectionState();
 	const stamps = createDocumentStamps();
