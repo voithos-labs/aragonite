@@ -69,7 +69,9 @@ export function createPendingBreak(): PendingBreak {
 		end: (block) => {
 			// Written only when it changes: the caret memory forgets during teardown, where a write
 			// to reactive state throws.
-			if (open !== null && (block === undefined || open.block === block)) open = null;
+			if (open === null || (block !== undefined && open.block !== block)) return false;
+			open = null;
+			return true;
 		}
 	};
 }

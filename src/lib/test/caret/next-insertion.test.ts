@@ -39,7 +39,9 @@ function growingRun(at: number) {
 			return spend;
 		},
 		end: () => {
+			const was = state.waiting;
 			state.waiting = false;
+			return was;
 		}
 	};
 	return { state, record };
@@ -266,7 +268,7 @@ function heldState(record: ReturnType<typeof createHeldSpace>): unknown {
 	return [record.holding(), view.at(), view.inside(), record.holdsInside('strong')];
 }
 
-describe.each(RECORD_STATES)('$name', ({ make, edits }) => {
+describe.each(RECORD_STATES)('G4.149 $name', ({ make, edits }) => {
 	it.each(edits)('applies %j → %j twice without changing its state', (before, edit) => {
 		const { record, state } = make();
 		const spend = record.take(BLOCK)!;
@@ -307,32 +309,35 @@ const PREVIEW_ROWS: [
 	]
 ];
 
-describe.each(PREVIEW_ROWS)('a preview of the next insertion, with %s', (_name, open, edits) => {
-	it.each(edits)('of %j → %j returns what the spend does', (before, edit) => {
-		const previewed = createCaretMemory();
-		const spent = createCaretMemory();
-		open(previewed);
-		open(spent);
+describe.each(PREVIEW_ROWS)(
+	'G4.149 a preview of the next insertion, with %s',
+	(_name, open, edits) => {
+		it.each(edits)('of %j → %j returns what the spend does', (before, edit) => {
+			const previewed = createCaretMemory();
+			const spent = createCaretMemory();
+			open(previewed);
+			open(spent);
 
-		expect(previewed.previewInsertion(BLOCK, BOLD_CLOSER).spend(before, edit)).toEqual(
-			spent.holdInsertion(BLOCK, BOLD_CLOSER).spend(before, edit)
-		);
-	});
+			expect(previewed.previewInsertion(BLOCK, BOLD_CLOSER).spend(before, edit)).toEqual(
+				spent.holdInsertion(BLOCK, BOLD_CLOSER).spend(before, edit)
+			);
+		});
 
-	it.each(edits)('of %j → %j leaves every record for the next write', (before, edit) => {
-		const memory = createCaretMemory();
-		open(memory);
-		// A write that changes nothing leaves every record it held waiting.
-		const waiting = () => {
-			const held = memory.holdInsertion(BLOCK);
-			const at = [3, 5].map((offset) => held.waitsAt(offset));
-			held.finish(false);
-			return at;
-		};
-		const was = waiting();
+		it.each(edits)('of %j → %j leaves every record for the next write', (before, edit) => {
+			const memory = createCaretMemory();
+			open(memory);
+			// A write that changes nothing leaves every record it held waiting.
+			const waiting = () => {
+				const held = memory.holdInsertion(BLOCK);
+				const at = [3, 5].map((offset) => held.waitsAt(offset));
+				held.finish(false);
+				return at;
+			};
+			const was = waiting();
 
-		memory.previewInsertion(BLOCK, BOLD_CLOSER).spend(before, edit);
+			memory.previewInsertion(BLOCK, BOLD_CLOSER).spend(before, edit);
 
-		expect(waiting()).toEqual(was);
-	});
-});
+			expect(waiting()).toEqual(was);
+		});
+	}
+);

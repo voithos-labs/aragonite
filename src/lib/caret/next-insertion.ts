@@ -48,8 +48,9 @@ export interface Placement {
 export interface InsertionRecord {
 	/** The record left in `block`, for one write to spend; null when none waits there. */
 	take(block: object): InsertionSpend | null;
-	/** Drop the record, or only the one left in `block` when a block is named. */
-	end(block?: object): void;
+	/** Drop the record, or only the one left in `block` when a block is named; true when there was
+	 *  one to drop. */
+	end(block?: object): boolean;
 }
 
 /** A record held for one write. */
@@ -88,9 +89,9 @@ export interface InsertionRecords {
 	hold(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): HeldInsertion;
 	/** The same spend as `hold`, run dry: no record is held, kept or ended by it. */
 	preview(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): PreviewInsertion;
-	/** Ends `record` (every record when omitted), in `block` when one is named. A record a write
-	 *  holds stays in effect, drawn and spendable, until that hold lets go of it. */
-	end(record?: InsertionRecord, block?: object): void;
+	/** Ends `record` (every record when omitted), in `block` when one is named; true when one ended.
+	 *  A record a write holds stays in effect, drawn and spendable, until that hold lets go of it. */
+	end(record?: InsertionRecord, block?: object): boolean;
 }
 
 export function createInsertionRecords(records: readonly InsertionRecord[]): InsertionRecords {
@@ -138,9 +139,11 @@ export function createInsertionRecords(records: readonly InsertionRecord[]): Ins
 		hold,
 		preview,
 		end: (record, block) => {
+			let ended = false;
 			for (const each of record ? [record] : records) {
-				if (!holding.has(each)) each.end(block);
+				if (!holding.has(each) && each.end(block)) ended = true;
 			}
+			return ended;
 		}
 	};
 }

@@ -87,7 +87,9 @@ export function createHeldSpace(): HeldSpace {
 			};
 		},
 		end: (block) => {
-			if (block === undefined || hold?.block === block) hold = null;
+			if (hold === null || (block !== undefined && hold.block !== block)) return false;
+			hold = null;
+			return true;
 		}
 	};
 }

@@ -38,6 +38,10 @@ import { asEditorX, asRawOffset, type RawOffset } from '../../caret/coordinate-s
 import type { SurfaceBackend } from '../../caret/surface-backend';
 import type { DrawnCaret, WidgetEdgeSource } from '../../caret/drawn-caret.svelte';
 import type { HeldInsertion, PlaceInsertion } from '../../caret/next-insertion';
+import { caretLook, type NextByte } from '../../caret/caret-look';
+import type { InlineNode } from '../../core/nodes';
+import { recordCaretLook } from '../../perf/instruments';
+import { createNextByte } from './text/next-byte';
 import type { BlockPendingBreak } from '../../caret/pending-break.svelte';
 import type { HeldSpaceView } from '../../caret/held-space';
 import { findOffsetNearestX } from '../../caret/sticky-measure';
@@ -67,6 +71,7 @@ import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
 	rawOfWalkOffset,
 	revealsNoMarkers,
+	rawOffsetAt,
 	walkOffsetOfRaw,
 	type CaretWriter,
 	type RawRange
@@ -220,6 +225,9 @@ export interface EditableSurfaceDeps {
 	/** Moves a typed insertion to the side of a hidden edge the caret means; omitted where the block
 	 *  draws every marker. Every insertion route writes through it (`next-insertion.ts`). */
 	placeInsertion?: PlaceInsertion;
+	/** The block's inline tree, for a block whose text takes inline formats: the drawn caret shows
+	 *  the ones the next letter would carry. */
+	getInlines?: () => readonly InlineNode[];
 	/** Runs before the shared input commit (the text block lets go of its widget edge here). */
 	inputPrelude?: () => void;
 	/** How the drawn caret draws beside this editable's inline widgets; absent where it has none. */
@@ -260,6 +268,9 @@ export interface EditableSurface {
 	pendingBreak: BlockPendingBreak;
 	/** A space typed at a hidden closer here, which the next letter takes back inside. */
 	heldSpace: HeldSpaceView;
+	/** The formats a letter typed at raw offset `caret` would carry (`text/next-byte.ts`); plain
+	 *  where the block has no `getInlines`. */
+	nextByte(caret: number): NextByte;
 	/** Wraps the block's `runCommand` (or a clipboard edit), so a command dispatched from
 	 *  anywhere, a key or a toolbar, anchors undo on the caret it found. */
 	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
@@ -477,6 +488,17 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	const block = {};
 	const holdInsertion = (): HeldInsertion =>
 		deps.caretMemory.holdInsertion(block, deps.placeInsertion);
+	const { getInlines } = deps;
+	const nextByte = getInlines
+		? createNextByte({
+				getEl: deps.getEl,
+				getNode: deps.getNode,
+				getInlines,
+				reading: deps.reading,
+				caretMemory: deps.caretMemory,
+				preview: () => deps.caretMemory.previewInsertion(block, deps.placeInsertion)
+			})
+		: () => ({ marks: [] });
 
 	const writeText = createSurfaceWrite({
 		getNode: deps.getNode,
@@ -655,7 +677,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.drawnCaret.register({
 			el,
 			drawable: () => !deps.getComposing() && !deps.isInputSuppressed?.(),
-			widgetEdge: deps.widgetEdge
+			widgetEdge: deps.widgetEdge,
+			...(getInlines && {
+				look: (range: Range) => {
+					recordCaretLook('caretLookOffsetWalks');
+					return caretLook(nextByte(rawOffsetAt(el, range.startContainer, range.startOffset)));
+				}
+			})
 		});
 
 	// The role is `combobox` only while inline menu rows show: `textbox` carries no
@@ -688,6 +716,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		lineEnding,
 		pendingBreak: deps.caretMemory.pendingBreak.forBlock(block),
 		heldSpace: deps.caretMemory.heldSpace.forBlock(block),
+		nextByte,
 		command,
 		afterSelectionRemoved,
 		onKeyDown,

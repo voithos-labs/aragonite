@@ -199,7 +199,8 @@
 		isReading: () => readOnly,
 		reading,
 		caretMemory,
-		heldSpace: () => editableSurface.heldSpace
+		heldSpace: () => editableSurface.heldSpace,
+		nextByte: (caret) => editableSurface.nextByte(caret)
 	});
 
 	const typedPlacement = createTypedPlacement({
@@ -239,6 +240,7 @@
 		readText: () => readCellText(),
 		compositionSeat,
 		placeInsertion: typedPlacement.insertion,
+		getInlines: () => resolvedInlineContent(node, reading),
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
 		removeSelection: (range) =>

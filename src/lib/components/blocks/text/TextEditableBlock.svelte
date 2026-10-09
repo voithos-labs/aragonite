@@ -235,7 +235,8 @@
 		isReading: () => readOnly,
 		reading,
 		caretMemory,
-		heldSpace: () => editableSurface.heldSpace
+		heldSpace: () => editableSurface.heldSpace,
+		nextByte: (caret) => editableSurface.nextByte(caret)
 	});
 	const typedPlacement = createTypedPlacement({
 		getEl: () => el ?? null,
@@ -285,6 +286,7 @@
 		readText: () => readRawText(),
 		compositionSeat,
 		placeInsertion: typedPlacement.insertion,
+		getInlines: () => resolvedInlineContent(node, reading),
 		inputPrelude: () => {
 			markKeystrokeStart();
 			holdWidgetEdge(null);

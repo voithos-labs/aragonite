@@ -64,7 +64,7 @@ async function oneKey(source: string, word: string, mode: PresentationMode): Pro
 }
 
 describe.each<PresentationMode>(['live', 'source'])(
-	'a plain letter mid-word, in %s mode',
+	'G4.148 a plain letter mid-word, in %s mode',
 	(mode) => {
 		it('costs the look one answer and no trial, parse or screen read', async () => {
 			const visits: number[] = [];

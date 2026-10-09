@@ -259,7 +259,7 @@ export function edgeStep(
 
 /** A byte stands in for whatever the user types next: a letter, which pairs with nothing, so the
  *  render's verdict is about the offset and not about the byte. */
-const PROBE_BYTE = 'a';
+export const PROBE_BYTE = 'a';
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 

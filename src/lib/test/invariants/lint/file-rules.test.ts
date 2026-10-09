@@ -1313,6 +1313,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'a typed byte probed or placed at a caret position, which deletes nothing',
 			'src/lib/components/blocks/text/pending-mark-insert.ts':
 				'a typed run inserted wrapped in the pending marks, which deletes nothing',
+			'src/lib/components/blocks/text/next-byte.ts':
+				'a probe letter inserted at the caret to read its formats, which writes nothing',
 			'src/lib/components/blocks/text/delimiter-autopair.ts':
 				'a delimiter inserted with its pair, or the empty pair it wrote taken back whole',
 			'src/lib/components/blocks/text/auto-pair-record.ts':

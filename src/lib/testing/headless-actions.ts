@@ -53,6 +53,7 @@ export function stubCaretMemory(): CaretMemory {
 		heldSpace: { forBlock: () => ({ at: () => null, inside: () => null }) },
 		holdInsertion: (block, place) => createInsertionRecords([]).hold(block, null, place),
 		previewInsertion: (block, place) => createInsertionRecords([]).preview(block, null, place),
+		changeCount: () => 0,
 		noteKey: () => {},
 		noteTyping: () => {},
 		noteExtreme: () => {},

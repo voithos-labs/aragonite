@@ -74,6 +74,7 @@ const EXEMPT: Record<string, string> = {
 	'heldSpace.forBlock().at': 'a read',
 	'heldSpace.forBlock().inside': 'a read',
 	previewInsertion: 'a read: it spends nothing',
+	changeCount: 'a read',
 	holdInsertion:
 		'its records change only inside a write, which asks for its own paint when it puts the caret back',
 	captureColumn: 'the column aims a run of Up and Down presses, and the drawn caret never reads it'
@@ -107,7 +108,7 @@ function requests([from, call]: [Step, Step]): number {
 	return asked;
 }
 
-describe('the caret memory’s repaint requests', () => {
+describe('G4.147 the caret memory’s repaint requests', () => {
 	it('cover every method it exposes', () => {
 		const listed = [...Object.keys(CHANGES), ...Object.keys(EXEMPT)].sort();
 		expect(methodsOf(createCaretMemory({ onChange: () => {} }))).toEqual(listed);

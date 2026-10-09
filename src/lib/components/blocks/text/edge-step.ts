@@ -13,7 +13,8 @@ import { classifyArrivalKey, edgeStepDirection } from '../../../caret/edge-affin
 import { revealsNoMarkers, screenVisibilityOf } from '../../../caret/widget-offset';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import type { Reading } from '../../../schema/reading';
-import { edgeStep, edgeStops, seatOffsetsAt, typingOffset } from './edge-seat';
+import type { NextByte } from '../../../caret/caret-look';
+import { edgeStep, edgeStops, seatOffsetsAt } from './edge-seat';
 
 /** On a construct's content element while the caret sits at its hidden edge, inside it. */
 export const EDGE_HELD_CLASS = 'md-edge-held';
@@ -32,6 +33,9 @@ export interface EdgeStepDeps {
 	caretMemory: Pick<CaretMemory, 'side' | 'pin'>;
 	/** The block's held space, read lazily: the block makes it after the edge step. */
 	heldSpace: () => HeldSpaceView;
+	/** The formats a letter typed at a raw offset would carry, the answer the drawn caret paints;
+	 *  read lazily, like the held space. */
+	nextByte: (caret: number) => NextByte;
 }
 
 export interface EdgeStep {
@@ -124,8 +128,16 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 
 	function sync(): void {
 		keySinceSync = false;
-		if (edgeHost()) mark(heldElements(edge() ?? heldSpaceEdge()));
+		if (edgeHost()) mark(heldElements(edge() ?? heldSpaceStop()));
 		else if (held.length > 0) mark([]);
+	}
+
+	/** A held space's construct, as the one stop where its closer is: the caret sits past it. */
+	function heldSpaceStop(): ReturnType<typeof edge> {
+		const el = edgeHost();
+		const caret = deps.getCaret();
+		const inside = caret === null ? null : heldSpaceAt(caret);
+		return el && caret !== null && inside !== null ? { el, caret, stops: [inside] } : null;
 	}
 
 	/** Where the next letter joins the construct while a space typed at its hidden closer is held
@@ -133,14 +145,6 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	function heldSpaceAt(caret: number): number | null {
 		const view = deps.heldSpace();
 		return hidingEl() && view.at() === caret ? view.inside() : null;
-	}
-
-	/** The construct a held space keeps the caret in, as the one stop the ring reads. */
-	function heldSpaceEdge(): ReturnType<typeof edge> {
-		const el = edgeHost();
-		const caret = deps.getCaret();
-		const inside = caret === null ? null : heldSpaceAt(caret);
-		return el && inside !== null ? { el, caret: inside, stops: [inside] } : null;
 	}
 
 	/** The block while it has the focus, hides markers at the caret and holds a construct: the one
@@ -157,29 +161,22 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		held = next;
 	}
 
-	/** The content elements, at this position, the next byte would land inside: decided on the
-	 *  tree, then found by the construct tags on the opener, whose next sibling is the content. */
+	/** The content elements at this edge of the constructs the next letter would carry, found by
+	 *  the construct tags on the opener, whose next sibling is the content. */
 	function heldElements(at: ReturnType<typeof edge>): Element[] {
 		if (!at) return [];
-		const inlines = deps.getInlines();
-		const typing = typingOffset(
-			at.caret,
-			inlines,
-			deps.caretMemory.side(),
-			deps.getRaw(),
-			screenVisibilityOf(at.el),
-			deps.reading
-		);
+		const carried = new Set<string>(deps.nextByte(at.caret).marks);
+		if (carried.size === 0) return [];
 		const lo = at.stops[0];
 		const hi = at.stops[at.stops.length - 1];
 		const within = (offset: number) => offset >= lo && offset <= hi;
 		const inside = new Set<string>();
-		for (const node of inlineDescendants(inlines)) {
+		for (const node of inlineDescendants(deps.getInlines())) {
 			// A never-extend construct takes no byte at its edge, so there is no side to show.
 			if (getInlineConstructPolicy(node.kind)?.edgeAffinity !== 'symmetric-pair') continue;
 			const content = constructContentRange(node);
 			if (!content || !(within(content.start) || within(content.end))) continue;
-			if (content.start <= typing && typing <= content.end) inside.add(`${node.start}:${node.end}`);
+			if (carried.has(node.kind)) inside.add(`${node.start}:${node.end}`);
 		}
 		if (inside.size === 0) return [];
 		const found: Element[] = [];

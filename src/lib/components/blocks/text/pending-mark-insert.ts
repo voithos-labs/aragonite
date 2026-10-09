@@ -249,23 +249,52 @@ function isSymmetricPair(kind: AnyInlineKind): boolean {
 }
 
 /** Every construct holding `offset`, outermost first; one missing here could be destroyed unnoticed.
- *  Exported for the depth test. */
-export function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
-	const holds = (node: InlineNode): boolean => holdsOffset(node, offset);
+ *  It descends only the constructs that hold `offset`, so `onVisit` hears each node it examined. */
+export function constructChainAt(
+	offset: number,
+	inlines: readonly InlineNode[],
+	onVisit?: () => void
+): ChainNode[] {
 	const chain: ChainNode[] = [];
-	for (const node of inlineDescendants(inlines, holds)) {
-		if (!holds(node)) continue;
-		const content = constructContentRange(node);
+	for (let level: readonly InlineNode[] | undefined = inlines; level;) {
+		const holder = holderAt(level, offset, onVisit);
+		if (!holder) break;
+		const content = constructContentRange(holder);
 		chain.push({
-			kind: node.kind,
-			mark: markOf(node.kind),
-			start: node.start,
-			end: node.end,
-			contentStart: content?.start ?? node.start,
-			contentEnd: content?.end ?? node.end
+			kind: holder.kind,
+			mark: markOf(holder.kind),
+			start: holder.start,
+			end: holder.end,
+			contentStart: content?.start ?? holder.start,
+			contentEnd: content?.end ?? holder.end
 		});
+		level = holder.children;
 	}
 	return chain;
+}
+
+/** The node of `nodes` (sorted by start, never overlapping) that holds `offset`, found by binary
+ *  search: the last one starting at or before it, or the one ending where that one starts. */
+function holderAt(
+	nodes: readonly InlineNode[],
+	offset: number,
+	onVisit?: () => void
+): InlineNode | null {
+	let lo = 0;
+	let hi = nodes.length - 1;
+	while (lo < hi) {
+		const mid = (lo + hi + 1) >> 1;
+		if (nodes[mid].start <= offset) lo = mid;
+		else hi = mid - 1;
+	}
+	const last = nodes[lo];
+	if (!last) return null;
+	const candidates = last.start === offset && lo > 0 ? [nodes[lo - 1], last] : [last];
+	for (const node of candidates) {
+		onVisit?.();
+		if (holdsOffset(node, offset)) return node;
+	}
+	return null;
 }
 
 /** Whether `offset` sits inside this construct, on the reading `constructChainAt` describes. Text
