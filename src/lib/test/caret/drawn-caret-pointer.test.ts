@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Whether an editor draws its caret: the `caret` prop decides, `auto` follows the primary pointer
-// (drawing on a fine one, leaving a coarse one or a page with no media queries native), and forced
-// colors, which keep the browser's caret visible whatever the editor does, never draw.
+// Whether an editor draws its caret: the `caret` prop decides, and `auto` follows the primary
+// pointer (drawing on a fine one, leaving a coarse one or a page with no media queries native).
+// Forced colors are the target's call (`drawn-caret-target.test.ts`).
 import { afterEach, describe, expect, it } from 'vitest';
 import { caretMedia, drawsCaret } from '#lib/caret/drawn-caret.svelte.js';
 
@@ -44,12 +44,5 @@ describe.each(MEDIA)('on %s', (pointer, install) => {
 	it('drawn always draws', () => {
 		install();
 		expect(drawsCaret('drawn', caretMedia())).toBe(true);
-	});
-});
-
-describe('under forced colors', () => {
-	it.each(['auto', 'drawn'] as const)('%s draws nothing', (mode) => {
-		installMedia(['(pointer: fine)', '(forced-colors: active)']);
-		expect(drawsCaret(mode, caretMedia())).toBe(false);
 	});
 });

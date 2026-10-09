@@ -73,6 +73,8 @@ export type DrawnCaretTarget =
 	| { state: 'gap' };
 
 export function drawnCaretTarget(reads: DrawnCaretReads): DrawnCaretTarget {
+	// Forced colors show the browser's caret whatever `caret-color` says, so a bar would be a second.
+	if (reads.forcedColors) return { state: 'native' };
 	if (!drawsHere(reads)) return { state: 'native' };
 	if (hides(reads)) return { state: 'hidden' };
 	if (reads.gap) return { state: 'gap' };
@@ -106,10 +108,9 @@ function inHost(left: number, box: ClientCaretBox, host: HostBox): DrawnCaretRec
 }
 
 // The browser draws no caret at a gap or a widget edge, so the editor draws there whatever the
-// caret prop or the pointer says; forced colors show the browser's own there too.
+// caret prop or the pointer says.
 function drawsHere(reads: DrawnCaretReads): boolean {
-	if (reads.draws) return true;
-	return !reads.forcedColors && (reads.gap || reads.widgetEdge !== null);
+	return reads.draws || reads.gap || reads.widgetEdge !== null;
 }
 
 // Where the range's box isn't where the browser's own caret is, the browser's caret is the truth.

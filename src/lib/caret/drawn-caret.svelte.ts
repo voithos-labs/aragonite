@@ -80,10 +80,9 @@ export interface CaretMedia {
 	forcedColors: { readonly current: boolean };
 }
 
-/** Whether this editor draws its text caret, read at each paint. Forced colors force the browser's
- *  caret visible whatever `caret-color` says, so a drawn one there would be a second caret. */
+/** Whether this editor draws its text caret, read at each paint: the `caret` prop, and for `auto`
+ *  the primary pointer. */
 export function drawsCaret(mode: CaretMode, media: CaretMedia | null): boolean {
-	if (media?.forcedColors.current) return false;
 	if (mode !== 'auto') return mode === 'drawn';
 	return media?.finePointer.current ?? false;
 }
@@ -341,9 +340,9 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	return {
 		request,
 		register(source) {
+			// No paint: the caret reaches a new editable through a caret write or `focusin`, each of
+			// which asks for one.
 			sources.set(source.el, source);
-			// Every other mount reaches the caret through a caret write or `focusin`, each of which asks.
-			if (source.el.contains(document.activeElement)) request();
 			return () => {
 				if (sources.get(source.el) === source) sources.delete(source.el);
 				if (source.widgetEdge) widgetEdge.release(source.widgetEdge.owner);

@@ -53,26 +53,15 @@ const HIDDEN: Array<[string, Partial<DrawnCaretReads>]> = [
 
 const NATIVE: Array<[string, Partial<DrawnCaretReads>]> = [
 	['this pointer or the caret prop draws no caret', { draws: false }],
+	['forced colors at a text caret, where the browser shows its own', { forcedColors: true }],
 	['the anchor sits outside every registered surface', { source: null }],
 	['a composition or a shown inline source owns the caret', { source: { drawable: false } }],
 	['the caret sits beside an inline widget no click meant', { besideWidget: true }],
 	[
 		'forced colors at a widget edge, where the browser shows its own',
-		{
-			draws: false,
-			forcedColors: true,
-			...BESIDE,
-			widgetEdge: EDGE
-		}
+		{ forcedColors: true, ...BESIDE, widgetEdge: EDGE }
 	],
-	[
-		'forced colors at a gap, where the browser shows its own',
-		{
-			draws: false,
-			forcedColors: true,
-			...AT_GAP
-		}
-	],
+	['forced colors at a gap, where the browser shows its own', { forcedColors: true, ...AT_GAP }],
 	['a composition at a widget edge', { ...BESIDE, widgetEdge: EDGE, source: { drawable: false } }],
 	['the caret sits where a line soft-wraps', { atSoftWrap: true }],
 	['a scroller inside the block clips the caret out of view', { clipped: true }],

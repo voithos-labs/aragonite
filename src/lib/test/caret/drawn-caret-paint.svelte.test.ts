@@ -221,25 +221,19 @@ describe('the widget edge a click meant', () => {
 });
 
 describe('an editable that mounts', () => {
-	it('asks for a paint only when it holds focus', async () => {
+	it('asks for no paint until focus reaches it', async () => {
 		const { editor } = await mountAtCaret(5);
-		const caret = editor.instance.__test.getDrawnCaret();
-		const mount = (focused: boolean) => {
-			const el = document.createElement('div');
-			el.tabIndex = 0;
-			editor.target.append(el);
-			if (focused) el.focus();
-			return caret.register({ el, drawable: () => true });
-		};
+		const el = document.createElement('div');
+		el.tabIndex = 0;
+		editor.target.querySelector('.editor')!.append(el);
 		await editor.settle();
 		resetPerfInstruments();
-		const unregister = mount(false);
+		editor.instance.__test.getDrawnCaret().register({ el, drawable: () => true });
 		await editor.settle();
-		expect(perfSnapshot().caretPaintMs, 'an unfocused editable').toHaveLength(0);
-		unregister();
-		mount(true);
+		expect(perfSnapshot().caretPaintMs, 'the mount').toHaveLength(0);
+		el.focus();
 		await editor.settle();
-		expect(perfSnapshot().caretPaintMs, 'the focused editable').toHaveLength(1);
+		expect(perfSnapshot().caretPaintMs, 'the focus').toHaveLength(1);
 	});
 });
 
