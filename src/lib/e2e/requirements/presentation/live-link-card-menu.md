@@ -9,6 +9,7 @@ the one mouse path to the card that works whatever click the host picked for fol
 ## Happy paths
 
 - Edit link on a link opens its card with focus in the URL field, holding the link's destination.
+- A link in a table cell gets the same row at the top of the table's menu, and it opens the card.
 
 ## Edge cases
 

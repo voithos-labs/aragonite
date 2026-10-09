@@ -9,6 +9,7 @@ import { textRunCenter } from '../../text-runs';
 // Requirements: e2e/requirements/presentation/live-link-card-menu.md.
 
 const DOC = 'Visit [example](https://example.com) now\n\nPlain words only\n';
+const CELL_DOC = '| a |\n| - |\n| see [cell](https://cell.test) x |\n';
 const BLOCK_MENU = { name: 'Block actions' };
 const EDIT_LINK = { name: 'Edit link' };
 
@@ -28,6 +29,20 @@ test.describe('the link card from the right-click menu', () => {
 		await expect(page.locator(CARD)).toBeVisible();
 		await expect(page.locator(URL_FIELD)).toBeFocused();
 		await expect(page.locator(URL_FIELD)).toHaveValue('https://example.com');
+	});
+
+	test('Edit link on a link in a table cell opens its card from the table menu', async ({
+		page
+	}) => {
+		await enterPresentationMode(page, 'live', CELL_DOC);
+		const point = await textRunCenter(page, 'cell');
+		await page.mouse.click(point.x, point.y, { button: 'right' });
+
+		await page.getByRole('menuitem', EDIT_LINK).click();
+
+		await expect(page.locator(CARD)).toBeVisible();
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await expect(page.locator(URL_FIELD)).toHaveValue('https://cell.test');
 	});
 
 	test('the menu over plain text offers no Edit link', async ({ page }) => {

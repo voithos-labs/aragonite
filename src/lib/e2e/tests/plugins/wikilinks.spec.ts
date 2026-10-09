@@ -6,7 +6,8 @@ import { PluginsPage, capturedErrors } from './helpers';
  * `[[note]]` links as inline widgets in a host whose links follow on a plain click, the limestone
  * integration reproduced in the harness (`routes/test/plugins/wikilinks`): `revealSource` for
  * editing, `claimsActivationClick` for navigation, and the editor's `linkClick: 'plain'`. Seed
- * `wikilinks`: a link mid-prose (block 0), a typing target (block 1), a Markdown link (block 2).
+ * `wikilinks`: a link mid-prose (block 0), a typing target (block 1), a Markdown link (block 2),
+ * a link in a table cell (block 3).
  * Requirements: e2e/requirements/plugins/wikilinks.md.
  */
 
@@ -189,6 +190,21 @@ test.describe('wikilinks that follow on a plain click', () => {
 		await expect(page.locator('[data-link-card]')).toBeVisible();
 		await expect(page.locator('[data-link-card] input')).toBeFocused();
 		expect(await opened()).toEqual([]);
+	});
+
+	test('Edit link on a link in a table cell shows its source, following nothing', async ({
+		page
+	}) => {
+		const cellLink = page.locator('.wikilink[data-target="Cell note"]');
+		const box = await cellLink.boundingBox();
+		if (!box) throw new Error('no cell link box');
+
+		await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+		await page.getByRole('menuitem', { name: 'Edit link' }).click();
+		await editor.waitForRenderFlush();
+
+		await expect(cellLink).toHaveCount(0);
+		expect(await activations(page)).toEqual([]);
 	});
 
 	test('Mod+K with the caret beside the link shows its source', async ({ page }) => {

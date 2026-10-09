@@ -6,8 +6,8 @@ prefix-override priority, and a widget registered with `revealSource` and
 `claimsActivationClick`. The seed's editor sets `linkClick: 'plain'`, the host's way of saying a
 plain click follows a link, the way it does on a web page. The widget decides whether to act by
 asking its `isActivationClick` prop, so these tests go through the same answer the editor uses.
-Seed `wikilinks`: a link mid-prose in block 0, a plain place to type in block 1, and a Markdown
-link in block 2.
+Seed `wikilinks`: a link mid-prose in block 0, a plain place to type in block 1, a Markdown link
+in block 2, and a link in a table cell in block 3.
 
 ## User interactions
 
@@ -24,6 +24,7 @@ link in block 2.
 - A drag that starts on the link selects and activates nothing.
 - Edit link in the right-click menu on the link shows its source, and follows nothing.
 - Edit link on a Markdown link opens its card with focus in the URL field, and follows nothing.
+- Edit link on a link in a table cell shows its source too, from the table's own menu.
 - Mod+K with the caret beside the link shows its source.
 - A double-click follows once, on the link and on a Markdown link: the second press of a
   double-click isn't a fresh click on what it lands on.
