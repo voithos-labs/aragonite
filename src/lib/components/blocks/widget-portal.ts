@@ -9,7 +9,12 @@ import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
 import type { DocumentView } from '../../core/node-views';
 import { inlineReaderFor } from '../../core/inline';
-import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
+import {
+	getInlineWidgetComponent,
+	getInlineWidgetEditing,
+	isActivationClick,
+	widgetClickClaim
+} from '../../core/inline/inline-widgets';
 import type { Reading } from '../../schema/reading';
 import { tracePoolPass } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../assert';
@@ -169,7 +174,14 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 						// A getter, so a pooled widget's reader changes with the document's definitions.
 						get computeInlineContent() {
 							return inlineReaderFor(reading);
-						}
+						},
+						// Read per click: a pooled widget outlives a mode switch and a policy augment.
+						isActivationClick: (modified: boolean) =>
+							isActivationClick(
+								widgetClickClaim(getInlineWidgetEditing(kind, grammar)),
+								modified,
+								reading.mode()
+							)
 					}
 				});
 				return { wrapper, instance };

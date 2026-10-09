@@ -14,8 +14,9 @@ import { selectWidgetWhole } from '../../../selection/place-caret';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,
+	isActivationClick,
 	isCharacterLikeWidget,
-	widgetClaimsClick
+	widgetClickClaim
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
@@ -88,7 +89,7 @@ export interface WidgetInteractionDeps {
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
 export interface WidgetPress {
-	/** Ctrl or Cmd held at the click: with it, a widget that takes the activation click keeps it. */
+	/** Ctrl or Cmd held at the click, the chord a widget claiming its activation click acts on. */
 	modified?: boolean;
 	/** `MouseEvent.detail`; two or more is a double-click, which selects the token it just opened. */
 	clickCount?: number;
@@ -843,8 +844,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				// Returns rather than falls through: the edge-snap below would focus this block and
 				// place a caret, stealing back what the widget's own navigation just landed.
 				if (
-					widgetClaimsClick(
-						widgetEditing(hit.inline.kind),
+					isActivationClick(
+						widgetClickClaim(widgetEditing(hit.inline.kind)),
 						press.modified ?? false,
 						deps.reading.mode()
 					)

@@ -43,8 +43,15 @@ function registerClickWidget(policy: InlineWidgetEditingPolicy): string {
 	return kind;
 }
 
-/** Whether the widget, mounted through the editor's pool, acts on the click. */
-function widgetActs(kind: string, mode: PresentationMode, modified: boolean): boolean {
+/** Whether the widget, mounted through the editor's pool in `mountMode`, acts on a click made in
+ *  `mode`. */
+function widgetActs(
+	kind: string,
+	mode: PresentationMode,
+	modified: boolean,
+	mountMode: PresentationMode = mode
+): boolean {
+	let current = mountMode;
 	const pool = createSvelteWidgetPool({
 		reportError: (error) => {
 			throw error;
@@ -53,12 +60,13 @@ function widgetActs(kind: string, mode: PresentationMode, modified: boolean): bo
 		getDocument: () => undefined,
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
-		reading: fixtureReading({}, mode)
+		reading: fixtureReading({ mode: () => current })
 	});
 	const start = SOURCE.indexOf('%%');
 	pool.beginPass();
 	const wrapper = pool.acquire(kind as never, { kind, start, end: start + 5 } as never, '%%w%%');
 	pool.sweep();
+	current = mode;
 	const widget = wrapper!.querySelector<HTMLElement>('.activation-click-widget')!;
 	widget.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: modified }));
 	pool.dispose();
@@ -123,4 +131,32 @@ describe('a click on a widget goes to exactly one of the widget and the editor',
 			}
 		}
 	}
+});
+
+describe('a pooled widget', () => {
+	it('answers in the mode of the click, not the mode it mounted in', () => {
+		const kind = registerClickWidget({ claimsActivationClick: true });
+
+		expect(widgetActs(kind, 'reading', false, 'live')).toBe(true);
+		expect(widgetActs(kind, 'live', false, 'reading')).toBe(false);
+	});
+});
+
+describe('a widget that acts on every click', () => {
+	it('still shows its source to a caret arrowing in from an edge', async () => {
+		const kind = registerClickWidget({ plainClickActivates: true });
+		const { el, node, inlineWidgets } = mountWidgetBlock(SOURCE, kind);
+		const interaction = createWidgetInteraction(
+			widgetInteractionDeps(
+				{ node, el },
+				{ setPendingCursor: () => {}, setRevealing: () => {}, isCrossBlock: () => false }
+			)
+		);
+
+		interaction.enterWidget(inlineWidgets[0], true);
+		await settleEditor();
+
+		expect(interaction.isRevealing()).toBe(true);
+		expect(el.childNodes[1].textContent).toBe('%%w%%');
+	});
 });

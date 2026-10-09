@@ -64,10 +64,13 @@ export interface InlineWidgetComponentProps {
 	/** `EditorContext.computeInlineContent` for the widget's editor: it parses as that editor draws,
 	 *  and it's a new function whenever the document's definitions change. */
 	computeInlineContent: (node: NodeView) => InlineNode[];
+	/** Whether a click is this widget's to act on, given `e.ctrlKey || e.metaKey`. The editor
+	 *  answers from the kind's editing policy and leaves the source hidden for exactly these. */
+	isActivationClick: (modified: boolean) => boolean;
 }
 
-/** Shared by the editable element deciding whether to show the source and the widget deciding
- *  whether to act. Reading mode has no caret to place, so a plain click activates, as for links. */
+/** The Ctrl/Cmd chord that follows a link while editing, or any click in reading mode, which has
+ *  no caret to place. An inline widget reads its `isActivationClick` prop instead. */
 export function isWidgetActivationClick(modified: boolean, mode: PresentationMode): boolean {
 	return modified || mode === 'reading';
 }
@@ -99,23 +102,31 @@ export interface InlineWidgetEditingPolicy {
 	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
-	/** The widget's own component handles an activation click ({@link isWidgetActivationClick}),
+	/** The widget's own component acts on the Ctrl/Cmd chord ({@link isWidgetActivationClick}),
 	 *  so the editable element does not show the source, which would unmount the widget. */
 	claimsActivationClick?: boolean;
-	/** Any click activates, as a link on a web page does, and the caret arrowing in shows the
-	 *  source instead. Implies `claimsActivationClick`. */
+	/** The component acts on any click, as a link on a web page does, and the caret arrowing in
+	 *  shows the source instead. Implies `claimsActivationClick`. */
 	plainClickActivates?: boolean;
 }
 
-/** Whether a click on a widget of this policy is its own activation click, which the editable
- *  element then leaves alone rather than showing the source. */
-export function widgetClaimsClick(
-	policy: InlineWidgetEditingPolicy | undefined,
+/** Which clicks a widget's own component acts on: none, the chord, or any click. */
+export type WidgetClickClaim = 'none' | 'chord' | 'any';
+
+export function widgetClickClaim(policy: InlineWidgetEditingPolicy | undefined): WidgetClickClaim {
+	if (policy?.plainClickActivates) return 'any';
+	return policy?.claimsActivationClick ? 'chord' : 'none';
+}
+
+/** The one answer both sides of a click on a widget read: the editable element leaves the source
+ *  hidden for it, and the widget's component (through its prop of this name) acts on it. */
+export function isActivationClick(
+	claim: WidgetClickClaim,
 	modified: boolean,
 	mode: PresentationMode
 ): boolean {
-	if (policy?.plainClickActivates) return true;
-	return policy?.claimsActivationClick === true && isWidgetActivationClick(modified, mode);
+	if (claim === 'any') return true;
+	return claim === 'chord' && isWidgetActivationClick(modified, mode);
 }
 
 export interface InlineWidgetEditingContext {
