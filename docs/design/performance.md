@@ -173,7 +173,7 @@ perfSnapshot();
 //   parseCount: 1, parseMsTotal: 0.3, parseBlockCount: 57, parseBytes: 10179, inlineComputeCount: 1,
 //   formatCoverageReads: 0, screenReads: 0, undoLiveBytes: 0, undoEntryCount: 0,
 //   blockRenderCount: 0, blockRenderMsTotal: 0, keystrokeInPageMs: [], caretPaintMs: [],
-//   caretFrameMoves: 0, blockRenderPaths: [],
+//   caretFrameMoves: 0, caretPaints: 0, blockRenderPaths: [],
 //   mountedBlockCount: 0, decorationRuns: 0, islandRebuilds: 0, islandKeyScans: 0,
 //   heightTableBuilds: [], neighbourPasses: 0
 // }

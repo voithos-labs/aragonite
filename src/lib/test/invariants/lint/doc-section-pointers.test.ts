@@ -102,7 +102,7 @@ describe('§ pointer resolution: self-tests', () => {
 		expect(resolvesAgainst(editorHeadings, 'reactive-state-plumbing-carries-the-incident')).toBe(
 			true
 		);
-		expect(resolvesAgainst(editorHeadings, 'the-gap-caret')).toBe(true);
+		expect(resolvesAgainst(editorHeadings, 'container-unwrap')).toBe(true);
 		expect(resolvesAgainst(editorHeadings, 'undo-redo')).toBe(true);
 	});
 

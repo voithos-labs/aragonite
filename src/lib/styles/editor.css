@@ -354,56 +354,6 @@
 	background: transparent;
 }
 
-/* A drawn caret on the edge the caret snaps to: Chromium does not reliably render
-   the real one next to a contenteditable=false neighbor. */
-:where(.editor) [data-inline-widget].md-snap-after::before,
-:where(.editor) [data-inline-widget].md-snap-before::before {
-	content: '';
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	width: 1.5px;
-	background-color: var(--color-text-primary, currentColor);
-	animation: md-snap-caret-blink 1s step-end infinite;
-	pointer-events: none;
-}
-
-:where(.editor) [data-inline-widget].md-snap-after::before {
-	right: -1px;
-}
-
-:where(.editor) [data-inline-widget].md-snap-before::before {
-	left: -1px;
-}
-
-/* An image's drawn caret is inset from the frame so it reads as a caret, not part of the border;
-   a text-height widget keeps the full box, where an inset would leave a stub. */
-:where(.editor) .md-image-widget.md-snap-after::before,
-:where(.editor) .md-image-widget.md-snap-before::before {
-	top: 4px;
-	bottom: 4px;
-}
-
-:where(.editor) .md-image-widget.md-snap-after::before {
-	right: -4px;
-}
-
-:where(.editor) .md-image-widget.md-snap-before::before {
-	left: -4px;
-}
-
-@keyframes md-snap-caret-blink {
-	50% {
-		opacity: 0;
-	}
-}
-
-/* The drawn caret replaces the browser's own: Chromium does sometimes render a caret beside a
-   non-editable inline widget, and two at one position read as two carets. */
-:where(.editor) .md-snap-caret-active {
-	caret-color: transparent;
-}
-
 /* Top, left, width, height set inline by syncOverlayToWidget. */
 :where(.editor) .md-image-overlay {
 	position: absolute;
@@ -994,8 +944,8 @@
 	display: inline;
 }
 
-/* The caret the editor draws on a fine pointer (`caret/drawn-caret.svelte.ts`), one per editor:
-   the paint sets its position and height inline, and it shows only while it draws a caret. */
+/* The caret the editor draws (`caret/drawn-caret.svelte.ts`), one per editor: the paint sets its
+   box inline, and hides it while it draws nothing. */
 :where(.editor) .md-drawn-caret {
 	position: absolute;
 	top: 0;
@@ -1006,13 +956,20 @@
 	animation: md-caret-blink-a var(--md-caret-blink) step-end infinite;
 }
 
+/* Across a gap between blocks the bar lies flat over the boundary, centred so neither neighbour
+   appears to own it. */
+:where(.editor) .md-drawn-caret[data-caret-state='gap'] {
+	top: -1px;
+	right: 0;
+	width: auto;
+	height: 2px;
+	border-radius: 1px;
+	background-color: var(--color-text-secondary, #d6d9e0);
+}
+
 /* Two identical keyframes: the paint switches between them to restart the blink on a move. */
 :where(.editor) .md-drawn-caret[data-blink='b'] {
 	animation-name: md-caret-blink-b;
-}
-
-:where(.editor) .md-drawn-caret:not([data-caret-state='text']) {
-	display: none;
 }
 
 /* Only the editable the drawn caret draws for hides the browser's caret, so any other field keeps
@@ -1033,8 +990,9 @@
 	}
 }
 
+/* As specific as the second keyframe's rule, so a caret that moved stays still too. */
 @media (prefers-reduced-motion: reduce) {
-	:where(.editor) .md-drawn-caret {
+	:where(.editor) .md-drawn-caret[data-blink] {
 		animation: none;
 	}
 }

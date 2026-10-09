@@ -36,7 +36,7 @@ import { placeCaret, selectInBlock } from '../../selection/place-caret';
 import { deleteSnapshot } from '../../selection/primitives';
 import { asEditorX, asRawOffset, type RawOffset } from '../../caret/coordinate-spaces';
 import type { SurfaceBackend } from '../../caret/surface-backend';
-import type { DrawnCaret } from '../../caret/drawn-caret.svelte';
+import type { DrawnCaret, WidgetEdgeSource } from '../../caret/drawn-caret.svelte';
 import type { HeldInsertion, PlaceInsertion } from '../../caret/next-insertion';
 import type { BlockPendingBreak } from '../../caret/pending-break.svelte';
 import type { HeldSpaceView } from '../../caret/held-space';
@@ -220,8 +220,10 @@ export interface EditableSurfaceDeps {
 	/** Moves a typed insertion to the side of a hidden edge the caret means; omitted where the block
 	 *  draws every marker. Every insertion route writes through it (`next-insertion.ts`). */
 	placeInsertion?: PlaceInsertion;
-	/** Runs before the shared input commit (the text block resets its snap target here). */
+	/** Runs before the shared input commit (the text block lets go of its widget edge here). */
 	inputPrelude?: () => void;
+	/** How the drawn caret draws beside this editable's inline widgets; absent where it has none. */
+	widgetEdge?: WidgetEdgeSource;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
 	/** Deletes `range` of the block's own text, leaving the caret at its start. */
@@ -652,7 +654,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	const caretSource = (el: HTMLElement) =>
 		deps.drawnCaret.register({
 			el,
-			drawable: () => !deps.getComposing() && !deps.isInputSuppressed?.()
+			drawable: () => !deps.getComposing() && !deps.isInputSuppressed?.(),
+			widgetEdge: deps.widgetEdge
 		});
 
 	// The role is `combobox` only while inline menu rows show: `textbox` carries no

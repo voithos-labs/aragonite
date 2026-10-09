@@ -2,11 +2,12 @@
  * The drawn caret's source guards. One module writes its element and the attribute that hides the
  * browser's caret (G4.141); `caret-color` is declared only for the surfaces that hide it on purpose
  * (G4.142); and every native selection write sits inside the per-editor caret writer, whose writes
- * ask for a repaint, while the paint at an animation frame only paints (G4.143).
+ * ask for a repaint, while the paint at an animation frame only paints (G4.143). The class names
+ * and blink of the widget and gap carets' own painters appear nowhere in `src/lib` (G4.144).
  */
 
 import { describe, expect, it } from 'vitest';
-import { describeManifests, type ManifestRule } from './file-rule';
+import { describeFileRules, describeManifests, type ManifestRule } from './file-rule';
 import { balancedBlock, balancedCall, collectEditorSources, readSource } from './scan-source';
 import { SOURCE } from './source-paths';
 import { NATIVE_SELECTION_WRITE } from './native-selection-write';
@@ -55,10 +56,8 @@ const CARET_COLOR_RULES: Record<string, string> = {
 		'a cross-block range, whose overlay paints and whose parked caret takes paste only',
 	[`${SOURCE.editorCss} :: :where(.editor) .whole-block-input`]:
 		'the proxy that takes input for a block held whole, which holds no caret anyone sees',
-	[`${SOURCE.editorCss} :: :where(.editor) .md-snap-caret-active`]:
-		'a block whose snap caret is drawn beside an inline widget',
 	['src/lib/components/GapCaret.svelte :: .gap-caret-proxy']:
-		'the gap caret’s proxy, whose own line is the caret'
+		'the gap caret’s proxy, whose caret is the drawn bar across the gap'
 };
 
 const CARET_COLOR_REASON =
@@ -95,6 +94,41 @@ describe('G4.142 caret-color is declared only for the known surfaces', () => {
 		expect(caretColorRules('x.css', css)).toEqual(['x.css :: .b .c', 'x.css :: .d']);
 	});
 });
+
+// ── G4.144 no widget or gap painter of their own ────────────────────────────
+
+// Spelled in parts, so this file's own probes are not a second painter.
+const OLD_NAMES = [
+	...['after', 'before', 'caret-active'].map((part) => `md-snap-${part}`),
+	['gap-caret', 'line'].join('-')
+];
+const OLD_PAINTER = new RegExp(`\\b(?:${OLD_NAMES.join('|')})\\b`);
+const OTHER_CARET_BLINK = /@keyframes\s+(?!md-caret-blink-[ab]\b)[\w-]*(?:caret|blink)/;
+const keyframes = (name: string) => ['@keyframes', name, '{ 50% { opacity: 0; } }'].join(' ');
+
+describeFileRules(
+	[
+		{
+			id: 'G4.144 the old widget and gap caret painters stay gone',
+			matches: (file) => OLD_PAINTER.test(file.code) || OTHER_CARET_BLINK.test(file.code),
+			reason:
+				'a second element painting a caret (a class drawing one beside a widget, a line at a gap, its own blink) is a second caret beside the drawn one; draw it as a state of the drawn caret',
+			hits: [
+				`:where(.editor) [data-inline-widget].${OLD_NAMES[0]}::before { width: 1.5px; }`,
+				`<div class="${OLD_NAMES[3]}"></div>`,
+				`el.classList.add('${OLD_NAMES[2]}');`,
+				keyframes(['gap', 'caret', 'blink'].join('-'))
+			],
+			misses: [
+				keyframes('md-caret-blink-a'),
+				keyframes('kind-cue-fade'),
+				`// the ${OLD_NAMES[3]} went into the drawn caret`,
+				"bar.setAttribute('data-caret-state', 'widget');"
+			]
+		}
+	],
+	collectEditorSources(undefined, { includeTests: true, includeStyles: true })
+);
 
 // ── G4.143 every caret write asks for a repaint ─────────────────────────────
 

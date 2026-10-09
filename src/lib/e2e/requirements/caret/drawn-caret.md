@@ -1,9 +1,10 @@
 # The drawn caret
 
 On a fine pointer the editor draws the caret itself, as one bar per editor, and hides the browser's
-caret only on the editable it draws for. The browser's selection stays where it is, so typing, IME
-and screen readers read the real thing. Exactly one caret shows at any moment: the drawn bar, the
-browser's own, or the snap caret beside an inline widget.
+caret only on the editable it draws for. The same bar draws where the browser can't on any pointer:
+beside an inline widget and across a gap between blocks. The browser's selection stays where it is,
+so typing, IME and screen readers read the real thing. Exactly one caret shows at any moment: the
+drawn bar or the browser's own.
 
 ## Happy paths
 
@@ -28,11 +29,16 @@ browser's own, or the snap caret beside an inline widget.
 - The window loses focus: no caret shows; it regains focus: the drawn caret shows again
 - A range in one block (Shift+ArrowLeft): no caret shows; collapsing it shows the drawn one again
 - A cross-block range (Shift+ArrowDown into the next block): no caret shows
-- Beside an image the snap caret is the one caret, and the drawn one draws nothing
+- With the `caret` prop set to `native`, a click past an image still draws the bar there, since the browser can't; typing a letter after it brings the browser's caret back
+- Typing mid-word writes no class on the editable, and sets the attribute that hides the browser's caret only when the caret moves to another editable
+  - Miss-analysis: no test watched the editable's attributes during typing, so a class removed on every key and the hiding attribute set again on every paint went unseen
 - An input the editor doesn't draw for (the find bar) keeps the browser's caret, and the drawn one draws nothing
 - During an IME composition the browser's caret shows; after the commit, the drawn one
-- Reduced motion: the drawn caret doesn't blink
+- Reduced motion: the drawn caret doesn't blink, after any number of moves
+  - Miss-analysis: the row read the bar once, after one paint, and each move switches between two keyframe rules, so the second one, which out-ranked the reduced-motion rule, was never read
+- Reduced motion: the bar beside a widget and across a gap doesn't blink either
 - Forced colors: the browser's caret shows, since forced colors keep it visible whatever the editor sets, and the drawn one draws nothing
+- Forced colors beside a text-height widget and at a gap: exactly one caret, the browser's, found blinking in a screenshot. Beside an image-only line the browser paints none and the editor draws none either, so there's no caret there under forced colors
 - A coarse pointer keeps the browser's caret
 - The `caret` prop: `native` never draws, `drawn` draws, and switching between them live swaps the caret in place
 - The bar is hidden from assistive tech, and the focused editable and its selection are what they would be without it

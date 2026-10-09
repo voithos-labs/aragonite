@@ -1,19 +1,19 @@
 /**
  * What the drawn caret's paint reads off the layout: the caret's box, the block host the bar draws
- * in, and the places where the range's box isn't where the browser paints its own caret (beside a
- * widget, at a soft wrap, clipped by an inner scroller, at a code chip's edge). Reads only; the
- * target decides what to draw from these.
+ * in, the bar's box beside an inline widget, and the places where the range's box isn't where the
+ * browser paints its own caret (beside a widget, at a soft wrap, clipped by an inner scroller, at a
+ * code chip's edge). Reads only; the target decides what to draw from these.
  */
 
 import { firstUsefulRect, neighbourCaretRect, type CaretRect } from './visual-lines';
 import { isAtomicInlineWidget, isHiddenMarkerText } from './widget-offset';
-import type { HostBox } from './drawn-caret-target';
+import type { HostBox, WidgetEdgeBox } from './drawn-caret-target';
 
 export interface CaretMeasure {
 	host: HTMLElement;
 	hostBox: HostBox;
 	caret: CaretRect | null;
-	/** The caret sits beside an inline widget, where the snap caret draws. */
+	/** The caret sits beside an inline widget, where the range has no box of its own. */
 	besideWidget: boolean;
 	/** The caret sits in the run of spaces a line wraps in. */
 	atSoftWrap: boolean;
@@ -29,23 +29,42 @@ export function caretHost(surface: HTMLElement): HTMLElement | null {
 	return surface.closest<HTMLElement>('[data-block-path]') ?? surface.parentElement;
 }
 
+/** Where the bar's position is measured from inside `host`: its padding box, past any scroll. */
+export function hostBox(host: HTMLElement): HostBox {
+	const box = host.getBoundingClientRect();
+	const scale = host.offsetWidth > 0 ? box.width / host.offsetWidth : 1;
+	return {
+		left: box.left + (host.clientLeft - host.scrollLeft) * scale,
+		top: box.top + (host.clientTop - host.scrollTop) * scale,
+		scale
+	};
+}
+
+/** The bar on one side of `widget`; an image's is held clear of its frame and short of its ends,
+ *  so it reads as a caret rather than part of the border. */
+export function widgetEdgeBox(widget: HTMLElement, side: 'before' | 'after'): WidgetEdgeBox {
+	const r = widget.getBoundingClientRect();
+	const image = widget.matches(IMAGE_WIDGET);
+	const clear = image ? 4 : 1;
+	const inset = image ? 4 : 0;
+	return {
+		left: side === 'after' ? r.right + clear - WIDGET_BAR_WIDTH : r.left - clear,
+		top: r.top + inset,
+		bottom: r.bottom - inset,
+		width: WIDGET_BAR_WIDTH
+	};
+}
+
 export function measureCaret(surface: HTMLElement, range: Range): CaretMeasure | null {
 	const host = caretHost(surface);
 	if (!host) return null;
 	const own = firstUsefulRect(range);
 	const caret = own ?? neighbourCaretRect(range);
-	const box = host.getBoundingClientRect();
-	const scale = host.offsetWidth > 0 ? box.width / host.offsetWidth : 1;
 	return {
 		host,
-		hostBox: {
-			left: box.left + (host.clientLeft - host.scrollLeft) * scale,
-			top: box.top + (host.clientTop - host.scrollTop) * scale,
-			scale
-		},
+		hostBox: hostBox(host),
 		caret: caret && { left: caret.left, top: caret.top, bottom: caret.bottom },
-		besideWidget:
-			surface.classList.contains(SNAP_CARET_CLASS) || (own === null && touchesWidget(range)),
+		besideWidget: own === null && touchesWidget(range),
 		atSoftWrap: own !== null && atSoftWrap(range, surface),
 		clipped: caret !== null && clippedBetween(surface, host, caret),
 		atCodeChipEdge: atCodeChipEdge(range, surface)
@@ -54,8 +73,9 @@ export function measureCaret(surface: HTMLElement, range: Range): CaretMeasure |
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** Drawn by the text block beside an inline widget; the bar steps aside while it shows. */
-const SNAP_CARET_CLASS = 'md-snap-caret-active';
+const WIDGET_BAR_WIDTH = 1.5;
+
+const IMAGE_WIDGET = '.md-image-widget';
 
 const WRAP_SPACE = [' ', '\t'];
 

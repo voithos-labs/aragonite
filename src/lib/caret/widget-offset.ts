@@ -1,8 +1,8 @@
 /**
  * The one place a DOM position is translated to a raw offset and back, and the one place the
- * native selection is written, through each editor's caret writer (`docs/design/editor.md`). The
- * walk offset (`DomTextOffset`) sums text-node lengths, the marker prefix's text included, plus each
- * atomic widget's source length; a raw offset is that minus the prefix length.
+ * native selection is written, through each editor's caret writer (`docs/design/selection.md`).
+ * The walk offset (`DomTextOffset`) sums text-node lengths, the marker prefix's text included, plus
+ * each atomic widget's source length; a raw offset is that minus the prefix length.
  */
 
 import {

@@ -2,7 +2,7 @@
  * Reactive state for the selections the editor owns: a cross-block range, a gap caret
  * (`gap-caret.ts`), or an inline widget selected whole. At most one is live, since every mutator
  * writes all three through one private writer; all are null while the browser's own selection
- * rules. Transitions: `docs/design/editor.md` § Cross-block selection.
+ * rules. Transitions: `docs/design/selection.md` § Cross-block selection.
  */
 
 import type { DocumentView } from '../core/node-views';

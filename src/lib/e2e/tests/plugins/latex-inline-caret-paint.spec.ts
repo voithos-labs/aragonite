@@ -1,15 +1,14 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
+import { caretsShowing, expectBarBesideWidget } from '../../carets-showing';
 
 /**
- * Exactly one caret is painted per caret position at an inline-math widget's edge: the plugin
+ * Exactly one caret shows per caret position at an inline-math widget's edge: the plugin
  * counterpart of blocks/image/caret-synthetic-indicator.spec.ts, whose route installs no plugins.
- * Playwright never captures the browser's own caret, so this checks which carets were live, not
- * pixels.
  */
 
 test.describe('inline math: one caret per caret position', () => {
-	test('a caret snapped past a trailing math widget suppresses the native one', async ({
+	test('a caret snapped past a trailing math widget is the drawn bar, and only that', async ({
 		page
 	}) => {
 		const editor = new PluginsPage(page);
@@ -19,13 +18,10 @@ test.describe('inline math: one caret per caret position', () => {
 		const box = await widget.boundingBox();
 		if (!box) throw new Error('math widget has no bounding box');
 
-		// Right of a widget with no trailing text, the caret sits at an element offset where the editor
-		// paints its own caret, so the block's native caret goes dark while that one shows.
+		// Right of a widget with no trailing text, the caret sits at an element offset the browser
+		// draws no caret at, so the editor draws it.
 		await page.mouse.click(box.x + box.width + 25, box.y + box.height / 2);
-		await expect(page.locator('[data-inline-widget].md-snap-after')).toHaveCount(1);
-		const caretColor = await page.evaluate(
-			() => getComputedStyle(document.querySelector('.text-editable-block')!).caretColor
-		);
-		expect(caretColor).toBe('rgba(0, 0, 0, 0)');
+		await expect.poll(() => caretsShowing(page)).toEqual({ native: false, drawn: 1 });
+		await expectBarBesideWidget(page, page.locator('[data-inline-widget]'), 'text-height');
 	});
 });

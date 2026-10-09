@@ -6,11 +6,14 @@ Arrival is in `gap-caret-arrival.md`; creating a paragraph and undoing it are in
 
 ## Happy paths
 
-- A live gap paints a horizontal line across the content column at the boundary: 2px tall,
-  visible, coloured from the editor's text token so it reads as a caret in both palettes.
-- No gap, no line: nothing is painted while the caret lives in a block.
-- The line adds no layout. The block below the boundary sits at exactly the same position
-  whether or not a gap caret sits above it: the wrapper is zero-height and the line is
+- A live gap draws one caret: the drawn caret's bar, in its `gap` state, lying across the
+  content column at the boundary. It's 2px tall, visible, and coloured from the editor's text
+  token so it reads as a caret in both palettes.
+  - Miss-analysis: the gap's own line was a second element painting a caret, and every row
+    checked that line alone, so nothing counted the carets showing at a gap.
+- No gap, no bar across a boundary: while the caret lives in a block, the bar draws there.
+- The bar adds no layout. The block below the boundary sits at exactly the same position
+  whether or not a gap caret sits above it: the wrapper is zero-height and the bar is
   positioned out of flow.
 - Shift+ArrowDown and Shift+ArrowUp leave the gap exactly as the plain arrows do, entering no
   selection.
@@ -24,10 +27,9 @@ Arrival is in `gap-caret-arrival.md`; creating a paragraph and undoing it are in
 
 - Switching the presentation mode to reading while a gap is live clears it, and switching
   back does not bring it back (#88).
-- The blink is a `step-end` animation matching the native caret cadence, and
-  `prefers-reduced-motion: reduce` leaves the line static rather than hidden. Not asserted:
-  a blinking element's computed opacity is a coin flip, so the paint check reads box,
-  visibility and colour instead.
+- The bar blinks like every drawn caret, and `prefers-reduced-motion: reduce` leaves it
+  static rather than hidden (`caret/drawn-caret.md` has that row). The paint check here reads
+  box, visibility and colour, since a blinking element's computed opacity is a coin flip.
 
 ## User interactions
 

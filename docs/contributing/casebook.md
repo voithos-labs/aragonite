@@ -69,7 +69,7 @@ createBlockListState(node); // flagged: a snapshot taken at factory-call time
 createBlockListState(() => node); // accepted: re-read on every use
 ```
 
-**Spec:** `docs/design/editor.md` § 7. ([rule 2](rules.md#the-five-rules))
+**Spec:** `docs/design/editor.md` § CST mutability and reactive state. ([rule 2](rules.md#the-five-rules))
 
 ## The render path computes inline content locally and reads no cache
 
@@ -95,8 +95,8 @@ animation cadence, an undo debounce, a deadline, the drawn caret's paint at the 
 with the reason it isn't sequencing. Any other timer call reds it ([`rules.md`](rules.md) § The bug
 shape to fear: sibling-path parity shows the row).
 
-**Spec:** `docs/design/editor.md` § 11 (the commit's tick step) and § 16 (how the predecessor
-died). ([rule 3](rules.md#the-five-rules))
+**Spec:** `docs/design/editor.md` § Undo / redo (the commit's tick step) and § Standing
+directions (how the predecessor died). ([rule 3](rules.md#the-five-rules))
 
 ## Rules live at choke points, not call sites
 
@@ -121,7 +121,7 @@ const composed: DocPath = [0, 1];
 A dev guard before every commit's mutation catches the JS callers the type can't reach (it's the
 guard [`rules.md`](rules.md) shows as its example).
 
-**Spec:** `docs/design/editor.md` § 11. ([rule 4](rules.md#the-five-rules), and
+**Spec:** `docs/design/editor.md` § Undo / redo. ([rule 4](rules.md#the-five-rules), and
 [§ sibling-path parity](rules.md#the-bug-shape-to-fear-sibling-path-parity))
 
 ## DOM to raw offset translation has one home
@@ -150,7 +150,7 @@ The allowed conversions are named functions in `src/lib/caret/coordinate-spaces.
 (`toRawOffset`, `toDomTextOffset`, and friends). A source scan also fails any native selection
 write outside `widget-offset.ts`.
 
-**Spec:** `docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
+**Spec:** `docs/design/editor.md` § CST ↔ DOM synchronization. ([rule 4](rules.md#the-five-rules))
 
 ## Registries are code, not state
 

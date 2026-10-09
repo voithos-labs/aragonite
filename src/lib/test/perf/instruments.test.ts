@@ -23,6 +23,7 @@ import {
 	recordRebuildDepth,
 	recordScreenRead,
 	recordSnapshotClone,
+	countCaretPaint,
 	markCaretPaint,
 	markCaretRequest,
 	recordCaretFrameMove,
@@ -53,6 +54,7 @@ const EMPTY: PerfSnapshot = {
 	keystrokeInPageMs: [],
 	caretPaintMs: [],
 	caretFrameMoves: 0,
+	caretPaints: 0,
 	blockRenderPaths: [],
 	mountedBlockCount: 0,
 	decorationRuns: 0,
@@ -81,6 +83,7 @@ function recordOneOfEach(): void {
 	markCaretRequest();
 	markCaretPaint();
 	recordCaretFrameMove();
+	countCaretPaint();
 }
 
 beforeEach(() => {

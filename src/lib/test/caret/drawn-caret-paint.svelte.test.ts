@@ -2,6 +2,7 @@
 // The drawn caret paints once per task, after Svelte's flush and the height measure, at the caret
 // the render put back. jsdom has no layout, so a range's rect is stubbed from its offset and this
 // proves the order of calls only; the e2e frame rows prove the order against a real paint.
+// Miss-analysis: no row held a widget edge or counted the attributes a plain keystroke writes.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -171,3 +172,86 @@ function recordOrder(editor: MountedEditor, el: HTMLElement, log: string[]): () 
 	];
 	return () => undo.forEach((restore) => restore());
 }
+
+describe('the widget edge a click meant', () => {
+	/** Paints `act` asks for, read once its task has settled. */
+	async function paintsFrom(editor: MountedEditor, act: () => void): Promise<number> {
+		await editor.settle();
+		resetPerfInstruments();
+		act();
+		await editor.settle();
+		return perfSnapshot().caretPaintMs.length;
+	}
+
+	it('is one per editor: a second owner replaces the first', async () => {
+		const { editor } = await mountAtCaret(5);
+		const caret = editor.instance.__test.getDrawnCaret();
+		const [first, second] = [{}, {}];
+		caret.armWidgetEdge(first, 3);
+		caret.armWidgetEdge(second, 7);
+		expect(caret.widgetEdgeFor(first)).toBeNull();
+		expect(caret.widgetEdgeFor(second)).toBe(7);
+	});
+
+	it('changes only for its owner, and asks for a paint only when it changes', async () => {
+		const { editor } = await mountAtCaret(5);
+		const caret = editor.instance.__test.getDrawnCaret();
+		const [owner, other] = [{}, {}];
+		expect(await paintsFrom(editor, () => caret.armWidgetEdge(owner, 3))).toBe(1);
+		expect(await paintsFrom(editor, () => caret.armWidgetEdge(other, null))).toBe(0);
+		expect(caret.widgetEdgeFor(owner)).toBe(3);
+		expect(await paintsFrom(editor, () => caret.armWidgetEdge(owner, 3))).toBe(0);
+		expect(await paintsFrom(editor, () => caret.armWidgetEdge(owner, null))).toBe(1);
+		expect(caret.widgetEdgeFor(owner)).toBeNull();
+	});
+
+	it('ends when its owner’s editable unregisters', async () => {
+		const { editor } = await mountAtCaret(5);
+		const caret = editor.instance.__test.getDrawnCaret();
+		const owner = {};
+		const unregister = caret.register({
+			el: document.createElement('div'),
+			drawable: () => true,
+			widgetEdge: { owner, box: () => null, pressed: () => false }
+		});
+		caret.armWidgetEdge(owner, 3);
+		unregister();
+		expect(caret.widgetEdgeFor(owner)).toBeNull();
+	});
+});
+
+describe('an editable that mounts', () => {
+	it('asks for no paint until focus reaches it', async () => {
+		const { editor } = await mountAtCaret(5);
+		const el = document.createElement('div');
+		el.tabIndex = 0;
+		editor.target.querySelector('.editor')!.append(el);
+		await editor.settle();
+		resetPerfInstruments();
+		editor.instance.__test.getDrawnCaret().register({ el, drawable: () => true });
+		await editor.settle();
+		expect(perfSnapshot().caretPaintMs, 'the mount').toHaveLength(0);
+		el.focus();
+		await editor.settle();
+		expect(perfSnapshot().caretPaintMs, 'the focus').toHaveLength(1);
+	});
+});
+
+describe('a plain keystroke', () => {
+	it('writes no class and no caret mark on the editable', async () => {
+		const { editor, el } = await mountAtCaret(5);
+		expect(el.hasAttribute('data-caret-drawn')).toBe(true);
+		const written: string[] = [];
+		const watch = new MutationObserver((records) =>
+			written.push(...records.map((r) => r.attributeName ?? '?'))
+		);
+		watch.observe(el, { attributes: true, attributeFilter: ['class', 'data-caret-drawn'] });
+		insertTyped(el, 5, 'X');
+		await editor.settle();
+		insertTyped(el, 6, 'Y');
+		await editor.settle();
+		watch.disconnect();
+		expect(editor.source()).toBe('helloXY world\n');
+		expect(written).toEqual([]);
+	});
+});

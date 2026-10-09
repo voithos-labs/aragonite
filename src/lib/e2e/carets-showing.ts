@@ -1,11 +1,11 @@
 /**
  * What caret a user sees right now, read off the page: the browser's own caret in the focused
- * editable, and every caret the editor draws (the drawn caret's bar, or the snap caret beside a
- * widget). Every row about the drawn caret asserts exactly one of them shows, and the rows that
- * need the browser's own painted caret find it red in a screenshot.
+ * editable, and every caret the editor draws (the drawn caret's bar, at a text caret, beside a
+ * widget or across a gap). Every row about the drawn caret asserts exactly one of them shows, and
+ * the rows that need the browser's own painted caret find it red in a screenshot.
  */
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 export interface CaretsShowing {
 	/** The focused editable holds a collapsed selection and paints the browser's caret. */
@@ -29,13 +29,10 @@ export function caretsShowing(page: Page): Promise<CaretsShowing> {
 		const color = active ? getComputedStyle(active).caretColor : '';
 		const native =
 			document.hasFocus() && collapsed && color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)';
-		const bars = [...document.querySelectorAll<HTMLElement>('.md-drawn-caret')].filter(
-			(bar) => bar.dataset.caretState === 'text' && getComputedStyle(bar).display !== 'none'
+		const drawn = [...document.querySelectorAll<HTMLElement>('.md-drawn-caret')].filter(
+			(bar) => getComputedStyle(bar).display !== 'none'
 		).length;
-		const snaps = document.querySelectorAll(
-			'.md-snap-caret-active .md-snap-after, .md-snap-caret-active .md-snap-before'
-		).length;
-		return { native, drawn: bars + snaps };
+		return { native, drawn };
 	});
 }
 
@@ -54,6 +51,54 @@ export function drawnCaretBox(page: Page): Promise<CaretBox | null> {
 		const r = bar.getBoundingClientRect();
 		return { left: r.left, top: r.top, height: r.height };
 	});
+}
+
+/** The drawn caret's bar while it shows, in whichever state, with where it sits: the block host's
+ *  path, or `gap` inside the gap caret's element. */
+export interface DrawnBar {
+	state: string;
+	box: CaretBox & { width: number };
+	host: string | null;
+}
+
+export function drawnBar(page: Page): Promise<DrawnBar | null> {
+	return page.evaluate(() => {
+		const bar = document.querySelector<HTMLElement>('.md-drawn-caret');
+		if (!bar || getComputedStyle(bar).display === 'none') return null;
+		const r = bar.getBoundingClientRect();
+		const host = bar.parentElement?.closest('[data-gap-caret]')
+			? 'gap'
+			: (bar.closest('[data-block-path]')?.getAttribute('data-block-path') ?? null);
+		return {
+			state: bar.dataset.caretState ?? '',
+			box: { left: r.left, top: r.top, height: r.height, width: r.width },
+			host
+		};
+	});
+}
+
+/** The bar beside a widget, where its click put the caret: 1.5px wide, its outer side 1px past a
+ *  text-height widget at the widget's full height, or 4px past an image and 4px short at each end. */
+export async function expectBarBesideWidget(
+	page: Page,
+	widget: Locator,
+	look: 'text-height' | 'image',
+	side: 'before' | 'after' = 'after'
+): Promise<void> {
+	await expect.poll(async () => (await drawnBar(page))?.state).toBe('widget');
+	const bar = (await drawnBar(page))!.box;
+	const w = (await widget.boundingBox())!;
+	const inset = look === 'image' ? 4 : 0;
+	const past = look === 'image' ? 4 : 1;
+	const want = {
+		left: side === 'after' ? w.x + w.width + past - 1.5 : w.x - past,
+		top: w.y + inset,
+		height: w.height - 2 * inset,
+		width: 1.5
+	};
+	for (const key of ['left', 'top', 'height', 'width'] as const) {
+		expect(Math.abs(bar[key] - want[key]), `${key} ${bar[key]} vs ${want[key]}`).toBeLessThan(0.5);
+	}
 }
 
 /** The live collapsed range's box: its first rect with height, else the box of the node it sits
@@ -181,4 +226,44 @@ export async function oneCaretOnTheBrowsersLine(page: Page): Promise<'drawn' | '
 		`x ${drawn.left} vs ${painted.left}`
 	).toBeLessThanOrEqual(1);
 	return 'drawn';
+}
+
+// ── Under forced colors ─────────────────────────────────────────────────────
+
+type Clip = { x: number; y: number; width: number; height: number };
+
+/** Whether anything in `clip` blinks across a second of screenshots: a caret, of whoever's. */
+async function blinksIn(page: Page, clip: Clip): Promise<boolean> {
+	const shots: string[] = [];
+	for (let i = 0; i < 6; i++) {
+		shots.push((await page.screenshot({ clip, caret: 'initial' })).toString('base64'));
+		await page.waitForTimeout(190);
+	}
+	return page.evaluate(async (all) => {
+		const pixels = await Promise.all(
+			all.map(async (b64) => {
+				const img = new Image();
+				img.src = `data:image/png;base64,${b64}`;
+				await img.decode();
+				const canvas = document.createElement('canvas');
+				canvas.width = img.width;
+				canvas.height = img.height;
+				const ctx = canvas.getContext('2d')!;
+				ctx.drawImage(img, 0, 0);
+				return ctx.getImageData(0, 0, img.width, img.height).data;
+			})
+		);
+		const [first, ...rest] = pixels;
+		return rest.some((data) => data.some((v, i) => i % 4 !== 3 && Math.abs(v - first[i]) > 40));
+	}, shots);
+}
+
+/** Carets showing in `clip` under forced colors, where the browser shows its own whatever
+ *  `caret-color` says: the drawn bar, plus the browser's caret found blinking with the bar hidden. */
+export async function caretsUnderForcedColors(page: Page, clip: Clip): Promise<number> {
+	const drawn = (await drawnBar(page)) ? 1 : 0;
+	const hide = await page.addStyleTag({ content: '.md-drawn-caret { display: none !important; }' });
+	const native = (await blinksIn(page, clip)) ? 1 : 0;
+	await hide.evaluate((style) => (style as HTMLStyleElement).remove());
+	return drawn + native;
 }

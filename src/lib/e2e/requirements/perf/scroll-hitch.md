@@ -16,8 +16,12 @@ many times over, scrolled by real wheel ticks with the pointer over the editor.
 - a CPU profile spans the scroll; the self-time table names the functions a
   hitch belongs to, readable on the dev server only, since the production
   bundle mangles names
-- the dev-mode render instruments ride along (render count and ms per tick);
-  they read zero on a production preview, where they are switched off
+- the dev-mode render instruments ride along (render count and ms per tick),
+  and so does the drawn caret's paint count (`caretPaints`), which reads zero
+  while the caret's block stays mounted, since a scroll moves no caret. Only
+  the `/test/editor` rows (code-prose-focused) can see these counts: the
+  instruments are off on the showcase's demo route, and on a production
+  preview
 - `windowing` records the root's `data-windowing` attribute, so a row that
   measured an unwindowed document says so rather than reporting zero churn as
   a win

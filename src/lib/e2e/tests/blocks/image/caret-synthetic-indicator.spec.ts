@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import {
@@ -8,25 +8,39 @@ import {
 	waitForAllImagesLoaded,
 	waitForFirstImageLoaded
 } from './helpers';
-import { caretsShowing, drawnCaretBox } from '../../../carets-showing';
+import {
+	caretsShowing,
+	drawnBar,
+	drawnCaretBox,
+	expectBarBesideWidget
+} from '../../../carets-showing';
+import { filler } from '../../selection/gap-caret-fixtures';
 
 const ONE_DRAWN = { native: false, drawn: 1 };
+const NONE = { native: false, drawn: 0 };
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n';
 // Two image widgets in two blocks, each ending its own line, with a plain block between them.
 const TWO_IMAGE_DOC =
 	'![a|120x80](/test-fixtures/sample.png)\n\n![b|120x80](/test-fixtures/sample.png)\n\nplain text\n';
 
+/** The block paths the drawn caret draws a widget edge in: one at most, since it is one bar. */
 const paintedCarets = (page: Page): Promise<string[]> =>
 	page.evaluate(() =>
-		Array.from(document.querySelectorAll('.md-snap-after, .md-snap-before')).map(
-			(el) => el.closest('[data-block-path]')?.getAttribute('data-block-path') ?? '?'
-		)
+		Array.from(document.querySelectorAll<HTMLElement>('.md-drawn-caret[data-caret-state="widget"]'))
+			.filter((bar) => !bar.hidden)
+			.map((bar) => bar.closest('[data-block-path]')?.getAttribute('data-block-path') ?? '?')
 	);
+
+// Image A at [0], image B at [151], enough plain blocks between them that only one is mounted.
+const WINDOWED_IMAGES = `![a|120x80](/test-fixtures/sample.png)\n\n${filler(150, 0)}\n![b|120x80](/test-fixtures/sample.png)\n\n${filler(50, 150)}`;
 
 /** The dead space past the nth image, inside its own paragraph: the click that snaps there. */
 async function clickPastImage(page: Page, index: number): Promise<void> {
-	const widget = page.locator('[data-image-widget]').nth(index);
+	await clickPastWidget(page, page.locator('[data-image-widget]').nth(index));
+}
+
+async function clickPastWidget(page: Page, widget: Locator): Promise<void> {
 	const para = widget.locator('xpath=ancestor::*[@contenteditable="true"]');
 	const widgetBox = await widget.boundingBox();
 	const paraBox = await para.boundingBox();
@@ -52,28 +66,42 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await editor.goto();
 	});
 
-	test('snap-target widget shows a synthetic caret on the right edge', async ({ page }) => {
+	test('a click past an image draws one caret, held clear of the image’s frame', async ({
+		page
+	}) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+		await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
+	});
 
-		const overlay = await page.evaluate(() => {
-			const w = document.querySelector('[data-image-widget].md-snap-after') as HTMLElement;
-			if (!w) return null;
-			const before = window.getComputedStyle(w, '::before');
-			return {
-				content: before.content,
-				position: before.position,
-				bg: before.backgroundColor,
-				width: before.width
-			};
-		});
-		expect(overlay).not.toBeNull();
-		expect(overlay!.content).not.toBe('none');
-		expect(overlay!.position).toBe('absolute');
-		// Width is set to 1.5px and Chromium reports it rounded, so accept any thin line.
-		expect(parseFloat(overlay!.width)).toBeLessThan(4);
+	// The block holding the bar can unmount with it; the next click elsewhere still draws one caret.
+	test('a block windowed out with the bar in it leaves one caret at the next click', async ({
+		page
+	}) => {
+		await editor.loadContent(WINDOWED_IMAGES);
+		await waitForFirstImageLoaded(page);
+		await clickPastImage(page, 0);
+		await expect.poll(() => drawnBar(page)).toMatchObject({ state: 'widget', host: '[0]' });
+		await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+		await expect.poll(() => caretsShowing(page)).toEqual(NONE);
+
+		await page.evaluate(() => (window as any).__test.rects.scrollTo([151], { block: 'center' }));
+		await expect(page.locator('[data-block-path="[0]"]')).toHaveCount(0);
+		const imageB = page.locator('[data-block-path="[151]"] [data-image-widget]');
+		await expect.poll(() => imageB.evaluate((w) => w.querySelector('img')!.complete)).toBe(true);
+		await clickPastWidget(page, imageB);
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+		await expectBarBesideWidget(page, imageB, 'image');
+		expect((await drawnBar(page))!.host).toBe('[151]');
+
+		// The jump back unmounts B, caret and all; A comes back with no edge of its own.
+		await page.evaluate(() => (window as any).__test.rects.scrollTo([0], { block: 'center' }));
+		await expect(page.locator('[data-block-path="[0]"]')).toHaveCount(1);
+		await expect(page.locator('[data-block-path="[151]"]')).toHaveCount(0);
+		expect(await paintedCarets(page)).toEqual([]);
+		expect(await caretsShowing(page)).toEqual(NONE);
 	});
 
 	// The click arms a nested widget's edge, so the paint has to find the same widget.
@@ -89,14 +117,14 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 			await waitForFirstImageLoaded(page);
 			await clickPastImageRightEdge(page);
 
-			await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
-			expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+			await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+			await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
 		});
 	}
 
 	// Beside an image widget Chromium paints a taller native caret while the button is down, so the
-	// caret is hidden from pointerdown on.
-	test('the native caret is dark from the press, before the click arms the synthetic', async ({
+	// caret is hidden from pointerdown on, and the bar draws only once the click says where.
+	test('the native caret is dark from the press, before the click draws the bar', async ({
 		page
 	}) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
@@ -106,11 +134,11 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await page.mouse.down();
 
 		await expect.poll(() => caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
+		expect(await caretsShowing(page)).toEqual(NONE);
 
 		await page.mouse.up();
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
-		expect(await caretColorOfFocusedBlock(page)).toBe('rgba(0, 0, 0, 0)');
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+		await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
 	});
 
 	test('a press that puts the caret in text shows one caret, the drawn one', async ({ page }) => {
@@ -140,33 +168,14 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
 	});
 
-	test('a stale caret left on another block is swept when one arms', async ({ page }) => {
-		await editor.loadContent(TWO_IMAGE_DOC);
-		await waitForAllImagesLoaded(page);
-		await clickPastImage(page, 1);
-		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
-
-		// The leftover class a block cannot clear for itself, put on the widget by hand.
-		await page.evaluate(() =>
-			document.querySelectorAll('[data-image-widget]')[0].classList.add('md-snap-after')
-		);
-		expect(await paintedCarets(page)).toEqual(['[0]', '[1]']);
-
-		await editor.clickBlock(2);
-		await clickPastImage(page, 1);
-
-		await expect.poll(() => paintedCarets(page)).toEqual(['[1]']);
-	});
-
 	test('the drawn caret comes back when the synthetic clears', async ({ page }) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0,0,0]']);
 
 		await page.keyboard.press('a');
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
-		// Non-vacuity: the caret is hidden only for the snap, not permanently.
+		await expect.poll(() => paintedCarets(page)).toEqual([]);
 		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
 		expect(await drawnCaretBox(page)).not.toBeNull();
 	});
@@ -188,8 +197,8 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 			window.getSelection()!.addRange(range);
 		});
 		await page.keyboard.press('ArrowLeft');
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
-		await expect(page.locator('[data-image-widget].md-snap-before')).toHaveCount(0);
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+		expect(await paintedCarets(page)).toEqual([]);
 	});
 
 	test('click that lands cursor in trailing text does not show synthetic', async ({ page }) => {
@@ -199,7 +208,8 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		const widgetBox = await widget.boundingBox();
 		if (!widgetBox) throw new Error();
 		await page.mouse.click(widgetBox.x + widgetBox.width + 4, widgetBox.y + widgetBox.height / 2);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+		expect(await paintedCarets(page)).toEqual([]);
 	});
 
 	test('synthetic appears after Enter splits paragraph and clicking image-only block', async ({
@@ -220,7 +230,7 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		});
 		await page.keyboard.press('Enter');
 		await clickPastImageRightEdge(page);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		await expectBarBesideWidget(page, page.locator('[data-image-widget]'), 'image');
 	});
 
 	test('synthetic caret clears when clicking into a different paragraph', async ({ page }) => {
@@ -229,11 +239,12 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		);
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0,0,0]']);
 
 		const followingPara = page.locator('[contenteditable="true"]').nth(1);
 		await followingPara.click();
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(0);
+		await expect.poll(() => paintedCarets(page)).toEqual([]);
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
 	});
 
 	// The marker stands in for a caret the browser will not draw, so the state where the browser
@@ -242,10 +253,11 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		await expect.poll(() => paintedCarets(page)).toEqual(['[0,0,0]']);
 
 		await dropNativeCaret(page);
 		expect(await paintedCarets(page)).toEqual(['[0,0,0]']);
+		expect(await caretsShowing(page)).toEqual(ONE_DRAWN);
 	});
 
 	// While the editor's own range is up, no block may still paint its caret underneath, even when
@@ -289,9 +301,10 @@ test.describe('synthetic caret indicator at widget boundary', () => {
 		const widgetBox = await widget.boundingBox();
 		if (!widgetBox) throw new Error();
 		await page.mouse.click(widgetBox.x + widgetBox.width + 1, widgetBox.y + widgetBox.height / 2);
-		// Either snap class or a live caret in trailing text is a valid post-click state.
+		// Either the bar beside the widget or a caret in the trailing text is a valid post-click state.
 		await page.keyboard.press('ArrowRight');
-		await expect(page.locator('[data-inline-widget].md-snap-after')).toHaveCount(0);
-		await expect(page.locator('[data-inline-widget].md-snap-before')).toHaveCount(0);
+		await expect.poll(() => paintedCarets(page)).toEqual([]);
+		const showing = await caretsShowing(page);
+		expect(showing.drawn + (showing.native ? 1 : 0)).toBe(1);
 	});
 });

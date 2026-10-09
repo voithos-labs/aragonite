@@ -1,6 +1,6 @@
 /**
  * Deletes a covered range from the tree in place, merging what survives at the start. The
- * "start wins" rule is in `docs/design/editor.md` § Cross-block selection.
+ * "start wins" rule is in `docs/design/selection.md` § Cross-block selection.
  */
 
 import type { Reading } from '../schema/reading';
