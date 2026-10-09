@@ -266,6 +266,8 @@
 		x: number;
 		y: number;
 		clipboardSel: CellSelection | null;
+		/** Where the cell's caret sat when Mod+K there would edit a link or widget, else null. */
+		editLinkAt: number | null;
 		/** Re-reads the open point where its element is now (scroll, resize). */
 		anchor?: () => { x: number; y: number } | null;
 	} | null>(null);
@@ -279,10 +281,16 @@
 
 	const menuItems = $derived(
 		menu
-			? tableMenuItems(menu.target, { rowCount, colCount: columnCount }, meta.alignments ?? [], {
-					hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end,
-					hasRect: rectActive
-				})
+			? tableMenuItems(
+					menu.target,
+					{ rowCount, colCount: columnCount },
+					meta.alignments ?? [],
+					{
+						hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end,
+						hasRect: rectActive
+					},
+					menu.editLinkAt !== null
+				)
 			: []
 	);
 
@@ -332,10 +340,15 @@
 	// Capture the cell's selection now, before a menu-item click moves focus off it, so
 	// Cut/Copy have a range to act on.
 	function openMenuAtCell(rowIdx: number, colIdx: number, x: number, y: number): void {
-		const clipboardSel = cellRefAt(rowIdx, colIdx)?.getSelectionOffsets?.() ?? null;
+		const cell = cellRefAt(rowIdx, colIdx);
+		const clipboardSel = cell?.getSelectionOffsets?.() ?? null;
 		const cellEl = cellElementAt(rowIdx, colIdx);
 		const anchor = cellEl ? anchorOn(cellEl, { x, y }) : undefined;
-		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel, anchor };
+		// The press left the caret where it landed unless a range or rectangle held it; a live
+		// rectangle keeps the menu to Cut/Copy.
+		const editsLink = !rectActive && (cell?.isCommandActive?.('link.openCard') ?? false);
+		const editLinkAt = editsLink ? (cell?.getCursorOffset() ?? null) : null;
+		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel, editLinkAt, anchor };
 	}
 
 	// `preventDefault` only over a cell, so a right-click in the table's padding gaps keeps
@@ -392,6 +405,15 @@
 		const sel = menu.clipboardSel ?? { start: 0, end: 0 };
 		menu = null;
 		await cellRefAt(rowIdx, colIdx)?.applyMenuClipboard?.(action, sel);
+	}
+
+	// The menu took focus, so the caret goes back where Mod+K would read it first.
+	function runEditLink(): void {
+		if (!menu || menu.editLinkAt === null) return;
+		const { rowIdx, colIdx } = menu.target;
+		focusCell(rowIdx, colIdx, menu.editLinkAt);
+		menu = null;
+		cellRefAt(rowIdx, colIdx)?.runCommand?.('link.openCard');
 	}
 
 	async function runAlign(alignment: 'left' | 'center' | 'right'): Promise<void> {
@@ -594,6 +616,7 @@
 			onaction={runAction}
 			onclipboard={runClipboard}
 			onalign={runAlign}
+			oneditlink={runEditLink}
 			anchor={menu.anchor}
 			onclose={() => (menu = null)}
 			onescape={closeMenuRestoringFocus}

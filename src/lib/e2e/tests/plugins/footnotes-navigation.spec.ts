@@ -62,6 +62,22 @@ test.describe('footnote jump: reference to definition', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('live mode: Ctrl+click still jumps with a range selected in the reference paragraph', async ({
+		page
+	}) => {
+		await editor.setPresentationMode('live');
+		await editor.focusBlockStart(0);
+		for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
+
+		await editor
+			.refs()
+			.nth(0)
+			.click({ modifiers: ['Control'] });
+
+		await expect.poll(() => activeBlockPath(page)).toEqual([defA, 0]);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('the second reference jumps to its own definition, not the first one', async ({ page }) => {
 		await editor.setPresentationMode('source');
 
@@ -226,11 +242,11 @@ test.describe('footnote jump: definition back to reference', () => {
 		await editor.load(SHORT_DOC);
 		await editor.setPresentationMode('reading');
 
-		const def = page.locator('.footnote-def');
-		await expect(def).toHaveAttribute('data-plain-click-jumps', '');
+		const marker = editor.defMarker(1);
+		await expect(marker).toHaveCSS('cursor', 'pointer');
 
 		await editor.setPresentationMode('source');
-		await expect(def).not.toHaveAttribute('data-plain-click-jumps', '');
+		await expect(marker).not.toHaveCSS('cursor', 'pointer');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

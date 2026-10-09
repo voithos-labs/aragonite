@@ -1,13 +1,14 @@
 /**
- * `link.openCard`: the keyboard way into the link card, and the pressed state a toolbar paints
- * for it, both from one lookup of the construct holding the caret or a range inside it. The chord
- * enters the card, with focus in the URL field, unlike a click, which opens it beside a caret that
- * stays in the document. Live mode only: every other mode paints the destination.
+ * `link.openCard`: the keyboard way to edit what the caret would go to, and the pressed state a
+ * toolbar paints for it, from one lookup (`followTargetAt`). On a link it enters the card, with
+ * focus in the URL field (live mode only: every other mode paints the destination); beside a
+ * widget that goes somewhere it shows the widget's source, in any editable mode.
  */
 
 import { canWrapRangeAsLink } from '../../core/inline/link-source-bytes';
+import type { InlineNode } from '../../core/nodes';
 import {
-	resolveLinkAtPoint,
+	followTargetAtCaret,
 	type LinkPointQuery,
 	type LinkTarget
 } from '../blocks/text/link-at-point';
@@ -25,31 +26,42 @@ export interface LinkCardTargetQuery extends LinkPointQuery {
 
 export interface LinkCardEntryQuery extends LinkCardTargetQuery {
 	card: LinkCardState;
+	/** Shows a widget's source with the caret at the edge it touched. */
+	enterWidget(widget: InlineNode, fromTrailingEdge: boolean): void;
 }
 
-/** The construct the chord would edit, under the caret or wholly containing the range; null
- *  where the chord creates or opens nothing, so the pressed state matches the click. */
-export function linkCardTargetAt(query: LinkCardTargetQuery): LinkTarget | null {
-	if (query.reading.mode() !== 'live' || query.crossBlockRange) return null;
-	const hit = resolveLinkAtPoint(query);
+/** What the chord would edit. */
+export type EditTarget =
+	{ edit: 'card'; target: LinkTarget } | { edit: 'source'; widget: InlineNode; atEnd: boolean };
+
+/** The link under the caret or wholly containing the range, or a widget a collapsed caret
+ *  touches; null where the chord edits nothing, so the pressed state matches the chord. */
+export function editTargetAt(query: LinkCardTargetQuery): EditTarget | null {
+	if (query.crossBlockRange) return null;
+	const hit = followTargetAtCaret(query);
 	if (hit === null) return null;
 	const range = query.selection;
+	if (hit.edit === 'source') return range ? null : hit;
 	if (range && (range.start < hit.link.start || range.end > hit.link.end)) return null;
-	return hit.target;
+	return { edit: 'card', target: { path: query.path, sourceStart: hit.link.start } };
 }
 
-/** Edits the construct holding the caret or range, else creates one over the range unless it
- *  crosses another construct's bytes. The keymap takes the chord either way. */
+/** Edits what the caret would go to, else creates a link over the range unless it crosses
+ *  another construct's bytes. The keymap takes the chord either way. */
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
-	if (query.reading.mode() !== 'live') return;
 	// Command dispatch already refuses a cross-block range; checked again because the offsets
 	// here would be made up in that state.
 	if (query.crossBlockRange) return;
 	// Edit before create, since create refuses a range already inside a construct: going the
 	// create way there leaves the click doing nothing under a button painted as pressed.
-	const target = linkCardTargetAt(query);
+	const target = editTargetAt(query);
+	if (target?.edit === 'source') {
+		query.enterWidget(target.widget, target.atEnd);
+		return;
+	}
+	if (query.reading.mode() !== 'live') return;
 	if (target) {
-		query.card.enter(target);
+		query.card.enter(target.target);
 		return;
 	}
 	const range = query.selection;

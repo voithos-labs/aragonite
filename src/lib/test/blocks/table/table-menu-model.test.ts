@@ -179,6 +179,16 @@ describe('tableMenuItems: clipboard group', () => {
 	});
 });
 
+describe('tableMenuItems: Edit link', () => {
+	it('leads with Edit link and a separator when the caret is on a link, and only then', () => {
+		const dims = { rowCount: 3, colCount: 2 };
+		const cell = { rowIdx: 1, colIdx: 0 };
+		const over = tableMenuItems(cell, dims, PLAIN, { hasSelection: false }, true);
+		expect(over.slice(0, 3).map((i) => i.kind)).toEqual(['editLink', 'separator', 'clipboard']);
+		expect(menuFor(cell, dims).some((i) => i.kind === 'editLink')).toBe(false);
+	});
+});
+
 describe('tableMenuItems: shape', () => {
 	it('folds each axis behind a flyout and keeps the deletes and alignment in the list', () => {
 		const items = menuFor({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 });

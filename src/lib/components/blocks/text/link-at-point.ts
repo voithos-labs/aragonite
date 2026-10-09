@@ -1,7 +1,6 @@
 /**
- * Which link a click landed in, and how to find that link again after an edit rebuilt the tree.
- * The offset comes from the shared DOM-to-raw traversal and the link from the same chain used
- * when a construct shows its source, so the card points at exactly what was drawn.
+ * What you'd go to at the caret: a link (the card edits it) or a widget that goes somewhere (its
+ * source edits it), and how to find a link again after an edit rebuilt the tree.
  */
 
 import { inlineDescendants } from '../../../core/inline';
@@ -10,6 +9,8 @@ import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import { rawOffsetAt } from '../../../caret/widget-offset';
 import { isCardEditableInlineKind } from '../../../schema/inline-construct-policy';
+import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
+import { widgetsIn } from './widget-adjacency';
 import { constructChainAtOffset } from './construct-reveal';
 import type { Reading } from '../../../schema/reading';
 
@@ -37,16 +38,45 @@ export interface LinkPointQuery {
 	reading: Reading;
 }
 
+/** What you'd go to at a raw offset, by how it's edited: a link in its card, a widget by its source. */
+export type FollowTarget =
+	{ edit: 'card'; link: InlineNode } | { edit: 'source'; widget: InlineNode; atEnd: boolean };
+
+/** The innermost link around `offset` in live mode, else (any editable mode) a widget it touches
+ *  whose kind claims the activation click. */
+export function followTargetAt(
+	block: NodeView,
+	offset: number,
+	reading: Reading
+): FollowTarget | null {
+	const mode = reading.mode();
+	if (mode === 'reading') return null;
+	const inlines = resolvedInlineContent(block, reading);
+	if (mode === 'live') {
+		// The chain is outermost first, so its last card-editable link encloses the offset most tightly.
+		const link = constructChainAtOffset(inlines, offset).filter(isCardEditable).at(-1);
+		if (link) return { edit: 'card', link };
+	}
+	const widget = widgetsIn(block, reading).find(
+		(w) =>
+			w.start <= offset &&
+			offset <= w.end &&
+			getInlineWidgetEditing(w.kind, reading.grammar)?.claimsActivationClick === true
+	);
+	return widget ? { edit: 'source', widget, atEnd: offset === widget.end } : null;
+}
+
+/** What you'd go to at the caret, read after a click or a key has placed it. */
+export function followTargetAtCaret(query: LinkPointQuery): FollowTarget | null {
+	const offset = caretRawOffset(query.contentEl);
+	return offset === null ? null : followTargetAt(query.block, offset, query.reading);
+}
+
 /** The link the caret sits inside, read after the click has placed the caret. */
 export function resolveLinkAtPoint(query: LinkPointQuery): LinkPointResolution | null {
-	const offset = caretRawOffset(query.contentEl);
-	if (offset === null) return null;
-	const inlines = resolvedInlineContent(query.block, query.reading);
-	// The chain is outermost first, so its last card-editable link is the one that encloses the
-	// click most tightly.
-	const link = constructChainAtOffset(inlines, offset).filter(isCardEditable).at(-1);
-	if (link === undefined) return null;
-	return { target: { path: query.path, sourceStart: link.start }, link };
+	const hit = followTargetAtCaret(query);
+	if (hit?.edit !== 'card') return null;
+	return { target: { path: query.path, sourceStart: hit.link.start }, link: hit.link };
 }
 
 const isCardEditable = (node: InlineNode): boolean => isCardEditableInlineKind(node.kind);

@@ -22,6 +22,7 @@
 	import { simIslandPlugin } from './sim-island/sim-island-plugin';
 	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
 	import { tagsPlugin } from './tags/tag-plugin';
+	import { wikiLinksPlugin } from './wikilinks/link-plugin';
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
 	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
@@ -60,6 +61,8 @@
 		// The bare `#` trigger would take `#` in every other seed's prose once installed,
 		// so it is kept to its own seed.
 		tags: [tagsPlugin()],
+		// `[[` takes `[` ahead of the built-in link in every other seed's prose; kept to its own.
+		wikilinks: [wikiLinksPlugin()],
 		// The same tags as mark decorations over plain text: no widget, no source to show.
 		'tags-marks': [tagMarks],
 		// Every inline-menu source at once: `#`, `[[`, `@` and `/` must not take each other's keys.
@@ -82,7 +85,7 @@
 </script>
 
 <script lang="ts">
-	import { Editor, type PresentationMode } from '#lib';
+	import { Editor, type LinkClick, type PresentationMode } from '#lib';
 	import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
@@ -218,6 +221,10 @@
 		// A tag mid-prose, one opening a line (the case a bare `#` heading opener contests),
 		// one inside a heading's own content, and a plain typing target.
 		tags: 'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
+		// A link mid-prose with text either side to put the caret in, a typing target, a Markdown
+		// link to follow on the same click, and a link in a table cell.
+		wikilinks:
+			'See [[Meeting notes]] for today\n\nType here\n\nRead [the docs](https://example.com/) first\n\n| Note |\n| - |\n| [[Cell note]] here |\n',
 		'tags-marks':
 			'Filed under #project and #work/admin today\n\n#inbox leads this line\n\n# Heading with #tag inside\n\nType here\n',
 		// `project` appears twice so it ranks first; the code span and the link destination are
@@ -235,6 +242,13 @@
 	// per seed, so no other suite's DOM gains extra buttons.
 	const MODE_TOGGLE_SEEDS = ['mathblock', 'details'];
 	const THEME_TOGGLE_SEEDS = ['mermaid'];
+	// The seeds whose links follow on a plain click, as a host that opts in, with a toggle to
+	// switch the gesture back after mount.
+	const PLAIN_LINK_CLICK_SEEDS = ['wikilinks'];
+	// svelte-ignore state_referenced_locally
+	let linkClick = $state<LinkClick>(
+		PLAIN_LINK_CLICK_SEEDS.includes(data.seed ?? '') ? 'plain' : 'modifier'
+	);
 	let theme = $state<'dark' | 'light'>('dark');
 	let editor = $state<ReturnType<typeof Editor>>();
 
@@ -322,6 +336,17 @@
 			</button>
 		</div>
 	{/if}
+	{#if PLAIN_LINK_CLICK_SEEDS.includes(data.seed ?? '')}
+		<div class="harness-controls">
+			<button
+				data-testid="link-click-toggle"
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => (linkClick = linkClick === 'plain' ? 'modifier' : 'plain')}
+			>
+				{linkClick === 'plain' ? 'Ctrl-click links' : 'Plain-click links'}
+			</button>
+		</div>
+	{/if}
 	{#if THEME_TOGGLE_SEEDS.includes(data.seed ?? '')}
 		<div class="harness-controls">
 			<button
@@ -340,6 +365,7 @@
 		{plugins}
 		{presentationMode}
 		{theme}
+		{linkClick}
 		scrollMode={data.scrollMode}
 		blockDragHandles
 	/>

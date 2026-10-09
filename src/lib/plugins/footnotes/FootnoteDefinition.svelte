@@ -7,7 +7,6 @@
 		BlockList,
 		createContainerBlock,
 		getPluginMetadata,
-		isWidgetActivationClick,
 		type DocumentView,
 		type EditorRects,
 		type NodeView
@@ -60,7 +59,7 @@
 	});
 
 	function onMarkerClick(e: MouseEvent): void {
-		if (!isWidgetActivationClick(e.ctrlKey || e.metaKey, getPresentationMode())) return;
+		if (!getEditor()?.isActivationClick(e)) return;
 		// Skips the block's caret handling and the editor's root click handler on purpose:
 		// jumping is the only thing this click does.
 		e.preventDefault();
@@ -80,18 +79,10 @@
 		if (first) void rects?.navigateTo(first.path, first.end);
 	}
 
-	// True where a plain click already jumps, so the pointer shape matches what a click does.
-	const plainClickJumps = $derived(isWidgetActivationClick(false, getPresentationMode()));
-
 	export { containerApi };
 </script>
 
-<div
-	class="footnote-def"
-	data-footnote-label={label}
-	data-plain-click-jumps={plainClickJumps ? '' : undefined}
-	bind:this={boxEl}
->
+<div class="footnote-def" data-footnote-label={label} bind:this={boxEl}>
 	<BlockList {...blockListProps} />
 </div>
 
@@ -111,9 +102,9 @@
 		text-decoration: underline;
 	}
 
-	/* Where the marker is a link, a dotted underline tells it from the note's text without
-	   relying on colour. */
-	.footnote-def[data-plain-click-jumps] :global(.footnote-def-marker) {
+	/* Where a plain click follows the marker, a dotted underline tells it from the note's text
+	   without relying on colour. */
+	:global([data-plain-click-follows]) .footnote-def :global(.footnote-def-marker) {
 		cursor: pointer;
 		text-decoration: underline dotted;
 	}

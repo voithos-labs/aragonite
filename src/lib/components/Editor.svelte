@@ -57,6 +57,7 @@
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
+	import { bindActivationClick, createPressTracker } from '../activation-click';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './link-reference-map';
 	import {
 		buildLinkReferenceMap,
@@ -102,6 +103,7 @@
 	import {
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
+		installPressTracker,
 		installRevealAnchorRelease,
 		installSelectionChangeBridge,
 		installUndoStepEnd,
@@ -172,6 +174,7 @@
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
+		linkClick = 'modifier',
 		caret = 'auto',
 		scrollMode = 'self',
 		plugins,
@@ -264,6 +267,11 @@
 		mode: () => outgoingMode ?? effectiveMode,
 		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(outgoingMode ?? effectiveMode)
 	};
+	// Every press in the editor, so a click on any route can tell it ended a drag.
+	const presses = createPressTracker();
+	const activationClick = bindActivationClick(reading.mode, () => linkClick, presses);
+	// The pointer cursor on links shows where a plain click follows them.
+	const plainClickFollows = $derived(activationClick({ ctrlKey: false, metaKey: false }));
 	// The root list's child component refs, plain rather than `$state` (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
 	const blockRefSlots = refSlotsOver(blockRefs);
@@ -644,6 +652,7 @@
 		// The one place the mode enters command dispatch, read back through `pluginEditor`.
 		getPresentationMode: reading.mode,
 		getTheme: () => theme,
+		activationClick,
 		activation: activePlugins,
 		// Called at use, never here: both read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
@@ -763,6 +772,7 @@
 		search: searchState,
 		caretMemory,
 		caretWriter,
+		presses,
 		drawnCaret,
 		autoPairs,
 		scrollOwner,
@@ -791,6 +801,7 @@
 		placeholder: () => placeholderPolicy,
 		presentationMode: reading.mode,
 		theme: () => theme,
+		activationClick,
 		keybindingOverrides: () => overridesMap,
 		// An accessor, not the `onPasteImage,` shorthand, which would capture the prop's value.
 		get onPasteImage() {
@@ -857,6 +868,8 @@
 		getLifetime: () => lifetimeController.signal,
 		isHostChrome,
 		activateLink,
+		activationClick,
+		presses,
 		linkCard,
 		reading
 	});
@@ -897,6 +910,9 @@
 		activation: activePlugins,
 		reading,
 		stamps,
+		// The row does what Mod+K does at the caret the right-click just placed.
+		canEditLinkAtCaret: () => isCommandActive('link.openCard'),
+		editLinkAtCaret: () => void runCommand('link.openCard'),
 		setMenu: (menu) => (blockMenu = menu)
 	});
 
@@ -923,7 +939,7 @@
 
 	$effect(() => {
 		if (!editorEl) return;
-		return installModActiveTracker(editorEl);
+		return removeAll(installModActiveTracker(editorEl), installPressTracker(editorEl, presses));
 	});
 
 	// A delegated handle-drag on the root, torn down on unmount via the lifetime signal.
@@ -1318,6 +1334,7 @@
 	data-scroll-mode={hostScroll ? 'host' : undefined}
 	data-windowing={topWindowing.window.active ? 'active' : undefined}
 	data-presentation={effectiveMode === 'source' ? undefined : effectiveMode}
+	data-plain-click-follows={plainClickFollows ? '' : undefined}
 	bind:this={editorEl}
 	tabindex="-1"
 	role="group"

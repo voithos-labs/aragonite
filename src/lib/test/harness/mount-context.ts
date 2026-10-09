@@ -46,6 +46,7 @@ import {
 import { fixtureReading } from './fixture-grammar';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { createWidgetEdgeHolder, type DrawnCaret } from '#lib/caret/drawn-caret.svelte.js';
+import { bindActivationClick, createPressTracker } from '#lib/activation-click.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -124,7 +125,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Filled in by `editorMountContext`, which reads the other groups' overrides.
 		commands: {} as EditorServices['commands'],
 		// A bare mount has no announcer and no host to show a label on.
-		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} }
+		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+		presses: createPressTracker()
 	};
 }
 
@@ -137,6 +139,11 @@ function stubbedPolicies(): EditorPolicies {
 		placeholder: () => null,
 		presentationMode: () => 'source',
 		theme: () => 'dark',
+		activationClick: bindActivationClick(
+			() => 'source',
+			() => 'modifier',
+			createPressTracker()
+		),
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		onPasteImage: undefined,
 		onRunCode: undefined,

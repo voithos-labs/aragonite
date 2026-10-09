@@ -5,7 +5,7 @@
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
-	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
+	import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
@@ -150,7 +150,8 @@
 		inlineMenuCombobox,
 		decorations: decorationEngine,
 		drafts,
-		drawnCaret
+		drawnCaret,
+		presses
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 
@@ -160,7 +161,8 @@
 		imageLoadPolicy,
 		brokenImageUrls: brokenUrlCache,
 		theme: getTheme,
-		onPasteImage
+		onPasteImage,
+		activationClick
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const readOnly = $derived(reading.mode() === 'reading');
@@ -180,7 +182,8 @@
 		if (el) {
 			enterLinkCardAtCaret({
 				...linkCardQuery(el, cursor.getRawSelection()),
-				card: linkCard
+				card: linkCard,
+				enterWidget: widgetInteraction.enterWidget
 			});
 		}
 	};
@@ -341,6 +344,7 @@
 		},
 		isCrossBlock: () => selection.isCrossBlock,
 		drafts,
+		activationClick,
 		get reading() {
 			return reading;
 		}
@@ -449,6 +453,7 @@
 		getDocument: () => getDoc(),
 		getContentVersion,
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),
+		activationClick,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
@@ -658,7 +663,7 @@
 		if (!marked) {
 			// The link card is the one pressed state no mark policy answers.
 			if (id !== 'link.openCard' || !el) return false;
-			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
+			return editTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
 		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
@@ -1019,12 +1024,11 @@
 		lastClickClientY = null;
 		cursor.clampOutOfMarkerPrefix();
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
-			modified: e.ctrlKey || e.metaKey,
+			click: e,
 			clickCount: e.detail,
 			// A release that travelled ends a drag rather than a click: showing the source there
 			// would unmount the widget the drag just painted a range across.
-			moved:
-				x !== null && y !== null && (Math.abs(e.clientX - x) > 3 || Math.abs(e.clientY - y) > 3)
+			moved: presses.travelled(e)
 		});
 		// The click has decided: from here the widget edge hides the browser's caret, or nothing does.
 		endPress();

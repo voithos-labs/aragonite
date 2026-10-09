@@ -57,6 +57,19 @@ test.describe('link styling + affordance', () => {
 		await expect(autolink).toHaveCSS('cursor', 'text');
 	});
 
+	test('in reading mode, where a plain click follows, links show the pointer with no key held', async ({
+		page
+	}) => {
+		await editor.loadContent('Visit [Example](https://example.com) here.\n');
+		await editor.setPresentationMode('reading');
+		await editor.waitForRenderFlush();
+
+		await expect(page.locator('a.md-link-content', { hasText: 'Example' })).toHaveCSS(
+			'cursor',
+			'pointer'
+		);
+	});
+
 	test('the modifier cursor does not stick when the modifier is released unfocused', async ({
 		page
 	}) => {

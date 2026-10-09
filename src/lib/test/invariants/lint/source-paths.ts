@@ -92,6 +92,7 @@ export const SOURCE = {
 	// ── Components ──────────────────────────────────────────────────────────
 	editorShell: 'src/lib/components/Editor.svelte',
 	editorRootKeydown: 'src/lib/components/editor-root-keydown.ts',
+	editorRootGestures: 'src/lib/components/editor-root-gestures.ts',
 	blockList: 'src/lib/components/BlockList.svelte',
 	blockHost: 'src/lib/components/BlockHost.svelte',
 	searchBar: 'src/lib/components/SearchBar.svelte',
@@ -120,6 +121,7 @@ export const SOURCE = {
 	latexBlockMath: 'src/lib/plugins/latex/BlockMath.svelte',
 	mathShape: 'src/lib/plugins/latex/math-shape.ts',
 	mermaidBlock: 'src/lib/plugins/mermaid/MermaidBlock.svelte',
+	footnoteReference: 'src/lib/plugins/footnotes/FootnoteReference.svelte',
 	editorCss: 'src/lib/styles/editor.css',
 	themeTokens: 'src/lib/styles/editor-theme.css',
 
@@ -233,6 +235,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	// ── Components ──────────────────────────────────────────────────────────
 	editorShell: 'function isHostChrome(',
 	editorRootKeydown: 'export interface EditorRootKeydownDeps',
+	editorRootGestures: 'export function createRootGestures(',
 	blockList: 'function ambientFor(',
 	blockHost: 'function onRenderError(',
 	searchBar: 'function onFindKeydown(',
@@ -261,6 +264,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	latexBlockMath: 'function keepSourceFocus(',
 	mathShape: 'export function readMathSource(',
 	mermaidBlock: 'function focusSurfaceEl(',
+	footnoteReference: 'function jumpToDefinition(',
 	editorCss: '.code-tok-keyword {',
 	themeTokens: ':where(.aragonite-editor-theme) {',
 

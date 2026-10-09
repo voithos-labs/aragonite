@@ -5,6 +5,7 @@
  * this factory builds the DOM.
  */
 
+import type { ActivationClick } from '../../../activation-click';
 import type { InlineNode } from '../../../core/nodes';
 import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { ResolveLinkUrl } from '../../../editor-keys';
@@ -43,6 +44,8 @@ export interface CellRenderDeps {
 	getContentVersion: () => number;
 	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
 	navigateTo: (path: number[]) => Promise<boolean>;
+	/** Whether a click follows what it lands on, passed on to widgets that go somewhere. */
+	activationClick: ActivationClick;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the cell when one changes. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
@@ -69,7 +72,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
 		navigateTo: deps.navigateTo,
-		reading: deps.reading
+		reading: deps.reading,
+		activationClick: deps.activationClick
 	});
 	let islandDestroys: Array<() => void> = [];
 

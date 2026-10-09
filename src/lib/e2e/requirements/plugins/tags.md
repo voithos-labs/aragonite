@@ -37,6 +37,9 @@ to type in block 3.
 - A click on a tag shows its source for editing, and the chip comes back when focus leaves.
 - Ctrl/Cmd-click is the activation gesture, which a host turns into navigation; the harness
   widget records it.
+- Edit link in the right-click menu on a tag shows its source, the way the caret arrowing in
+  does.
+- Mod+K with the caret beside a tag shows its source too.
 
 ## Error cases
 

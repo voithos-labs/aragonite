@@ -1,0 +1,30 @@
+<script lang="ts">
+	/**
+	 * The rendered link: the note's name, followed on the click the host picked for links. A host
+	 * opens the note there; the harness only records it, so a spec can check that the click
+	 * reached the widget and that the editor left it mounted.
+	 */
+	import type { InlineWidgetComponentProps } from '#lib/plugin.js';
+
+	let { source, isActivationClick }: InlineWidgetComponentProps = $props();
+
+	const target = $derived(source.slice(2, -2));
+
+	function onClick(e: MouseEvent): void {
+		if (!isActivationClick(e)) return;
+		e.preventDefault();
+		const probe = window as Window & { __linkActivations?: string[] };
+		(probe.__linkActivations ??= []).push(target);
+	}
+</script>
+
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+<span class="wikilink" data-target={target} onclick={onClick}>{target}</span>
+
+<style>
+	.wikilink {
+		color: var(--color-accent, #567b67);
+		text-decoration: underline;
+		cursor: pointer;
+	}
+</style>

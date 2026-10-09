@@ -81,6 +81,7 @@ export function makeRenderHarness(
 		// New on every read, so a widget memo keyed on it never serves a stale document.
 		getContentVersion: () => ++version,
 		navigateTo: async () => false,
+		activationClick: () => false,
 		reportRenderError: () => {},
 		brokenUrlCache: new Set<string>()
 	};

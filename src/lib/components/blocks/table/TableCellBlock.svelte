@@ -86,7 +86,7 @@
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
+	import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -141,13 +141,15 @@
 		rects,
 		decorations: decorationEngine,
 		rangeCoverage,
-		drafts
+		drafts,
+		presses
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 	const {
 		theme: getTheme,
 		resolveLinkUrl,
-		onPasteImage
+		onPasteImage,
+		activationClick
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { contentVersion: getContentVersion, lifetime: editorLifetime } =
 		getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -276,6 +278,7 @@
 		setSnapTarget: () => {},
 		setPendingCursor: parkCursor,
 		readRawText: () => readCellText(),
+		activationClick,
 		setRevealing: (value) => {
 			revealing = value;
 		},
@@ -374,7 +377,7 @@
 		const marked = inlineMarkForCommand(id);
 		if (!marked) {
 			if (id !== 'link.openCard') return false;
-			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
+			return editTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
 		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
@@ -454,7 +457,12 @@
 		// Consumed whether or not a card opens, the same rule the prose block follows:
 		// `reservedChords()` reports Mod+K as the editor's wherever the keymaps bind it.
 		if (id === 'link.openCard') {
-			return () => enterLinkCardAtCaret({ ...linkCardQuery(contentEl, null), card: linkCard });
+			return () =>
+				enterLinkCardAtCaret({
+					...linkCardQuery(contentEl, null),
+					card: linkCard,
+					enterWidget: widgetInteraction.enterWidget
+				});
 		}
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {
@@ -501,6 +509,7 @@
 			setSelection,
 			measurePartialRects,
 			runCommand,
+			isCommandActive,
 			afterSourceCommit,
 			getSelectionOffsets,
 			applyMenuClipboard,
@@ -529,6 +538,7 @@
 		getDocument: () => getDoc(),
 		getContentVersion,
 		navigateTo: (path) => rects.navigateTo(path),
+		activationClick,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
@@ -1047,8 +1057,10 @@
 		lastClickClientX = null;
 		lastClickClientY = null;
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
-			modified: e.ctrlKey || e.metaKey,
-			clickCount: e.detail
+			click: e,
+			clickCount: e.detail,
+			// A release that travelled ends a drag, whose range a shown source would unmount.
+			moved: presses.travelled(e)
 		});
 	}
 

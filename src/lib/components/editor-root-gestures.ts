@@ -23,6 +23,7 @@ import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at
 import { onRoot, removeAll } from './editor-root-listeners';
 import type { LinkCardState } from './link-card/link-card-state.svelte';
 import type { Reading } from '../schema/reading';
+import { isModifiedClick, type ActivationClick, type PressTracker } from '../activation-click';
 
 export interface RootGesturesDeps {
 	getDoc: DocumentGetter;
@@ -37,6 +38,10 @@ export interface RootGesturesDeps {
 	getLifetime(): AbortSignal;
 	isHostChrome(node: Node | null): boolean;
 	activateLink(href: string, event: MouseEvent): void;
+	/** Whether a click on a link follows it rather than placing the caret. */
+	activationClick: ActivationClick;
+	/** Whether a release travelled from its press, which makes it the end of a drag. */
+	presses: Pick<PressTracker, 'travelled'>;
 	linkCard: Pick<LinkCardState, 'open'>;
 	/** Read at the gesture: every branch below checks the mode in force then. */
 	reading: Reading;
@@ -55,8 +60,6 @@ const NOT_A_DRAG_START =
 	'[contenteditable="true"]:not([data-whole-block-input]), ' +
 	'button:not(.editor-tail-row), input, textarea, select, a, summary, [role="checkbox"], ' +
 	'.code-rail, .table-add-zone, .md-menu, .block-drag-handle';
-
-const DRAG_SLOP_PX = 3;
 
 export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	const deadSpaceCaret = createDeadSpaceCaret({
@@ -112,7 +115,6 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	function install(root: HTMLElement): () => void {
 		// Per install: rebinding the root starts with no click in progress.
 		let marginDrag = false;
-		let marginDown = { x: 0, y: 0 };
 		let marginSession: { dispose(): void } | null = null;
 
 		const handleAnchorClick = (anchor: HTMLAnchorElement, e: MouseEvent) => {
@@ -120,24 +122,24 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			if (deps.isHostChrome(anchor)) return;
 			const href = anchor.getAttribute('href');
 			if (!href) return;
-			// Always suppressed: cursor placement comes from mousedown. Reading mode has no caret
-			// for a plain click to place, so there links behave as in a rendered document.
+			// Always suppressed: cursor placement comes from mousedown.
 			e.preventDefault();
-			if (e.ctrlKey || e.metaKey || deps.reading.mode() === 'reading') deps.activateLink(href, e);
+			if (deps.activationClick(e)) deps.activateLink(href, e);
 		};
 
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Element | null;
-			// Ahead of the link branch: a link with a blocked scheme renders as a plain span, and
-			// it is exactly the link a user opens the card to fix. Mod-click still activates, below.
-			if (deps.reading.mode() === 'live' && !e.ctrlKey && !e.metaKey) {
+			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
+			// A plain click the link doesn't follow opens its card, as does one on a blocked-scheme
+			// link (a plain span, and exactly the link a user opens the card to fix).
+			const follows = anchor !== null && deps.activationClick(e);
+			if (deps.reading.mode() === 'live' && !isModifiedClick(e) && !follows) {
 				const linkEl = target?.closest(LINK_ELEMENT_SELECTOR);
 				if (linkEl && !deps.isHostChrome(linkEl) && openLinkCard(linkEl)) {
 					e.preventDefault();
 					return;
 				}
 			}
-			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
 			if (anchor) {
 				handleAnchorClick(anchor, e);
 				return;
@@ -148,10 +150,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				return;
 			}
 			const pressed = marginDrag;
-			const dragged =
-				pressed &&
-				(Math.abs(e.clientX - marginDown.x) > DRAG_SLOP_PX ||
-					Math.abs(e.clientY - marginDown.y) > DRAG_SLOP_PX);
+			const dragged = pressed && deps.presses.travelled(e);
 			marginDrag = false;
 			if (dragged) return;
 			if (deadSpaceCaret.handleClick(root, e)) return;
@@ -169,8 +168,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		// selection fights the drag, and `click` still fires.
 		const startMarginDrag = (e: PointerEvent) => {
 			marginDrag = false;
-			marginDown = { x: e.clientX, y: e.clientY };
-			if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+			if (e.button !== 0 || e.shiftKey || isModifiedClick(e) || e.altKey) return;
 			if (deps.reading.mode() === 'reading' || !dragStartsHere(root, e.target)) return;
 			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
 			if (!anchor) return;

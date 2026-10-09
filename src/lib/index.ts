@@ -28,6 +28,7 @@ export type {
 } from './editor-keys';
 export type { ImageLoadPolicy } from './core/inline-render';
 export type { PresentationMode } from './presentation-mode';
+export type { LinkClick } from './activation-click';
 export type { SearchState, SearchOptions } from './search/search-state.svelte';
 export type { Match } from './search/document-scan';
 

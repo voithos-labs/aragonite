@@ -1,8 +1,9 @@
 /**
  * Editor-root menus: the block context menu (a right-click on a block runs its kind's registered
- * actions; prose and a selection get the clipboard rows, and prose an insert flyout). The open
- * menu is `$state` in `Editor.svelte`, written through `setMenu`; a menu takes no focus, so
- * the caret it acts on stays exactly where it is.
+ * actions; prose and a selection get the clipboard rows, and prose an insert flyout; over a link
+ * or a widget that goes somewhere, an "Edit link" row first). The open menu is `$state` in
+ * `Editor.svelte`, written through `setMenu`; a menu takes no focus, so the caret it acts on
+ * stays exactly where it is.
  */
 
 import type { BlockEditActions } from '../action-contracts';
@@ -59,12 +60,17 @@ export interface RootMenusDeps {
 	reading: Reading;
 	/** A block menu's writes are stamped with the document it opened over. */
 	stamps: DocumentStamps;
+	/** Whether Mod+K at the caret would edit something, and doing it: the "Edit link" row. */
+	canEditLinkAtCaret(): boolean;
+	editLinkAtCaret(): void;
 	setMenu(menu: BlockMenuModel | null): void;
 }
 
 export interface RootMenus {
 	onRootContextMenu(event: MouseEvent): void;
 }
+
+const EDIT_LINK = 'link.edit';
 
 interface Point {
 	x: number;
@@ -112,6 +118,12 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 	 *  just placed in; false leaves the menu to the clipboard rows alone. */
 	function openClipboardMenu(point: Point, anchorEl: Element, withInsert: boolean): void {
 		const catalogue = deps.insertCatalogue();
+		const editLink: MenuEntry[] = deps.canEditLinkAtCaret()
+			? [
+					{ id: EDIT_LINK, label: 'Edit link', icon: 'link' },
+					{ id: 'sep-edit', label: '', divider: true }
+				]
+			: [];
 		const insert: MenuEntry[] = !withInsert
 			? []
 			: [
@@ -126,10 +138,11 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(anchorEl, point),
-			items: [...clipboardRows(), ...insert],
+			items: [...editLink, ...clipboardRows(), ...insert],
 			label: BLOCK_ACTIONS_LABEL,
 			pick: (id) => {
 				deps.setMenu(null);
+				if (id === EDIT_LINK) return deps.editLinkAtCaret();
 				if (runClipboardRow(id)) return;
 				const entry = catalogue.find((e) => e.id === id);
 				if (entry && withInsert) void deps.insertMarkdown(entry.markdown, { placement: 'below' });

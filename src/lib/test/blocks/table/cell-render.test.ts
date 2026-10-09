@@ -60,6 +60,7 @@ function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = 
 		getDocument: () => undefined,
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
+		activationClick: () => false,
 		reportRenderError: () => {},
 		get islands() {
 			return islands;

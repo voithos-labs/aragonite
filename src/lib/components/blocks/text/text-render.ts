@@ -5,6 +5,7 @@
  * the edit path's own restore does not cover.
  */
 
+import type { ActivationClick } from '../../../activation-click';
 import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
 import { tagsConstructMarkers } from '../../../presentation-mode';
@@ -77,6 +78,8 @@ export interface TextRenderDeps {
 	getContentVersion: () => number;
 	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
 	navigateTo: (path: number[]) => Promise<boolean>;
+	/** Whether a click follows what it lands on, passed on to widgets that go somewhere. */
+	activationClick: ActivationClick;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the block when one changes. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
@@ -128,7 +131,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
 		navigateTo: deps.navigateTo,
-		reading: deps.reading
+		reading: deps.reading,
+		activationClick: deps.activationClick
 	});
 	let islandDestroys: Array<() => void> = [];
 

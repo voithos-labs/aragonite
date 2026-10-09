@@ -123,6 +123,29 @@ test.describe('in-body tags as inline widgets', () => {
 		expect(await editor.bridge.getSource()).toContain('#project');
 	});
 
+	test('Edit link in the right-click menu on a tag shows its source', async ({ page }) => {
+		await editor.setPresentationMode('live');
+		await editor.waitForRenderFlush();
+		const box = await tagChip(editor, 'project').boundingBox();
+		if (!box) throw new Error('no chip box');
+
+		await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+		await page.getByRole('menuitem', { name: 'Edit link' }).click();
+		await editor.waitForRenderFlush();
+
+		await expect(tagChip(editor, 'project')).toHaveCount(0);
+		expect(await editor.bridge.getSource()).toContain('#project');
+	});
+
+	test('Mod+K with the caret beside a tag shows its source', async ({ page }) => {
+		await editor.focusBlockStart(1);
+		await page.keyboard.press('ControlOrMeta+k');
+		await editor.waitForRenderFlush();
+
+		await expect(tagChip(editor, 'inbox')).toHaveCount(0);
+		expect(await editor.bridge.getSource()).toContain('#inbox leads this line');
+	});
+
 	test('Ctrl-click is the activation gesture the host navigates on', async ({ page }) => {
 		await page.evaluate(
 			() => ((window as never as { __tagActivations: string[] }).__tagActivations = [])

@@ -1181,6 +1181,60 @@ const RULES: FileRule[] = [
 			'const prefix = meta?.marker ?? "- ";'
 		],
 		misses: ['const run = fence.marker.repeat(3);', 'mark.markerBytes']
+	},
+	{
+		id: 'G4.145 a click asks the shared rule whether it follows, never Ctrl or Cmd by hand',
+		population: (file) => /\bonclick\b|\bonClick\b|['"]click['"]|\bMouseEvent\b/.test(file.code),
+		matches:
+			/\.ctrlKey\s*\|\|\s*\w+\.metaKey|\.metaKey\s*\|\|\s*\w+\.ctrlKey|!\s*\w+\.ctrlKey\s*&&\s*!\s*\w+\.metaKey|!\s*\w+\.metaKey\s*&&\s*!\s*\w+\.ctrlKey/,
+		allowed: {
+			'src/lib/activation-click.ts': 'the rule itself',
+			'src/lib/components/blocks/editable-leaf.ts':
+				'a modified Backspace is a shortcut, not the plain key the leaf handles',
+			'src/lib/components/blocks/table/TableCellBlock.svelte':
+				'a modified Enter or arrow is a shortcut, not the plain key the cell handles',
+			'src/lib/components/menu/BlockMenu.svelte':
+				'a modified key is left to the editor, not read as menu navigation',
+			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+				'Ctrl/Cmd+wheel zooms the diagram and Mod+Enter commits its edit: shortcuts, not a click that follows',
+			'src/lib/selection/dead-space-caret.ts': 'a modified click places no caret in empty space',
+			'src/lib/selection/multi-click.ts': 'a modified press is not a multi-click select'
+		},
+		reaches: [SOURCE.editorRootGestures, SOURCE.footnoteReference],
+		reason:
+			'whether a click follows a link or a widget depends on the mode and the host’s `linkClick`, so a hand Ctrl/Cmd read answers for one host only: call `EditorContext.isActivationClick(e)` in a block, the `isActivationClick` prop in an inline widget, or `EditorPolicies.activationClick` inside the editor',
+		hits: [
+			at(
+				'src/routes/test/plugins/x/Link.svelte',
+				"<a onclick={(e) => { if (e.ctrlKey || e.metaKey || mode === 'reading') go(); }}>x</a>"
+			),
+			'function onClick(e: MouseEvent) { if (e.metaKey || e.ctrlKey) follow(); }',
+			"function onClick(e: MouseEvent) { if (!e.ctrlKey && !e.metaKey && mode !== 'reading') return; }"
+		],
+		misses: [
+			at(
+				'src/routes/test/plugins/x/Link.svelte',
+				'<a onclick={(e) => { if (isActivationClick(e)) go(); }}>x</a>'
+			),
+			'function onClick(e: MouseEvent) { if (e.shiftKey) extend(); }',
+			'const plainClickJumps = isActivationClick({ ctrlKey: false, metaKey: false });'
+		]
+	},
+	{
+		id: 'G4.146 a release asks the press tracker whether it ended a drag',
+		matches: /Math\.abs\([^)]*\bclient[XY]\b/,
+		allowed: {
+			'src/lib/activation-click.ts': 'the press tracker itself',
+			'src/lib/components/image/ImageResizeHandles.svelte':
+				'a dev warning sizing a resize gesture, not a click told from a drag'
+		},
+		reason:
+			'a second press record or threshold drifts from the first, so one route calls a release a click and another calls it a drag: ask `EditorServices.presses.travelled(e)`',
+		hits: [
+			'if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;',
+			'const dragged = Math.abs(e.clientY - down.y) > SLOP;'
+		],
+		misses: ['if (presses.travelled(e)) return;', 'const dx = Math.abs(width - startWidth);']
 	}
 ];
 

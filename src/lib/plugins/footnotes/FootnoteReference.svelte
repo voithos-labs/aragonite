@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { isWidgetActivationClick, type InlineWidgetComponentProps } from '#lib/plugin.js';
+	import type { InlineWidgetComponentProps } from '#lib/plugin.js';
 	import { footnoteNumbersFor } from './footnote-numbering';
 	import { findFootnoteDefinitionLanding } from './footnote-lookup';
 	import { footnoteReferenceLabel } from './constants';
@@ -10,7 +10,8 @@
 		getContentVersion,
 		getPresentationMode,
 		navigateTo,
-		computeInlineContent
+		computeInlineContent,
+		isActivationClick
 	}: InlineWidgetComponentProps = $props();
 
 	// Read once: the widget remounts on any source change, so this can never go stale.
@@ -39,7 +40,7 @@
 	}
 
 	function onClick(e: MouseEvent): void {
-		if (isWidgetActivationClick(e.ctrlKey || e.metaKey, getPresentationMode())) jumpToDefinition();
+		if (isActivationClick(e)) jumpToDefinition();
 	}
 
 	function onKeydown(e: KeyboardEvent): void {

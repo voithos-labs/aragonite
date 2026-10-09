@@ -136,7 +136,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 	'Italic (toggle emphasis)': { kind: 'paragraph', commands: ['format.toggleEmphasis'] },
 	Strikethrough: { kind: 'paragraph', commands: ['format.toggleStrikethrough'] },
 	'Inline code': { kind: 'paragraph', commands: ['format.toggleCode'] },
-	"Edit a link's URL (live mode)": { kind: 'paragraph', commands: ['link.openCard'] },
+	'Edit a link': { kind: 'paragraph', commands: ['link.openCard'] },
 	'Cycle heading level': { kind: 'paragraph', commands: ['heading.cycle'] },
 	'Split a block': { kind: 'paragraph', commands: ['block.split'] },
 	'Hard line break': { kind: 'paragraph', commands: ['block.hardBreak'] },
