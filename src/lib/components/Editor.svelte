@@ -57,8 +57,7 @@
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
-	import { bindActivationClick } from '../activation-click';
-	import { clickEndsHoldingRange } from './blocks/text/click-snap-guard';
+	import { bindActivationClick, createPressTracker } from '../activation-click';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './link-reference-map';
 	import {
 		buildLinkReferenceMap,
@@ -104,6 +103,7 @@
 	import {
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
+		installPressTracker,
 		installRevealAnchorRelease,
 		installSelectionChangeBridge,
 		installUndoStepEnd,
@@ -267,7 +267,9 @@
 		mode: () => outgoingMode ?? effectiveMode,
 		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(outgoingMode ?? effectiveMode)
 	};
-	const activationClick = bindActivationClick(reading.mode, () => linkClick, clickEndsHoldingRange);
+	// Every press in the editor, so a click on any route can tell it ended a drag.
+	const presses = createPressTracker();
+	const activationClick = bindActivationClick(reading.mode, () => linkClick, presses);
 	// The pointer cursor on links shows where a plain click follows them.
 	const plainClickFollows = $derived(activationClick({ ctrlKey: false, metaKey: false }));
 	// The root list's child component refs, plain rather than `$state` (see `refSlotsOver`).
@@ -932,7 +934,7 @@
 
 	$effect(() => {
 		if (!editorEl) return;
-		return installModActiveTracker(editorEl);
+		return removeAll(installModActiveTracker(editorEl), installPressTracker(editorEl, presses));
 	});
 
 	// A delegated handle-drag on the root, torn down on unmount via the lifetime signal.

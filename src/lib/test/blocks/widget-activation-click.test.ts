@@ -9,8 +9,7 @@ import { createWidgetInteraction } from '#lib/components/blocks/text/widget-inte
 import { registerInlineSyntax } from '#lib/core/inline/scan/plugin-syntax.js';
 import { registerInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
 import { declarePluginInlineKind } from '#lib/schema/plugin-kind.js';
-import { bindActivationClick, type LinkClick } from '#lib/activation-click.js';
-import { clickEndsHoldingRange } from '#lib/components/blocks/text/click-snap-guard.js';
+import { bindActivationClick, createPressTracker, type LinkClick } from '#lib/activation-click.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
@@ -64,7 +63,7 @@ function widgetActs(
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
 		reading,
-		activationClick: bindActivationClick(reading.mode, () => linkClick, clickEndsHoldingRange)
+		activationClick: bindActivationClick(reading.mode, () => linkClick, createPressTracker())
 	});
 	const start = SOURCE.indexOf('%%');
 	pool.beginPass();
@@ -87,7 +86,7 @@ function mountInteraction(kind: string, linkClick: LinkClick, mode: Presentation
 			{ node, el },
 			{
 				reading,
-				activationClick: bindActivationClick(reading.mode, () => linkClick, clickEndsHoldingRange),
+				activationClick: bindActivationClick(reading.mode, () => linkClick, createPressTracker()),
 				setPendingCursor: () => {},
 				setRevealing: () => {},
 				isCrossBlock: () => false,

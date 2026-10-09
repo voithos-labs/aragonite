@@ -1909,8 +1909,8 @@ state of the drawn caret. `lint/drawn-caret-guards.test.ts`.
 `ctrlKey || metaKey` (or `!ctrlKey && !metaKey`) itself; it asks `src/lib/activation-click.ts` (through
 `EditorPolicies.activationClick`, `EditorContext.isActivationClick` or a widget's
 `isActivationClick` prop), which reads the mode and the host's `linkClick` at the click. The
-allowlist holds the reads that decline a modified press, and the diagram's zoom and commit
-shortcuts. `lint/file-rules.test.ts`.
+allowlist holds the reads that decline a modified key or press, and the diagram's zoom and
+commit shortcuts. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

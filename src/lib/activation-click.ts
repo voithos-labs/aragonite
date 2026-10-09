@@ -9,13 +9,23 @@ import { hidesDelimitersAtCaret, type PresentationMode } from './presentation-mo
 /** Which click follows a link while editing: Ctrl/Cmd-click, or any click. */
 export type LinkClick = 'modifier' | 'plain';
 
-/** What the rule reads off a click; a `MouseEvent` is one. Without `detail` and `target` it reads
- *  as one click with nothing selected, which is how the cursor asks where a plain click follows. */
+/** What the rule reads off a click; a `MouseEvent` is one. Without `detail` it reads as one click
+ *  that didn't travel, which is how the cursor asks where a plain click follows. */
 export type ClickInput = Pick<MouseEvent, 'ctrlKey' | 'metaKey'> &
-	Partial<Pick<MouseEvent, 'detail' | 'target'>>;
+	Partial<Pick<MouseEvent, 'detail' | 'clientX' | 'clientY'>>;
 
 /** One editor's answer for a click on something that goes somewhere. */
 export type ActivationClick = (click: ClickInput) => boolean;
+
+/** Where the editor's last press went down, so a click can tell it ended a drag. */
+export interface PressTracker {
+	press(at: { clientX: number; clientY: number }): void;
+	/** Whether the pointer travelled past the drag threshold between that press and `at`. */
+	travelled(at: { clientX: number; clientY: number }): boolean;
+}
+
+/** The pointer distance, in CSS pixels, past which a press and its release are a drag. */
+export const DRAG_SLOP_PX = 3;
 
 export function isModifiedClick(click: ClickInput): boolean {
 	return click.ctrlKey || click.metaKey;
@@ -32,16 +42,32 @@ export function followsClick(
 	return linkClick === 'plain' && hidesDelimitersAtCaret(mode);
 }
 
-/** Reads the mode and the gesture at each click. Only a single click follows, never a double-click's
- *  later press or a drag's release, which `endsHoldingRange` tells from a real click's target. */
+export function createPressTracker(): PressTracker {
+	let last: { x: number; y: number } | null = null;
+	return {
+		press: ({ clientX, clientY }) => {
+			last = { x: clientX, y: clientY };
+		},
+		travelled: ({ clientX, clientY }) =>
+			last !== null &&
+			(Math.abs(clientX - last.x) > DRAG_SLOP_PX || Math.abs(clientY - last.y) > DRAG_SLOP_PX)
+	};
+}
+
+/** Reads the mode and the gesture at each click. Only a single pointer click that didn't travel
+ *  follows; a keyboard click (`detail` 0) has no press to travel from. */
 export function bindActivationClick(
 	mode: () => PresentationMode,
 	linkClick: () => LinkClick,
-	endsHoldingRange: (target: EventTarget) => boolean
+	presses: Pick<PressTracker, 'travelled'>
 ): ActivationClick {
 	return (click) => {
-		if ((click.detail ?? 1) > 1) return false;
-		if (click.target && endsHoldingRange(click.target)) return false;
+		const detail = click.detail ?? 0;
+		if (detail > 1) return false;
+		const { clientX, clientY } = click;
+		if (detail === 1 && clientX !== undefined && clientY !== undefined) {
+			if (presses.travelled({ clientX, clientY })) return false;
+		}
 		return followsClick(isModifiedClick(click), mode(), linkClick());
 	};
 }

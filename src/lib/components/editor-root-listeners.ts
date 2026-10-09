@@ -4,7 +4,7 @@
  */
 
 import { tick } from 'svelte';
-import { isModifiedClick } from '../activation-click';
+import { isModifiedClick, type PressTracker } from '../activation-click';
 import { findSurfacePathForElement } from '../selection/path-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CaretWriter } from '../caret/widget-offset';
@@ -56,6 +56,19 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 		onRoot(document, 'keyup', onKey),
 		onRoot(window, 'blur', reset),
 		onRoot(document, 'visibilitychange', onVisibility)
+	);
+}
+
+/** Records every primary press in `root`, in the capture phase so a block that cancels its press
+ *  still reports it. */
+export function installPressTracker(root: HTMLElement, presses: PressTracker): () => void {
+	return onRoot<PointerEvent>(
+		root,
+		'pointerdown',
+		(e) => {
+			if (e.button === 0) presses.press(e);
+		},
+		{ capture: true }
 	);
 }
 

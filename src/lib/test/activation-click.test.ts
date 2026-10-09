@@ -1,27 +1,46 @@
-// @vitest-environment jsdom
-// One editor's answer to whether a click follows: a click that ends holding a range is a drag's
-// release, and a synthetic click (the cursor's reads) never asks about the selection.
-// Miss-analysis: the rule took the keys and the mode but not whether the click was a click, so a
-// drag inside a link followed it; no test released a drag on one.
+// One editor's answer to whether a click follows: a pointer click that travelled past the drag
+// threshold from its own press is a drag's release, whatever the selection held before the press.
+// Miss-analysis: the rule read "the block holds a range" as a drag, and no test clicked a widget
+// with a range left over from before the press, which the press keeps.
 import { describe, it, expect } from 'vitest';
-import { bindActivationClick } from '#lib/activation-click.js';
+import { bindActivationClick, createPressTracker, DRAG_SLOP_PX } from '#lib/activation-click.js';
 
-describe('bindActivationClick', () => {
-	it('declines a click that ends holding a range, and asks only about a real click', () => {
-		const asked: EventTarget[] = [];
-		const follows = bindActivationClick(
+const follows = () => {
+	const presses = createPressTracker();
+	return {
+		presses,
+		follows: bindActivationClick(
 			() => 'reading',
 			() => 'modifier',
-			(target) => {
-				asked.push(target);
-				return true;
-			}
-		);
-		const target = document.createElement('a');
+			presses
+		)
+	};
+};
 
-		expect(follows({ ctrlKey: false, metaKey: false })).toBe(true);
-		expect(asked).toEqual([]);
-		expect(follows({ ctrlKey: false, metaKey: false, detail: 1, target })).toBe(false);
-		expect(asked).toEqual([target]);
+describe('bindActivationClick', () => {
+	it('declines a pointer click that landed past the drag threshold from its press', () => {
+		const { presses, follows: rule } = follows();
+		presses.press({ clientX: 10, clientY: 10 });
+
+		expect(rule({ ctrlKey: false, metaKey: false, detail: 1, clientX: 10, clientY: 10 })).toBe(
+			true
+		);
+		const far = 10 + DRAG_SLOP_PX + 1;
+		expect(rule({ ctrlKey: false, metaKey: false, detail: 1, clientX: far, clientY: 10 })).toBe(
+			false
+		);
+	});
+
+	it('never asks about travel for a keyboard click or a synthetic one', () => {
+		const { presses, follows: rule } = follows();
+		presses.press({ clientX: 10, clientY: 10 });
+
+		expect(rule({ ctrlKey: false, metaKey: false, detail: 0, clientX: 0, clientY: 0 })).toBe(true);
+		expect(rule({ ctrlKey: false, metaKey: false })).toBe(true);
+	});
+
+	it('declines the later presses of a multi-click', () => {
+		const { follows: rule } = follows();
+		expect(rule({ ctrlKey: false, metaKey: false, detail: 2 })).toBe(false);
 	});
 });

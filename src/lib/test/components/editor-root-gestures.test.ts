@@ -10,8 +10,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { asEditorX } from '#lib/caret/coordinate-spaces.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { bindActivationClick, type LinkClick } from '#lib/activation-click.js';
-import { clickEndsHoldingRange } from '#lib/components/blocks/text/click-snap-guard.js';
+import { bindActivationClick, createPressTracker, type LinkClick } from '#lib/activation-click.js';
 import { ACTIVATION_CLICK_CASES } from '#lib/test/support/activation-click-cases.js';
 
 // Miss-analysis: the click and margin drag were driven only through Playwright, never a refusal.
@@ -105,7 +104,7 @@ function harness(opts: { mode?: PresentationMode; linkClick?: LinkClick } = {}) 
 		activateLink,
 		linkCard: { open: () => false },
 		reading,
-		activationClick: bindActivationClick(reading.mode, () => linkClick, clickEndsHoldingRange)
+		activationClick: bindActivationClick(reading.mode, () => linkClick, createPressTracker())
 	});
 	teardowns.push(gestures.install(root));
 
