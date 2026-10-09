@@ -717,7 +717,9 @@ a new class can't grow there unwatched.
 
 One check stands outside that sort: a gesture that writes a lone surrogate (half of a UTF-16
 character) its input didn't hold fails the sweep whether or not the twin writes one too, since no
-rebinding excuses bytes that can't be saved as UTF-8.
+rebinding excuses bytes that can't be saved as UTF-8. So the split and the range delete, whose
+offsets the harness computes itself, hand them over unsnapped: snapping them to a character
+boundary first would hide the editor's own snap, which is what's under test.
 
 It rides `npm test` at a bounded default and joins fresh mode. `LIVE_FUZZ_DOCS` and
 `LIVE_FUZZ_STEPS` raise the sweep for an overnight run, and its budgets are rates over applied
