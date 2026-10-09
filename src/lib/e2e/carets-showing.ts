@@ -53,6 +53,16 @@ export function drawnCaretBox(page: Page): Promise<CaretBox | null> {
 	});
 }
 
+/** The marks the drawn caret's look shows, outermost first, empty for the plain bar; null while it
+ *  draws no text caret. */
+export function drawnCaretMarks(page: Page): Promise<string[] | null> {
+	return page.evaluate(() => {
+		const bar = document.querySelector<HTMLElement>('.md-drawn-caret[data-caret-state="text"]');
+		if (!bar || getComputedStyle(bar).display === 'none') return null;
+		return bar.dataset.caretMarks?.split(' ').filter(Boolean) ?? [];
+	});
+}
+
 /** The drawn caret's bar while it shows, in whichever state, with where it sits: the block host's
  *  path, or `gap` inside the gap caret's element. */
 export interface DrawnBar {

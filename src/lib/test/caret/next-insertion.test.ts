@@ -7,9 +7,13 @@ import {
 	createInsertionRecords,
 	insertsAt,
 	type InsertionRecord,
-	type InsertionSpend
+	type InsertionSpend,
+	type PlaceInsertion,
+	type TextEdit
 } from '#lib/caret/next-insertion.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
+import { createHeldSpace } from '#lib/caret/held-space.js';
+import { createPendingBreak } from '#lib/caret/pending-break.svelte.js';
 import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
 import { stubBlockEdit } from '#lib/testing/headless-actions.js';
 import type { NodeView } from '#lib/core/node-views.js';
@@ -135,6 +139,13 @@ describe('the block’s move of an insertion', () => {
 	});
 });
 
+/** A letter typed at 4 in `ab**` joins the bold before its closer at 2, so a space typed there is
+ *  held; any other insertion stays where it was typed. */
+const BOLD_CLOSER: PlaceInsertion = (before, edit, at) =>
+	at === 4 && edit.text[at] === 'a'
+		? { text: before.slice(0, 2) + 'a' + before.slice(2), caretAfter: 3, crossed: ['strong'] }
+		: null;
+
 /** Each record the caret memory keeps, opened in `BLOCK` and read back from its own view. */
 const MEMORY_RECORDS = [
 	{
@@ -146,13 +157,8 @@ const MEMORY_RECORDS = [
 	},
 	{
 		name: 'the held space',
-		// `ab**`: a letter at 4 joins before the closer at 2, so a space typed there is held.
 		open: (memory: ReturnType<typeof createCaretMemory>) => {
-			const held = memory.holdInsertion(BLOCK, (before, edit, at) =>
-				at === 4 && edit.text[at] === 'a'
-					? { text: before.slice(0, 2) + 'a' + before.slice(2), caretAfter: 3, crossed: ['strong'] }
-					: null
-			);
+			const held = memory.holdInsertion(BLOCK, BOLD_CLOSER);
 			held.spend('ab**', { text: 'ab** ', caretAfter: 5 });
 			held.finish(true);
 		},
@@ -204,5 +210,129 @@ describe('writeText and a record the write extends', () => {
 		void writeText({ ...typed, text: 'ab  ', caretAfter: 4 });
 
 		expect(state).toEqual({ at: 4, waiting: true });
+	});
+});
+
+// ── A dry run of the spend ──────────────────────────────────────────────────
+
+/** Each kind of record in one state, the edits to try on it, and the state it can be read in. */
+const RECORD_STATES: {
+	name: string;
+	make(): { record: InsertionRecord; state(): unknown };
+	edits: [before: string, edit: TextEdit][];
+}[] = [
+	{
+		name: 'an open pending break',
+		make: () => {
+			const record = createPendingBreak();
+			const view = record.forBlock(BLOCK);
+			view.open({ textEnd: 3, lineEnd: 3, ending: '\n' });
+			return { record, state: () => [view.lines(), view.at()] };
+		},
+		edits: [
+			['abc', { text: 'abcx', caretAfter: 4 }],
+			['abc', { text: 'axbc', caretAfter: 2 }]
+		]
+	},
+	{
+		name: 'the held space, none held',
+		make: () => {
+			const record = createHeldSpace();
+			return { record, state: () => heldState(record) };
+		},
+		edits: [
+			['ab**', { text: 'ab** ', caretAfter: 5 }],
+			['ab**', { text: 'ab**w', caretAfter: 5 }]
+		]
+	},
+	{
+		name: 'the held space, one held',
+		make: () => {
+			const record = createHeldSpace();
+			const held = createInsertionRecords([record]).hold(BLOCK, null, BOLD_CLOSER);
+			held.spend('ab**', { text: 'ab** ', caretAfter: 5 });
+			held.finish(true);
+			return { record, state: () => heldState(record) };
+		},
+		edits: [
+			['ab** ', { text: 'ab**  ', caretAfter: 6 }],
+			['ab** ', { text: 'ab** w', caretAfter: 6 }]
+		]
+	}
+];
+
+function heldState(record: ReturnType<typeof createHeldSpace>): unknown {
+	const view = record.forBlock(BLOCK);
+	return [record.holding(), view.at(), view.inside(), record.holdsInside('strong')];
+}
+
+describe.each(RECORD_STATES)('$name', ({ make, edits }) => {
+	it.each(edits)('applies %j → %j twice without changing its state', (before, edit) => {
+		const { record, state } = make();
+		const spend = record.take(BLOCK)!;
+		const was = state();
+
+		const placement = { place: BOLD_CLOSER, side: null };
+		spend.apply(before, edit, placement);
+		spend.apply(before, edit, placement);
+
+		expect(state()).toEqual(was);
+	});
+});
+
+/** The caret memory with nothing waiting, then with each record open in `BLOCK`. */
+const PREVIEW_ROWS: [
+	name: string,
+	open: (memory: ReturnType<typeof createCaretMemory>) => void,
+	edits: [string, TextEdit][]
+][] = [
+	['nothing waiting', () => {}, [['ab**', { text: 'ab**a', caretAfter: 5 }]]],
+	[
+		'the pending break',
+		MEMORY_RECORDS[0].open,
+		[
+			['abc', { text: 'abcx', caretAfter: 4 }],
+			['abc', { text: 'xabc', caretAfter: 1 }],
+			['abc', { text: 'ab', caretAfter: 2 }]
+		]
+	],
+	[
+		'the held space',
+		MEMORY_RECORDS[1].open,
+		[
+			['ab** ', { text: 'ab** w', caretAfter: 6 }],
+			['ab** ', { text: 'ab**  ', caretAfter: 6 }],
+			['ab** ', { text: 'wab** ', caretAfter: 1 }]
+		]
+	]
+];
+
+describe.each(PREVIEW_ROWS)('a preview of the next insertion, with %s', (_name, open, edits) => {
+	it.each(edits)('of %j → %j returns what the spend does', (before, edit) => {
+		const previewed = createCaretMemory();
+		const spent = createCaretMemory();
+		open(previewed);
+		open(spent);
+
+		expect(previewed.previewInsertion(BLOCK, BOLD_CLOSER).spend(before, edit)).toEqual(
+			spent.holdInsertion(BLOCK, BOLD_CLOSER).spend(before, edit)
+		);
+	});
+
+	it.each(edits)('of %j → %j leaves every record for the next write', (before, edit) => {
+		const memory = createCaretMemory();
+		open(memory);
+		// A write that changes nothing leaves every record it held waiting.
+		const waiting = () => {
+			const held = memory.holdInsertion(BLOCK);
+			const at = [3, 5].map((offset) => held.waitsAt(offset));
+			held.finish(false);
+			return at;
+		};
+		const was = waiting();
+
+		memory.previewInsertion(BLOCK, BOLD_CLOSER).spend(before, edit);
+
+		expect(waiting()).toEqual(was);
 	});
 });
