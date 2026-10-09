@@ -220,6 +220,29 @@ describe('the widget edge a click meant', () => {
 	});
 });
 
+describe('an editable that mounts', () => {
+	it('asks for a paint only when it holds focus', async () => {
+		const { editor } = await mountAtCaret(5);
+		const caret = editor.instance.__test.getDrawnCaret();
+		const mount = (focused: boolean) => {
+			const el = document.createElement('div');
+			el.tabIndex = 0;
+			editor.target.append(el);
+			if (focused) el.focus();
+			return caret.register({ el, drawable: () => true });
+		};
+		await editor.settle();
+		resetPerfInstruments();
+		const unregister = mount(false);
+		await editor.settle();
+		expect(perfSnapshot().caretPaintMs, 'an unfocused editable').toHaveLength(0);
+		unregister();
+		mount(true);
+		await editor.settle();
+		expect(perfSnapshot().caretPaintMs, 'the focused editable').toHaveLength(1);
+	});
+});
+
 describe('a plain keystroke', () => {
 	it('writes no class and no caret mark on the editable', async () => {
 		const { editor, el } = await mountAtCaret(5);

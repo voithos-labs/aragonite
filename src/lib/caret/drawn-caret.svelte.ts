@@ -18,7 +18,12 @@ import {
 	type DrawnCaretTarget,
 	type WidgetEdgeBox
 } from './drawn-caret-target';
-import { markCaretPaint, markCaretRequest, recordCaretFrameMove } from '../perf/instruments';
+import {
+	countCaretPaint,
+	markCaretPaint,
+	markCaretRequest,
+	recordCaretFrameMove
+} from '../perf/instruments';
 import { assertInvariant } from '../assert';
 import { checkDrawnCaretAgrees, checkOneCaretShowing } from '../invariants/drawn-caret';
 
@@ -136,6 +141,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	function paint(atFrame = false): void {
 		const root = deps.getRoot();
 		if (!root) return;
+		countCaretPaint();
 		const read = readCaret(root);
 		const target = drawnCaretTarget(read.reads);
 		draw(target, read, atFrame);
@@ -332,7 +338,8 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		request,
 		register(source) {
 			sources.set(source.el, source);
-			request();
+			// Every other mount reaches the caret through a caret write or `focusin`, each of which asks.
+			if (source.el.contains(document.activeElement)) request();
 			return () => {
 				if (sources.get(source.el) === source) sources.delete(source.el);
 				if (source.widgetEdge) widgetEdge.release(source.widgetEdge.owner);

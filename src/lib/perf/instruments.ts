@@ -38,6 +38,8 @@ export interface PerfSnapshot {
 	caretPaintMs: number[];
 	/** Paints at an animation frame that moved the drawn caret: a move no caret write asked for. */
 	caretFrameMoves: number;
+	/** Every paint of the drawn caret, at a frame or not; a page scroll should cost none. */
+	caretPaints: number;
 	blockRenderPaths: string[];
 	mountedBlockCount: number;
 	decorationRuns: number;
@@ -78,6 +80,7 @@ function emptySnapshot(): PerfSnapshot {
 		keystrokeInPageMs: [],
 		caretPaintMs: [],
 		caretFrameMoves: 0,
+		caretPaints: 0,
 		blockRenderPaths: [],
 		mountedBlockCount: 0,
 		decorationRuns: 0,
@@ -241,6 +244,11 @@ export function markCaretRequest(): void {
 export function recordCaretFrameMove(): void {
 	if (!enabled) return;
 	counters.caretFrameMoves++;
+}
+
+export function countCaretPaint(): void {
+	if (!enabled) return;
+	counters.caretPaints++;
 }
 
 export function markCaretPaint(): void {
