@@ -22,6 +22,8 @@ in block 2, and a link in a table cell in block 3.
 - In source mode a link shows its syntax, so a plain click there edits it: the widget shows its
   source and the Markdown link opens nothing.
 - A drag that starts on the link selects and activates nothing.
+- A drag that starts on the link in a table cell shows no source and activates nothing, as in a
+  paragraph.
 - Edit link in the right-click menu on the link shows its source, and follows nothing.
 - Edit link on a Markdown link opens its card with focus in the URL field, and follows nothing.
 - Edit link on a link in a table cell shows its source too, from the table's own menu.

@@ -216,6 +216,25 @@ test.describe('wikilinks that follow on a plain click', () => {
 		expect(await activations(page)).toEqual([]);
 	});
 
+	test('a drag that starts on a link in a table cell shows no source and follows nothing', async ({
+		page
+	}) => {
+		const cellLink = page.locator('.wikilink[data-target="Cell note"]');
+		const box = await cellLink.boundingBox();
+		if (!box) throw new Error('no cell link box');
+		const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		for (let step = 1; step <= 6; step++) {
+			await page.mouse.move(from.x + ((box.width / 2 + 20) * step) / 6, from.y);
+		}
+		await page.mouse.up();
+		await editor.waitForRenderFlush();
+
+		await expect(cellLink).toHaveCount(1);
+		expect(await activations(page)).toEqual([]);
+	});
+
 	test('a drag that starts on the link selects and follows nothing', async ({ page }) => {
 		const box = await link(editor).boundingBox();
 		if (!box) throw new Error('no link box');

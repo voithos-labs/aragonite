@@ -141,7 +141,8 @@
 		rects,
 		decorations: decorationEngine,
 		rangeCoverage,
-		drafts
+		drafts,
+		presses
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 	const {
@@ -1057,7 +1058,9 @@
 		lastClickClientY = null;
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
 			click: e,
-			clickCount: e.detail
+			clickCount: e.detail,
+			// A release that travelled ends a drag, whose range a shown source would unmount.
+			moved: presses.travelled(e)
 		});
 	}
 

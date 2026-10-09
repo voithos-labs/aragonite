@@ -1225,8 +1225,6 @@ const RULES: FileRule[] = [
 		matches: /Math\.abs\([^)]*\bclient[XY]\b/,
 		allowed: {
 			'src/lib/activation-click.ts': 'the press tracker itself',
-			'src/lib/selection/pointer-session.ts':
-				'drag recognition while the pointer moves, at a threshold its caller passes, not a release',
 			'src/lib/components/image/ImageResizeHandles.svelte':
 				'a dev warning sizing a resize gesture, not a click told from a drag'
 		},
