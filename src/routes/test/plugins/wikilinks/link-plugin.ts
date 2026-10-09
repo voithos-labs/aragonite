@@ -2,8 +2,7 @@
  * `[[note]]` links inside the text, limestone's integration reproduced here: a `[[` recognizer
  * declares a plugin inline kind whose widget paints the note's name, follows on a plain click
  * (`plainClickActivates`) and shows its source when the caret arrows in (`revealSource`). The
- * registration matches limestone's value for value, so what these tests hold is what that app
- * gets.
+ * widget asks the editor's `isActivationClick` prop, as a host's link component would.
  */
 import {
 	definePlugin,
