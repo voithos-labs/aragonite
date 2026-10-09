@@ -70,7 +70,7 @@ async function mountAtCaret(at: number) {
 function barX(editor: MountedEditor): number | null {
 	const bar = editor.target.querySelector<HTMLElement>('.md-drawn-caret');
 	if (bar?.getAttribute('data-caret-state') !== 'text') return null;
-	const x = /translate\(([-\d.]+)px/.exec(bar.style.transform)?.[1];
+	const x = /^([-\d.]+)px/.exec(bar.style.translate)?.[1];
 	return x === undefined ? null : Number(x);
 }
 
@@ -118,7 +118,7 @@ describe('the drawn caret’s paint', () => {
 	});
 });
 
-/** Logs the block's render, each caret write, each block height read and the bar's paint. */
+/** Logs the block's render, each caret write, each block height read and each move of the bar. */
 function recordOrder(editor: MountedEditor, el: HTMLElement, log: string[]): () => void {
 	const host = el.closest('.block-host')!;
 	const own = <T extends object, K extends keyof T>(
@@ -165,7 +165,7 @@ function recordOrder(editor: MountedEditor, el: HTMLElement, log: string[]): () 
 			'setAttribute',
 			(fn) =>
 				function (this: Element, name: string, value: string) {
-					if (name === 'data-caret-state' && editor.target.contains(this)) log.push('paint');
+					if (name === 'data-blink' && editor.target.contains(this)) log.push('paint');
 					return fn.call(this, name, value);
 				}
 		)

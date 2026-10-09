@@ -12,7 +12,12 @@ import { classifyArrivalKey, type EdgeAffinity } from './edge-affinity';
 import { flipMark, type PendingMarks } from './pending-marks';
 import { createPendingBreak, type BlockPendingBreak } from './pending-break.svelte';
 import { createHeldSpace, type HeldSpaceView } from './held-space';
-import { createInsertionRecords, type HeldInsertion, type PlaceInsertion } from './next-insertion';
+import {
+	createInsertionRecords,
+	type HeldInsertion,
+	type PlaceInsertion,
+	type PreviewInsertion
+} from './next-insertion';
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
 import type { AnyCommandId } from '../schema/command-id';
 import { BLOCK_MOVE_COMMAND_IDS } from '../schema/commands';
@@ -41,6 +46,11 @@ export interface CaretMemory {
 	/** Takes what the next insertion in `block` spends, with the caret's side and the block's move of
 	 *  an insertion across a hidden edge (`place`), so a route that forgets the memory can spend them. */
 	holdInsertion(block: object, place?: PlaceInsertion): HeldInsertion;
+	/** What `holdInsertion` would make of an insertion, read without spending or keeping anything. */
+	previewInsertion(block: object, place?: PlaceInsertion): PreviewInsertion;
+	/** Grows each time what the memory answers changes, a write taking or letting go of a record
+	 *  included (which asks for no paint), for a reader that caches an answer. */
+	changeCount(): number;
 
 	/** Classify a keydown; `command` is the chord's meaning at the focused block, so a rebound chord
 	 *  reads as what it does. Without `measureX` (a caller holding a range) the column is kept. */
@@ -59,8 +69,15 @@ export interface CaretMemory {
 	forget(): void;
 }
 
-export function createCaretMemory(): CaretMemory {
+export interface CaretMemoryDeps {
+	/** Hears every change to what the memory answers, and nothing else; it may write no reactive
+	 *  state, since the memory forgets during teardown. */
+	onChange?: () => void;
+}
+
+export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 	let column: EditorX | null = null;
+	let changes = 0;
 	let side: EdgeAffinity | null = null;
 	let marks: ReadonlySet<InlineMarkKind> | null = null;
 	const pendingBreak = createPendingBreak();
@@ -80,12 +97,18 @@ export function createCaretMemory(): CaretMemory {
 		traceStickyCapture(x);
 	}
 
+	function changed(): void {
+		changes++;
+		deps.onChange?.();
+	}
+
 	// Promised marks and a held space belong to one side of the caret, so a caret that changed
 	// sides drops them.
 	function settleSide(next: EdgeAffinity | null): void {
+		const moved = !sameSide(side, next) || marks !== null;
 		side = next;
 		marks = null;
-		records.end(heldSpace);
+		if (records.end(heldSpace) || moved) changed();
 	}
 
 	return {
@@ -99,24 +122,40 @@ export function createCaretMemory(): CaretMemory {
 				const ownChord = heldSpace.holdsInside(kind);
 				records.end(heldSpace);
 				if (!ownChord) marks = flipMark(marks, kind);
+				changed();
 			},
 			consume: () => {
 				const spent = marks;
 				marks = null;
+				if (spent) changed();
 				return spent;
 			},
 			restore: (unspent) => {
-				if (marks === null) marks = unspent;
+				if (marks !== null) return;
+				marks = unspent;
+				changed();
 			}
 		},
 		pendingBreak: {
-			forBlock: (block) => ({
-				...pendingBreak.forBlock(block),
-				end: () => records.end(pendingBreak, block)
-			})
+			forBlock: (block) => {
+				const lines = pendingBreak.forBlock(block);
+				return {
+					lines: lines.lines,
+					at: lines.at,
+					open: (line) => {
+						lines.open(line);
+						changed();
+					},
+					end: () => {
+						if (records.end(pendingBreak, block)) changed();
+					}
+				};
+			}
 		},
-		heldSpace,
+		heldSpace: { forBlock: heldSpace.forBlock },
 		holdInsertion: (block, place) => records.hold(block, side, place),
+		previewInsertion: (block, place) => records.preview(block, side, place),
+		changeCount: () => changes + records.holdChanges(),
 		noteKey: (e, command, measureX) => {
 			// A block move leaves the caret where it was; the move's own commit forgets the memory.
 			if (command !== null && BLOCK_MOVE_COMMAND_IDS.has(command)) return;
@@ -144,7 +183,15 @@ export function createCaretMemory(): CaretMemory {
 		forget: () => {
 			dropColumn();
 			settleSide(null);
-			records.end();
+			if (records.end()) changed();
 		}
 	};
+}
+
+/** Whether two sides name the same one, a pinned offset by its value. */
+function sameSide(a: EdgeAffinity | null, b: EdgeAffinity | null): boolean {
+	if (typeof a === 'object' && a !== null && typeof b === 'object' && b !== null) {
+		return a.offset === b.offset;
+	}
+	return a === b;
 }

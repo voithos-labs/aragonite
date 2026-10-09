@@ -77,6 +77,8 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/edge-step.ts':
 		'the ring at a hidden edge: edgeAffinity, since a never-extend construct has no inside to show',
 	'src/lib/components/blocks/text/link-at-point.ts': 'the card entry: cardEditable',
+	'src/lib/components/blocks/text/next-byte.ts':
+		'the caret look: the mark column, for which constructs a typed letter would carry',
 	'src/lib/components/blocks/text/live-join-seam.ts':
 		'the join cleaner: splitBehavior, and autoUnwrapOnEmpty for a construct the cut emptied',
 	'src/lib/components/blocks/text/live-split-rebalance.ts': 'the split rebalancer: splitBehavior',

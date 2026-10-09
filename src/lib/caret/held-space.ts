@@ -62,19 +62,24 @@ export function createHeldSpace(): HeldSpace {
 					const at = insertionStart(before, edit);
 					if (at === null || !placement) return null;
 					const typed = edit.text.slice(at, at + edit.text.length - before.length);
+					// A space opens or extends the hold once its write lets go of it.
+					const keep = (next: Hold) => ({ ...edit, kept: () => void (hold = next) });
 					if (taken && at === taken.end) {
-						if (isWhitespace(typed)) {
-							hold = { ...taken, end: taken.end + typed.length };
-							return { ...edit, kept: true };
-						}
+						if (isWhitespace(typed)) return keep({ ...taken, end: taken.end + typed.length });
 						return carried(before, taken, typed, placement.place) ?? edit;
 					}
 					if (taken || !isWhitespace(typed)) return null;
 					const letter = letterPlaced(before, at, placement);
 					if (letter === null || letter.inside >= at) return null;
 					const { inside, kinds } = letter;
-					hold = { block, inside, start: at, end: at + typed.length, side: placement.side, kinds };
-					return { ...edit, kept: true };
+					return keep({
+						block,
+						inside,
+						start: at,
+						end: at + typed.length,
+						side: placement.side,
+						kinds
+					});
 				},
 				release: (waiting) => {
 					if (!waiting && hold?.block === block) hold = null;
@@ -82,7 +87,9 @@ export function createHeldSpace(): HeldSpace {
 			};
 		},
 		end: (block) => {
-			if (block === undefined || hold?.block === block) hold = null;
+			if (hold === null || (block !== undefined && hold.block !== block)) return false;
+			hold = null;
+			return true;
 		}
 	};
 }

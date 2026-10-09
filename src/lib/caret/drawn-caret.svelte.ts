@@ -24,6 +24,7 @@ import {
 	markCaretRequest,
 	recordCaretFrameMove
 } from '../perf/instruments';
+import type { CaretLook } from './caret-look';
 import { assertInvariant } from '../assert';
 import { checkDrawnCaretAgrees, checkOneCaretShowing } from '../invariants/drawn-caret';
 
@@ -41,6 +42,8 @@ export interface CaretSource {
 	readonly widgetEdge?: WidgetEdgeSource;
 	/** Set by the gap caret's proxy: the element the bar lies across, between two blocks. */
 	readonly gapHost?: HTMLElement;
+	/** The look of a text caret at `range`, a collapsed range inside `el`; absent draws the plain bar. */
+	look?(range: Range): CaretLook;
 }
 
 /** The widget edges an editable can draw at, keyed by the owner object it made at construction. */
@@ -104,7 +107,10 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	let drawnFor: HTMLElement | null = null;
 	let painted: PaintedCaret | null = null;
 	let drawnAt = '';
+	let drawnPosition = '';
 	let drawnIn: Element | null = null;
+	let drawnState = '';
+	let drawnMarks = '';
 	let blink: 'a' | 'b' = 'a';
 	const widgetEdge = createWidgetEdgeHolder(request);
 	let requested = false;
@@ -212,7 +218,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		markDrawnFor(hidesBrowserCaret(target) ? (read.source?.el ?? null) : null);
 		const rect = 'rect' in target ? target.rect : null;
 		if ((!rect && target.state !== 'gap') || !read.host) {
-			bar?.setAttribute('data-caret-state', target.state);
+			if (bar) markState(bar, target.state);
 			if (bar) bar.hidden = true;
 			painted = null;
 			drawnAt = '';
@@ -220,24 +226,37 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		}
 		const el = (bar ??= createBar());
 		if (el.parentElement !== read.host) read.host.appendChild(el);
-		// The gap bar's box is all CSS, across its whole element.
-		const transform = rect ? `translate(${rect.x}px, ${rect.y}px)` : '';
+		// Only a text caret has a look: beside a widget, across a gap or hidden, the bar is plain.
+		const look = target.state === 'text' && read.range ? read.source?.look?.(read.range) : null;
+		const marks = look?.marks.join(' ') ?? '';
+		// The gap bar's box is all CSS, across its whole element. The stylesheet owns `transform`.
+		const translate = rect ? `${rect.x}px ${rect.y}px` : '';
 		const height = rect ? `${rect.height}px` : '';
 		const width = rect && 'width' in rect ? `${rect.width}px` : '';
-		const at = `${target.state} ${transform} ${height} ${width}`;
+		const position = `${target.state} ${translate} ${height} ${width}`;
+		const at = `${position} ${marks}`;
 		if (at !== drawnAt || el.parentElement !== drawnIn) {
 			// An editor-made move is painted by its own request; one the frame finds is the browser's.
-			if (atFrame && drawnAt) recordCaretFrameMove();
-			el.style.transform = transform;
+			// A new look alone isn't a move.
+			const moved = position !== drawnPosition || el.parentElement !== drawnIn;
+			if (atFrame && drawnAt && moved) recordCaretFrameMove();
+			el.style.translate = translate;
 			el.style.height = height;
 			el.style.width = width;
-			// Two identical keyframe names: switching restarts the blink, so a moved caret shows solid.
+			if (marks !== drawnMarks) {
+				if (marks) el.setAttribute('data-caret-marks', marks);
+				else el.removeAttribute('data-caret-marks');
+				drawnMarks = marks;
+			}
+			// Two identical keyframe names: switching restarts the blink, so a moved caret or a new
+			// look shows solid.
 			blink = blink === 'a' ? 'b' : 'a';
 			el.setAttribute('data-blink', blink);
 			drawnAt = at;
+			drawnPosition = position;
 			drawnIn = el.parentElement;
 		}
-		el.setAttribute('data-caret-state', target.state);
+		markState(el, target.state);
 		el.hidden = false;
 		painted =
 			target.state === 'text' && read.source && read.range
@@ -250,6 +269,12 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 					}
 				: null;
 		if (read.source) watchSurface(read.source.el);
+	}
+
+	function markState(el: HTMLElement, state: string): void {
+		if (state === drawnState) return;
+		el.setAttribute('data-caret-state', state);
+		drawnState = state;
 	}
 
 	function markDrawnFor(el: HTMLElement | null): void {
@@ -318,7 +343,10 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 			bar = null;
 			painted = null;
 			drawnAt = '';
+			drawnPosition = '';
 			drawnIn = null;
+			drawnState = '';
+			drawnMarks = '';
 		};
 	}
 

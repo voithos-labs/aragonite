@@ -36,6 +36,10 @@ source, and the ring by its class (one row also by what it draws).
   ArrowLeft brings it back
 - at the end of `***both***` the ring goes from both constructs, to the emphasis alone, to none,
   one press at a time
+- where two constructs of one kind meet (`a _bold_*more* b`, `a __bold__**more** b`), the ring
+  is on the one the next character joins: `bold` at the end of it, `more` after one ArrowRight.
+  Miss-analysis: every ring row's edge held one construct of each kind, so a ring that matched by
+  kind lit both and nothing noticed
 - the ring actually shows, not just its class: at the end of a code span alone on its line, a
   code span mid-line, bold, emphasis and strikethrough, the ringed construct draws the ring's
   colour around itself, in the light theme and the dark one, and on a code span that colour isn't
@@ -52,7 +56,8 @@ source, and the ring by its class (one row also by what it draws).
 ## User interactions
 
 - Real keyboard and real clicks only: the edge step is decided in the keydown, and the pixel
-  never moves, so nothing but the bytes and the ring tell the two offsets apart
+  never moves, so only the bytes, the ring and, for bold, italic and strikethrough, the caret's
+  shape (`caret/drawn-caret-look.md`) tell the two offsets apart
 
 ## Error cases
 

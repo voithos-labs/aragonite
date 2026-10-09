@@ -284,7 +284,8 @@
 	let widthProbeEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
-	const caretMemory = createCaretMemory();
+	// Each change to what the memory answers repaints the drawn caret's look; it's built below.
+	const caretMemory = createCaretMemory({ onChange: () => drawnCaret.request() });
 	const autoPairs = createAutoPairRecord();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();

@@ -157,6 +157,36 @@ test('live mode: abutting closers take one press per run', async ({ page }) => {
 	});
 });
 
+// Two constructs of one kind meet at the edge, so only the text under the ring says which one the
+// next character joins.
+test('live mode: two same-kind constructs at one edge ring one at a time', async ({ page }) => {
+	/** The text of every ringed construct. */
+	const ringed = () =>
+		page.evaluate(() =>
+			[...document.querySelectorAll('.md-edge-held')].map((el) => el.textContent)
+		);
+	const ep = await enterPresentationMode(page, 'live', '\n');
+
+	for (const [doc, inside, outside] of [
+		['a _bold_*more* b', 'a _boldX_*more* b', 'a _bold_*Xmore* b'],
+		['a __bold__**more** b', 'a __boldX__**more** b', 'a __bold__**Xmore** b']
+	] as const) {
+		for (const [presses, ring, source] of [
+			[0, ['bold'], inside],
+			[1, ['more'], outside]
+		] as const) {
+			await test.step(`${doc}, ${presses} press(es) at the end of bold`, async () => {
+				await nextRow(ep, doc);
+				await clickEnd(ep, page, 'bold');
+				await keys(ep, page, ...Array<string>(presses).fill('ArrowRight'));
+				await expect.poll(ringed).toEqual(ring);
+				await page.keyboard.type('X');
+				await ep.bridge.waitForSourceContains(source);
+			});
+		}
+	}
+});
+
 test('live mode: in a table cell, one ArrowRight types past the backtick inside the cell', async ({
 	page
 }) => {

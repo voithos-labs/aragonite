@@ -950,10 +950,32 @@
 	position: absolute;
 	top: 0;
 	left: 0;
-	width: 1px;
+	width: var(--md-caret-width);
 	pointer-events: none;
 	background-color: var(--md-caret-color);
 	animation: md-caret-blink-a var(--md-caret-blink) step-end infinite;
+	/* A shape keeps the bar's foot where the browser's caret stands: a heavier bar grows to the
+	   right, a slant leans from the bottom. */
+	transform-origin: bottom left;
+}
+
+/* The format the next letter types in; the shapes compose, so bold italic is a slanted heavy bar. */
+:where(.editor) .md-drawn-caret[data-caret-marks~='strong'] {
+	width: var(--md-caret-strong-width);
+}
+
+:where(.editor) .md-drawn-caret[data-caret-marks~='emphasis'] {
+	transform: skewX(var(--md-caret-slant));
+}
+
+:where(.editor) .md-drawn-caret[data-caret-marks~='strikethrough']::after {
+	content: '';
+	position: absolute;
+	top: 55%;
+	left: calc(50% - var(--md-caret-strike-width) / 2);
+	width: var(--md-caret-strike-width);
+	height: 1px;
+	background-color: var(--md-caret-color);
 }
 
 /* Across a gap between blocks the bar lies flat over the boundary, centred so neither neighbour

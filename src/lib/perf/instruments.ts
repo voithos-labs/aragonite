@@ -40,6 +40,15 @@ export interface PerfSnapshot {
 	caretFrameMoves: number;
 	/** Every paint of the drawn caret, at a frame or not; a page scroll should cost none. */
 	caretPaints: number;
+	/** Answers the caret's look computed rather than found in its cache: one per change, not per paint. */
+	caretLookComputes: number;
+	/** Inline nodes the look examined to find the constructs around the caret. */
+	caretLookNodeVisits: number;
+	/** Reads of the caret's raw offset from the DOM the look made. */
+	caretLookOffsetWalks: number;
+	/** Dry runs of the next insertion the look made, and the parses of their results. */
+	caretLookPreviews: number;
+	caretLookParses: number;
 	blockRenderPaths: string[];
 	mountedBlockCount: number;
 	decorationRuns: number;
@@ -81,6 +90,11 @@ function emptySnapshot(): PerfSnapshot {
 		caretPaintMs: [],
 		caretFrameMoves: 0,
 		caretPaints: 0,
+		caretLookComputes: 0,
+		caretLookNodeVisits: 0,
+		caretLookOffsetWalks: 0,
+		caretLookPreviews: 0,
+		caretLookParses: 0,
 		blockRenderPaths: [],
 		mountedBlockCount: 0,
 		decorationRuns: 0,
@@ -249,6 +263,19 @@ export function recordCaretFrameMove(): void {
 export function countCaretPaint(): void {
 	if (!enabled) return;
 	counters.caretPaints++;
+}
+
+/** One unit of the drawn caret's look work, by the counter it falls under. */
+export function recordCaretLook(
+	what:
+		| 'caretLookComputes'
+		| 'caretLookNodeVisits'
+		| 'caretLookOffsetWalks'
+		| 'caretLookPreviews'
+		| 'caretLookParses'
+): void {
+	if (!enabled) return;
+	counters[what]++;
 }
 
 export function markCaretPaint(): void {
