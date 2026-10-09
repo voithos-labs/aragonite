@@ -4,13 +4,18 @@ import { EditorPage } from '../../editor-page';
 import { attachIme } from '../../simulation/ime';
 import {
 	caretsShowing,
+	caretsUnderForcedColors,
+	drawnBar,
 	drawnCaretBox,
+	expectBarAfterWidget,
 	nativeCaretBox,
 	setCaretProp,
 	type CaretBox
 } from '../../carets-showing';
 import { MemoPage } from '../plugins/memo-helpers';
 import { clickPastImageRightEdge, waitForFirstImageLoaded } from '../blocks/image/helpers';
+import { PluginsPage } from '../plugins/helpers';
+import { TABLE_THEN_FENCE, arriveAtBoundary } from '../selection/gap-caret-fixtures';
 
 // The drawn caret against the browser's own (requirements/caret/drawn-caret.md): exactly one caret
 // shows in every row, and where the bar draws, it sits on the browser's caret position.
@@ -172,13 +177,31 @@ test.describe('the drawn caret', () => {
 		await expect.poll(() => caretsShowing(page)).toEqual(NONE);
 	});
 
-	test('beside an image the snap caret is the one caret', async ({ page }) => {
+	test('beside an image the bar draws at the image’s edge, the one caret', async ({ page }) => {
 		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);
 		await clickPastImageRightEdge(page);
-		await expect(page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
 		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
-		expect(await drawnCaretBox(page), 'the bar steps aside for the snap caret').toBeNull();
+		await expectBarAfterWidget(page, page.locator('[data-image-widget]'), 'image');
+	});
+
+	test('typing mid-word writes nothing on the editable but what the render writes', async ({
+		page
+	}) => {
+		await editor.loadContent('hello world\n');
+		await editor.focusBlock(0, 3);
+		await expect.poll(() => caretsShowing(page)).toEqual(ONE_DRAWN);
+		await page.evaluate(() => {
+			const written: string[] = [];
+			(window as any).__written = written;
+			new MutationObserver((records) =>
+				written.push(...records.map((r) => r.attributeName ?? '?'))
+			).observe(document.activeElement!, { attributes: true });
+		});
+		await page.keyboard.type('abc');
+		await editor.bridge.waitForSourceContains('helabclo world');
+		await expectOneCaretOnTheRange(page);
+		expect(await page.evaluate(() => (window as any).__written)).toEqual([]);
 	});
 
 	test('the find bar keeps the browser’s caret', async ({ page }) => {
@@ -213,12 +236,53 @@ test.describe('the drawn caret', () => {
 		expect(animation).toBe('none');
 	});
 
+	test('reduced motion draws the widget and gap bars without a blink', async ({ page }) => {
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		const animation = async () => {
+			const bar = await drawnBar(page);
+			expect(bar?.state).not.toBe('text');
+			return page.locator('.md-drawn-caret').evaluate((el) => getComputedStyle(el).animationName);
+		};
+		await editor.loadContent('- ![pic|300x200](/test-fixtures/sample.png)\n');
+		await waitForFirstImageLoaded(page);
+		await clickPastImageRightEdge(page);
+		await expect.poll(async () => (await drawnBar(page))?.state).toBe('widget');
+		expect(await animation()).toBe('none');
+
+		await editor.loadContent(TABLE_THEN_FENCE);
+		await arriveAtBoundary(editor);
+		await expect.poll(async () => (await drawnBar(page))?.state).toBe('gap');
+		expect(await animation()).toBe('none');
+	});
+
 	test('forced colors keep the browser’s caret', async ({ page }) => {
 		await page.emulateMedia({ forcedColors: 'active' });
 		await editor.loadContent('hello world\n');
 		await editor.focusBlock(0, 3);
 		await page.keyboard.type('x');
 		await expect.poll(() => caretsShowing(page)).toEqual(ONE_NATIVE);
+	});
+
+	// The browser shows its own caret beside a text-height widget and in the gap proxy under forced
+	// colors, so the editor's bar there would be a second one.
+	test('forced colors show one caret beside a text-height widget and at a gap', async ({
+		page
+	}) => {
+		await page.emulateMedia({ forcedColors: 'active' });
+		const plugins = new PluginsPage(page);
+		await plugins.gotoPlugins('emoji');
+		await plugins.loadContent('Some prose on this line :tada:\n');
+		const widget = (await page.locator('[data-inline-widget]').boundingBox())!;
+		await page.mouse.click(widget.x + widget.width + 30, widget.y + widget.height / 2);
+		const around = { x: widget.x - 10, y: widget.y - 10, width: widget.width + 60, height: 40 };
+		expect(await caretsUnderForcedColors(page, around)).toBe(1);
+
+		await plugins.goto();
+		await plugins.loadContent(TABLE_THEN_FENCE);
+		await arriveAtBoundary(plugins);
+		const gap = (await page.locator('[data-gap-caret]').boundingBox())!;
+		const across = { x: gap.x - 10, y: gap.y - 20, width: 600, height: 40 };
+		expect(await caretsUnderForcedColors(page, across)).toBe(1);
 	});
 
 	test('the caret prop: native never draws, drawn draws, and a live switch swaps in place', async ({

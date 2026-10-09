@@ -2,11 +2,12 @@
  * The drawn caret's source guards. One module writes its element and the attribute that hides the
  * browser's caret (G4.141); `caret-color` is declared only for the surfaces that hide it on purpose
  * (G4.142); and every native selection write sits inside the per-editor caret writer, whose writes
- * ask for a repaint, while the paint at an animation frame only paints (G4.143).
+ * ask for a repaint, while the paint at an animation frame only paints (G4.143). No other painter
+ * of a caret exists anywhere under `src/lib` (G4.144).
  */
 
 import { describe, expect, it } from 'vitest';
-import { describeManifests, type ManifestRule } from './file-rule';
+import { describeFileRules, describeManifests, except, type ManifestRule } from './file-rule';
 import { balancedBlock, balancedCall, collectEditorSources, readSource } from './scan-source';
 import { SOURCE } from './source-paths';
 import { NATIVE_SELECTION_WRITE } from './native-selection-write';
@@ -95,6 +96,36 @@ describe('G4.142 caret-color is declared only for the known surfaces', () => {
 		expect(caretColorRules('x.css', css)).toEqual(['x.css :: .b .c', 'x.css :: .d']);
 	});
 });
+
+// ── G4.144 no second caret painter ──────────────────────────────────────────
+
+const OLD_PAINTER = /\b(?:md-snap-after|md-snap-before|md-snap-caret-active|gap-caret-line)\b/;
+const OTHER_CARET_BLINK = /@keyframes\s+(?!md-caret-blink-[ab]\b)[\w-]*(?:caret|blink)/;
+
+describeFileRules(
+	[
+		{
+			id: 'G4.144 nothing but the drawn caret paints a caret',
+			population: except('src/lib/test/invariants/lint/drawn-caret-guards.test.ts'),
+			matches: (file) => OLD_PAINTER.test(file.code) || OTHER_CARET_BLINK.test(file.code),
+			reason:
+				'a second element painting a caret (a class drawing one beside a widget, a line at a gap, its own blink) is a second caret beside the drawn one; draw it as a state of the drawn caret',
+			hits: [
+				':where(.editor) [data-inline-widget].md-snap-after::before { width: 1.5px; }',
+				'<div class="gap-caret-line"></div>',
+				"el.classList.add('md-snap-caret-active');",
+				'@keyframes gap-caret-blink { 50% { opacity: 0; } }'
+			],
+			misses: [
+				'@keyframes md-caret-blink-a { 50% { opacity: 0; } }',
+				'@keyframes kind-cue-fade { from { opacity: 1; } }',
+				'// the gap-caret-line went into the drawn caret',
+				"bar.setAttribute('data-caret-state', 'widget');"
+			]
+		}
+	],
+	collectEditorSources(undefined, { includeTests: true, includeStyles: true })
+);
 
 // ── G4.143 every caret write asks for a repaint ─────────────────────────────
 
