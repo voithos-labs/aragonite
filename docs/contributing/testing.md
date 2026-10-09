@@ -42,8 +42,9 @@ npm run test:e2e       # all E2E tests (auto-starts the dev server)
 ```
 
 Both layers are also sliced into area scripts for the inner loop, `test:editor:<area>` and
-`test:e2e:<area>`. **`package.json` is the authoritative list**; the tables below say what each
-area covers. An area run is a few seconds, and a unit area is just a directory:
+`test:e2e:<area>`. **`package.json` is the authoritative list**; the tables below say what each area
+covers. An area run is a few seconds. A unit area is just a directory, so its script is one
+`vitest run` line:
 
 ```
 $ npm run test:editor:undo
@@ -158,10 +159,11 @@ const { target, blockEdit, dispose } = mountBlock(TextEditableBlock, {
 // blockEdit is spied: expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(...)
 ```
 
-If you add a context the blocks require, give it a stub in `mount-context.ts`. One catch: a
-bare mount keeps the node it was handed, since nothing above it re-renders after a commit. So a
-test that makes more than one gesture mounts the whole Editor with `src/lib/test/harness/mount-editor.svelte.ts :: mountEditor`
-instead, and writes its `props` the way a host would. After a gesture, either mount waits with
+If you add a context the blocks require, give it a stub in `mount-context.ts`. One catch: a bare
+mount keeps the node it was handed, since nothing above it re-renders after a commit. So a test that
+makes more than one gesture mounts the whole Editor with
+`src/lib/test/harness/mount-editor.svelte.ts :: mountEditor` instead, and writes its `props` the way
+a host would. After a gesture, either mount waits with
 `src/lib/test/harness/settle.ts :: settleEditor` (or sends the key with `pressKey`), never with a
 timer.
 
@@ -275,12 +277,12 @@ Editor.svelte (production component, unchanged)
   plus the `waitForSource*` / `waitForBlockCount` settling predicates. Reach for these instead
   of `waitForTimeout` whenever you're waiting on document state.
 - **Absence checks** prove a gesture changed nothing, which no wait-for predicate can see, since
-  there's no change to wait for. For keys, `pressDeclined(key)` and `typeDeclined(text)` return
-  once the editor has recorded what it did with each keydown; one that fails naming the key means
-  the press reached no editable element, which is a finding, not a timeout to widen. In reading
-  mode, `expectSurfaceInert()` checks that no editable element is left. `waitForNoSourceMutation`
-  is the fallback for a gesture with no keydown (a click, a drag, a paste, a menu item), with a
-  comment saying which one.
+  there's no change to wait for. For keys, `pressDeclined(key)` and `typeDeclined(text)` return once
+  the editor has recorded what it did with each keydown; if one fails naming a key, that press
+  reached no editable element, which is a finding, not a timeout to widen. In reading mode,
+  `expectSurfaceInert()` checks that no editable element is left. `waitForNoSourceMutation` is the
+  fallback for a gesture with no keydown (a click, a drag, a paste, a menu item), and each call gets
+  a comment naming the gesture (`// A toggle click, not a keystroke.`).
 
 The two halves side by side, on a two-block document with the caret parked at the end of the
 paragraph:
@@ -410,17 +412,16 @@ seed table is in `+page.svelte`. What each fixture is for, so you can pick one:
 
 Four subroutes carry the multi-editor cases: `multi/` (two editors with per-editor `doc-stats`
 options and a button that unmounts the second), `staggered/` (editor one installs callout, editor
-two mounts later with details added, for the staggered-mount spec), `enablement/` (two editors sharing one memo registration, the
-left with the kind switched off through the harness-only `__registryEnablement` prop), and
-`activation/` (two editors in one process, only the first listing the parrot and the block
-badge, for the per-instance activation spec).
+two mounts later with details added, for the staggered-mount spec), `enablement/` (two editors
+sharing one memo registration, the left with the kind switched off through the harness-only
+`__registryEnablement` prop), and `activation/` (two editors in one process, only the first listing
+the parrot and the block badge, for the per-instance activation spec).
 
 ### The WebKit lane
 
 A second contenteditable implementation, and a check the release can't merge past.
 `npm run test:e2e:webkit` sets `WEBKIT=1`, and that variable is what makes the `e2e-webkit`
-project exist at all, so `npm test` never runs it. CI carries it instead (the engine build only
-moves when Playwright does, so that's when this class of bug shows up), and you run it by hand
+project exist at all, so `npm test` never runs it. CI carries it instead, and you run it by hand
 when you've touched selection, typing or the clipboard.
 
 What it runs: a curated slice of the typing, split/merge, selection and round-trip specs
@@ -748,12 +749,12 @@ seed + note fixture → UserSimulator → real keyboard/mouse → Editor (/test/
                   Recorder → simulation-captures/seed-<N>/{*.png, manifest.json}
 ```
 
-The engine is in `src/lib/e2e/simulation/`; the specs are in `tests/simulation/`, with
-requirements one-to-one in `requirements/simulation/`. The note set spans genres: a class note,
-a feature tour, a project plan, a three-level outline, reading notes, meeting minutes, and a
-README. Every run asserts that typing a note gives the same document as loading it. Some notes
-carry a construct nothing else types (deep bullet nesting in the outline, a nested `> >`
-blockquote in the reading notes), so keep those when you edit a note.
+The engine is in `src/lib/e2e/simulation/`; the specs are in `tests/simulation/`, with requirements
+one-to-one in `requirements/simulation/`. The note set spans genres: a class note, a feature tour, a
+project plan, a three-level outline, reading notes, meeting minutes, and a README. Every run asserts
+that typing a note gives the same document as loading it. Some notes are there to type a construct
+mid-session (deep bullet nesting in the outline, a nested `> >` blockquote in the reading notes), so
+keep those when you edit a note.
 
 A session that scripts its own gestures rather than typing a whole note starts the same way.
 `makeSimContext` (`tests/simulation/helpers.ts`) bundles the page, the page object, an
