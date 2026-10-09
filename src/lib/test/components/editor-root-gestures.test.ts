@@ -11,6 +11,7 @@ import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { asEditorX } from '#lib/caret/coordinate-spaces.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { bindActivationClick, type LinkClick } from '#lib/activation-click.js';
+import { clickEndsHoldingRange } from '#lib/components/blocks/text/click-snap-guard.js';
 import { ACTIVATION_CLICK_CASES } from '#lib/test/support/activation-click-cases.js';
 
 // Miss-analysis: the click and margin drag were driven only through Playwright, never a refusal.
@@ -104,7 +105,7 @@ function harness(opts: { mode?: PresentationMode; linkClick?: LinkClick } = {}) 
 		activateLink,
 		linkCard: { open: () => false },
 		reading,
-		activationClick: bindActivationClick(reading.mode, () => linkClick)
+		activationClick: bindActivationClick(reading.mode, () => linkClick, clickEndsHoldingRange)
 	});
 	teardowns.push(gestures.install(root));
 
@@ -245,10 +246,10 @@ describe('editor-root gestures: the click priority order', () => {
 		expect(document.activeElement).toBe(h.editable);
 	});
 
-	for (const { name, linkClick, mode, modified, follows } of ACTIVATION_CLICK_CASES) {
+	for (const { name, linkClick, mode, modified, detail, follows } of ACTIVATION_CLICK_CASES) {
 		it(`a link click, ${name}, ${follows ? 'follows' : 'stays put'}`, () => {
 			const h = harness({ mode, linkClick });
-			expect(h.click(h.link, { ctrlKey: modified }).defaultPrevented).toBe(true);
+			expect(h.click(h.link, { ctrlKey: modified, detail }).defaultPrevented).toBe(true);
 			const followed = [['https://example.com/', expect.any(MouseEvent)]];
 			expect(h.activateLink.mock.calls).toEqual(follows ? followed : []);
 		});

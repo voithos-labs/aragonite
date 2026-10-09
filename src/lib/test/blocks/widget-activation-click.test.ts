@@ -10,6 +10,7 @@ import { registerInlineSyntax } from '#lib/core/inline/scan/plugin-syntax.js';
 import { registerInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
 import { declarePluginInlineKind } from '#lib/schema/plugin-kind.js';
 import { bindActivationClick, type LinkClick } from '#lib/activation-click.js';
+import { clickEndsHoldingRange } from '#lib/components/blocks/text/click-snap-guard.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
@@ -49,6 +50,7 @@ function widgetActs(
 	linkClick: LinkClick,
 	mode: PresentationMode,
 	modified: boolean,
+	detail = 1,
 	mountMode: PresentationMode = mode
 ): boolean {
 	let current = mountMode;
@@ -62,7 +64,7 @@ function widgetActs(
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
 		reading,
-		activationClick: bindActivationClick(reading.mode, () => linkClick)
+		activationClick: bindActivationClick(reading.mode, () => linkClick, clickEndsHoldingRange)
 	});
 	const start = SOURCE.indexOf('%%');
 	pool.beginPass();
@@ -70,7 +72,7 @@ function widgetActs(
 	pool.sweep();
 	current = mode;
 	const widget = wrapper!.querySelector<HTMLElement>('.activation-click-widget')!;
-	widget.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: modified }));
+	widget.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: modified, detail }));
 	pool.dispose();
 	return widget.dataset.acted !== undefined;
 }
@@ -85,7 +87,7 @@ function mountInteraction(kind: string, linkClick: LinkClick, mode: Presentation
 			{ node, el },
 			{
 				reading,
-				activationClick: bindActivationClick(reading.mode, () => linkClick),
+				activationClick: bindActivationClick(reading.mode, () => linkClick, clickEndsHoldingRange),
 				setPendingCursor: () => {},
 				setRevealing: () => {},
 				isCrossBlock: () => false,
@@ -101,24 +103,28 @@ async function editorShowsSource(
 	kind: string,
 	linkClick: LinkClick,
 	mode: PresentationMode,
-	modified: boolean
+	modified: boolean,
+	detail: number
 ): Promise<boolean> {
 	const { interaction } = mountInteraction(kind, linkClick, mode);
-	interaction.snapClickToWidgetEdge(20, 5, { click: { ctrlKey: modified, metaKey: false } });
+	interaction.snapClickToWidgetEdge(20, 5, {
+		click: { ctrlKey: modified, metaKey: false, detail },
+		clickCount: detail
+	});
 	await settleEditor();
 	return interaction.isRevealing();
 }
 
 describe('a click on a widget goes to exactly one of the widget and the editor', () => {
-	for (const { name, linkClick, mode, modified, follows } of ACTIVATION_CLICK_CASES) {
+	for (const { name, linkClick, mode, modified, detail, follows } of ACTIVATION_CLICK_CASES) {
 		for (const claims of [true, false]) {
 			it(`${claims ? 'claiming' : 'plain'} widget, ${name}`, async () => {
 				const kind = registerClickWidget(claims);
 				const acts = claims && follows;
 
-				expect(widgetActs(kind, linkClick, mode, modified)).toBe(acts);
+				expect(widgetActs(kind, linkClick, mode, modified, detail)).toBe(acts);
 				// Reading mode shows no source at all, so there the widget alone answers.
-				expect(await editorShowsSource(kind, linkClick, mode, modified)).toBe(
+				expect(await editorShowsSource(kind, linkClick, mode, modified, detail)).toBe(
 					mode !== 'reading' && !acts
 				);
 			});
@@ -130,8 +136,8 @@ describe('a pooled widget', () => {
 	it('answers in the mode of the click, not the mode it mounted in', () => {
 		const kind = registerClickWidget(true);
 
-		expect(widgetActs(kind, 'modifier', 'reading', false, 'live')).toBe(true);
-		expect(widgetActs(kind, 'modifier', 'live', false, 'reading')).toBe(false);
+		expect(widgetActs(kind, 'modifier', 'reading', false, 1, 'live')).toBe(true);
+		expect(widgetActs(kind, 'modifier', 'live', false, 1, 'reading')).toBe(false);
 	});
 });
 

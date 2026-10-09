@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	caretIsInTextContent,
+	clickEndsHoldingRange,
 	isPlainTypingKey
 } from '#lib/components/blocks/text/click-snap-guard.js';
 import { placeCaretAt } from './math-widget-fixture';
@@ -99,5 +100,41 @@ describe('isPlainTypingKey', () => {
 	it('accepts an astral-plane character', () => {
 		expect(isPlainTypingKey(key({ key: '😀' }))).toBe(true);
 		expect(isPlainTypingKey(key({ key: '𝓐' }))).toBe(true);
+	});
+});
+
+describe('clickEndsHoldingRange', () => {
+	let el: HTMLElement;
+	let link: HTMLElement;
+
+	beforeEach(() => {
+		el = document.createElement('div');
+		el.setAttribute('contenteditable', 'true');
+		link = document.createElement('a');
+		link.textContent = 'the docs';
+		el.append('Read ', link);
+		document.body.appendChild(el);
+	});
+
+	afterEach(() => {
+		el.remove();
+		window.getSelection()?.removeAllRanges();
+	});
+
+	it('is true when the clicked editable holds a range, and false for a caret', () => {
+		const text = link.firstChild!;
+		window.getSelection()!.setBaseAndExtent(text, 0, text, 3);
+		expect(clickEndsHoldingRange(link)).toBe(true);
+
+		placeCaretAt(text, 2);
+		expect(clickEndsHoldingRange(link)).toBe(false);
+	});
+
+	it('is false for a target outside every editable', () => {
+		const outside = document.createElement('a');
+		document.body.appendChild(outside);
+		window.getSelection()!.setBaseAndExtent(link.firstChild!, 0, link.firstChild!, 3);
+		expect(clickEndsHoldingRange(outside)).toBe(false);
+		outside.remove();
 	});
 });

@@ -85,7 +85,7 @@
 </script>
 
 <script lang="ts">
-	import { Editor, type PresentationMode } from '#lib';
+	import { Editor, type LinkClick, type PresentationMode } from '#lib';
 	import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 	import type { PageData } from './$types';
 	import { installTestProbes } from '../editor/test-probes';
@@ -242,8 +242,13 @@
 	// per seed, so no other suite's DOM gains extra buttons.
 	const MODE_TOGGLE_SEEDS = ['mathblock', 'details'];
 	const THEME_TOGGLE_SEEDS = ['mermaid'];
-	// The seeds whose links follow on a plain click, as a host that opts in.
+	// The seeds whose links follow on a plain click, as a host that opts in, with a toggle to
+	// switch the gesture back after mount.
 	const PLAIN_LINK_CLICK_SEEDS = ['wikilinks'];
+	// svelte-ignore state_referenced_locally
+	let linkClick = $state<LinkClick>(
+		PLAIN_LINK_CLICK_SEEDS.includes(data.seed ?? '') ? 'plain' : 'modifier'
+	);
 	let theme = $state<'dark' | 'light'>('dark');
 	let editor = $state<ReturnType<typeof Editor>>();
 
@@ -331,6 +336,17 @@
 			</button>
 		</div>
 	{/if}
+	{#if PLAIN_LINK_CLICK_SEEDS.includes(data.seed ?? '')}
+		<div class="harness-controls">
+			<button
+				data-testid="link-click-toggle"
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => (linkClick = linkClick === 'plain' ? 'modifier' : 'plain')}
+			>
+				{linkClick === 'plain' ? 'Ctrl-click links' : 'Plain-click links'}
+			</button>
+		</div>
+	{/if}
 	{#if THEME_TOGGLE_SEEDS.includes(data.seed ?? '')}
 		<div class="harness-controls">
 			<button
@@ -349,7 +365,7 @@
 		{plugins}
 		{presentationMode}
 		{theme}
-		linkClick={PLAIN_LINK_CLICK_SEEDS.includes(data.seed ?? '') ? 'plain' : 'modifier'}
+		{linkClick}
 		scrollMode={data.scrollMode}
 		blockDragHandles
 	/>

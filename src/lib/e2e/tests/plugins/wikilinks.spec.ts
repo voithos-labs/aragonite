@@ -122,6 +122,48 @@ test.describe('wikilinks that follow on a plain click', () => {
 		await expect(link(editor)).toHaveCount(0);
 	});
 
+	test('a double-click follows once, on the link and on a Markdown link', async ({ page }) => {
+		const opened = await recordOpens(page);
+		const box = await link(editor).boundingBox();
+		if (!box) throw new Error('no link box');
+
+		await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+		await markdownLink(editor).dblclick();
+		await editor.waitForRenderFlush();
+
+		expect(await activations(page)).toEqual(['Meeting notes']);
+		expect(await opened()).toEqual(['https://example.com/']);
+	});
+
+	test('a drag inside a Markdown link selects its text and opens nothing', async ({ page }) => {
+		const opened = await recordOpens(page);
+		const box = await markdownLink(editor).boundingBox();
+		if (!box) throw new Error('no Markdown link box');
+		const y = box.y + box.height / 2;
+		await page.mouse.move(box.x + 2, y);
+		await page.mouse.down();
+		for (let step = 1; step <= 6; step++) {
+			await page.mouse.move(box.x + 2 + ((box.width - 4) * step) / 6, y);
+		}
+		await page.mouse.up();
+		await editor.waitForRenderFlush();
+
+		expect(await opened()).toEqual([]);
+		expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain('docs');
+	});
+
+	test('switched back to Ctrl-click after mount, a plain click edits again', async ({ page }) => {
+		const opened = await recordOpens(page);
+
+		await page.getByTestId('link-click-toggle').click();
+		await clickLink(editor);
+		await markdownLink(editor).click();
+		await editor.waitForRenderFlush();
+
+		expect(await activations(page)).toEqual([]);
+		expect(await opened()).toEqual([]);
+	});
+
 	test('a drag that starts on the link selects and follows nothing', async ({ page }) => {
 		const box = await link(editor).boundingBox();
 		if (!box) throw new Error('no link box');

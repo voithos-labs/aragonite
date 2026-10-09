@@ -22,10 +22,19 @@ link in block 2.
 - In source mode a link shows its syntax, so a plain click there edits it: the widget shows its
   source and the Markdown link opens nothing.
 - A drag that starts on the link selects and activates nothing.
+- A double-click follows once, on the link and on a Markdown link: the second press of a
+  double-click isn't a fresh click on what it lands on.
+- A drag inside a Markdown link's text selects it and opens nothing.
+- Switch the host back to Ctrl-click after mount (the harness toggle) and a plain click no longer
+  follows either link.
 
 Miss-analysis: the harness widget acted on every click by hand instead of asking the editor, so a
 widget that read the shared Ctrl/Cmd check (as limestone's did) and did nothing on a plain click
 passed every test here.
+
+Miss-analysis (double-click and drag): the shared answer took the modifier keys and the mode but
+not whether the click was a single click, and the harness widget's own drag guard hid that from
+every row here; no row double-clicked or dragged inside a Markdown link.
 
 Miss-analysis (the pointer cursor): the link cursor decided "a plain click follows here" in CSS off
 the reading mode alone, a second copy of the rule that no test held against a host that opts in.
