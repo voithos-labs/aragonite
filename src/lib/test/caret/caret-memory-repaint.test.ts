@@ -1,5 +1,5 @@
 // Every call that changes what the caret memory answers asks the drawn caret to repaint, and a call
-// that changes nothing asks nothing: a typed letter settles the side on every key. The memory's
+// that changes nothing asks nothing: a typed letter sets the side again on every key. The memory's
 // methods are read off the object, so a new one has to join a table here before the row passes.
 import { describe, expect, it } from 'vitest';
 import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
@@ -111,7 +111,10 @@ function requests([from, call]: [Step, Step]): number {
 describe('G4.147 the caret memory’s repaint requests', () => {
 	it('cover every method it exposes', () => {
 		const listed = [...Object.keys(CHANGES), ...Object.keys(EXEMPT)].sort();
-		expect(methodsOf(createCaretMemory({ onChange: () => {} }))).toEqual(listed);
+		expect(
+			methodsOf(createCaretMemory({ onChange: () => {} })),
+			'a new caret memory method: call `onChange` where it changes an answer and add it to CHANGES, or add it to EXEMPT with the reason'
+		).toEqual(listed);
 	});
 
 	it.each(Object.entries(CHANGES))(

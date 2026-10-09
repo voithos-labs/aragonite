@@ -31,7 +31,7 @@ const HOSTS = [
 	{ name: 'a table cell', doc: (line: string) => `| h |\n| - |\n| ${line} |` }
 ];
 
-/** The look right after a press, read once: a look a later paint would fix doesn't count. */
+/** The look read once, right after a press has rendered, with no polling for a later one. */
 async function expectLookNow(page: Page, marks: readonly string[], when: string): Promise<void> {
 	expect(await drawnCaretMarks(page), when).toEqual(marks);
 }
@@ -234,12 +234,22 @@ const SHAPES: [word: string, marks: string[], expectShape: (shape: Shape) => voi
 			expect(s.width).toBe(3);
 			expect(Math.abs(s.skew), 'the heavy bar slants').toBeGreaterThan(0.1);
 		}
+	],
+	[
+		'code',
+		['inlineCode'],
+		(s) =>
+			expect({ width: s.width, skew: s.skew, tick: s.tick }).toEqual({
+				width: 1,
+				skew: 0,
+				tick: null
+			})
 	]
 ];
 
 for (const theme of ['light', 'dark'] as const) {
 	test(`live mode: each look draws its shape in the ${theme} theme`, async ({ page }) => {
-		const DOC = 'plain **bold** *slant* ~~gone~~ ***both*** end';
+		const DOC = 'plain **bold** *slant* ~~gone~~ ***both*** `code` end';
 		const ep = new EditorPage(page);
 		await ep.goto(
 			theme === 'light' ? '?presentationMode=live&theme=light' : '?presentationMode=live'

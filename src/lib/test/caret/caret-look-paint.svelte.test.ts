@@ -14,8 +14,10 @@ import {
 	caretMarks,
 	installDrawnCaretStubs,
 	paintCaret,
+	runCaretFrames,
 	type DrawnCaretSeam
 } from '#lib/test/harness/drawn-caret-jsdom.js';
+import type { CaretLook } from '#lib/caret/caret-look.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -115,5 +117,24 @@ describe('a repaint that changes nothing', () => {
 
 		expect(written).toEqual([]);
 		expect(caretMarks(editor)).toEqual(['strong']);
+	});
+});
+
+describe('a frame paint that finds only a new look', () => {
+	it('counts no caret move, since the caret stayed where it was', async () => {
+		const { editor, el } = await liveAt(TEXT_HOSTS[0], 'a **bold** b', 6);
+		let look: CaretLook = { marks: ['strong'] };
+		const caret = editor.instance.__test.getDrawnCaret();
+		const unregister = caret.register({ el, drawable: () => true, look: () => look });
+		await paintCaret(editor);
+		look = { marks: [] };
+		resetPerfInstruments();
+
+		window.dispatchEvent(new Event('focus'));
+		runCaretFrames();
+		unregister();
+
+		expect(caretMarks(editor), 'the frame painted the new look').toEqual([]);
+		expect(perfSnapshot().caretFrameMoves).toBe(0);
 	});
 });

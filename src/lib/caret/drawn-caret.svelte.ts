@@ -107,6 +107,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	let drawnFor: HTMLElement | null = null;
 	let painted: PaintedCaret | null = null;
 	let drawnAt = '';
+	let drawnPosition = '';
 	let drawnIn: Element | null = null;
 	let drawnState = '';
 	let drawnMarks = '';
@@ -232,10 +233,13 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const translate = rect ? `${rect.x}px ${rect.y}px` : '';
 		const height = rect ? `${rect.height}px` : '';
 		const width = rect && 'width' in rect ? `${rect.width}px` : '';
-		const at = `${target.state} ${translate} ${height} ${width} ${marks}`;
+		const position = `${target.state} ${translate} ${height} ${width}`;
+		const at = `${position} ${marks}`;
 		if (at !== drawnAt || el.parentElement !== drawnIn) {
 			// An editor-made move is painted by its own request; one the frame finds is the browser's.
-			if (atFrame && drawnAt) recordCaretFrameMove();
+			// A new look alone isn't a move.
+			const moved = position !== drawnPosition || el.parentElement !== drawnIn;
+			if (atFrame && drawnAt && moved) recordCaretFrameMove();
 			el.style.translate = translate;
 			el.style.height = height;
 			el.style.width = width;
@@ -249,6 +253,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 			blink = blink === 'a' ? 'b' : 'a';
 			el.setAttribute('data-blink', blink);
 			drawnAt = at;
+			drawnPosition = position;
 			drawnIn = el.parentElement;
 		}
 		markState(el, target.state);
@@ -338,6 +343,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 			bar = null;
 			painted = null;
 			drawnAt = '';
+			drawnPosition = '';
 			drawnIn = null;
 			drawnState = '';
 			drawnMarks = '';

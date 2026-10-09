@@ -6,6 +6,10 @@ import fc from 'fast-check';
 import type { InlineNode } from '#lib/core/nodes.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { listInlineMarks } from '#lib/schema/inline-construct-policy.js';
+import {
+	normalizeLinkLabel,
+	type LinkReferenceResolver
+} from '#lib/core/inline/link-reference-resolver.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { installLayoutStubs, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
@@ -27,7 +31,7 @@ import { freshOrFixedSeed } from './arbitraries';
 const PARAMS = { numRuns: 250, seed: freshOrFixedSeed(791791) } as const;
 
 /** Typed after the caret is painted; the generator never writes it, so it is found by search. */
-const PROBE = 'a';
+const LETTER = 'a';
 
 let restoreStubs: () => void;
 beforeAll(() => {
@@ -42,16 +46,23 @@ const word = fc
 	.array(fc.constantFrom('b', 'c', 'd', 'é', '日'), { minLength: 1, maxLength: 3 })
 	.map((letters) => letters.join(''));
 
-/** Shapes a construct can't be built from: an escape, an image, a surrogate pair, an empty pair,
- *  an intraword underscore. */
+/** Awkward shapes: an escape, an image, a surrogate pair, an empty pair, an intraword underscore,
+ *  a tag one letter short of valid HTML, and a label the document defines. */
 const leaf = fc.oneof(
 	{ weight: 4, arbitrary: word },
 	fc.constant('😀'),
 	fc.constant('\\*'),
 	fc.constant('![i](x.png)'),
 	fc.constant('****'),
-	fc.constant('b_c_d')
+	fc.constant('b_c_d'),
+	fc.constant('<b 1c="*">'),
+	fc.constant('[foo*]')
 );
+
+/** Defines `[foo*]` for every case, in a block of its own after the line. */
+const DEFINITION = '\n[foo*]: /u\n';
+const DEFINES_FOO: LinkReferenceResolver = (label) =>
+	normalizeLinkLabel(label) === 'foo*' ? { url: '/u' } : undefined;
 
 const { inline } = fc.letrec<{ inline: string; wrapped: string; joined: string }>((tie) => ({
 	inline: fc.oneof(
@@ -133,19 +144,19 @@ function marksAround(text: string, at: number): string[] {
 			if (node.children) visit(node.children);
 		}
 	};
-	visit(parseInline(text, 0, text.length));
+	visit(parseInline(text, 0, text.length, DEFINES_FOO));
 	return listInlineMarks()
 		.map((entry) => entry.kind as string)
 		.filter((kind) => covering.has(kind));
 }
 
-/** Paints the caret the case sets up, types the probe, and returns what the bar promised and what
+/** Paints the caret the case sets up, types the letter, and returns what the bar promised and what
  *  the letter got; null where the bar draws no text caret there (beside a widget, a chip's edge). */
 async function promiseAndDelivery(
 	c: Case
 ): Promise<{ promised: string[]; typed: string[]; result: string } | null> {
 	const editor = mountEditor<DrawnCaretSeam>({
-		source: c.host.source(c.line),
+		source: c.host.source(c.line) + DEFINITION,
 		presentationMode: c.mode
 	});
 	try {
@@ -159,10 +170,10 @@ async function promiseAndDelivery(
 		await paintCaret(editor);
 		const promised = caretMarks(editor);
 		if (promised === null) return null;
-		await insertBy(c.memory.kind === 'chord' ? spendingRoute(c.route) : c.route, el, PROBE);
-		const result = c.host.line(editor.source());
-		const at = result.indexOf(PROBE);
-		expect(at, `the probe never reached ${JSON.stringify(result)}`).toBeGreaterThanOrEqual(0);
+		await insertBy(c.memory.kind === 'chord' ? spendingRoute(c.route) : c.route, el, LETTER);
+		const result = c.host.line(editor.source().replace(DEFINITION, ''));
+		const at = result.indexOf(LETTER);
+		expect(at, `the letter never reached ${JSON.stringify(result)}`).toBeGreaterThanOrEqual(0);
 		return { promised, typed: marksAround(result, at), result };
 	} finally {
 		await editor.destroy();

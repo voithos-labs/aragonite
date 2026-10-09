@@ -498,7 +498,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 				caretMemory: deps.caretMemory,
 				preview: () => deps.caretMemory.previewInsertion(block, deps.placeInsertion)
 			})
-		: () => ({ marks: [] });
+		: () => ({ marks: [], holders: [] });
 
 	const writeText = createSurfaceWrite({
 		getNode: deps.getNode,

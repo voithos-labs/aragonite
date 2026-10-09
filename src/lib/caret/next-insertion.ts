@@ -89,6 +89,8 @@ export interface InsertionRecords {
 	hold(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): HeldInsertion;
 	/** The same spend as `hold`, run dry: no record is held, kept or ended by it. */
 	preview(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): PreviewInsertion;
+	/** Grows each time a write takes a record or lets go of one, which changes what `preview` sees. */
+	holdChanges(): number;
 	/** Ends `record` (every record when omitted), in `block` when one is named; true when one ended.
 	 *  A record a write holds stays in effect, drawn and spendable, until that hold lets go of it. */
 	end(record?: InsertionRecord, block?: object): boolean;
@@ -96,6 +98,7 @@ export interface InsertionRecords {
 
 export function createInsertionRecords(records: readonly InsertionRecord[]): InsertionRecords {
 	const holding = new Set<InsertionRecord>();
+	let holdChanges = 0;
 
 	// A record another write holds is that write's to spend.
 	const taken = (block: object): Taken[] =>
@@ -107,8 +110,10 @@ export function createInsertionRecords(records: readonly InsertionRecord[]): Ins
 	function hold(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): HeldInsertion {
 		const held = taken(block);
 		for (const h of held) holding.add(h.record);
+		if (held.length > 0) holdChanges++;
 		const release = (h: Taken, waiting: boolean) => {
 			holding.delete(h.record);
+			holdChanges++;
 			if (waiting) h.kept?.();
 			h.spend.release(waiting);
 			h.state = 'done';
@@ -138,6 +143,7 @@ export function createInsertionRecords(records: readonly InsertionRecord[]): Ins
 	return {
 		hold,
 		preview,
+		holdChanges: () => holdChanges,
 		end: (record, block) => {
 			let ended = false;
 			for (const each of record ? [record] : records) {

@@ -19,6 +19,7 @@ const ROWS: [name: string, marks: InlineMarkKind[]][] = [
 
 describe('caretLook', () => {
 	it.each(ROWS)('%s shows every mark the letter would carry, outermost first', (_name, marks) => {
-		expect(caretLook({ marks })).toEqual({ marks });
+		const holders = marks.map((kind, start) => ({ kind, start }));
+		expect(caretLook({ marks, holders })).toEqual({ marks });
 	});
 });

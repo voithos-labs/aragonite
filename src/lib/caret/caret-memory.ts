@@ -48,7 +48,8 @@ export interface CaretMemory {
 	holdInsertion(block: object, place?: PlaceInsertion): HeldInsertion;
 	/** What `holdInsertion` would make of an insertion, read without spending or keeping anything. */
 	previewInsertion(block: object, place?: PlaceInsertion): PreviewInsertion;
-	/** Grows by one each time what the memory answers changes, for a reader that caches an answer. */
+	/** Grows each time what the memory answers changes, a write taking or letting go of a record
+	 *  included (which asks for no paint), for a reader that caches an answer. */
 	changeCount(): number;
 
 	/** Classify a keydown; `command` is the chord's meaning at the focused block, so a rebound chord
@@ -154,7 +155,7 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 		heldSpace: { forBlock: heldSpace.forBlock },
 		holdInsertion: (block, place) => records.hold(block, side, place),
 		previewInsertion: (block, place) => records.preview(block, side, place),
-		changeCount: () => changes,
+		changeCount: () => changes + records.holdChanges(),
 		noteKey: (e, command, measureX) => {
 			// A block move leaves the caret where it was; the move's own commit forgets the memory.
 			if (command !== null && BLOCK_MOVE_COMMAND_IDS.has(command)) return;

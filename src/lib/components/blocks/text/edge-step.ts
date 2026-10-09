@@ -161,12 +161,14 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		held = next;
 	}
 
-	/** The content elements at this edge of the constructs the next letter would carry, found by
-	 *  the construct tags on the opener, whose next sibling is the content. */
+	/** The content elements at this edge of the very constructs the next letter would sit inside,
+	 *  found by the construct tags on the opener, whose next sibling is the content. */
 	function heldElements(at: ReturnType<typeof edge>): Element[] {
 		if (!at) return [];
-		const carried = new Set<string>(deps.nextByte(at.caret).marks);
-		if (carried.size === 0) return [];
+		const holders = deps.nextByte(at.caret).holders;
+		if (holders.length === 0) return [];
+		// By kind and start, not kind alone: two constructs of one kind can meet at one edge.
+		const carried = new Set(holders.map((holder) => `${holder.kind}@${holder.start}`));
 		const lo = at.stops[0];
 		const hi = at.stops[at.stops.length - 1];
 		const within = (offset: number) => offset >= lo && offset <= hi;
@@ -176,7 +178,7 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 			if (getInlineConstructPolicy(node.kind)?.edgeAffinity !== 'symmetric-pair') continue;
 			const content = constructContentRange(node);
 			if (!content || !(within(content.start) || within(content.end))) continue;
-			if (carried.has(node.kind)) inside.add(`${node.start}:${node.end}`);
+			if (carried.has(`${node.kind}@${node.start}`)) inside.add(`${node.start}:${node.end}`);
 		}
 		if (inside.size === 0) return [];
 		const found: Element[] = [];

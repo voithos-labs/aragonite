@@ -1,7 +1,7 @@
 /**
  * The constructs the next typed letter would sit inside, answered the way typing writes it: pending
  * marks through the insertion a chord promised, otherwise the caret memory's records and the block's
- * move across a hidden edge, run dry on a probe letter. The drawn caret's look and the edge ring both
+ * move across a hidden edge, run dry on a trial letter. The drawn caret's look and the edge ring both
  * read it, so what the caret shows is what the letter becomes.
  */
 
@@ -58,7 +58,7 @@ export function nextByte(caret: number, block: NextByteBlock): NextByte {
 		const chain = constructChainAt(caret, block.inlines, () =>
 			recordCaretLook('caretLookNodeVisits')
 		);
-		return { marks: markKinds(new Set(chain.map((node) => node.kind))) };
+		return answerOf(chain);
 	}
 	recordCaretLook('caretLookPreviews');
 	const typed = {
@@ -104,10 +104,15 @@ export function createNextByte(source: NextByteSource): (caret: number) => NextB
 	};
 }
 
-/** Whether a letter typed at `caret` changes no construct around it: every delimiter is
- *  punctuation, and with none beside the caret, no delimiter run's neighbours change. */
+/** Whether a letter typed at `caret` changes no construct: no delimiter (all punctuation) beside
+ *  it, and no open `[` or `<` before it, whose label, tag or autolink a letter inside can change. */
 export function typesInPlace(display: string, caret: number): boolean {
-	return isPlain(characterBefore(display, caret)) && isPlain(characterAt(display, caret));
+	return (
+		isPlain(characterBefore(display, caret)) &&
+		isPlain(characterAt(display, caret)) &&
+		!opensBefore(display, caret, '[', ']') &&
+		!opensBefore(display, caret, '<', '>')
+	);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
@@ -117,6 +122,12 @@ const PLAIN = /^[\p{L}\p{N}\p{M}\s]$/u;
 
 /** No character at all (the text's edge) is plain too. */
 const isPlain = (character: string): boolean => character === '' || PLAIN.test(character);
+
+/** Whether an `open` comes before `at` with no `close` after it. */
+function opensBefore(display: string, at: number, open: string, close: string): boolean {
+	if (at === 0) return false;
+	return display.lastIndexOf(open, at - 1) > display.lastIndexOf(close, at - 1);
+}
 
 /** The character starting at `at`, a surrogate pair whole. */
 function characterAt(display: string, at: number): string {
@@ -132,18 +143,18 @@ function characterBefore(display: string, at: number): string {
 	return characterAt(display, pair ? at - 2 : at - 1);
 }
 
-/** The marks over the probe letter `edit` wrote, the one before its caret. */
+/** The marks over the trial letter `edit` wrote, the one before its caret. */
 function marksOfLetter(edit: TextEdit, block: NextByteBlock): NextByte {
 	recordCaretLook('caretLookParses');
 	const at = edit.caretAfter - PROBE_BYTE.length;
-	const kinds = new Set<string>();
+	const holders: InlineNode[] = [];
 	for (let level: readonly InlineNode[] | undefined = block.inlinesOf(edit.text); level;) {
 		const holder: InlineNode | undefined = level.find((node) => covers(node, at));
 		if (!holder) break;
-		kinds.add(holder.kind);
+		holders.push(holder);
 		level = holder.children;
 	}
-	return { marks: markKinds(kinds) };
+	return answerOf(holders);
 }
 
 /** Whether the letter at `at` is this construct's content. */
@@ -153,9 +164,18 @@ function covers(node: InlineNode, at: number): boolean {
 	return content.start <= at && at < content.end;
 }
 
-/** The kinds among `kinds` a format chord writes, in the policy table's nesting order. */
-function markKinds(kinds: ReadonlySet<string>): InlineMarkKind[] {
-	return listInlineMarks()
-		.map((entry) => entry.kind)
-		.filter((kind) => kinds.has(kind));
+/** The answer for the constructs holding the letter, outermost first: the ones a format chord
+ *  writes, each kept by its start, so the edge ring can find the very construct. */
+function answerOf(holding: readonly { kind: InlineMarkKind; start: number }[]): NextByte {
+	const markable = new Set(listInlineMarks().map((entry) => entry.kind));
+	const holders = holding.flatMap((node) =>
+		markable.has(node.kind) ? [{ kind: node.kind, start: node.start }] : []
+	);
+	const kinds = new Set(holders.map((holder) => holder.kind));
+	return {
+		marks: listInlineMarks()
+			.map((entry) => entry.kind)
+			.filter((kind) => kinds.has(kind)),
+		holders
+	};
 }

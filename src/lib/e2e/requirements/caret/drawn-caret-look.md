@@ -1,8 +1,8 @@
 # The drawn caret's look
 
-The drawn caret shows what the next letter you type will look like: a heavier bar for bold, a bar slanted from its foot for italic, and a small tick across it for strikethrough. They stack, so bold italic is a slanted heavy bar. Inside inline code it stays the plain bar.
+The drawn caret shows what the next letter you type will look like: a heavier bar for bold, a bar slanted from its foot for italic, and a small tick across it for strikethrough. They stack, so bold italic is a slanted heavy bar. Inside inline code it stays the plain bar, since code has no shape of its own.
 
-In live mode this is how you tell inside from outside. Both sides of a hidden closer sit on the same pixel, so after `bold` in `a **bold** b` the caret can mean "type bold" or "type plain" without moving, and its shape is the only thing that says which. So every scenario below reads the shape, then types a letter and checks the bytes agree with it.
+In live mode this is how you tell inside from outside. Both sides of a hidden closer sit on the same pixel, so after `bold` in `a **bold** b` the caret can mean "type bold" or "type plain" without moving. Its shape says which, and so does the faint ring on the construct. So every scenario below reads the shape, then types a letter and checks the bytes agree with it.
 
 The rows run in live mode on bold, italic and strikethrough, mid-line and at a line's end, in a paragraph and in a table cell.
 
@@ -17,17 +17,18 @@ The rows run in live mode on bold, italic and strikethrough, mid-line and at a l
 
 ## Edge cases
 
-- A space typed at a hidden closer is written past it while the next letter still goes inside, so the caret keeps the construct's shape after the space, and the next letter types inside
+- A space typed at a hidden closer is written past it, the caret keeps the construct's shape after the space, and the next letter types inside
   - Miss-analysis: nothing on screen said which side a held space meant, so no row could read it, and a space held at a strikethrough closer looked like it had left the strikethrough
-- After that space, ArrowRight, End, the closer's first byte and the format chord each show the plain bar, and the next letter types outside
+- After that space, ArrowRight, End, the closer's first byte (the whole closer writes a stray byte today) and the format chord each show the plain bar, and the next letter types outside
 
 ## What draws
 
-Each shape is read off the bar's computed style, in the light theme and the dark one, since a mark on the bar proves nothing if no rule draws it.
+Each shape is read off the bar's computed style, in the light theme and the dark one, since the attribute on the bar proves nothing if no rule draws it.
 
 - Plain: a 1px bar
 - Bold: a 3px bar
 - Italic: the bar's transform slants it
 - Strikethrough: a tick 7px wide and 1px tall across the bar, at 55% of its height
 - Bold italic: a 3px bar, slanted
+- Inline code: the plain 1px bar
 - Every shape keeps the bar's foot, top and height where the browser's own caret stands, and the bar keeps a visible color
