@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createRootGestures } from '#lib/components/editor-root-gestures.js';
+import { installPressTracker } from '#lib/components/editor-root-listeners.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
 import { parse } from '#lib/core/parser.js';
@@ -90,6 +91,7 @@ function harness(opts: { mode?: PresentationMode; linkClick?: LinkClick } = {}) 
 		mode
 	);
 	const linkClick = opts.linkClick ?? 'modifier';
+	const presses = createPressTracker();
 	const gestures = createRootGestures({
 		caretWriter: testCaretWriter,
 		getDoc: () => doc,
@@ -104,9 +106,10 @@ function harness(opts: { mode?: PresentationMode; linkClick?: LinkClick } = {}) 
 		activateLink,
 		linkCard: { open: () => false },
 		reading,
-		activationClick: bindActivationClick(reading.mode, () => linkClick, createPressTracker())
+		activationClick: bindActivationClick(reading.mode, () => linkClick, presses),
+		presses
 	});
-	teardowns.push(gestures.install(root));
+	teardowns.push(installPressTracker(root, presses), gestures.install(root));
 
 	const withRange = () =>
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 2 });

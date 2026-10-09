@@ -125,7 +125,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Filled in by `editorMountContext`, which reads the other groups' overrides.
 		commands: {} as EditorServices['commands'],
 		// A bare mount has no announcer and no host to show a label on.
-		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} }
+		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+		presses: createPressTracker()
 	};
 }
 

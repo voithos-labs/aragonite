@@ -1219,6 +1219,24 @@ const RULES: FileRule[] = [
 			'function onClick(e: MouseEvent) { if (e.shiftKey) extend(); }',
 			'const plainClickJumps = isActivationClick({ ctrlKey: false, metaKey: false });'
 		]
+	},
+	{
+		id: 'G4.146 a release asks the press tracker whether it ended a drag',
+		matches: /Math\.abs\([^)]*\bclient[XY]\b/,
+		allowed: {
+			'src/lib/activation-click.ts': 'the press tracker itself',
+			'src/lib/selection/pointer-session.ts':
+				'drag recognition while the pointer moves, at a threshold its caller passes, not a release',
+			'src/lib/components/image/ImageResizeHandles.svelte':
+				'a dev warning sizing a resize gesture, not a click told from a drag'
+		},
+		reason:
+			'a second press record or threshold drifts from the first, so one route calls a release a click and another calls it a drag: ask `EditorServices.presses.travelled(e)`',
+		hits: [
+			'if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;',
+			'const dragged = Math.abs(e.clientY - down.y) > SLOP;'
+		],
+		misses: ['if (presses.travelled(e)) return;', 'const dx = Math.abs(width - startWidth);']
 	}
 ];
 

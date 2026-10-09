@@ -772,6 +772,7 @@
 		search: searchState,
 		caretMemory,
 		caretWriter,
+		presses,
 		drawnCaret,
 		autoPairs,
 		scrollOwner,
@@ -868,6 +869,7 @@
 		isHostChrome,
 		activateLink,
 		activationClick,
+		presses,
 		linkCard,
 		reading
 	});

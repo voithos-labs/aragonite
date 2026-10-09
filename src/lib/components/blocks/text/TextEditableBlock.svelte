@@ -150,7 +150,8 @@
 		inlineMenuCombobox,
 		decorations: decorationEngine,
 		drafts,
-		drawnCaret
+		drawnCaret,
+		presses
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 
@@ -1027,8 +1028,7 @@
 			clickCount: e.detail,
 			// A release that travelled ends a drag rather than a click: showing the source there
 			// would unmount the widget the drag just painted a range across.
-			moved:
-				x !== null && y !== null && (Math.abs(e.clientX - x) > 3 || Math.abs(e.clientY - y) > 3)
+			moved: presses.travelled(e)
 		});
 		// The click has decided: from here the widget edge hides the browser's caret, or nothing does.
 		endPress();

@@ -225,7 +225,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		commands
 	} = wiring.deps;
 	const { pluginEditor } = commands;
-	const { inlineMenuCombobox, drafts } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { inlineMenuCombobox, drafts, presses } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
 	const getEditor = (): EditorContext | undefined =>
@@ -717,16 +717,15 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// Pointer-down only records where it landed, so a drag starting on the rendered view stays a
 	// selection drag; the click, a release that did not move, shows the source.
-	let renderPress: { x: number; y: number } | null = null;
+	let renderPressed = false;
 	function onRenderPointerDown(e: PointerEvent): void {
-		renderPress = e.shiftKey || isReading() ? null : { x: e.clientX, y: e.clientY };
+		renderPressed = !e.shiftKey && !isReading();
 	}
 
 	function onRenderClick(e: MouseEvent): void {
-		const press = renderPress;
-		renderPress = null;
-		if (!press || e.shiftKey || isReading()) return;
-		if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;
+		const pressed = renderPressed;
+		renderPressed = false;
+		if (!pressed || e.shiftKey || isReading() || presses.travelled(e)) return;
 		// Showing the source places a caret, so the pointer-down reset runs; not through
 		// `crossBlock.handlePointerDown`, which hit-tests the source text, not the rendered view.
 		resetForPointerDown(selection, caretWriter, caretMemory, false);

@@ -1039,6 +1039,7 @@ unguarded.
 | G4.143 | Every caret write asks the drawn caret to repaint, and its frame paint only paints        | T·L     |
 | G4.144 | The old widget and gap caret painters stay gone                                           | L       |
 | G4.145 | A click decides whether it follows a link or widget through the shared rule only          | L       |
+| G4.146 | A release tells a click from a drag only through the editor's press tracker               | L       |
 
 ### The entries
 
@@ -1911,6 +1912,12 @@ state of the drawn caret. `lint/drawn-caret-guards.test.ts`.
 `isActivationClick` prop), which reads the mode and the host's `linkClick` at the click. The
 allowlist holds the reads that decline a modified key or press, and the diagram's zoom and
 commit shortcuts. `lint/file-rules.test.ts`.
+
+**G4.146 · One answer to "did this press travel".** Nothing measures a release against its own
+press record by hand: the editor root's press tracker (`createPressTracker` in
+`src/lib/activation-click.ts`, fed in the capture phase) answers for the follow rule, the margin
+drag, a widget's press and a rendered block's click. A second record would let one route call a
+release a click while another calls it a drag. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

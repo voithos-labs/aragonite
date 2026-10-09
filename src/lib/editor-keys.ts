@@ -13,7 +13,7 @@ import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './windowing/scroll-ancestors';
 import type { ScrollportReader } from './windowing/scrollport';
 import type { PresentationMode } from './presentation-mode';
-import type { ActivationClick } from './activation-click';
+import type { ActivationClick, PressTracker } from './activation-click';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
@@ -152,6 +152,8 @@ export interface EditorServices {
 	caretMemory: CaretMemory;
 	/** The one writer of the native selection; each write asks the drawn caret to repaint. */
 	caretWriter: CaretWriter;
+	/** Where each press in the editor went down: the one answer to whether a release ended a drag. */
+	presses: PressTracker;
 	/** The caret the editor draws; each editable surface registers itself with it. */
 	drawnCaret: DrawnCaret;
 	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
