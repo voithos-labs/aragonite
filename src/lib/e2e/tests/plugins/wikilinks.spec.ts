@@ -4,10 +4,9 @@ import { PluginsPage, capturedErrors } from './helpers';
 
 /**
  * `[[note]]` links as inline widgets in a host whose links follow on a plain click, the limestone
- * integration reproduced in the harness (`routes/test/plugins/wikilinks`): `revealSource` for
- * editing, `claimsActivationClick` for navigation, and the editor's `linkClick: 'plain'`. Seed
- * `wikilinks`: a link mid-prose (block 0), a typing target (block 1), a Markdown link (block 2),
- * a link in a table cell (block 3).
+ * integration reproduced in the harness (`routes/test/plugins/wikilinks`, `linkClick: 'plain'`).
+ * Seed `wikilinks`: a link mid-prose (block 0), a typing target (block 1), a Markdown link
+ * (block 2), a link in a table cell (block 3).
  * Requirements: e2e/requirements/plugins/wikilinks.md.
  */
 

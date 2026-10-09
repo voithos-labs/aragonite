@@ -134,6 +134,13 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 			'the "link" icon on the Edit link row, not a construct kind: the row runs `link.openCard` and the block decides what it edits'
 	},
 	{
+		path: 'src/lib/components/blocks/table/TableActionMenu.svelte',
+		detection: 'kind-literal',
+		fate: 'outside',
+		reason:
+			'the "link" icon on the table menu’s Edit link row, not a construct kind: the cell runs `link.openCard` and decides what it edits'
+	},
+	{
 		path: 'src/lib/components/menu/SelectionToolbar.svelte',
 		detection: 'kind-literal',
 		fate: 'outside',

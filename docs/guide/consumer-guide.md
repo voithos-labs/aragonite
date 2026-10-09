@@ -378,7 +378,7 @@ What the boolean means:
 
 Two more things before you wire buttons:
 
-- **`editLink` opens a link's card only in `'live'` mode**, where its destination is hidden. In every other editable mode the URL's already on screen, so the call is consumed (`true`) and no card opens, same as pressing `Mod+K` there. Beside a plugin widget that goes somewhere (a footnote reference, say) it shows the widget's source instead, in any editable mode.
+- **`editLink` edits what the caret would go to.** On a link that's its card, and only in `'live'` mode, since every other editable mode already shows the URL (there the call's consumed, `true`, and no card opens, same as pressing `Mod+K`). Beside a plugin widget that goes somewhere (a footnote reference, say) it shows the widget's source, in any editable mode.
 - **Over a selection spanning blocks**, a format toggle rewrites every block the range touches (the first block's tail, each middle block whole, the last block's head) as one undo entry. It applies everywhere unless every block already carries the mark, in which case it removes it everywhere. Blocks that can't hold inline syntax (a code block, a thematic break) are skipped and the rest still change. A table joins by its cells: the range covers each cell whole, so the cells it lights up are the cells it marks.
 
 `canRunCommand(commandId: string): boolean`
@@ -811,7 +811,7 @@ A few chords aren't in the table because no keymap holds them, so they aren't re
 - **The selection chords.** Shift+Arrow to extend a selection, `Mod+Shift+Home` / `Mod+Shift+End`, and the repeated `Mod+A` escalation go through the cross-block selection code.
 - **`Home`, `Shift+Home` and `Mod+Home`.** They move the caret the way they do in any text box. The editor only steps in where a block's text starts behind something you can't put a caret in: a marker (a list item's, a footnote's) or an inline widget (an image, a formula). There `Home` on the block's first line stops where the text starts, and `Mod+Home` goes there from any line.
 
-Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and Column flyouts (insert, move), the two deletes, and the column's alignment. Shift+F10 or the Context Menu key opens it from the keyboard. A table has no per-row or per-column grips: its one drag handle, in the editor's gutter, moves the whole table.
+Right-clicking any cell opens the table's action menu: "Edit link" first when you clicked a link, then cut/copy/paste, Row and Column flyouts (insert, move), the two deletes, and the column's alignment. Shift+F10 or the Context Menu key opens it from the keyboard. A table has no per-row or per-column grips: its one drag handle, in the editor's gutter, moves the whole table.
 
 | Action                              | Chord                                                                           |
 | ----------------------------------- | ------------------------------------------------------------------------------- |

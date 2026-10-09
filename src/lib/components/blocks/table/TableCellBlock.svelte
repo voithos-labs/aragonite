@@ -508,6 +508,7 @@
 			setSelection,
 			measurePartialRects,
 			runCommand,
+			isCommandActive,
 			afterSourceCommit,
 			getSelectionOffsets,
 			applyMenuClipboard,

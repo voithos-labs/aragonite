@@ -1,7 +1,6 @@
 /**
  * What you'd go to at the caret: a link (the card edits it) or a widget that goes somewhere (its
- * source edits it), and how to find a link again after an edit rebuilt the tree. The click card,
- * Mod+K and the "Edit link" menu row all read `followTargetAt`.
+ * source edits it), and how to find a link again after an edit rebuilt the tree.
  */
 
 import { inlineDescendants } from '../../../core/inline';

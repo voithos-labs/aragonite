@@ -44,6 +44,7 @@
 		onaction,
 		onclipboard,
 		onalign,
+		oneditlink,
 		onclose,
 		onescape,
 		anchor,
@@ -57,6 +58,7 @@
 		onaction: (action: TableAxisAction, index: number) => void;
 		onclipboard: (action: ClipboardAction) => void;
 		onalign: (alignment: 'left' | 'center' | 'right') => void;
+		oneditlink: () => void;
 		onclose: () => void;
 		onescape: () => void;
 		menuPresence: MenuPresence;
@@ -300,6 +302,18 @@
 					</div>
 				{/if}
 			</div>
+		{:else if item.kind === 'editLink'}
+			<button
+				type="button"
+				role="menuitem"
+				tabindex="-1"
+				class="md-menu-item table-action-menu-item"
+				onpointerenter={() => (openGroup = null)}
+				onclick={oneditlink}
+			>
+				<span class="md-menu-icon"><MenuIcon name="link" /></span>
+				<span class="table-action-menu-label">{item.label}</span>
+			</button>
 		{:else if item.kind === 'separator'}
 			<div class="md-menu-divider table-action-menu-separator" role="separator"></div>
 		{:else}

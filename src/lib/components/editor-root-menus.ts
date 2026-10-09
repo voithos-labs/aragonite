@@ -1,9 +1,9 @@
 /**
  * Editor-root menus: the block context menu (a right-click on a block runs its kind's registered
  * actions; prose and a selection get the clipboard rows, and prose an insert flyout; over a link
- * or a widget that goes somewhere, an "Edit link" row first). The open
- * menu is `$state` in `Editor.svelte`, written through `setMenu`; a menu takes no focus, so
- * the caret it acts on stays exactly where it is.
+ * or a widget that goes somewhere, an "Edit link" row first). The open menu is `$state` in
+ * `Editor.svelte`, written through `setMenu`; a menu takes no focus, so the caret it acts on
+ * stays exactly where it is.
  */
 
 import type { BlockEditActions } from '../action-contracts';
