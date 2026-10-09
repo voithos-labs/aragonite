@@ -51,7 +51,7 @@ const PROJECT_DIRS = [
 	'clipboard'
 ];
 
-// The second-engine slice, run per release rather than per commit. It carries no known-red
+// The second-engine slice, run on every pull request rather than every commit. It carries no known-red
 // backlog, which is what lets the lane fail rather than report: any red is a regression.
 const WEBKIT_LANE = [
 	'smoke.spec.ts',
