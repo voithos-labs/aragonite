@@ -1,9 +1,9 @@
 <script lang="ts">
 	/**
-	 * The between-blocks caret: a zero-height stand-in element that takes DOM focus while the
-	 * gap is live. It lives in the BlockList, outside every block, so it adds nothing to any
-	 * block's text content. Text and Enter create a paragraph at the boundary; every other
-	 * input is refused at `beforeinput`.
+	 * The between-blocks caret: a zero-height element whose proxy takes DOM focus while the gap is
+	 * live, and across which the drawn caret lays its bar. It lives in the BlockList, outside every
+	 * block, so it adds nothing to any block's text content. Text and Enter create a paragraph at
+	 * the boundary; every other input is refused at `beforeinput`.
 	 */
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -38,9 +38,15 @@
 	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
 
+	let gapEl: HTMLElement | undefined = $state();
 	let proxyEl: HTMLElement | undefined = $state();
 
 	const isReading = $derived(isReadingMode(policies.presentationMode));
+
+	$effect(() => {
+		if (!proxyEl || !gapEl || !services) return;
+		return services.drawnCaret.register({ el: proxyEl, drawable: () => true, gapHost: gapEl });
+	});
 
 	// Mounted only while the gap is live; focusing the contenteditable gives it a caret, so no
 	// range is set by hand.
@@ -112,8 +118,7 @@
 	}
 </script>
 
-<div class="gap-caret" data-gap-caret>
-	<div class="gap-caret-line" aria-hidden="true"></div>
+<div bind:this={gapEl} class="gap-caret" data-gap-caret>
 	<div
 		bind:this={proxyEl}
 		class="gap-caret-proxy"
@@ -138,18 +143,6 @@
 		height: 0;
 		overflow: visible;
 	}
-	/* Centred on the boundary, so neither neighbour appears to own it. */
-	.gap-caret-line {
-		position: absolute;
-		top: -1px;
-		left: 0;
-		right: 0;
-		height: 2px;
-		background-color: var(--color-text-secondary, #d6d9e0);
-		border-radius: 1px;
-		pointer-events: none;
-		animation: gap-caret-blink 1s step-end infinite;
-	}
 	/* A real box, since Chromium fires no `beforeinput` on a zero-height editing host;
 	   click-through, so it steals no edge clicks from either neighbour. */
 	.gap-caret-proxy {
@@ -162,17 +155,5 @@
 		outline: none;
 		pointer-events: none;
 		caret-color: transparent;
-	}
-
-	@keyframes gap-caret-blink {
-		50% {
-			opacity: 0;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.gap-caret-line {
-			animation: none;
-		}
 	}
 </style>

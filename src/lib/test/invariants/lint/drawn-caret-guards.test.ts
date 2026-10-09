@@ -57,7 +57,7 @@ const CARET_COLOR_RULES: Record<string, string> = {
 	[`${SOURCE.editorCss} :: :where(.editor) .whole-block-input`]:
 		'the proxy that takes input for a block held whole, which holds no caret anyone sees',
 	['src/lib/components/GapCaret.svelte :: .gap-caret-proxy']:
-		'the gap caret’s proxy, whose own line is the caret'
+		'the gap caret’s proxy, whose caret is the drawn bar across the gap'
 };
 
 const CARET_COLOR_REASON =
@@ -111,10 +111,6 @@ describeFileRules(
 		{
 			id: 'G4.144 nothing but the drawn caret paints a caret',
 			matches: (file) => OLD_PAINTER.test(file.code) || OTHER_CARET_BLINK.test(file.code),
-			allowed: {
-				'src/lib/components/GapCaret.svelte':
-					'its own line at a gap, until the drawn caret draws there'
-			},
 			reason:
 				'a second element painting a caret (a class drawing one beside a widget, a line at a gap, its own blink) is a second caret beside the drawn one; draw it as a state of the drawn caret',
 			hits: [

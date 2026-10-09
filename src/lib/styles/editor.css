@@ -956,6 +956,17 @@
 	animation: md-caret-blink-a var(--md-caret-blink) step-end infinite;
 }
 
+/* Across a gap between blocks the bar lies flat over the boundary, centred so neither neighbour
+   appears to own it. */
+:where(.editor) .md-drawn-caret[data-caret-state='gap'] {
+	top: -1px;
+	right: 0;
+	width: auto;
+	height: 2px;
+	border-radius: 1px;
+	background-color: var(--color-text-secondary, #d6d9e0);
+}
+
 /* Two identical keyframes: the paint switches between them to restart the blink on a move. */
 :where(.editor) .md-drawn-caret[data-blink='b'] {
 	animation-name: md-caret-blink-b;

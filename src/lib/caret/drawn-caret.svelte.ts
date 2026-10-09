@@ -39,6 +39,8 @@ export interface CaretSource {
 	drawable(): boolean;
 	/** How an editable with inline widgets draws the caret beside one; absent where it has none. */
 	readonly widgetEdge?: WidgetEdgeSource;
+	/** Set by the gap caret's proxy: the element the bar lies across, between two blocks. */
+	readonly gapHost?: HTMLElement;
 }
 
 /** The widget edges an editable can draw at, keyed by the owner object it made at construction. */
@@ -159,12 +161,13 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const owned = source && (!range || source.el.contains(range.startContainer)) ? source : null;
 		const draws = drawsCaret(deps.caretMode(), media);
 		const drawable = owned?.drawable() ?? false;
-		const edge = owned ? readWidgetEdge(owned) : null;
+		const gapHost = owned?.gapHost ?? null;
+		const edge = owned && !gapHost ? readWidgetEdge(owned) : null;
 		const measured =
-			draws && owned && range?.collapsed && drawable && !edge
+			draws && owned && range?.collapsed && drawable && !edge && !gapHost
 				? measureCaret(owned.el, range)
 				: null;
-		const host = measured?.host ?? (edge && owned ? caretHost(owned.el) : null);
+		const host = gapHost ?? measured?.host ?? (edge && owned ? caretHost(owned.el) : null);
 		const { selection } = deps;
 		return {
 			source: owned,
@@ -184,14 +187,14 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 				},
 				collapsed: !range || range.collapsed,
 				source: owned ? { drawable } : null,
-				gap: false,
+				gap: gapHost !== null,
 				widgetEdge: edge,
 				besideWidget: measured?.besideWidget ?? false,
 				atSoftWrap: measured?.atSoftWrap ?? false,
 				clipped: measured?.clipped ?? false,
 				atCodeChipEdge: measured?.atCodeChipEdge ?? false,
 				caret: measured?.caret ?? null,
-				host: measured?.hostBox ?? (host ? hostBox(host) : null),
+				host: measured?.hostBox ?? (edge && host ? hostBox(host) : null),
 				devicePixelRatio: window.devicePixelRatio || 1
 			}
 		};
@@ -209,7 +212,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	function draw(target: DrawnCaretTarget, read: CaretRead, atFrame: boolean): void {
 		markDrawnFor(hidesBrowserCaret(target) ? (read.source?.el ?? null) : null);
 		const rect = 'rect' in target ? target.rect : null;
-		if (!rect || !read.host) {
+		if ((!rect && target.state !== 'gap') || !read.host) {
 			bar?.setAttribute('data-caret-state', target.state);
 			if (bar) bar.hidden = true;
 			painted = null;
@@ -218,9 +221,10 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		}
 		const el = (bar ??= createBar());
 		if (el.parentElement !== read.host) read.host.appendChild(el);
-		const transform = `translate(${rect.x}px, ${rect.y}px)`;
-		const height = `${rect.height}px`;
-		const width = 'width' in rect ? `${rect.width}px` : '';
+		// The gap bar's box is all CSS, across its whole element.
+		const transform = rect ? `translate(${rect.x}px, ${rect.y}px)` : '';
+		const height = rect ? `${rect.height}px` : '';
+		const width = rect && 'width' in rect ? `${rect.width}px` : '';
 		const at = `${target.state} ${transform} ${height} ${width}`;
 		if (at !== drawnAt || el.parentElement !== drawnIn) {
 			// An editor-made move is painted by its own request; one the frame finds is the browser's.
@@ -241,7 +245,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 				? {
 						node: read.range.startContainer,
 						offset: read.range.startOffset,
-						rect,
+						rect: target.rect,
 						surface: read.source.el,
 						surfaceSize: sizeOf(read.source.el)
 					}
