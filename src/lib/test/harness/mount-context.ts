@@ -140,7 +140,8 @@ function stubbedPolicies(): EditorPolicies {
 		theme: () => 'dark',
 		activationClick: bindActivationClick(
 			() => 'source',
-			() => 'modifier'
+			() => 'modifier',
+			() => false
 		),
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		onPasteImage: undefined,

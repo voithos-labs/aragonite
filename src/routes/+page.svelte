@@ -159,6 +159,7 @@
 				onPasteImage={demoPasteImage}
 				resolveImageUrl={resolveDemoImageUrl}
 				{presentationMode}
+				linkClick="plain"
 				selectionToolbar={presentationMode === 'live' && selectionMenu}
 				{theme}
 			/>

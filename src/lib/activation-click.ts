@@ -6,12 +6,13 @@
 
 import { hidesDelimitersAtCaret, type PresentationMode } from './presentation-mode';
 
-export const LINK_CLICKS = ['modifier', 'plain'] as const;
 /** Which click follows a link while editing: Ctrl/Cmd-click, or any click. */
-export type LinkClick = (typeof LINK_CLICKS)[number];
+export type LinkClick = 'modifier' | 'plain';
 
-/** The keys of a click the rule reads; a `MouseEvent` is one. */
-export type ClickModifiers = Pick<MouseEvent, 'ctrlKey' | 'metaKey'>;
+/** What the rule reads off a click; a `MouseEvent` is one. Without `detail` and `target` it reads
+ *  as one click with nothing selected, which is how the cursor asks where a plain click follows. */
+export type ClickModifiers = Pick<MouseEvent, 'ctrlKey' | 'metaKey'> &
+	Partial<Pick<MouseEvent, 'detail' | 'target'>>;
 
 /** One editor's answer for a click on something that goes somewhere. */
 export type ActivationClick = (click: ClickModifiers) => boolean;
@@ -31,10 +32,16 @@ export function followsClick(
 	return linkClick === 'plain' && hidesDelimitersAtCaret(mode);
 }
 
-/** Reads the mode and the gesture at each click, so the answer follows a switch of either. */
+/** Reads the mode and the gesture at each click. Only a single click follows, never a double-click's
+ *  later press or a drag's release, which `endsHoldingRange` tells from a real click's target. */
 export function bindActivationClick(
 	mode: () => PresentationMode,
-	linkClick: () => LinkClick
+	linkClick: () => LinkClick,
+	endsHoldingRange: (target: EventTarget) => boolean
 ): ActivationClick {
-	return (click) => followsClick(isModifiedClick(click), mode(), linkClick());
+	return (click) => {
+		if ((click.detail ?? 1) > 1) return false;
+		if (click.target && endsHoldingRange(click.target)) return false;
+		return followsClick(isModifiedClick(click), mode(), linkClick());
+	};
 }

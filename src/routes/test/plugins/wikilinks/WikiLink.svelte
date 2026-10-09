@@ -11,8 +11,6 @@
 	const target = $derived(source.slice(2, -2));
 
 	function onClick(e: MouseEvent): void {
-		// A drag that began and ended on the link is a selection, not a click on it
-		if (!(window.getSelection()?.isCollapsed ?? true)) return;
 		if (!isActivationClick(e)) return;
 		e.preventDefault();
 		const probe = window as Window & { __linkActivations?: string[] };

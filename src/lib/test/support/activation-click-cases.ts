@@ -15,9 +15,8 @@ export interface ActivationClickCase {
 
 const MODES: PresentationMode[] = ['source', 'preview-block', 'preview-inline', 'live', 'reading'];
 
-// Reading mode has no caret to place, so any click follows there; the host's plain gesture
-// reaches live mode only, the editable mode that never shows a link's syntax. A double-click's
-// second press never follows: the first one already did.
+// Reading mode follows any click; the plain gesture reaches live mode only, the editable mode with
+// no syntax showing. A double-click's second press never follows: the first one already did.
 function follows(
 	linkClick: LinkClick,
 	mode: PresentationMode,

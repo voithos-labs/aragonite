@@ -58,6 +58,7 @@
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { bindActivationClick } from '../activation-click';
+	import { clickEndsHoldingRange } from './blocks/text/click-snap-guard';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './link-reference-map';
 	import {
 		buildLinkReferenceMap,
@@ -266,7 +267,7 @@
 		mode: () => outgoingMode ?? effectiveMode,
 		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(outgoingMode ?? effectiveMode)
 	};
-	const activationClick = bindActivationClick(reading.mode, () => linkClick);
+	const activationClick = bindActivationClick(reading.mode, () => linkClick, clickEndsHoldingRange);
 	// The pointer cursor on links shows where a plain click follows them.
 	const plainClickFollows = $derived(activationClick({ ctrlKey: false, metaKey: false }));
 	// The root list's child component refs, plain rather than `$state` (see `refSlotsOver`).

@@ -4,6 +4,7 @@
  */
 
 import { tick } from 'svelte';
+import { isModifiedClick } from '../activation-click';
 import { findSurfacePathForElement } from '../selection/path-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CaretWriter } from '../caret/widget-offset';
@@ -44,7 +45,8 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 		if (next) root.setAttribute('data-mod-active', '');
 		else root.removeAttribute('data-mod-active');
 	};
-	const onKey = (e: KeyboardEvent) => apply(e.ctrlKey || e.metaKey);
+	// The held keys are what the next click would carry.
+	const onKey = (e: KeyboardEvent) => apply(isModifiedClick(e));
 	const reset = () => apply(false);
 	const onVisibility = () => {
 		if (document.visibilityState === 'hidden') apply(false);

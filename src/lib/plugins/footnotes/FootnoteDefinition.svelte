@@ -79,20 +79,10 @@
 		if (first) void rects?.navigateTo(first.path, first.end);
 	}
 
-	// True where a plain click already jumps, so the pointer shape matches what a click does.
-	const plainClickJumps = $derived(
-		getEditor()?.isActivationClick({ ctrlKey: false, metaKey: false }) ?? false
-	);
-
 	export { containerApi };
 </script>
 
-<div
-	class="footnote-def"
-	data-footnote-label={label}
-	data-plain-click-jumps={plainClickJumps ? '' : undefined}
-	bind:this={boxEl}
->
+<div class="footnote-def" data-footnote-label={label} bind:this={boxEl}>
 	<BlockList {...blockListProps} />
 </div>
 
@@ -112,9 +102,9 @@
 		text-decoration: underline;
 	}
 
-	/* Where the marker is a link, a dotted underline tells it from the note's text without
-	   relying on colour. */
-	.footnote-def[data-plain-click-jumps] :global(.footnote-def-marker) {
+	/* Where a plain click follows the marker, a dotted underline tells it from the note's text
+	   without relying on colour. */
+	:global([data-plain-click-follows]) .footnote-def :global(.footnote-def-marker) {
 		cursor: pointer;
 		text-decoration: underline dotted;
 	}

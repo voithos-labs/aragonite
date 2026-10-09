@@ -1905,11 +1905,12 @@ included, names the classes the old widget and gap carets painted with (`md-snap
 other than `md-caret-blink-a`/`-b`. A second element painting a caret is a second caret; draw a new one as a
 state of the drawn caret. `lint/drawn-caret-guards.test.ts`.
 
-**G4.145 · One rule for whether a click follows.** A file that handles a click doesn't read
-`ctrlKey || metaKey` itself; it asks `src/lib/activation-click.ts` (through
+**G4.145 · One rule for whether a click follows.** A file that handles a click doesn't test
+`ctrlKey || metaKey` (or `!ctrlKey && !metaKey`) itself; it asks `src/lib/activation-click.ts` (through
 `EditorPolicies.activationClick`, `EditorContext.isActivationClick` or a widget's
 `isActivationClick` prop), which reads the mode and the host's `linkClick` at the click. The
-allowlist holds the reads that decline a modified press instead. `lint/file-rules.test.ts`.
+allowlist holds the reads that decline a modified press, and the diagram's zoom and commit
+shortcuts. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

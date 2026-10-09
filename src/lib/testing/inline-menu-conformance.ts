@@ -101,6 +101,7 @@ function recordingContext(
 		openDraft,
 		computeInlineContent: () => [],
 		presentationMode: 'source',
-		theme: 'light'
-	} as unknown as EditorContext;
+		theme: 'light',
+		isActivationClick: () => false
+	};
 }

@@ -226,11 +226,11 @@ test.describe('footnote jump: definition back to reference', () => {
 		await editor.load(SHORT_DOC);
 		await editor.setPresentationMode('reading');
 
-		const def = page.locator('.footnote-def');
-		await expect(def).toHaveAttribute('data-plain-click-jumps', '');
+		const marker = editor.defMarker(1);
+		await expect(marker).toHaveCSS('cursor', 'pointer');
 
 		await editor.setPresentationMode('source');
-		await expect(def).not.toHaveAttribute('data-plain-click-jumps', '');
+		await expect(marker).not.toHaveCSS('cursor', 'pointer');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

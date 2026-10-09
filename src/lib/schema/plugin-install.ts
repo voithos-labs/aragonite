@@ -74,8 +74,8 @@ export interface EditorContext<Options = unknown> {
 	/** A getter, so always live: the theme name written to `data-editor-theme`. The `themeChange`
 	 *  event signals a change. Only a plugin that draws its own colors needs it. */
 	readonly theme: string;
-	/** Whether a click on something your block makes go somewhere (a footnote's back-link, say)
-	 *  follows it: the host's link gesture, in the mode in force. Pass the click event. */
+	/** Whether a click on a link your block draws (a footnote's back-link, say) should follow it,
+	 *  by the host's `linkClick` and the mode. Pass the click event. */
 	readonly isActivationClick: (click: ClickModifiers) => boolean;
 }
 
