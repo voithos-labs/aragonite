@@ -182,6 +182,7 @@ describe('create entry', () => {
 				block: parse(source).children[0] as NodeView,
 				path: [0],
 				card,
+				enterWidget: () => {},
 				selection,
 				crossBlockRange,
 				reading: fixtureReading({}, mode)
@@ -274,6 +275,7 @@ describe('range entry', () => {
 			path: [0],
 			reading: fixtureReading(reading, 'live'),
 			card,
+			enterWidget: () => {},
 			selection: start === end ? null : { start, end },
 			crossBlockRange
 		});

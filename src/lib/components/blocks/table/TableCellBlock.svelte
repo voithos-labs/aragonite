@@ -86,7 +86,7 @@
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
+	import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -376,7 +376,7 @@
 		const marked = inlineMarkForCommand(id);
 		if (!marked) {
 			if (id !== 'link.openCard') return false;
-			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
+			return editTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
 		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
@@ -456,7 +456,12 @@
 		// Consumed whether or not a card opens, the same rule the prose block follows:
 		// `reservedChords()` reports Mod+K as the editor's wherever the keymaps bind it.
 		if (id === 'link.openCard') {
-			return () => enterLinkCardAtCaret({ ...linkCardQuery(contentEl, null), card: linkCard });
+			return () =>
+				enterLinkCardAtCaret({
+					...linkCardQuery(contentEl, null),
+					card: linkCard,
+					enterWidget: widgetInteraction.enterWidget
+				});
 		}
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {

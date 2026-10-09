@@ -908,6 +908,9 @@
 		activation: activePlugins,
 		reading,
 		stamps,
+		// The row does what Mod+K does at the caret the right-click just placed.
+		canEditLinkAtCaret: () => isCommandActive('link.openCard'),
+		editLinkAtCaret: () => void runCommand('link.openCard'),
 		setMenu: (menu) => (blockMenu = menu)
 	});
 

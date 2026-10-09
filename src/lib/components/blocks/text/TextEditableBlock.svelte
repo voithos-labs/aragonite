@@ -5,7 +5,7 @@
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
-	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
+	import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
@@ -181,7 +181,8 @@
 		if (el) {
 			enterLinkCardAtCaret({
 				...linkCardQuery(el, cursor.getRawSelection()),
-				card: linkCard
+				card: linkCard,
+				enterWidget: widgetInteraction.enterWidget
 			});
 		}
 	};
@@ -661,7 +662,7 @@
 		if (!marked) {
 			// The link card is the one pressed state no mark policy answers.
 			if (id !== 'link.openCard' || !el) return false;
-			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
+			return editTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
 		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };

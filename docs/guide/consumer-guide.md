@@ -378,7 +378,7 @@ What the boolean means:
 
 Two more things before you wire buttons:
 
-- **`editLink` only does something in `'live'` mode**, where a link's destination is hidden. In every other editable mode the URL is already on screen, so the call is consumed (`true`) and no card opens, same as pressing `Mod+K` there.
+- **`editLink` opens a link's card only in `'live'` mode**, where its destination is hidden. In every other editable mode the URL's already on screen, so the call is consumed (`true`) and no card opens, same as pressing `Mod+K` there. Beside a plugin widget that goes somewhere (a footnote reference, say) it shows the widget's source instead, in any editable mode.
 - **Over a selection spanning blocks**, a format toggle rewrites every block the range touches (the first block's tail, each middle block whole, the last block's head) as one undo entry. It applies everywhere unless every block already carries the mark, in which case it removes it everywhere. Blocks that can't hold inline syntax (a code block, a thematic break) are skipped and the rest still change. A table joins by its cells: the range covers each cell whole, so the cells it lights up are the cells it marks.
 
 `canRunCommand(commandId: string): boolean`
@@ -531,7 +531,7 @@ events.on('error', (err) => err);
 
 Three things behave differently from what the screen might suggest:
 
-- **Reading a link's destination.** The link card is the only place a URL shows in this mode. `Mod+K` with the caret inside a link opens it with focus in the URL field, and editing the URL commits as one undoable step. A plain click on a link opens the same card beside a caret that stays the document's, unless you set `linkClick: 'plain'`: then the click follows the link and `Mod+K` is the way in.
+- **Reading a link's destination.** The link card is the only place a URL shows in this mode. `Mod+K` with the caret inside a link, or "Edit link" in the link's right-click menu, opens it with focus in the URL field, and editing the URL commits as one undoable step. A plain click on a link opens the same card beside a caret that stays the document's, unless you set `linkClick: 'plain'`, where the click follows the link instead.
 - **Copy yields the source bytes** (`**bold**`, not `bold`), because the caret's offsets are the source's. Reading mode is the one mode that copies the rendered text, since it has no caret and nothing to paste back into.
 - **Search matches the source bytes too**, so a query spanning a construct boundary misses what the screen appears to show: `beta gamma` finds nothing in `**beta** gamma`, where the bytes between the words are `** `. Matches inside a construct's own text work normally.
 
@@ -820,7 +820,7 @@ Right-clicking any cell opens the table's action menu: cut/copy/paste, Row and C
 | Italic (toggle emphasis)            | `Mod+I`                                                                         |
 | Strikethrough                       | `Mod+Shift+X`                                                                   |
 | Inline code                         | `Mod+E`                                                                         |
-| Edit a link's URL (live mode)       | `Mod+K` (caret inside a link; opens the link card)                              |
+| Edit a link                         | `Mod+K` (in a link, its card in live mode; beside a widget, its source)         |
 | Cycle heading level                 | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`)                                |
 | Split a block                       | `Enter` (in a code block, inserts a newline)                                    |
 | Leave a code block                  | `Enter` on its empty last line (typing the closing fence there does the same)   |

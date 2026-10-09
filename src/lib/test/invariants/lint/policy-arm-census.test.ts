@@ -101,7 +101,9 @@ const BOTH_TABLE_READERS: Record<string, string> = {
 	'src/lib/components/blocks/table/TableCellBlock.svelte':
 		'the cell surface: which mark a format command toggles, and whether a node is an island',
 	'src/lib/inline-menu/inline-menu-session.ts':
-		'a row declares how much of a construct is prose; a widget kind with no row shows source, not prose'
+		'a row declares how much of a construct is prose; a widget kind with no row shows source, not prose',
+	'src/lib/components/blocks/text/link-at-point.ts':
+		'what Mod+K and the Edit link row edit is a link the card edits (cardEditable) or a widget whose kind claims the activation click, one answer across both tables'
 };
 
 // ── The branches that answer by hand ─────────────────────────────────────────
@@ -123,6 +125,13 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 		fate: 'outside',
 		reason:
 			'the menu noun "image" for a paragraph of pictures, not the inline kind: no gesture reads it and no construct policy hangs on it'
+	},
+	{
+		path: 'src/lib/components/editor-root-menus.ts',
+		detection: 'kind-literal',
+		fate: 'outside',
+		reason:
+			'the "link" icon on the Edit link row, not a construct kind: the row runs `link.openCard` and the block decides what it edits'
 	},
 	{
 		path: 'src/lib/components/menu/SelectionToolbar.svelte',

@@ -33,7 +33,7 @@ function targetAt(offset: number, mode: PresentationMode) {
 	const node = parse(SOURCE).children[0];
 	const hit = followTargetAt(node, offset, fixtureReading({}, mode));
 	if (hit === null) return null;
-	return hit.kind === 'link' ? `link@${hit.link.start}` : `widget@${hit.widget.start}`;
+	return hit.edit === 'card' ? `link@${hit.link.start}` : `widget@${hit.widget.start}`;
 }
 
 describe('followTargetAt', () => {

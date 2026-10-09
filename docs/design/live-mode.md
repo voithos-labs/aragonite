@@ -346,7 +346,7 @@ The rest of what a join does:
 
 Live paints no destination, so the card is the only way to read or rewrite one.
 
-- The focus model: a plain click on a link opens the card beside a caret that stays the document's, unless the host's `linkClick: 'plain'` makes that click follow the link. Keyboard entry (Mod+K with the caret inside a link, or a selection lying wholly inside one) opens it with focus trapped in the URL field. The two differ on a live selection because only one of them was asked for: an unsought click mustn't interrupt a drag, while the chord has already resolved the selection against the construct it opens, so those bytes are the card's own.
+- The focus model: a plain click on a link opens the card beside a caret that stays the document's, unless the host's `linkClick: 'plain'` makes that click follow the link. Keyboard entry (Mod+K with the caret inside a link, or a selection lying wholly inside one, or the right-click menu's "Edit link" row, which runs the same command) opens it with focus trapped in the URL field. The two differ on a live selection because only one of them was asked for: an unsought click mustn't interrupt a drag, while the chord has already resolved the selection against the construct it opens, so those bytes are the card's own.
 - An edit commits one undoable step through the one module allowed to write link bytes. The card addresses its link by path plus construct start and re-resolves after every commit, since a commit rebuilds the inline DOM.
 - A toolbar button for the chord paints pressed from that same construct, and pressing it enters that link. Like the card, that pressed state only exists in live mode.
 

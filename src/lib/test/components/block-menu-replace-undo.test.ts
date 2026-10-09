@@ -58,6 +58,8 @@ async function typeThenRewrite() {
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
 		stamps: editor.deps.stamps,
+		canEditLinkAtCaret: () => false,
+		editLinkAtCaret: () => {},
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
