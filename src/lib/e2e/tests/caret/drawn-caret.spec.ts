@@ -263,34 +263,39 @@ test.describe('the drawn caret', () => {
 		expect(await animation()).toBe('none');
 	});
 
-	test('forced colors keep the browser’s caret', async ({ page }) => {
-		await page.emulateMedia({ forcedColors: 'active' });
-		await editor.loadContent('hello world\n');
-		await editor.focusBlock(0, 3);
-		await page.keyboard.type('x');
-		await expect.poll(() => caretsShowing(page)).toEqual(ONE_NATIVE);
-	});
+	test.describe('forced colors', () => {
+		// WebKit has no forced-colors mode (the query always matches none); Playwright only flips it.
+		test.skip(({ browserName }) => browserName === 'webkit', 'no forced-colors mode in WebKit');
 
-	// The browser shows its own caret beside a text-height widget and in the gap proxy under forced
-	// colors, so the editor's bar there would be a second one.
-	test('forced colors show one caret beside a text-height widget and at a gap', async ({
-		page
-	}) => {
-		await page.emulateMedia({ forcedColors: 'active' });
-		const plugins = new PluginsPage(page);
-		await plugins.gotoPlugins('emoji');
-		await plugins.loadContent('Some prose on this line :tada:\n');
-		const widget = (await page.locator('[data-inline-widget]').boundingBox())!;
-		await page.mouse.click(widget.x + widget.width + 30, widget.y + widget.height / 2);
-		const around = { x: widget.x - 10, y: widget.y - 10, width: widget.width + 60, height: 40 };
-		expect(await caretsUnderForcedColors(page, around)).toBe(1);
+		test('forced colors keep the browser’s caret', async ({ page }) => {
+			await page.emulateMedia({ forcedColors: 'active' });
+			await editor.loadContent('hello world\n');
+			await editor.focusBlock(0, 3);
+			await page.keyboard.type('x');
+			await expect.poll(() => caretsShowing(page)).toEqual(ONE_NATIVE);
+		});
 
-		await plugins.goto();
-		await plugins.loadContent(TABLE_THEN_FENCE);
-		await arriveAtBoundary(plugins);
-		const gap = (await page.locator('[data-gap-caret]').boundingBox())!;
-		const across = { x: gap.x - 10, y: gap.y - 20, width: 600, height: 40 };
-		expect(await caretsUnderForcedColors(page, across)).toBe(1);
+		// The browser shows its own caret beside a text-height widget and in the gap proxy under forced
+		// colors, so the editor's bar there would be a second one.
+		test('forced colors show one caret beside a text-height widget and at a gap', async ({
+			page
+		}) => {
+			await page.emulateMedia({ forcedColors: 'active' });
+			const plugins = new PluginsPage(page);
+			await plugins.gotoPlugins('emoji');
+			await plugins.loadContent('Some prose on this line :tada:\n');
+			const widget = (await page.locator('[data-inline-widget]').boundingBox())!;
+			await page.mouse.click(widget.x + widget.width + 30, widget.y + widget.height / 2);
+			const around = { x: widget.x - 10, y: widget.y - 10, width: widget.width + 60, height: 40 };
+			expect(await caretsUnderForcedColors(page, around)).toBe(1);
+
+			await plugins.goto();
+			await plugins.loadContent(TABLE_THEN_FENCE);
+			await arriveAtBoundary(plugins);
+			const gap = (await page.locator('[data-gap-caret]').boundingBox())!;
+			const across = { x: gap.x - 10, y: gap.y - 20, width: 600, height: 40 };
+			expect(await caretsUnderForcedColors(page, across)).toBe(1);
+		});
 	});
 
 	test('the caret prop: native never draws, drawn draws, and a live switch swaps in place', async ({

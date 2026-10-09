@@ -38,7 +38,7 @@ drawn bar or the browser's own.
   - Miss-analysis: the row read the bar once, after one paint, and each move switches between two keyframe rules, so the second one, which out-ranked the reduced-motion rule, was never read
 - Reduced motion: the bar beside a widget and across a gap doesn't blink either
 - Forced colors: the browser's caret shows, since forced colors keep it visible whatever the editor sets, and the drawn one draws nothing
-- Forced colors beside a text-height widget and at a gap: exactly one caret, the browser's, found blinking in a screenshot. Beside an image-only line the browser paints none and the editor draws none either, so there's no caret there under forced colors
+- Forced colors beside a text-height widget and at a gap: exactly one caret, the browser's, found blinking in a screenshot. Beside an image-only line the browser paints none and the editor draws none either, so there's no caret there under forced colors. Neither row runs on WebKit, which has no forced-colors mode: the query always matches none there, and Playwright's emulation only flips it
 - A coarse pointer keeps the browser's caret
 - The `caret` prop: `native` never draws, `drawn` draws, and switching between them live swaps the caret in place
 - The bar is hidden from assistive tech, and the focused editable and its selection are what they would be without it
