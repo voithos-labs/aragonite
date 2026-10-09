@@ -267,6 +267,8 @@
 		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(outgoingMode ?? effectiveMode)
 	};
 	const activationClick = bindActivationClick(reading.mode, () => linkClick);
+	// The pointer cursor on links shows where a plain click follows them.
+	const plainClickFollows = $derived(activationClick({ ctrlKey: false, metaKey: false }));
 	// The root list's child component refs, plain rather than `$state` (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
 	const blockRefSlots = refSlotsOver(blockRefs);
@@ -1324,6 +1326,7 @@
 	data-scroll-mode={hostScroll ? 'host' : undefined}
 	data-windowing={topWindowing.window.active ? 'active' : undefined}
 	data-presentation={effectiveMode === 'source' ? undefined : effectiveMode}
+	data-plain-click-follows={plainClickFollows ? '' : undefined}
 	bind:this={editorEl}
 	tabindex="-1"
 	role="group"

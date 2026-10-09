@@ -98,6 +98,15 @@ test.describe('wikilinks that follow on a plain click', () => {
 		await expect(page.locator('[data-link-card]')).toHaveCount(0);
 	});
 
+	test('a Markdown link shows the pointer a plain click follows, and source mode the text cursor', async () => {
+		await expect(markdownLink(editor)).toHaveCSS('cursor', 'pointer');
+
+		await editor.setPresentationMode('source');
+		await editor.waitForRenderFlush();
+
+		await expect(markdownLink(editor)).toHaveCSS('cursor', 'text');
+	});
+
 	test('in source mode, where links show their syntax, a plain click edits instead', async ({
 		page
 	}) => {

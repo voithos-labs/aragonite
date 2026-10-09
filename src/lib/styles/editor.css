@@ -384,7 +384,7 @@
 	text-decoration: underline;
 }
 
-/* A plain click edits and only Ctrl/Cmd+click opens the link (`Editor.svelte` sets
+/* Where a plain click edits, only Ctrl/Cmd+click opens the link (`Editor.svelte` sets
    `data-mod-active`), so the cursor overrides the browser's default for `<a href>`. */
 :where(.editor) a.md-link-content,
 :where(.editor) .md-autolink {
@@ -882,9 +882,9 @@
 	background-color: transparent;
 }
 
-/* No caret to place: links read as links and activate on plain click. */
-:where(.editor)[data-presentation='reading'] a.md-link-content,
-:where(.editor)[data-presentation='reading'] .md-autolink:not(.md-link-blocked) {
+/* Reading mode, or a host whose links follow a plain click: links read as links. */
+:where(.editor)[data-plain-click-follows] a.md-link-content,
+:where(.editor)[data-plain-click-follows] .md-autolink:not(.md-link-blocked) {
 	cursor: pointer;
 }
 

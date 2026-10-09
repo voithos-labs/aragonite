@@ -17,6 +17,8 @@ link in block 2.
 - The source is reached with the caret: arrowing into the link from prose shows its bytes for
   editing, and the link comes back when focus leaves.
 - A plain click on a Markdown link follows it too, and opens no link card.
+- The Markdown link shows the pointer cursor, since a plain click follows it; in source mode it
+  shows the text cursor again.
 - In source mode a link shows its syntax, so a plain click there edits it: the widget shows its
   source and the Markdown link opens nothing.
 - A drag that starts on the link selects and activates nothing.
@@ -24,3 +26,6 @@ link in block 2.
 Miss-analysis: the harness widget acted on every click by hand instead of asking the editor, so a
 widget that read the shared Ctrl/Cmd check (as limestone's did) and did nothing on a plain click
 passed every test here.
+
+Miss-analysis (the pointer cursor): the link cursor decided "a plain click follows here" in CSS off
+the reading mode alone, a second copy of the rule that no test held against a host that opts in.

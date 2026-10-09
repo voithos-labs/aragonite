@@ -25,6 +25,8 @@ never looks clickable.
 - Hold Ctrl/Cmd: links and autolinks switch from the text caret to a pointer
   cursor, and releasing it brings the text caret back. A plain click edits,
   only a modifier-click follows the link.
+- In reading mode a plain click follows a link, so links show the pointer
+  with no key held.
 - Release the modifier while the page is unfocused (alt-tab, an OS shortcut):
   the pointer cursor clears on its own instead of sticking until the next
   keypress.
