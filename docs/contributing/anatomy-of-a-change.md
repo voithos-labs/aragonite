@@ -6,7 +6,7 @@ the shape of a change here rather than for the feature itself.
 The feature is the **gap caret**: a caret parked between two sibling blocks, at a boundary no
 block's own editing surface can reach. Between a table and a code fence, say, or above a document
 that opens with a table. Without it those boundaries have no insertion point at all, and your only
-move is to guess. The spec is the gap-caret section of `docs/design/editor.md` § 10, and the code
+move is to guess. The spec is `docs/design/selection.md` § The gap caret, and the code
 is `src/lib/selection/gap-caret.ts`.
 
 It landed in four waves and a tail, all on one day:

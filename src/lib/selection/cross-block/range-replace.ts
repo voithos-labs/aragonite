@@ -3,7 +3,7 @@
  * typing, an IME composition, paste, and a command key such as Enter. It removes what the range
  * covers in one commit picked by the kind of gesture and that coverage, puts the insertion where
  * the removal left the caret, and lands one caret, all as one undo entry
- * (`docs/design/editor.md` § Cross-block selection).
+ * (`docs/design/selection.md` § Cross-block selection).
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';

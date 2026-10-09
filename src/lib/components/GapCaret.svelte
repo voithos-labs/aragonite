@@ -89,7 +89,7 @@
 				event.preventDefault();
 				return mint('');
 			// Shift+Arrow is deliberately the plain arrow here: a single block selected whole
-			// is not a representable cross-block state (docs/design/editor.md § The gap caret).
+			// is not a representable cross-block state (docs/design/selection.md § The gap caret).
 			case 'ArrowDown':
 			case 'ArrowRight':
 			case 'Delete':

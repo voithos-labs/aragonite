@@ -28,8 +28,8 @@ plugin leaf behaves like a built-in text block. The seed is `Before` / `%% memo 
 ## Clipboard
 
 The leaf handles copy, cut and paste exactly as every other editable area does
-(`editor.md` § Clipboard). The shared editable core owns the clipboard, so a plugin leaf gets
-the rule without wiring anything itself.
+(`docs/design/selection.md` § Clipboard). The shared editable core owns the clipboard, so a plugin
+leaf gets the rule without wiring anything itself.
 
 - A single-block paste is handled by the editor rather than the browser: only `text/plain` is
   taken, so HTML on the clipboard is stripped instead of landing as live markup, and multiline
