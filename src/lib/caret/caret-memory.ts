@@ -12,7 +12,12 @@ import { classifyArrivalKey, type EdgeAffinity } from './edge-affinity';
 import { flipMark, type PendingMarks } from './pending-marks';
 import { createPendingBreak, type BlockPendingBreak } from './pending-break.svelte';
 import { createHeldSpace, type HeldSpaceView } from './held-space';
-import { createInsertionRecords, type HeldInsertion, type PlaceInsertion } from './next-insertion';
+import {
+	createInsertionRecords,
+	type HeldInsertion,
+	type PlaceInsertion,
+	type PreviewInsertion
+} from './next-insertion';
 import type { InlineMarkKind } from '../schema/inline-construct-policy';
 import type { AnyCommandId } from '../schema/command-id';
 import { BLOCK_MOVE_COMMAND_IDS } from '../schema/commands';
@@ -41,6 +46,8 @@ export interface CaretMemory {
 	/** Takes what the next insertion in `block` spends, with the caret's side and the block's move of
 	 *  an insertion across a hidden edge (`place`), so a route that forgets the memory can spend them. */
 	holdInsertion(block: object, place?: PlaceInsertion): HeldInsertion;
+	/** What `holdInsertion` would make of an insertion, read without spending or keeping anything. */
+	previewInsertion(block: object, place?: PlaceInsertion): PreviewInsertion;
 
 	/** Classify a keydown; `command` is the chord's meaning at the focused block, so a rebound chord
 	 *  reads as what it does. Without `measureX` (a caller holding a range) the column is kept. */
@@ -117,6 +124,7 @@ export function createCaretMemory(): CaretMemory {
 		},
 		heldSpace,
 		holdInsertion: (block, place) => records.hold(block, side, place),
+		previewInsertion: (block, place) => records.preview(block, side, place),
 		noteKey: (e, command, measureX) => {
 			// A block move leaves the caret where it was; the move's own commit forgets the memory.
 			if (command !== null && BLOCK_MOVE_COMMAND_IDS.has(command)) return;

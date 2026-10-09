@@ -16,8 +16,9 @@ export interface TextEdit {
 
 /** A record's answer to an insertion it applies to. */
 export interface SpentEdit extends TextEdit {
-	/** The record waits on for the next insertion too, as one the insertion extended. */
-	kept?: boolean;
+	/** The record waits on for the next insertion too: this sets it to what the insertion left, and
+	 *  the hold runs it when the write lets go, so `apply` itself changes nothing. */
+	kept?: () => void;
 }
 
 /** An insertion moved across a hidden edge, and the constructs whose marker runs it crossed. */
@@ -55,12 +56,15 @@ export interface InsertionRecord {
 export interface InsertionSpend {
 	/** The offset an insertion has to land at to spend the record. */
 	readonly at: number;
-	/** `edit` with the record's bytes in it when it inserts at `at` in `before`, else null.
-	 *  `placement` is null where the block draws every marker. */
+	/** `edit` with the record's bytes in it when it inserts at `at` in `before`, else null. Pure, so
+	 *  a preview can ask it too. `placement` is null where the block draws every marker. */
 	apply(before: string, edit: TextEdit, placement: Placement | null): SpentEdit | null;
 	/** The hold let go: `waiting` leaves the record for the next insertion, otherwise it ends. */
 	release(waiting: boolean): void;
 }
+
+/** What the records left in one block would make of an insertion, read without spending them. */
+export type PreviewInsertion = Omit<HeldInsertion, 'finish'>;
 
 /** Every record left in one block, held together for one write. */
 export interface HeldInsertion {
@@ -82,6 +86,8 @@ export interface HeldInsertion {
 /** The caret memory's records, and which of them a write holds right now. */
 export interface InsertionRecords {
 	hold(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): HeldInsertion;
+	/** The same spend as `hold`, run dry: no record is held, kept or ended by it. */
+	preview(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): PreviewInsertion;
 	/** Ends `record` (every record when omitted), in `block` when one is named. A record a write
 	 *  holds stays in effect, drawn and spendable, until that hold lets go of it. */
 	end(record?: InsertionRecord, block?: object): void;
@@ -90,49 +96,47 @@ export interface InsertionRecords {
 export function createInsertionRecords(records: readonly InsertionRecord[]): InsertionRecords {
 	const holding = new Set<InsertionRecord>();
 
-	function hold(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): HeldInsertion {
-		const held = records.flatMap((record) => {
+	// A record another write holds is that write's to spend.
+	const taken = (block: object): Taken[] =>
+		records.flatMap((record) => {
 			const spend = holding.has(record) ? null : record.take(block);
-			if (!spend) return [];
-			holding.add(record);
-			return [{ record, spend, state: 'held' as 'held' | 'kept' | 'done' }];
+			return spend ? [{ record, spend, state: 'held' as const }] : [];
 		});
-		const release = (h: (typeof held)[number], waiting: boolean) => {
+
+	function hold(block: object, side: EdgeAffinity | null, place?: PlaceInsertion): HeldInsertion {
+		const held = taken(block);
+		for (const h of held) holding.add(h.record);
+		const release = (h: Taken, waiting: boolean) => {
 			holding.delete(h.record);
+			if (waiting) h.kept?.();
 			h.spend.release(waiting);
 			h.state = 'done';
 		};
-		const waitsAt = (offset: number) =>
-			held.some((h) => h.state === 'held' && h.spend.at === offset);
-		const spendAll = (before: string, edit: TextEdit, placement: Placement | null): TextEdit => {
-			let out = edit;
-			for (const h of held) {
-				if (h.state !== 'held') continue;
-				const spent = h.spend.apply(before, out, placement);
-				if (spent?.kept) h.state = 'kept';
-				else release(h, false);
-				if (spent) out = { text: spent.text, caretAfter: spent.caretAfter };
-			}
-			return out;
-		};
 		return {
-			side,
-			waitsAt,
-			spend: (before, edit, caret) => {
-				const at = insertionStart(before, edit);
-				// A record waiting where the text goes in is what that insertion was for.
-				const placed = place && at !== null && !waitsAt(at) && place(before, edit, at, side, caret);
-				return spendAll(before, placed || edit, place ? { place, side } : null);
-			},
-			spendInPlace: (before, edit) => spendAll(before, edit, null),
+			...spending(
+				() => held,
+				side,
+				place,
+				(h) => release(h, false)
+			),
 			finish: (changed) => {
 				for (const h of held) if (h.state !== 'done') release(h, h.state === 'kept' || !changed);
 			}
 		};
 	}
 
+	// Taken afresh on every call and never let go of, so a preview leaves nothing behind.
+	function preview(
+		block: object,
+		side: EdgeAffinity | null,
+		place?: PlaceInsertion
+	): PreviewInsertion {
+		return spending(() => taken(block), side, place, endsNothing);
+	}
+
 	return {
 		hold,
+		preview,
 		end: (record, block) => {
 			for (const each of record ? [record] : records) {
 				if (!holding.has(each)) each.end(block);
@@ -155,4 +159,59 @@ export function insertsAt(before: string, after: string, at: number): boolean {
 		after.startsWith(before.slice(0, at)) &&
 		after.endsWith(before.slice(at))
 	);
+}
+
+// ── Internal ────────────────────────────────────────────────────────────────
+
+const endsNothing = (): void => {};
+
+/** A record taken for one write, and how far that write has spent it. */
+interface Taken {
+	record: InsertionRecord;
+	spend: InsertionSpend;
+	state: 'held' | 'kept' | 'done';
+	kept?: () => void;
+}
+
+/** The one spend loop a hold and a preview share: each record still held applies in turn, one that
+ *  keeps waiting is marked kept, and `ended` lets go of the rest. */
+function spending(
+	entries: () => Taken[],
+	side: EdgeAffinity | null,
+	place: PlaceInsertion | undefined,
+	ended: (h: Taken) => void
+): PreviewInsertion {
+	const waitsIn = (held: Taken[], offset: number) =>
+		held.some((h) => h.state === 'held' && h.spend.at === offset);
+	const spendAll = (
+		held: Taken[],
+		before: string,
+		edit: TextEdit,
+		placement: Placement | null
+	): TextEdit => {
+		let out = edit;
+		for (const h of held) {
+			if (h.state !== 'held') continue;
+			const spent = h.spend.apply(before, out, placement);
+			if (spent?.kept) {
+				h.state = 'kept';
+				h.kept = spent.kept;
+			} else ended(h);
+			if (spent) out = { text: spent.text, caretAfter: spent.caretAfter };
+		}
+		return out;
+	};
+	return {
+		side,
+		waitsAt: (offset) => waitsIn(entries(), offset),
+		spend: (before, edit, caret) => {
+			const held = entries();
+			const at = insertionStart(before, edit);
+			// A record waiting where the text goes in is what that insertion was for.
+			const placed =
+				place && at !== null && !waitsIn(held, at) && place(before, edit, at, side, caret);
+			return spendAll(held, before, placed || edit, place ? { place, side } : null);
+		},
+		spendInPlace: (before, edit) => spendAll(entries(), before, edit, null)
+	};
 }

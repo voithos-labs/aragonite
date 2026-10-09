@@ -29,8 +29,8 @@ function growingRun(at: number) {
 				at: state.at,
 				apply: (before, edit) => {
 					if (!insertsAt(before, edit.text, state.at)) return null;
-					state.at += edit.text.length - before.length;
-					return { ...edit, kept: true };
+					const grown = state.at + edit.text.length - before.length;
+					return { ...edit, kept: () => void (state.at = grown) };
 				},
 				release: (waiting) => {
 					state.waiting = waiting;
