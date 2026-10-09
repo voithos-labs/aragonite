@@ -563,6 +563,13 @@ function assertPolicyVocabulary(policy: InlineWidgetEditingPolicy, kind: AnyInli
 			`"${kind}" claimsActivationClick is a boolean`
 		);
 	}
+	if (policy.plainClickActivates !== undefined) {
+		assertIs(
+			typeof policy.plainClickActivates,
+			'boolean',
+			`"${kind}" plainClickActivates is a boolean`
+		);
+	}
 }
 
 // ── imageClaim ───────────────────────────────────────────────────────────────

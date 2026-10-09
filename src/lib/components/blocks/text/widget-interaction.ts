@@ -15,7 +15,7 @@ import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,
 	isCharacterLikeWidget,
-	isWidgetActivationClick
+	widgetClaimsClick
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
@@ -843,8 +843,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				// Returns rather than falls through: the edge-snap below would focus this block and
 				// place a caret, stealing back what the widget's own navigation just landed.
 				if (
-					widgetEditing(hit.inline.kind)?.claimsActivationClick &&
-					isWidgetActivationClick(press.modified ?? false, deps.reading.mode())
+					widgetClaimsClick(
+						widgetEditing(hit.inline.kind),
+						press.modified ?? false,
+						deps.reading.mode()
+					)
 				) {
 					return;
 				}
