@@ -1181,6 +1181,40 @@ const RULES: FileRule[] = [
 			'const prefix = meta?.marker ?? "- ";'
 		],
 		misses: ['const run = fence.marker.repeat(3);', 'mark.markerBytes']
+	},
+	{
+		id: 'G4.145 a click asks the shared rule whether it follows, never Ctrl or Cmd by hand',
+		population: (file) => /\bonclick\b|\bonClick\b|['"]click['"]|\bMouseEvent\b/.test(file.code),
+		matches: /\.ctrlKey\s*\|\|\s*\w+\.metaKey|\.metaKey\s*\|\|\s*\w+\.ctrlKey/,
+		allowed: {
+			'src/lib/activation-click.ts': 'the rule itself',
+			'src/lib/components/editor-root-listeners.ts':
+				'tracks a held Ctrl/Cmd for the link cursor, since a modified click follows in every mode',
+			'src/lib/components/menu/BlockMenu.svelte':
+				'a modified key is left to the editor, not read as menu navigation',
+			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+				'Ctrl/Cmd+wheel zooms the diagram and Mod+Enter commits its edit',
+			'src/lib/selection/dead-space-caret.ts': 'a modified click places no caret in empty space',
+			'src/lib/selection/multi-click.ts': 'a modified press is not a multi-click select'
+		},
+		reaches: [SOURCE.editorRootGestures, SOURCE.footnoteReference],
+		reason:
+			'whether a click follows a link or a widget depends on the mode and the host’s `linkClick`, so a hand Ctrl/Cmd read answers for one host only: call `EditorContext.isActivationClick(e)` in a block, the `isActivationClick` prop in an inline widget, or `EditorPolicies.activationClick` inside the editor',
+		hits: [
+			at(
+				'src/routes/test/plugins/x/Link.svelte',
+				"<a onclick={(e) => { if (e.ctrlKey || e.metaKey || mode === 'reading') go(); }}>x</a>"
+			),
+			'function onClick(e: MouseEvent) { if (e.metaKey || e.ctrlKey) follow(); }'
+		],
+		misses: [
+			at(
+				'src/routes/test/plugins/x/Link.svelte',
+				'<a onclick={(e) => { if (isActivationClick(e)) go(); }}>x</a>'
+			),
+			'function onClick(e: MouseEvent) { if (e.shiftKey) extend(); }',
+			'const plainClickJumps = isActivationClick({ ctrlKey: false, metaKey: false });'
+		]
 	}
 ];
 

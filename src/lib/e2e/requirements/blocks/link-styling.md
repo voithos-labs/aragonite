@@ -1,8 +1,9 @@
 # Feature: Link styling and click affordance
 
-Links must read as links without taking the plain click away from editing: a
-plain click places the caret, only a Ctrl/Cmd-click follows the link, and the
-cursor shows exactly that. Layout and safety follow the same rule: a link
+Links must read as links without taking the plain click away from editing: by
+default a plain click places the caret, only a Ctrl/Cmd-click follows the link,
+and the cursor shows exactly that. (A host that sets `linkClick: 'plain'` gets
+the pointer in live mode; `plugins/wikilinks.md` covers it.) Layout and safety follow the same rule: a link
 wrapped around an image hugs the image, and a link whose scheme is blocked
 never looks clickable.
 

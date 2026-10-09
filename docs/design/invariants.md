@@ -1038,6 +1038,7 @@ unguarded.
 | G4.142 | `caret-color` is declared only for the known surfaces                                     | L       |
 | G4.143 | Every caret write asks the drawn caret to repaint, and its frame paint only paints        | T·L     |
 | G4.144 | The old widget and gap caret painters stay gone                                           | L       |
+| G4.145 | A click decides whether it follows a link or widget through the shared rule only          | L       |
 
 ### The entries
 
@@ -1903,6 +1904,12 @@ included, names the classes the old widget and gap carets painted with (`md-snap
 `md-snap-before`, `md-snap-caret-active`, `gap-caret-line`) or declares a caret blink `@keyframes`
 other than `md-caret-blink-a`/`-b`. A second element painting a caret is a second caret; draw a new one as a
 state of the drawn caret. `lint/drawn-caret-guards.test.ts`.
+
+**G4.145 · One rule for whether a click follows.** A file that handles a click doesn't read
+`ctrlKey || metaKey` itself; it asks `src/lib/activation-click.ts` (through
+`EditorPolicies.activationClick`, `EditorContext.isActivationClick` or a widget's
+`isActivationClick` prop), which reads the mode and the host's `linkClick` at the click. The
+allowlist holds the reads that decline a modified press instead. `lint/file-rules.test.ts`.
 
 ## Accessibility
 

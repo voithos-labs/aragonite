@@ -173,7 +173,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		const startMarginDrag = (e: PointerEvent) => {
 			marginDrag = false;
 			marginDown = { x: e.clientX, y: e.clientY };
-			if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+			if (e.button !== 0 || e.shiftKey || isModifiedClick(e) || e.altKey) return;
 			if (deps.reading.mode() === 'reading' || !dragStartsHere(root, e.target)) return;
 			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
 			if (!anchor) return;
