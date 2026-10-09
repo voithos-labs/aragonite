@@ -52,7 +52,8 @@ source, and the ring by its class (one row also by what it draws).
 ## User interactions
 
 - Real keyboard and real clicks only: the edge step is decided in the keydown, and the pixel
-  never moves, so nothing but the bytes and the ring tell the two offsets apart
+  never moves, so only the bytes, the ring and the caret's shape (`caret/drawn-caret-look.md`)
+  tell the two offsets apart
 
 ## Error cases
 

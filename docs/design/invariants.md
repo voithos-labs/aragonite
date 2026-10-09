@@ -1040,6 +1040,9 @@ unguarded.
 | G4.144 | The old widget and gap caret painters stay gone                                           | L       |
 | G4.145 | A click decides whether it follows a link or widget through the shared rule only          | L       |
 | G4.146 | A release tells a click from a drag only through the editor's press tracker               | L       |
+| G4.147 | Every change to the caret memory repaints the drawn caret, and a no-op asks nothing       | harness |
+| G4.148 | The caret's look adds no tree walk, trial insertion or paint to a plain typed letter      | harness |
+| G4.149 | A preview of the next insertion runs a write's own spend, and changes no record           | harness |
 
 ### The entries
 
@@ -1918,6 +1921,25 @@ press record by hand: the editor root's press tracker (`createPressTracker` in
 `src/lib/activation-click.ts`, fed in the capture phase) answers for the follow rule, the margin
 drag, a widget's press and a rendered block's click. A second record would let one route call a
 release a click while another calls it a drag. `lint/file-rules.test.ts`.
+
+**G4.147 · A memory change repaints the caret.** The caret memory's `onChange` (wired to
+`drawnCaret.request` in `components/Editor.svelte`) hears every call that changes the side, the
+pending marks or a record, and none that changes nothing, since a typed letter sets the side on
+every key. `test/caret/caret-memory-repaint.test.ts` reads the methods off the object, so a new one
+joins its table of changes or its exemptions (reads, the column, a write's own hold), each with a
+reason.
+
+**G4.148 · The look costs a plain key nothing.** A letter typed mid-word, live and source, in a block
+of one construct and of two hundred: one look answer however often the key paints, no trial
+insertion, parse or screen read, the same nodes visited in both blocks, and two paints, as before
+the look. `test/caret/caret-look-cost.svelte.test.ts` on the `caretLook*` counters;
+`test/blocks/text/next-byte.test.ts` pins the shortcut's condition from both sides.
+
+**G4.149 · The preview is the spend, dry.** `caret/next-insertion.ts :: createInsertionRecords` runs
+one loop for a write's hold and for the preview the caret's look reads, and a record's `apply`
+changes nothing: one that waits on returns `kept`, which the hold runs when the write lets go.
+`test/caret/next-insertion.test.ts` applies each record twice and compares every preview with its
+spend.
 
 ## Accessibility
 
