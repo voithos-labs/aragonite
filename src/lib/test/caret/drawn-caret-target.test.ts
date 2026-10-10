@@ -143,8 +143,10 @@ describe('the drawn caret draws where the browser can’t', () => {
 	it.each([
 		['the caret prop is native or the pointer coarse', { draws: false }],
 		['the editor draws its caret', { draws: true }]
-	])('at a widget edge and a gap when %s', (_, change) => {
+	])('at a widget edge, a gap and a chip stop when %s', (_, change) => {
 		expect(drawnCaretTarget(read({ ...BESIDE, widgetEdge: EDGE, ...change })).state).toBe('widget');
 		expect(drawnCaretTarget(read({ ...AT_GAP, ...change })).state).toBe('gap');
+		const chip = { left: 60, top: 24, bottom: 44 };
+		expect(drawnCaretTarget(read({ atCodeChipEdge: true, chip, ...change })).state).toBe('chip');
 	});
 });

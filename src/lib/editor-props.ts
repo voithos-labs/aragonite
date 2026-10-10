@@ -87,9 +87,9 @@ export interface EditorProps {
 	theme?: string;
 	/** Who draws the caret, read live; only a drawn one shows the format the next letter will get.
 	 *  `'auto'` (default) draws on a fine pointer and leaves a touch screen the browser's own;
-	 *  `'drawn'` draws on any pointer; `'native'` keeps the browser's wherever it can draw one, so
-	 *  beside an inline widget and at a gap between blocks the editor still draws; forced colors
-	 *  keep the browser's. The selection stays the browser's, so IME and screen readers don't change. */
+	 *  `'drawn'` draws on any pointer; `'native'` keeps the browser's wherever it can draw one (the
+	 *  editor still draws beside a widget, at a gap and at a code chip's edge). Forced colors keep
+	 *  the browser's. The selection stays the browser's, so IME and screen readers don't change. */
 	caret?: 'auto' | 'native' | 'drawn';
 	/** How the document presents, read live like `theme`; `'source'` by default. The consumer
 	 *  guide's Presentation modes section describes what each mode shows and allows. */

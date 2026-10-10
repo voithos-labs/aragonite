@@ -9,7 +9,7 @@
 import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { caretHost, chipStopBox, hostBox, measureCaret } from './drawn-caret-measure';
+import { caretHost, chipStopBox, codeChipEdge, hostBox, measureCaret } from './drawn-caret-measure';
 import {
 	drawnCaretTarget,
 	hidesBrowserCaret,
@@ -168,10 +168,10 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const drawable = owned?.drawable() ?? false;
 		const gapHost = owned?.gapHost ?? null;
 		const edge = owned && !gapHost ? readWidgetEdge(owned) : null;
+		const atText = owned && range?.collapsed && drawable && !edge && !gapHost;
+		// The browser can't draw a chip's outside stop, so a chip edge is measured whatever the prop.
 		const measured =
-			draws && owned && range?.collapsed && drawable && !edge && !gapHost
-				? measureCaret(owned.el, range)
-				: null;
+			atText && (draws || codeChipEdge(range, owned.el)) ? measureCaret(owned.el, range) : null;
 		const host = gapHost ?? measured?.host ?? (edge && owned ? caretHost(owned.el) : null);
 		// The side of a chip's border is what the next letter does, so the look says which.
 		const chipLook = measured?.chipEdge && range ? owned?.look?.(range) : null;

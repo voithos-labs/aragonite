@@ -113,10 +113,10 @@ function inHost(left: number, box: ClientCaretBox, host: HostBox): DrawnCaretRec
 	};
 }
 
-// The browser draws no caret at a gap or a widget edge, so the editor draws there whatever the
-// caret prop or the pointer says.
+// The browser draws no caret at a gap, a widget edge or a chip's outside stop, so the editor
+// draws there whatever the caret prop or the pointer says.
 function drawsHere(reads: DrawnCaretReads): boolean {
-	return reads.draws || reads.gap || reads.widgetEdge !== null;
+	return reads.draws || reads.gap || reads.widgetEdge !== null || reads.chip !== null;
 }
 
 // Where the range's box isn't where the browser's own caret is, the browser's caret is the truth.

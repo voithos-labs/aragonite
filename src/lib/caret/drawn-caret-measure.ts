@@ -150,7 +150,7 @@ function letterBox(letter: { node: Text; at: number } | null): DOMRect | null {
 }
 
 // The caret at a code chip's first or last letter, or in the text just outside the chip.
-function codeChipEdge(range: Range, surface: HTMLElement): ChipEdge | null {
+export function codeChipEdge(range: Range, surface: HTMLElement): ChipEdge | null {
 	const node = range.startContainer;
 	if (!(node instanceof Text)) return null;
 	const at = range.startOffset;

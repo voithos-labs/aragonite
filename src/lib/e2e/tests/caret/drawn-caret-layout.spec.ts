@@ -1,7 +1,12 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { caretsShowing, drawnBar, oneCaretOnTheBrowsersLine } from '../../carets-showing';
+import {
+	caretsShowing,
+	drawnBar,
+	oneCaretOnTheBrowsersLine,
+	setCaretProp
+} from '../../carets-showing';
 import { textRunEnd, textRunStart } from '../../text-runs';
 
 // The drawn caret against the layout around its editable (requirements/caret/drawn-caret-layout.md):
@@ -335,6 +340,24 @@ test.describe('the drawn caret at a code chip’s edge, live mode', () => {
 		expect(Math.abs((await chipBarX(page)) - (chip.right + 2))).toBeLessThanOrEqual(0.5);
 		await typed(editor, '| a `cee`X | z |');
 	});
+
+	// The browser can't draw the outside stop, so the editor draws there whatever the caret prop.
+	// Miss-analysis: every chip row ran under the default prop, where the editor draws anyway.
+	for (const mode of ['auto', 'native'] as const) {
+		test(`under the ${mode} caret prop, ArrowRight across the closer shows one caret outside`, async ({
+			page
+		}) => {
+			const editor = await live(page);
+			await setCaretProp(page, mode);
+			const point = await textRunEnd(page, 'code');
+			await page.mouse.click(point.x, point.y);
+			await editor.waitForRenderFlush();
+			await press(editor, 'ArrowRight');
+			const chip = await chipBox(page);
+			expect(Math.abs((await chipBarX(page)) - (chip.right + 2))).toBeLessThanOrEqual(0.5);
+			await typed(editor, 'see `code`X after');
+		});
+	}
 
 	// For Daniel's try: End means the end of the line as drawn, which is past the chip's border.
 	test('End on a line ending in a chip lands outside it', async ({ page }) => {

@@ -25,12 +25,12 @@ Dragging a selection and dropping it somewhere else is the editor's too. The bro
 
 ## The drawn caret
 
-On a fine pointer the editor draws the caret itself: one bar per editor, sitting inside the block it draws for, while the browser's selection stays exactly where it was, so typing, IME and screen readers keep reading the real one. The same bar also draws where the browser can't, on any pointer: beside an inline widget and across a gap between blocks. An attribute on that one editable (`data-caret-drawn`) hides the browser's caret there and nowhere else, so the find bar, the link card and any plugin's own field keep their native carets. Where it can't draw, it steps aside and the browser's caret shows, so there's always exactly one:
+On a fine pointer the editor draws the caret itself: one bar per editor, sitting inside the block it draws for, while the browser's selection stays exactly where it was, so typing, IME and screen readers keep reading the real one. The same bar also draws where the browser can't, on any pointer: beside an inline widget, across a gap between blocks, and at a code chip's edge, whose outside stop has no caret position of its own. An attribute on that one editable (`data-caret-drawn`) hides the browser's caret there and nowhere else, so the find bar, the link card and any plugin's own field keep their native carets. Where it can't draw, it steps aside and the browser's caret shows, so there's always exactly one:
 
 - a composition, or a shown inline source;
 - beside an inline widget that no click put the caret beside (an arrow key got there, say), where the range has no box to draw at;
 - anywhere the range's box isn't where the browser paints its caret: the spaces a line soft-wraps in, a caret a scroller inside the block has clipped out of view (a code block scrolled sideways; the bar comes back when it scrolls into view), and a code chip's edge where no look says which side of the border the next letter is on;
-- forced colors, a touch screen, or a host that set the `caret` prop to `'native'`. Beside a widget and at a gap, only forced colors do.
+- forced colors, a touch screen, or a host that set the `caret` prop to `'native'`. Beside a widget, at a gap and at a chip's edge, only forced colors do.
 
 At a code chip's edge the bar draws against the chip's own box, since there the range's box and the browser's caret disagree by a few pixels: in the chip's padding when the next letter types inside the chip, 2px past its border when it types outside (`caret/drawn-caret-measure.ts :: chipStopBox`, the `chip` state). Which side comes from the caret's look, so the bar always shows what the next letter does, wherever the browser left the caret.
 
