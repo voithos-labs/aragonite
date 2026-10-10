@@ -500,7 +500,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 				preview: () => deps.caretMemory.previewInsertion(block, deps.placement?.insertion),
 				offsetFor: (caret, typed) => deps.placement?.offsetFor(caret, typed) ?? caret
 			})
-		: () => ({ marks: [], holders: [] });
+		: () => ({ marks: [] });
 
 	const writeText = createSurfaceWrite({
 		getNode: deps.getNode,

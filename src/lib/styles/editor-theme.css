@@ -140,9 +140,6 @@
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
 	/* The light theme sets its own dim. */
 	--syntax-marker-dim: 0.65;
-	/* Ring on the construct the caret is inside at a hidden edge, where both sides share a pixel.
-	   Neutral grey, legible over the inline-code tint in either mode. */
-	--md-edge-held-ring: rgba(128, 128, 128, 0.55);
 	/* The drawn caret: the text color, and the browser's own blink period. Its shape shows the
 	   format the next letter types in: heavier for bold, slanted for italic, a tick for strikethrough. */
 	--md-caret-color: var(--color-text-primary, currentColor);

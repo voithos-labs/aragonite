@@ -1,14 +1,8 @@
 import { test, expect } from '../../fixtures';
+import { drawnCaretMarks } from '../../carets-showing';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import {
-	clickBlockSettled,
-	clickEnd,
-	enterPresentationMode,
-	held,
-	nextRow,
-	stepTo
-} from './helpers';
+import { clickBlockSettled, clickEnd, enterPresentationMode, nextRow, stepTo } from './helpers';
 import { attachIme } from '../../simulation/ime';
 
 // A space typed at a hidden closer is written past it while the caret still means inside, so the
@@ -133,13 +127,13 @@ test('live mode: typing on after an existing bold', async ({ page }) => {
 		await ep.bridge.waitForSourceContains('Some **bold** more text');
 	});
 
-	await test.step('the ring stays on the bold over a held space, and ArrowRight takes it off', async () => {
+	await test.step('the caret keeps the bold shape over a held space, and ArrowRight turns it plain', async () => {
 		await nextRow(ep, DOC);
 		await clickEnd(ep, page, 'bold');
 		await page.keyboard.type(' ');
-		await expect.poll(() => held(page)).toEqual(['strong']);
+		await expect.poll(() => drawnCaretMarks(page)).toEqual(['strong']);
 		await page.keyboard.press('ArrowRight');
-		await expect.poll(() => held(page)).toEqual([]);
+		await expect.poll(() => drawnCaretMarks(page)).toEqual([]);
 	});
 });
 

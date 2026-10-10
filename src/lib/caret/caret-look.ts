@@ -6,11 +6,9 @@
 
 import { getInlineConstructPolicy, type InlineMarkKind } from '../schema/inline-construct-policy';
 
-/** The constructs with a format chord the next typed letter would sit inside, outermost first:
- *  their kinds, and each one by kind and start offset, which a letter typed inside it doesn't move. */
+/** The constructs with a format chord the next typed letter would sit inside, outermost first. */
 export interface NextByte {
 	readonly marks: readonly InlineMarkKind[];
-	readonly holders: readonly { readonly kind: InlineMarkKind; readonly start: number }[];
 }
 
 /** The look the drawn caret paints. */

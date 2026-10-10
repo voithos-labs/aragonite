@@ -541,13 +541,6 @@
 	background-color: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 }
 
-/* The construct a typed byte would join at its hidden edge (`edge-step.ts`), where both sides
-   share a pixel. An outline, which never reflows the line and which no construct styles itself. */
-:where(.editor) .md-edge-held {
-	border-radius: 3px;
-	outline: 1px solid var(--md-edge-held-ring);
-}
-
 /* Raw-HTML block source text; inline raw HTML keeps --md-raw-html-color above. */
 :where(.editor) .text-editable-block.raw-block {
 	color: var(--syntax-comment, currentColor);

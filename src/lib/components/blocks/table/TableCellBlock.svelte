@@ -198,9 +198,7 @@
 		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
 		isReading: () => readOnly,
 		reading,
-		caretMemory,
-		heldSpace: () => editableSurface.heldSpace,
-		nextByte: (caret) => editableSurface.nextByte(caret)
+		caretMemory
 	});
 
 	const typedPlacement = createTypedPlacement({
@@ -581,7 +579,6 @@
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			edgeStep.settleArrival();
-			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -1078,7 +1075,6 @@
 
 	function onFocus(): void {
 		tableContext.notifyCellFocused(rowIdx, colIdx);
-		edgeStep.sync();
 	}
 
 	function onBlur(e: FocusEvent): void {
@@ -1088,9 +1084,6 @@
 			widgetInteraction.commitRevealOnBlur();
 		}
 		tableContext.notifyCellBlurred();
-		// The ring follows focus too: a click out of the window keeps the selection but fires no
-		// `selectionchange`.
-		edgeStep.sync();
 	}
 </script>
 
@@ -1105,7 +1098,6 @@
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
-	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}

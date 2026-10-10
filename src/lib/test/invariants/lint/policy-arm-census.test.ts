@@ -76,8 +76,6 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/edge-seat.ts': 'the typing seat: edgeAffinity',
 	'src/lib/caret/caret-look.ts':
 		'the look: edgeAffinity, whether the next letter sits inside a box whose border has two stops',
-	'src/lib/components/blocks/text/edge-step.ts':
-		'the ring at a hidden edge: edgeAffinity, since a never-extend construct has no inside to show',
 	'src/lib/components/blocks/text/link-at-point.ts': 'the card entry: cardEditable',
 	'src/lib/components/blocks/text/next-byte.ts':
 		'the caret look: the mark column, for which constructs a typed letter would carry',

@@ -36,12 +36,6 @@ export async function keys(ep: EditorPage, page: Page, ...pressed: string[]): Pr
 	}
 }
 
-/** The constructs the edge ring (`md-edge-held`) is on, by tag name. */
-export const held = (page: Page): Promise<string[]> =>
-	page.evaluate(() =>
-		[...document.querySelectorAll('.md-edge-held')].map((el) => el.tagName.toLowerCase())
-	);
-
 export async function focusOffset(ep: EditorPage): Promise<number> {
 	return (await ep.bridge.getSelectionPaths())?.focus.offset ?? -1;
 }

@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
-import type { Page } from '@playwright/test';
-import { clickEnd, enterPresentationMode, focusPath, held, keys, nextRow } from './helpers';
+import { clickEnd, enterPresentationMode, focusPath, keys, nextRow } from './helpers';
+import { drawnBar } from '../../carets-showing';
 
 // An arrow press at a code chip's edge moves the typing offset across the chip's border, not the
 // caret; at a mark's edge the arrow moves the caret like anywhere else. Each test walks its rows as
@@ -178,9 +177,9 @@ test('live mode: in a table cell, one ArrowRight types past the backtick inside 
 	await ep.bridge.waitForSourceContains('| a `cee`X | z |');
 });
 
-// Live keeps a code span's backticks hidden like every other marker: the edge step and the ring
-// are the cue at its edge, in prose and in a cell alike.
-test("live mode: a code span's backticks stay hidden, and the ring marks it instead", async ({
+// Live keeps a code span's backticks hidden like every other marker: the edge step and the bar's
+// two stops are the cue at its edge, in prose and in a cell alike.
+test("live mode: a code span's backticks stay hidden, and the caret's stop marks the edge", async ({
 	page
 }) => {
 	/** The computed display of the spans either side of each code element. */
@@ -202,57 +201,7 @@ test("live mode: a code span's backticks stay hidden, and the ring marks it inst
 			await nextRow(ep, doc);
 			await clickEnd(ep, page, word);
 			await expect.poll(backticks).toEqual(['none', 'none']);
-			await expect.poll(() => held(page)).toEqual(['code']);
-		});
-	}
-});
-
-/** Whether the ringed construct draws the ring's colour around itself, read off its computed style,
- *  with the ring and the code chip's border colours from the editor's own theme. */
-async function ringPaint(page: Page): Promise<{ shown: boolean; ring: string; border: string }> {
-	return page.evaluate(() => {
-		const theme = document.querySelector('.aragonite-editor-theme');
-		if (!theme) throw new Error('no themed wrapper');
-		const probe = document.createElement('span');
-		theme.appendChild(probe);
-		probe.style.color = 'var(--md-edge-held-ring)';
-		const ring = getComputedStyle(probe).color;
-		probe.style.color = 'var(--md-inline-code-border)';
-		const border = getComputedStyle(probe).color;
-		probe.remove();
-		const held = document.querySelector('.md-edge-held');
-		if (!held) return { shown: false, ring, border };
-		const style = getComputedStyle(held);
-		const outlined =
-			style.outlineStyle !== 'none' &&
-			parseFloat(style.outlineWidth) > 0 &&
-			style.outlineColor === ring;
-		const shadowed = style.boxShadow
-			.split(/,(?![^(]*\))/)
-			.some((shadow) => shadow.includes(ring) && !shadow.includes('inset'));
-		return { shown: outlined || shadowed, ring, border };
-	});
-}
-
-test.describe('live mode: the ring paints on a code chip, in both themes', () => {
-	const DOC = ['`alone`', '', 'a `code` b'].join('\n');
-
-	for (const theme of ['light', 'dark']) {
-		test(theme, async ({ page }) => {
-			const ep = new EditorPage(page);
-			await ep.goto(`?presentationMode=live&theme=${theme}`);
-
-			for (const word of ['alone', 'code']) {
-				await test.step(`at the end of ${word}`, async () => {
-					await nextRow(ep, DOC);
-					await clickEnd(ep, page, word);
-					await expect.poll(async () => (await held(page)).length).toBe(1);
-
-					const paint = await ringPaint(page);
-					expect(paint.shown).toBe(true);
-					expect(paint.ring).not.toBe(paint.border);
-				});
-			}
+			await expect.poll(async () => (await drawnBar(page))?.state).toBe('chip');
 		});
 	}
 });

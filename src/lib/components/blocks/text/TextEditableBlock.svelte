@@ -234,9 +234,7 @@
 			pendingBreak.at() !== null || cursor.getRawSelection() ? null : cursor.getRaw(),
 		isReading: () => readOnly,
 		reading,
-		caretMemory,
-		heldSpace: () => editableSurface.heldSpace,
-		nextByte: (caret) => editableSurface.nextByte(caret)
+		caretMemory
 	});
 	const typedPlacement = createTypedPlacement({
 		getEl: () => el ?? null,
@@ -245,7 +243,7 @@
 		caretMemory,
 		heldSpace: () => editableSurface.heldSpace
 	});
-	// Set on the block's first focus: until then a render has no shown marker or ring to re-apply.
+	// Set on the block's first focus: until then a render has no shown marker to re-apply.
 	let caretHasEntered = false;
 
 	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
@@ -745,11 +743,10 @@
 		// A rebuild makes spans with no marker class, so the shown markers are re-applied before paint.
 		// Untracked, so the caret's reads never join this effect's dependencies.
 		untrack(() => {
-			// Both read the selection, which forces a layout: never in a block the caret has not
+			// It reads the selection, which forces a layout: never in a block the caret has not
 			// been in, since a fling mounts many.
 			if (composing || !caretHasEntered) return;
 			constructReveal.update(true);
-			edgeStep.refresh();
 		});
 		markKeystrokeSettle();
 	});
@@ -817,7 +814,6 @@
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
 			edgeStep.settleArrival();
-			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -997,11 +993,10 @@
 		syncCaretChrome();
 	}
 
-	/** The shown backticks and the edge ring follow focus as well as the caret: a click out of the
-	 *  window keeps the selection but fires no `selectionchange`. */
+	/** The shown markers follow focus as well as the caret: a click out of the window keeps the
+	 *  selection but fires no `selectionchange`. */
 	function syncCaretChrome(): void {
 		constructReveal.update();
-		edgeStep.sync();
 	}
 
 	function onFocus(): void {
@@ -1100,7 +1095,6 @@
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
-	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}

@@ -5,10 +5,9 @@ two raw offsets: inside the closing backtick and past it. A code chip has a pain
 are two caret stops a step apart: a plain ArrowLeft or ArrowRight at the chip's edge moves the
 typing offset across the border before it moves the caret (`edge-step.ts`). A mark (bold, italic,
 strikethrough) has no box, so it has no stop: the arrow moves the caret like anywhere else, and
-the next letter takes the format of the character before it. The chip carries a faint ring
-(`md-edge-held`) while the caret sits inside its edge. Driven on `/test/editor` via
-`?presentationMode=live` with real clicks and keys; each scenario checks the source, and the ring
-by its class (one row also by what it draws).
+the next letter takes the format of the character before it. The bar draws each stop against the
+chip's box (`caret/drawn-caret-layout.md`). Driven on `/test/editor` via `?presentationMode=live`
+with real clicks and keys; each scenario checks the source.
 
 ## Happy paths
 
@@ -35,25 +34,17 @@ by its class (one row also by what it draws).
 - a table cell ending in a code span: one ArrowRight types past the backtick inside the cell,
   rather than moving to the next cell
 
-## The ring
-
-- the ring actually shows, not just its class: at the end of a code span alone on its line and a
-  code span mid-line, the chip draws the ring's colour around itself, in the light theme and the
-  dark one, and that colour isn't the chip's own border. Miss-analysis: every ring row read the
-  class, and the code chip's own border rule outranked the ring's, so the class was there while
-  nothing drew it
-
 ## A code span's backticks
 
 - live never shows a code span's backticks, in prose or in a table cell: with the caret at the
-  span's end they stay hidden, and the ring marks the code instead. Miss-analysis: the reveal
+  span's end they stay hidden, and the bar's chip stop marks the edge instead. Miss-analysis: the reveal
   that showed them was code-only, and every code-span row checked bytes, which the edge step
   lands the same way over hidden backticks, so nothing pinned which cue live gives
 
 ## User interactions
 
 - Real keyboard and real clicks only: the edge step is decided in the keydown, and at a chip's
-  edge the caret doesn't move on the first press, so only the bytes and the ring tell the two
+  edge the caret doesn't move on the first press, so only the bytes and the bar tell the two
   offsets apart
 
 ## Error cases

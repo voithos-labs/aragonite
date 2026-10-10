@@ -1,8 +1,8 @@
 /**
  * The constructs the next typed letter would sit inside, answered the way typing writes it: pending
  * marks through the insertion a chord promised, otherwise the caret memory's records and the block's
- * move across a hidden edge, run dry on a trial letter. The drawn caret's look and the edge ring both
- * read it, so what the caret shows is what the letter becomes.
+ * move across a hidden edge, run dry on a trial letter. The drawn caret's look reads it, so what the
+ * caret shows is what the letter becomes.
  */
 
 import type { InlineNode } from '../../../core/nodes';
@@ -155,18 +155,13 @@ function marksOfLetter(edit: TextEdit, block: NextByteBlock): NextByte {
 	return answerOf(constructsCovering(block.inlinesOf(edit.text), at));
 }
 
-/** The answer for the constructs holding the letter, outermost first: the ones a format chord
- *  writes, each kept by its start, so the edge ring can find the very construct. */
-function answerOf(holding: readonly { kind: InlineMarkKind; start: number }[]): NextByte {
-	const markable = new Set(listInlineMarks().map((entry) => entry.kind));
-	const holders = holding.flatMap((node) =>
-		markable.has(node.kind) ? [{ kind: node.kind, start: node.start }] : []
-	);
-	const kinds = new Set(holders.map((holder) => holder.kind));
+/** The answer for the constructs holding the letter: the ones a format chord writes, in the
+ *  policy table's nesting order. */
+function answerOf(holding: readonly { kind: InlineMarkKind }[]): NextByte {
+	const kinds = new Set(holding.map((node) => node.kind));
 	return {
 		marks: listInlineMarks()
 			.map((entry) => entry.kind)
-			.filter((kind) => kinds.has(kind)),
-		holders
+			.filter((kind) => kinds.has(kind))
 	};
 }
