@@ -10,8 +10,8 @@ import {
 	mountEditor,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -22,6 +22,8 @@ const SHIFT_TAB = { key: 'Tab', shiftKey: true };
 const ROWS: [code: string, end: number, key: KeyboardEventInit, after: string][] = [
 	['```\none\ntwo\nthree\n```\n', 10, TAB, '```\n\tone\n\ttwo\nthree\n```\n'],
 	['```\n\tone\n    two\nthree\n```\n', 12, SHIFT_TAB, '```\none\ntwo\nthree\n```\n'],
+	// Miss-analysis: no dedent row turned a line into a closer, so none saw the order check read the
+	// fence the write rule lengthened as lost text.
 	['```\none\n    ```\ntwo\n```\n', 15, SHIFT_TAB, '````\none\n```\ntwo\n````\n'],
 	['```js\na\n  b\n```\n', 11, TAB, '```js\n\ta\n\t  b\n```\n']
 ];

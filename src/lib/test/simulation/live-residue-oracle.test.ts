@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 import { unpaintedResidue } from './live-screen-reading';
 
 // What live-mode.md § 4.1 calls residue, as the property suites and the fuzzer count it.

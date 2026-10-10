@@ -10,7 +10,7 @@ import {
 	pasteContext
 } from '../../harness/editor-actions';
 import type { AnyBlockKind, CstNode, Document } from '../../../core/nodes';
-import { testChromeContainer } from '$lib/test/harness/test-kinds';
+import { testChromeContainer } from '#lib/test/harness/test-kinds.js';
 
 function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): Document {
 	return {

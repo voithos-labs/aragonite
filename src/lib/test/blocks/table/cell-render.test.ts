@@ -7,7 +7,8 @@ import type { ResolveLinkUrl } from '../../../editor-keys';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import type { Reading } from '$lib/schema/reading';
+import type { Reading } from '#lib/schema/reading.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
 
@@ -46,6 +47,7 @@ function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = 
 	let node = makeCell(raw);
 	let islands: Island[] = [];
 	const render = createCellRender({
+		caretWriter: testCaretWriter,
 		get el() {
 			return el;
 		},
@@ -58,6 +60,7 @@ function mount(raw: string, reading?: Reading, resolveLinkUrl: ResolveLinkUrl = 
 		getDocument: () => undefined,
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
+		activationClick: () => false,
 		reportRenderError: () => {},
 		get islands() {
 			return islands;
@@ -82,6 +85,17 @@ describe('createCellRender', () => {
 		expect(el.querySelectorAll('em')).toHaveLength(1);
 		expect(el.querySelector('em')?.textContent).toBe('x');
 		expect(el.querySelectorAll('.md-marker').length).toBeGreaterThanOrEqual(2);
+	});
+
+	it.each([
+		{ raw: '**x**', selector: 'strong' },
+		{ raw: '`x`', selector: 'code.inline-code-content' },
+		{ raw: '~~x~~', selector: 's' }
+	])('renders $raw as one <$selector> holding x', ({ raw, selector }) => {
+		const { el, render } = mount(raw);
+		render.render();
+		expect(el.querySelectorAll(selector)).toHaveLength(1);
+		expect(el.querySelector(selector)?.textContent).toBe('x');
 	});
 
 	it('renders a link with href from an inline url', () => {

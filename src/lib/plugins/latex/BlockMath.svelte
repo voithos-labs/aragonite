@@ -7,7 +7,7 @@
 <script lang="ts">
 	// A render-primary editable block: all editing behavior lives in `createEditableLeaf`, so
 	// this component owns only how the render and the source are laid out.
-	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '#lib/plugin.js';
 	// The layout toggle cycles through these, and its label names the layout it switches to.
 	type MathLayout = MathBlockLayout;
 	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
@@ -21,8 +21,12 @@
 		source: 'Source only'
 	};
 	import { mathSlot } from './math-renderer';
-	import { mathDisplaySource } from './latex-kind';
-	import { mathBodySpan, renderMathSource, reshapeMathEdit } from './math-source';
+	import {
+		mathBodySpan,
+		mathDisplaySource,
+		renderMathSource,
+		reshapeMathEdit
+	} from './math-source';
 	import type { MathBlockLayout } from './math-layout';
 	import type { LatexEditorOptions } from './register';
 
@@ -70,7 +74,7 @@
 	// The browser's own edits (an IME composition committing) skip `onSourceEdit`, so the
 	// highlighting is repainted here, after the leaf's handler has done its IME bookkeeping.
 	function onSourceInput(e: Event): void {
-		leaf.surfaceProps.oninput();
+		leaf.surfaceProps.oninput(e);
 		if ((e as InputEvent).isComposing) return;
 		leaf.repaintSource();
 		draft = sourceEl?.textContent ?? null;

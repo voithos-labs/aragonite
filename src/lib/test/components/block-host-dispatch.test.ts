@@ -3,16 +3,19 @@
 // or a lost fallback fails here as a block that did not render rather than reaching
 // review; the source scan (invariants/lint/block-host-prop-thread) cannot see either.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
-import { createRegistryView } from '$lib/schema/registry-view';
+import { parse } from '#lib/core/parser.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
+import {
+	registerBlockComponent,
+	defineBlockComponent
+} from '#lib/schema/block-component-registry.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
 import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));

@@ -1,18 +1,20 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import {
 	clickBlockSettled,
+	clickEnd,
 	clickWordSettled,
 	enterPresentationMode,
 	focusOffset,
+	nextRow,
 	stepTo
 } from './helpers';
 import { attachIme } from '../../simulation/ime';
-import { textRunEnd } from '../../text-runs';
 
 // Which side of a hidden delimiter run a typed byte lands on. The source is the reference: the
-// caret reports the same offset either way, so only the bytes tell the two positions apart.
+// caret reports the same offset either way, so only the bytes tell the two positions apart. Each
+// test walks its rows as steps, every step on a fresh copy of its document.
 // Requirements: e2e/requirements/presentation/presentation-live-typing-affinity.md.
 
 const DOC = [
@@ -38,22 +40,40 @@ const ESCAPE = 2;
 const HARD_BREAK = 3;
 const LEAD = 4;
 
-const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
+/** A fresh copy of the document, the caret at the end of `block`'s line, `Home` or `End`. */
+async function atLineEdge(
+	ep: EditorPage,
+	page: Page,
+	block: number,
+	key: 'Home' | 'End',
+	doc = DOC
+): Promise<void> {
+	await nextRow(ep, doc);
+	await clickBlockSettled(ep, block);
+	await page.keyboard.press(key);
+	await ep.waitForRenderFlush();
+}
 
-test.describe('live mode: a symmetric pair extends by arrival', () => {
-	let ep: EditorPage;
+/** A fresh copy of the document, the caret placed by a click on `word` and stepped to `target`. */
+async function steppedFromWord(
+	ep: EditorPage,
+	page: Page,
+	word: string,
+	key: string,
+	target: number
+): Promise<void> {
+	await nextRow(ep, DOC);
+	await clickWordSettled(ep, page, word);
+	await stepTo(ep, page, key, target);
+}
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterLive(page);
-	});
+// `Some **bold** text`: strong is [5,13), `bold` [7,11).
+test('live mode: a mark takes the format of the character before the caret', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	// `Some **bold** text`: strong is [5,13), `bold` [7,11). Rightward arrival stops on the
-	// content side, so the byte belongs to the construct, and so does the one after it.
-	test('typing at bold’s trailing content edge extends it, and keeps extending', async ({
-		page
-	}) => {
-		await clickWordSettled(ep, page, 'bold');
-		await stepTo(ep, page, 'ArrowRight', 11);
+	// The character before the caret is bold, so the byte joins it, and so does the one after it.
+	await test.step('typing at bold’s trailing content edge extends it, and keeps extending', async () => {
+		await steppedFromWord(ep, page, 'bold', 'ArrowRight', 11);
 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('Some **boldX** text');
@@ -62,60 +82,49 @@ test.describe('live mode: a symmetric pair extends by arrival', () => {
 		await ep.bridge.waitForSourceContains('Some **boldXY** text');
 	});
 
-	// The same screen position, reached leftward across the whole closing run: the caret came
-	// from outside the construct and has not entered it, so the byte lands past the `**`.
-	test('a caret that arrived at bold’s trailing edge from outside types past it', async ({
-		page
-	}) => {
-		await clickBlockSettled(ep, BOLD);
-		await page.keyboard.press('End');
-		await ep.waitForRenderFlush();
+	// The same screen position, reached leftward across the whole closing run: the way the caret
+	// came makes no difference, the character before it is still bold.
+	await test.step('a caret that came back from the text after bold types inside it too', async () => {
+		await atLineEdge(ep, page, BOLD, 'End');
 		await stepTo(ep, page, 'ArrowLeft', 11);
 
 		await page.keyboard.type('X');
-		await ep.bridge.waitForSourceContains('Some **bold**X text');
+		await ep.bridge.waitForSourceContains('Some **boldX** text');
 	});
 
-	// Leading edge, mirrored: one leftward keypress out of `bold` reaches the shared pixel but
-	// has not left the construct, so the byte stays inside it.
-	test('a caret that stepped left out of bold’s leading edge still types inside', async ({
-		page
-	}) => {
-		await clickWordSettled(ep, page, 'bold');
-		await stepTo(ep, page, 'ArrowLeft', 5);
-
-		await page.keyboard.type('X');
-		await ep.bridge.waitForSourceContains('Some **Xbold** text');
-	});
-
-	test('a caret that stepped right up to bold’s leading edge types before it', async ({ page }) => {
-		await clickBlockSettled(ep, BOLD);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
-		await stepTo(ep, page, 'ArrowRight', 5);
+	// Leading edge, mirrored: the character before the opener is the space.
+	await test.step('a caret that stepped left to bold’s leading edge types before it', async () => {
+		await steppedFromWord(ep, page, 'bold', 'ArrowLeft', 5);
 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('Some X**bold** text');
 	});
 
-	// The end of a line is construct-relative, not directional: `Home` on a line that opens with
-	// a pair means before its opener, the opposite side in step order from `End` after a closer.
-	test('Home on a line opening with bold types before the construct', async ({ page }) => {
-		await clickBlockSettled(ep, LEAD);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
+	await test.step('a caret that stepped right up to bold’s leading edge types before it', async () => {
+		await atLineEdge(ep, page, BOLD, 'Home');
+		await stepTo(ep, page, 'ArrowRight', 5);
+
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('Some X**bold** text');
+	});
+});
+
+test('live mode: a line edge and a click follow the same rule', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
+
+	// At a line start there is no character before the caret, so the one after decides.
+	await test.step('Home on a line opening with bold types inside the construct', async () => {
+		await atLineEdge(ep, page, LEAD, 'Home');
 		expect(await focusOffset(ep)).toBe(2);
 
 		await page.keyboard.type('X');
-		await ep.bridge.waitForSourceContains('X**Lead** in');
+		await ep.bridge.waitForSourceContains('**XLead** in');
 	});
 
-	// A click clears how the caret arrived, so the click rule applies: the construct the caret
-	// touches keeps the byte (`docs/design/live-mode.md` § 4.2).
-	test('a click at bold’s trailing content edge extends it', async ({ page }) => {
-		const point = await textRunEnd(page, 'bold');
-		await page.mouse.click(point.x, point.y);
-		await ep.waitForRenderFlush();
+	// A click on the text lands where the character before the caret, bold here, decides.
+	await test.step('a click at bold’s trailing content edge extends it', async () => {
+		await nextRow(ep, DOC);
+		await clickEnd(ep, page, 'bold');
 		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBe(11);
 
 		await page.keyboard.type('X');
@@ -125,22 +134,17 @@ test.describe('live mode: a symmetric pair extends by arrival', () => {
 
 // Bold's cases all run over a two-asterisk run. These two say the rule reads the kind's own row
 // and not that run's shape: `~~` is a different two bytes, and a code span's backtick is one.
-test.describe('live mode: the other symmetric pairs caret position the same way', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterLive(page);
-	});
+test('live mode: the other pairs extend from their inside end', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
 	// `A ~~struck~~ tail`: content [4,10). `A \`code\` tail`: content [3,7). Both reached by
-	// clicking the word and stepping right, the arrival that stays inside the construct.
+	// clicking the word and stepping right to the inside end.
 	for (const [name, word, contentEnd, extended] of [
 		['a strikethrough', 'struck', 10, 'A ~~struckX~~ tail'],
 		['a code span', 'code', 7, 'A `codeX` tail']
 	] as const) {
-		test(`${name} extends from an arrival inside it`, async ({ page }) => {
-			await clickWordSettled(ep, page, word);
-			await stepTo(ep, page, 'ArrowRight', contentEnd);
+		await test.step(name, async () => {
+			await steppedFromWord(ep, page, word, 'ArrowRight', contentEnd);
 
 			await page.keyboard.type('X');
 			await ep.bridge.waitForSourceContains(extended);
@@ -148,20 +152,13 @@ test.describe('live mode: the other symmetric pairs caret position the same way'
 	}
 });
 
-test.describe('live mode: a never-extend construct ignores the arrival', () => {
-	let ep: EditorPage;
+test('live mode: a never-extend construct never takes the byte', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterLive(page);
-	});
-
-	// `A [link](https://example.com) tail`: the link is [2,29), `link` [3,7). Both arrivals
-	// that would extend a symmetric pair put the byte past the closing `)`.
-	test('a link’s trailing content edge never extends, whichever arrival placed the caret', async ({
-		page
-	}) => {
-		await clickWordSettled(ep, page, 'link');
-		await stepTo(ep, page, 'ArrowRight', 7);
+	// `A [link](https://example.com) tail`: the link is [2,29), `link` [3,7). Whichever way the
+	// caret came, the byte lands past the closing `)`.
+	await test.step('a link’s trailing content edge never extends, whichever way the caret came', async () => {
+		await steppedFromWord(ep, page, 'link', 'ArrowRight', 7);
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('A [link](https://example.com)X tail');
 
@@ -173,28 +170,21 @@ test.describe('live mode: a never-extend construct ignores the arrival', () => {
 		await ep.bridge.waitForSourceContains('A [link](https://example.com)YX tail');
 	});
 
-	test('a link’s leading content edge never extends either', async ({ page }) => {
-		await clickWordSettled(ep, page, 'link');
-		await stepTo(ep, page, 'ArrowLeft', 2);
+	await test.step('a link’s leading content edge never extends either', async () => {
+		await steppedFromWord(ep, page, 'link', 'ArrowLeft', 2);
 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('A X[link](https://example.com) tail');
 	});
 });
 
-test.describe('live mode: unstamped marker runs are never typed into', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterLive(page);
-	});
+test('live mode: unstamped marker runs are never typed into', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
 	// `x \* y`: the backslash is unpainted, the `*` is the glyph. Neither side of the pair
 	// admits a byte between them.
-	test('an escape’s two bytes stay adjacent whichever side is typed at', async ({ page }) => {
-		await clickBlockSettled(ep, ESCAPE);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
+	await test.step('an escape’s two bytes stay adjacent whichever side is typed at', async () => {
+		await atLineEdge(ep, page, ESCAPE, 'Home');
 		await stepTo(ep, page, 'ArrowRight', 2);
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('x X\\* y');
@@ -205,10 +195,8 @@ test.describe('live mode: unstamped marker runs are never typed into', () => {
 	});
 
 	// `end  \nnext`: the two spaces before the newline are the break's markers.
-	test('a hard break’s trailing spaces survive a byte typed at the line end', async ({ page }) => {
-		await clickBlockSettled(ep, HARD_BREAK);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
+	await test.step('a hard break’s trailing spaces survive a byte typed at the line end', async () => {
+		await atLineEdge(ep, page, HARD_BREAK, 'Home');
 		await stepTo(ep, page, 'ArrowLeft', 3);
 
 		await page.keyboard.type('X');
@@ -233,19 +221,11 @@ const AUTOLINK_LEAD = 1;
 const AUTOLINK_TAIL = 2;
 const BOLD_LEAD = 3;
 
-test.describe('live mode: a childless construct is all delimiters', () => {
-	let ep: EditorPage;
+test('live mode: a childless construct is all delimiters', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', CHILDLESS_DOC);
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', CHILDLESS_DOC);
-	});
-
-	test('a click at the left edge of an escaped line types before the backslash', async ({
-		page
-	}) => {
-		await clickBlockSettled(ep, ESCAPE_LEAD);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
+	await test.step('a click at the left edge of an escaped line types before the backslash', async () => {
+		await atLineEdge(ep, page, ESCAPE_LEAD, 'Home', CHILDLESS_DOC);
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
@@ -253,85 +233,72 @@ test.describe('live mode: a childless construct is all delimiters', () => {
 		expect(await ep.bridge.getSource()).toContain('Z\\*Lead in');
 	});
 
-	test('Home on a line opening with an autolink types before its bracket', async ({ page }) => {
-		await clickBlockSettled(ep, AUTOLINK_LEAD);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
+	await test.step('Home on a line opening with an autolink types before its bracket', async () => {
+		await atLineEdge(ep, page, AUTOLINK_LEAD, 'Home', CHILDLESS_DOC);
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
 		expect(await ep.bridge.getSource()).toContain('Z<https://example.com> tail');
 	});
 
-	// The caret lands at the last reachable offset, inside the closing bracket, where a byte rewrites
-	// the destination: a link never extends at either edge, and the angle form is a link.
-	test('End after a trailing autolink types past its closing bracket', async ({ page }) => {
-		await clickBlockSettled(ep, AUTOLINK_TAIL);
-		await page.keyboard.press('End');
-		await ep.waitForRenderFlush();
+	// The caret lands at the last reachable offset, inside the closing bracket, where a byte
+	// rewrites the destination: a link never extends at either edge, and the angle form is a link.
+	await test.step('End after a trailing autolink types past its closing bracket', async () => {
+		await atLineEdge(ep, page, AUTOLINK_TAIL, 'End', CHILDLESS_DOC);
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
 		expect(await ep.bridge.getSource()).toContain('<https://example.com>Z');
 	});
 
-	// The discriminating counterpart: bold is already correct here, so a change that moved the
-	// symmetric pair too would show up in this row.
-	test('the bold control is unchanged by the same gesture', async ({ page }) => {
-		await clickBlockSettled(ep, BOLD_LEAD);
-		await page.keyboard.press('Home');
-		await ep.waitForRenderFlush();
+	// The discriminating counterpart: the same gesture on a bold types inside it, from the
+	// character after the caret, so a change that moved bold too would show up in this row.
+	await test.step('the bold control types inside by the same gesture', async () => {
+		await atLineEdge(ep, page, BOLD_LEAD, 'Home', CHILDLESS_DOC);
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		expect(await ep.bridge.getSource()).toContain('Z**Bold** in');
+		expect(await ep.bridge.getSource()).toContain('**ZBold** in');
 	});
 });
 
 // The IME half of the same rule: `insertCompositionText` is not cancelable, so the composed run
 // is moved on the commit that compositionend drives: one commit, one undo entry.
 test.describe('live mode: an IME commit takes the same caret position as a keystroke', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterLive(page);
-	});
+	const compose = async (page: Page) => {
+		const ime = await attachIme(page);
+		await ime.compose('か');
+		await ime.commit('かん');
+	};
 
 	test('a composition at a link’s trailing content edge commits past the closer', async ({
 		page
 	}) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
 		await clickWordSettled(ep, page, 'link');
 		await stepTo(ep, page, 'ArrowRight', 7);
 
-		const ime = await attachIme(page);
-		await ime.compose('か');
-		await ime.commit('かん');
+		await compose(page);
 		await ep.bridge.waitForSourceContains('A [link](https://example.com)かん tail');
 	});
 
-	test('a composition at bold’s trailing edge extends it when the arrival was from inside', async ({
-		page
-	}) => {
-		await clickWordSettled(ep, page, 'bold');
-		await stepTo(ep, page, 'ArrowRight', 11);
+	test('at bold’s trailing edge', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', DOC);
 
-		const ime = await attachIme(page);
-		await ime.compose('か');
-		await ime.commit('かん');
-		await ep.bridge.waitForSourceContains('Some **boldかん** text');
-	});
+		await test.step('a composition at its inside end extends it', async () => {
+			await steppedFromWord(ep, page, 'bold', 'ArrowRight', 11);
 
-	test('a composition at bold’s trailing edge arrived from outside commits past it', async ({
-		page
-	}) => {
-		await clickBlockSettled(ep, BOLD);
-		await page.keyboard.press('End');
-		await ep.waitForRenderFlush();
-		await stepTo(ep, page, 'ArrowLeft', 11);
+			await compose(page);
+			await ep.bridge.waitForSourceContains('Some **boldかん** text');
+		});
 
-		const ime = await attachIme(page);
-		await ime.compose('か');
-		await ime.commit('かん');
-		await ep.bridge.waitForSourceContains('Some **bold**かん text');
+		await test.step('a composition after a typed closer commits past it', async () => {
+			await steppedFromWord(ep, page, 'bold', 'ArrowRight', 11);
+			await page.keyboard.type('**');
+			await ep.waitForRenderFlush();
+
+			await compose(page);
+			await ep.bridge.waitForSourceContains('Some **bold**かん text');
+		});
 	});
 });

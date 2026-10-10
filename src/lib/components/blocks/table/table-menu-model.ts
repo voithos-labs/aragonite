@@ -51,6 +51,8 @@ export type TableMenuItem =
 	// to the right coordinate without the dispatcher tracking which group it came from.
 	| { kind: 'action'; action: TableAxisAction; label: string; enabled: boolean; index: number }
 	| { kind: 'clipboard'; action: ClipboardAction; label: string; enabled: boolean }
+	/** Mod+K at the caret the right-click left: edits the link or widget under it. */
+	| { kind: 'editLink'; label: string }
 	| { kind: 'alignment'; current: TableAlignment }
 	| { kind: 'separator' }
 	/** A flyout: the row's or column's less-used actions behind one entry. */
@@ -61,7 +63,8 @@ export function tableMenuItems(
 	dims: { rowCount: number; colCount: number },
 	alignments: readonly TableAlignment[],
 	// A live rectangle (`hasRect`) suppresses the cell-local selection but still serves Cut/Copy.
-	clipboard: { hasSelection: boolean; hasRect?: boolean }
+	clipboard: { hasSelection: boolean; hasRect?: boolean },
+	editsLink = false
 ): TableMenuItem[] {
 	const rows = rowGroup(cell.rowIdx, dims.rowCount);
 	const cols = columnGroup(cell.colIdx, dims.colCount, alignments);
@@ -69,7 +72,11 @@ export function tableMenuItems(
 		i.kind === 'action' && (i.action === 'deleteRow' || i.action === 'deleteColumn');
 	// A cell knows both axes, so each axis's inserts and moves go behind one flyout and only
 	// the two deletes and the alignment stay in the list.
+	const editLink: TableMenuItem[] = editsLink
+		? [{ kind: 'editLink', label: 'Edit link' }, { kind: 'separator' }]
+		: [];
 	return [
+		...editLink,
 		...clipboardGroup(clipboard.hasSelection || clipboard.hasRect === true),
 		{ kind: 'separator' },
 		{ kind: 'group', id: 'row', label: 'Row', items: rows.filter((i) => !isDelete(i)) },

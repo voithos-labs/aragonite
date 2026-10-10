@@ -27,19 +27,21 @@
 		type ResolveImageUrl,
 		type ResolveLinkUrl
 	} from '../editor-keys';
-	import { createCaretMemory } from '../cursor/caret-memory';
-	import { docPathFrom } from '../cursor/coordinate-spaces';
+	import { createCaretMemory } from '../caret/caret-memory';
+	import { createCaretWriter } from '../caret/widget-offset';
+	import { createDrawnCaret } from '../caret/drawn-caret.svelte';
+	import { docPathFrom } from '../caret/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
-	import { createScrollOwner } from '../cursor/scroll-owner';
+	import { createScrollOwner } from '../windowing/scroll-owner';
 	import { createScrollHostResolution } from './editor-root-scroll-host';
 	import { installSelectionDrop, type DropCaretRect } from '../selection/selection-drop';
-	import { createContentVersion } from '../reactivity/content-version.svelte';
-	import { createCurrentSource } from '../reactivity/current-source';
-	import { useRootWindowing } from '../reactivity/use-container-windowing.svelte';
-	import { createListTree } from '../reactivity/list-tree';
-	import { createLayoutState } from '../reactivity/layout-state.svelte';
-	import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
-	import { componentAt, type ChildList } from '../reactivity/child-list';
+	import { createContentVersion } from '../editor-actions/commit/content-version.svelte';
+	import { createCurrentSource } from '../editor-actions/commit/current-source';
+	import { useRootWindowing } from '../windowing/use-container-windowing.svelte';
+	import { createListTree } from '../windowing/list-tree';
+	import { createLayoutState } from '../windowing/layout-state.svelte';
+	import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
+	import { componentAt, type ChildList } from '../block-lists/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
 	import { createSelectionDescription } from '../selection/selection-description';
@@ -55,6 +57,7 @@
 	import { createDocumentSwap, initDocument } from './editor-root-document-swap';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
+	import { bindActivationClick, createPressTracker } from '../activation-click';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './link-reference-map';
 	import {
 		buildLinkReferenceMap,
@@ -100,6 +103,7 @@
 	import {
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
+		installPressTracker,
 		installRevealAnchorRelease,
 		installSelectionChangeBridge,
 		installUndoStepEnd,
@@ -145,7 +149,7 @@
 	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
 	import { registerEditorBuiltIns } from './editor-built-ins';
-	import { blockContentElAt } from './block-el-lookup';
+	import { blockContentElAt } from '../caret/block-el-lookup';
 
 	registerEditorBuiltIns();
 	runStartupInvariantChecks();
@@ -163,12 +167,15 @@
 		codeMenuItems,
 		header,
 		blockDragHandles = true,
+		placeholder,
 		searchBar = true,
 		searchBarAnchor,
 		selectionToolbar = true,
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
+		linkClick = 'modifier',
+		caret = 'auto',
 		scrollMode = 'self',
 		plugins,
 		syntax,
@@ -230,6 +237,12 @@
 	let doc: Document = $state(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
+	// Read only while the prop is set; a boolean, so a block added to a longer document leaves the
+	// policy, and every block's answer, as it was.
+	const singleBlock = $derived(doc.children.length === 1);
+	const placeholderPolicy = $derived(
+		placeholder === undefined ? null : { hint: placeholder, singleBlock }
+	);
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
@@ -254,6 +267,11 @@
 		mode: () => outgoingMode ?? effectiveMode,
 		hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(outgoingMode ?? effectiveMode)
 	};
+	// Every press in the editor, so a click on any route can tell it ended a drag.
+	const presses = createPressTracker();
+	const activationClick = bindActivationClick(reading.mode, () => linkClick, presses);
+	// The pointer cursor on links shows where a plain click follows them.
+	const plainClickFollows = $derived(activationClick({ ctrlKey: false, metaKey: false }));
 	// The root list's child component refs, plain rather than `$state` (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
 	const blockRefSlots = refSlotsOver(blockRefs);
@@ -266,7 +284,8 @@
 	let widthProbeEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
-	const caretMemory = createCaretMemory();
+	// Each change to what the memory answers repaints the drawn caret's look; it's built below.
+	const caretMemory = createCaretMemory({ onChange: () => drawnCaret.request() });
 	const autoPairs = createAutoPairRecord();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
@@ -284,6 +303,16 @@
 		// Read off the live document, since a widget's own commits move its end byte.
 		widgetSpan: (target) => widgetSpanAt(doc, target, reading)
 	});
+	// `scrollOwner` is built further down; the drawn caret watches sizes only after init.
+	const drawnCaret = createDrawnCaret({
+		getRoot: () => editorEl ?? null,
+		caretMode: () => caret,
+		isReading: () => effectiveMode === 'reading',
+		selection: selectionState,
+		watchSize: (el, onResize) => scrollOwner.watchSize(el, onResize)
+	});
+	const caretWriter = createCaretWriter(drawnCaret.request);
+
 	// With no live range this reads no document bytes, so a keystroke at a caret costs nothing here.
 	const coverage = $derived.by(() => {
 		const { anchor, focus } = selectionState;
@@ -527,6 +556,7 @@
 		getDoc: () => doc,
 		root: rootList,
 		selectionState,
+		caretWriter,
 		caretMemory,
 		getBlockElByPath,
 		getEditorRoot: () => editorEl ?? null,
@@ -556,6 +586,7 @@
 		sharing,
 		caretMemory,
 		selectionState,
+		caretWriter,
 		getBlockElByPath,
 		caretLanding,
 		events,
@@ -622,6 +653,7 @@
 		// The one place the mode enters command dispatch, read back through `pluginEditor`.
 		getPresentationMode: reading.mode,
 		getTheme: () => theme,
+		activationClick,
 		activation: activePlugins,
 		// Called at use, never here: both read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
@@ -740,6 +772,9 @@
 		rangeCoverage: () => coverage,
 		search: searchState,
 		caretMemory,
+		caretWriter,
+		presses,
+		drawnCaret,
 		autoPairs,
 		scrollOwner,
 		linkCard,
@@ -764,8 +799,10 @@
 		imageLoadPolicy: () => imageLoadPolicy,
 		// Reading mode turns the drag handles off through the prop's own getter.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
+		placeholder: () => placeholderPolicy,
 		presentationMode: reading.mode,
 		theme: () => theme,
+		activationClick,
 		keybindingOverrides: () => overridesMap,
 		// An accessor, not the `onPasteImage,` shorthand, which would capture the prop's value.
 		get onPasteImage() {
@@ -823,6 +860,7 @@
 	const rootGestures = createRootGestures({
 		getDoc,
 		selection: selectionState,
+		caretWriter,
 		caretMemory,
 		getBlockElByPath,
 		getBlockComponent,
@@ -831,6 +869,8 @@
 		getLifetime: () => lifetimeController.signal,
 		isHostChrome,
 		activateLink,
+		activationClick,
+		presses,
 		linkCard,
 		reading
 	});
@@ -871,6 +911,9 @@
 		activation: activePlugins,
 		reading,
 		stamps,
+		// The row does what Mod+K does at the caret the right-click just placed.
+		canEditLinkAtCaret: () => isCommandActive('link.openCard'),
+		editLinkAtCaret: () => void runCommand('link.openCard'),
 		setMenu: (menu) => (blockMenu = menu)
 	});
 
@@ -897,7 +940,7 @@
 
 	$effect(() => {
 		if (!editorEl) return;
-		return installModActiveTracker(editorEl);
+		return removeAll(installModActiveTracker(editorEl), installPressTracker(editorEl, presses));
 	});
 
 	// A delegated handle-drag on the root, torn down on unmount via the lifetime signal.
@@ -924,7 +967,8 @@
 			root: editorEl,
 			isHostChrome,
 			announceIfMoved: selectionAnnouncer.announceIfMoved,
-			selection: selectionState
+			selection: selectionState,
+			caretWriter
 		});
 	});
 
@@ -942,6 +986,7 @@
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
 		selection: selectionState,
+		caretWriter,
 		getDoc,
 		getBlockElByPath,
 		caretLanding,
@@ -1276,7 +1321,9 @@
 		getMeasuredIds: () => heightOracle.measuredIds(),
 		getListTree: () => listTree,
 		getWidthVersion: layout.widthVersion,
-		setBlockRefSlot: blockRefSlots.set
+		setBlockRefSlot: blockRefSlots.set,
+		getDrawnCaret: () => drawnCaret,
+		getCaretWriter: () => caretWriter
 	};
 </script>
 
@@ -1288,6 +1335,7 @@
 	data-scroll-mode={hostScroll ? 'host' : undefined}
 	data-windowing={topWindowing.window.active ? 'active' : undefined}
 	data-presentation={effectiveMode === 'source' ? undefined : effectiveMode}
+	data-plain-click-follows={plainClickFollows ? '' : undefined}
 	bind:this={editorEl}
 	tabindex="-1"
 	role="group"

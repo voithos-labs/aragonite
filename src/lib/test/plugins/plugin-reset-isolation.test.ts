@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import javascript from 'highlight.js/lib/languages/javascript';
 import python from 'highlight.js/lib/languages/python';
-import { resetPluginPlatformForTests } from '$lib/testing';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
 import {
 	definePlugin,
 	highlightCode,
@@ -13,22 +13,22 @@ import {
 	registerBlockContextActions,
 	registerInlineWidgetKind,
 	registerLanguage
-} from '$lib/plugin';
-import { installPlugins } from '$lib/schema/plugin-install';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+} from '#lib/plugin.js';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import {
 	blockContextActionsFor,
 	registerBuiltinBlockContextActions
-} from '$lib/schema/context-actions';
+} from '#lib/schema/context-actions.js';
 import {
 	isLanguageRegistered,
 	registerBuiltinLanguage
-} from '$lib/components/blocks/code/code-languages';
-import { isBlockCompleterRegistered } from '$lib/schema/block-completions';
-import { isInlineWidgetKind } from '$lib/core/inline/inline-widgets';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+} from '#lib/components/blocks/code/code-languages.js';
+import { isBlockCompleterRegistered } from '#lib/schema/block-completions.js';
+import { isInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import type { LanguageFn } from 'highlight.js';
-import type { NodeView } from '$lib/core/node-views';
+import type { NodeView } from '#lib/core/node-views.js';
 
 const probeBlock = { kind: 'probe-rows', raw: 'x\n' } as unknown as NodeView;
 const rowIds = () =>

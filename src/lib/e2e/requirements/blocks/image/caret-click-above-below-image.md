@@ -3,7 +3,7 @@
 A picture sits on the text baseline, so the paragraph holding it is a little taller than the
 picture: there is a strip of the block's box above the picture and another below it. The
 paragraph's only content is a widget the browser will not put a caret next to, so the click
-snap (`cursor/widget-edge-snap.ts`) is the only thing that can place one, and a press in either
+snap (`caret/widget-edge-snap.ts`) is the only thing that can place one, and a press in either
 strip belongs to the block's one line.
 
 Every scenario holds in source mode and in live mode: hidden markers are not text a caret can

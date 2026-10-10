@@ -1,8 +1,8 @@
 // Miss-analysis: every heading test wrote `# ` with a space and no closing run.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { getContentRange, structuralSuffix } from '$lib/core/inline';
-import { isBareHeadingOpener, matchHeading } from '$lib/core/parsers/heading';
+import { parse } from '#lib/core/parser.js';
+import { getContentRange, structuralSuffix } from '#lib/core/inline/index.js';
+import { isBareHeadingOpener, matchHeading } from '#lib/core/parsers/heading.js';
 
 /** Each ATX heading in `source`, as its content text and the bytes kept past it. */
 function headings(source: string): Array<{ content: string; suffix: string }> {

@@ -1,15 +1,15 @@
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin } from '$lib/plugins/details';
-import { tocPlugin } from '$lib/plugins/toc';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
-import { latexPlugin } from '$lib/plugins/latex';
-import { katexRenderer } from '$lib/plugins/latex/renderer';
-import { mermaidPlugin } from '$lib/plugins/mermaid';
-import { parrotPlugin } from '$lib/plugins/parrot';
-import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
-import { slashCommandsPlugin } from '$lib/plugins/slash-commands';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { tocPlugin } from '#lib/plugins/toc/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { katexRenderer } from '#lib/plugins/latex/renderer.js';
+import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
+import { parrotPlugin } from '#lib/plugins/parrot/index.js';
+import { mermaidRenderer } from '#lib/plugins/mermaid/renderer.js';
+import { slashCommandsPlugin } from '#lib/plugins/slash-commands/index.js';
 import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
 
 // The one place the demo routes create their plugins: definitions are process-global and the

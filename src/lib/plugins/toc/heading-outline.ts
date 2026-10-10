@@ -12,7 +12,7 @@ import {
 	type DocumentView,
 	type EditorContext,
 	type InlineNode
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 /** Deepest heading level a document can list; `[[toc]]` has no meaning past GFM's six. */
 export const MAX_HEADING_DEPTH = 6;

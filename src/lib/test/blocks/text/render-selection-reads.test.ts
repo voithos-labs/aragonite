@@ -7,7 +7,7 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

@@ -5,13 +5,13 @@ import type { InlineNode } from '../../core/nodes';
 import { contentLengthOf, parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { rawTextOfNode } from '../../cursor/widget-offset';
+import { rawTextOfNode } from '../../caret/widget-offset';
 import type { IndexedDecoration } from '../../decorations/buckets';
 import { applyIslandDecorations } from '../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/types';
 import { mountDecorationWidget } from '../../decorations/widget-dom';
 import { arbAltOnlyImage, arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 import { renderOptions } from '../harness/fixture-grammar';
 
 // Arbitrary replace spans land inside atomic widgets, and snapping outward is the behaviour under
@@ -260,8 +260,8 @@ describe('G2.4 textContent chain (decoration widgets)', () => {
 					expect(readBackAfterIslands(source, specs, prefix)).toBe(source);
 				}
 			),
-			PARAMS
+			// The prefix is one fixed shift, not a shape, so a tenth of the runs above finds a wrong one.
+			{ ...PARAMS, numRuns: 100 }
 		);
-		// ~2s alone; the full battery's worker saturation blows the default 5s cap.
-	}, 20_000);
+	});
 });

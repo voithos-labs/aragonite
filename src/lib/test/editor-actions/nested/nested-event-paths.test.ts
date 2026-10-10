@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createListContext } from '$lib/editor-actions/list-context';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { parse } from '#lib/core/parser.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createListContext } from '#lib/editor-actions/list-context.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import {
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
-} from '$lib/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor-events';
+} from '#lib/test/harness/editor-actions.js';
+import type { EditEvent } from '#lib/editor-events.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // A list nested in a blockquote: its local index (0) differs from its document-absolute

@@ -7,9 +7,10 @@ import {
 	installLayoutStubs,
 	destroyMountedEditors,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { dispatchKey } from '$lib/test/harness/settle';
-import { caretAt, mountImageSelected, type ImageSelected } from './image-selected-harness';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { dispatchKey } from '#lib/test/harness/settle.js';
+import { mountImageSelected, type ImageSelected } from './image-selected-harness';
+import { caretAt } from '#lib/test/harness/editor-selection.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

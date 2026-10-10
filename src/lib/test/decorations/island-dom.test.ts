@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { applyIslandDecorations, type ApplyIslandsOpts } from '$lib/decorations/island-dom';
+import { applyIslandDecorations, type ApplyIslandsOpts } from '#lib/decorations/island-dom.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { mountDecorationWidget } from '$lib/decorations/widget-dom';
-import type { IndexedDecoration } from '$lib/decorations/buckets';
-import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
-import { rawTextOfNode } from '$lib/cursor/widget-offset';
-import { buildAmbientSpan } from '$lib/ambient/ambient-dom';
-import { contentLengthOf, parseInline } from '$lib/core/inline';
-import { renderInlineNodes } from '$lib/core/inline-render';
+import { mountDecorationWidget } from '#lib/decorations/widget-dom.js';
+import type { IndexedDecoration } from '#lib/decorations/buckets.js';
+import type { ReplaceDecoration, WidgetDecoration } from '#lib/decorations/types.js';
+import { rawTextOfNode } from '#lib/caret/widget-offset.js';
+import { buildAmbientSpan } from '#lib/ambient/ambient-dom.js';
+import { contentLengthOf, parseInline } from '#lib/core/inline/index.js';
+import { renderInlineNodes } from '#lib/core/inline-render.js';
 import { renderOptions } from '../harness/fixture-grammar';
 
 function build(raw: string): DocumentFragment {

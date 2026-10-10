@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
-import { blockNode, makeRenderHarness } from '$lib/test/harness/text-render';
+import { createTextRender } from '#lib/components/blocks/text/text-render.js';
+import { blockNode, makeRenderHarness } from '#lib/test/harness/text-render.js';
 
 describe('text-render presentation-mode key segment', () => {
 	it('a mode flip rebuilds the block and the markers stay in the DOM', () => {

@@ -6,8 +6,8 @@
 
 import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
-import { createBlockListState, type BlockListState } from '../reactivity/block-list-state.svelte';
-import { replaceRefs } from '../reactivity/publish-ref.svelte';
+import { createBlockListState, type BlockListState } from '../block-lists/block-list-state.svelte';
+import { replaceRefs } from '../block-lists/child-refs';
 import { stubBlockComponent } from './headless-actions';
 
 export interface HeadlessBlockListOptions {

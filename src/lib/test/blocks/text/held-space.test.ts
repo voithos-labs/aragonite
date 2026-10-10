@@ -8,40 +8,40 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	mountWithCaret,
 	placeCaret,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import { INSERTION_ROUTES, TEXT_HOSTS, insertBy } from '$lib/test/harness/insertion-routes';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import {
+	INSERTION_ROUTES,
+	TEXT_HOSTS,
+	insertBy,
+	type InsertionRoute
+} from '#lib/test/harness/insertion-routes.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
 
-/** `source` mounted in `mode` with the caret at `at`. */
-function caretIn(source: string, at: number, mode: PresentationMode = 'live') {
-	const editor = mountEditor({ source, presentationMode: mode });
-	const el = surfaceAt(editor, [0]);
-	placeCaret(el, at);
-	return { editor, el };
-}
+// A route bug breaks the hold for every delimiter, and a delimiter bug on every route, so bold
+// takes each route and the other delimiters the hardware key.
+const NEW_PAIRS: [delimiter: string, route: InsertionRoute][] = [
+	...INSERTION_ROUTES.map((route): [string, InsertionRoute] => ['**', route]),
+	['*', 'hardware key'],
+	['_', 'hardware key'],
+	['~~', 'hardware key']
+];
 
-describe.each(['**', '*', '_', '~~'])('a new %s pair', (delimiter) => {
-	const source = `a ${delimiter}two${delimiter}\n`;
-	const inside = 2 + delimiter.length + 3;
+describe.each(NEW_PAIRS)('a new %s pair', (delimiter, route) => {
+	it(`keeps a space and the next letter inside, typed by ${route}`, async () => {
+		const { editor, el } = mountWithCaret(`a ${delimiter}two${delimiter}\n`, 5 + delimiter.length);
 
-	it.each(INSERTION_ROUTES)(
-		'keeps a space and the next letter inside, typed by %s',
-		async (route) => {
-			const { editor, el } = caretIn(source, inside);
+		await insertBy(route, el, ' ');
+		expect(editor.source()).toBe(`a ${delimiter}two${delimiter} \n`);
+		await insertBy(route, el, 'w');
 
-			await insertBy(route, el, ' ');
-			expect(editor.source()).toBe(`a ${delimiter}two${delimiter} \n`);
-			await insertBy(route, el, 'w');
-
-			expect(editor.source()).toBe(`a ${delimiter}two w${delimiter}\n`);
-		}
-	);
+		expect(editor.source()).toBe(`a ${delimiter}two w${delimiter}\n`);
+	});
 });
 
 describe.each(TEXT_HOSTS)('a held space in $name', (host) => {
@@ -62,20 +62,11 @@ describe.each(TEXT_HOSTS)('a held space in $name', (host) => {
 
 		expect(host.line(editor.source())).toBe('a **two w**');
 	});
-
-	it('one ArrowRight ends it, and the next letter lands outside', async () => {
-		const { editor, el } = await heldIn();
-
-		await pressKey(el, { key: 'ArrowRight' });
-		await insertBy('hardware key', el, 'w');
-
-		expect(host.line(editor.source())).toBe('a **two** w');
-	});
 });
 
 describe('typing on after an existing bold', () => {
 	it('a click at its end, then a space and a word, extends it', async () => {
-		const { editor, el } = caretIn('**bold**\n', 6);
+		const { editor, el } = mountWithCaret('**bold**\n', 6);
 
 		await insertBy('hardware key', el, ' more');
 
@@ -84,7 +75,7 @@ describe('typing on after an existing bold', () => {
 
 	// The space typed mid-line sits beside the line's own, so the run fits at two offsets.
 	it('mid-line, a click at its end, then a space and a word, extends it', async () => {
-		const { editor, el } = caretIn('Some **bold** text\n', 11);
+		const { editor, el } = mountWithCaret('Some **bold** text\n', 11);
 
 		await insertBy('hardware key', el, ' more');
 
@@ -92,52 +83,32 @@ describe('typing on after an existing bold', () => {
 	});
 
 	it('a second space keeps the hold', async () => {
-		const { editor, el } = caretIn('a **two**\n', 7);
+		const { editor, el } = mountWithCaret('a **two**\n', 7);
 
 		await insertBy('hardware key', el, '  w');
 
 		expect(editor.source()).toBe('a **two  w**\n');
 	});
 
-	it('an arrival from outside types the space and the word outside', async () => {
-		const { editor, el } = caretIn('**bold**\n', 8);
-		await pressKey(el, { key: 'ArrowLeft' });
-
-		await insertBy('hardware key', el, ' more');
-
-		expect(editor.source()).toBe('**bold** more\n');
-	});
-
 	it('the format chord before the space types outside', async () => {
-		const { editor, el } = caretIn('**bold**\n', 6);
+		const { editor, el } = mountWithCaret('**bold**\n', 6);
 		await pressKey(el, { key: 'b', ctrlKey: true });
 
 		await insertBy('hardware key', el, ' more');
 
 		expect(editor.source()).toBe('**bold** more\n');
 	});
-
-	it('an arrow step back inside, where the ring shows, types the space and the word inside', async () => {
-		const { editor, el } = caretIn('a **bold**\n', 8);
-		await pressKey(el, { key: 'ArrowRight' });
-		await pressKey(el, { key: 'ArrowLeft' });
-
-		await insertBy('hardware key', el, ' w');
-
-		expect(editor.source()).toBe('a **bold w**\n');
-	});
 });
 
-/** The ways out of a held space Finn asked for: one arrow, End, the closer, the format chord. */
+/** The ways out of a held space Finn asked for that move no caret: the closer, the format chord. */
 const EXITS: [string, KeyboardEventInit][] = [
-	['ArrowRight', { key: 'ArrowRight' }],
 	['the typed closer', { key: '*' }],
 	['the format chord', { key: 'b', ctrlKey: true }]
 ];
 
 describe.each(EXITS)('%s ends the hold, and the next letter lands outside', (_name, exit) => {
 	it('at the line’s end', async () => {
-		const { editor, el } = caretIn('a **two**\n', 7);
+		const { editor, el } = mountWithCaret('a **two**\n', 7);
 		await insertBy('hardware key', el, ' ');
 
 		await (exit.key === '*' ? insertBy('hardware key', el, '*') : pressKey(el, exit));
@@ -147,7 +118,7 @@ describe.each(EXITS)('%s ends the hold, and the next letter lands outside', (_na
 	});
 
 	it('mid-line', async () => {
-		const { editor, el } = caretIn('a **two** b\n', 7);
+		const { editor, el } = mountWithCaret('a **two** b\n', 7);
 		await insertBy('hardware key', el, ' ');
 		expect(editor.source()).toBe('a **two**  b\n');
 
@@ -158,6 +129,28 @@ describe.each(EXITS)('%s ends the hold, and the next letter lands outside', (_na
 	});
 });
 
+// A closer typed whole across a held space steps past the whole closer run; the space stays put.
+// Miss-analysis: the closer exit rows typed one byte of a two-byte closer, never the whole of it.
+describe.each([
+	['**', 'bold'],
+	['~~', 'gone']
+])('a held space, then the whole %s closer', (delimiter, word) => {
+	it('types the next letter outside, past the space', async () => {
+		const at = 2 + delimiter.length + word.length;
+		const { editor, el } = mountWithCaret(
+			`a ${delimiter}${word}${delimiter} b
+`,
+			at
+		);
+		await insertBy('hardware key', el, ' ');
+
+		await insertBy('hardware key', el, `${delimiter}X`);
+
+		expect(editor.source()).toBe(`a ${delimiter}${word}${delimiter} X b
+`);
+	});
+});
+
 // The held construct's own chord leaves it; another chord pends its mark, as at any caret.
 // Miss-analysis: the exit rows pressed only Mod+B in a bold, so a chord swallowed whole stayed green.
 describe.each([
@@ -165,9 +158,9 @@ describe.each([
 	['bold', '**', 'b', 'a **two** x\n'],
 	['emphasis', '*', 'i', 'a *two* x\n'],
 	['emphasis', '*', 'b', 'a *two* **x**\n']
-])('a held space after %s, then Mod+%s', (_name, delimiter, chord, want) => {
-	it(`types ${JSON.stringify(want)}`, async () => {
-		const { editor, el } = caretIn(`a ${delimiter}two${delimiter}\n`, 5 + delimiter.length);
+])('a held space after %s', (_name, delimiter, chord, want) => {
+	it(`then Mod+${chord} types ${JSON.stringify(want)}`, async () => {
+		const { editor, el } = mountWithCaret(`a ${delimiter}two${delimiter}\n`, 5 + delimiter.length);
 		await insertBy('hardware key', el, ' ');
 
 		await pressKey(el, { key: chord, ctrlKey: true });
@@ -178,8 +171,20 @@ describe.each([
 });
 
 describe('the hold ends without touching the bytes', () => {
+	// jsdom moves no caret on an arrow, so this reads only the record the key ends; the browser's
+	// move is `drawn-caret-look.spec.ts`.
+	it('an arrow key, mid-line', async () => {
+		const { editor, el } = mountWithCaret('a **two** b\n', 7);
+		await insertBy('hardware key', el, ' ');
+
+		await pressKey(el, { key: 'ArrowRight' });
+		await insertBy('hardware key', el, 'w');
+
+		expect(editor.source()).toBe('a **two** w b\n');
+	});
+
 	it('End at the line’s end', async () => {
-		const { editor, el } = caretIn('a **two**\n', 7);
+		const { editor, el } = mountWithCaret('a **two**\n', 7);
 		await insertBy('hardware key', el, ' ');
 
 		await pressKey(el, { key: 'End' });
@@ -205,7 +210,7 @@ describe('the hold ends without touching the bytes', () => {
 	});
 
 	it('source mode writes every byte where the caret shows it', async () => {
-		const { editor, el } = caretIn('a **two**\n', 7, 'source');
+		const { editor, el } = mountWithCaret('a **two**\n', 7, 'source');
 
 		await insertBy('hardware key', el, ' w');
 

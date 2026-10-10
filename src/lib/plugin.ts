@@ -28,6 +28,7 @@ export type { PluginSetupContext, OnEditorCallback, EditorContext } from './sche
 export type { InsertMarkdownOptions } from './editor-props';
 // The names every presentation-mode read reports, the `data-presentation` attribute included.
 export type { PresentationMode } from './presentation-mode';
+export type { ClickInput } from './activation-click';
 // The single-block shortcut: one kind, one component, one register step.
 export { definePluginBlock } from './schema/define-plugin-block';
 
@@ -45,11 +46,7 @@ export {
 export type { PluginInlineKind, InlineNode, ImageFields, ImageSyntaxRewriter } from './core/nodes';
 export { registerInlineSyntax, INLINE_PRIORITIES } from './core/inline/scan/plugin-syntax';
 export type { InlineSyntaxRecognizer, InlineSyntaxOptions } from './core/inline/scan/plugin-syntax';
-export {
-	registerInlineWidgetKind,
-	mintWidgetShell,
-	isWidgetActivationClick
-} from './core/inline/inline-widgets';
+export { registerInlineWidgetKind, mintWidgetShell } from './core/inline/inline-widgets';
 export type {
 	InlineWidgetDescriptor,
 	InlineWidgetComponentProps,
@@ -134,7 +131,8 @@ export type { LanguageFn } from 'highlight.js';
 export {
 	sliceFencedSource,
 	renderFencedSource,
-	fenceBodyAsDrawn
+	fenceBodyAsDrawn,
+	fencedBodyRange
 } from './components/blocks/code/code-renderer';
 export type { FencedSource } from './components/blocks/code/code-renderer';
 
@@ -280,8 +278,8 @@ export type {
 	ContainerBlockListProps
 } from './editor-actions/plugin/container';
 export type { Draft, DraftCloseCause, DraftSpec } from './schema/drafts';
-export type { RefSlots } from './reactivity/publish-ref.svelte';
-export type { ChildList } from './reactivity/child-list';
+export type { RefSlots } from './block-lists/child-refs';
+export type { ChildList } from './block-lists/child-list';
 // The one place allowed to import from `components/`, so `editor-actions` keeps no upward
 // value dependency on the component tree.
 export function registerChromeLeaf(kind: AnyBlockKind, opts?: ChromeLeafOptions): void {
@@ -294,7 +292,7 @@ export { chromeChild } from './editor-actions/plugin/chrome-leaf';
 export { isCollapsedContainer } from './schema/reserved-chrome';
 
 // ── Editable-leaf authoring API (pre-freeze) ─────────────────────────────────
-// A text-editing leaf with the browser's own caret, IME, undo and selection: plain (a commit per
+// A text-editing leaf with a built-in block's caret, IME, undo and selection: plain (a commit per
 // keystroke) or render-first (source while the caret is inside, one commit on blur).
 export { createEditableLeaf } from './components/blocks/editable-leaf';
 export type {
@@ -406,7 +404,7 @@ export type { EditorRects } from './editor-rects';
 // ── Caret geometry (pre-freeze) ──────────────────────────────────────────────
 // What a kind answers `caretTargetAtPoint` with, the helper that turns a point in your element
 // into the nearest offset, and the value for wherever the leaf ends.
-export { caretOffsetAtPoint } from './cursor/point-offset';
+export { caretOffsetAtPoint } from './caret/point-offset';
 export type { CaretTarget } from './schema/block-kind-descriptor';
 export { CURSOR_END } from './block-component';
 export type { CursorEnd } from './block-component';

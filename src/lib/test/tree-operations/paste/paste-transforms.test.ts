@@ -7,8 +7,8 @@ import {
 import { definePlugin, installPlugins } from '../../../schema/plugin-install';
 import { activationFor } from '../../../schema/plugin-activation';
 import { allowDevWarns, takeDevWarns } from '../../support/warn-gate';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 // The ordering fixtures append unconditionally, so the dev idempotence check warns on them;
 // only the containment cases below are about the diagnostic itself.

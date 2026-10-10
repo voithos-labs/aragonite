@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import fc from 'fast-check';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { resolveEdgeSeat, seatOffsetsAt } from '../../components/blocks/text/edge-seat';
 import { MARKER_FAMILY_SELECTOR, screenVisibility } from '../../core/inline/visibility';
-import type { EdgeAffinity } from '../../cursor/edge-affinity';
-import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
+import type { EdgeAffinity } from '../../caret/edge-affinity';
+import { caretPositions, countOnScreen, paintedText } from '#lib/test/harness/painted-text.js';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
 import { renderOptions } from '../harness/fixture-grammar';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // A letter typed at an unpainted delimiter run may never put a delimiter byte on screen, as the
 // renderer draws it; a childless construct declines, so its byte lands between the delimiters.
@@ -25,8 +25,8 @@ import { fixtureReading } from '$lib/test/harness/fixture-grammar';
 const FIXED_SEED = 818818;
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(FIXED_SEED) } as const;
 
-/** Every arrival the caret placement can be asked about, including the one that says nothing. */
-const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
+/** Every record the caret placement can be asked about, including none. */
+const AFFINITIES: (EdgeAffinity | null)[] = ['outside', null];
 
 /** Delimiter bytes any construct can paint, plus the escape's backslash. `_` is left out: a byte
  *  typed at either outside edge of `__x__` kills the pair wherever it goes, by markdown's rule. */
@@ -193,6 +193,6 @@ describe('a surfaced delimiter is classified, never excluded', () => {
 	// and it lies in the neighbouring run rather than in this construct's own.
 	it('still claims a shared run the caret can sit in', () => {
 		expect(rescueOffset('**a *b** c*', 0)).toBe(2);
-		expect(typeThroughSeat('**a *b** c*', 0, 'near').after).toBe('**Za *b** c*');
+		expect(typeThroughSeat('**a *b** c*', 0, null).after).toBe('**Za *b** c*');
 	});
 });

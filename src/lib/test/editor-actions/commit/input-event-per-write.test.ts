@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor-events';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import type { EditEvent } from '#lib/editor-events.js';
 
 const ops = (edits: EditEvent[]) => edits.map((e) => [e.op, e.path]);
 

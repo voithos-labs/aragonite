@@ -76,55 +76,55 @@ async function aimX(page: Page, aim: Aim, row: Case, y: number): Promise<number>
 	return (await textRunRect(page, row.line)).left - 3;
 }
 
-for (const row of CASES) {
-	for (const mode of ['source', 'live']) {
-		for (const aim of row.aims) {
-			test(`${mode}: a click ${aim} beside ${row.name}'s later line lands on it`, async ({
-				page
-			}) => {
-				const editor = row.seed ? new PluginsPage(page) : new EditorPage(page);
-				if (editor instanceof PluginsPage) await editor.gotoPlugins(row.seed);
-				else await editor.goto();
-				await editor.loadContent(row.doc);
-				await editor.setPresentationMode(mode);
-
-				const text = await textRunRect(page, row.line);
-				const y = text.top + text.height / 2;
-				await page.mouse.click(await aimX(page, aim, row, y), y);
-				await editor.waitForRenderFlush();
-				await page.keyboard.type('Z');
-
-				// Every aim is left of the line's text, so the caret lands where that text starts.
-				await editor.bridge.waitForSourceContains('Z');
-				expect(await editor.bridge.getSource()).toBe(row.doc.replace(row.line, `Z${row.line}`));
-			});
-		}
-	}
-}
-
 // A drag resolves its moving end through its own lookup, so a drag into the same margin has to
 // land where the click does. Off every block and on the quote's own box are separate branches.
 const QUOTE = CASES[0];
-for (const aim of QUOTE.aims) {
-	test(`a drag released ${aim} beside a quote's later line ends where a click there lands`, async ({
-		page
-	}) => {
-		const editor = new EditorPage(page);
-		await editor.goto();
-		await editor.loadContent(QUOTE.doc);
-		const text = await textRunRect(page, QUOTE.line);
-		const y = text.top + text.height / 2;
-		const beside = { x: await aimX(page, aim, QUOTE, y), y };
-		await page.mouse.click(beside.x, beside.y);
-		const clicked = await editor.bridge.getSelection();
-		expect(clicked?.focus.path).toEqual([1, 2]);
 
-		const start = await pointAtRaw(page, [0], 0);
-		await dragBetweenPoints(page, start, beside);
-		await editor.waitForRenderFlush();
+for (const row of CASES) {
+	test(`a click beside ${row.name}'s later line lands on it`, async ({ page }) => {
+		const editor = row.seed ? new PluginsPage(page) : new EditorPage(page);
+		if (editor instanceof PluginsPage) await editor.gotoPlugins(row.seed);
+		else await editor.goto();
 
-		const dragged = await editor.bridge.getSelection();
-		expect(dragged?.anchor).toEqual({ path: [0], offset: 0 });
-		expect(dragged?.focus).toEqual(clicked?.focus);
+		if (row === QUOTE) {
+			for (const aim of row.aims) {
+				await test.step(`a drag released ${aim} ends where a click there lands`, async () => {
+					await editor.loadContent(row.doc);
+					const text = await textRunRect(page, row.line);
+					const y = text.top + text.height / 2;
+					const beside = { x: await aimX(page, aim, row, y), y };
+					await page.mouse.click(beside.x, beside.y);
+					const clicked = await editor.bridge.getSelection();
+					expect(clicked?.focus.path).toEqual([1, 2]);
+
+					const start = await pointAtRaw(page, [0], 0);
+					await dragBetweenPoints(page, start, beside);
+					await editor.waitForRenderFlush();
+
+					const dragged = await editor.bridge.getSelection();
+					expect(dragged?.anchor).toEqual({ path: [0], offset: 0 });
+					expect(dragged?.focus).toEqual(clicked?.focus);
+				});
+			}
+		}
+
+		for (const mode of ['source', 'live'] as const) {
+			for (const aim of row.aims) {
+				await test.step(`${mode}: a click ${aim} lands on the later line`, async () => {
+					await editor.loadContent(row.doc);
+					await editor.setPresentationMode(mode);
+
+					const text = await textRunRect(page, row.line);
+					const y = text.top + text.height / 2;
+					await page.mouse.click(await aimX(page, aim, row, y), y);
+					await editor.waitForRenderFlush();
+					await page.keyboard.type('Z');
+
+					// Every aim is left of the line's text, so the caret lands where that text starts.
+					await editor.bridge.waitForSourceContains('Z');
+					expect(await editor.bridge.getSource()).toBe(row.doc.replace(row.line, `Z${row.line}`));
+				});
+			}
+		}
 	});
 }

@@ -4,12 +4,12 @@ import {
 	createBlockKindRegistry,
 	createInlineKindRegistry,
 	createPluginRegistry
-} from '$lib/schema/plugin-registry';
+} from '#lib/schema/plugin-registry.js';
 import { describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { activationFor } from '$lib/schema/plugin-activation';
-import { declarePluginInlineKind, declarePluginKind } from '$lib/schema/plugin-kind';
-import type { AnyBlockKind, AnyInlineKind } from '$lib/core/nodes';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
+import { declarePluginInlineKind, declarePluginKind } from '#lib/schema/plugin-kind.js';
+import type { AnyBlockKind, AnyInlineKind } from '#lib/core/nodes.js';
 
 // ── Compile-time pins ───────────────────────────────────────────────────────
 // Never called: `npm run check` is the gate. An "unused '@ts-expect-error'" error means a kind's

@@ -4,15 +4,15 @@
 // leaves every numbering test green, and only counting passes tells the two apart.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { installPlugins, parse } from '$lib';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { installPlugins, parse } from '#lib';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 import {
 	enablePerfInstruments,
 	disablePerfInstruments,
 	resetPerfInstruments,
 	perfSnapshot
-} from '$lib/perf/instruments';
+} from '#lib/perf/instruments.js';
 import { editorMountContext } from '../../harness/mount-context';
 
 const LEAVES = 30;

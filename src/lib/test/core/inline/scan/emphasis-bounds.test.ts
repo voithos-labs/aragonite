@@ -5,16 +5,14 @@ import { assertConstructCoverage, assertTotalCoverage, collectKind } from './sca
 
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 
-// The pairing algorithm is already amortized (openers_bottom); only the list surgery that
-// splices a pair's interior out grows, at O(pairs^2) on a paragraph of nothing but pairs.
+// Pairing is amortized (openers_bottom), so the list surgery that moves a pair's interior is
+// what these rows hold linear: a splice there grows as pairs squared on a paragraph of pairs.
 describe('emphasis pairing bounds', () => {
-	// The lower step opens at 24KB because a few KB of pairs scans under the harness's noise
-	// floor, and a declared size under the floor is one the harness only ever replaces.
-	it('a pair flood scans within a bounded growth ratio at both 4x steps', () => {
-		const small = measureScanGrowth(scan, '*a*', [24, 96]);
-		const large = measureScanGrowth(scan, '*a*', [96, 384]);
-		expectBoundedGrowth(small);
-		expectBoundedGrowth(large);
+	// 24KB because a few KB of pairs scans under the harness's noise floor, and a declared size
+	// under the floor is one the harness only ever replaces.
+	it('a pair flood scans within a bounded growth ratio', () => {
+		const growth = measureScanGrowth(scan, '*a*', [24, 96]);
+		expectBoundedGrowth(growth);
 	}, 300_000);
 
 	// Two marker characters per side go through the same surgery, so a bound that held only
@@ -31,8 +29,8 @@ describe('emphasis pairing bounds', () => {
 		expectBoundedGrowth(growth);
 	}, 300_000);
 
-	// A faster scan that drops or mis-nests pairs is not a fix. The separator matters: an
-	// unspaced `*a*` abuts into shared `**` runs instead of one pair per repetition.
+	// The growth rows read a scan that stops pairing past some count as linear; this row counts
+	// every pair. Spaced, since an unspaced `*a*` abuts into shared `**` runs.
 	it('claims every pair in a flood with markers and interiors intact', () => {
 		const pairs = 20_000;
 		const raw = '*a* '.repeat(pairs);

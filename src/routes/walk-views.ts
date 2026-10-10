@@ -1,4 +1,4 @@
-import type { NodeView } from '$lib/plugin';
+import type { NodeView } from '#lib/plugin.js';
 
 // Shared leaf walk for the demo and fixture plugins these routes install, kept to this one
 // traversal so each plugin still reads as a self-contained authoring example.

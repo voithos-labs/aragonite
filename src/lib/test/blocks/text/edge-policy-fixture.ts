@@ -5,22 +5,23 @@ import { afterEach } from 'vitest';
 import {
 	createEdgePolicyDispatch,
 	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
-import { parse } from '$lib/core/parser';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
-import { stubBlockEdit } from '$lib/testing/headless-actions';
-import type { CstNode } from '$lib/core/nodes';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
-import { asPresentationMode } from '$lib/presentation-mode';
+} from '#lib/components/blocks/text/edge-policy-dispatch.js';
+import { parse } from '#lib/core/parser.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
+import { stubBlockEdit } from '#lib/testing/headless-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { makePendingMarks } from '#lib/test/harness/editor-actions.js';
+import { asPresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
-import { createTypedPlacement } from '$lib/components/blocks/text/edge-seat';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
+import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
-export { asRawOffset as at } from '$lib/cursor/coordinate-spaces';
+export { asRawOffset as at } from '#lib/caret/coordinate-spaces.js';
 
 /** `updateBlockContent` argument tuples less the write mode, newest last. The anchor is the caret
  *  the key was dispatched at, which the block records at keydown. */
@@ -68,6 +69,7 @@ export function makeEdgeDispatch(
 		}
 	};
 	const deps: EdgePolicyDispatchDeps = {
+		caretWriter: testCaretWriter,
 		get node() {
 			return readNode();
 		},
@@ -105,14 +107,15 @@ export function makeEdgeDispatch(
 		enterWidget: () => {},
 		isReading: () => false,
 		pendingMarks: makePendingMarks(),
+		offsetFor: (caret, typed) => placement.offsetFor(caret, typed),
 		...overrides
 	};
 	const placement = createTypedPlacement({
 		getEl: () => el,
 		getNode: readNode,
 		reading: deps.reading,
-		caretMemory: { side: () => side },
-		heldSpace: () => ({ at: () => null, inside: () => null })
+		caretMemory: { side: () => side, noteOutside: () => {} },
+		heldSpace: () => ({ at: () => null, inside: () => null, passCloser: () => false })
 	});
 	const dispatch = createEdgePolicyDispatch(deps);
 	// A held range reads as its start, as the block's caret read does.

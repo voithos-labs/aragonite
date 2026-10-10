@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { createGrammarView } from '$lib/schema/block-openers';
-import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
-import { testLeaf, testContainer } from '$lib/test/harness/test-kinds';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { serialize } from '#lib/core/serializer.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { createGrammarView } from '#lib/schema/block-openers.js';
+import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { testLeaf, testContainer } from '#lib/test/harness/test-kinds.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // A minimal stand-in for search/document-scan.ts, which the container cases below use instead.
 function scanForLiteral(doc: Document, needle: string) {

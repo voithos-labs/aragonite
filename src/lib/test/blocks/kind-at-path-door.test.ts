@@ -2,12 +2,12 @@
 // `editor.getBlockKindAt` through a real mount, reached from the barrel the way a host reaches it:
 // the read a host uses instead of checking the rendered DOM for a block's class.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import type { AnyBlockKind, EditorInstance } from '$lib';
+import type { AnyBlockKind, EditorInstance } from '#lib';
 import {
 	installLayoutStubs,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(() => installLayoutStubs());
 

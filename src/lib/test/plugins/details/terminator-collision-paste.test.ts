@@ -1,19 +1,19 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize, type CstNode } from '$lib';
-import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { parse, serialize, type CstNode } from '#lib';
+import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+} from '#lib/test/harness/editor-actions.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // Miss-analysis: no test pasted into a bodyWrite container, only typed, split or deleted (GH #40).
 

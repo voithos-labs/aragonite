@@ -1,5 +1,6 @@
 import { actThenResync, settleTypedSource, type SimContext } from '../invariants';
 import { textRunCenter, textRunEnd } from '../../text-runs';
+import { clickModeToggle } from '../../mode-switch';
 
 /**
  * Live-mode editing gestures. Each switches into live mode through the header toggle, drives one
@@ -34,15 +35,11 @@ async function inLiveMode(ctx: SimContext, run: () => Promise<void>): Promise<vo
 	// exactly that rather than reaching back into whatever was typed before.
 	await editor.waitForUndoBatchFlush();
 	const before = await editor.bridge.getSource();
-	const toggle = page.getByTestId('live-toggle');
-
-	await toggle.click();
-	await page.waitForSelector('.editor[data-presentation="live"]', { timeout: 5000 });
+	await clickModeToggle(page, 'live');
 	try {
 		await run();
 	} finally {
-		await toggle.click();
-		await page.waitForSelector('.editor:not([data-presentation])', { timeout: 5000 });
+		await clickModeToggle(page, 'live');
 	}
 	await editor.bridge.waitForSourceEquals(before, 3000);
 	tracker.resync(before);
@@ -106,9 +103,9 @@ export async function liveEdgeBackspace(
 	});
 }
 
-/** A plain ArrowRight at the end of a construct's text moves where the next byte goes, past the
- *  hidden `closer`, and leaves the caret on its pixel; the byte typed next lands outside. */
-export async function liveEdgeStep(
+/** A letter at the end of a construct's text types inside it; one ArrowRight moves the caret past
+ *  the next visible character, and a letter there lands outside the hidden `closer`. */
+export async function liveRichTextEdge(
 	ctx: SimContext,
 	blockIndex: number,
 	content: string,
@@ -117,29 +114,39 @@ export async function liveEdgeStep(
 	await inLiveMode(ctx, async () => {
 		const { page, editor } = ctx;
 		const before = await editor.bridge.getSource();
-		// A click records no arrival, so the caret at the text's end means inside the construct.
 		const end = await textRunEnd(page, content);
+		const typeQ = async (want: string, where: string) => {
+			await editor.typeSlowly('Q');
+			try {
+				await editor.bridge.waitForSourceContains(want);
+			} catch {
+				throw new Error(
+					`[${ctx.label}] the letter ${where} did not land where the edge rule puts it.
+` +
+						`EXPECTED block ${blockIndex} to contain: ${JSON.stringify(want)}
+` +
+						`ACTUAL: ${JSON.stringify(await blockRaw(ctx, blockIndex))}`
+				);
+			}
+		};
+
+		await page.mouse.click(end.x, end.y);
+		await editor.waitForRenderFlush();
+		await typeQ(`${content}Q${closer}`, 'at the end of the construct');
+		await undoOnceTo(ctx, before, 'live rich-text edge, inside');
+
 		await page.mouse.click(end.x, end.y);
 		await editor.waitForRenderFlush();
 		const at = await caretOffset(ctx);
 		await page.keyboard.press('ArrowRight');
 		await editor.waitForRenderFlush();
-		if ((await caretOffset(ctx)) !== at) {
-			throw new Error(`[${ctx.label}] the edge step moved the caret off ${at}`);
+		if ((await caretOffset(ctx)) === at) {
+			throw new Error(`[${ctx.label}] ArrowRight at the construct's end left the caret at ${at}`);
 		}
-
-		await editor.typeSlowly('Q');
-		const outside = `${content}${closer}Q`;
-		try {
-			await editor.bridge.waitForSourceContains(outside);
-		} catch {
-			throw new Error(
-				`[${ctx.label}] the byte after an edge step did not land outside the construct.\n` +
-					`EXPECTED block ${blockIndex} to contain: ${JSON.stringify(outside)}\n` +
-					`ACTUAL: ${JSON.stringify(await blockRaw(ctx, blockIndex))}`
-			);
-		}
-		await undoOnceTo(ctx, before, 'live edge step');
+		const raw = await blockRaw(ctx, blockIndex);
+		const next = raw[indexOfIn(ctx, raw, `${content}${closer}`) + content.length + closer.length];
+		await typeQ(`${content}${closer}${next}Q`, 'after one ArrowRight');
+		await undoOnceTo(ctx, before, 'live rich-text edge, outside');
 	});
 }
 

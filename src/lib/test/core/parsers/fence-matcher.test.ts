@@ -5,7 +5,7 @@ import {
 	escalatedFenceLength,
 	fenceLanguage,
 	matchFenceInfo
-} from '$lib/core/parsers/fence-syntax';
+} from '#lib/core/parsers/fence-syntax.js';
 
 // Re-exported on `@voithos-labs/aragonite/plugin`, so the shape is pinned directly: a byte-exact rebuild
 // needs verbatim `indent` and `infoRaw` alongside the trimmed `info` openers dispatch on.

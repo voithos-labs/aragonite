@@ -3,12 +3,12 @@
 // missing handler returns false and leaves the chord to the browser's own contenteditable bold,
 // an edit this block never wrote.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
+import { parse } from '#lib/core/parser.js';
+import { planCrossBlockFormat } from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { mountCell } from './mount-cell';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
 
 let mounted: ReturnType<typeof mountCell>;
 afterEach(async () => {

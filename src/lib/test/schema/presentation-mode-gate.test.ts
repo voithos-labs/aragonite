@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { isReadingMode, type PresentationMode } from '$lib/presentation-mode';
-import { dispatchKeyCommand, dispatchKindCommand } from '$lib/schema/block-commands';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { isReadingMode, type PresentationMode } from '#lib/presentation-mode.js';
+import { dispatchKeyCommand, dispatchKindCommand } from '#lib/schema/block-commands.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { commandContext, commandContextWith } from '../support/command-context';
 
 const modeGetter = (mode: PresentationMode) => () => mode;

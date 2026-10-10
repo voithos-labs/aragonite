@@ -10,7 +10,7 @@ import {
 	runKindConformance,
 	checkCopyIsRawByteSlice,
 	setDevWarnSink
-} from '$lib/testing';
+} from '#lib/testing.js';
 import {
 	declarePluginKind,
 	declarePluginInlineKind,
@@ -44,20 +44,20 @@ import {
 	type NodeView,
 	type PluginBlockKind,
 	type PluginInlineKind
-} from '$lib/plugin';
-import { devWarn } from '$lib/dev-warn';
-import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
-import { pluginGlobalBinding } from '$lib/schema/commands';
-import { getBlockCommand } from '$lib/schema/block-commands';
-import { rangeIndentForm } from '$lib/schema/range-indent-forms';
-import { blockContextActionsFor } from '$lib/schema/context-actions';
-import { insertCatalogue } from '$lib/schema/insert-catalogue';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { isInlineWidget } from '$lib/core/inline/inline-widgets';
-import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
+} from '#lib/plugin.js';
+import { devWarn } from '#lib/dev-warn.js';
+import { installPlugins, onEditorCallbacks } from '#lib/schema/plugin-install.js';
+import { pluginGlobalBinding } from '#lib/schema/commands.js';
+import { getBlockCommand } from '#lib/schema/block-commands.js';
+import { rangeIndentForm } from '#lib/schema/range-indent-forms.js';
+import { blockContextActionsFor } from '#lib/schema/context-actions.js';
+import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { isInlineWidget } from '#lib/core/inline/inline-widgets.js';
+import { getInlineRungs } from '#lib/core/inline/scan/plugin-syntax.js';
 import { collectFiles, importSpecifiers, readSource } from '../invariants/lint/scan-source';
-import { testClosure } from '$lib/test/support/closure';
+import { testClosure } from '#lib/test/support/closure.js';
 
 // ── One probe per public registration ────────────────────────────────────────
 // Each check registers through an exported register or declare function and reports whether it
@@ -319,14 +319,14 @@ describe('@voithos-labs/aragonite/testing dependency rules', () => {
 		const synthetic = [
 			{
 				relPath: 'synthetic.ts',
-				specifiers: ['vitest', '$lib/test/harness/editor-actions', '../env']
+				specifiers: ['vitest', '#lib/test/harness/editor-actions.js', '../env']
 			}
 		];
 		expect(offendersMatching(synthetic, /^(vitest|jest|@jest\/|node:test|chai)/)).toEqual([
 			'synthetic.ts → vitest'
 		]);
 		expect(offendersMatching(synthetic, /(^|\/)(test|e2e)\//)).toEqual([
-			'synthetic.ts → $lib/test/harness/editor-actions'
+			'synthetic.ts → #lib/test/harness/editor-actions.js'
 		]);
 	});
 });

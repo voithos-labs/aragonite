@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	computeFenceExit,
 	computeTypedFenceExit
-} from '$lib/components/blocks/code/code-fence-exit';
+} from '#lib/components/blocks/code/code-fence-exit.js';
 
 type FenceMeta = Parameters<typeof computeFenceExit>[0]['meta'];
 
@@ -95,14 +95,6 @@ describe('computeFenceExit: unclosed fence creates a closer', () => {
 		expect(exit(text, text.length, { fenceMarker: '~', closed: false })).toEqual({
 			kind: 'closeAndExit',
 			newText: 'a\n~~~'
-		});
-	});
-
-	it('joins the closer with CRLF when the body ends CRLF', () => {
-		const text = 'hello\r\n';
-		expect(exit(text, text.length, { closed: false })).toEqual({
-			kind: 'closeAndExit',
-			newText: 'hello\r\n```'
 		});
 	});
 

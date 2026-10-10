@@ -3,17 +3,18 @@
 // widgets (commit and undo rules are `widget-reveal-commit.test.ts`). A caret leaving the source
 // within the block hides it, and a click on a second widget hides the first and shows the second
 // as one sequence.
-import { recordingWrite } from '$lib/test/harness/editor-actions';
+import { recordingWrite } from '#lib/test/harness/editor-actions.js';
 import { describe, it, expect } from 'vitest';
-import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
-import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
+import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import {
 	installMathInline,
 	mountWidgetBlock,
 	placeCaretAt,
 	widgetInteractionDeps
 } from './math-widget-fixture';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 installMathInline();
 
@@ -43,6 +44,7 @@ function mountTwoMathBlock() {
 		widgetInteractionDeps(
 			{ node, el },
 			{
+				caretWriter: testCaretWriter,
 				cursor: new Proxy({}, { get: trap }),
 				blockEdit: {
 					updateBlockContent: recordingWrite(({ index, raw, before, after }) =>

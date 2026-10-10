@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { insertHardBreak, insertLiteralTab } from '$lib/components/blocks/text/text-keydown';
+import { insertHardBreak, insertLiteralTab } from '#lib/components/blocks/text/text-keydown.js';
 
 describe('insertHardBreak', () => {
 	it('inserts trailing-backslash + newline at offset', () => {

@@ -5,13 +5,13 @@ The tour:
 1. [The one idea](#the-one-idea): why typing cost doesn't grow with document size, and the exceptions this doc refuses to hide.
 2. [Scale claims](#scale-claims): what a keystroke and a load cost, qualitatively.
 3. [The four axes windowing does not bound](#the-four-axes-windowing-does-not-bound): the exceptions, current numbers first.
-4. [Costs beside the keystroke rows](#costs-beside-the-keystroke-rows): selection coverage, toolbar reads, kind re-derivation, and one retracted axis.
+4. [Costs beside the keystroke rows](#costs-beside-the-keystroke-rows): selection coverage, toolbar reads, and kind re-derivation.
 5. [The numbers and the gate](#the-numbers-and-the-gate): where the exact numbers live, the three commands, what's gated versus report-only, and why a red run on your machine is expected.
 6. [Two architectural decisions](#two-architectural-decisions): why containers store their full source, and why windowing is the only lever that matters.
 
 ## The one idea
 
-**The editor only mounts what you can see.** A 10MB document and a 10KB document have the same number of live components on screen, so typing costs the same in both. That's virtual rendering (`docs/design/virtual-rendering.md`), and nearly every performance property below is downstream of it.
+Typing costs the same in a 10KB document and a 10MB one, because the editor only mounts the blocks you can see (`docs/design/virtual-rendering.md`). Nearly every property below follows from that.
 
 There are exceptions, and windowing reaches none of them: loading a document, editing inside one enormous block, and any derivation that walks the CST rather than the mounted set. Every one of them is called out below, with its numbers.
 
@@ -24,7 +24,7 @@ Qualitative shape here; the exact numbers live in `src/lib/test/perf/baseline.js
 
 ## The four axes windowing does not bound
 
-Four keystroke axes read something other than the mounted set. Their statuses differ: the first is recorded as a reference rather than gated, the second is gated at its own baseline, the third and fourth are measured and reported rather than gated. (The `#N` references below are issues in the defect ledger.)
+Four keystroke axes read something other than the mounted set. Their statuses differ: the first is recorded as a reference rather than gated, the second is gated at its own baseline, the third and fourth are measured and reported rather than gated.
 
 ### 1. Editing one long paragraph
 
@@ -32,30 +32,15 @@ A single block's span rebuild scales with paragraph length, because windowing wi
 
 ### 2. Typing inside a large container
 
-A container's `raw` (its verbatim source bytes, children included) holds its full outer source, so every keystroke inside the container has to keep that copy honest. The rebuild now rewrites the changed child's region alone (§ 9 of `editor.md`), reading one child instead of all of them. Blessed 2026-08-26 on the production build (a bless records a measured number as the accepted baseline): **3.3 ms** per keystroke for a 1MB single giant list and **3.0 ms** for a giant blockquote, **5.4 ms** for the 10MB list, against **17.7 / 16.0 ms** before the fix. The `giant-single-{list,blockquote,table}-interior` rows type inside the container and gate it (the table's, 4.1 ms at 1MB, was blessed later, on 2026-09-30).
-
-<details>
-<summary>The history of this axis, for the curious</summary>
-
-- The variable is the container's _child count_, not its bytes and not where the caret sits: CPU-profiled on 2026-08-26, a keystroke on the head child and one twenty children deep cost the same, and the dominant term was the `$state` proxy's read trap (about 25,000 of them per keystroke on a 1MB list), not the concatenation those reads fed.
-- Production build at 1MB, before the fix: 17.7 ms per keystroke for a single giant list, 16.0 ms for a giant blockquote, against ~2.6 ms, the recorded DEV-build baseline, for the same fixtures typed into a paragraph ahead of the container. The control had no production reading of its own until the re-bless, so read the gap as a shape rather than a ratio.
-- The **~52 ms** this doc carried until then was a dev-build number: roughly 30 ms of Svelte's dev-only subtree relabelling over roughly 21 ms of editor work, a cost the gate and the README charts paid and no user ever did.
-- The axis belongs to the container `raw` contract rather than to any one feature: it measured the same with the container kind re-derivation disabled.
-- It went unrecorded until 2026-07-28 for an embarrassing reason: every latency row prepended a paragraph, so the caret always had a top-level home and never sat where the cost was.
-- What remains on this axis is the tail join, the fourth axis below.
-
-</details>
+A container's `raw` (its verbatim source bytes, children included) holds its full outer source, so every keystroke inside the container has to keep that copy honest. The rebuild rewrites the changed child's region alone (`editor.md` § 9), reading one child instead of all of them. On the production build that's **3.3 ms** per keystroke for a 1MB single giant list, **3.0 ms** for a giant blockquote, **4.1 ms** for a giant table and **5.4 ms** for the 10MB list. The `giant-single-{list,blockquote,table}-interior` rows type inside the container and gate it. What's left on this axis is the tail join, the fourth axis below.
 
 ### 3. A live whole-document derivation
 
-A reader keyed on the editor's **content version** (the counter that ticks whenever the document's bytes change) walks the CST, not the mounted set, so windowing can't bound it. The bundled footnote reference is the only reader today, and it's the reader that pays: with no `[^label]` widget mounted the cost is zero. O(document shape) rather than O(viewport), and far cheaper than what it replaced (each mounted widget used to inline-parse the whole document itself, 10-140× worse). Measured, not gated.
+A reader keyed on the editor's **content version** (the counter that ticks whenever the document's bytes change) walks the CST, not the mounted set, so windowing can't bound it. The bundled footnote reference is the only reader today, and it's the reader that pays: with no `[^label]` widget mounted the cost is zero. O(document shape) rather than O(viewport). Measured, not gated.
 
-**Browser-measured 2026-08-14** by the `rung-bracket-dense-footnotes` report rows, typing into a bracket-dense document with reference widgets in the viewport: **4.1 ms** p50 per keystroke at 100KB and **11.7 ms** at 1MB, against **2.7 ms** at both sizes for the identical bytes on the plain editor route, where no inline handler is installed. The mounted widget count is 20 at both sizes, since windowing bounds the mount, so the growth is the document, not the readers. Those rows were measured while the version was still derived by touching every node (the walk #185 removed, node-measured at ~1.8 ms at 100KB and ~18 ms at 1MB), so they're a ceiling for the shipped route rather than a reading of it.
+The `rung-bracket-dense-footnotes` report rows type into a bracket-dense document with reference widgets in the viewport: **4.1 ms** p50 per keystroke at 100KB and **11.7 ms** at 1MB, against **2.7 ms** at both sizes for the identical bytes on the plain editor route, where no inline handler is installed. The mounted widget count is 20 at both sizes, since windowing bounds the mount, so the growth is the document, not the readers. Those rows were measured while the content version still came from a walk over every node (about 1.8 ms at 100KB and 18 ms at 1MB on its own), so read them as a ceiling for today's cost.
 
-How the cost got this small, for the curious:
-
-- The version is announced at each byte-writing entry rather than derived from a touch walk over every node, which removed the axis's dominant term (#185) for an O(1) counter. The trade: a commit moving no byte still invalidates, where the walk compared fields.
-- The reader's own walk memoizes each top-level subtree's references against the bytes they came from, and the serializer never recursing (`editor.md` § 12) is what makes a subtree's `raw` a sound witness for everything under it. So a keystroke re-parses the edited subtree and re-reads two fields per sibling (`raw`, `kind`): O(top-level count + edited subtree) instead of an inline parse per prose leaf.
+The reader keeps it this small by memoizing each top-level subtree's references against that subtree's `raw`, which is a sound witness because the `raw` of a container holds everything under it. So a keystroke re-parses the edited subtree and re-reads two fields per sibling (`raw`, `kind`): O(top-level count + edited subtree) instead of an inline parse per prose leaf.
 
 ### 4. A join under a large block
 
@@ -65,20 +50,20 @@ A reading isn't final when more lines could still change it. A lone `$$` hunts f
 
 So a keystroke pays for the size of whatever sits right above the join it touches, plus a line. Two routes pay a lot of it today:
 
-- a write in a container's last child, with a block right below the container (a list standing above indented code absorbs it, say): **~34-37 ms** per keystroke at ~650KB, against ~0.5 ms with the ask off. Tracked as #182.
+- a write in a container's last child, with a block right below the container (a list standing above indented code absorbs it, say): **~34-37 ms** per keystroke at ~650KB, against ~0.5 ms with the ask off. Tracked as issue #182.
 - a write in a block flush under a big one, like a heading right under a giant list: every keystroke in the heading parses the list. `src/lib/test/perf/flush-join-read-cost.test.ts` pins the bytes (the list whole plus the heading's line), so a change here shows up as a changed row rather than a surprise.
 
 It's the interior-typing axis's twin at the other end, and a different cost: the ask parses bytes where the rebuild read children, so the child spans do nothing for it. The gated fixtures are single top-level blocks, so no ceiling sees it. Reading only the part of the upper block that could still take the next line would bound it, but that's a correctness question of its own (a list item's bytes read as a list, a quote's tail doesn't read alone), so the whole block it is.
 
 ## Costs beside the keystroke rows
 
-Four more costs are measured without being keystroke axes, and one axis was retracted.
+Four more costs are measured without being keystroke axes.
 
 **What a range covers** gets worked out once per selection change (`rangeCoverage`, what the overlay paints from; a copy or a delete asks again when it runs). It walks every block the range covers, so it grows with the selection rather than the screen, but it grows linearly. Ctrl+Shift+End from the top of a 2MB single list (about 51k items) takes **~115 ms** in node, measured 2026-09-29, and `src/lib/test/selection/range-coverage-cost.test.ts` keeps it linear by pricing the same selection at N and 4N blocks. Not gated.
 
-**The toolbar's cross-block pressed-state read** walks the selected range rather than the mounted set. It's memoised per (selection, content version) and answers every registered mark from one decomposition, so a four-button toolbar pays one pass per selection change instead of four. Node-measured 2026-08-25 over a document of 76-byte paragraphs each wholly covered by `strong`, four ids per read: **10.9 → 3.6 ms** at 500 blocks and **42.7 → 12.7 ms** at 2000. The decomposition dominates, not the parses, so the memo is where the win is. (The read was driven through `makeKeydownEnv`, the cross-block test harness, so the endpoints came off `SelectionState` the way production reads them; a harness that hands the read plain endpoint literals instead moves the absolutes several-fold, which is why the method is named.) A shift-drag still pays it per event, every event being a new selection.
+**The toolbar's cross-block pressed-state read** walks the selected range rather than the mounted set. It's memoised per (selection, content version) and answers every registered mark from one decomposition, so a four-button toolbar pays one pass per selection change instead of four: **3.6 ms** at 500 blocks and **12.7 ms** at 2000, node-measured over a document of 76-byte paragraphs each wholly covered by `strong`. The read was driven through `makeKeydownEnv`, the cross-block test harness, so the endpoints came off `SelectionState` the way production reads them; a harness that hands the read plain endpoint literals moves the absolutes several-fold. A shift-drag still pays it per event, every event being a new selection.
 
-Over a grid the walk is per covered cell: a whole-table selection across a 180k-cell fixture reads in about 96 ms in node, and the toggle that follows it in about 446 ms. Until 0.10.1 that shape threw instead of finishing (the cells were handed to one call as its arguments, past the engine's limit), so the cost is new only in the sense that the read now completes. Not gated.
+Over a grid the walk is per covered cell: a whole-table selection across a 180k-cell fixture reads in about 96 ms in node, and the toggle that follows it in about 446 ms. Not gated.
 
 **The single-block half of that read** is memoised too, on the block's own bytes and the selection rather than a composed key, since the display there is the block's whole raw. A `selectionChange` fires on every keystroke, so a four-button toolbar over a large paragraph costs one coverage parse of that block instead of four, O(block) either way. No ceiling of its own; it rides the gated typing rows wherever a toolbar is mounted.
 
@@ -88,11 +73,11 @@ Over a grid the walk is per covered cell: a whole-table selection across a 180k-
 - **A list item or a quote** keeps its metadata on its first line, so a keystroke there reads that one line alone. It parses the item's own bytes only on the keystroke that changes what the marker reads as (a space typed right after `- `), and that parse is the size of the item, never the list; `strip-reread-cost.test.ts` counts the bytes.
 - **A wider marker that moves lines out of the item** is the one case that reads more: the list then reads whole, and so does each container around it whose shape changed (a list in a quote reads the quote too).
 
-**And the retraction.** A flat high-block-count keystroke cost was once recorded here as an O(top-level-count) axis. It wasn't one. Measurement showed a harness artifact, not editor work: the latency harness summed the whole `$state`-proxy children array on every settle poll. Flat-document keystrokes are O(viewport) like every other shape, unless a whole-document derivation is live (the third axis above).
+**And flat documents**, since someone always asks: a keystroke there is O(viewport) like every other shape, unless a whole-document derivation is live (the third axis above). If a harness of yours says otherwise, check it isn't reading the whole `$state` children array while it waits for the edit to land: that once passed for an O(top-level count) axis.
 
 ## The numbers and the gate
 
-`src/lib/test/perf/baseline.json` holds the exact numbers and the machine spec, and when this doc and that file disagree, the file is right. The README's performance charts are generated from that baseline by `scripts/render-perf-chart.mjs`, so a re-bless and a chart regeneration are one act and the pictures can't drift from the gate.
+`src/lib/test/perf/baseline.json` holds the exact numbers and the machine spec, and when this doc and that file disagree, the file is right. The README's performance charts are drawn from that file by `scripts/render-perf-chart.mjs`, and nothing runs it for you, so after a re-bless (recording fresh measurements as the accepted baseline) run `node scripts/render-perf-chart.mjs` too.
 
 Three commands measure the editor over shared deterministic fixtures, and exactly one of them is a gate. Work out which one you're looking at before you panic about a number.
 
@@ -106,15 +91,17 @@ The browser and gate scripts arm their own env switches (`PERF`, plus `PERF_GATE
 
 ### What is gated, what is report-only
 
-| Rows                                                                                                     | Status          | Enforced by                                                                                                                                                                                                                                                                                                                                                     |
-| -------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `e2e` keystroke p50 (`GATED_ROWS` and `CONTAINER_INTERIOR_ROWS`)                                         | **Gated**       | `npm run perf:check`, over a production build; deliberate, not in `npm test`. Ceiling = baseline × 1.1 + 5 ms, × `PERF_RUNNER_SCALE` (1 locally, the tight gate; CI sets 2.5)                                                                                                                                                                                   |
-| `flat-prose-10MB-structural` (a top-level Enter and Backspace)                                           | **Gated**       | `npm run perf:check`, the same ceiling formula over the p50 per edit. A split or merge at the top level rebuilds the whole windowing model, which no typed character does, so this row gates what a top-level split and merge cost on a 10 MB flat document against its own baseline, and a change that makes a structural edit read the whole document reds it |
-| `counters` (structural amplification, clone byte parity, quote and list item line reads)                 | **Gated**       | Hard ceilings in `counters.test.ts`, inside the commit gate (`test:editor:perf`, which `npm test` runs); `amplification.test.ts` is its report-only sibling that logs the factors. Clone byte parity: a clone serializes to exactly its source's byte length                                                                                                    |
-| `parse`, `snapshot*`, `ancestryRebuild`                                                                  | **Report-only** | Nothing; dev references, environment-sensitive, read them as orders of magnitude, not targets (see baseline.json's own note)                                                                                                                                                                                                                                    |
-| p95, and the `single-giant-paragraph` rows                                                               | **Report-only** | Nothing; p95 catches single GC-pause keystrokes and is noisy, and the giant paragraph is the first axis above                                                                                                                                                                                                                                                   |
-| `rung-*` (an installed inline syntax handler)                                                            | **Report-only** | Nothing; printed by `npm run perf:e2e`, skipped by the gate (why: below)                                                                                                                                                                                                                                                                                        |
-| `arrival-widget-only`, `arrival-mixed` (an arrow into a paragraph of widgets, alone or after one letter) | **Report-only** | Nothing; printed by `npm run perf:e2e`, skipped by the gate. The two rows that time an arrow rather than a keystroke                                                                                                                                                                                                                                            |
+| Rows                                                                                                     | Status          | Enforced by                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `e2e` keystroke p50 (`GATED_ROWS` and `CONTAINER_INTERIOR_ROWS`)                                         | **Gated**       | `npm run perf:check`, over a production build; deliberate, not in `npm test`. Ceiling = baseline × 1.1 + 5 ms, × `PERF_RUNNER_SCALE` (1 locally, the tight gate; CI sets 2.5)                                                                                |
+| `flat-prose-10MB-structural` (a top-level Enter and Backspace)                                           | **Gated**       | `npm run perf:check`, the same ceiling formula over the p50 per edit. A top-level split or merge rebuilds the whole windowing model, which no typed character does, so a change that makes one read the whole document reds this row                         |
+| `caret-frame` rows A and B (the drawn caret lands with the letter, on the browser's caret box)           | **Gated**       | `npm run perf:check` and `perf:e2e`, as counts with no baseline, typing a key a frame into 1MB documents: zero frames where the drawn caret trails the letter by a pixel, a largest difference of a pixel, and zero frame paints that moved the bar          |
+| `caret-frame` row C (moves the browser makes: arrows, ArrowDown in a block, clicks)                      | **Gated**       | The same runs, at most the blessed `caretFrame.browserMoves.lagFramesPerMove` lagging frames per move in `baseline.json`                                                                                                                                     |
+| `counters` (structural amplification, clone byte parity, quote and list item line reads)                 | **Gated**       | Hard ceilings in `counters.test.ts`, inside the commit gate (`test:editor:perf`, which `npm test` runs); `amplification.test.ts` is its report-only sibling that logs the factors. Clone byte parity: a clone serializes to exactly its source's byte length |
+| `parse`, `snapshot*`, `ancestryRebuild`                                                                  | **Report-only** | Nothing; dev references, environment-sensitive, read them as orders of magnitude, not targets (see baseline.json's own note)                                                                                                                                 |
+| p95, and the `single-giant-paragraph` rows                                                               | **Report-only** | Nothing; p95 catches single GC-pause keystrokes and is noisy, and the giant paragraph is the first axis above                                                                                                                                                |
+| `rung-*` (an installed inline syntax handler)                                                            | **Report-only** | Nothing; printed by `npm run perf:e2e`, skipped by the gate (why: below)                                                                                                                                                                                     |
+| `arrival-widget-only`, `arrival-mixed` (an arrow into a paragraph of widgets, alone or after one letter) | **Report-only** | Nothing; printed by `npm run perf:e2e`, skipped by the gate. The two rows that time an arrow rather than a keystroke                                                                                                                                         |
 
 A gated row and the ceiling the formula gives it, from the 2026-08-26 bless:
 
@@ -140,7 +127,7 @@ perfSnapshot().stripLinesRead / linesInTheChain; // 0.05; the ceiling is 0.06
 
 The third one is there because a quote or list item rebuild reads its own previous bytes, so the lines you didn't touch keep their spelling. A line already in the container's own spelling (`> ` and then the text, say) gets matched without being read at all, so on that fixture only the list items' opening lines get read. A rebuild that starts reading every line again is the kind of slowdown a report-only timing row lets through without a word.
 
-The gated set, precisely (18 rows): flat-prose, nested-containers, reference-heavy, table-heavy and many-small-blocks at 1MB; flat-prose, many-small-blocks, reference-heavy and the three giant-single containers at 10MB; the container-interior rows (list, blockquote and table at 1MB, list at 10MB); two live-mode 1MB rows (flat-prose, nested-containers) ceilinged at their source twins; and the structural-edit row on flat-prose at 10MB. `single-giant-paragraph` is the one shape gated nowhere, being the axis. Ceiling and baseline bumps are deliberate decisions with a changelog note, never a reflexive edit to make a red run go away.
+The gated set, precisely (18 rows): flat-prose, nested-containers, reference-heavy, table-heavy and many-small-blocks at 1MB; flat-prose, many-small-blocks, reference-heavy and the three giant-single containers at 10MB; the container-interior rows (list, blockquote and table at 1MB, list at 10MB); two live-mode 1MB rows (flat-prose, nested-containers) ceilinged at their source twins; and the structural-edit row on flat-prose at 10MB. `single-giant-paragraph` is the one shape gated nowhere, being the axis. The caret-frame rows sit beside them, and they also print the drawn caret's paint time (`caretPaintMs`, from the first repaint request to the paint) and Event Timing's `keydown` to next paint, both report-only. Ceiling and baseline bumps are deliberate decisions, never a reflexive edit to make a red run go away.
 
 ### Environment scaling, and the red you will see
 
@@ -156,12 +143,12 @@ It gates **steady-state** p50, which means it's blind to a one-slow-keystroke re
 
 ### Why the `rung-*` rows report rather than gate
 
-An inline syntax handler is a plugin's recognizer installed at one priority in the inline parser's ordered list, and the `rung-*` rows are what typing costs with one installed. Every standing ceiling measures an _empty_ inline registry, because the editor route installs no plugins, so nothing saw what a registered handler costs until these rows landed. They stay ungated for two reasons, and both are about what a ceiling would mean rather than about runtime:
+An inline syntax handler is a plugin's recognizer installed at one priority in the inline parser's ordered list, and the `rung-*` rows are what typing costs with one installed. Every other ceiling measures an _empty_ inline registry, because the editor route installs no plugins. These rows stay ungated for two reasons, both about what a ceiling would mean rather than about runtime:
 
 1. The cost belongs to whichever plugin registered the trigger. A recognizer is the plugin's code, so a ceiling here would pin a number the editor doesn't own and would move under a plugin's own release.
-2. No clean control exists. Each row measures its fixture twice, on `/test/plugins` where the handler is installed and on the plain editor route, but the plugins route also installs eight base plugins (two of them whole-document derivers), so the delta bounds a handler's cost from above and isn't attributable to the handler alone. A route delta is evidence about a mechanism's shape, never a per-handler constant. Building a handler-only route to get a clean control was rejected as out of proportion to a report row.
+2. No clean control exists. Each row measures its fixture twice, on `/test/plugins` where the handler is installed and on the plain editor route, but the plugins route also installs eight base plugins (two of them whole-document derivers), so the delta bounds a handler's cost from above and isn't attributable to the handler alone.
 
-Each row records its mounted-widget count, so a row whose plugin silently stopped installing fails rather than reporting the control number as the handler's. A baseline change here is a decision to make deliberately, from the numbers, not a diff to bless.
+Each row records its mounted-widget count, so a row whose plugin silently stopped installing fails rather than reporting the control number as the handler's.
 
 ### Fixtures
 
@@ -185,7 +172,9 @@ perfSnapshot();
 //   containerReparseBytes: 0, openerLineReads: 0, stripLinesRead: 0,
 //   parseCount: 1, parseMsTotal: 0.3, parseBlockCount: 57, parseBytes: 10179, inlineComputeCount: 1,
 //   formatCoverageReads: 0, screenReads: 0, undoLiveBytes: 0, undoEntryCount: 0,
-//   blockRenderCount: 0, blockRenderMsTotal: 0, keystrokeInPageMs: [], blockRenderPaths: [],
+//   blockRenderCount: 0, blockRenderMsTotal: 0, keystrokeInPageMs: [], caretPaintMs: [],
+//   caretFrameMoves: 0, caretPaints: 0, caretLookComputes: 0, caretLookNodeVisits: 0,
+//   caretLookOffsetWalks: 0, caretLookPreviews: 0, caretLookParses: 0, blockRenderPaths: [],
 //   mountedBlockCount: 0, decorationRuns: 0, islandRebuilds: 0, islandKeyScans: 0,
 //   heightTableBuilds: [], neighbourPasses: 0
 // }
@@ -201,7 +190,7 @@ The bench and browser layers run under DEV (Vitest / dev server) with invariant 
 
 **Container raw materialization.** Container nodes keep their full materialized outer source text. That spends memory on the amplification axis (the bytes containers store over again) to buy it back on the undo axis, via structural-sharing undo. The only budget-busting cliffs (clone time proportional to node count, and a multi-GB undo-stack heap) both sat on the undo axis, and clone-on-write keyed by child ids eliminates both, while the amplification is linear and bounded at realistic sizes. Deriving container raw instead would fix the cheap problem and leave the expensive one.
 
-The standing evidence is the combined depth-x-size axis in `container-raw.bench.ts`, and its prose twin. A _full_ re-materialization is what every structural edit pays (and what a keystroke paid before the child spans). A quote or list item checks each line against its own previous bytes, so the cost is per line as much as per byte:
+The standing evidence is the combined depth-x-size axis in `container-raw.bench.ts`, and its prose twin. A _full_ re-materialization is what every structural edit pays. A quote or list item checks each line against its own previous bytes, so the cost is per line as much as per byte:
 
 - **Prose-length lines** (the deep prose rows): under a tenth of a µs per line, which comes to about 1.3 µs per KB.
 - **One long line per level** (the deep-nested rows): around 0.15 µs per KB, since there are hardly any lines to check.

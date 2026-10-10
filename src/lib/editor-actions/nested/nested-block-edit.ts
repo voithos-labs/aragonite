@@ -5,7 +5,7 @@
  */
 
 import type { BlockEditActions } from '../../action-contracts';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import type { BlockListState } from '../../block-lists/block-list-state.svelte';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import type { NestedActionsDeps } from './nested-actions';

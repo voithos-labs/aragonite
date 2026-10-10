@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createRootMenus, type BlockMenuModel } from '$lib/components/editor-root-menus';
-import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';
-import { BLOCK_ACTIONS_LABEL } from '$lib/a11y-strings';
-import { parse } from '$lib/core/parser';
-import { insertCatalogue } from '$lib/schema/insert-catalogue';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root-menus.js';
+import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
+import { BLOCK_ACTIONS_LABEL } from '#lib/a11y-strings.js';
+import { parse } from '#lib/core/parser.js';
+import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
@@ -27,7 +27,7 @@ function hostAt(path: number[]): HTMLElement {
 	return host;
 }
 
-function harness(opts: { mode?: PresentationMode } = {}) {
+function harness(opts: { mode?: PresentationMode; editsLink?: boolean } = {}) {
 	const root = document.createElement('div');
 	const header = document.createElement('div');
 	const headerField = document.createElement('p');
@@ -48,6 +48,9 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	};
 	const placeCaretAtPoint = vi.fn(() => true);
 	const insertMarkdown = vi.fn(async () => true);
+	const order: string[] = [];
+	placeCaretAtPoint.mockImplementation(() => (order.push('place'), true));
+	const editLinkAtCaret = vi.fn();
 	const menus = createRootMenus({
 		get editorEl() {
 			return root;
@@ -65,6 +68,8 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
 		stamps: createDocumentStamps(),
+		canEditLinkAtCaret: () => (order.push('ask'), !!opts.editsLink),
+		editLinkAtCaret,
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
@@ -93,6 +98,8 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		insertMarkdown,
 		rightClick,
 		ids,
+		order,
+		editLinkAtCaret,
 		menu: () => menu
 	};
 }
@@ -134,6 +141,18 @@ describe('editor-root menus: the right-click', () => {
 		// A flyout pick inserts below the block the press placed the caret in.
 		h.menu()!.pick('bullet');
 		expect(h.insertMarkdown).toHaveBeenCalledWith('- ', { placement: 'below' });
+	});
+
+	it('over a link, prose leads with Edit link, asked after the caret lands, and runs it', () => {
+		const h = harness({ editsLink: true });
+		h.rightClick(h.prose.firstElementChild!);
+		expect(h.order).toEqual(['place', 'ask']);
+		expect(h.ids().slice(0, 3)).toEqual(['link.edit', 'sep-edit', 'clip.cut']);
+		expect(h.menu()!.items[0].label).toBe('Edit link');
+
+		h.menu()!.pick('link.edit');
+		expect(h.menu()).toBeNull();
+		expect(h.editLinkAtCaret).toHaveBeenCalledOnce();
 	});
 
 	it('a selection gets the clipboard rows alone, over the selection as it stands', () => {

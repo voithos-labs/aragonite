@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Editor } from '$lib';
-	import { describeConvergence } from '$lib/testing/parse-convergence';
+	import { Editor } from '#lib';
+	import { describeConvergence } from '#lib/testing/parse-convergence.js';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	// Two editors over one seed: the first switches indented code and setext headings off, the

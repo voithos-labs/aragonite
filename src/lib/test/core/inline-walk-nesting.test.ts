@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Miss-analysis: the depth pins stopped at the renderer and the offset walk, never the walks after.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, expect, it } from 'vitest';
 import type { CstNode, InlineNode } from '../../core/nodes';
 import { parse, MAX_NESTING_DEPTH } from '../../core/parser';
@@ -11,12 +11,9 @@ import { CONTENT_VISIBILITY, visibleRuns, renderedText } from '../../core/inline
 import { registerInlineSyntax } from '../../core/inline/scan/plugin-syntax';
 import { renderOptions } from '../harness/fixture-grammar';
 
-// Both constants assume the default V8 stack; raising `--stack-size` turns these pins green
-// against a recursive walk.
+// Assumes the default V8 stack; raising `--stack-size` turns these pins green against a
+// recursive walk.
 const MODEL_DEPTH = 32_000;
-// jsdom's insert bookkeeping is superlinear in tree depth, so jsdom, not the walk, caps the pin
-// that renders; a recursive walk overflows only a few thousand levels below it.
-const RENDER_DEPTH = 8_000;
 
 /**
  * A `strong` chain around `leaf`, over the `**`-run source it parses from. Built rather than
@@ -102,7 +99,7 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 		expect(buildLinkReferenceMap(doc.children as CstNode[]).resolve('a')).toEqual({ url: '/u' });
 	});
 
-	// `renderedText` is this traversal's visible-text reading, so the deep pin below covers it.
+	// `renderedText` reads through `visibleRuns`, whose depth pin is `inline-walk-nesting.deep.test.ts`.
 	it('reads the visible text as the fold of its runs', () => {
 		const raw = '**ab**';
 		const { nodes } = nestedStrong(1, textLeaf);
@@ -114,19 +111,4 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 		expect(visible).toBe('ab');
 		expect(renderedText(nodes, raw, CONTENT_VISIBILITY, renderOptions())).toBe(visible);
 	});
-
-	it('tiles the rendered source in order past the recursion ceiling', () => {
-		const { nodes, raw } = nestedStrong(RENDER_DEPTH, textLeaf);
-		const runs = visibleRuns(nodes, raw, CONTENT_VISIBILITY, renderOptions());
-
-		expect(runs[0].start).toBe(0);
-		expect(runs[runs.length - 1].end).toBe(raw.length);
-		expect(runs.findIndex((run, i) => i > 0 && run.start !== runs[i - 1].end)).toBe(-1);
-		expect(
-			runs
-				.filter((run) => run.visible)
-				.map((run) => run.text)
-				.join('')
-		).toBe('ab');
-	}, 600_000);
 });

@@ -27,38 +27,16 @@ Rules:
 - (core) the per-kind branch in the parser
 ```
 
-Those per-change lines are subject lines in their own right and carry every line-1 rule. They sit below a blank line because `git log --oneline`, and every other reader of `%s`, joins a multi-line first paragraph into a single line, so three 72-character lines would arrive as one 216-character line.
+Those per-change lines are subject lines in their own right and carry every line-1 rule. They sit below a blank line because `git log --oneline` joins a multi-line first paragraph into a single line.
 
 - Verify behavior before committing
 - No attribution trailers (no `Co-Authored-By`, no "Generated with"). The git history is not a credits reel
 
 ## The shape is enforced
 
-`scripts/lint-commit-message.mjs` holds the only definition of the shape above, and the same
-script runs at two checkpoints, so nothing above depends on you remembering it:
+`scripts/lint-commit-message.mjs` checks the message shape above at two points: a `commit-msg` hook that `npm install` wires up (so a bad message never becomes a commit), and a CI step over the pull request's own commits (for anyone who never ran `npm install`). Merge, revert, dependabot and `fixup!` / `squash!` commits are exempt, and so is one co-founder who writes his own subjects. A few details the list above doesn't spell out: a scope may hold digits, commas, `/` and `-`; line 1's text may open with an identifier (`G1.38`, `CST`), just not an ordinary capitalized word; and a prose body's lines stop at 100 characters.
 
-| Checkpoint        | Where                                                                                 | Catches                                   |
-| ----------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `commit-msg` hook | `.githooks/`, wired by `npm install` (a `prepare` script sets git's `core.hooksPath`) | every local commit, before it exists      |
-| CI step           | the `unit` job, over the pull request's own commits                                   | a contributor who never ran `npm install` |
-
-Both checks pass over the authors named in the script's `EXEMPT_AUTHORS`, which today is a
-co-founder who writes his own subjects: the convention is ours, and his history costs more than
-the uniformity would buy.
-
-What it reads:
-
-- line 1: symbol, an optional `(scope)` (lowercase; digits, commas, `/` and `-` allowed), then the text, no trailing period, at most 72 characters. The text may open with an identifier (`G1.38`, `CST`, `WebKit`); what gets rejected is an ordinary capitalized word
-- line 2, when anything follows: blank
-- the body: either per-change lines, where **every** line is symbol-prefixed and held to the line-1 rules, or prose, at most 3 lines of at most 100 characters
-- no `Co-Authored-By` or "Generated with" trailer, anywhere
-
-Exempt, because no convention of ours writes them: `Merge …`, `Revert "…"`, dependabot's
-`Bump …` and `build(deps…`, and git's own `fixup!` / `squash!` (those never reach a pull
-request unsquashed, and the CI checkpoint catches a leftover).
-
-To read the verdict yourself before you open a pull request (the same line works in bash
-and PowerShell):
+To read the verdict yourself before you open a pull request (the same line works in bash and PowerShell):
 
 ```bash
 node scripts/lint-commit-message.mjs --range origin/dev..HEAD
@@ -83,15 +61,8 @@ commit message rejected:
   convention: docs/contributing/commit-conventions.md
 ```
 
-Every rule it breaks gets a line, with the offending text under it, and the exit code is 1. A
-subject over the cap says by how much (`subject-too-long: 84 characters, limit 72`), a body with
-no blank line above it gets `body-missing-blank-line`, and a trailer gets
-`attribution-trailer: the git history is not a credits reel`. The multi-change message above
-passes, and a pass prints nothing at all: exit code 0, silence. Same for `--range` over a clean
-branch.
+Every broken rule gets a line, with the offending text under it, and the exit code is 1. A pass prints nothing and exits 0.
 
 ## Bug fixes carry a miss-analysis
 
-Every `!` fix records one line: **what test should have caught this, and why none did.** It lives in the regression test's requirement file (e2e) or as that test's own header line (unit), never in the commit message. See `docs/contributing/rules.md` § Fixing bugs.
-
-One line. It is the line that keeps the same blind spot from being rediscovered next quarter by somebody who will also be certain they found it first.
+Every `!` fix records one line: **what test should have caught this, and why none did.** It lives in the regression test's requirement file (e2e) or as that test's own header line (unit), never in the commit message ([`rules.md`](rules.md) § Fixing bugs).

@@ -3,9 +3,9 @@
 // other text.
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { quoteLines } from '$lib/core/parsers/blockquote';
-import { listItemLines } from '$lib/core/parsers/list';
-import { FIRST_LINE, INNER_LINE, type LineCodec, type LinePlace } from '$lib/core/strip-lines';
+import { quoteLines } from '#lib/core/parsers/blockquote.js';
+import { listItemLines } from '#lib/core/parsers/list.js';
+import { FIRST_LINE, INNER_LINE, type LineCodec, type LinePlace } from '#lib/core/strip-lines.js';
 import { freshOrFixedSeed } from '../../invariants/arbitraries';
 
 const PARAMS = { numRuns: 2000, seed: freshOrFixedSeed(626262) } as const;

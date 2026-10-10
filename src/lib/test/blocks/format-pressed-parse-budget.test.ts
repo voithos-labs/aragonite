@@ -3,21 +3,21 @@
 // share one parse of the focused block, and the next edit invalidates that read.
 // Miss-analysis: only the ship-time perf gate bounded the parses a toolbar repaint spends.
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
-import { TOOLBAR_COMMANDS } from '$lib';
-import type { AnyCommandId } from '$lib/schema/command-id';
-import { listInlineMarks } from '$lib/schema/inline-construct-policy';
+import { TOOLBAR_COMMANDS } from '#lib';
+import type { AnyCommandId } from '#lib/schema/command-id.js';
+import { listInlineMarks } from '#lib/schema/inline-construct-policy.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
+} from '#lib/perf/instruments.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { mountCell } from './table/mount-cell';
 
 beforeAll(() => installLayoutStubs());

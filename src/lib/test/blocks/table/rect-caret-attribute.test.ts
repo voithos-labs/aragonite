@@ -8,9 +8,9 @@ import {
 	mountEditor,
 	placeCaret,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt, installTableLayoutStubs } from './mount-table';
-import { pressKey } from '$lib/test/harness/settle';
+import { pressKey } from '#lib/test/harness/settle.js';
 
 // Without the Range stubs the visual-line check throws instead of falling back to the
 // offset comparison the cell's edge test reads.

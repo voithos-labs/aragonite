@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { consumeStickyLanding } from '$lib/editor-actions/focus/focus-landing';
-import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
-import { stubBlockComponent } from '$lib/test/harness/editor-actions';
+import { consumeStickyLanding } from '#lib/editor-actions/focus/focus-landing.js';
+import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
+import { stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 
 function capturedSticky(x: number): CaretMemory {
 	const memory = createCaretMemory();
@@ -82,14 +82,14 @@ describe('consumeStickyLanding', () => {
 		});
 	}
 
-	// Every traversal ends here, the root's and a container's, so the side is set once for both.
-	it("'end' puts the caret outside a hidden closer; 'start' leaves the side alone", async () => {
+	// An arrow into a block lands on text, where the character before the caret decides.
+	it("'end' and 'start' set no edge record", async () => {
 		const memory = createCaretMemory();
 		await consumeStickyLanding(stubBlockComponent(), 0, 'start', memory, vi.fn());
 		expect(memory.side()).toBeNull();
 
 		await consumeStickyLanding(stubBlockComponent(), 0, 'end', memory, vi.fn());
-		expect(memory.side()).toBe('outside');
+		expect(memory.side()).toBeNull();
 	});
 
 	it('falls through to the caret when enterEdgeWidget declines', async () => {

@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, EDITOR_SRC, splitTopLevel, type SourceFile } from './scan-source';
-import { RESERVED_BLOCK_ATTRS } from '$lib/decorations/reserved-attrs';
+import { RESERVED_BLOCK_ATTRS } from '#lib/decorations/reserved-attrs.js';
 
 // ── Derivation ──────────────────────────────────────────────────────────────
 
@@ -31,9 +31,13 @@ function stringConstants(files: readonly SourceFile[]): Map<string, string> {
 const resolve = (text: string, constants: ReadonlyMap<string, string>) =>
 	text.replace(/\$\{\s*([A-Z_]+)\s*\}/g, (whole, name: string) => constants.get(name) ?? whole);
 
-/** The `data-` names a selector reads on an element that could be decorated; a bare `[data-x]` on
- *  the styled element only finds an inner element that set the name itself, so it doesn't count. */
-export function namesReadOnDecorated(selector: string, decorated: ReadonlySet<string>): string[] {
+/** The `data-` names a selector reads on an element that could be decorated. A bare `[data-x]`
+ *  counts only where its rule paints the value with `attr()`, which a decoration could forge. */
+export function namesReadOnDecorated(
+	selector: string,
+	decorated: ReadonlySet<string>,
+	ruleBody = ''
+): string[] {
 	let text = selector;
 	for (let prev = ''; prev !== text;) {
 		prev = text;
@@ -52,8 +56,9 @@ export function namesReadOnDecorated(selector: string, decorated: ReadonlySet<st
 			if (classes.some((c) => !decorated.has(c)) || (tag && tag !== 'div')) return;
 			const otherAttr = /\[\s*(?!data-)[a-z]/.test(outer);
 			const isSubject = i === compounds.length - 1;
-			if (isSubject && classes.length === 0 && !otherAttr) return;
-			names.push(...namesIn(compound));
+			const bare = isSubject && classes.length === 0 && !otherAttr;
+			const read = namesIn(compound);
+			names.push(...(bare ? read.filter((name) => ruleBody.includes(`attr(${name}`)) : read));
 		});
 	}
 	return names;
@@ -75,26 +80,32 @@ export function deriveReserved(files: readonly SourceFile[]): Set<string> {
 			const arg = m[4] !== undefined ? (constants.get(m[4]) ?? '') : (m[1] ?? m[2] ?? m[3]);
 			for (const name of namesIn(resolve(arg, constants))) reserved.add(name);
 		}
-		for (const selector of selectorTexts(file, constants)) {
-			for (const name of namesReadOnDecorated(selector, decorated)) reserved.add(name);
+		for (const { selector, body } of selectorTexts(file, constants)) {
+			for (const name of namesReadOnDecorated(selector, decorated, body)) reserved.add(name);
 		}
 	}
 	return reserved;
 }
 
-/** Selector text in a file: CSS rule preludes, and string literals holding an attribute selector. */
-function selectorTexts(file: SourceFile, constants: ReadonlyMap<string, string>): string[] {
-	const texts: string[] = [];
+/** Selector text in a file, with the declarations up to the next brace: CSS rules, and string
+ *  literals holding an attribute selector, which carry none. */
+function selectorTexts(
+	file: SourceFile,
+	constants: ReadonlyMap<string, string>
+): { selector: string; body: string }[] {
+	const texts: { selector: string; body: string }[] = [];
 	const sheets = file.relPath.endsWith('.css')
 		? [file.code]
 		: [...file.code.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
 	for (const sheet of sheets) {
-		for (const m of sheet.matchAll(/(?:^|[{};])\s*([^{}@;]+?)\s*\{/g)) texts.push(m[1]);
+		for (const m of sheet.matchAll(/(?:^|[{};])\s*([^{}@;]+?)\s*\{([^{}]*)/g)) {
+			texts.push({ selector: m[1], body: m[2] });
+		}
 	}
 	if (file.relPath.endsWith('.css')) return texts;
 	for (const m of file.code.matchAll(/'([^'\n]*)'|"([^"\n]*)"|`([^`]*)`/g)) {
 		const literal = resolve(m[1] ?? m[2] ?? m[3], constants);
-		if (literal.includes('[data-')) texts.push(literal);
+		if (literal.includes('[data-')) texts.push({ selector: literal, body: '' });
 	}
 	return texts;
 }
@@ -141,6 +152,11 @@ describe('G4.70 a block decoration keeps off the attributes the editor uses on i
 			'an editable-element rule',
 			"const s = '[contenteditable]:not([data-new-thing])';",
 			'data-new-thing'
+		],
+		[
+			'a bare rule painting from it',
+			'<style>\n:where(.editor) [data-new-thing]::before { content: attr(data-new-thing); }\n</style>',
+			'data-new-thing'
 		]
 	])('reserves a name read on a decorated element through %s', (_how, code, name) => {
 		expect(deriveReserved([HOST, file('src/lib/X.svelte', code)])).toEqual(
@@ -152,7 +168,11 @@ describe('G4.70 a block decoration keeps off the attributes the editor uses on i
 		['set on an inner element', '<span data-new-thing={v}></span>'],
 		['styled on an inner class', '<style>\n.menu-item[data-new-thing] { color: red; }\n</style>'],
 		['found below an inner element', 'menuEl.querySelector(\'[data-new-thing="true"]\');'],
-		['styled on an inner tag', '<style>\nspan[data-new-thing] { color: red; }\n</style>']
+		['styled on an inner tag', '<style>\nspan[data-new-thing] { color: red; }\n</style>'],
+		[
+			'matched bare, painting no text of it',
+			"<style>\n[data-new-thing]::before { content: '•'; }\n</style>"
+		]
 	])('leaves a name %s', (_how, code) => {
 		expect(deriveReserved([HOST, file('src/lib/X.svelte', code)])).toEqual(
 			new Set(['data-block-path'])

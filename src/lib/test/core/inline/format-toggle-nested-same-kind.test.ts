@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { parseInline } from '#lib/core/inline/index.js';
+import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { press } from './format-toggle-fixture';
 import { renderOptions } from '../../harness/fixture-grammar';
 

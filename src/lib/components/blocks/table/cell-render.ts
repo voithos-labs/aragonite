@@ -5,18 +5,19 @@
  * this factory builds the DOM.
  */
 
+import type { ActivationClick } from '../../../activation-click';
 import type { InlineNode } from '../../../core/nodes';
 import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { ResolveLinkUrl } from '../../../editor-keys';
 import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import { captureFocusedCaret } from '../../../cursor/focused-caret';
+import { captureFocusedCaret } from '../../../caret/focused-caret';
 import {
 	CONTENT_EMPTY_ATTR,
 	holdsOnlyMarkerChrome,
-	placeCaretAtRaw
-} from '../../../cursor/widget-offset';
+	type CaretWriter
+} from '../../../caret/widget-offset';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
@@ -43,12 +44,16 @@ export interface CellRenderDeps {
 	getContentVersion: () => number;
 	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
 	navigateTo: (path: number[]) => Promise<boolean>;
+	/** Whether a click follows what it lands on, passed on to widgets that go somewhere. */
+	activationClick: ActivationClick;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the cell when one changes. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
 	/** A widget that throws while mounting reports to the editor's `error` event, and still falls
 	 *  back to its raw source. */
 	reportRenderError: (error: unknown) => void;
+	/** The editor's caret writer, which puts the caret back after a rebuild. */
+	caretWriter: CaretWriter;
 }
 
 export interface CellRender {
@@ -67,7 +72,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
 		navigateTo: deps.navigateTo,
-		reading: deps.reading
+		reading: deps.reading,
+		activationClick: deps.activationClick
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -143,7 +149,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		// nothing; the attribute is set before the restore, which uses the same traversal.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 
-		if (caret !== null) placeCaretAtRaw(el, caret, { clamp: 'exact' });
+		if (caret !== null) deps.caretWriter.placeCaretAtRaw(el, caret, { clamp: 'exact' });
 	}
 
 	return {

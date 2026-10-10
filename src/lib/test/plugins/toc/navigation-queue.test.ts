@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createNavigationQueue } from '$lib/plugins/toc/navigation-queue';
-import { settleEditor } from '$lib/test/harness/settle';
+import { createNavigationQueue } from '#lib/plugins/toc/navigation-queue.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 // A navigation that leaves each call waiting on a promise the test resolves by hand, so the
 // queue's ordering is visible one step at a time: `calls` records the path of every

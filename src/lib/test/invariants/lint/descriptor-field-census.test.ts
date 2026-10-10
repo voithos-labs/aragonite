@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { DESCRIPTOR_FIELDS, CONTAINER_ONLY_KEYS } from '$lib/schema/block-kind-descriptor';
+import { DESCRIPTOR_FIELDS, CONTAINER_ONLY_KEYS } from '#lib/schema/block-kind-descriptor.js';
 
 const SECTION_HEADING = '### The descriptor field reference';
 

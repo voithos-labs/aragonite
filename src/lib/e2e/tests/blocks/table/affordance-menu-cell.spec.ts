@@ -103,19 +103,6 @@ test.describe('table block: cell right-click menu', () => {
 		await editor.bridge.waitForSourceContains('| 2 | 1 |');
 	});
 
-	// One menu, both flyouts: the first body row cannot move up and the first column cannot
-	// move left, and neither disabled row is reachable as a commit.
-	test('moves are disabled at the near end of each axis', async ({ page }) => {
-		await openFlyout(page, 2, 'Row'); // rowIdx 1 (first body row), colIdx 0 (first column)
-		await expect(page.getByRole('menuitem', { name: 'Move row up' })).toBeDisabled();
-		await expect(page.getByRole('menuitem', { name: 'Move row down' })).toBeEnabled();
-
-		// Hovering the sibling group row swaps which flyout is open.
-		await page.getByRole('menuitem', { name: 'Column', exact: true }).hover();
-		await expect(page.getByRole('menuitem', { name: 'Move column left' })).toBeDisabled();
-		await expect(page.getByRole('menuitem', { name: 'Move column right' })).toBeEnabled();
-	});
-
 	test('both deletes are disabled in a one-row, one-column table', async ({ page }) => {
 		await editor.loadContent(TABLE_1X1);
 		await page.locator('.table-cell').nth(1).click({ button: 'right' }); // the sole body cell

@@ -3,11 +3,11 @@
 // Expected shapes follow the paragraph's reading of the same lines, which asks the whole grammar.
 // Miss-analysis: every table-boundary case used a one-line built-in opener and the default grammar.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { GrammarView } from '$lib/schema/block-openers';
-import { createRegistryView } from '$lib/schema/registry-view';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 

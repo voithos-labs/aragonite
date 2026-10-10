@@ -8,8 +8,8 @@ import {
 	dispatchKindCommand,
 	runCommandById,
 	type KindCommandTarget
-} from '$lib/schema/block-commands';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+} from '#lib/schema/block-commands.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { commandContext, commandContextWith } from '../support/command-context';
 
 function mover() {

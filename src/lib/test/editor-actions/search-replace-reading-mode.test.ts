@@ -1,12 +1,12 @@
 // Replace in reading mode: every commit in the batch is declined, so the batch reports nothing.
 // Miss-analysis: every replace test ran in source mode, so no count was checked against a refusal.
 import { describe, expect, it } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import type { EditEvent } from '$lib/editor-events';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { serialize } from '#lib/core/serializer.js';
+import type { EditEvent } from '#lib/editor-events.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const SOURCE = 'one cat\n\ntwo cat\n';
 

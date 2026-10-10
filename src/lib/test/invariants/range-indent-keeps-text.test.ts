@@ -1,7 +1,7 @@
 // G1.58: the check passes a list move or a code indent and fails a lost or reordered word.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { checkIndentKeepsText, leafText } from '$lib/invariants/range-indent-keeps-text';
+import { parse } from '#lib/core/parser.js';
+import { checkIndentKeepsText, leafText } from '#lib/invariants/range-indent-keeps-text.js';
 
 const textOf = (source: string) => leafText(parse(source), [0, 0]);
 

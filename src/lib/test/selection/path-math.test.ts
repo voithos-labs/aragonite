@@ -7,7 +7,7 @@ import {
 	isPathBetween,
 	asDocPath
 } from '../../selection/path-math';
-import { extendDocPath, docPathFrom } from '../../cursor/coordinate-spaces';
+import { extendDocPath, docPathFrom } from '../../caret/coordinate-spaces';
 import { checkCommitPathAddressable } from '../../invariants/commit-paths';
 
 describe('pathHasPrefix', () => {

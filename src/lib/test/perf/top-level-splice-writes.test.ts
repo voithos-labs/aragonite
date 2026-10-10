@@ -2,10 +2,10 @@
 // Miss-analysis: only the perf gate timed an Enter at the top of a long document; no unit test
 // counted what a document-scope commit writes through the tree's own array.
 import { describe, expect, it } from 'vitest';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { EditorActionsDeps } from '$lib/editor-actions/deps';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import { serialize } from '$lib/core/serializer';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { serialize } from '#lib/core/serializer.js';
 import { makeEnv, makeHandlers } from '../selection/cross-block/typed-char-env';
 import { press } from '../selection/cross-block/keydown-env';
 

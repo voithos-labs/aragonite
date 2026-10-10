@@ -4,8 +4,10 @@
  */
 
 import { tick } from 'svelte';
+import { isModifiedClick, type PressTracker } from '../activation-click';
 import { findSurfacePathForElement } from '../selection/path-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
+import type { CaretWriter } from '../caret/widget-offset';
 import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 
 // ── Listener plumbing ───────────────────────────────────────────────
@@ -31,8 +33,8 @@ export function removeAll(...removers: (() => void)[]): () => void {
 
 // ── Install bundles ─────────────────────────────────────────────────
 
-/** Only Ctrl/Cmd+click activates a link, so CSS shows the pointer off `data-mod-active`; reset on
- *  blur and visibility loss, so a key released while unfocused cannot stick it. */
+/** Ctrl/Cmd+click follows a link in every mode, so CSS shows the pointer off `data-mod-active`;
+ *  reset on blur and visibility loss, so a key released while unfocused cannot stick it. */
 export function installModActiveTracker(root: HTMLElement): () => void {
 	// Track the last reflected state so ordinary typing never touches the DOM,
 	// keeping the attribute write off the keystroke hot path (perf:check).
@@ -43,7 +45,8 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 		if (next) root.setAttribute('data-mod-active', '');
 		else root.removeAttribute('data-mod-active');
 	};
-	const onKey = (e: KeyboardEvent) => apply(e.ctrlKey || e.metaKey);
+	// The held keys are what the next click would carry.
+	const onKey = (e: KeyboardEvent) => apply(isModifiedClick(e));
 	const reset = () => apply(false);
 	const onVisibility = () => {
 		if (document.visibilityState === 'hidden') apply(false);
@@ -53,6 +56,19 @@ export function installModActiveTracker(root: HTMLElement): () => void {
 		onRoot(document, 'keyup', onKey),
 		onRoot(window, 'blur', reset),
 		onRoot(document, 'visibilitychange', onVisibility)
+	);
+}
+
+/** Records every primary press in `root`, in the capture phase so a block that cancels its press
+ *  still reports it. */
+export function installPressTracker(root: HTMLElement, presses: PressTracker): () => void {
+	return onRoot<PointerEvent>(
+		root,
+		'pointerdown',
+		(e) => {
+			if (e.button === 0) presses.press(e);
+		},
+		{ capture: true }
 	);
 }
 
@@ -93,6 +109,7 @@ export interface SelectionChangeBridgeDeps {
 	announceIfMoved(): void;
 	/** Read for an inline widget selected whole, which owns the keys while it is. */
 	selection: Pick<SelectionState, 'widget'>;
+	caretWriter: CaretWriter;
 }
 
 /** Announces caret motion the editor did not make (a click, a move within one block), and drops
@@ -109,7 +126,7 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// The paragraph keeps focus while its widget is selected, and the browser puts a caret at
 		// its start on any mouse input. A drag's range and a caret in a popover field stay.
 		if (sel.isCollapsed && deps.selection.widget !== null && inBlockSurface(anchorNode)) {
-			sel.removeAllRanges();
+			deps.caretWriter.clear();
 			return;
 		}
 		deps.announceIfMoved();

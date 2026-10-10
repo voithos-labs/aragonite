@@ -8,15 +8,16 @@ import type { BlockEditActions, FocusActions } from '../action-contracts';
 import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
-import type { CaretMemory } from '../cursor/caret-memory';
-import { createInsertionRecords } from '../cursor/next-insertion';
+import type { CaretMemory } from '../caret/caret-memory';
+import { createInsertionRecords } from '../caret/next-insertion';
+import { createCaretWriter } from '../caret/widget-offset';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
-import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
-import type { ChildList } from '../reactivity/child-list';
+import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
+import type { ChildList } from '../block-lists/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import {
 	createCaretLanding,
@@ -45,16 +46,22 @@ export function stubCaretMemory(): CaretMemory {
 	return {
 		column: () => null,
 		side: () => null,
+		arrivedByKey: () => false,
 		pendingMarks: { get: () => null, toggle: () => {}, consume: () => null, restore: () => {} },
 		pendingBreak: {
 			forBlock: () => ({ lines: () => 0, at: () => null, open: () => {}, end: () => {} })
 		},
-		heldSpace: { forBlock: () => ({ at: () => null, inside: () => null }) },
+		heldSpace: {
+			forBlock: () => ({ at: () => null, inside: () => null, passCloser: () => false })
+		},
 		holdInsertion: (block, place) => createInsertionRecords([]).hold(block, null, place),
+		previewInsertion: (block, place) => createInsertionRecords([]).preview(block, null, place),
+		changeCount: () => 0,
 		noteKey: () => {},
 		noteTyping: () => {},
-		noteExtreme: () => {},
+		noteOutside: () => {},
 		pin: () => {},
+		pinOnArrival: () => {},
 		captureColumn: () => {},
 		forget: () => {}
 	};
@@ -180,6 +187,8 @@ export function createHeadlessActions(
 			getDoc: () => doc,
 			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
 		}),
+		// A headless suite has no drawn caret to repaint.
+		caretWriter: createCaretWriter(() => {}),
 		getBlockElByPath: () => null,
 		get caretLanding() {
 			return caretLanding;
@@ -200,10 +209,11 @@ export function createHeadlessActions(
 			getDoc: () => doc,
 			root: rootList,
 			selectionState: deps.selectionState,
+			caretWriter: deps.caretWriter,
 			// Read live: a suite may swap in its own caret memory after building the deps.
 			caretMemory: {
 				forget: () => deps.caretMemory.forget(),
-				noteExtreme: () => deps.caretMemory.noteExtreme()
+				noteOutside: () => deps.caretMemory.noteOutside()
 			},
 			getBlockElByPath: (path) => deps.getBlockElByPath(path),
 			getEditorRoot: () => null,

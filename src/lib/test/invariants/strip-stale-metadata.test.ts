@@ -1,10 +1,10 @@
 // Miss-analysis: the strip stale-raw check compared only the children's bytes with the reparse, so
 // a quote whose first line gained a `>` kept its old depth through every dev build.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib';
-import { checkStaleRaw } from '$lib/invariants/node-shape';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { parse } from '#lib';
+import { checkStaleRaw } from '#lib/invariants/node-shape.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 describe('the strip stale-raw check compares metadata with the reparse', () => {
 	// A bare `rebuildRaw` is a rebuild outside every route that re-reads the metadata.

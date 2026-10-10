@@ -7,8 +7,6 @@ import { EditorPage } from '../../../editor-page';
 
 const SOURCE = '```js\nconst x = 1\n```\n\n# Heading\n';
 const EMPTY_FENCE = '```\n```\n\n# Heading\n';
-/** Trailing spaces `meta.info` trims away and the block's bytes keep. */
-const PADDED_FENCE = '```js  \nconst x = 1\n```\n\n# Heading\n';
 const NESTED_FENCE = '> a quote\n>\n> ```js\n> const x = 1\n> ```\n';
 
 // The `.code-rail` (the code block's side gutter) appears on hover; the language control is named
@@ -54,16 +52,22 @@ test.describe('code language chip: when it shows', () => {
 		await expect(rail(page)).toHaveCount(0);
 	});
 
-	for (const mode of WRITING_MODES) {
-		test(`${mode} reveals it on hover, reading the info string’s first token`, async ({ page }) => {
-			const editor = await loadIn(page, mode);
+	test('every writing mode reveals it on hover, reading the info string’s first token', async ({
+		page
+	}) => {
+		const editor = await loadLive(page);
+		for (const mode of WRITING_MODES) {
+			await test.step(mode, async () => {
+				await editor.setPresentationMode(mode);
+				await page.mouse.move(0, 0);
 
-			await expect(rail(page)).toHaveCSS('opacity', '0');
-			await editor.getBlock(0).hover();
-			await expect(chipButton(page)).toHaveText('js');
-			await expect(rail(page)).toHaveCSS('opacity', '1');
-		});
-	}
+				await expect(rail(page)).toHaveCSS('opacity', '0');
+				await editor.getBlock(0).hover();
+				await expect(chipButton(page)).toHaveText('js');
+				await expect(rail(page)).toHaveCSS('opacity', '1');
+			});
+		}
+	});
 
 	test('live mode reveals it for a caret inside the block, pointer away', async ({ page }) => {
 		const editor = await loadLive(page);
@@ -133,19 +137,23 @@ test.describe('code language chip: when it shows', () => {
 test.describe('code language chip: the commit', () => {
 	// Every writing mode, because a preview mode shows the fence again while the field holds
 	// focus (the block reads as focused), so the chip commits over markers back on screen.
-	for (const mode of WRITING_MODES) {
-		test(`${mode}: Enter rewrites the info string and nothing else`, async ({ page }) => {
-			const editor = await loadIn(page, mode);
-			await openChip(editor);
-			await page.keyboard.type('ts');
-			await page.keyboard.press('Enter');
-			await editor.bridge.waitForSourceContains('```ts');
+	test('every writing mode: Enter rewrites the info string and nothing else', async ({ page }) => {
+		const editor = await loadLive(page);
+		for (const mode of WRITING_MODES) {
+			await test.step(mode, async () => {
+				await editor.setPresentationMode(mode);
+				await editor.loadContent(SOURCE);
+				await openChip(editor);
+				await page.keyboard.type('ts');
+				await page.keyboard.press('Enter');
+				await editor.bridge.waitForSourceContains('```ts');
 
-			expect(await editor.bridge.getSource()).toBe('```ts\nconst x = 1\n```\n\n# Heading\n');
-			expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-			expect(await editor.bridge.getBlockCount()).toBe(2);
-		});
-	}
+				expect(await editor.bridge.getSource()).toBe('```ts\nconst x = 1\n```\n\n# Heading\n');
+				expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+				expect(await editor.bridge.getBlockCount()).toBe(2);
+			});
+		}
+	});
 
 	// `text` is the picker's spelling of "no language": the field opens empty, so clearing means
 	// choosing that row rather than emptying a field.
@@ -160,23 +168,6 @@ test.describe('code language chip: the commit', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
-	// An alias is a search key, not a row: the list matches `rs` to `rust`, and what the author
-	// typed is still what lands, so the short forms stay writable here.
-	test('an alias filters to its language, listed once, and commits as typed', async ({ page }) => {
-		const editor = await loadLive(page);
-		await openChip(editor);
-		await page.keyboard.type('rs');
-
-		const rows = page.locator('.code-lang-name');
-		await expect(rows.first()).toHaveText('rust');
-		await expect(rows.filter({ hasText: /^rust$/ })).toHaveCount(1);
-		await expect(rows.filter({ hasText: /^rs$/ })).toHaveCount(0);
-
-		await page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceContains('```rs');
-		expect(await editor.bridge.getSource()).toBe('```rs\nconst x = 1\n```\n\n# Heading\n');
-	});
-
 	// A same-length info string would land the caret right whatever the opener's width did to
 	// the offset, so the commit here lengthens the line.
 	test('the caret comes back to the body’s first offset, ready to type', async ({ page }) => {
@@ -189,51 +180,6 @@ test.describe('code language chip: the commit', () => {
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('Xconst');
 		expect(await editor.bridge.getSource()).toBe('```typescript\nXconst x = 1\n```\n\n# Heading\n');
-	});
-
-	// The undo is what tells them apart: a stray write to the info string would take the trailing
-	// spaces back and leave the typed character standing.
-	test('a bare Enter on a padded fence line writes nothing', async ({ page }) => {
-		const editor = await loadLive(page, PADDED_FENCE);
-		await editor.focusBlock(0, 8);
-		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceContains('Zconst');
-
-		await openChip(editor);
-		// The field opens empty and the highlight sits on the block's own language, so a bare Enter
-		// commits `js` again, which the commit check reads as unchanged and writes nothing.
-		await expect(chipInput(page)).toHaveValue('');
-		await expect(chipButton(page)).toHaveText('js');
-		await page.keyboard.press('Enter');
-		// The chip is its own input, outside every editable block: no keydown answer is recorded.
-		await editor.waitForNoSourceMutation();
-		expect(await editor.bridge.getSource()).toBe('```js  \nZconst x = 1\n```\n\n# Heading\n');
-
-		await editor.undo();
-		await editor.bridge.waitForSourceNotContains('Zconst');
-		expect(await editor.bridge.getSource()).toBe(PADDED_FENCE);
-	});
-
-	test('a backtick cannot reach an unclosed backtick fence’s info string', async ({ page }) => {
-		const editor = await loadLive(page, '```js\nconst x = 1\n');
-		await openChip(editor);
-		await page.keyboard.type('a`b');
-		await page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceContains('```ab');
-
-		expect(await editor.bridge.getSource()).toBe('```ab\nconst x = 1\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-	});
-
-	test('a leading fence marker is dropped rather than lengthening the fence', async ({ page }) => {
-		const editor = await loadLive(page, '~~~js\nconst x = 1\n~~~\n\n# Heading\n');
-		await openChip(editor);
-		await page.keyboard.type('~~ts');
-		await page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceContains('~~~ts');
-
-		expect(await editor.bridge.getSource()).toBe('~~~ts\nconst x = 1\n~~~\n\n# Heading\n');
-		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 });
 

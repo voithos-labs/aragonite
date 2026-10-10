@@ -3,20 +3,21 @@
 // block's caret-edge dispatch and the cross-block `enterEdgeWidget`: a kind that can show its
 // source opens it at the edge the key came from, and one that cannot is selected, then stepped
 // over. Covering both catches a change that fixes only one.
-import { recordingWrite } from '$lib/test/harness/editor-actions';
+import { recordingWrite } from '#lib/test/harness/editor-actions.js';
 import type { Commit } from './widget-selected-fixture';
 import { beforeEach, describe, it, expect } from 'vitest';
-import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
-import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
-import { asRawOffset } from '$lib/cursor/coordinate-spaces';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { AnyInlineKind } from '$lib/core/nodes';
-import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { augmentInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
+import { domTextOffsetAtNode } from '#lib/caret/widget-offset.js';
+import { asRawOffset } from '#lib/caret/coordinate-spaces.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { AnyInlineKind } from '#lib/core/nodes.js';
+import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { key, makeEdgeDispatch } from './edge-policy-fixture';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 installMathInline();
 
@@ -32,6 +33,7 @@ function mount(source: string, widgetKind: string) {
 		widgetInteractionDeps(
 			{ node, el },
 			{
+				caretWriter: testCaretWriter,
 				cursor: new Proxy({}, { get: () => () => {} }),
 				selection,
 				blockEdit: { updateBlockContent: recordingWrite() },

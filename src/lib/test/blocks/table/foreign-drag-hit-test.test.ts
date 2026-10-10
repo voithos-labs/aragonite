@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { registerBuiltInBlocks } from '../../../components/built-in-blocks';
-import { TABLE_CELL_SELECTOR } from '../../../components/block-content-selector';
+import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
 import { tableDragHitTest } from '../../../components/blocks/table/table-drag-hit-test';
 import { mountTableGrid } from '../../selection/table-grid';
 

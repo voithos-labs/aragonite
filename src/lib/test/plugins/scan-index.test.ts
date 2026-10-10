@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { createScanIndex } from '$lib/scan-index';
+import { createScanIndex } from '#lib/scan-index.js';
 
 function digitPositions(raw: string): Int32Array {
 	const positions: number[] = [];

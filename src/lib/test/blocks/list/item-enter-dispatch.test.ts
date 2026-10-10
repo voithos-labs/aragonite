@@ -3,8 +3,12 @@
 // Enter makes. The calls have their own tests; each writes different bytes, so a real keystroke
 // tells the choice apart without a spy.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import { parse } from '#lib/core/parser.js';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

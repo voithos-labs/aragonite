@@ -6,7 +6,7 @@ import {
 	trimTrailingLineEnding,
 	type DocumentView,
 	type NodeView
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import GhostText from './GhostText.svelte';
 
 function nodeAt(doc: DocumentView, path: number[]): NodeView | null {

@@ -5,18 +5,18 @@
 // Miss-analysis: prose blocks had no mount-level typing tests, and none erased a setext title.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import { parse } from '$lib/core/parser';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import { parse } from '#lib/core/parser.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { installMathInline } from './math-widget-fixture';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 beforeAll(installLayoutStubs);
 
@@ -38,7 +38,9 @@ async function retitle(el: HTMLElement, title: string): Promise<void> {
 	await mounted!.settle();
 }
 
-describe('typing into a setext heading keeps its underline', () => {
+const MODES = ['source', 'live'] as const;
+
+describe.each(MODES)('%s mode: typing into a setext heading keeps its underline', (mode) => {
 	it.each([
 		['a --- underline', 'Plan\n---\n', 'Plans\n---\n'],
 		['a === underline', 'Plan\n===\n', 'Plans\n===\n'],
@@ -46,7 +48,7 @@ describe('typing into a setext heading keeps its underline', () => {
 		['CRLF endings', 'Plan\r\n===\r\n', 'Plans\r\n===\r\n'],
 		['a two-line title', 'Plan\nB\n---\n', 'Plan\nBs\n---\n']
 	])('%s', async (_label, source, typed) => {
-		mounted = mountEditor({ source });
+		mounted = mountEditor({ source, presentationMode: mode });
 
 		await retitle(surfaceAt(mounted, [0]), typed.slice(0, typed.search(/\r?\n[-=]+\r?\n$/)));
 
@@ -54,7 +56,7 @@ describe('typing into a setext heading keeps its underline', () => {
 	});
 });
 
-describe('erasing a setext title drops its underline', () => {
+describe.each(MODES)('%s mode: erasing a setext title drops its underline', (mode) => {
 	it.each([
 		['a === underline', 'Plan\n===\n', '', '\n'],
 		['a --- underline', 'Plan\n---\n', '', '\n'],
@@ -63,7 +65,7 @@ describe('erasing a setext title drops its underline', () => {
 		['a title left as a space', 'Plan\n===\n', ' ', ' \n'],
 		['the last line of a two-line title', 'Plan\nmore\n---\n', 'Plan\n', 'Plan\n\n']
 	])('%s', async (_label, source, left, written) => {
-		mounted = mountEditor({ source });
+		mounted = mountEditor({ source, presentationMode: mode });
 
 		await retitle(surfaceAt(mounted, [0]), left);
 

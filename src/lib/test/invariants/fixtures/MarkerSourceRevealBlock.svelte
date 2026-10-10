@@ -2,7 +2,7 @@
 	// A render-primary leaf whose revealed source paints its bytes as markers: the single-text-node
 	// sync leaves it alone, since the textContent already matches, so the reveal path puts a caret
 	// where the mode paints nothing.
-	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '#lib/plugin.js';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 

@@ -4,7 +4,7 @@
 // handler refuses before the chord dispatcher and the navigation plan.
 import { describe, it, expect, afterEach } from 'vitest';
 import { mountCell, type MountedCell } from './mount-cell';
-import { settleEditor, pressKey } from '$lib/test/harness/settle';
+import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 
 let mounted: MountedCell | null = null;
 afterEach(async () => {
@@ -30,7 +30,9 @@ describe('a composing table cell claims no keys', () => {
 		mounted.el.focus();
 		compose(mounted);
 
-		expect((await pressKey(mounted.el, init)).defaultPrevented).toBe(false);
+		expect((await pressKey(mounted.el, { ...init, isComposing: true })).defaultPrevented).toBe(
+			false
+		);
 		expect(mounted.tableContext.focusCell).not.toHaveBeenCalled();
 		expect(mounted.tableContext.exitDownward).not.toHaveBeenCalled();
 	});
@@ -46,7 +48,9 @@ describe('a composing table cell claims no keys', () => {
 		mounted.el.focus();
 		compose(mounted);
 
-		expect((await pressKey(mounted.el, init)).defaultPrevented).toBe(false);
+		expect((await pressKey(mounted.el, { ...init, isComposing: true })).defaultPrevented).toBe(
+			false
+		);
 		expect(mounted.tableContext.insertRowBelow).not.toHaveBeenCalled();
 		expect(mounted.tableContext.deleteRow).not.toHaveBeenCalled();
 		expect(mounted.tableContext.insertColumnRight).not.toHaveBeenCalled();

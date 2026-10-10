@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import {
 	dispatchKeyCommand,
 	registerBlockCommand,
 	runCommandById
-} from '$lib/schema/block-commands';
-import { runGlobalChord, runGlobalChordOnKind } from '$lib/schema/commands';
+} from '#lib/schema/block-commands.js';
+import { runGlobalChord, runGlobalChordOnKind } from '#lib/schema/commands.js';
 import { takeDevWarns } from '../support/warn-gate';
 import { commandContext, commandContextWith } from '../support/command-context';
 

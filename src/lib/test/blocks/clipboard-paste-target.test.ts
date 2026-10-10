@@ -12,15 +12,15 @@ import {
 	placeCaret,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { dispatchKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { dispatchKey } from '#lib/test/harness/settle.js';
 import { newestEntryCaret } from '../support/undo-entry';
-import { definePluginBlock, registerBlockOpener } from '$lib/plugin';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { definePluginBlock, registerBlockOpener } from '#lib/plugin.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import PlainLeafBlock from '../plugins/fixtures/PlainLeafBlock.svelte';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-import type { EditorTestSurface } from '$lib/components/editor-root-test-surface';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import type { EditorTestSurface } from '#lib/components/editor-root-test-surface.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 

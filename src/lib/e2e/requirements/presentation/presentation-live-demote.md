@@ -17,7 +17,8 @@ checks against.
 - the second keypress merges, through the untouched cascade: demote-first delays the merge by one
   keypress, it does not replace it
 - a setext heading gives up its trailing underline on the same keypress: its structure is a
-  suffix, and the kind's content range is what says so
+  suffix, and the kind's content range is what says so. Delete at the other end of that heading
+  joins the next block above the underline; `setext-join.md` drives it in every mode
 
 ## Edge cases
 
@@ -32,10 +33,6 @@ checks against.
   without them `[B][r]` is plain text and its `[` is content the bound would stop at
 - a paragraph opening with a reference construct still merges on that keypress: the moved bound
   serves the kinds that declare no demote too
-- `Delete` at a setext heading's content end joins the next block onto the title line and leaves
-  the underline under the joined text, so the heading stays a heading and the caret sits where the
-  two texts meet (`setext-join.md` drives the same join in every mode). Miss-analysis: the pin on
-  this keypress encoded its refusal as the contract, so the join it declined was never specified
 - source mode never demotes: a keypress inside the painted `## ` takes a marker byte, because
   there the markers are on screen and the user aimed at them
 

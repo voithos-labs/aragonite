@@ -10,7 +10,7 @@ import type { CstNode, ListItemMetadata } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
-import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
+import { extendDocPath, docPathFrom } from '../caret/coordinate-spaces';
 import type { Reading } from '../schema/reading';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { UndoController } from './deps';
@@ -29,8 +29,8 @@ import {
 	liftNestedItem,
 	type ItemMoveCommits
 } from '../tree-operations/list/item-moves';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
-import { expectStateForNode } from '../reactivity/state-registry';
+import type { BlockListState } from '../block-lists/block-list-state.svelte';
+import { expectStateForNode } from '../block-lists/state-registry';
 import type { NodeScope } from './nested/nested-actions';
 
 export interface ListContextDeps {
@@ -210,7 +210,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { at: offset, itemIndex, innerIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				landing: () => itemAt(itemIndex + 1, secondHalfLanding)
+				landing: () => ({ ...itemAt(itemIndex + 1, secondHalfLanding), fresh: true })
 			});
 		},
 

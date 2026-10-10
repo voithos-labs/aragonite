@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { rangeContext } from '../../selection/cross-block/range-context';
-import { splitNode } from '$lib/tree-operations/node-ops';
+import { splitNode } from '#lib/tree-operations/node-ops.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeTopHarness
-} from '$lib/test/harness/editor-actions';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { asDocPath } from '$lib/selection/path-math';
+} from '#lib/test/harness/editor-actions.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { asDocPath } from '#lib/selection/path-math.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The commit's blank-line fix-up must change nothing over a range its mutate already fixed up.
 // Miss-analysis: the fix-up lived at each splice site, so no case ran a second one over one range.

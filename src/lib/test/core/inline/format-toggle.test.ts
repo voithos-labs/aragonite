@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { MARK_FORMATS, markersOf, toggleFormat, whole } from './format-toggle-fixture';
-import { parseInline } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
+import { parseInline } from '#lib/core/inline/index.js';
+import type { InlineNode } from '#lib/core/nodes.js';
 
 const leafText = (nodes: InlineNode[]): string =>
 	nodes.map((n) => (n.children ? leafText(n.children) : (n.text ?? ''))).join('');

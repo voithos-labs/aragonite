@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { makeNestedHarness, makeNode, makeTopHarness } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import { makeNestedHarness, makeNode, makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 // The hand-built replacement containers have no rebuilt raw, which the dev-mode stale-raw and
 // read-back checks report.

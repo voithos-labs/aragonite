@@ -8,11 +8,11 @@ import {
 	registerBlockCommand,
 	type CommandDispatchContext,
 	type KindCommandTarget
-} from '$lib/schema/block-commands';
-import { registerCommand, type CommandId } from '$lib/schema/commands';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import type { AnyCommandId } from '$lib/schema/command-id';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/schema/block-commands.js';
+import { registerCommand, type CommandId } from '#lib/schema/commands.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
+import type { AnyCommandId } from '#lib/schema/command-id.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { takeDevWarns } from '../support/warn-gate';
 import { commandContext, commandContextWith } from '../support/command-context';
 

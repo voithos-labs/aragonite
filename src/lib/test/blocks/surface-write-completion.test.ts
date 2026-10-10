@@ -3,16 +3,16 @@
 // so the completion's undo entry holds it, then the completion puts the caret in what it made.
 // Miss-analysis: the `keepsCaret` cases never registered a completer, so none typed one's trigger.
 import { beforeAll, beforeEach, afterEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockCompleter } from '$lib/schema/block-completions';
-import { rawSelectionFocus } from '$lib/cursor/widget-offset';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { registerBlockCompleter } from '#lib/schema/block-completions.js';
+import { rawSelectionFocus } from '#lib/caret/widget-offset.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
-	placeCaret,
-	surfaceAt
+	surfaceAt,
+	typeInto
 } from '../harness/mount-editor.svelte';
 
 const ruleBox = definePlugin({
@@ -31,12 +31,6 @@ beforeEach(() => {
 	installPlugins([ruleBox]);
 });
 afterEach(destroyMountedEditors);
-
-function typeInto(el: HTMLElement, text: string): void {
-	el.textContent = text;
-	placeCaret(el, text.length);
-	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
-}
 
 describe('a keystroke an on-type completer answers', () => {
 	it('forms the structure, with the caret where the completion put it', async () => {

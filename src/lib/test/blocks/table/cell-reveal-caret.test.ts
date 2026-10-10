@@ -3,9 +3,9 @@
 // lands one byte early per escape, and the commit caret is mapped past them. `focusCell` is
 // stubbed, so the "Enter stays put" half is covered by the `cell-inline-reveal` e2e spec.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { registerMathInline } from '$lib/plugins/latex/latex-kind';
+import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
 import { mountCell } from './mount-cell';
-import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
+import { settleEditor, dispatchKey } from '#lib/test/harness/settle.js';
 
 // `x $a$ yz`: a math widget at raw [2,5) with prose on both sides, so every caret offset
 // this test names sits outside the widget span and reads back unambiguously.

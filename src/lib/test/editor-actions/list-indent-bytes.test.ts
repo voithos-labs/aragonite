@@ -1,14 +1,14 @@
 // Miss-analysis: every indent test read markers, ids or the caret, never the bytes, so dropping
 // the new sublist's rebuild (which no commit makes for it) lost the moved item and stayed green.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeListContextAt
-} from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+} from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 
 /** Tab on item 1 of the top-level list, with the item above and any sublist it holds mounted. */
 async function indentSecondItem(source: string): Promise<string> {

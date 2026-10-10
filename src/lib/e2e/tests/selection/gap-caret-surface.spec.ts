@@ -1,14 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { AT_BOUNDARY, LAST_CELL, TABLE_THEN_FENCE, arriveAtBoundary } from './gap-caret-fixtures';
+import { caretsShowing, drawnBar } from '../../carets-showing';
 
-// What the gap caret paints, and every way the caret leaves it short of creating a block
+// What the gap caret draws, and every way the caret leaves it short of creating a block
 // (`requirements/selection/gap-caret-surface.md`). Creating a block, and undo, are in
 // `gap-caret-editing.spec.ts`.
 
-const LINE = '[data-gap-caret] .gap-caret-line';
-
-test.describe('the gap caret paints a line at the boundary', () => {
+test.describe('the gap caret draws a bar across the boundary', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -17,29 +16,29 @@ test.describe('the gap caret paints a line at the boundary', () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 	});
 
-	test('nothing paints while no gap is live', async () => {
-		await expect(editor.page.locator(LINE)).toHaveCount(0);
+	test('no bar crosses a boundary while no gap is live', async ({ page }) => {
+		await editor.focusBlock(0, 2);
+		await expect.poll(async () => (await drawnBar(page))?.state).toBe('text');
+		await expect(page.locator('[data-gap-caret]')).toHaveCount(0);
 	});
 
-	// Not opacity: the line blinks, so an opacity read is a coin toss. Height, box and colour are
+	// Not opacity: the bar blinks, so an opacity read is a coin toss. Height, box and colour are
 	// what a user would call "there and visible".
-	test('a live gap paints a visible line spanning the content column', async () => {
+	test('a live gap draws one visible bar spanning the content column', async ({ page }) => {
 		await arriveAtBoundary(editor);
 
-		const line = editor.page.locator(LINE);
-		await expect(line).toHaveCount(1);
-		const painted = await line.evaluate((el) => {
+		await expect.poll(() => drawnBar(page)).toMatchObject({ state: 'gap', host: 'gap' });
+		expect(await caretsShowing(page)).toEqual({ native: false, drawn: 1 });
+		const painted = await page.locator('[data-gap-caret] .md-drawn-caret').evaluate((el) => {
 			const style = getComputedStyle(el);
 			const list = el.closest('.block-list')!.getBoundingClientRect();
 			return {
-				display: style.display,
 				visibility: style.visibility,
 				height: style.height,
 				background: style.backgroundColor,
 				spansColumn: Math.round(el.getBoundingClientRect().width) === Math.round(list.width)
 			};
 		});
-		expect(painted.display).not.toBe('none');
 		expect(painted.visibility).toBe('visible');
 		expect(painted.height).toBe('2px');
 		expect(painted.background).not.toBe('rgba(0, 0, 0, 0)');
@@ -64,7 +63,7 @@ test.describe('the gap caret paints a line at the boundary', () => {
 	});
 
 	// Zero-height flow: the boundary keeps the layout it had without the caret in it.
-	test('the line adds no layout of its own', async () => {
+	test('the bar adds no layout of its own', async () => {
 		const before = await editor.page
 			.locator("[data-block-path='[2]']")
 			.evaluate((el) => el.getBoundingClientRect().top);
@@ -90,14 +89,14 @@ test.describe('a presentation-mode flip ends the gap', () => {
 
 		// Change mode without moving DOM focus: a toggle click blurs the proxy, and `onFocusOut`
 		// then clears the gap before the shared check runs, and the mode change must be alone.
-		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await editor.setPresentationMode('reading');
 
 		await editor.bridge.waitForGapCaret(null);
 		// The shared check is what clears the gap; this read is a backup, since a cleared gap renders
 		// no proxy either way.
 		await expect(page.locator('[data-gap-caret] [contenteditable="true"]')).toHaveCount(0);
 
-		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
+		await editor.setPresentationMode('source');
 		await editor.waitForRenderFlush();
 		expect(await editor.bridge.getGapCaret()).toBeNull();
 	});

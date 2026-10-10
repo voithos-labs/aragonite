@@ -1,8 +1,8 @@
 // Miss-analysis: only ASCII cell padding was tested, so `String.trim()` eating a nbsp went unseen.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { rebuildTableRaw, rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { rebuildTableRaw, rebuildTableRowRaw } from '#lib/schema/container-rebuilders.js';
 
 const NBSP = String.fromCharCode(0xa0);
 

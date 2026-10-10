@@ -23,10 +23,6 @@ export interface PointerDragSessionOptions {
 	onTeardown?(): void;
 	/** Scroll targets + axis; the session supplies the live pointer and rescroll. */
 	autoScroll: Pick<AutoScrollDeps, 'getTargets' | 'axis'>;
-	/** Drag/click discriminator in px: below this travel from `down` the gesture stays a click.
-	 *  Omitted where the pointerdown already committed to a drag. */
-	threshold?: number;
-	onDragRecognized?(): void;
 	/** Install a document keydown so Escape tears the session down. */
 	escape?: boolean;
 	/** Suppress native text selection for the drag's duration. */
@@ -41,10 +37,6 @@ export function createPointerDragSession(
 	opts: PointerDragSessionOptions
 ): { dispose(): void } {
 	const pointerId = down.pointerId;
-	const startX = down.clientX;
-	const startY = down.clientY;
-	const threshold = opts.threshold;
-	let dragging = threshold === undefined;
 	let pending: PointerPosition | null = null;
 	let rafId: number | null = null;
 
@@ -58,13 +50,6 @@ export function createPointerDragSession(
 	});
 
 	function onPointerMove(e: PointerEvent): void {
-		if (!dragging && threshold !== undefined) {
-			const moved =
-				Math.abs(e.clientX - startX) >= threshold || Math.abs(e.clientY - startY) >= threshold;
-			if (!moved) return;
-			dragging = true;
-			opts.onDragRecognized?.();
-		}
 		pending = { clientX: e.clientX, clientY: e.clientY };
 		if (rafId !== null) return;
 		rafId = requestAnimationFrame(() => {

@@ -7,7 +7,7 @@ import { deleteSnapshot, type CaretPosition, type SelectionPoint } from './primi
 import { metadataOf, type CstNode } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import { expectStateForNode, getStateForNode } from '../reactivity/state-registry';
+import { expectStateForNode, getStateForNode } from '../block-lists/state-registry';
 import {
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn,
@@ -16,7 +16,8 @@ import {
 } from '../tree-operations/table-mutations';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { blockNodeAt } from '../tree-operations/node-primitives';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
+import { assertInvariant } from '../assert';
 import type { GridCoverage } from './range-coverage';
 import type { CrossBlockMutationContext } from './cross-block/range-replace';
 
@@ -25,8 +26,8 @@ export type GridLineCoverage = Extract<GridCoverage, { kind: 'row' | 'column' }>
 
 type GridLineContext = Pick<CrossBlockMutationContext, 'getDoc' | 'controller' | 'selection'>;
 
-/** The collapsed caret, which the commit lands, or null for a refused delete (no body row or one
- *  column left), which clears nothing either. */
+/** The collapsed caret, which the commit lands, or null for a refused delete (no body row would be
+ *  left, or no column), which clears nothing either. */
 export async function commitGridLineDelete(
 	ctx: GridLineContext,
 	grid: GridLineCoverage
@@ -37,7 +38,14 @@ export async function commitGridLineDelete(
 		if (!canDeleteRow(grid.rect.top, table.children.length)) return null;
 		return commitRowDelete(ctx, table, grid.path, grid.rect.top);
 	}
-	if (!canDeleteColumn(metadataOf(table, 'table').columnCount)) return null;
+	if (!canDeleteColumn(metadataOf(table, 'table').columnCount)) {
+		// A one-column table reads as the whole table, never as a column, so no coverage lands here.
+		assertInvariant('grid-column-delete', () => ({
+			code: 'one-column-grid-line',
+			message: 'commitGridLineDelete: a column coverage on a table with no column to spare'
+		}));
+		return null;
+	}
 	return commitColumnDelete(ctx, table, grid.path, grid.rect.left);
 }
 

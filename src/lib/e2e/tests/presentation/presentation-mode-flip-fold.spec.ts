@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { capturedErrors } from '../plugins/helpers';
 import { MathRevealPage } from '../plugins/latex-reveal-helpers';
+import type { PresentationMode } from '../../../presentation-mode';
 
 // A mode change counts as a blur, so a block showing its source collapses through the same one
 // place on every switch, before the mode's render key rebuilds the block out from under its edit.
@@ -19,8 +20,8 @@ test.describe('mode flips: an open reveal folds', () => {
 		await editor.loadContent(DOC);
 	});
 
-	async function flipTo(page: Page, mode: string): Promise<void> {
-		await page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
+	async function flipTo(mode: PresentationMode): Promise<void> {
+		await editor.setPresentationMode(mode);
 		await editor.waitForRenderFlush();
 	}
 
@@ -33,10 +34,10 @@ test.describe('mode flips: an open reveal folds', () => {
 		expect(await editor.bridge.getSource(), 'the reveal holds its bytes').toBe(DOC);
 	}
 
-	for (const mode of ['live', 'reading']) {
+	for (const mode of ['live', 'reading'] as const) {
 		test(`the flip to ${mode} commits the edit the reveal was holding`, async ({ page }) => {
 			await revealAndEdit(page);
-			await flipTo(page, mode);
+			await flipTo(mode);
 			expect(await editor.bridge.getSource()).toBe('above\n\n$x^2q$\n');
 			expect(await capturedErrors(page)).toEqual([]);
 		});
@@ -46,7 +47,7 @@ test.describe('mode flips: an open reveal folds', () => {
 	// mode change moves no byte, like every other one.
 	test('a reveal opened but not edited writes nothing across the flip', async ({ page }) => {
 		await editor.revealFromTrailingEdge(1);
-		await flipTo(page, 'live');
+		await flipTo('live');
 		expect(await editor.bridge.getSource()).toBe(DOC);
 		expect(await capturedErrors(page)).toEqual([]);
 	});

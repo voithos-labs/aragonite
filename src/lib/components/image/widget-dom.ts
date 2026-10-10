@@ -1,5 +1,5 @@
 // The widget reports its raw bytes through data-source-start and data-source-end, which
-// `cursor/widget-offset.ts` reads; its textContent stays empty so a prose block's
+// `caret/widget-offset.ts` reads; its textContent stays empty so a prose block's
 // `textContent === marker prefix + raw` still holds.
 
 import type { InlineNode } from '../../core/nodes';

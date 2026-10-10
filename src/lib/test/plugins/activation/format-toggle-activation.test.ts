@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 // Miss-analysis: no toggle test ran over latex or emoji syntax in an editor drawing it as text.
 import { describe, expect, it, beforeEach } from 'vitest';
-import { installPlugins } from '$lib/schema/plugin-install';
-import { EMOJI_KIND, emojiPlugin } from '$lib/plugins/emoji';
-import { MATH_INLINE, latexPlugin } from '$lib/plugins/latex';
-import { parseInline } from '$lib/core/inline';
-import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { EMOJI_KIND, emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { MATH_INLINE, latexPlugin } from '#lib/plugins/latex/index.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { toggleInlineFormat } from '#lib/core/inline/format-toggle.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import { grammarListing } from './grammar-listing';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 beforeEach(() => {
 	installPlugins([

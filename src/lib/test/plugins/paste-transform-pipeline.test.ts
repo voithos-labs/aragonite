@@ -3,10 +3,10 @@
 // so it is exactly the suite a third-party author can write.
 // Miss-analysis: only e2e specs pinned `registerPasteTransform`, so no unit test saw its wiring.
 import { describe, it, expect } from 'vitest';
-import { definePlugin, registerPasteTransform, isPasteTransformRegistered } from '$lib/plugin';
-import { installPlugins } from '$lib';
-import { applyPasteTransforms, resetPluginPlatformForTests } from '$lib/testing';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { definePlugin, registerPasteTransform, isPasteTransformRegistered } from '#lib/plugin.js';
+import { installPlugins } from '#lib';
+import { applyPasteTransforms, resetPluginPlatformForTests } from '#lib/testing.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const upcaseHeadings = {
 	name: 'upcase-headings',

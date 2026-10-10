@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { isBuiltinBlockKind } from '$lib/core/nodes';
-import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { runCell } from '$lib/testing/conformance-core';
+import { isBuiltinBlockKind } from '#lib/core/nodes.js';
+import {
+	getAllRegisteredKinds,
+	getBlockKindDescriptor
+} from '#lib/schema/block-kind-descriptor.js';
+import { runCell } from '#lib/testing/conformance-core.js';
 import {
 	assertProfileCoverageFloor,
 	CONTAINER_CONFORMANCE_CELLS,
 	reversedAncestryLeavesRootStale
-} from '$lib/testing/container-conformance';
+} from '#lib/testing/container-conformance.js';
 import { CONTAINER_PROFILES } from './builtin-container-profiles';
 import {
 	checkListIndentOneUndo,

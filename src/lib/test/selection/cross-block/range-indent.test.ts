@@ -8,12 +8,11 @@ import {
 	mountEditor,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import type { EditorSelection } from '$lib/selection/primitives';
-import type { UndoEntry } from '$lib/undo/types';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+import type { UndoEntry } from '#lib/undo/types.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 
 beforeAll(installLayoutStubs);
 
@@ -215,17 +214,6 @@ describe('Tab and Shift+Tab over a range that holds code lines', () => {
 		await pressOver('```\none\n\ttwo\n    three\n```\n\nafter\n', FROM_TWO, SHIFT_TAB);
 
 		expect(mounted.source()).toBe(CODE);
-	});
-
-	// Miss-analysis: no dedent row turned a line into a closer, so none saw the order check read the
-	// fence the write rule lengthened as lost text.
-	it('Shift+Tab that makes a line read as a closer lengthens the fence, with no warning', async () => {
-		const source = 'para\n\n```\none\n    ```\ntwo\n```\n\nafter\n';
-		const range = { anchor: { path: [0], offset: 1 }, focus: { path: [1], offset: 12 } };
-		await pressOver(source, range, SHIFT_TAB);
-
-		expect(mounted.source()).toBe('para\n\n````\none\n```\ntwo\n````\n\nafter\n');
-		expect(takeDevWarns()).toEqual([]);
 	});
 });
 

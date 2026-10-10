@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import { parse } from '$lib/core/parser';
+import { parseInline } from '#lib/core/inline/index.js';
+import { parse } from '#lib/core/parser.js';
 
 // A NUL inside an angle-bracket destination or a title refuses it, for inline links and
 // definitions alike; commonmark.js swaps NUL for U+FFFD first, so this pin is by hand.

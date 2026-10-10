@@ -1,11 +1,11 @@
 // G1.44: the check fails an empty document and an emptied container that must hold a child, and
 // the commit runs it on what it touched.
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { checkKeepsABlock } from '$lib/invariants/keeps-a-block';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
-import { asDocPath } from '$lib/selection/path-math';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { checkKeepsABlock } from '#lib/invariants/keeps-a-block.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { asDocPath } from '#lib/selection/path-math.js';
 import { makeBlockListState, makeTopHarness } from '../harness/editor-actions';
 import { takeDevWarns } from '../support/warn-gate';
 

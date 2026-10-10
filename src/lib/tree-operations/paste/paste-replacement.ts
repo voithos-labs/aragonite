@@ -83,7 +83,7 @@ export function buildPastedReplacement(
 function endedOnCutLine(node: CstNode, cutLineEnd: string, grammar: GrammarView): CstNode {
 	const lineEnding = trailingLineEnding(cutLineEnd, '\n');
 	// The clipboard's own block keeps the kind the clipboard's parse gave it, as every other pasted
-	// block does; what that does to a checkbox it lands behind is #624's question.
+	// block does, even where it lands behind a task checkbox that then reads differently.
 	const ended = parseFirstBlock(node.raw + cutLineEnd, (text) =>
 		readBlocks(text, { grammar, scope: 'fragment' })
 	);

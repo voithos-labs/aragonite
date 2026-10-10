@@ -12,7 +12,7 @@ import {
 	type DocumentView,
 	type EditorSelection,
 	type MarkDecoration
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { WORD_CHAR } from './word-char';
 
 export const OCCURRENCE_CLASS = 'hl-occurrence';

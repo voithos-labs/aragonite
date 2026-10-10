@@ -13,6 +13,7 @@ import type {
 } from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
+import type { LinkClick } from './activation-click';
 import type { KeybindingOverride } from './schema/keybinding-overrides';
 import type { EditorSelection } from './selection/primitives';
 import type { EditorEvents } from './editor-events';
@@ -59,6 +60,11 @@ export interface EditorProps {
 	 *  pictures, list items, dividers, cards), never prose. `false` removes them, except on a
 	 *  picture, whose handle is its only pointer move. Alt+Arrow reorder always works. */
 	blockDragHandles?: boolean;
+	/** Faint text an empty block shows until something is typed, read live. A string shows only in
+	 *  an empty document, never in reading mode; a function is asked for each empty block on screen
+	 *  and returns the text or null. Painted in `--md-placeholder-color` and announced as
+	 *  `aria-placeholder`. */
+	placeholder?: string | ((block: PlaceholderBlock) => string | null);
 	searchBar?: boolean;
 	/** The editor's own formatting popover beside a prose selection (default on; reading mode
 	 *  never shows it). A host with its own bar over `runCommand` passes false. */
@@ -79,9 +85,20 @@ export interface EditorProps {
 	 *  background, so the name should match the page; an `aragonite-editor-theme`
 	 *  wrapper keys its own palette off the same attribute set on the wrapper. */
 	theme?: string;
+	/** Who draws the caret, read live; only a drawn one shows the format the next letter will get.
+	 *  `'auto'` (default) draws on a fine pointer and leaves a touch screen the browser's own;
+	 *  `'drawn'` draws on any pointer; `'native'` keeps the browser's wherever it can draw one (the
+	 *  editor still draws beside a widget, at a gap and at a code chip's edge). Forced colors keep
+	 *  the browser's. The selection stays the browser's, so IME and screen readers don't change. */
+	caret?: 'auto' | 'native' | 'drawn';
 	/** How the document presents, read live like `theme`; `'source'` by default. The consumer
 	 *  guide's Presentation modes section describes what each mode shows and allows. */
 	presentationMode?: PresentationMode;
+	/** Which click follows a link, or a widget that goes somewhere, in live mode, read live:
+	 *  `'modifier'` (default) is Ctrl/Cmd-click, and `'plain'` any click, as on a web page, with the
+	 *  caret reaching a link by the arrow keys. Reading mode follows any click; source and preview
+	 *  modes, which show a link's syntax, keep Ctrl/Cmd. */
+	linkClick?: LinkClick;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
 	/** Plugins installed once, in array order, at mount. Set-once: a later change to this
@@ -95,6 +112,19 @@ export interface EditorProps {
 	 *  `setextHeading: false` reads `===` or `---` under text as prose or a divider. Only the
 	 *  reading changes: a loaded file keeps every byte, and saves as it came. */
 	syntax?: SyntaxOptions;
+}
+
+/** The empty block a function `placeholder` is asked about. */
+export interface PlaceholderBlock {
+	kind: string;
+	/** Child indices from the document root. */
+	path: number[];
+	/** The whole document is this one empty block. */
+	documentEmpty: boolean;
+	/** The caret is in this block. */
+	focused: boolean;
+	/** False in reading mode. */
+	editable: boolean;
 }
 
 export interface InsertMarkdownOptions {

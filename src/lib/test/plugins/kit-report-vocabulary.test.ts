@@ -1,15 +1,16 @@
+// @vitest-environment jsdom
 // The three conformance kits report a cell in one shape, so one reader handles all their reports.
 import { describe, expect, it } from 'vitest';
-import { installPlugins } from '$lib';
-import { declaredPluginInlineKind, INLINE_PRIORITIES } from '$lib/plugin';
+import { installPlugins } from '#lib';
+import { declaredPluginInlineKind, INLINE_PRIORITIES } from '#lib/plugin.js';
 import {
 	runContainerConformance,
 	runInlineKindConformance,
 	runKindConformance,
 	type CellReport
-} from '$lib/testing';
-import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+} from '#lib/testing.js';
+import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 const STATUSES = ['asserted', 'exempt', 'boundary'];
 const EXCUSED = 'the vocabulary suite reads the report shape, not what this cell would prove';

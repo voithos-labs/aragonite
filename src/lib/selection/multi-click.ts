@@ -5,19 +5,20 @@
  * platform, it walks into non-editable widgets, and a marker here never joins a word.
  */
 
-import { asDomTextOffset } from '../cursor/coordinate-spaces';
-import { caretOffsetAtPoint } from '../cursor/point-offset';
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import { asDomTextOffset } from '../caret/coordinate-spaces';
+import { caretOffsetAtPoint } from '../caret/point-offset';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
 import {
 	containerDomTextLength,
 	maskedWalkText,
 	rawOfWalkOffset,
 	walkOffsetOfRaw
-} from '../cursor/widget-offset';
+} from '../caret/widget-offset';
 import { isWholeBlockInputProxy } from '../editor-actions/whole-block-focus-surface';
 import type { BlockElLookup } from '../editor-keys';
 import { installDragListener, type DragGranularity } from './drag-pointer';
 import { applySingleBlockRange, applySurfaceContentRange } from './native-bridge';
+import type { CaretWriter } from '../caret/widget-offset';
 import { blockNearPoint } from './nearest-block';
 import { readBlockPath } from './path-lookup';
 import type { SelectionEndpoint, SelectionPoint } from './primitives';
@@ -92,6 +93,7 @@ export function granularityForClickCount(clickCount: number): ClickGranularity |
 export interface MultiClickDeps {
 	editorRoot: HTMLElement;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	getBlockElByPath: BlockElLookup;
 	getScrollContainer(): UserScrollport;
 	lifetimeSignal?: AbortSignal;
@@ -123,7 +125,13 @@ export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 		if (deps.pressesSelectedWidget(e.target)) return;
 		const press = pressedSurface(deps, e);
 		if (!press) return;
-		const anchorSpan = selectAtPoint(press.surface, granularity, e.clientX, e.clientY);
+		const anchorSpan = selectAtPoint(
+			deps.caretWriter,
+			press.surface,
+			granularity,
+			e.clientX,
+			e.clientY
+		);
 		if (!anchorSpan) return;
 		e.preventDefault();
 		claimed = true;
@@ -135,6 +143,7 @@ export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 				editorRoot: deps.editorRoot,
 				scrollContainer: deps.getScrollContainer(),
 				selection: deps.selection,
+				caretWriter: deps.caretWriter,
 				getBlockElByPath: deps.getBlockElByPath,
 				lifetimeSignal: deps.lifetimeSignal,
 				granularity: createGranularity(
@@ -204,19 +213,20 @@ function pathOfSurface(surface: HTMLElement): number[] | null {
 
 /** Selects the unit's span at the click and returns it, in raw offsets. */
 function selectAtPoint(
+	writer: CaretWriter,
 	surface: HTMLElement,
 	granularity: ClickGranularity,
 	clientX: number,
 	clientY: number
 ): Span | null {
 	if (granularity === 'block') {
-		applySurfaceContentRange(surface);
+		applySurfaceContentRange(writer, surface);
 		return spanAround(surface, 'block', 0);
 	}
 	const offset = caretOffsetAtPoint(surface, clientX, clientY);
 	const span = offset === null ? null : spanAround(surface, 'word', offset);
 	if (!span || span.start === span.end) return null;
-	applySingleBlockRange(surface, span.start, span.end);
+	applySingleBlockRange(writer, surface, span.start, span.end);
 	return span;
 }
 

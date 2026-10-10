@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { parse } from '../../core/parser';
 import { assignIds } from '../../block-id';
 import { cascadeCleanupEmptyAncestors } from '../../tree-operations/cleanup';
 import { createSharingState, type SharingState } from '../../tree-operations/sharing';
 import type { CstNode, Document } from '../../core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };

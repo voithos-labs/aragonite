@@ -1,11 +1,12 @@
 /**
- * What every contenteditable block and the `editable-leaf` factory share: cross-block wiring,
- * the shared keydown context, the BlockComponent caret methods, the one write to the block's own
- * text, input, composition and clipboard handling. Each block supplies a SurfaceBackend for its own
- * offsets; state that changes is passed as functions, never as captured values.
+ * What every contenteditable block and the `editable-leaf` factory share: cross-block wiring, the
+ * shared keydown context, the BlockComponent caret methods, the element's attributes and its
+ * empty-block hint, the one write to the block's own text, input, composition and clipboard
+ * handling. Each block supplies a SurfaceBackend for its offsets; live state comes as functions.
  */
 
 import { tick } from 'svelte';
+import { createAttachmentKey } from 'svelte/attachments';
 import type {
 	BlockEditActions,
 	ContentWrite,
@@ -18,8 +19,8 @@ import {
 	CURSOR_START,
 	type StickyColumnDirection
 } from '../../block-component';
-import type { UserScrollport } from '../../cursor/scroll-ancestors';
-import type { ScrollOwner } from '../../cursor/scroll-owner';
+import type { UserScrollport } from '../../windowing/scroll-ancestors';
+import type { ScrollOwner } from '../../windowing/scroll-owner';
 import type { BlockElLookup, DocumentGetter, PasteImageHook } from '../../editor-keys';
 import { emitClipboardError, emitCommandError, type EditorEvents } from '../../editor-events';
 import type { InlineMenuCombobox } from '../../inline-menu/inline-menu-state.svelte';
@@ -29,17 +30,23 @@ import type { CommandDispatchContext } from '../../schema/block-commands';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
-import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretMemory } from '../../caret/caret-memory';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import { placeCaret, selectInBlock } from '../../selection/caret-doors';
+import { placeCaret, selectInBlock } from '../../selection/place-caret';
 import { deleteSnapshot } from '../../selection/primitives';
-import { asEditorX, asRawOffset, type RawOffset } from '../../cursor/coordinate-spaces';
-import type { SurfaceBackend } from '../../cursor/surface-backend';
-import type { HeldInsertion, PlaceInsertion } from '../../cursor/next-insertion';
-import type { BlockPendingBreak } from '../../cursor/pending-break.svelte';
-import type { HeldSpaceView } from '../../cursor/held-space';
-import { findOffsetNearestX } from '../../cursor/sticky-measure';
-import { measurePartialRectsInContentEditable } from '../../cursor/overlay-rects';
+import { asEditorX, asRawOffset, type RawOffset } from '../../caret/coordinate-spaces';
+import type { SurfaceBackend } from '../../caret/surface-backend';
+import type { DrawnCaret, WidgetEdgeSource } from '../../caret/drawn-caret.svelte';
+import type { HeldInsertion } from '../../caret/next-insertion';
+import type { TypedPlacement } from './text/edge-seat';
+import { caretLook, type NextByte } from '../../caret/caret-look';
+import type { InlineNode } from '../../core/nodes';
+import { recordCaretLook } from '../../perf/instruments';
+import { createNextByte } from './text/next-byte';
+import type { BlockPendingBreak } from '../../caret/pending-break.svelte';
+import type { HeldSpaceView } from '../../caret/held-space';
+import { findOffsetNearestX } from '../../caret/sticky-measure';
+import { measurePartialRectsInContentEditable } from '../../caret/overlay-rects';
 import {
 	documentLineEnding,
 	normalizeLineEndings,
@@ -65,10 +72,11 @@ import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import {
 	rawOfWalkOffset,
 	revealsNoMarkers,
-	selectRawRange,
+	rawOffsetAt,
 	walkOffsetOfRaw,
+	type CaretWriter,
 	type RawRange
-} from '../../cursor/widget-offset';
+} from '../../caret/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import {
 	isInteractionTraceEnabled,
@@ -79,6 +87,12 @@ import {
 import { assertInvariant } from '../../assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
 import type { Reading } from '../../schema/reading';
+import { createPlaceholderHint, type PlaceholderPolicy } from './placeholder-hint.svelte';
+import type { CompositionSeat } from './text/composition-seat';
+import {
+	reportDroppedComposition,
+	type CompositionSignal
+} from '../../editor-actions/dropped-composition';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
@@ -96,10 +110,20 @@ function withKeydownVerdict(
 	};
 }
 
+// ── Selection removal ───────────────────────────────────────────────────────
+
+/** Typed so a block can only answer with its own write, and the command over the selection waits
+ *  until that write has landed. */
+export type SelectionRemoval =
+	ContentWrite | Promise<ContentWrite> | false | typeof REMOVED_IN_PLACE;
+
+/** The answer of a block whose removal splices shown text in place, with no write to wait on. */
+export const REMOVED_IN_PLACE = Symbol('removed-in-place');
+
 // ── Accessibility attributes ────────────────────────────────────────────────
 
-/** What an editable block tells assistive tech: its name, and the inline menu's list while
- *  one shows in it. */
+/** What an editable block tells assistive tech: its name, the inline menu's list while one shows
+ *  in it, and the empty block's hint, which `data-placeholder` also hands the stylesheet. */
 export interface EditableSurfaceAttributes {
 	role: 'textbox' | 'combobox';
 	'aria-label': string;
@@ -107,22 +131,8 @@ export interface EditableSurfaceAttributes {
 	'aria-controls'?: string;
 	'aria-activedescendant'?: string;
 	'aria-autocomplete'?: 'list';
-}
-
-/** The role is `combobox` only while inline menu rows show: `textbox` carries no
- *  `aria-expanded`, so a screen reader would hear nothing about the list. */
-export function editableSurfaceAttributes(
-	node: NodeView,
-	combobox: InlineMenuCombobox | null
-): EditableSurfaceAttributes {
-	return {
-		role: combobox ? 'combobox' : 'textbox',
-		'aria-label': blockAccessibleName(node),
-		'aria-expanded': combobox ? 'true' : undefined,
-		'aria-controls': combobox?.listboxId,
-		'aria-activedescendant': combobox?.activeOptionId,
-		'aria-autocomplete': combobox ? 'list' : undefined
-	};
+	'aria-placeholder'?: string;
+	'data-placeholder'?: string;
 }
 
 /** Applies `pending` only while `el` still holds focus, so a blur before the render drops it
@@ -162,6 +172,10 @@ export interface EditableSurfaceDeps {
 
 	// ── Cross-block context ───────────────────────────────────────────────────
 	selection: SelectionState;
+	/** The editor's one writer of the native selection. */
+	caretWriter: CaretWriter;
+	/** The caret the editor draws, which this surface's element registers with while mounted. */
+	drawnCaret: Pick<DrawnCaret, 'register'>;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
@@ -190,6 +204,8 @@ export interface EditableSurfaceDeps {
 	events: EditorEvents;
 	/** Names a new block kind a typed write made, in the modes that hide markers. */
 	kindCue: KindCue;
+	/** The `placeholder` prop as the editor hands it down, read live. */
+	placeholder: () => PlaceholderPolicy | null;
 	/** A prose block's view of the pair the auto-pair wrote; omitted where nothing pairs. */
 	ownPairs?: BlockAutoPairs;
 
@@ -204,22 +220,23 @@ export interface EditableSurfaceDeps {
 	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the current DOM content as the block's displayed text, for the input commit. */
 	readText: () => string;
-	/** What a composed run's commit writes when the composition opened over a range or with pending
-	 *  marks, both captured at its start; null keeps the text as read. */
-	relocateComposedText?: (
-		after: string,
-		composedAt: number
-	) => { raw: string; caret: number } | null;
-	/** Moves a typed insertion to the side of a hidden edge the caret means; omitted where the block
-	 *  draws every marker. Every insertion route writes through it (`next-insertion.ts`). */
-	placeInsertion?: PlaceInsertion;
-	/** Runs before the shared input commit (the text block resets its snap target here). */
+	/** What a composition opened over (pending marks, a range), captured at its start and placing
+	 *  the run it commits; omitted where a commit writes the text as read. */
+	compositionSeat?: CompositionSeat;
+	/** Where text typed at a hidden edge lands; omitted where the block draws every marker. Every
+	 *  insertion route writes through its `insertion` (`next-insertion.ts`). */
+	placement?: TypedPlacement;
+	/** The block's inline tree, for a block whose text takes inline formats: the drawn caret shows
+	 *  the ones the next letter would carry. */
+	getInlines?: () => readonly InlineNode[];
+	/** Runs before the shared input commit (the text block lets go of its widget edge here). */
 	inputPrelude?: () => void;
+	/** How the drawn caret draws beside this editable's inline widgets; absent where it has none. */
+	widgetEdge?: WidgetEdgeSource;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
-	/** Deletes `range` of the block's own text, leaving the caret at its start; settles once the
-	 *  bytes land. Omitted where no line break or command removes a selection first. */
-	removeSelection?: (range: RawRange) => PromiseLike<unknown> | void;
+	/** Deletes `range` of the block's own text, leaving the caret at its start. */
+	removeSelection?: (range: RawRange) => SelectionRemoval;
 	/** An undo history the block keeps itself (a shown painted source), asked before the
 	 *  editor's; true when it took the event. */
 	localHistory?: (e: InputEvent) => boolean;
@@ -228,6 +245,14 @@ export interface EditableSurfaceDeps {
 }
 
 export interface EditableSurface {
+	/** Spread on the editable element: its accessibility attributes, the empty block's hint, the
+	 *  attachment that hint reads focus through, and the drawn caret's registration. */
+	attributes(combobox: InlineMenuCombobox | null): EditableSurfaceAttributes & {
+		[attachment: symbol]: unknown;
+	};
+	/** Registers the element with the drawn caret while it is mounted; `attributes` carries it, and
+	 *  a surface that spreads no attributes attaches it on its own. */
+	caretSource(el: HTMLElement): () => void;
 	crossBlock: CrossBlockHandlers;
 	sharedCtx: SharedKeydownContext;
 	surface: EditableSurfaceMethods;
@@ -244,6 +269,9 @@ export interface EditableSurface {
 	pendingBreak: BlockPendingBreak;
 	/** A space typed at a hidden closer here, which the next letter takes back inside. */
 	heldSpace: HeldSpaceView;
+	/** The formats a letter typed at raw offset `caret` would carry (`text/next-byte.ts`); plain
+	 *  where the block has no `getInlines`. */
+	nextByte(caret: number): NextByte;
 	/** Wraps the block's `runCommand` (or a clipboard edit), so a command dispatched from
 	 *  anywhere, a key or a toolbar, anchors undo on the caret it found. */
 	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
@@ -255,11 +283,16 @@ export interface EditableSurface {
 	/** Bound to the element's `beforeinput`: every input route fires it, keydown or not, so the
 	 *  caret the undo entry restores is read here. */
 	onBeforeInput: (e: InputEvent) => void;
-	onInput: () => void;
+	onInput: (e: Event) => void;
+	/** The input commit for an edit the block spliced itself, which has no event to read. */
+	commitInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
 	getPreEditOffset(): number;
+	/** A shown source whose edits reach the node only on blur, for the empty-block hint to judge;
+	 *  `read` runs only while the `placeholder` prop is set, and null forgets it as the source folds. */
+	noteShownSource(read: (() => string) | null): void;
 	/** Name the pre-edit caret for an edit the block splices itself rather than the browser. */
 	notePreEditOffset(offset: number): void;
 }
@@ -301,6 +334,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
 		selection: deps.selection,
+		caretWriter: deps.caretWriter,
 		getDoc: deps.getDoc,
 		getBlockElByPath: deps.getBlockElByPath,
 		caretLanding: deps.caretLanding,
@@ -328,6 +362,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getIndex: deps.getIndex,
 		crossBlock,
 		selection: deps.selection,
+		caretWriter: deps.caretWriter,
 		caretMemory: deps.caretMemory,
 		history: deps.history,
 		focus: deps.focusActions,
@@ -356,7 +391,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.backend.setRaw(asRawOffset(requested), { clamp: 'reachable' });
 	}
 
-	const focus = placeCaret(deps.selection, parkCaret);
+	const focus = placeCaret(deps.selection, deps.caretWriter, parkCaret);
 
 	// A column placement stops on a painted glyph by measuring, so it writes its offset exact.
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -387,7 +422,11 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function setSelection(start: number, end: number): void {
 		const el = deps.getEl();
-		if (el) selectInBlock(deps.selection, () => selectRawRange(el, start, end));
+		if (el) {
+			selectInBlock(deps.selection, deps.caretWriter, () =>
+				deps.caretWriter.selectRawRange(el, start, end)
+			);
+		}
 	}
 
 	function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
@@ -426,6 +465,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── Input and composition ─────────────────────────────────────────────────
 
+	const placeholder = createPlaceholderHint({
+		policy: deps.placeholder,
+		getNode: deps.getNode,
+		getPath: deps.getMyPath,
+		reading: deps.reading
+	});
+
 	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
 	// its start: Chromium fires the composition's own beforeinput events after that.
 	let preEditOffset = 0;
@@ -442,7 +488,19 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// This block's identity in the caret memory, so a record left here is spent only here.
 	const block = {};
 	const holdInsertion = (): HeldInsertion =>
-		deps.caretMemory.holdInsertion(block, deps.placeInsertion);
+		deps.caretMemory.holdInsertion(block, deps.placement?.insertion);
+	const { getInlines } = deps;
+	const nextByte = getInlines
+		? createNextByte({
+				getEl: deps.getEl,
+				getNode: deps.getNode,
+				getInlines,
+				reading: deps.reading,
+				caretMemory: deps.caretMemory,
+				preview: () => deps.caretMemory.previewInsertion(block, deps.placement?.insertion),
+				offsetFor: (caret, typed) => deps.placement?.offsetFor(caret, typed) ?? caret
+			})
+		: () => ({ marks: [] });
 
 	const writeText = createSurfaceWrite({
 		getNode: deps.getNode,
@@ -465,6 +523,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// A keydown that writes for itself fires no beforeinput, so the caret is read here too.
 	const onKeyDown = withKeydownVerdict(async (e) => {
+		endsDroppedComposition(e);
 		if (!e.isComposing) recordPreEditOffset();
 		await deps.handleKeydown(e);
 	});
@@ -472,6 +531,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// Synchronous to the block's handler: the block's `preventDefault` only counts inside this
 	// listener's microtask checkpoint.
 	function onBeforeInput(e: InputEvent): void {
+		endsDroppedComposition(e);
 		if (!e.isComposing) recordPreEditOffset();
 		if (deps.localHistory?.(e) || runSharedBeforeInput(e)) return;
 		deps.handleBeforeInput?.(e);
@@ -492,10 +552,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		return true;
 	}
 
-	/** The DOM `input` handler. Arity zero on purpose: it is bound straight to the event, so a
-	 *  parameter here would be the InputEvent. */
-	function onInput(): void {
-		commitDomRead(false);
+	function onInput(e: Event): void {
+		if (!endsDroppedComposition(e)) commitDomRead(false);
 	}
 
 	function commitDomRead(fromComposition: boolean): void {
@@ -515,7 +573,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// where a record waits, which is that record's insertion.
 		const rewritten =
 			fromComposition && revealsNoMarkers(el) && !held?.waitsAt(preEditOffset)
-				? (deps.relocateComposedText?.(text, preEditOffset) ?? null)
+				? (deps.compositionSeat?.relocate(text, preEditOffset) ?? null)
 				: null;
 		void writeText({
 			text: rewritten?.raw ?? text,
@@ -533,6 +591,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	function onCompositionStart(): void {
 		if (!deps.getEl()) return;
+		endsDroppedComposition('compositionstart');
+		// Captured first: the cross-block step below clears the arrival side.
+		deps.compositionSeat?.noteStart();
 		traceCompositionStart();
 		// Capture before `crossBlock.handleCompositionStart()`, whose delete moves the caret.
 		preEditOffset = deps.backend.getRaw() ?? 0;
@@ -540,16 +601,32 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		heldForComposition = holdInsertion();
 		crossBlock.handleCompositionStart();
 		deps.setComposing(true);
+		placeholder.setComposing(true);
 	}
 
 	function onCompositionEnd(): void {
 		// `onCompositionStart` always sets the flag, so an unpaired end means a consumer
 		// wired compositionend without compositionstart (G1.27).
 		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
+		endComposition();
+	}
+
+	// Every signal a held composing flag is read at (a key, a beforeinput, an input, a new
+	// composition) asks here first, so a composition the browser dropped ends before it is read.
+	function endsDroppedComposition(signal: CompositionSignal): boolean {
+		if (!reportDroppedComposition(signal, deps.getComposing())) return false;
+		endComposition();
+		return true;
+	}
+
+	// The browser's `compositionend`, or a signal showing the browser dropped the composition.
+	function endComposition(): void {
 		traceCompositionEnd();
 		deps.setComposing(false);
+		placeholder.setComposing(false);
 		commitDomRead(true);
 		crossBlock.handleCompositionEnd();
+		deps.compositionSeat?.noteEnd();
 	}
 
 	const caret: ClipboardCaretIO = {
@@ -576,7 +653,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const seed = deleteSnapshot(deps.getMyPath(), range.start);
 		void deps.controller
 			.undoStep(seed, async () => {
-				await remove(range);
+				const removal = remove(range);
+				if (!(await (removal === REMOVED_IN_PLACE || removal))) return;
 				// The command reads the caret the removal's render puts back.
 				await tick();
 				if (!isDetached()) run(true);
@@ -592,7 +670,45 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		return true;
 	}
 
+	// Taken once: Svelte re-runs an attachment only when the function under its key changes.
+	const trackKey = createAttachmentKey();
+	const caretSourceKey = createAttachmentKey();
+
+	// A composition or a shown inline source owns the caret, so the browser's own shows then.
+	const caretSource = (el: HTMLElement) =>
+		deps.drawnCaret.register({
+			el,
+			drawable: () => !deps.getComposing() && !deps.isInputSuppressed?.(),
+			widgetEdge: deps.widgetEdge,
+			...(getInlines && {
+				look: (range: Range) => {
+					recordCaretLook('caretLookOffsetWalks');
+					return caretLook(nextByte(rawOffsetAt(el, range.startContainer, range.startOffset)));
+				}
+			})
+		});
+
+	// The role is `combobox` only while inline menu rows show: `textbox` carries no
+	// `aria-expanded`, so a screen reader would hear nothing about the list.
+	function attributes(combobox: InlineMenuCombobox | null) {
+		const hint = placeholder.text() ?? undefined;
+		return {
+			role: combobox ? ('combobox' as const) : ('textbox' as const),
+			'aria-label': blockAccessibleName(deps.getNode()),
+			'aria-expanded': combobox ? ('true' as const) : undefined,
+			'aria-controls': combobox?.listboxId,
+			'aria-activedescendant': combobox?.activeOptionId,
+			'aria-autocomplete': combobox ? ('list' as const) : undefined,
+			'aria-placeholder': hint,
+			'data-placeholder': hint,
+			[trackKey]: placeholder.track,
+			[caretSourceKey]: caretSource
+		};
+	}
+
 	return {
+		attributes,
+		caretSource,
 		crossBlock,
 		sharedCtx,
 		surface,
@@ -602,14 +718,20 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		lineEnding,
 		pendingBreak: deps.caretMemory.pendingBreak.forBlock(block),
 		heldSpace: deps.caretMemory.heldSpace.forBlock(block),
+		nextByte,
 		command,
 		afterSelectionRemoved,
 		onKeyDown,
 		onBeforeInput,
 		onInput,
+		commitInput: () => commitDomRead(false),
 		onCompositionStart,
 		onCompositionEnd,
 		getPreEditOffset: () => preEditOffset,
+		noteShownSource: (read) => {
+			if (!read) placeholder.setShownSource(null);
+			else if (deps.placeholder()) placeholder.setShownSource(read());
+		},
 		notePreEditOffset: (offset) => {
 			preEditOffset = offset;
 		}

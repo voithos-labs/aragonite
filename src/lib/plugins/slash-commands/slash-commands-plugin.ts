@@ -4,7 +4,7 @@
  * insert catalogue, and a global command (`Mod+/`) that types the `/` for a keyboard or touch user.
  */
 
-import { definePlugin, registerGlobalCommand, type EditorPlugin } from '$lib/plugin';
+import { definePlugin, registerGlobalCommand, type EditorPlugin } from '#lib/plugin.js';
 import {
 	createSlashSource,
 	SLASH_COMMANDS_MENU,

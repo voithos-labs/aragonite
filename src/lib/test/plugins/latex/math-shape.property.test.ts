@@ -5,12 +5,13 @@
 // one edited source handed to all three.
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
-import { parse } from '$lib';
-import { ownTrailingLineEnding, trimTrailingLineEnding, type LineEnding } from '$lib/plugin';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { renderMathSource, reshapeMathEdit } from '$lib/plugins/latex/math-source';
-import { freshOrFixedSeed } from '$lib/test/invariants/arbitraries/property-seed';
+import { parse } from '#lib';
+import { ownTrailingLineEnding, trimTrailingLineEnding, type LineEnding } from '#lib/plugin.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { reshapeMathEdit } from '#lib/plugins/latex/math-source.js';
+import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/property-seed.js';
+import { paintedSplit } from './painted-split';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(688) } as const;
 
@@ -22,34 +23,6 @@ beforeEach(() => {
 });
 
 type Edit = { kind: 'break'; at: number } | { kind: 'delete'; at: number };
-
-interface Reading {
-	math: boolean;
-	/** The text painted after the opener's fence line, up to the closer's when there is one. */
-	body: string;
-	closed: boolean;
-	/** The text painted past the closer, which a reload reads as blocks of their own. */
-	after: string;
-}
-
-function paintedReading(text: string): Reading {
-	const nodes = Array.from(renderMathSource(text).childNodes);
-	const fences = nodes.flatMap((node, i) =>
-		node instanceof Element && node.classList.contains('md-fence-line') ? [i] : []
-	);
-	const textOf = (from: number, to?: number) =>
-		nodes
-			.slice(from, to)
-			.map((node) => node.textContent ?? '')
-			.join('');
-	const [opener, closer] = fences;
-	return {
-		math: opener !== undefined,
-		body: opener === undefined ? '' : textOf(opener + 1, closer),
-		closed: closer !== undefined,
-		after: closer === undefined ? '' : textOf(closer + 1)
-	};
-}
 
 /** The text the leaf paints after an edit: the edit, then the kind's own reshape. */
 const painted = (text: string, caret: number, eol: LineEnding) =>
@@ -101,20 +74,20 @@ function checkEdit(block: string, eol: LineEnding, edit: Edit): string {
 
 	// A break before the opener moves the whole block down a line, which no painter reads.
 	if (text.startsWith(eol)) return 'moved down';
-	const shown = paintedReading(text);
+	const shown = paintedSplit(text);
 	const reloaded = now[0].kind === 'mathBlock';
-	expect(reloaded, `${label}: painted and reloaded disagree on the block`).toBe(shown.math);
-	if (!shown.math) return 'not math';
-	const kept = paintedReading(trimTrailingLineEnding(now[0].raw));
-	expect(kept.body, `${label}: painted and reloaded disagree on the body`).toBe(shown.body);
-	if (shown.closed && shown.after === '') {
+	expect(reloaded, `${label}: painted and reloaded disagree on the block`).toBe(shown !== null);
+	if (!shown) return 'not math';
+	const kept = paintedSplit(trimTrailingLineEnding(now[0].raw));
+	expect(kept?.body, `${label}: painted and reloaded disagree on the body`).toBe(shown.body);
+	if (shown.closer && shown.after === '') {
 		expect(trimTrailingLineEnding(written), `${label}: the blur rewrote a closed source`).toBe(
 			text
 		);
 	}
 	if (shown.after !== '') return 'split';
 	if (text !== edited.text) return 'reshaped';
-	return shown.closed ? 'closed' : 'open';
+	return shown.closer ? 'closed' : 'open';
 }
 
 // ── Generators ───────────────────────────────────────────────────────────────

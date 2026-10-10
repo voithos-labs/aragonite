@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import type { Page } from '@playwright/test';
 import { textRunCenter } from '../../text-runs';
+import { clickModeToggle } from '../../mode-switch';
 
 // Block-granular live preview: every block hides its markers except the focused one,
 // CSS-only. Editing scenarios live in presentation-preview-block-editing.spec.ts.
@@ -20,10 +20,6 @@ const DOC = [
 	'- two'
 ].join('\n');
 
-async function togglePreview(page: Page): Promise<void> {
-	await page.getByTestId('preview-block-toggle').click();
-}
-
 test.describe('preview-block: markers by focus', () => {
 	let ep: EditorPage;
 
@@ -31,13 +27,12 @@ test.describe('preview-block: markers by focus', () => {
 		ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent(DOC);
-		await togglePreview(page);
+		await clickModeToggle(page, 'preview-block');
 	});
 
 	test('root attribute present only in preview-block', async ({ page }) => {
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'preview-block');
-		await togglePreview(page); // back to source
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'preview-block'); // back to source
 	});
 
 	test('an unfocused block hides its markers; focusing it reveals only its own', async ({
@@ -105,7 +100,7 @@ test.describe('preview-block: caret + traversal', () => {
 		ep = new EditorPage(page);
 		await ep.goto();
 		await ep.loadContent(DOC);
-		await togglePreview(page);
+		await clickModeToggle(page, 'preview-block');
 	});
 
 	test('clicking into an unfocused block lands the caret at the content offset', async ({

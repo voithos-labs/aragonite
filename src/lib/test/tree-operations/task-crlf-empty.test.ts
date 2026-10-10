@@ -1,14 +1,14 @@
 // Miss-analysis: no task-marker test emptied a CRLF to-do, where the marker match took the `\r`.
 import { describe, it, expect } from 'vitest';
-import type { Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { documentLineEnding } from '$lib/core/lines';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import type { Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/index.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A CRLF to-do keeps its own line ending through being emptied and typed into again (G4.20): the
 // marker is `[x] ` and nothing more, and the paragraph keeps the `\r\n`.

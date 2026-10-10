@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createSearchReplace } from '$lib/editor-actions/search-replace';
-import type { EditEvent, EditorError } from '$lib/editor-events';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
+import type { EditEvent, EditorError } from '#lib/editor-events.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 // The subtree rebuild calls plugin `rebuildRaw` outside any commit and after the batch's
 // single undo snapshot was pushed, so an unreported throw leaves the snapshot pushed, the

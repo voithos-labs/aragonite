@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Editor } from '$lib';
+	import { Editor } from '#lib';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	// A signal that the page is ready after hydration: once both instances are bound, their mount

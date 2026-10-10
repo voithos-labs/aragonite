@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { devWarn, setDevWarnSink } from '$lib/dev-warn';
+import { devWarn, setDevWarnSink } from '#lib/dev-warn.js';
 import {
 	takeDevWarns,
 	allowDevWarns,
@@ -16,8 +16,8 @@ import {
 	type AllowedWarn,
 	type DevWarnRecord
 } from './support/warn-gate';
-import { reorderChildren } from '$lib/tree-operations/reorder';
-import type { CstNode } from '$lib/core/nodes';
+import { reorderChildren } from '#lib/tree-operations/reorder.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 const THROWAWAY: AllowedWarn[] = [
 	{ tag: 'probe', site: 'src/lib/probe.ts', reason: 'throwaway row for the verdict tests' }

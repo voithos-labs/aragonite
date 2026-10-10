@@ -6,11 +6,11 @@
 
 import { tick } from 'svelte';
 import { isTextEntrySurface } from '../active-editor';
-import type { CaretMemory } from '../cursor/caret-memory';
-import type { LayoutState } from '../reactivity/layout-state.svelte';
+import type { CaretMemory } from '../caret/caret-memory';
+import type { LayoutState } from '../windowing/layout-state.svelte';
 import type { MenuPresence } from './menu/menu-presence.svelte';
 import type { DraftRegistry } from './draft-registry';
-import { rawOffsetAt } from '../cursor/widget-offset';
+import { rawOffsetAt } from '../caret/widget-offset';
 import type { EditorEvents } from '../editor-events';
 import type { BlockElLookup } from '../editor-keys';
 import type { PresentationMode } from '../presentation-mode';

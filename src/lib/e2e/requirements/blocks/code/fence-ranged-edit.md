@@ -39,10 +39,13 @@ The contract, in three parts:
 ## Pinned below the browser
 
 No click or arrow puts a caret on a hidden fence line, so the gestures confined to one are
-driven against the mounted block (`code-fence-ranged-edit.test.ts`) rather than end to end:
-Backspace inside the closer run, a paste into either marker run or over a closer-only
-selection, and a cut of a closer-only selection each commit nothing, and a delete inside the
-body is applied by the block, since Chromium would take the hidden fence line beside it.
+driven against the mounted block rather than end to end. Backspace inside the closer run and a
+paste into either marker run commit nothing (`test/blocks/code/code-fence-ranged-edit.test.ts`).
+`test/blocks/code/code-fence-edit-span.test.ts` runs every route that writes over a range (Backspace, Delete,
+type-over, a typed bracket, an IME composition, cut, paste and Enter) over the same ranges in
+both modes. With the fence lines hidden, a range on fence structure alone commits nothing on any of
+them, and a delete inside the body is applied by the block, since Chromium would take the hidden
+fence line beside it.
 (miss-analysis: when these fence lines became editable in source mode, the refusals were deleted
 with their source-mode tests instead of moved to the mode that still hides the lines)
 

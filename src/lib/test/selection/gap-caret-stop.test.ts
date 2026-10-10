@@ -3,9 +3,10 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { tryGapStop } from '../../selection/gap-caret';
-import { placeGapCaret } from '../../selection/caret-doors';
+import { placeGapCaret } from '../../selection/place-caret';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import type { PresentationMode } from '../../presentation-mode';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const TABLE = '| a | b |\n| - | - |\n';
 const FENCE = '```\ncode\n```\n';
@@ -16,7 +17,12 @@ const at = (block: number, offset: number) => ({ path: [block], offset });
 
 function makeScope(mode: PresentationMode = 'source') {
 	const selection = createSelectionState({ getDoc: () => DOC });
-	return { selection, getDoc: () => DOC, getPresentationMode: () => mode };
+	return {
+		selection,
+		caretWriter: testCaretWriter,
+		getDoc: () => DOC,
+		getPresentationMode: () => mode
+	};
 }
 
 describe('tryGapStop', () => {
@@ -48,7 +54,7 @@ describe('placeGapCaret: the gap entry point', () => {
 		const selection = createSelectionState({ getDoc: () => DOC });
 		selection.enterCrossBlock(at(0, 0), at(3, 2));
 
-		placeGapCaret(selection, { parentPath: [], index: 2 });
+		placeGapCaret(selection, testCaretWriter, { parentPath: [], index: 2 });
 
 		expect(selection.isCrossBlock).toBe(false);
 		expect(selection.gapCaret).toEqual({ parentPath: [], index: 2 });
@@ -60,7 +66,7 @@ describe('placeGapCaret: the gap entry point', () => {
 		selection.enterCrossBlock(at(0, 0), at(3, 2));
 		emissions = 0;
 
-		placeGapCaret(selection, { parentPath: [], index: 2 });
+		placeGapCaret(selection, testCaretWriter, { parentPath: [], index: 2 });
 
 		expect(emissions).toBe(1);
 	});

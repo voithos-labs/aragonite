@@ -6,6 +6,10 @@ Editor re-initialization when the `source` prop changes (async document load, sh
 
 - `setSource` on fresh editor: content loads, editor ready for typing
 - `setSource` after edits: new content replaces current document
+- `setSource` with the text the page loaded last, after edits: that text loads again with an
+  empty undo history, like any other load
+- `setSource` with the text the editor already holds, after edits that typed back to it: the same,
+  a fresh document with an empty undo history
 - `setSource` announces itself: each swap fires `sourceSwap` once, its generation one above the
   last, and fires no `edit` event, so a host marking the document dirty on `edit` never hears its
   own write echoed back
@@ -39,3 +43,5 @@ Editor re-initialization when the `source` prop changes (async document load, sh
   in a block whose blur writes; every blur write was tested against the document it came from.
 - The menu pastes landing in the next document shipped because every menu-paste row read a
   clipboard that answered at once, so nothing could happen between the pick and the write.
+- The test harness's repeated load doing nothing went unnoticed because every row here loaded a text
+  different from both the page's last load and the editor's own text, so neither no-op ever showed.

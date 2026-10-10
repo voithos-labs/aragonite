@@ -10,10 +10,11 @@ import {
 	declaredPluginKind,
 	registerInsertEntry,
 	type EditorPlugin
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { registerMathInline, registerMathBlock, MATH_BLOCK, MATH_FENCE } from './latex-kind';
 import { mathSlot, type MathRenderer } from './math-renderer';
 import { isMathBlockLayout, type MathBlockLayout } from './math-layout';
+import { mathBlockLines } from './math-shape';
 import BlockMath from './BlockMath.svelte';
 
 export interface LatexPluginOptions {
@@ -55,7 +56,7 @@ export function latexPlugin(options: LatexPluginOptions = {}): EditorPlugin {
 				label: 'Math block',
 				icon: 'sigma',
 				keywords: ['math', 'latex', 'equation', 'tex'],
-				markdown: '$$\n\n$$\n'
+				markdown: `${mathBlockLines('').join('\n')}\n`
 			});
 		}
 	});

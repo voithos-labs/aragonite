@@ -2,15 +2,16 @@
 // The shown-source guard fires through real code, on a second entry before the first finishes
 // and on the source-length check at the DOM swap (G1.26). Legal show-then-commit and cancel cycles
 // stay silent, since a guard that fires wrongly floods the console every e2e spec watches.
-import { recordingWrite } from '$lib/test/harness/editor-actions';
+import { recordingWrite } from '#lib/test/harness/editor-actions.js';
 import { describe, it, expect } from 'vitest';
 
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
-import { createSourceReveal } from '$lib/cursor/reveal-source';
-import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
+import { createSourceReveal } from '#lib/caret/reveal-source.js';
+import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 installMathInline();
 
@@ -75,6 +76,7 @@ describe('reveal transitions: settle-window re-entry (G1.26)', () => {
 describe('reveal transitions: the shared core source-length precondition (G1.26)', () => {
 	it('a source not spanning its [sourceStart, sourceEnd) range fires at reveal entry', async () => {
 		const reveal = createSourceReveal({
+			caretWriter: testCaretWriter,
 			get container() {
 				return null;
 			},

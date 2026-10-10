@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
-import { isCommandCandidateKey, isIndentKey } from '$lib/selection/cross-block/keydown';
+import { isCommandCandidateKey, isIndentKey } from '#lib/selection/cross-block/keydown.js';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
@@ -107,6 +107,8 @@ gamma
 `);
 			// The dispatcher routes ahead of the block's own handler, so the focused block is never asked.
 			expect(runCommand).not.toHaveBeenCalled();
+			// A delete would drop the range, and the marks would land on shifted indices.
+			expect(env.selection.isCrossBlock).toBe(true);
 		});
 	}
 

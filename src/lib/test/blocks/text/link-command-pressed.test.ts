@@ -4,9 +4,9 @@
 // Miss-analysis: no test asked what a command with no mark-table entry shows as pressed.
 import { describe, it, expect, afterEach } from 'vitest';
 import { unmount } from 'svelte';
-import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { EditorServices } from '$lib/editor-keys';
+import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { EditorServices } from '#lib/editor-keys.js';
 import { mountBlock } from '../../harness/mount-block';
 
 const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];

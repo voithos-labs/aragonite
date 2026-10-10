@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parseConverges } from '$lib/testing/parse-convergence';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { installPlugins, parse, serialize } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { parseConverges } from '#lib/testing/parse-convergence.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { containerAt, typeSlowly } from './formation-harness';
 
 // The other actions that reach the same kind re-derivation as typing: a paste spanning blocks,

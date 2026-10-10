@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { ensurePasteSurface } from '$lib/test/support/paste-surface';
+} from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
 
 // Pasted or inserted blocks keep their own line ending and blank lines, even from a table cell.
 // Miss-analysis: GH #415, every paste test's clipboard ended in a line ending, none left a cell.

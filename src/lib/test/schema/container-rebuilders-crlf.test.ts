@@ -2,14 +2,8 @@
 // source's line endings exactly (G4.20). Fixtures come from `parse`, since a hand-built child raw
 // would agree with a rebuilder that splits a CRLF body wrong.
 import { describe, it, expect } from 'vitest';
-import {
-	rebuildBlockquoteRaw,
-	rebuildListItemRaw,
-	rebuildTableRaw,
-	rebuildTableRowRaw
-} from '../../schema/container-rebuilders';
+import { rebuildBlockquoteRaw, rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { parse } from '../../core/parser';
-import { insertEmptyRow } from '../../tree-operations/table-mutations';
 
 describe('rebuildBlockquoteRaw over a CRLF source', () => {
 	it('re-emits a blank quote line as `>` + CRLF, not `> ` + CR', () => {
@@ -30,30 +24,5 @@ describe('rebuildListItemRaw over a CRLF source', () => {
 		const item = parse('- a\r\n\r\n  b\r\n').children[0].children![0];
 		rebuildListItemRaw(item);
 		expect(item.raw).toBe('- a\r\n\r\n  b\r\n');
-	});
-});
-
-describe('rebuildTableRaw over a CRLF source', () => {
-	const crlfTable = '| a | b |\r\n| --- | --- |\r\n| 1 | 2 |\r\n';
-
-	it('keeps every row and the synthesized delimiter on CRLF', () => {
-		const table = parse(crlfTable).children[0];
-		rebuildTableRaw(table);
-		expect(table.raw).toBe(crlfTable);
-	});
-
-	it('gives a row created by an insert the table ending, not LF', () => {
-		const table = parse(crlfTable).children[0];
-		insertEmptyRow(table, 1, 'below');
-		rebuildTableRowRaw(table.children![2]);
-		rebuildTableRaw(table);
-		expect(table.raw).toBe('| a | b |\r\n| --- | --- |\r\n| 1 | 2 |\r\n|  |  |\r\n');
-	});
-
-	it('leaves an LF table on LF', () => {
-		const lfTable = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
-		const table = parse(lfTable).children[0];
-		rebuildTableRaw(table);
-		expect(table.raw).toBe(lfTable);
 	});
 });

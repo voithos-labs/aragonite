@@ -36,7 +36,7 @@ for (const mode of ['source', 'live'] as const) {
 			editor = new EditorPage(page);
 			await editor.goto();
 			if (mode === 'live') {
-				await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+				await editor.setPresentationMode('live');
 			}
 		});
 

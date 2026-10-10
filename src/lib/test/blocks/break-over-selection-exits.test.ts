@@ -11,33 +11,51 @@ import {
 	placeCaret,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey, settleEditor } from '#lib/test/harness/settle.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
 
 const MODES = ['source', 'live'] as const;
 
-// Each row selects `[start, end)` of the leaf at `path`, then presses Enter.
+// Each row selects `[start, end)` of the leaf at `path`, then presses Enter; `focus` is where the
+// caret ends.
 const IN_BLOCK = [
-	['a list item, whole', '- alpha\n\nnext\n', [0, 0, 0], 0, 5, '- \n- \n\nnext\n'],
-	['a to-do, whole', '- [ ] alpha\n\nnext\n', [0, 0, 0], 0, 5, '- [ ] \n- [ ] \n\nnext\n'],
-	['a quote’s only line, whole', '> alpha\n\nnext\n', [0, 0], 0, 5, '>\n>\n\nnext\n'],
-	['a second item, whole', '- one\n- alpha\n\nnext\n', [0, 1, 0], 0, 5, '- one\n- \n- \n\nnext\n'],
+	['a list item, whole', '- alpha\n\nnext\n', [0, 0, 0], 0, 5, '- \n- \n\nnext\n', [0, 1, 0]],
+	[
+		'a to-do, whole',
+		'- [ ] alpha\n\nnext\n',
+		[0, 0, 0],
+		0,
+		5,
+		'- [ ] \n- [ ] \n\nnext\n',
+		[0, 1, 0]
+	],
+	['a quote’s only line, whole', '> alpha\n\nnext\n', [0, 0], 0, 5, '>\n>\n\nnext\n', [0, 1]],
+	[
+		'a second item, whole',
+		'- one\n- alpha\n\nnext\n',
+		[0, 1, 0],
+		0,
+		5,
+		'- one\n- \n- \n\nnext\n',
+		[0, 2, 0]
+	],
 	[
 		'a code block’s last line',
 		'```\nfoo\nbar\n```\n\nnext\n',
 		[0],
 		8,
 		11,
-		'```\nfoo\n\n\n```\n\nnext\n'
+		'```\nfoo\n\n\n```\n\nnext\n',
+		[0]
 	]
 ] as const;
 
 describe.each(MODES)('%s mode: Enter over a selection that empties a line', (mode) => {
 	it.each(IN_BLOCK)('%s splits and stays in the block', async (...row) => {
-		const [, source, path, start, end, written] = row;
+		const [, source, path, start, end, written, focus] = row;
 		const editor = mountEditor({ source, presentationMode: mode });
 		await settleEditor();
 		selectRange(surfaceAt(editor, [...path]), start, end);
@@ -46,6 +64,7 @@ describe.each(MODES)('%s mode: Enter over a selection that empties a line', (mod
 		await settleEditor();
 
 		expect(editor.source()).toBe(written);
+		expect(editor.instance.getSelection()?.focus.path).toEqual(focus);
 	});
 
 	// An emptied heading the caret leaves turns into the paragraph it looks like, however it

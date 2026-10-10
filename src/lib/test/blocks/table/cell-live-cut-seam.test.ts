@@ -3,13 +3,13 @@
 // destructive cell path: the event cut, the menu cut, and typing or deleting over a selection.
 // Miss-analysis: cell unit tests covered only escaping, and the cell e2e cases drove only paste.
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import { mountCell, type MountedCell } from './mount-cell';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterAll(() => __resetLiveJoinSeamCleanerForTests());

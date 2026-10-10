@@ -16,6 +16,17 @@ function blockquoteChainDepth(doc: ReturnType<typeof parse>): number {
 	return depth;
 }
 
+/** Lists nested through each item's first sublist, outermost first. */
+function listChainDepth(doc: ReturnType<typeof parse>): number {
+	let node: CstNode | undefined = doc.children[0];
+	let depth = 0;
+	while (node && node.kind === 'list') {
+		depth++;
+		node = node.children?.[0]?.children?.find((child) => child.kind === 'list');
+	}
+	return depth;
+}
+
 describe('container nesting depth cap (ADV-1)', () => {
 	it('a blockquote flood far past the cap parses without throwing and round-trips', () => {
 		const source = '>'.repeat(5000) + ' x\n';
@@ -26,15 +37,16 @@ describe('container nesting depth cap (ADV-1)', () => {
 		expect(serialize(doc)).toBe(source);
 	});
 
-	it('a nested-list flood far past the cap parses without throwing and round-trips', () => {
+	// Miss-analysis: the list floods checked only no-throw and round-trip, which hold whether or not
+	// a list counts toward the cap.
+	it('a nested-list flood past the cap stops the chain at the cap and round-trips', () => {
+		const levels = MAX_NESTING_DEPTH + 10;
 		const source =
-			Array.from({ length: 700 }, (_, i) => ' '.repeat(2 * i) + '- x').join('\n') + '\n';
-		let doc!: ReturnType<typeof parse>;
-		expect(() => {
-			doc = parse(source);
-		}).not.toThrow();
+			Array.from({ length: levels }, (_, i) => ' '.repeat(2 * i) + '- x').join('\n') + '\n';
+		const doc = parse(source);
+		expect(listChainDepth(doc)).toBe(MAX_NESTING_DEPTH);
 		expect(serialize(doc)).toBe(source);
-	}, 30_000);
+	});
 
 	it('nesting just under the cap builds the full container chain', () => {
 		const depth = MAX_NESTING_DEPTH - 1;

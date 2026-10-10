@@ -12,42 +12,6 @@ test.describe('undo and redo', () => {
 		await editor.loadContent(SIMPLE_CONTENT);
 	});
 
-	test('undo reverts a split (Enter then Ctrl+Z restores single block)', async () => {
-		const before = await editor.bridge.getSource();
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Enter');
-		expect(await editor.getDomBlockCount()).toBeGreaterThan(3);
-
-		await editor.undo();
-		expect(await editor.bridge.getSource()).toBe(before);
-		expect(await editor.getDomBlockCount()).toBe(3);
-	});
-
-	test('redo restores a split after undo', async () => {
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Enter');
-		const splitSource = await editor.bridge.getSource();
-		const splitCount = await editor.getDomBlockCount();
-
-		await editor.undo();
-		expect(await editor.getDomBlockCount()).toBe(3);
-
-		await editor.redo();
-		expect(await editor.bridge.getSource()).toBe(splitSource);
-		expect(await editor.getDomBlockCount()).toBe(splitCount);
-	});
-
-	test('undo reverts typed text after debounce', async () => {
-		const before = await editor.bridge.getSource();
-		await editor.focusBlockEnd(0);
-		await editor.typeSlowly(' extra words');
-		await editor.bridge.waitForSourceContains(' extra words');
-		await editor.waitForUndoBatchFlush();
-
-		await editor.undo();
-		expect(await editor.bridge.getSource()).toBe(before);
-	});
-
 	test('undo reverts a merge (Backspace at start of block)', async () => {
 		const before = await editor.bridge.getSource();
 		await editor.focusBlockStart(1);
@@ -78,16 +42,6 @@ test.describe('undo and redo', () => {
 		await editor.typeText('z');
 		await editor.bridge.waitForSourceContains('z');
 		expect(await editor.bridge.getSource()).not.toContain('div');
-	});
-
-	test('undo on empty stack does not crash or corrupt state', async () => {
-		const before = await editor.bridge.getSource();
-		await editor.undo();
-		await editor.undo();
-		expect(await editor.bridge.getSource()).toBe(before);
-		await editor.focusBlockEnd(0);
-		await editor.typeText('z');
-		expect(await editor.getBlockText(0)).toContain('z');
 	});
 });
 

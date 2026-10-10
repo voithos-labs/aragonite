@@ -9,15 +9,16 @@ test.describe('single-block clipboard: basics', () => {
 		await editor.goto();
 	});
 
-	// One key apart (End vs Home); the copy path is identical.
+	// One key apart (End vs Home). The copy is part of the block, so a paste at the wrong end
+	// reads differently and fails its row.
 	for (const [position, key, expected] of [
-		['end appends', 'End', 'StartStart'],
-		['start prepends', 'Home', 'StartStart']
+		['end appends', 'End', 'StartSt'],
+		['start prepends', 'Home', 'StStart']
 	] as const) {
 		test(`paste at ${position} the copied text`, async () => {
 			await editor.loadContent('Start\n');
 			await editor.focusBlockStart(0);
-			for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
+			for (let i = 0; i < 2; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 			await editor.page.keyboard.press('ControlOrMeta+c');
 			await editor.page.keyboard.press(key);
 			await editor.paste();

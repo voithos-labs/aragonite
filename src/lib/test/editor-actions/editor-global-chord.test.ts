@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runGlobalChordOnKind } from '$lib/schema/commands';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import type { AnyBlockKind } from '$lib/core/nodes';
-import type { CommandDispatchContext } from '$lib/schema/block-commands';
+import { runGlobalChordOnKind } from '#lib/schema/commands.js';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
+import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
 import { commandContextWith } from '../support/command-context';
 
 // The handler a block focused as a whole carries: no inner leaf runs the global chords for

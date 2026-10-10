@@ -79,12 +79,6 @@ commit open until the spec releases it; its cases are `inline-menu-held-commit.m
 - It opens where the typed trigger would have been declined by position: the gesture is the
   author's say-so.
 
-## A block through onCommit
-
-- `/` on a fresh line opens the command list, the query narrows it, and the pick removes `/` and
-  the query while the document gains the block `onCommit` inserted.
-- A `/` inside a word opens nothing: a path or a date is text.
-
 ## Host signal
 
 - `menuChange` fires `true` when the list appears and `false` when it goes, so host chrome over

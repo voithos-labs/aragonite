@@ -3,7 +3,7 @@
 import { CURSOR_START } from '../../block-component';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { Document } from '../../core/nodes';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { commandLandingKind, kindOfPath, replaceRange } from './range-replace';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
@@ -31,7 +31,7 @@ import { pathsEqual } from '../path-math';
 import { intraTableRectExtension } from '../table-rect-extend';
 import { cellPoint } from '../primitives';
 import { applySurfaceContentRange } from '../native-bridge';
-import { selectInBlock } from '../caret-doors';
+import { selectInBlock } from '../place-caret';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -124,11 +124,12 @@ async function handleCrossBlockActive(
 			return true;
 		case 'collapse': {
 			const toEnd = e.key === 'ArrowRight' || e.key === 'ArrowDown';
-			await collapseTo(ctx, toEnd ? 'end' : 'start', doc);
+			const to = toEnd ? 'end' : 'start';
+			await collapseCrossBlock(ctx.selection, ctx.caretWriter, to, doc, ctx.caretLanding.restore);
 			return true;
 		}
 		case 'selectAll':
-			selectWholeDocument(ctx.selection, doc, ctx.getBlockElByPath);
+			selectWholeDocument(ctx.selection, ctx.caretWriter, doc, ctx.getBlockElByPath);
 			return true;
 	}
 }
@@ -141,7 +142,7 @@ function extendOverRange(
 	el: HTMLElement,
 	doc: Document
 ): void {
-	const { selection, getBlockElByPath } = ctx;
+	const { selection, caretWriter: writer, getBlockElByPath } = ctx;
 	const { grammar } = ctx.reading;
 	const key = e.key as ArrowKey;
 	const ext = intraTableRectExtension(doc, selection.anchor, selection.focus, key);
@@ -151,9 +152,9 @@ function extendOverRange(
 	}
 	if (ext) {
 		if (ext.direction === 'forward') {
-			extendFocusToNextBlock(selection, doc, grammar, el, ext.fromCellPath, 'vertical');
+			extendFocusToNextBlock(selection, writer, doc, grammar, el, ext.fromCellPath, 'vertical');
 		} else {
-			extendFocusToPreviousBlock(selection, doc, grammar, el, ext.fromCellPath, 'start');
+			extendFocusToPreviousBlock(selection, writer, doc, grammar, el, ext.fromCellPath, 'start');
 		}
 		return;
 	}
@@ -161,10 +162,28 @@ function extendOverRange(
 	const focusEl = getBlockElByPath(focusPath) ?? el;
 	if (key === 'ArrowDown' || key === 'ArrowRight') {
 		const axis = key === 'ArrowDown' ? 'vertical' : 'horizontal';
-		extendFocusToNextBlock(selection, doc, grammar, focusEl, focusPath, axis, getBlockElByPath);
+		extendFocusToNextBlock(
+			selection,
+			writer,
+			doc,
+			grammar,
+			focusEl,
+			focusPath,
+			axis,
+			getBlockElByPath
+		);
 	} else {
 		const side = key === 'ArrowUp' ? 'start' : 'end';
-		extendFocusToPreviousBlock(selection, doc, grammar, focusEl, focusPath, side, getBlockElByPath);
+		extendFocusToPreviousBlock(
+			selection,
+			writer,
+			doc,
+			grammar,
+			focusEl,
+			focusPath,
+			side,
+			getBlockElByPath
+		);
 	}
 }
 
@@ -175,17 +194,17 @@ async function handleCrossBlockEntry(
 ): Promise<boolean> {
 	const el = ctx.getEl();
 	if (!el) return false;
-	const { selection, getDoc } = ctx;
+	const { selection, caretWriter: writer, getDoc } = ctx;
 
 	if (isSelectAllChord(e)) {
 		e.preventDefault();
 		// Ended before the count moves, since ending a selected widget restarts the run.
 		const first = selection.selectAllCount === 0;
 		selection.batch(() => {
-			if (first) selectInBlock(selection, () => applySurfaceContentRange(el));
+			if (first) selectInBlock(selection, writer, () => applySurfaceContentRange(writer, el));
 			selection.incrementSelectAllCount();
 		});
-		if (!first) selectWholeDocument(selection, getDoc(), ctx.getBlockElByPath);
+		if (!first) selectWholeDocument(selection, writer, getDoc(), ctx.getBlockElByPath);
 		return true;
 	}
 
@@ -338,18 +357,6 @@ export function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 	);
 }
 
-/** Corrects the side the arrow key recorded: the caret jumped to the range's edge, where the side
- *  depends on the construct there (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge). */
-async function collapseTo(
-	ctx: CrossBlockDispatchContext,
-	to: 'start' | 'end',
-	doc: Document
-): Promise<void> {
-	await collapseCrossBlock(ctx.selection, to, doc, ctx.caretLanding.restore);
-	// After the restore, which forgets how the caret arrived.
-	ctx.caretMemory.noteExtreme();
-}
-
 /** Parks the caret at the focus endpoint, never ending the range (G2.12) and never opening a
  *  closed body. A cell takes its start, since ArrowRight at its end reads as leaving the table. */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
@@ -379,6 +386,7 @@ async function handleDocEdgeExtend(
 	e.preventDefault();
 	extendFocusToDocEdge(
 		ctx.selection,
+		ctx.caretWriter,
 		ctx.getDoc(),
 		ctx.reading.grammar,
 		el,

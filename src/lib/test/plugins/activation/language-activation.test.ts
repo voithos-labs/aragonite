@@ -1,15 +1,15 @@
 // Miss-analysis: every language test registered outside a plugin install, so none read activation.
 import { describe, expect, it } from 'vitest';
 import python from 'highlight.js/lib/languages/python';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import {
 	getLanguageAliases,
 	getLanguageGrammar,
 	isLanguageRegistered,
 	listLanguages,
 	registerLanguage
-} from '$lib/components/blocks/code/code-languages';
+} from '#lib/components/blocks/code/code-languages.js';
 
 const snake = definePlugin({
 	name: 'snake',

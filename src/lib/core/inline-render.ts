@@ -2,7 +2,7 @@
  * DOM renderer for inline node trees. Over a widget-free range the fragment's textContent equals
  * raw.slice. Widgets break that by design, contributing their own text or none and carrying their
  * source bytes on `data-source-*`, so a raw offset is recovered only through the shared DOM
- * traversal (cursor/widget-offset.ts), never by counting textContent (G2.4). Which of the spans
+ * traversal (caret/widget-offset.ts), never by counting textContent (G2.4). Which of the spans
  * built here a mode leaves on screen is `inline/visibility.ts`.
  */
 
@@ -443,7 +443,7 @@ export interface OffsetResult {
 }
 
 /** The leaf containing `offset`, preferring the right node at a boundary; `offset === end` matches
- *  only the last node. The DOM side is `findDomTextOffsetTarget` in `cursor/widget-offset.ts`. */
+ *  only the last node. The DOM side is `findDomTextOffsetTarget` in `caret/widget-offset.ts`. */
 export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetResult | null {
 	// Descent never backtracks, the first containing sibling winning its level, so the answer is
 	// the deepest containing node.

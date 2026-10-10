@@ -1,10 +1,12 @@
-// @vitest-environment jsdom
 // G1.61: the check passes a list move that keeps the text in order and fails one that reorders it.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { leafTextAround, leafTexts } from '$lib/invariants/leaf-text';
-import { checkListMoveKeepsOrder, keepingListOrder } from '$lib/invariants/list-move-keeps-order';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import { leafTextAround, leafTexts } from '#lib/invariants/leaf-text.js';
+import {
+	checkListMoveKeepsOrder,
+	keepingListOrder
+} from '#lib/invariants/list-move-keeps-order.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const textOf = (source: string) => leafTexts(parse(source).children);
 

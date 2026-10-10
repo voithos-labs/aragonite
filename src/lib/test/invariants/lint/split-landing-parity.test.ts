@@ -1,7 +1,7 @@
 /**
  * Every split caller reads the split primitive's own landing index rather than putting its caret
  * at `i + 1`: a first half that reparses into several blocks pushes the second half down, and the
- * caret lands on the first half's tail (G4.43).
+ * caret lands on the first half's tail (G4.43). Each also marks that landing a fresh start.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -32,6 +32,7 @@ function splitCallName(code: string): string {
 
 const countCalls = (code: string, name: string): number => callSites(code, name).length;
 const countReads = (code: string): number => code.match(/\.secondHalfIndex\b/g)?.length ?? 0;
+const countFresh = (code: string): number => code.match(/\bfresh:\s*true\b/g)?.length ?? 0;
 
 describe('G4.43 split-landing parity census', () => {
 	const sources = collectEditorSources();
@@ -56,6 +57,15 @@ describe('G4.43 split-landing parity census', () => {
 		}
 	});
 
+	// Enter starts the new block plain whatever the text after the cut carries (live-mode.md § 4.2).
+	it('each split call in a caller marks its landing a fresh start', () => {
+		const callers = sources.filter((f) => namesSplit(f) && !NON_LANDING.has(f.relPath));
+		for (const { relPath, code } of callers) {
+			const splits = countCalls(code, splitCallName(code));
+			expect([relPath, countFresh(code) >= splits]).toEqual([relPath, true]);
+		}
+	});
+
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('the matcher sees a call and an aliased import, and skips prose', () => {
@@ -64,6 +74,13 @@ describe('G4.43 split-landing parity census', () => {
 		expect(probe("import { splitNode as performSplit } from '../tree-operations';")).toBe(true);
 		expect(probe('// splitNode derives its own separator')).toBe(false);
 		expect(probe('const liveSplitNode = 1;')).toBe(false);
+	});
+
+	it('a split caller whose landing is not fresh fails the fresh-start branch', () => {
+		const plain =
+			'const r = splitNode(p, i, 0);\nlanding: () => scope.at(r.secondHalfIndex, [], 0)';
+		expect(countFresh(plain) >= countCalls(plain, 'splitNode')).toBe(false);
+		expect(countFresh('landing: () => ({ ...at, fresh: true })')).toBe(1);
 	});
 
 	it('a split caller landing at i + 1 fails the parity branch', () => {

@@ -5,14 +5,18 @@
  * a fence paints as plain tokens.
  */
 import {
-	displayLines,
 	fenceBodyAsDrawn,
+	fencedBodyRange,
 	highlightCode,
 	isBlankText,
+	ownTrailingLineEnding,
 	renderFencedSource,
 	sliceFencedSource,
-	type LineEnding
-} from '$lib/plugin';
+	trimTrailingLineEnding,
+	trimWhitespace,
+	type LineEnding,
+	type NodeView
+} from '#lib/plugin.js';
 import { readMathSource, reshapeMathSource, type MathEdit, type MathSource } from './math-shape';
 
 /** Both block forms as an opener, a body and a closer: the `$$` form as `math-shape.ts` reads it,
@@ -21,6 +25,17 @@ function sliceMathSource(text: string): MathSource {
 	const dollars = readMathSource(text);
 	if (dollars) return dollars;
 	return { ...(sliceFencedSource(text) ?? { opener: '', body: text, closer: '' }), after: '' };
+}
+
+/** The body a user types into, either form; null before the source has a body line. */
+export function mathBodyRange(node: NodeView): { start: number; end: number } | null {
+	return fencedBodyRange(sliceMathSource(node.raw));
+}
+
+/** The formula a renderer is handed, the same for either form; the block's bytes never come
+ *  from it. */
+export function mathDisplaySource(text: string): string {
+	return trimWhitespace(sliceMathSource(text).body);
 }
 
 /**
@@ -50,12 +65,12 @@ function completeBareMathSource(text: string, lineEnding: LineEnding): MathEdit 
 	const { opener, body, closer, after } = sliceMathSource(text);
 	if (!opener || !closer) return null;
 	if (body.includes('\n') || !isBlankText(body)) return null;
-	const [openerLine] = displayLines(opener);
+	const openerLine = trimTrailingLineEnding(opener);
 	// A one-line `$$$$` has no ending of its own to repeat, so it takes the block's.
-	const ending = openerLine.ending || lineEnding;
+	const ending = ownTrailingLineEnding(opener) || lineEnding;
 	return {
-		text: openerLine.text + ending + ending + closer + after,
-		caret: openerLine.text.length + ending.length
+		text: openerLine + ending + ending + closer + after,
+		caret: openerLine.length + ending.length
 	};
 }
 

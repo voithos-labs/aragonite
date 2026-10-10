@@ -7,8 +7,6 @@ reach it before the next input does. What the channel reports overall is in
 
 ## Happy paths
 
-- Enter at the end of a paragraph, then a byte typed straight after: the payload naming the new
-  paragraph reports that paragraph still empty, so the arrival was heard before the byte.
 - Enter at the end of a list item, then a byte typed straight after: the payload naming the new
   item reports it empty, on the nested path and past the marker prefix the item draws.
 - ArrowDown into the block below, then a byte typed straight after: same, on the column landing
@@ -30,9 +28,15 @@ reach it before the next input does. What the channel reports overall is in
   itself, so the browser's `selectionchange` that follows repeats one subscribers already have.
   Asserted in `selection-restore.md`.
 
+## Pinned below the browser
+
+- Enter at the end of a paragraph announces the new paragraph from the key itself, before the
+  browser reports the caret, so a byte typed straight after can't beat it. That runs in
+  `test/selection/landing-announce.svelte.test.ts`.
+
 ## Notes
 
-Every scenario repeats the gesture over several blocks in one test. The defect was a race
+The Enter and prose ArrowDown scenarios repeat the gesture over several blocks in one test. The defect was a race
 between the editor's caret placement and the browser's `selectionchange` task, lost on roughly
 a third of runs, so one cycle would go green by luck; several in a row will not.
 

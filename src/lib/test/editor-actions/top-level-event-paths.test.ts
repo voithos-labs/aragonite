@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { parse } from '#lib/core/parser.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 // Top-level and container event paths agree: both emit the edit's target, never the
 // snapshot index.

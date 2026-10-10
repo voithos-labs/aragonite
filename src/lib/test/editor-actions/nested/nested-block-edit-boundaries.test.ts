@@ -1,23 +1,22 @@
-// @vitest-environment jsdom
 // `createNestedBlockEdit`'s own contribution over the shared block-edit core is entirely
 // boundary logic: which calls stay inside the container and which hand up to the parent.
 // An edge merge that stayed interior silently does nothing; an interior merge that went to
 // the parent deletes the wrong block. Each case tests one edge plus its interior counterpart.
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { setPluginMetadata, type CstNode } from '$lib/core/nodes';
-import { createNestedBlockEdit } from '$lib/editor-actions/nested/nested-block-edit';
-import type { NestedActionsDeps } from '$lib/editor-actions/nested/nested-actions';
-import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { setPluginMetadata, type CstNode } from '#lib/core/nodes.js';
+import { createNestedBlockEdit } from '#lib/editor-actions/nested/nested-block-edit.js';
+import type { NestedActionsDeps } from '#lib/editor-actions/nested/nested-actions.js';
+import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
 import {
 	makeBlockListState,
 	makeCaretMemory,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { testChromeContainer } from '$lib/test/harness/test-kinds';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+import { testChromeContainer } from '#lib/test/harness/test-kinds.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 
 let titled: ReturnType<typeof testChromeContainer>;
 beforeEach(() => {

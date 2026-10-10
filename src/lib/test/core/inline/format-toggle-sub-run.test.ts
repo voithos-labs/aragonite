@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import { press } from './format-toggle-fixture';
 
 // A slice of a run (`*b*` in `**b**`) parses alone as a construct; the block's parse decides.

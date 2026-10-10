@@ -7,7 +7,7 @@ at all, which surprises the user, for whom the glyph is a character in the line 
 
 The editor runs its own drag from such a click, as it does for one starting in the margin, and
 paints the range inside the block itself. The drag is anchored at the widget's own raw edge on
-the side the click landed (`cursor/widget-edge-snap.ts`), not at the browser's hit test, which
+the side the click landed (`caret/widget-edge-snap.ts`), not at the browser's hit test, which
 moves with whatever is already selected. Only a kind the caret reads as one character
 (`onEdge: 'step-over'`: an emoji, an entity reference) anchors this way; a widget that handles
 its own click keeps it, as an image does for its selection and a formula for showing its source.

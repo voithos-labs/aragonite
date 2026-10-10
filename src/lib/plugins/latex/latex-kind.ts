@@ -15,7 +15,6 @@ import {
 	registerBlockKind,
 	registerBlockOpener,
 	simpleLeafClosure,
-	fenceAnatomy,
 	fenceRawWrite,
 	fenceShapeOfRaw,
 	matchFenceInfo,
@@ -24,25 +23,25 @@ import {
 	trimTrailingLineEnding,
 	ownTrailingLineEnding,
 	trailingLineEnding,
-	trimWhitespace,
 	type CaretTarget,
 	type PluginInlineKind,
 	type InlineNode,
 	type CstNode,
 	type WriteContext,
 	type WriteRule
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import MathInline from './MathInline.svelte';
 import { isFlankingSpace } from './flanking';
 import { registerMathBlockCompleter } from './math-completion';
 import {
 	awaitsMathCloser,
-	isMathFenceLine,
-	isOneLineMath,
 	legalMathSource,
+	mathBlockLines,
+	mathCloserLine,
 	opensMathBlock,
 	readMathSource
 } from './math-shape';
+import { mathBodyRange } from './math-source';
 
 export const MATH_INLINE = 'math';
 export const MATH_BLOCK = 'mathBlock';
@@ -158,18 +157,6 @@ function mathCaretAtPoint(
 	return { path: [], offset: glyphOffsetInSpan(render, { start, end }, clientX, clientY) ?? end };
 }
 
-// ── Rendered display source ────────────────────────────────────────────────────
-
-/**
- * Shared by the render component so `mathBlock` and `mathFence` display identically.
- * Round-trip stays byte-level on `raw`, so this never feeds serialization.
- */
-export function mathDisplaySource(source: string): string {
-	const fence = fenceAnatomy(source);
-	if (fence) return trimWhitespace(source.slice(fence.bodyStart, fence.closerStart));
-	return trimWhitespace(readMathSource(source)?.body ?? source);
-}
-
 // ── Writing a block's own bytes ────────────────────────────────────────────────
 
 /** The `$$` kind's write rule, read off `math-shape.ts` like the painter and the parser: a closer a
@@ -215,8 +202,9 @@ export function registerMathBlock(): void {
 		// The open source takes Enter as a literal newline and never splits, so neither edge
 		// can grow a neighbouring block.
 		gapEdges: 'both',
-		conformanceFixture: '$$\nx^2\n$$\n',
+		conformanceFixture: `${mathBlockLines('x^2').join('\n')}\n`,
 		caretTargetAtPoint: mathCaretAtPoint,
+		bodyRange: mathBodyRange,
 		rawWrite: mathBlockWrite,
 		closure: simpleLeafClosure({
 			focus: {
@@ -245,25 +233,15 @@ export function registerMathBlock(): void {
 		interruptsParagraph: opensMathBlock,
 		readingNotFinal: awaitsMathCloser,
 		tryOpen(ctx) {
-			const text = ctx.line.text;
-			if (isOneLineMath(text)) {
-				return {
-					node: { kind: mathBlock, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
-					consumed: 1
-				};
-			}
-			if (!isMathFenceLine(text)) return null;
-
-			let i = ctx.index + 1;
-			while (i < ctx.end && !isMathFenceLine(ctx.lines[i].text)) i++;
-			if (i >= ctx.end) return null; // unterminated fence declines to paragraph
-
+			const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);
+			// An unclosed fence declines, so its lines read as a paragraph.
+			if (closer === -1) return null;
 			const raw = ctx.lines
-				.slice(ctx.index, i + 1)
-				.map((l) => l.raw)
+				.slice(ctx.index, closer + 1)
+				.map((line) => line.raw)
 				.join('');
 			const node: CstNode = { kind: mathBlock, leadingTrivia: ctx.leadingTrivia, raw };
-			return { node, consumed: i + 1 - ctx.index };
+			return { node, consumed: closer + 1 - ctx.index };
 		}
 	});
 
@@ -290,6 +268,7 @@ export function registerMathFence(): void {
 		supportsInline: false,
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
+		bodyRange: mathBodyRange,
 		conformanceFixture: '```math\nx^2\n```\n',
 		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		closure: simpleLeafClosure({

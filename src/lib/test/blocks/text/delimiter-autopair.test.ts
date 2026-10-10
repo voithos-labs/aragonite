@@ -1,13 +1,13 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	resolveDelimiterAutoPair,
 	resolveEmptyPairBackspace
-} from '$lib/components/blocks/text/delimiter-autopair';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { registerMathInline } from '$lib/plugins/latex/latex-kind';
-import type { ContentRange } from '$lib/core/inline';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/components/blocks/text/delimiter-autopair.js';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
+import type { ContentRange } from '#lib/core/inline/index.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 const whole = (text: string) => ({ start: 0, end: text.length });
 /** `own` is the empty pair the auto-pair wrote at this caret, as its record reports it. */

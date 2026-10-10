@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode } from './helpers';
+import { clickModeToggle, type ToggledMode } from '../../mode-switch';
 
 // Byte stability across every mode, live included: a mode switch is CSS over the one render path,
 // so it may never move a byte.
@@ -27,25 +28,13 @@ const DOC = [
 
 const PROSE = 1;
 
-const RUNGS = [
-	['reading', 'presentation-toggle'],
-	['preview-block', 'preview-block-toggle'],
-	['preview-inline', 'preview-inline-toggle'],
-	['live', 'live-toggle']
-] as const;
+const MODES = ['reading', 'preview-block', 'preview-inline', 'live'] as const;
 
 /** Click a mode's toggle on, then off; the demo's toggles switch between that mode and source. */
-async function flipThrough(
-	ep: EditorPage,
-	page: Page,
-	mode: string,
-	testid: string
-): Promise<void> {
-	await page.getByTestId(testid).click();
-	await expect(ep.editorContainer).toHaveAttribute('data-presentation', mode);
+async function flipThrough(ep: EditorPage, page: Page, mode: ToggledMode): Promise<void> {
+	await clickModeToggle(page, mode);
 	await ep.waitForRenderFlush();
-	await page.getByTestId(testid).click();
-	await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+	await clickModeToggle(page, mode);
 	await ep.waitForRenderFlush();
 }
 
@@ -56,8 +45,8 @@ test.describe('mode flips: the bytes never move', () => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
 		const baseline = await ep.bridge.getSource();
 
-		for (const [mode, testid] of RUNGS) {
-			await flipThrough(ep, page, mode, testid);
+		for (const mode of MODES) {
+			await flipThrough(ep, page, mode);
 			// A toggle click, not a keystroke.
 			await ep.waitForNoSourceMutation();
 			expect(await ep.bridge.getSource(), `after ${mode}`).toBe(baseline);
@@ -72,12 +61,11 @@ test.describe('mode flips: the bytes never move', () => {
 		await ep.bridge.waitForSourceContains('EDIT');
 
 		// Leave live, then take the document through the other three modes and back.
-		await page.getByTestId('live-toggle').click();
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'live');
 		const edited = await ep.bridge.getSource();
 
-		for (const [mode, testid] of RUNGS.filter(([m]) => m !== 'live')) {
-			await flipThrough(ep, page, mode, testid);
+		for (const mode of MODES.filter((m) => m !== 'live')) {
+			await flipThrough(ep, page, mode);
 			// A toggle click, not a keystroke.
 			await ep.waitForNoSourceMutation();
 			expect(await ep.bridge.getSource(), `after ${mode}`).toBe(edited);
@@ -94,9 +82,8 @@ test.describe('mode flips: the bytes never move', () => {
 		await page.keyboard.press('ControlOrMeta+b');
 		await ep.waitForRenderFlush();
 
-		await page.getByTestId('live-toggle').click();
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
-		await flipThrough(ep, page, 'live', 'live-toggle');
+		await clickModeToggle(page, 'live');
+		await flipThrough(ep, page, 'live');
 		// A toggle click, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(baseline);

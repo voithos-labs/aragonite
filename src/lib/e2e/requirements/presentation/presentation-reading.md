@@ -39,12 +39,13 @@ stability is asserted through the `window.__test` bridge.
 
 - typing printable characters in reading mode: source unchanged
 - Enter / Backspace / Delete with a caret or selection: source unchanged,
-  block count unchanged
-- Enter / Tab in a focused code block: source unchanged, because a code block is its own
-  dispatch site and supplies the mode getter itself, so its kind's commands do nothing just
-  as the paragraph's do
+  block count unchanged. A code block takes no keys either, since nothing in reading mode is
+  editable; `src/lib/test/blocks/reading-mode-input-routes.test.ts` checks that over a document
+  with a heading, a paragraph, a quote, a list, a code block and a table
 - paste (Ctrl+V) into a focused block: source unchanged
 - cut (Ctrl+X) over a selection: source unchanged (degrades to copy)
+- both again over a code block, which handles its own clipboard keys: it refuses them before
+  trying to write, so the reading-mode write guard never has to step in (and never warns)
 - undo chord (Ctrl+Z) after a pre-flip edit: source unchanged (history is inert
   in reading mode)
 - task checkbox click: source unchanged (the checkbox is visible but inert), because a toggle

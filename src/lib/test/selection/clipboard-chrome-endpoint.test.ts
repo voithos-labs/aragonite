@@ -5,7 +5,7 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { augmentBlockKind, getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { DETAILS } from '$lib/plugins/details/details-kind';
+import { DETAILS } from '#lib/plugins/details/details-kind.js';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 

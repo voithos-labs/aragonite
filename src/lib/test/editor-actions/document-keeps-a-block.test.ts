@@ -4,15 +4,15 @@
 // Miss-analysis: every whole-unit and whole-block delete test kept a second block beside the one
 // it removed, so no route was ever asked what an emptied document or quote holds.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { Document } from '$lib/core/nodes';
-import { serialize } from '$lib/core/serializer';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { handleWholeBlockKeys } from '$lib/editor-actions/container-block-component';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { recordingFocus } from '$lib/testing/headless-actions';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { Document } from '#lib/core/nodes.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
+import { handleWholeBlockKeys } from '#lib/editor-actions/container-block-component.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { recordingFocus } from '#lib/testing/headless-actions.js';
 import {
 	makeBlockListState,
 	makeListContextAt,

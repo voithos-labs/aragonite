@@ -1,6 +1,11 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { FIXTURE_BYTES, editorScrollHeight, topVisibleHostTop } from './vr-helpers';
+import {
+	FIXTURE_BYTES,
+	GIANT_LIST_OR_TABLE_BYTES,
+	editorScrollHeight,
+	topVisibleHostTop
+} from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // The block at the top of the viewport must still be there after a mid-document scroll, in the
@@ -65,7 +70,7 @@ test('scrolling mid into a giant table does not teleport the top visible row', a
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+	await editor.loadLargeFixture('giant-single-table', GIANT_LIST_OR_TABLE_BYTES);
 
 	await scrollToMiddle(editor);
 

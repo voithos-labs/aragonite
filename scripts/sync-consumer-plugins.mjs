@@ -3,6 +3,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { aliasPath, isAliasSpelling, publishedEntries } from './lib-alias.mjs';
 
 // Anchor at the repo root, not the cwd, so the consumer's own pre-hooks can run
 // this from examples/consumer as well as CI/the smoke running it from the root.
@@ -16,28 +17,31 @@ const MANIFEST = {
 	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte']
 };
 
-// Quote-agnostic on purpose: the gate must not depend on Prettier to be correct. A
-// double-quoted `"$lib"` carries no `$lib/`, so the scan below would miss it too.
-const BARREL_SPECIFIER = /(['"`])\$lib(\/plugin)?\1/g;
+// Quote-agnostic on purpose: the gate must not depend on Prettier to be correct.
+const ALIAS_SPECIFIER = /(['"`])(#[^'"`\s]*)\1/g;
+
+const PUBLISHED = publishedEntries();
 
 const rewritten = [];
 const offenders = [];
 for (const [plugin, files] of Object.entries(MANIFEST)) {
 	for (const file of files) {
 		const text = readFileSync(join(SRC, plugin, file), 'utf8').replace(
-			BARREL_SPECIFIER,
-			(_match, quote, subpath) => `${quote}@voithos-labs/aragonite${subpath ?? ''}${quote}`
+			ALIAS_SPECIFIER,
+			(match, quote, specifier) => {
+				if (!isAliasSpelling(specifier)) return match;
+				const published = PUBLISHED.get(aliasPath(specifier) ?? '');
+				if (published === undefined) offenders.push(`${plugin}/${file}: ${specifier}`);
+				return published === undefined ? match : `${quote}${published}${quote}`;
+			}
 		);
-		for (const line of text.split('\n')) {
-			if (line.includes('$lib/')) offenders.push(`${plugin}/${file}: ${line.trim()}`);
-		}
 		rewritten.push({ plugin, file, text });
 	}
 }
 
 if (offenders.length) {
 	console.error(
-		'sync-consumer-plugins: deep $lib imports survive the rewrite — these files reach past the public barrels:\n  ' +
+		'sync-consumer-plugins: alias imports of no published entry point — these files reach past the public barrels:\n  ' +
 			offenders.join('\n  ')
 	);
 	process.exit(1);

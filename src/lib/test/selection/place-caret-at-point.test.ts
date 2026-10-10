@@ -3,18 +3,19 @@
 // inspected, so this suite covers the clamp, where the caret goes, and the range-ending reset.
 // The click checks in front of it are `dead-space-caret-routing.test.ts`.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
-import type { BlockComponent } from '$lib/block-component';
-import { CURSOR_END } from '$lib/block-component';
-import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { createDeadSpaceCaret, type DeadSpaceCaretDeps } from '$lib/selection/dead-space-caret';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
+import type { BlockComponent } from '#lib/block-component.js';
+import { CURSOR_END } from '#lib/block-component.js';
+import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
+import { createDeadSpaceCaret, type DeadSpaceCaretDeps } from '#lib/selection/dead-space-caret.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { makeEmptyGapScope } from '../harness/editor-actions';
-import { resetForPointerDown } from '$lib/selection/cross-block/pointer';
+import { resetForPointerDown } from '#lib/selection/cross-block/pointer.js';
 import { mountTableGrid } from './table-grid';
 
 registerBuiltInBlocks();
-import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Two 150-wide cells in one row; the block's box is the margin band's reference.
 const TABLE_BOX = { left: 100, right: 400, top: 50, bottom: 90 };
@@ -147,7 +148,7 @@ describe('placeCaretAtPoint landing walk', () => {
 			const caretMemory = createCaretMemory();
 			// The real reset, not a spy: what this case asserts is the selection's fate, and a spy
 			// would pass on a call that ends nothing.
-			endRange = () => resetForPointerDown(selection, caretMemory, false);
+			endRange = () => resetForPointerDown(selection, testCaretWriter, caretMemory, false);
 			selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [2], offset: 4 });
 		});
 

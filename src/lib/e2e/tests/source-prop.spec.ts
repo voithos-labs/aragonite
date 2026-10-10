@@ -33,6 +33,36 @@ test.describe('source prop change', () => {
 		expect(src).toContain('appended');
 	});
 
+	test('loading the text the page loaded last, after typing, loads it afresh', async () => {
+		const text = 'First paragraph.\n';
+		await editor.loadContent(text);
+		await editor.focusBlockEnd(0);
+		await editor.typeText(' typed');
+		await editor.bridge.waitForSourceEquals('First paragraph. typed\n');
+
+		await editor.loadContent(text);
+
+		expect(await editor.bridge.getSource()).toBe(text);
+		expect(await editor.bridge.getUndoDepth()).toBe(0);
+	});
+
+	test('loading the text the editor holds, after typing back to it, loads it afresh', async ({
+		page
+	}) => {
+		const text = 'First paragraph.\n';
+		await editor.loadContent(text);
+		await editor.focusBlockEnd(0);
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceEquals('First paragraph.x\n');
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals(text);
+		await expect.poll(() => editor.bridge.getUndoDepth()).toBeGreaterThan(0);
+
+		await editor.loadContent(text);
+
+		expect(await editor.bridge.getUndoDepth()).toBe(0);
+	});
+
 	test('a source swap fires sourceSwap once with a rising generation, and no edit', async ({
 		page
 	}) => {

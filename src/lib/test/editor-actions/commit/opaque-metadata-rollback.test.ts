@@ -1,15 +1,15 @@
 // Miss-analysis: the multi-scope rollback tests wrote bytes a rebuild reads no metadata from, so
 // none checked that a rollback puts back metadata re-read from the bytes.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { parse } from '$lib/core/parser';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { asDocPath } from '$lib/selection/path-math';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { testContainer } from '$lib/test/harness/test-kinds';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { parse } from '#lib/core/parser.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 
 let THROWING: AnyBlockKind;
 

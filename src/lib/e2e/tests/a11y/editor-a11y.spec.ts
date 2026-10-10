@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { expectNoNewA11yViolations } from '../../a11y/axe-helper';
 import { DEFAULT_CONTENT } from '../../test-content';
+import { clickModeToggle } from '../../mode-switch';
 
 test.describe('editor accessibility (axe baseline-ratchet)', () => {
 	let editor: EditorPage;
@@ -11,40 +12,38 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await editor.goto();
 	});
 
-	test('default content has no new violations', async ({ page }) => {
+	// One document through each presentation mode, one axe pass per mode, labelled by mode. The
+	// shared allowlist waives contrast, which `code-token-contrast.test.ts` checks without a browser.
+	test('default content has no new violations in any presentation mode', async ({ page }) => {
 		await editor.loadContent(DEFAULT_CONTENT);
 		await editor.waitForRenderFlush();
-		await expectNoNewA11yViolations(page, 'default');
-	});
 
-	test('reading mode has no new violations', async ({ page }) => {
-		// Reading mode is axe-relevant on its own: contenteditable=false + aria-readonly,
-		// markers hidden by CSS, synthesized bullets, and visible-undimmed ordered numbers.
-		await editor.loadContent(DEFAULT_CONTENT);
-		await page.getByTestId('presentation-toggle').click();
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
-		await editor.waitForRenderFlush();
-		await expectNoNewA11yViolations(page, 'reading-mode');
-	});
+		await test.step('source', async () => {
+			await expectNoNewA11yViolations(page, 'default');
+		});
 
-	test('preview-block has no new violations', async ({ page }) => {
-		// Live editing with markers hidden by focus-keyed CSS, plus rendered bullets on unfocused
-		// list items: a different set of elements and contrasts from reading and source.
-		await editor.loadContent(DEFAULT_CONTENT);
-		await page.getByTestId('preview-block-toggle').click();
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'preview-block');
-		await editor.waitForRenderFlush();
-		await expectNoNewA11yViolations(page, 'preview-block');
-	});
+		await test.step('reading', async () => {
+			// contenteditable=false + aria-readonly, markers hidden by CSS, synthesized bullets, and
+			// visible-undimmed ordered numbers.
+			await clickModeToggle(page, 'reading');
+			await editor.waitForRenderFlush();
+			await expectNoNewA11yViolations(page, 'reading-mode');
+		});
 
-	test('preview-inline has no new violations', async ({ page }) => {
-		// This mode marks each construct's markers with a data attribute and hides them until the
-		// caret is near, so those attributes and the shown spans get their own axe pass.
-		await editor.loadContent(DEFAULT_CONTENT);
-		await page.getByTestId('preview-inline-toggle').click();
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'preview-inline');
-		await editor.waitForRenderFlush();
-		await expectNoNewA11yViolations(page, 'preview-inline');
+		await test.step('preview-block', async () => {
+			// Live editing with markers hidden by focus-keyed CSS, plus rendered bullets on unfocused
+			// list items.
+			await clickModeToggle(page, 'preview-block');
+			await editor.waitForRenderFlush();
+			await expectNoNewA11yViolations(page, 'preview-block');
+		});
+
+		await test.step('preview-inline', async () => {
+			// Each construct's markers carry a data attribute and hide until the caret is near.
+			await clickModeToggle(page, 'preview-inline');
+			await editor.waitForRenderFlush();
+			await expectNoNewA11yViolations(page, 'preview-inline');
+		});
 	});
 
 	test('cross-block selection announces via live region and has no new violations', async ({
@@ -77,10 +76,9 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 	test('the live-mode link card has no new violations while open', async ({ page }) => {
 		// The card is anchored inside `.editor`, so axe's `include('.editor')` scans its dialog, field
 		// and buttons over the editor's own theme colors.
-		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		await editor.setPresentationMode('live');
 		await editor.loadContent('Visit [example](https://example.com) now.\n');
 		await editor.waitForRenderFlush();
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
 
 		await page.locator('a.md-link-content').first().click();
 		await expect(page.locator('[data-link-card]')).toBeVisible();
@@ -111,5 +109,19 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await expect(surface([3, 0, 0], '.text-editable-block')).toHaveAccessibleName('Paragraph');
 		await expect(surface([4], '[data-whole-block-input]')).toHaveAccessibleName('Divider');
 		await expect(page.getByRole('separator')).toHaveCount(1);
+	});
+
+	test('an empty block announces its hint as aria-placeholder, with no new violations', async ({
+		page
+	}) => {
+		await editor.goto('?placeholder=Start%20writing');
+		await editor.loadContent('');
+		const textbox = page.getByRole('textbox', { name: 'Paragraph' });
+		await expect(textbox).toHaveAttribute('aria-placeholder', 'Start writing');
+		await expectNoNewA11yViolations(page, 'placeholder');
+
+		await editor.clickBlock(0);
+		await page.keyboard.type('a');
+		await expect(textbox).not.toHaveAttribute('aria-placeholder');
 	});
 });

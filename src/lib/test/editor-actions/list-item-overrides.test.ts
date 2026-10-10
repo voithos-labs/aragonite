@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, type Mocked } from 'vitest';
-import type { ListContext } from '$lib/action-contracts';
-import type { NestedActionsBundle } from '$lib/editor-actions/nested/nested-actions';
-import { createListItemOverrides } from '$lib/editor-actions/list-overrides';
-import { parse } from '$lib/core/parser';
+import type { ListContext } from '#lib/action-contracts.js';
+import type { NestedActionsBundle } from '#lib/editor-actions/nested/nested-actions.js';
+import { createListItemOverrides } from '#lib/editor-actions/list-overrides.js';
+import { parse } from '#lib/core/parser.js';
 
 // Enter inside a list item is one of three item-level moves, never a prose split of the item's
 // paragraph: leaving the list, a new item, or the item cut in two.

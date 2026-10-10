@@ -4,9 +4,12 @@ import { tick } from 'svelte';
 import {
 	installEditorBlurAnnouncer,
 	installModActiveTracker,
+	installPressTracker,
 	installRevealAnchorRelease,
 	installSelectionChangeBridge
-} from '$lib/components/editor-root-listeners';
+} from '#lib/components/editor-root-listeners.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { createPressTracker } from '#lib/activation-click.js';
 
 // Teardowns collect here so no test leaks a document-level listener into the next.
 const teardowns: (() => void)[] = [];
@@ -142,6 +145,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 
 		let emits = 0;
 		const teardown = installSelectionChangeBridge({
+			caretWriter: testCaretWriter,
 			root,
 			isHostChrome: (node) => !!node && header.contains(node),
 			announceIfMoved: () => emits++,
@@ -276,5 +280,24 @@ describe('editor-root listeners: reveal-anchor release', () => {
 		const r = release();
 		r.port.dispatchEvent(new Event('scroll'));
 		expect(r.count()).toBe(0);
+	});
+});
+
+// ── Press tracker ────────────────────────────────────────────────────────────
+
+describe('editor-root listeners: press tracker', () => {
+	it('records a press a child stops, so a release there can still tell it travelled', () => {
+		const root = document.createElement('div');
+		const child = document.createElement('span');
+		child.addEventListener('pointerdown', (e) => e.stopPropagation());
+		root.append(child);
+		document.body.append(root);
+		const presses = createPressTracker();
+		teardowns.push(installPressTracker(root, presses));
+
+		child.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+
+		expect(presses.travelled({ clientX: 40, clientY: 10 })).toBe(true);
+		expect(presses.travelled({ clientX: 11, clientY: 10 })).toBe(false);
 	});
 });

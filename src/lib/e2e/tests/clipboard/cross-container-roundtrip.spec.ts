@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
-test.describe('clipboard exploration: cross-container round-trip', () => {
+test.describe('clipboard: cross-container round-trip', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { DetailsPage, bodyHostCount, capturedErrors } from '../plugins/details-helpers';
 import type { Page } from '@playwright/test';
+import { clickModeToggle } from '../../mode-switch';
 
 /**
  * Reading mode's one interactive control: the `<details>` disclosure changes what is shown and
@@ -26,8 +27,7 @@ test.describe('reading mode: transient details disclosure', () => {
 		await editor.gotoDetails();
 		await editor.loadContent(CLOSED);
 		expect(await bodyHostCount(page)).toBe(1);
-		await page.getByTestId('presentation-toggle').click();
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await clickModeToggle(page, 'reading');
 	});
 
 	test('a reader opens and re-closes a section without moving a byte or a history entry', async ({
@@ -70,8 +70,7 @@ test.describe('reading mode: transient details disclosure', () => {
 		await page.locator('.details-toggle').click();
 		await expect.poll(() => bodyHostCount(page)).toBe(2);
 
-		await page.getByTestId('presentation-toggle').click();
-		await expect(editor.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'reading');
 
 		// The document called it collapsed and still does, so it is collapsed again.
 		await expect.poll(() => bodyHostCount(page)).toBe(1);
@@ -96,8 +95,7 @@ test.describe('reading mode: transient details disclosure', () => {
 	test('source mode still commits the flip as a real undoable edit', async ({ page }) => {
 		// The never-writes rule is reading-mode-only; the editing disclosure is
 		// untouched, undo included.
-		await page.getByTestId('presentation-toggle').click();
-		await expect(editor.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'reading');
 
 		await page.locator('.details-toggle').click();
 		await editor.bridge.waitForSourceContains('<details open>');

@@ -6,9 +6,8 @@ one to read first; this file is the evidence behind it, so the rules don't read 
 Read it before your first structural change. These are the ways the codebase actually breaks, not
 the ways I imagined it might.
 
-Every entry ends the same way: the guard that now catches the mistake (guards carry G-numbers,
-catalogued in `docs/design/invariants.md`), shown as the line that fires or the type error it
-became wherever the code has one, and the spec that owns the full statement. "The audit" is the
+Every entry ends with what now catches the mistake (a type error, or a dev-mode guard catalogued
+in `docs/design/invariants.md`) and the spec that owns the full statement. "The audit" is the
 2026-07 internal review that turned up most of these, which was a humbling fortnight.
 
 ## Node copies are re-read through the `$state` tree
@@ -21,13 +20,12 @@ the one Svelte watches.
 `splitBlock`. A copy spliced into the live tree isn't the node the tree hands back, and code that
 kept the pre-splice reference wrote into an object nobody was rendering.
 
-**Guard:** G1.9's copy-path-on-write discipline (before a write, copy the parents from the root
-down to the target, splice the copies in, then re-read them through the tree). The functions in
-`src/lib/tree-operations/unshare.ts` (the one module that turns a shared node into a writable copy)
-do the copy and the re-read for you, and Svelte reports a kept copy the moment something compares
-it against the proxy, as
-`[svelte] state_proxy_equality_mismatch` ([`warnings.md`](warnings.md) § The proxy-versus-raw
-one). **Spec:** the `src/lib/tree-operations/unshare.ts` header. ([rule 1](rules.md#the-five-rules))
+**Caught by:** before a write, copy the parents from the root down to the target, splice the
+copies in, then re-read them through the tree. The functions in
+`src/lib/tree-operations/unshare.ts` do the copy and the re-read for you, and Svelte reports a kept
+copy the moment something compares it against the proxy, as `[svelte] state_proxy_equality_mismatch`
+([`warnings.md`](warnings.md) § The proxy-versus-raw one). **Spec:** the
+`src/lib/tree-operations/unshare.ts` header. ([rule 1](rules.md#the-five-rules))
 
 ## Snapshot-shared nodes are read-only on their bytes
 
@@ -38,13 +36,10 @@ commit.
 
 **Incident.** A mutation wrote serialized bytes through a node an undo entry still shared, which
 rewrote history in place, and the corruption surfaced only at the undo that exposed it, far from
-the commit that caused it. A dev integrity check (it fingerprints each snapshot when pushed and
-re-verifies at every commit and restore) now catches the violation at the offending commit
-instead.
+the commit that caused it.
 
-**Guard:** G1.9, and since 0.9.24 mostly a type: readers hold bytes-readonly views (G3.8), and
-`unshare.ts` is the only way back to a writable node (G4.13). The check stays as the runtime
-backstop, because running JS bypasses types. The type half, as `tsc` reports it:
+**Caught by:** mostly a type. Readers hold bytes-readonly views, and `unshare.ts` is the only way
+back to a writable node:
 
 ```ts
 declare const view: NodeView; // what a reader outside the mutation layers holds
@@ -52,35 +47,29 @@ view.raw = 'rewritten\n';
 // error TS2540: Cannot assign to 'raw' because it is a read-only property.
 ```
 
-And the runtime half, at every commit (on the freshest undo entry, the one this commit could have
-corrupted) and again at every restore:
-
-```ts
-// src/lib/invariants/install.ts
-assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
-```
-
-**Spec:** `docs/design/invariants.md` (G1.9). ([rule 1](rules.md#the-five-rules))
+Running JS bypasses types, so a dev integrity check backs it up: it fingerprints each undo entry
+when pushed and re-verifies at every commit and restore, which catches the write at the offending
+commit instead of at the undo. **Spec:** `docs/design/invariants.md` (G1.9).
+([rule 1](rules.md#the-five-rules))
 
 ## Reactive state crosses module boundaries as getters, never values
 
 **Incident.** A value read does two things at once: it snapshots the value at effect-run time,
 and it registers the state as a dependency of that effect (an effect: Svelte's re-run-on-change
 block). The original re-init effect did both, so every mutation anywhere re-ran it and wiped
-unrelated work. The same trap lives inside a commit's `landing`: read
-`deps.node` live when it runs, because a capture taken before the commit is stale by construction. A
-delete-last-item caret loss shipped exactly that way and survived until the audit.
+unrelated work. The same trap lives inside a commit's `landing`: read `deps.node` live when it
+runs, because a capture taken before the commit is stale by construction. A delete-last-item caret
+loss shipped exactly that way.
 
-**Guard:** G4.1 scans every `createBlockListState` call site (the factory every block list's
-state comes from) and reds on a by-value argument. From the scan's own self-test:
+**Caught by:** a source scan over every `createBlockListState` call site (the factory every block
+list's state comes from), which reds on a by-value argument:
 
 ```ts
-// src/lib/test/invariants/lint/call-site-rules.test.ts, the G4.1 row's probes
 createBlockListState(node); // flagged: a snapshot taken at factory-call time
 createBlockListState(() => node); // accepted: re-read on every use
 ```
 
-**Spec:** `docs/design/editor.md` § 7. ([rule 2](rules.md#the-five-rules))
+**Spec:** `docs/design/editor.md` § CST mutability and reactive state. ([rule 2](rules.md#the-five-rules))
 
 ## The render path computes inline content locally and reads no cache
 
@@ -91,20 +80,8 @@ The fix's shape is the rule: the render path computes its inline content fresh, 
 rendering use the accessor backed by an external, non-reactive WeakMap, and no reactive
 inline-cache field may exist on any node.
 
-**Guard:** G4.2, a source scan over the two render files and the two render effects, which pulls
-each effect's body out and refuses the caching accessor inside it:
-
-```ts
-// src/lib/test/invariants/lint/render-inlinecontent.test.ts
-it('TextEditableBlock render $effect does not call getInlineContent', () => {
-	const file = readSource(TEXT_BLOCK_FILE);
-	const effect = extractRenderEffect(file);
-	// Fail loud if the anchor vanished: a silent pass leaves the render path unguarded.
-	expect(effect, 'render $effect anchor "textRender.render" not found').not.toBeNull();
-	expect(callsCachingAccessor(effect!)).toBe(false);
-});
-```
-
+**Caught by:** a source scan (`src/lib/test/invariants/lint/render-inlinecontent.test.ts`) that
+pulls each render effect's body out and refuses the caching accessor inside it.
 **Spec:** `docs/design/inline-parsing.md`. ([rule 1](rules.md#the-five-rules))
 
 ## Only `await tick()` for sequencing
@@ -113,22 +90,13 @@ Reaching for `setTimeout`, `rAF`, or a microtask trick means the operation flow 
 wrong and the timer is hiding it. The predecessor editor (an earlier attempt at this same editor,
 before aragonite) died of exactly that.
 
-**Guard:** G4.4, a source scan whose allowlist holds the few timers that order nothing (an
-animation cadence, an undo debounce, a deadline), each with the reason it isn't sequencing. Any
-other timer call reds the scan.
+**Caught by:** a source scan whose allowlist holds the few timers that order nothing (an
+animation cadence, an undo debounce, a deadline, the drawn caret's paint at the next frame), each
+with the reason it isn't sequencing. Any other timer call reds it ([`rules.md`](rules.md) § The bug
+shape to fear: sibling-path parity shows the row).
 
-```ts
-// src/lib/test/invariants/lint/file-rules.test.ts, the G4.4 row
-allowed: {
-	'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop: an animation cadence, not ordering',
-	'src/lib/selection/pointer-session.ts': 'rAF pointermove coalescing: the one place every drag lifecycle runs',
-	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce, a pause detection tick() cannot express',
-	// ...
-},
-```
-
-**Spec:** `docs/design/editor.md` § 11 (the commit's tick step) and § 16 (how the predecessor
-died). ([rule 3](rules.md#the-five-rules))
+**Spec:** `docs/design/editor.md` § Undo / redo (the commit's tick step) and § Standing
+directions (how the predecessor died). ([rule 3](rules.md#the-five-rules))
 
 ## Rules live at choke points, not call sites
 
@@ -138,43 +106,36 @@ and commit event and snapshot paths are doc-absolute (resolved from the document
 whatever scope the caller was in), built by the scope factories. Never construct endpoints around
 those two, and never compose a path in a caller.
 
-**Incident.** Two of the three corruption Criticals in the audit (Critical: the audit's top
-severity) were entry paths that skipped a wrap five of their siblings carried.
+**Incident.** Two of the audit's three worst corruption bugs were entry paths that skipped a wrap
+five of their siblings carried.
 
-**Guard:** G1.16 for commit paths. Since 0.9.24 a commit path is a `DocPath`, a branded type
-(a plain number array doesn't type-check as one) built only through its named constructors
-(`asDocPath`, `extendDocPath`, `docPathFrom`), which the scope factories call. G1.16 is the
-runtime backstop for the JS callers the type can't reach. The two halves:
+**Caught by:** a type. A commit path is a `DocPath`, a branded type (a plain number array doesn't
+type-check as one) built only through its named constructors (`asDocPath`, `extendDocPath`,
+`docPathFrom`), which the scope factories call:
 
 ```ts
 const composed: DocPath = [0, 1];
 // error TS2322: Type 'number[]' is not assignable to type 'DocPath'.
 ```
 
-```ts
-// src/lib/invariants/install.ts, before every commit's mutation
-assertInvariant('commit-path-dialect', () =>
-	checkCommitPathAddressable(doc, eventPath, 'eventPath')
-);
-```
+A dev guard before every commit's mutation catches the JS callers the type can't reach (it's the
+guard [`rules.md`](rules.md) shows as its example).
 
-**Spec:** `docs/design/editor.md` § 11. ([rule 4](rules.md#the-five-rules), and
+**Spec:** `docs/design/editor.md` § Undo / redo. ([rule 4](rules.md#the-five-rules), and
 [§ sibling-path parity](rules.md#the-bug-shape-to-fear-sibling-path-parity))
 
 ## DOM to raw offset translation has one home
 
 The DOM ↔ raw translation (raw: a node's verbatim source bytes, markers included) lives in
-`src/lib/cursor/widget-offset.ts`. It reads the length of the marker a container lends its first
-child straight off the DOM, turns a DOM position back into raw with `rawOffsetAt`, and writes the
-selection from raw offsets: `placeCaretAtRaw` for a caret (which has to say whether it clamps),
-`selectRawRange` and friends for a range. Offset math done anywhere else agrees with it right up until it
-doesn't (a second walk once counted a widget by its text instead of its bytes).
+`src/lib/caret/widget-offset.ts`. It turns a DOM position back into raw with `rawOffsetAt`, and
+writes the selection from raw offsets: `placeCaretAtRaw` for a caret (which has to say whether it
+clamps), `selectRawRange` and friends for a range. Offset math done anywhere else agrees with it
+right up until it doesn't (a second walk once counted a widget by its text instead of its bytes).
 
 **Incident.** Every offset bug in the audit traced to arithmetic done outside it.
 
-**Guard:** type-enforced since 0.9.24: the coordinate spaces are branded (G3.7), a type-level tag
-that stops a raw offset and a DOM offset being interchangeable numbers, and the brands are created
-only at their home modules (G4.15), so cross-space arithmetic no longer compiles:
+**Caught by:** a type. The coordinate spaces are branded (a type-level tag that stops a raw offset
+and a DOM offset being interchangeable numbers), so cross-space arithmetic doesn't compile:
 
 ```ts
 declare const raw: RawOffset;
@@ -185,12 +146,11 @@ const crossed: RawOffset = dom;
 // error TS2322: Type 'DomTextOffset' is not assignable to type 'RawOffset'.
 ```
 
-The conversions that are allowed are named functions in `src/lib/cursor/coordinate-spaces.ts`
-(`toRawOffset`, `toDomTextOffset`, and friends), one per direction. And a source scan (G4.36)
-fails any native selection write outside `widget-offset.ts`, apart from a few declared files that
-select nodes they already hold.
+The allowed conversions are named functions in `src/lib/caret/coordinate-spaces.ts`
+(`toRawOffset`, `toDomTextOffset`, and friends). A source scan also fails any native selection
+write outside `widget-offset.ts`.
 
-**Spec:** `docs/design/editor.md` § 6. ([rule 4](rules.md#the-five-rules))
+**Spec:** `docs/design/editor.md` § CST ↔ DOM synchronization. ([rule 4](rules.md#the-five-rules))
 
 ## Registries are code, not state
 
@@ -205,41 +165,26 @@ registerBlockKind('paragraph', {
 ```
 
 **Incident.** Under a dev server, a re-evaluated registrar (a module whose import re-runs its
-registrations, which hot reload and SSR both do) met the duplicate throw, and the throw poisoned
-every route with a 500 until restart: the SSR poison class. So there, and only there, a duplicate
-registration replaces with a console note instead of throwing (a `registry` diagnostic, in
-[`warnings.md`](warnings.md)'s terms); production and test keep the throw, so the contract is
-unchanged everywhere it's observed.
+registrations, which hot reload and SSR both do) met the duplicate throw, and the throw took every
+route down with a 500 until restart. So there, and only there, a duplicate registration replaces
+with a `registry` diagnostic ([`warnings.md`](warnings.md)) instead of throwing; production and
+test keep the throw.
 
-The same no-unregister rule reaches the public API. A plugin author's suite can't re-install between
-cases without a supported entry point, so `@voithos-labs/aragonite/testing` exports
-`resetPluginPlatformForTests()`. That reset once walked a hand-kept list, and two public registries
-(block context actions, code languages) were never on it: a suite resetting in `beforeEach` saw one
-more copy of its context-menu row per case, and kept the first case's grammar for the rest. The fix
-has three parts:
+A second one: the plugin test reset (`resetPluginPlatformForTests()`, from
+`@voithos-labs/aragonite/testing`) once walked a hand-kept list of registries, and two were missing
+from it, so a plugin suite saw its context-menu row duplicated per case. Hence:
 
-- Every registry is now built in `src/lib/schema/plugin-registry.ts`, which signs the store up for
-  the reset as it builds it, so there's no list to forget.
-- The same store knows which plugin each entry belongs to (whoever registered it, unless it's keyed
-  by a kind some plugin declared, in which case that plugin), and only lets an entry through to an
-  editor that lists that plugin.
-- A copy kept outside the store checks itself against the store on every read. highlight.js holds
-  its own table of grammars, and the first cut of this fix left the first case's grammar there
-  after the reset had cleared the registry (`code-renderer.ts :: tokenizeBody` is the check now).
+- Build every registry in `src/lib/schema/plugin-registry.ts`. It signs the store up for the reset
+  as it builds it (no list to forget), and only lets an entry through to an editor that lists the
+  plugin it belongs to.
+- A copy of a registry kept outside the store (highlight.js holds its own table of grammars) checks
+  itself against the store on every read; `code-renderer.ts :: tokenizeBody` does it for the
+  grammars.
 
-**Guard:** the reset is built into `src/lib/schema/plugin-registry.ts` :: `buildRegistry`, the one
-function behind every registry constructor, and `src/lib/test/plugins/testing-barrel.test.ts` reads
-the plugin barrel's own exports, so a new public `register*` or `declare*` without a probe fails the
-suite. The registry coherence family (G1.2, G1.10, G1.17, G1.18) sweeps the live registry in the
-registration-check flush at editor mount, one guard call per check (trimmed):
-
-```ts
-// src/lib/schema/registration-checks.ts :: flushPendingRegistrationChecks
-report('registry-completeness', () =>
-	checkRegistryCompleteness(ALL_BLOCK_KINDS, hasDescriptor, hasComponent)
-);
-report('opener-registry', () => checkOpenerRegistry(listRegisteredOpeners(), hasDescriptor));
-```
+**Caught by:** `src/lib/test/plugins/testing-barrel.test.ts`, which fails on a new public
+`register*` or `declare*` without a reset probe, and a sweep of the live registries at editor mount
+that checks they agree with each other (every built-in kind has a descriptor and a component,
+every opener's kind has a descriptor, and so on).
 
 **Spec:** the `src/lib/schema/register-once.ts`, `src/lib/schema/plugin-registry.ts` and
 `src/lib/schema/registry-reset.ts` headers, and `docs/design/plugin-contract.md`.

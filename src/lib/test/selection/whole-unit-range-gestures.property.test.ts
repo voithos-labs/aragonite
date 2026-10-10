@@ -5,13 +5,13 @@
 // Miss-analysis: `cross-block-typed-char.test.ts` drove text ranges only, never a block that goes.
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
-import { isBlankParagraph, parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { describeConvergence } from '$lib/testing/parse-convergence';
-import { MATH_BLOCK, registerMathBlock } from '$lib/plugins/latex/latex-kind';
-import { crossBlockClipboardArm } from '$lib/selection/cross-block/clipboard';
-import { runClipboardCut } from '$lib/components/blocks/clipboard-step';
+import { isBlankParagraph, parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { describeConvergence } from '#lib/testing/parse-convergence.js';
+import { MATH_BLOCK, registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { crossBlockClipboardArm } from '#lib/selection/cross-block/clipboard.js';
+import { runClipboardCut } from '#lib/components/blocks/clipboard-step.js';
 import {
 	makeEnv,
 	makeHandlers,

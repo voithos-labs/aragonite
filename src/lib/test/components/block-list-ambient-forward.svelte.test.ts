@@ -2,15 +2,18 @@
 // Miss-analysis (GH #43): the marker prefix was asserted where it paints, never as handed over.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import BlockList from '$lib/components/BlockList.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
+import BlockList from '#lib/components/BlockList.svelte';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import {
+	registerBlockComponent,
+	defineBlockComponent
+} from '#lib/schema/block-component-registry.js';
+import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import { editorMountContext } from '../harness/mount-context';
-import { installEditorDomStubsForTests } from '$lib/testing';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const MARKER = '[^a]: ';
 

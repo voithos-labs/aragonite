@@ -3,6 +3,7 @@ import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { enterPresentationMode } from './helpers';
 import { PluginsPage } from '../plugins/helpers';
+import { clickModeToggle } from '../../mode-switch';
 import { textRunCenter } from '../../text-runs';
 
 // Live mode: reading mode's marker-hiding CSS over an editable document, and markers that never
@@ -109,14 +110,11 @@ test.describe('live mode: markers never reveal', () => {
 
 	test('the header toggle round-trips live and leaves the bytes untouched', async ({ page }) => {
 		const baseline = await ep.bridge.getSource();
-		const toggle = page.getByTestId('live-toggle');
 
-		await toggle.click(); // live → source
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(page, 'live'); // live → source
 		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeVisible();
 
-		await toggle.click();
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
+		await clickModeToggle(page, 'live');
 		// A header-toggle click, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(baseline);
@@ -174,9 +172,8 @@ test.describe('live mode: plugin container chrome', () => {
 		const ep = new PluginsPage(page);
 		await ep.gotoPlugins();
 		await ep.loadContent(DIRECTIVE_DOC);
-		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		await ep.setPresentationMode('live');
 		await ep.waitForRenderFlush();
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
 
 		const directiveMarker = page.locator('.directive-marker').first();
 		await expect(directiveMarker).toHaveCSS('display', 'none');

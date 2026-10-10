@@ -10,7 +10,7 @@ const PROSE = 'alpha one\n\nbravo two\n\ncharlie three\n';
 const LIST = '- alpha\n- bravo\n- charlie\n';
 const TYPED = 'z';
 const CYCLES = 5;
-// What a block a split just created holds, top level and list item alike.
+// What a list item a split just created holds.
 const EMPTY = '\n';
 
 interface Emission {
@@ -49,26 +49,8 @@ test.describe('a caret the editor lands is announced before the next input', () 
 		await editor.goto();
 	});
 
-	test('the paragraph an Enter creates is announced empty', async () => {
-		await editor.loadContent(PROSE);
-		await editor.focusBlockEnd(0);
-		await startCapture(editor);
-
-		for (let i = 0; i < CYCLES; i++) {
-			await editor.page.keyboard.press('Enter');
-			await editor.page.keyboard.insertText(TYPED);
-		}
-		await editor.waitForRenderFlush();
-
-		const created = Array.from({ length: CYCLES }, (_, i) => [i + 1]);
-		const emissions = await stopCapture(editor);
-		expect(created.map((path) => arrivalVerdict(emissions, path, EMPTY))).toEqual(
-			created.map(before)
-		);
-	});
-
-	// A list item lands its own caret, past the marker prefix the item draws, so the nested
-	// path and the offset both differ from the top-level split above.
+	// A list item lands its own caret past the marker prefix it draws, a nested path the paragraph
+	// split's unit test doesn't reach.
 	test('the list item an Enter creates is announced empty', async () => {
 		await editor.loadContent(LIST);
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);

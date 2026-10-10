@@ -77,15 +77,17 @@ describe('the lint path table', () => {
 		expect(wrong).toEqual([]);
 	});
 
+	// Read at collection, which no test timeout bounds: every entry is a file read.
+	const anchorOf = (key: string) => SOURCE_ANCHORS[key as keyof typeof SOURCE];
+	const anchorless = Object.entries(SOURCE)
+		.filter(([key, relPath]) => {
+			if (kindOnDisk(relPath) !== 'file') return false;
+			return !readSource(relPath).text.includes(anchorOf(key));
+		})
+		.map(([key, relPath]) => `${key}: ${relPath} lacks ${JSON.stringify(anchorOf(key))}`);
+
 	it('every file entry holds its anchor, so it names the file it means', () => {
-		const anchorOf = (key: string) => SOURCE_ANCHORS[key as keyof typeof SOURCE];
-		const wrong = Object.entries(SOURCE)
-			.filter(([key, relPath]) => {
-				if (kindOnDisk(relPath) !== 'file') return false;
-				return !readSource(relPath).text.includes(anchorOf(key));
-			})
-			.map(([key, relPath]) => `${key}: ${relPath} lacks ${JSON.stringify(anchorOf(key))}`);
-		expect(wrong).toEqual([]);
+		expect(anchorless).toEqual([]);
 	});
 
 	it('every directory entry is a directory on disk, written with its trailing slash', () => {
@@ -120,8 +122,9 @@ describe('the lint scans name no source path by hand', () => {
 		expect(scans.length).toBeGreaterThan(50);
 	});
 
+	const found = scans.flatMap(hardCodedPaths);
+
 	it('every path a scan reads or walks comes from the table', () => {
-		const found = scans.flatMap(hardCodedPaths);
 		expect(
 			found,
 			`take these paths from source-paths.ts, so a move is one edit and a moved file can't leave a scan reading nothing:\n${found.join('\n')}`

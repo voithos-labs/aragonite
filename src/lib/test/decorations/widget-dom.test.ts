@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { mountDecorationWidget } from '$lib/decorations/widget-dom';
-import type { BlockDecoration } from '$lib/decorations/types';
+import { mountDecorationWidget } from '#lib/decorations/widget-dom.js';
+import type { BlockDecoration } from '#lib/decorations/types.js';
 import BadgeFixture from './fixtures/BadgeFixture.svelte';
 
 const dec: BlockDecoration = { type: 'block', path: [0] };

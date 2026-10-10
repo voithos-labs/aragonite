@@ -3,17 +3,18 @@
 import {
 	createEditableSurface,
 	type EditableSurfaceDeps
-} from '$lib/components/blocks/editable-surface';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { NodeView } from '$lib/core/node-views';
-import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import { createSurfaceBackend } from '$lib/cursor/surface-backend';
-import { rawOffsetAt, type CaretClamp } from '$lib/cursor/widget-offset';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
+} from '#lib/components/blocks/editable-surface.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { asRawOffset, type RawOffset } from '#lib/caret/coordinate-spaces.js';
+import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
+import { rawOffsetAt, type CaretClamp } from '#lib/caret/widget-offset.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { fixtureReading } from './fixture-grammar';
-import { stubBlockEdit, stubCaretMemory } from '$lib/testing/headless-actions';
-import type { CaretMemory } from '$lib/cursor/caret-memory';
+import { stubBlockEdit, stubCaretMemory } from '#lib/testing/headless-actions.js';
+import type { CaretMemory } from '#lib/caret/caret-memory.js';
 import { commandContext } from '../support/command-context';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
@@ -29,7 +30,7 @@ export interface SurfaceHarness {
  *  and sets the caret by hand since jsdom has none. The block is an empty last line by default. */
 export function makeSurface(
 	options: {
-		relocateComposedText?: EditableSurfaceDeps['relocateComposedText'];
+		compositionSeat?: EditableSurfaceDeps['compositionSeat'];
 		presentationMode?: string;
 		handleBeforeInput?: EditableSurfaceDeps['handleBeforeInput'];
 		handleKeydown?: EditableSurfaceDeps['handleKeydown'];
@@ -56,7 +57,7 @@ export function makeSurface(
 	let composing = false;
 	const commits: SurfaceHarness['commits'] = [];
 	const seats: number[] = [];
-	const writer = createSurfaceBackend({ getEl: () => el });
+	const writer = createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el });
 	const recording: BlockEditActions = {
 		...stubBlockEdit(),
 		updateBlockContent: (_index, text, _mode, preEdit, saved) => {
@@ -84,6 +85,7 @@ export function makeSurface(
 		},
 		requestCaret: () => {},
 		selection: { isCrossBlock: false },
+		caretWriter: testCaretWriter,
 		caretMemory: options.caretMemory ?? stubCaretMemory(),
 		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
 		focusActions: {},
@@ -104,7 +106,7 @@ export function makeSurface(
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
 		readText: () => el.textContent ?? '',
-		relocateComposedText: options.relocateComposedText,
+		compositionSeat: options.compositionSeat,
 		handleKeydown: options.handleKeydown ?? (async () => {}),
 		handleBeforeInput: options.handleBeforeInput,
 		...options.overrides

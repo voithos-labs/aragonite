@@ -2,17 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	handleWholeBlockKeys,
 	type WholeBlockKeyDeps
-} from '$lib/editor-actions/container-block-component';
-import { displayLength } from '$lib/core/lines';
-import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import { commandForKey } from '$lib/schema/commands';
+} from '#lib/editor-actions/container-block-component.js';
+import { displayLength } from '#lib/core/lines.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { commandForKey } from '#lib/schema/commands.js';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
-} from '$lib/schema/keybinding-overrides';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { commandContextWith } from '$lib/test/support/command-context';
+} from '#lib/schema/keybinding-overrides.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { commandContextWith } from '#lib/test/support/command-context.js';
 
 function makeDeps(isReading = () => false, keybindings: KeybindingOverride[] = []) {
 	const splitBlock = vi.fn();
@@ -210,17 +210,18 @@ describe('handleWholeBlockKeys: the reorder chord follows a rebinding', () => {
 		seedColumn(caretMemory, 200);
 		caretMemory.pendingMarks.toggle('strong');
 		handleWholeBlockKeys(press('ArrowUp', { altKey: true }), deps);
-		expect(caretMemory.side()).toBe('far');
+		expect(caretMemory.arrivedByKey()).toBe(true);
 		expect(caretMemory.pendingMarks.get()).toBeNull();
 	});
 
-	it('the new reorder chord keeps the column, the side and the marks', () => {
+	it('the new reorder chord keeps the column, the record and the marks', () => {
 		const { deps, caretMemory } = makeDeps(() => false, REBOUND);
 		seedColumn(caretMemory, 200);
+		caretMemory.noteOutside();
 		caretMemory.pendingMarks.toggle('strong');
 		handleWholeBlockKeys(press('ArrowUp', { ctrlKey: true, shiftKey: true }), deps);
 		expect(caretMemory.column()).toBe(200);
-		expect(caretMemory.side()).toBe('near');
+		expect(caretMemory.side()).toBe('outside');
 		expect([...(caretMemory.pendingMarks.get() ?? [])]).toEqual(['strong']);
 	});
 });

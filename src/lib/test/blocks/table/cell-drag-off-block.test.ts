@@ -6,9 +6,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	installCellDragListener,
 	type CellAnchor
-} from '$lib/components/blocks/table/cell-pointer';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+} from '#lib/components/blocks/table/cell-pointer.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { mountTableGrid } from '../../selection/table-grid';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const PARA_BOX = { left: 100, right: 300, top: 0, bottom: 40 };
 const TABLE_BOX = { left: 100, right: 300, top: 50, bottom: 100 };
@@ -45,7 +46,11 @@ describe('a cell drag that leaves the table for dead space', () => {
 		anchor = { tableEl: grid, tablePath: [1], rowIdx: 0, colIdx: 0, columnCount: 2 };
 		selection = createSelectionState();
 		frame = stubFrame();
-		installCellDragListener({ editorRoot, selection }, anchor, pointerDown());
+		installCellDragListener(
+			{ caretWriter: testCaretWriter, editorRoot, selection },
+			anchor,
+			pointerDown()
+		);
 	});
 
 	afterEach(() => {

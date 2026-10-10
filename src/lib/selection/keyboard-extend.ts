@@ -9,12 +9,12 @@ import type { CaretLanding } from './caret-landing';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
-	applySingleBlockRange,
-	clearNativeSelection
+	applySingleBlockRange
 } from './native-bridge';
-import { offsetFromViewportPoint } from '../cursor/point-offset';
+import type { CaretWriter } from '../caret/widget-offset';
+import { offsetFromViewportPoint } from '../caret/point-offset';
 import type { BlockElLookup } from '../editor-keys';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { ScrollOwner } from '../windowing/scroll-owner';
 import {
 	firstPath,
 	lastPath,
@@ -34,6 +34,7 @@ import { displayLength } from '../core/lines';
  *  anchor and focus; the caller extends the focus right after. */
 function enterCrossBlockFromKeyboard(
 	selection: SelectionState,
+	writer: CaretWriter,
 	currentBlockEl: HTMLElement,
 	currentBlockPath: number[]
 ): boolean {
@@ -45,7 +46,7 @@ function enterCrossBlockFromKeyboard(
 	});
 	// A collapsed caret stays in the focus block, or Chromium sends clipboard events to <body>;
 	// an endpoint with no text position gets none, and `editor-root-clipboard.ts` covers it.
-	applyCollapsedCaret(currentBlockEl, anchorPoint);
+	applyCollapsedCaret(writer, currentBlockEl, anchorPoint);
 	return true;
 }
 
@@ -53,6 +54,7 @@ function enterCrossBlockFromKeyboard(
  *  byte, brought into view, mounting a windowed-out target and never opening a closed body. */
 export async function collapseCrossBlock(
 	selection: SelectionState,
+	writer: CaretWriter,
 	to: 'start' | 'end',
 	doc: Document,
 	restore: CaretLanding['restore']
@@ -60,7 +62,7 @@ export async function collapseCrossBlock(
 	const target = to === 'start' ? selection.start : selection.end;
 	if (!target) return;
 	selection.collapse();
-	clearNativeSelection();
+	writer.clear();
 
 	// A cell target takes the text-leaf caret path: the cell's own `focus` skips the collapse
 	// steps, and a byte typed there would join the construct the cell opens with.
@@ -89,6 +91,7 @@ export function scrollFocusBlockIntoView(
  *  back on the anchor's block, since keyboard entry left only a collapsed caret there. */
 function extendFocusOrRestore(
 	selection: SelectionState,
+	writer: CaretWriter,
 	target: number[],
 	offset: number,
 	getBlockElByPath?: BlockElLookup
@@ -99,13 +102,19 @@ function extendFocusOrRestore(
 	const blockEl = getBlockElByPath(target);
 	if (!blockEl) return;
 	blockEl.focus();
-	applySingleBlockRange(blockEl, Math.min(anchor.offset, offset), Math.max(anchor.offset, offset));
+	applySingleBlockRange(
+		writer,
+		blockEl,
+		Math.min(anchor.offset, offset),
+		Math.max(anchor.offset, offset)
+	);
 }
 
 /** Extends focus to the next leaf a caret can reach. The vertical axis skips leaves the caret
  *  passes over (an image-only paragraph); the horizontal stops on each, so it stays selectable. */
 export function extendFocusToNextBlock(
 	selection: SelectionState,
+	writer: CaretWriter,
 	doc: Document,
 	grammar: GrammarView,
 	currentBlockEl: HTMLElement,
@@ -120,9 +129,10 @@ export function extendFocusToNextBlock(
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
+		if (!enterCrossBlockFromKeyboard(selection, writer, currentBlockEl, currentBlockPath))
+			return false;
 	}
-	extendFocusOrRestore(selection, leafTarget, 0, getBlockElByPath);
+	extendFocusOrRestore(selection, writer, leafTarget, 0, getBlockElByPath);
 	return true;
 }
 
@@ -130,6 +140,7 @@ export function extendFocusToNextBlock(
  *  takes the whole previous line as native ArrowUp does, skipping leaves the caret passes over. */
 export function extendFocusToPreviousBlock(
 	selection: SelectionState,
+	writer: CaretWriter,
 	doc: Document,
 	grammar: GrammarView,
 	currentBlockEl: HTMLElement,
@@ -144,10 +155,11 @@ export function extendFocusToPreviousBlock(
 	if (!leafTarget) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
+		if (!enterCrossBlockFromKeyboard(selection, writer, currentBlockEl, currentBlockPath))
+			return false;
 	}
 	const offset = side === 'start' ? 0 : leafOffsetEnd(doc, leafTarget);
-	extendFocusOrRestore(selection, leafTarget, offset, getBlockElByPath);
+	extendFocusOrRestore(selection, writer, leafTarget, offset, getBlockElByPath);
 	return true;
 }
 
@@ -155,6 +167,7 @@ export function extendFocusToPreviousBlock(
  *  text-bearing one, as the one-step extension does. */
 export function extendFocusToDocEdge(
 	selection: SelectionState,
+	writer: CaretWriter,
 	doc: Document,
 	grammar: GrammarView,
 	currentBlockEl: HTMLElement,
@@ -174,17 +187,19 @@ export function extendFocusToDocEdge(
 	if (!target) return false;
 
 	if (!selection.isCrossBlock) {
-		if (!enterCrossBlockFromKeyboard(selection, currentBlockEl, currentBlockPath)) return false;
+		if (!enterCrossBlockFromKeyboard(selection, writer, currentBlockEl, currentBlockPath))
+			return false;
 	}
 
 	const offset = to === 'end' ? leafOffsetEnd(doc, target) : 0;
-	extendFocusOrRestore(selection, target, offset, getBlockElByPath);
+	extendFocusOrRestore(selection, writer, target, offset, getBlockElByPath);
 	return true;
 }
 
 /** Selects the entire document as a cross-block range (the second Ctrl+A). */
 export function selectWholeDocument(
 	selection: SelectionState,
+	writer: CaretWriter,
 	doc: Document,
 	getBlockElByPath?: (path: number[]) => HTMLElement | null
 ): boolean {
@@ -203,7 +218,7 @@ export function selectWholeDocument(
 		const blockEl = getBlockElByPath?.(first);
 		if (blockEl) {
 			blockEl.focus();
-			applySingleBlockRange(blockEl, 0, lastOffset);
+			applySingleBlockRange(writer, blockEl, 0, lastOffset);
 		}
 		return true;
 	}
@@ -213,8 +228,8 @@ export function selectWholeDocument(
 	const focus = selection.focus;
 	const parkPoint = focus && selection.cellLandingFor(focus);
 	const focusBlockEl = parkPoint ? getBlockElByPath?.(parkPoint.path) : null;
-	if (focusBlockEl && parkPoint) applyCollapsedCaret(focusBlockEl, parkPoint);
-	else clearNativeSelection();
+	if (focusBlockEl && parkPoint) applyCollapsedCaret(writer, focusBlockEl, parkPoint);
+	else writer.clear();
 	return true;
 }
 
@@ -224,6 +239,7 @@ export function selectWholeDocument(
  *  cross-block mode from the last caret. False for a same-block click, left to the browser. */
 export function handleShiftClick(
 	selection: SelectionState,
+	writer: CaretWriter,
 	clickedBlockEl: HTMLElement,
 	clickedBlockPath: number[],
 	clickedX: number,
@@ -247,11 +263,11 @@ export function handleShiftClick(
 	if (widget) {
 		const anchor = widgetShiftAnchor(widget, focusPoint);
 		if (comparePaths(anchor.path, focusPoint.path) === 0) {
-			applySingleBlockRange(clickedBlockEl, anchor.offset, focusPoint.offset);
+			applySingleBlockRange(writer, clickedBlockEl, anchor.offset, focusPoint.offset);
 			return true;
 		}
 		selection.enterCrossBlock(anchor, focusPoint);
-		applyCollapsedCaret(clickedBlockEl, focusPoint);
+		applyCollapsedCaret(writer, clickedBlockEl, focusPoint);
 		return true;
 	}
 
@@ -268,7 +284,7 @@ export function handleShiftClick(
 	selection.enterCrossBlock(anchor, focusPoint);
 	// A collapsed caret for paste dispatch (see `enterCrossBlockFromKeyboard`); the click's
 	// default is not relied on.
-	applyCollapsedCaret(clickedBlockEl, focusPoint);
+	applyCollapsedCaret(writer, clickedBlockEl, focusPoint);
 	return true;
 }
 

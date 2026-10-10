@@ -67,9 +67,16 @@ function liveLines(): string[] {
 /** A pasted line is one whose first token is a gate's prefix; the indented detail lines under
  *  a failure head name example files no live run reproduces, so they stay prose. */
 function pastedLines(rel: string): Array<{ rel: string; line: number; text: string }> {
-	return readFileSync(path.join(ROOT, rel), 'utf8')
+	return pastedLinesIn(rel, readFileSync(path.join(ROOT, rel), 'utf8'));
+}
+
+function pastedLinesIn(
+	rel: string,
+	text: string
+): Array<{ rel: string; line: number; text: string }> {
+	return text
 		.split('\n')
-		.map((text, index) => ({ rel, line: index + 1, text: text.trimEnd() }))
+		.map((line, index) => ({ rel, line: index + 1, text: line.trimEnd() }))
 		.filter((entry) => PREFIXES.some((prefix) => entry.text.startsWith(prefix)));
 }
 
@@ -168,14 +175,16 @@ describe('pasted gate output ↔ what the gate prints', () => {
 // on two empty sets.
 
 describe('pasted gate output: self-tests', () => {
-	it('reads a real corpus and finds a paste of every gate prefix', () => {
+	it('reads a real corpus, and its reader finds a paste of every gate prefix', () => {
 		expect(docs.length).toBeGreaterThan(20);
 		expect(docs.some((doc) => doc.startsWith('docs/superpowers/'))).toBe(false);
+		const fixture = PREFIXES.map((prefix) => `${prefix} … pasted`).join('\nprose between\n');
+		const found = pastedLinesIn('fixture.md', fixture);
 		for (const prefix of PREFIXES) {
 			expect(
-				pasted.filter((entry) => entry.text.startsWith(prefix)).length,
-				`no doc pastes a ${prefix} line`
-			).toBeGreaterThan(0);
+				found.filter((entry) => entry.text.startsWith(prefix)).length,
+				`the reader misses a ${prefix} line`
+			).toBe(1);
 		}
 	});
 

@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import {
 	makeNestedActionsDeps,
 	makeNestedHarness,
 	makeStubBlockEdit,
 	makeStubFocus,
 	makeEditorActionsDeps
-} from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/editor-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 // jsdom has no native selection, so every commit here exercises the no-caret fallback:
 // the stored path must resolve to the operated child in the snapshot it restores
 // (reorder-action's "deep restore path" contract, extended to every container commit).

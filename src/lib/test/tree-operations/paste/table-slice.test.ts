@@ -3,7 +3,7 @@ import { parse } from '../../../core/parser';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { rebuildContainerRaw } from '../../../schema/container-raw';
 import type { CstNode, TableMetadata, TableRowMetadata } from '../../../core/nodes';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 const fixture = '| A | B |\n| :--- | ---: |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
 

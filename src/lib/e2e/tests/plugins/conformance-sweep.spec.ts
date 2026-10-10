@@ -11,6 +11,7 @@ interface SweepEntry {
 	kind: string;
 	fixture: string;
 	token: string | null;
+	wholeBlock: boolean;
 	cells: {
 		focus: { mode: string };
 		selectionPaint: { mode: string };
@@ -54,16 +55,6 @@ test('enrollment covers the known-kind floor', async ({ page }) => {
 
 // ── Locate ──────────────────────────────────────────────────────────────────
 
-// The editor reloads only on a changed source, so two kinds with byte-identical fixtures would
-// inherit the previous typed mutation; clearing first forces the reload.
-async function clearDocument(page: Page): Promise<void> {
-	await page.evaluate(() => (window as any).__test.setSource(''));
-	await page.waitForFunction(() => (window as any).__test.getSource().trim() === '', null, {
-		timeout: 3000,
-		polling: 16
-	});
-}
-
 // Only the middle blocks are searched for the kind, since `paragraph`'s fixture is itself a
 // paragraph and would match the `BEFORE` neighbour.
 async function loadAndLocate(
@@ -72,17 +63,7 @@ async function loadAndLocate(
 	entry: SweepEntry
 ): Promise<{ topIndex: number | null; afterIndex: number }> {
 	const doc = `${BEFORE}\n\n${entry.fixture}\n\n${AFTER}\n`;
-	await clearDocument(page);
-	await page.evaluate((d) => (window as any).__test.setSource(d), doc);
-	// serialize() normalizes trailing whitespace; compare trimmed forms.
-	await page.waitForFunction(
-		(expected) => {
-			const actual = (window as any).__test.getSource() as string;
-			return actual.replace(/\s+$/, '') === expected.replace(/\s+$/, '');
-		},
-		doc,
-		{ timeout: 3000, polling: 16 }
-	);
+	await plugins.loadContent(doc);
 	await plugins.waitForRenderFlush();
 	return page.evaluate((kind) => {
 		const root = (window as any).__test.getDocument();
@@ -211,6 +192,16 @@ function expectSweepClean({ failures, unreachable }: SweepResult): void {
 	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
 }
 
+/** Null when focus sits on a whole-block kind's hidden editing host, where typed input and IME
+ *  composition arrive; otherwise the element that holds focus instead. */
+async function focusOffWholeBlockHost(page: Page): Promise<string | null> {
+	return page.evaluate(() => {
+		const active = document.activeElement;
+		if (active?.hasAttribute('data-whole-block-input')) return null;
+		return active ? `<${active.tagName.toLowerCase()} class="${active.className}">` : 'nothing';
+	});
+}
+
 async function sweepFocusWalk(page: Page, plugins: PluginsPage): Promise<SweepResult> {
 	const entries: SweepEntry[] = await page.evaluate(() =>
 		(window as any).__test.getConformanceEntries()
@@ -228,11 +219,15 @@ async function sweepFocusWalk(page: Page, plugins: PluginsPage): Promise<SweepRe
 		await plugins.focusBlockStart(0);
 		let entered = false;
 		let exited = false;
+		let offHost: string | null = null;
 		for (let i = 0; i < WALK_LIMIT && !exited; i++) {
 			await page.keyboard.press('ArrowDown');
 			await plugins.waitForRenderFlush();
 			const path = await activeBlockPath(page);
-			if (path && path[0] === topIndex) entered = true;
+			if (path && path[0] === topIndex) {
+				entered = true;
+				if (entry.wholeBlock) offHost ??= await focusOffWholeBlockHost(page);
+			}
 			if (path && path.length === 1 && path[0] === afterIndex) exited = true;
 		}
 
@@ -251,6 +246,11 @@ async function sweepFocusWalk(page: Page, plugins: PluginsPage): Promise<SweepRe
 		} else if (!entered) {
 			failures.push(
 				`${entry.kind} [focus]: declared ${entry.cells.focus.mode} but the caret skipped its subtree`
+			);
+		}
+		if (offHost) {
+			failures.push(
+				`${entry.kind} [focus]: whole-block focus landed on ${offHost}, not the hidden editing host`
 			);
 		}
 

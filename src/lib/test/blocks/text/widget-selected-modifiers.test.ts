@@ -4,8 +4,8 @@
 // word-delete take the whole widget. The keymap runs after this handler, so "consumed" stays
 // narrow.
 import { describe, it, expect, beforeAll } from 'vitest';
-import { augmentInlineWidgetKind } from '$lib/core/inline/inline-widgets';
-import { imageWidgetOnSelectedKey } from '$lib/components/image/image-widget-editing';
+import { augmentInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
+import { imageWidgetOnSelectedKey } from '#lib/components/image/image-widget-editing.js';
 import { harness } from './widget-selected-fixture';
 
 beforeAll(() => {

@@ -7,7 +7,7 @@ import {
 	type StickyColumnDirection
 } from '../block-component';
 import { dispatchFocusByPath, dispatchFocusAtColumn } from './focus/focus-dispatch';
-import type { ChildList } from '../reactivity/child-list';
+import type { ChildList } from '../block-lists/child-list';
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -21,10 +21,11 @@ import type { Reading } from '../schema/reading';
 import { eventToChord, isCharacterKey } from '../schema/keybindings';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
-import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretMemory } from '../caret/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { placeCaret } from '../selection/caret-doors';
+import type { CaretWriter } from '../caret/widget-offset';
+import { placeCaret } from '../selection/place-caret';
 import { rangeOwnsKey, type RangeKeyReads } from '../selection/cross-block/keydown';
 import {
 	focusWholeBlockEl,
@@ -148,6 +149,7 @@ export interface ContainerBlockComponentDeps {
 	/** Ends a live cross-block range when `focus` places a caret: focusing a whole block
 	 *  reaches no child to borrow it from. */
 	readonly selection: SelectionState;
+	readonly caretWriter: CaretWriter;
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
 	/** The same children as a descent reads them: their count, ref slots, render window and
 	 *  collapse. `childList()` publishes it. */
@@ -204,7 +206,9 @@ export function createContainerBlockComponent(
 			return deps.editable ?? true;
 		},
 		focusable: true,
-		focus: placeCaret(deps.selection, (offset) => walkInto(offset, (child, at) => child.focus(at))),
+		focus: placeCaret(deps.selection, deps.caretWriter, (offset) =>
+			walkInto(offset, (child, at) => child.focus(at))
+		),
 		parkCaret,
 		getCursorOffset() {
 			const focusEl = deps.getFocusEl?.();

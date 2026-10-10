@@ -1,18 +1,37 @@
-// A mounted-container reorder harness for the reorder-action suites: pre-filled
-// innerBlockRefs mimic a mounted container ({#each} never runs in node) and the registered
-// state lets the action's expectStateForNode resolve.
+// The reorder action over a headless editor, for the reorder suites. No component mounts a
+// container here, so `makeReorderContainer` builds its list state and fills its refs by hand, and
+// the action finds the state a mounted container would register.
 
 import { expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createReorderAction } from '$lib/editor-actions/reorder-action';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
-import { stubBlockComponent, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import { replaceRefs } from '#lib/block-lists/child-refs.js';
+import { stubBlockComponent, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+
+/** The reorder action and its undo over `source`; `announce` hears what the edit live region is
+ *  told. */
+export function makeReorderHarness(
+	source: string | CstNode[] | Document,
+	options: Parameters<typeof makeEditorActionsDeps>[1] & {
+		announce?: (message: string) => void;
+	} = {}
+) {
+	const { announce, ...depsOptions } = options;
+	const harness = makeEditorActionsDeps(source, depsOptions);
+	const controller = createUndoController(harness.deps, announce);
+	return {
+		...harness,
+		reorder: createReorderAction(harness.deps, controller),
+		undo: createHistoryActions(harness.deps, controller).requestUndo
+	};
+}
 
 /** `path` names a nested container (a quote inside a list item); `nodeIndex` a top-level one. */
 export function makeReorderContainer(
@@ -20,11 +39,8 @@ export function makeReorderContainer(
 	opts: { nodeIndex?: number; path?: number[] } = {}
 ) {
 	const path = opts.path ?? [opts.nodeIndex ?? 0];
-	const harness = makeEditorActionsDeps(parse(source).children);
+	const harness = makeReorderHarness(parse(source).children);
 	const node = () => blockNodeAt(harness.doc, path)!;
-	const controller = createUndoController(harness.deps);
-	const history = createHistoryActions(harness.deps, controller);
-	const reorder = createReorderAction(harness.deps, controller);
 	const state = createBlockListState(node);
 	replaceRefs(
 		state.innerBlockRefs,
@@ -35,8 +51,8 @@ export function makeReorderContainer(
 		deps: harness.deps,
 		node,
 		state,
-		reorder,
-		undo: history.requestUndo,
+		reorder: harness.reorder,
+		undo: harness.undo,
 		undoDepth: () => harness.deps.undoManager.getStacks().undo.length,
 		ids: () => state.innerBlockIds,
 		// Convergence, not just a byte round-trip: the round trip is blind to a stale

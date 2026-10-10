@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { FIXTURE_BYTES, spacerCount } from './vr-helpers';
+import { FIXTURE_BYTES, GIANT_LIST_OR_TABLE_BYTES, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // Batching the measurements (VR-4): when many blocks mount in one frame, measuring then writing
@@ -77,7 +77,7 @@ const ROWS: ReflowRow[] = [
 		unit: 'table row',
 		tag: 'VR-4 table path',
 		arrange: async (page, editor) => {
-			await editor.loadLargeFixture('giant-single-table', 2_000_000);
+			await editor.loadLargeFixture('giant-single-table', GIANT_LIST_OR_TABLE_BYTES);
 			// Without row windowing the scroll passes over a grid that is already fully rendered.
 			expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 		},

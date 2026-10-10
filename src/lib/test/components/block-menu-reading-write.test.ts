@@ -3,13 +3,13 @@
 // with no mode check of its own; the commit's reading-mode check is what answers it.
 // Miss-analysis (GH #517): every reading-mode test switched modes before opening a menu.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createRootMenus, type BlockMenuModel } from '$lib/components/editor-root-menus';
-import { registerDefaultContextActions } from '$lib/components/menu/default-context-actions';
-import { serialize } from '$lib/core/serializer';
-import { replaceBlockRaw } from '$lib/editor-actions/block-edit-core';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root-menus.js';
+import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
+import { serialize } from '#lib/core/serializer.js';
+import { replaceBlockRaw } from '#lib/editor-actions/block-edit-core.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
@@ -53,6 +53,8 @@ async function removeFenceAfterSwitchToReading() {
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
 		stamps: editor.deps.stamps,
+		canEditLinkAtCaret: () => false,
+		editLinkAtCaret: () => {},
 		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);

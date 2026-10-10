@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { documentLineEnding, trailingLineEnding } from '$lib/core/lines';
-import { updateNodeContent } from '$lib/tree-operations';
-import { deleteNode, settleSeparator } from '$lib/tree-operations/settle';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { documentLineEnding, trailingLineEnding } from '#lib/core/lines.js';
+import { updateNodeContent } from '#lib/tree-operations/index.js';
+import { deleteNode, settleSeparator } from '#lib/tree-operations/settle.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A blockquote keeps its body's one trailing blank line in `innerSuffix` only while its last block
 // is non-blank, so once that block turns blank the fix-up makes the line a block.

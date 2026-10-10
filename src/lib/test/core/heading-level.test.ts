@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { headingLevel } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { headingLevel } from '#lib/core/nodes.js';
 
 // Exists because `isBuiltinBlockNode` — the narrowing gate for `metadata.level` — is
 // deliberately off the authoring barrel a plugin reads.

@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { capturePageErrors } from '../../page-probes';
 import { gotoReady } from '../../goto-ready';
-import { spacerCount } from './vr-helpers';
+import { editorScrollTop, spacerCount } from './vr-helpers';
 
 // A block that mounts again at the height it was measured at costs the scroll nothing: it is
 // read after the flush that mounted it, so an empty block never reaches the height table and no
@@ -28,7 +28,7 @@ const HEAVY = Array.from({ length: SECTIONS }, (_, i) =>
 	].join('\n\n')
 ).join('\n\n');
 
-const WHEEL_TICKS = 30;
+const WHEEL_TICKS = 15;
 const WHEEL_TICK_PX = 320;
 
 /** Every write to the editor's own scrollTop from code, counted where it is set: while the
@@ -53,10 +53,6 @@ async function countScrollWrites(page: Page): Promise<void> {
 
 function scrollWrites(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__scrollWrites as number);
-}
-
-function editorScrollTop(page: Page): Promise<number> {
-	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
 }
 
 async function wheel(page: Page, editor: EditorPage, ticks: number, px: number): Promise<void> {

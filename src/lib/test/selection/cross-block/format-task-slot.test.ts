@@ -1,19 +1,19 @@
 // Miss-analysis: the cross-block format suites toggled plain paragraphs, cells and task text,
 // and none took a mark off text that then opened with a checkbox in a plain item's first slot.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
-} from '$lib/selection/cross-block/format-range';
-import type { SelectionPoint } from '$lib/selection/primitives';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { coverRange } from '$lib/selection/range-coverage';
-import { documentBody } from '$lib/tree-operations/node-primitives';
+} from '#lib/selection/cross-block/format-range.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { coverRange } from '#lib/selection/range-coverage.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
 
 // A format toggle writes each covered leaf in place, and one in a list item's first slot keeps the
 // item's checkbox in step with the text it leaves there, as a reload reads it.

@@ -16,12 +16,12 @@ import {
 	type MeasuredBlock,
 	type ProbedHit
 } from './nearest-block';
-import { placeGapCaret } from './caret-doors';
+import { placeGapCaret } from './place-caret';
 import { canGapStop, type GapStopScope } from './gap-caret';
-import { caretOffsetAtPoint } from '../cursor/point-offset';
+import { caretOffsetAtPoint } from '../caret/point-offset';
 import type { CaretPosition, SelectionEndpoint } from './primitives';
 import type { LandingOutcome } from './caret-landing';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -63,13 +63,15 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	let pressedOnDeadSpace = false;
 
 	/** A click below the document when its tail is not mounted: land at the real last block's end,
-	 *  which is where the clamped point below lands once the tail is mounted. */
-	async function landAtDocumentEnd(): Promise<void> {
+	 *  then place the point below it as a click on the mounted tail, so both answer alike. */
+	async function landAtDocumentEnd(root: HTMLElement, x: number): Promise<void> {
 		const index = deps.lastBlockIndex();
 		if (index < 0) return;
-		// Before the landing, which then records the end it lands at as the outside of a closer.
 		deps.resetSelectionForClick();
-		await deps.land({ path: docPathFrom([index]), offset: CURSOR_END });
+		if ((await deps.land({ path: docPathFrom([index]), offset: CURSOR_END })) !== 'placed') return;
+		const blocks = measureBlocks(root);
+		if (lastMountedTopLevel(blocks) !== index) return;
+		placeAtPoint(root, x, blocks.reduce((low, b) => Math.max(low, b.rect.bottom), 0) + 1);
 	}
 
 	function placeAtPoint(root: HTMLElement, x: number, y: number): boolean {
@@ -81,7 +83,10 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			// The reset runs first, as for a block below: it clears the gap caret, so nothing may
 			// run between it and `placeGapCaret`, which also ends a live range (G2.12).
 			deps.resetSelectionForClick();
-			placeGapCaret(deps.gapScope.selection, { parentPath: [], index: boundary });
+			placeGapCaret(deps.gapScope.selection, deps.gapScope.caretWriter, {
+				parentPath: [],
+				index: boundary
+			});
 			return true;
 		}
 		const band = nearestBand(
@@ -93,7 +98,7 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		// Below the last mounted block is not below the document while a tail is windowed out,
 		// and the real last block has no box to hit-test until it mounts.
 		if (band.belowAll && lastMountedTopLevel(blocks) !== deps.lastBlockIndex()) {
-			void landAtDocumentEnd();
+			void landAtDocumentEnd(root, x);
 			return true;
 		}
 
@@ -116,7 +121,7 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		// The reset waits for a known caret target, so a declined point leaves a live range painted
 		// and the next printable key replaces the whole of it.
 		deps.resetSelectionForClick();
-		// Both calls end a live range (`selection/caret-doors.ts`); `focusByPath` reaches the
+		// Both calls end a live range (`selection/place-caret.ts`); `focusByPath` reaches the
 		// leaf's own `focus`.
 		if (landing.path.length === 0) component.focus(landing.offset);
 		else component.focusByPath!(landing.path, landing.offset);

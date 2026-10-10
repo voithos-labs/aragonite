@@ -57,32 +57,43 @@ test.describe('table action menu: keyboard + announcements', () => {
 		await editor.bridge.waitForSourceContains('Z');
 	});
 
-	test('Tab keeps focus within the open menu', async ({ page }) => {
-		await page.locator('.table-cell').nth(2).click();
-		await page.keyboard.press('Shift+F10');
+	// Each step opens the menu fresh from the same cell: Escape returns to the cell, so the next
+	// Shift+F10 opens it again on its first enabled item.
+	test('Tab and Shift+Tab stay within the open menu, and ArrowUp from the first item wraps', async ({
+		page
+	}) => {
+		const cell = page.locator('.table-cell').nth(2);
+		const inMenu = page.locator('[role="menu"] :focus');
 
-		await page.keyboard.press('Tab');
-		await page.keyboard.press('Tab');
-		await expect(page.locator('[role="menu"] :focus')).toHaveCount(1);
-	});
+		await test.step('Tab keeps focus within the open menu', async () => {
+			await cell.click();
+			await page.keyboard.press('Shift+F10');
 
-	test('Shift+Tab keeps focus within the open menu', async ({ page }) => {
-		await page.locator('.table-cell').nth(2).click();
-		await page.keyboard.press('Shift+F10');
+			await page.keyboard.press('Tab');
+			await page.keyboard.press('Tab');
+			await expect(inMenu).toHaveCount(1);
+		});
 
-		await page.keyboard.press('Shift+Tab');
-		await page.keyboard.press('Shift+Tab');
-		await expect(page.locator('[role="menu"] :focus')).toHaveCount(1);
-	});
+		await test.step('Shift+Tab keeps focus within the open menu', async () => {
+			await page.keyboard.press('Escape');
+			await cell.click();
+			await page.keyboard.press('Shift+F10');
 
-	test('ArrowUp from the first item wraps to the last stop', async ({ page }) => {
-		await page.locator('.table-cell').nth(2).click();
-		await page.keyboard.press('Shift+F10');
+			await page.keyboard.press('Shift+Tab');
+			await page.keyboard.press('Shift+Tab');
+			await expect(inMenu).toHaveCount(1);
+		});
 
-		// Roving focus opens on the first enabled item; ArrowUp wraps to the last
-		// stop, which is the right segment of the alignment trio.
-		await page.keyboard.press('ArrowUp');
-		await expect(page.locator('[role="menu"] :focus')).toHaveAttribute('aria-label', 'Right');
+		await test.step('ArrowUp from the first item wraps to the last stop', async () => {
+			await page.keyboard.press('Escape');
+			await cell.click();
+			await page.keyboard.press('Shift+F10');
+
+			// Roving focus opens on the first enabled item; ArrowUp wraps to the last
+			// stop, which is the right segment of the alignment trio.
+			await page.keyboard.press('ArrowUp');
+			await expect(inMenu).toHaveAttribute('aria-label', 'Right');
+		});
 	});
 
 	test('Row flyout opens with Right, skips a disabled item, closes with Left', async ({ page }) => {

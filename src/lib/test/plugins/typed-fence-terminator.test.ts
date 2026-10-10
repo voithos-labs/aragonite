@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { registerMathFence, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
-import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { registerMathFence, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
+import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A fence a plugin opener takes needs the same terminator the built-in one does. Both bundled
 // fence kinds are here because they read an unterminated fence oppositely (mermaid takes it,

@@ -5,6 +5,7 @@
  * the edit path's own restore does not cover.
  */
 
+import type { ActivationClick } from '../../../activation-click';
 import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
 import { tagsConstructMarkers } from '../../../presentation-mode';
@@ -24,16 +25,16 @@ import {
 	renderInlineNodes,
 	type ImageLoadPolicy
 } from '../../../core/inline-render';
-import type { RawOffset } from '../../../cursor/coordinate-spaces';
+import type { RawOffset } from '../../../caret/coordinate-spaces';
 import {
 	BLOCK_PREFIX_ATTR,
 	BLOCK_SUFFIX_ATTR,
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
 	holdsOnlyMarkerChrome,
-	placeCaretAtRaw
-} from '../../../cursor/widget-offset';
-import { captureFocusedCaret } from '../../../cursor/focused-caret';
+	type CaretWriter
+} from '../../../caret/widget-offset';
+import { captureFocusedCaret } from '../../../caret/focused-caret';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
@@ -77,6 +78,8 @@ export interface TextRenderDeps {
 	getContentVersion: () => number;
 	/** The editor's navigation call, passed on to widgets whose gesture jumps elsewhere. */
 	navigateTo: (path: number[]) => Promise<boolean>;
+	/** Whether a click follows what it lands on, passed on to widgets that go somewhere. */
+	activationClick: ActivationClick;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the block when one changes. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
@@ -84,6 +87,8 @@ export interface TextRenderDeps {
 	/** A widget that throws while mounting reports to the editor's `error` event, and still falls
 	 *  back to its raw source. */
 	reportRenderError: (error: unknown) => void;
+	/** The editor's caret writer, which puts a carried caret back after a rebuild. */
+	caretWriter: CaretWriter;
 }
 
 export interface TextRender {
@@ -126,7 +131,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion,
 		navigateTo: deps.navigateTo,
-		reading: deps.reading
+		reading: deps.reading,
+		activationClick: deps.activationClick
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -232,7 +238,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 	}
 
 	function restoreCaret(el: HTMLElement, raw: RawOffset): void {
-		placeCaretAtRaw(el, raw, { clamp: 'exact' });
+		deps.caretWriter.placeCaretAtRaw(el, raw, { clamp: 'exact' });
 		traceCursorRestore(raw);
 	}
 

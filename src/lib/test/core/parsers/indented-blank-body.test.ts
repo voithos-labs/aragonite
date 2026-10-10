@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { layoutOf, triviaRawOf } from '$lib/test/harness/parse-converged';
+import { installPlugins } from '#lib';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { layoutOf, triviaRawOf } from '#lib/test/harness/parse-converged.js';
 
 // A whitespace-only line indented to a body's content column belongs to that body; a bare blank
 // line still ends it. The second test file for the class is

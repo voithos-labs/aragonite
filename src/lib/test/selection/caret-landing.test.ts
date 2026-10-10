@@ -4,12 +4,12 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import type { Document } from '../../core/nodes';
 import { CURSOR_END, CURSOR_START, type BlockComponent } from '../../block-component';
-import { createCaretMemory } from '../../cursor/caret-memory';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
-import type { ScrollOwner } from '../../cursor/scroll-owner';
-import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
+import { createCaretMemory } from '../../caret/caret-memory';
+import { docPathFrom } from '../../caret/coordinate-spaces';
+import type { ScrollOwner } from '../../windowing/scroll-owner';
+import { refSlotsOver } from '../../block-lists/child-refs';
 import { nodeAt } from '../../tree-operations/node-primitives';
-import type { ChildList } from '../../reactivity/child-list';
+import type { ChildList } from '../../block-lists/child-list';
 import {
 	createCaretLanding,
 	type CaretLanding,
@@ -20,6 +20,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
 import { stubScrollport } from '../harness/stub-scrollport';
 import { takeDevWarns } from '../support/warn-gate';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface Placement {
 	path: number[];
@@ -92,6 +93,7 @@ function landingOver(source: string, over: Partial<CaretLandingDeps> = {}) {
 		getDoc: () => doc,
 		root: mountingList(doc, [], placements),
 		selectionState: createSelectionState({ getDoc: () => doc }),
+		caretWriter: testCaretWriter,
 		caretMemory,
 		// A stand-in element, so the scroll half has something to bring into view.
 		getBlockElByPath: () => STAND_IN,
@@ -130,6 +132,7 @@ describe('landing a caret', () => {
 		const placements: Placement[] = [];
 		const box: { landing?: ReturnType<typeof createCaretLanding> } = {};
 		box.landing = createCaretLanding({
+			caretWriter: testCaretWriter,
 			getDoc: () => doc,
 			root: mountingList(doc, [], placements, () => box.landing!.noteTreeSwap()),
 			selectionState: createSelectionState({ getDoc: () => doc }),
@@ -142,11 +145,15 @@ describe('landing a caret', () => {
 		expect(placements).toEqual([]);
 	});
 
-	it('an end or start landing means the outside of a hidden closer; a byte offset does not', async () => {
+	// A merge or an arrow lands on text and follows the character before the caret; only a split's
+	// second half starts fresh.
+	it('a fresh landing means the outside of a hidden edge; an end, a start or a byte does not', async () => {
 		const { landing, caretMemory } = landingOver('**a**\n\nb\n');
 		await landing.land(at([0], CURSOR_END));
-		expect(caretMemory.side()).toBe('outside');
+		expect(caretMemory.side()).toBeNull();
 		await landing.land(at([1], CURSOR_START));
+		expect(caretMemory.side()).toBeNull();
+		await landing.land({ ...at([1], CURSOR_START), fresh: true });
 		expect(caretMemory.side()).toBe('outside');
 		await landing.land(at([0], 2));
 		expect(caretMemory.side()).toBeNull();
@@ -204,6 +211,7 @@ describe('bringing a landing into view', () => {
 		const doc = parse('a\n');
 		const scrolling = stubBlockComponent({ focus: () => port.setScrollTop(120) });
 		const landing = createCaretLanding({
+			caretWriter: testCaretWriter,
 			getDoc: () => doc,
 			root: {
 				count: () => 1,
@@ -230,7 +238,7 @@ describe('the other entry points', () => {
 
 	it('a stale restore places nothing and keeps how the caret arrived', async () => {
 		const { landing, caretMemory } = landingOver('a\n\nb\n');
-		caretMemory.noteExtreme();
+		caretMemory.noteOutside();
 		const stamp = landing.generation();
 		landing.noteTreeSwap();
 		const point = { path: [1], offset: 0 };

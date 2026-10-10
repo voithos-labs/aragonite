@@ -43,7 +43,7 @@
 	let cropping = $state(false);
 
 	const { reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const { selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { selection, caretWriter } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
 	// Captured once: props are stable for the editor's lifetime, and reactive ones are getters.
 	// svelte-ignore state_referenced_locally
@@ -51,6 +51,7 @@
 		getDoc,
 		getEditorEl,
 		selection,
+		caretWriter,
 		inlineRange,
 		events,
 		reading
@@ -126,6 +127,7 @@
 					onDismiss={imageEdit.dismissImagePopover}
 					maxFrameWidth={imageEdit.getEditorContentWidth}
 					{menuPresence}
+					{caretWriter}
 					bind:cropping
 				/>
 			{/key}

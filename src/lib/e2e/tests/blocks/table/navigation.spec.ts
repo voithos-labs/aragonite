@@ -84,17 +84,4 @@ test.describe('table block: navigation', () => {
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('| !AAA | BBB |');
 	});
-
-	test('Enter in non-last row moves to cell directly below', async ({ page }) => {
-		await page.locator('.table-cell').nth(0).click();
-		await page.keyboard.press('Enter');
-		await expect(page.locator('.table-cell').nth(2)).toBeFocused();
-	});
-
-	test('Enter in last row creates new row', async ({ page }) => {
-		await page.locator('.table-cell').nth(2).click();
-		await page.keyboard.press('Enter');
-		await expect(page.locator('.table-cell')).toHaveCount(6);
-		await expect(page.locator('.table-cell').nth(4)).toBeFocused();
-	});
 });

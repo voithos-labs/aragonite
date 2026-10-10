@@ -1,43 +1,22 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
-import { rangeContext } from './range-context';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import {
-	makeBlockListState,
-	makeEditorActionsDeps,
-	makeTableStateAt
-} from '$lib/test/harness/editor-actions';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { metadataOf, type CstNode } from '$lib/core/nodes';
-import type { EditEvent } from '$lib/editor-events';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
+import { makeRangeEnv } from './range-context';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import { makeBlockListState, makeTableStateAt } from '#lib/test/harness/editor-actions.js';
+import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import { metadataOf, type CstNode } from '#lib/core/nodes.js';
+import type { EditEvent } from '#lib/editor-events.js';
 
-// The stale-table-row-ids class: a cross-block delete whose whole-row snap splices table.children
-// must commit the table as its own scope, keeping row BlockListState ids/refs in lockstep.
+// A cross-block delete whose whole-row snap splices a table's rows must commit the table as its
+// own scope, keeping the row list's ids and refs in lockstep.
 
 const HEADER_PLUS_TWO = '| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
-function makeEnv(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	// Production wiring: `getDoc` enables the selection state's table-endpoint normalization and
-	// whole-row snap, which the plain harness omits.
-	harness.deps.selectionState = createSelectionState({ getDoc: () => harness.deps.doc });
-	const controller = createUndoController(harness.deps);
-	const mutCtx = rangeContext(harness.deps, controller, fixtureReading());
-	return {
-		...harness,
-		controller,
-		mutCtx,
-		history: createHistoryActions(harness.deps, controller)
-	};
-}
+const makeEnv = (source: string) => makeRangeEnv(source, { liveSelection: true });
 
 function registerTableState(env: ReturnType<typeof makeEnv>, index: number): BlockListState {
 	return makeTableStateAt(() => env.deps.doc, index);

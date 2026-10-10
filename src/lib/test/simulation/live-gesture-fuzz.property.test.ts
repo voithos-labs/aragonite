@@ -5,18 +5,18 @@ import {
 	registerLiveSplitRebalancer,
 	__resetLiveJoinSeamCleanerForTests,
 	__resetLiveSplitRebalancerForTests
-} from '$lib/schema/inline-construct-policy';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
-import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
-import { freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
+} from '#lib/schema/inline-construct-policy.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
+import { rebalanceLiveSplit } from '#lib/components/blocks/text/live-split-rebalance.js';
+import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/index.js';
 import { fuzzLiveGestures, judgeGesture, type FuzzStats } from './live-gesture-fuzz';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 import { applyGesture, resetSurfaces, type Gesture } from './live-gesture-seams';
 import { documentContentText } from './live-screen-reading';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import '$lib/schema/built-in-descriptors';
-import '$lib/components/built-in-blocks';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import '#lib/schema/built-in-descriptors.js';
+import '#lib/components/built-in-blocks.js';
 
 // A seeded stream of typing and destructive gestures at hidden edges, each checked against what
 // live-mode.md § 2 allows; the checks live in `live-gesture-fuzz.ts`, the budget and pins here.
@@ -139,17 +139,17 @@ describe('the shapes that used to need an exclusion', () => {
 	// lands where the caret already was.
 	it('#116: a byte against a shared asterisk run lands at the caret', async () => {
 		const at = { kind: 'type' as const, offset: 18, char: 'a' };
-		for (const affinity of ['outside', 'near'] as const) {
+		for (const affinity of ['outside', null] as const) {
 			const drawn = await liveAndLiteral('******foo***![](u)**\n', { ...at, affinity });
-			expect(drawn.live, affinity).toBe(drawn.literal);
-			expect(drawn.screen, affinity).toBe('*fooa');
+			expect(drawn.live, String(affinity)).toBe(drawn.literal);
+			expect(drawn.screen, String(affinity)).toBe('*fooa');
 		}
 	});
 
 	// A space just inside an opener kills the construct and paints both its runs, so the painter
 	// rejects that candidate and the reading outside the run is written instead.
 	it('#162: a space at an opener puts the caret outside the run it would break', async () => {
-		const far = await liveAndLiteral('**bold** x\n', { offset: 0, char: ' ', affinity: 'far' });
+		const far = await liveAndLiteral('**bold** x\n', { offset: 0, char: ' ', affinity: null });
 		expect(far.live).toBe(' **bold** x\n');
 		expect(far.live).toBe(far.literal);
 		expect(far.screen).toBe(' bold x');
@@ -217,7 +217,7 @@ describe('the shapes that used to need an exclusion', () => {
 		const typed = await liveAndLiteral('*foo~![](u)*~~b &https://example.com \n', {
 			offset: 13,
 			char: ' ',
-			affinity: 'far'
+			affinity: 'outside'
 		});
 		expect(typed.live).toBe('*foo~![](u)*~ ~b &https://example.com \n');
 		expect(typed.live).toBe(typed.literal);
@@ -258,7 +258,7 @@ describe('painted chrome survives both cut joins', () => {
 	// Both runs leave one pair enclosing nothing, so the residue belongs to the byte-literal edit.
 	// Miss-analysis: every residue pin started with none, so no case had both runs leave one.
 	it('a residue the byte-literal counterpart leaves too is not live creating one', async () => {
-		const typed = await liveAndLiteral('**[](u)**\n', { offset: 9, char: 'a', affinity: 'near' });
+		const typed = await liveAndLiteral('**[](u)**\n', { offset: 9, char: 'a', affinity: null });
 		expect(typed.live).toBe('**[](u)a**\n');
 		expect(typed.literal).toBe('**[](u)**a\n');
 		expect(typed.seams().map((v) => v.oracle)).toEqual([]);

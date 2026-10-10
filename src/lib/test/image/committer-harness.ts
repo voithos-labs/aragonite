@@ -3,7 +3,7 @@
  * spy controller. Shared by every committer suite; registering a syntax handler stays per test.
  */
 
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { vi } from 'vitest';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
@@ -15,6 +15,7 @@ import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export interface CommitterHarness {
 	committer: ReturnType<typeof createImageEditCommitter>;
@@ -30,6 +31,7 @@ export function committerFor(raw: string): CommitterHarness {
 	const doc = parse(raw);
 	const controller: UndoController = makeStubController();
 	const committer = createImageEditCommitter({
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		getEditorEl: () => null,
 		selection: createSelectionState(),

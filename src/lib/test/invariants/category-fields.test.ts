@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { checkCategoryFields } from '../../invariants/node-shape';
 import { checkMergeRoleVocabulary } from '../../invariants/registry';
 import { MERGE_ROLES, isKnownMergeRole } from '../../schema/block-kind-descriptor';

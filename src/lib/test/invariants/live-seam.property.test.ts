@@ -1,25 +1,25 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import type { Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { displayLength } from '$lib/core/lines';
-import { getContentRange, parseInline } from '$lib/core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { isSubsequence } from '$lib/test/harness/live-oracles';
-import { unpaintedResidue } from '$lib/test/simulation/live-screen-reading';
-import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
+import type { Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { displayLength } from '#lib/core/lines.js';
+import { getContentRange, parseInline } from '#lib/core/inline/index.js';
+import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { isSubsequence } from '#lib/test/harness/live-oracles.js';
+import { unpaintedResidue } from '#lib/test/simulation/live-screen-reading.js';
+import { cleanLiveJoinSeam } from '#lib/components/blocks/text/live-join-seam.js';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import type { PresentationMode } from '$lib/presentation-mode';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 
 /**
@@ -117,33 +117,20 @@ describe('live-mode joins over random range deletes', () => {
 	beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 	afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
-	it('a live delete diverges nowhere the byte-literal delete already does', () => {
-		fc.assert(
-			fc.property(arbInlineDoc, arbCut, (source, cut) => {
-				const literal = deleteRange(source, cut, undefined);
-				if (literal === null || literal.shape !== null) return;
-				if (serialize(parse(literal.bytes)) !== literal.bytes) return;
-				const live = deleteRange(source, cut, 'live');
-				if (live === null) return;
-				if (live.shape !== null) {
-					throw new Error(`${JSON.stringify(source)}: reload shape; ${live.shape}`);
-				}
-				if (serialize(parse(live.bytes)) !== live.bytes) {
-					throw new Error(
-						`${JSON.stringify(source)}: not a round-trip ${JSON.stringify(live.bytes)}`
-					);
-				}
-			}),
-			PARAMS
-		);
-	});
-
-	it('a live delete only ever drops bytes, and never creates unpainted residue', () => {
+	// The counters prove the draws reach the rewrite and that it takes glyphs off the screen; a
+	// comparison over draws that never rewrite proves nothing about the rewrite.
+	it('a live delete only drops bytes, adds no residue, and diverges only where the literal one does', () => {
+		let rewritten = 0;
+		let cleaned = 0;
+		const glyphs = (text: string) => (text.match(/[*_~`[\]]/g) ?? []).length;
 		fc.assert(
 			fc.property(arbInlineDoc, arbCut, (source, cut) => {
 				const literal = deleteRange(source, cut, undefined);
 				const live = deleteRange(source, cut, 'live');
 				if (literal === null || live === null) return;
+				if (live.bytes !== literal.bytes) rewritten++;
+				if (glyphs(live.visible) < glyphs(literal.visible)) cleaned++;
+
 				if (!isSubsequence(live.bytes, literal.bytes)) {
 					throw new Error(
 						`${JSON.stringify(source)}: live wrote ${JSON.stringify(live.bytes)}, not a ` +
@@ -158,24 +145,16 @@ describe('live-mode joins over random range deletes', () => {
 							`against ${JSON.stringify(literal.bytes)}`
 					);
 				}
-			}),
-			PARAMS
-		);
-	});
 
-	// A comparison over draws that never rewrite proves nothing about the rewrite, and a glyph
-	// budget nobody spends checks nothing.
-	it('the corpus reaches the rewrite, and the rewrite takes glyphs off the screen', () => {
-		let rewritten = 0;
-		let cleaned = 0;
-		const glyphs = (text: string) => (text.match(/[*_~`[\]]/g) ?? []).length;
-		fc.assert(
-			fc.property(arbInlineDoc, arbCut, (source, cut) => {
-				const literal = deleteRange(source, cut, undefined);
-				const live = deleteRange(source, cut, 'live');
-				if (literal === null || live === null) return;
-				if (live.bytes !== literal.bytes) rewritten++;
-				if (glyphs(live.visible) < glyphs(literal.visible)) cleaned++;
+				if (literal.shape !== null || serialize(parse(literal.bytes)) !== literal.bytes) return;
+				if (live.shape !== null) {
+					throw new Error(`${JSON.stringify(source)}: reload shape; ${live.shape}`);
+				}
+				if (serialize(parse(live.bytes)) !== live.bytes) {
+					throw new Error(
+						`${JSON.stringify(source)}: not a round-trip ${JSON.stringify(live.bytes)}`
+					);
+				}
 			}),
 			PARAMS
 		);

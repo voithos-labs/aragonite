@@ -22,9 +22,6 @@ text lining up under it on line 2, to test where a click lands.
 
 - click the rendered math: the `$…$` source appears in place, the KaTeX widget is gone, and the
   serialized source is unchanged, since only what is shown has changed
-- move the caret in from the left (Home, ArrowRight to the widget's leading edge, one more to
-  enter it): the source appears in place at the leading edge, with no invisible select-then-Enter
-  step, and a typed character lands before the opening `$`
 - edit the shown source and walk the caret out of it (End): KaTeX re-renders and the edited
   `$…$` bytes are in the source, round-trip stable
 - double-click the rendered math: the first click shows the source and the whole `$x^2$` token

@@ -6,7 +6,7 @@
 
 import type { DocumentView } from '../core/node-views';
 import { CURSOR_END, CURSOR_START, entryEdge } from '../block-component';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { displayLength } from '../core/lines';
 import { leafAtRawOffset } from '../tree-operations/container-offsets';

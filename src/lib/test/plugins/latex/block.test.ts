@@ -1,11 +1,10 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
-import { roundTripCases } from '$lib/test/support/round-trip';
-import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
-import { latexPlugin } from '$lib/plugins/latex';
+import { installPlugins, parse, serialize } from '#lib';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { getInlineRungs } from '#lib/core/inline/scan/plugin-syntax.js';
+import { roundTripCases } from '#lib/test/support/round-trip.js';
+import { registerMathBlock, MATH_BLOCK } from '#lib/plugins/latex/latex-kind.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
 
 // Recognition starts only once the opener registers: with the plugin absent a `$$` fence is
 // ordinary GFM text (a paragraph), byte-identical to plain GFM.
@@ -17,25 +16,9 @@ describe('block math is dormant until registered', () => {
 	});
 });
 
-// A closed single line (`$$…$$`) at column 0 is a one-line block, and a bare `$$` opens one a
-// later bare `$$` closes; any other `$$` line, or an unterminated fence, stays a paragraph.
-describe('block math recognition', () => {
+// Which lines open a block is `math-shape-parity.test.ts`'s; these pin the node and its neighbours.
+describe('a parsed math block', () => {
 	beforeEach(registerMathBlock);
-
-	const recognition: Array<[string, string, boolean]> = [
-		['multi-line fence', '$$\nx^2\n$$\n', true],
-		['single-line fence', '$$x^2$$\n', true],
-		['single-line with interior padding', '$$ x^2 $$\n', true],
-		['blank line inside the fence', '$$\nx\n\ny\n$$\n', true],
-		['unterminated fence', '$$\nx^2\n', false],
-		['bare $$ at end of input', '$$\n', false],
-		['content on the opener line, unclosed', '$$ x\ny\n', false]
-	];
-	for (const [name, src, recognized] of recognition) {
-		it(`${name} → ${recognized ? 'mathBlock' : 'paragraph'}`, () => {
-			expect(parse(src).children[0].kind).toBe(recognized ? MATH_BLOCK : 'paragraph');
-		});
-	}
 
 	it('parses a fence to a single source-holding leaf (no children)', () => {
 		const node = parse('$$\nx^2\n$$\n').children[0];

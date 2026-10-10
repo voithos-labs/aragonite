@@ -20,6 +20,9 @@ file covers the gesture the user makes.)
   view, from a scroll position where the definition was not mounted
 - **Editing mode, Ctrl+click:** the definition comes into view and the caret lands in its body,
   so the next keystroke edits the note rather than going nowhere on the reference
+- **Editing mode, Ctrl+click with a range already selected in the reference's paragraph:** it
+  still jumps. A range left from before the press isn't a drag; only a pointer that travelled
+  between press and release is
 - **The way back:** Ctrl/Cmd+clicking the definition's `[^label]` marker brings the block
   holding the first reference into view and puts the caret immediately past that reference's
   closing bracket
@@ -93,3 +96,6 @@ file covers the gesture the user makes.)
   between the second press and its click could move it. A root listener that selects the word
   under the second press did move it, and the rule excluded itself from the one gesture it
   exists for; it now keys off the click's point.
+- A range left from before the press: the shared rule took "the paragraph holds a range at the
+  release" as "this click ended a drag", and no row clicked a reference with a range already
+  selected, which the press keeps because the editor cancels the browser's press on a widget.

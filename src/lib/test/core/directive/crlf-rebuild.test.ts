@@ -1,12 +1,11 @@
-// @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { getPluginMetadata } from '$lib/core/nodes';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { parse } from '#lib/core/parser.js';
+import { getPluginMetadata } from '#lib/core/nodes.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import {
 	rebuildDirectiveContainerRaw,
 	type DirectiveContainerMetadata
-} from '$lib/core/directive/kinds';
+} from '#lib/core/directive/kinds.js';
 
 // Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
 // edit re-synthesizes the fence lines, which must not normalize CRLF to `\n`.

@@ -205,17 +205,19 @@ test.describe('gap caret keys', () => {
 		{ key: 'Escape', lands: 'the table', typed: '| c | dX |' }
 	];
 
-	for (const exit of EXITS) {
-		test(`${exit.key} leaves the gap for ${exit.lands}`, async () => {
-			await loadThenArrive(editor);
+	test('every exit key leaves the gap for the block its direction names', async () => {
+		for (const exit of EXITS) {
+			await test.step(`${exit.key} leaves the gap for ${exit.lands}`, async () => {
+				await loadThenArrive(editor);
 
-			await editor.page.keyboard.press(exit.key);
-			await editor.bridge.waitForGapCaret(null);
-			await editor.typeText('X');
+				await editor.page.keyboard.press(exit.key);
+				await editor.bridge.waitForGapCaret(null);
+				await editor.typeText('X');
 
-			await editor.bridge.waitForSourceContains(exit.typed);
-		});
-	}
+				await editor.bridge.waitForSourceContains(exit.typed);
+			});
+		}
+	});
 });
 
 test.describe('gap caret in reading mode', () => {

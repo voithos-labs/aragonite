@@ -6,9 +6,10 @@
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { DocumentGetter } from '../editor-keys';
-import type { CaretMemory } from '../cursor/caret-memory';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { CaretMemory } from '../caret/caret-memory';
+import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { SelectionState } from './selection-state.svelte';
+import type { CaretWriter } from '../caret/widget-offset';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import type { CommandDispatchContext } from '../schema/block-commands';
 import { commandAtBlock } from './cross-block/keydown';
@@ -18,9 +19,9 @@ import {
 	extendFocusToPreviousBlock,
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
-import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
-import { landableRawBounds } from '../cursor/widget-offset';
-import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
+import { getCurrentCursorEditorRelativeX } from '../caret/sticky-measure';
+import { landableRawBounds } from '../caret/widget-offset';
+import { isAtFirstVisualLine, isAtLastVisualLine } from '../caret/visual-lines';
 import { endsSelectAllRun, eventToChord } from '../schema/keybindings';
 import { isDefaultGlobalChord } from '../schema/commands';
 
@@ -37,6 +38,7 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	caretMemory: CaretMemory;
 	history: HistoryActions;
 	focus: FocusActions;
@@ -98,6 +100,7 @@ export async function handleSharedKeydown(
 				e.preventDefault();
 				extendFocusToPreviousBlock(
 					ctx.selection,
+					ctx.caretWriter,
 					ctx.getDoc(),
 					ctx.reading.grammar,
 					el,
@@ -124,6 +127,7 @@ export async function handleSharedKeydown(
 				e.preventDefault();
 				extendFocusToNextBlock(
 					ctx.selection,
+					ctx.caretWriter,
 					ctx.getDoc(),
 					ctx.reading.grammar,
 					el,
@@ -148,7 +152,14 @@ export async function handleSharedKeydown(
 		if (offset !== null && offset <= bounds().start) {
 			if (e.shiftKey) {
 				e.preventDefault();
-				extendFocusToPreviousBlock(ctx.selection, ctx.getDoc(), ctx.reading.grammar, el, myPath);
+				extendFocusToPreviousBlock(
+					ctx.selection,
+					ctx.caretWriter,
+					ctx.getDoc(),
+					ctx.reading.grammar,
+					el,
+					myPath
+				);
 				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}
@@ -163,7 +174,14 @@ export async function handleSharedKeydown(
 		if (offset !== null && offset >= bounds().end) {
 			if (e.shiftKey) {
 				e.preventDefault();
-				extendFocusToNextBlock(ctx.selection, ctx.getDoc(), ctx.reading.grammar, el, myPath);
+				extendFocusToNextBlock(
+					ctx.selection,
+					ctx.caretWriter,
+					ctx.getDoc(),
+					ctx.reading.grammar,
+					el,
+					myPath
+				);
 				scrollFocusBlockIntoView(ctx.selection, ctx.scrollOwner);
 				return true;
 			}

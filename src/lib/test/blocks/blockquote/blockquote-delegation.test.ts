@@ -4,12 +4,12 @@
 // `containerApi` to BlockHost, not to the test.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import BlockquoteBlock from '$lib/components/blocks/BlockquoteBlock.svelte';
-import { parse } from '$lib/core/parser';
+import BlockquoteBlock from '#lib/components/blocks/BlockquoteBlock.svelte';
+import { parse } from '#lib/core/parser.js';
 import { editorMountContext } from '../../harness/mount-context';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { componentAt } from '$lib/reactivity/child-list';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { componentAt } from '#lib/block-lists/child-list.js';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));

@@ -6,6 +6,7 @@ import { EditorPage } from '../../../editor-page';
 // Requirements: `e2e/requirements/blocks/code/live-navigation.md`.
 
 const DOC = 'Before\n\n```js\nconst x = 1;\nfoo();\n```\n\nAfter\n';
+const EMPTY_FENCE_DOC = 'Before\n\n```\n```\n\nAfter\n';
 // Raw offsets inside block [1]: the opener line is 6 bytes, the body runs 6..25.
 const BODY_START = 6;
 const LINE_TWO = 19;
@@ -15,209 +16,205 @@ async function landedIn(editor: EditorPage): Promise<number | undefined> {
 	return (await editor.bridge.getSelectionPaths())?.anchor.path[0];
 }
 
+async function liveEditor(page: EditorPage['page']): Promise<EditorPage> {
+	const editor = new EditorPage(page);
+	await editor.goto('?presentationMode=live');
+	await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+	return editor;
+}
+
 test.describe('code block in live mode: arrows at every edge', () => {
-	let editor: EditorPage;
+	test('arrows enter and leave the body at each edge, and walk its lines', async ({ page }) => {
+		const editor = await liveEditor(page);
 
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto('?presentationMode=live');
-		await editor.loadContent(DOC);
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
-	});
+		await test.step('ArrowRight from the block above lands at the body start', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockEnd(0);
+			await page.keyboard.press('ArrowRight');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('```js\nXconst x = 1;');
+		});
 
-	test('ArrowRight from the block above lands at the body start', async ({ page }) => {
-		await editor.focusBlockEnd(0);
-		await page.keyboard.press('ArrowRight');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('```js\nXconst x = 1;');
-	});
+		await test.step('ArrowLeft at the body start leaves to the end of the block above', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockAtPath([1], BODY_START);
+			await page.keyboard.press('ArrowLeft');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('BeforeX\n');
+		});
 
-	test('ArrowLeft at the body start leaves to the end of the block above', async ({ page }) => {
-		await editor.focusBlockAtPath([1], BODY_START);
-		await page.keyboard.press('ArrowLeft');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('BeforeX\n');
-	});
+		await test.step('ArrowRight at the body end leaves to the start of the block below', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockAtPath([1], BODY_END);
+			await page.keyboard.press('ArrowRight');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('\nXAfter');
+		});
 
-	test('ArrowRight at the body end leaves to the start of the block below', async ({ page }) => {
-		await editor.focusBlockAtPath([1], BODY_END);
-		await page.keyboard.press('ArrowRight');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('\nXAfter');
-	});
+		await test.step('ArrowLeft from the block below lands at the body end', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockStart(2);
+			await page.keyboard.press('ArrowLeft');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('foo();X\n```');
+		});
 
-	test('ArrowLeft from the block below lands at the body end', async ({ page }) => {
-		await editor.focusBlockStart(2);
-		await page.keyboard.press('ArrowLeft');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('foo();X\n```');
-	});
+		await test.step('ArrowDown walks the body lines, then leaves below; ArrowUp mirrors it', async () => {
+			await editor.loadContent(DOC);
+			// A real click places the caret and sets the sticky column the vertical moves read;
+			// each read then polls for a landing the handler awaits.
+			await editor.clickBlockAtPath([0], 6);
+			await page.keyboard.press('ArrowDown');
+			await expect.poll(() => landedIn(editor)).toBe(1);
+			await page.keyboard.press('ArrowDown');
+			await expect.poll(() => landedIn(editor)).toBe(1);
+			await page.keyboard.press('ArrowDown');
+			await expect.poll(() => landedIn(editor)).toBe(2);
 
-	test('ArrowDown walks the body lines, then leaves below; ArrowUp mirrors it', async ({
-		page
-	}) => {
-		// A real click places the caret and sets the sticky column the vertical moves read;
-		// each read then polls for a landing the handler awaits.
-		await editor.clickBlockAtPath([0], 6);
-		await page.keyboard.press('ArrowDown');
-		await expect.poll(() => landedIn(editor)).toBe(1);
-		await page.keyboard.press('ArrowDown');
-		await expect.poll(() => landedIn(editor)).toBe(1);
-		await page.keyboard.press('ArrowDown');
-		await expect.poll(() => landedIn(editor)).toBe(2);
-
-		await page.keyboard.press('ArrowUp');
-		await expect.poll(() => landedIn(editor)).toBe(1);
-		await page.keyboard.press('ArrowUp');
-		await expect.poll(() => landedIn(editor)).toBe(1);
-		await page.keyboard.press('ArrowUp');
-		await expect.poll(() => landedIn(editor)).toBe(0);
+			await page.keyboard.press('ArrowUp');
+			await expect.poll(() => landedIn(editor)).toBe(1);
+			await page.keyboard.press('ArrowUp');
+			await expect.poll(() => landedIn(editor)).toBe(1);
+			await page.keyboard.press('ArrowUp');
+			await expect.poll(() => landedIn(editor)).toBe(0);
+		});
 	});
 });
 
 test.describe('code block in live mode: line extremes and the fence lines', () => {
-	let editor: EditorPage;
+	test('Home, End, Tab and Backspace stay in the body', async ({ page }) => {
+		const editor = await liveEditor(page);
 
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto('?presentationMode=live');
-		await editor.loadContent(DOC);
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+		await test.step('Home on the first body line puts the caret at its column 0, not in the hidden opener', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockAtPath([1], BODY_START + 4);
+			await page.keyboard.press('Home');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('```js\nXconst x = 1;');
+		});
+
+		await test.step('End on the last body line puts the caret after its last byte, not past the hidden closer', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockAtPath([1], LINE_TWO + 2);
+			await page.keyboard.press('End');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('foo();X\n```');
+		});
+
+		await test.step('Tab at a body line start indents the line', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockAtPath([1], BODY_START);
+			await page.keyboard.press('Tab');
+			await editor.bridge.waitForSourceContains('```js\n\tconst x = 1;');
+		});
+
+		await test.step('Backspace at the body start leaves upward and the fence stays whole', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockAtPath([1], BODY_START);
+			await page.keyboard.press('Backspace');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceEquals(
+				'BeforeX\n\n```js\nconst x = 1;\nfoo();\n```\n\nAfter\n'
+			);
+		});
+
+		await test.step('Backspace on the last byte of a one-character body empties it without reaching the fence', async () => {
+			await editor.loadContent('```js\na\n```\n\nAfter\n');
+			await editor.focusBlockAtPath([0], 7);
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('```js\n\n```\n\nAfter\n');
+			expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+			await expect(page.locator('.code-lang-picker')).toHaveCount(0);
+		});
 	});
 
-	test('Home on the first body line puts the caret at its column 0, not in the hidden opener', async ({
+	test('Enter at the body end opens a line and then leaves; a typed closer leaves too', async ({
 		page
 	}) => {
-		await editor.focusBlockAtPath([1], BODY_START + 4);
-		await page.keyboard.press('Home');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('```js\nXconst x = 1;');
-	});
+		const editor = await liveEditor(page);
 
-	test('End on the last body line puts the caret after its last byte, not past the hidden closer', async ({
-		page
-	}) => {
-		await editor.focusBlockAtPath([1], LINE_TWO + 2);
-		await page.keyboard.press('End');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('foo();X\n```');
-	});
+		await test.step('Enter at the body end opens a line inside the fence; a second Enter leaves below', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockAtPath([1], BODY_END);
+			await page.keyboard.press('Enter');
+			await editor.bridge.waitForSourceContains('foo();\n\n```');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('foo();\nX\n```');
 
-	test('Enter at the body end opens a line inside the fence; a second Enter leaves below', async ({
-		page
-	}) => {
-		await editor.focusBlockAtPath([1], BODY_END);
-		await page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceContains('foo();\n\n```');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('foo();\nX\n```');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+			await page.keyboard.type('Y');
+			await editor.bridge.waitForSourceEquals(
+				'Before\n\n```js\nconst x = 1;\nfoo();\nX\n```\n\nYAfter\n'
+			);
+		});
 
-		await page.keyboard.press('Enter');
-		await page.keyboard.press('Enter');
-		await page.keyboard.type('Y');
-		await editor.bridge.waitForSourceEquals(
-			'Before\n\n```js\nconst x = 1;\nfoo();\nX\n```\n\nYAfter\n'
-		);
-	});
+		// The closer is hidden here, so typing one is the user asking to leave rather than to write
+		// bytes: the run never lands, and the caret arrives in the block already below.
+		await test.step('a closer typed on the empty last line leaves below, writing none of its bytes', async () => {
+			await editor.loadContent(DOC);
+			await editor.focusBlockAtPath([1], BODY_END);
+			await page.keyboard.press('Enter');
+			await editor.bridge.waitForSourceContains('foo();\n\n```');
 
-	// The closer is hidden here, so typing one is the user asking to leave rather than to write
-	// bytes: the run never lands, and the caret arrives in the block already below.
-	test('a closer typed on the empty last line leaves below, writing none of its bytes', async ({
-		page
-	}) => {
-		await editor.focusBlockAtPath([1], BODY_END);
-		await page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceContains('foo();\n\n```');
+			await page.keyboard.type('```');
+			await page.keyboard.type('Y');
 
-		await page.keyboard.type('```');
-		await page.keyboard.type('Y');
-
-		await editor.bridge.waitForSourceEquals(
-			'Before\n\n```js\nconst x = 1;\nfoo();\n```\n\nYAfter\n'
-		);
-	});
-
-	test('Backspace at the body start leaves upward and the fence stays whole', async ({ page }) => {
-		await editor.focusBlockAtPath([1], BODY_START);
-		await page.keyboard.press('Backspace');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceEquals(
-			'BeforeX\n\n```js\nconst x = 1;\nfoo();\n```\n\nAfter\n'
-		);
-	});
-
-	test('Backspace on the last byte of a one-character body empties it without reaching the fence', async ({
-		page
-	}) => {
-		await editor.loadContent('```js\na\n```\n\nAfter\n');
-		await editor.focusBlockAtPath([0], 7);
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('```js\n\n```\n\nAfter\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-		await expect(page.locator('.code-lang-picker')).toHaveCount(0);
-	});
-
-	test('Tab at a body line start indents the line', async ({ page }) => {
-		await editor.focusBlockAtPath([1], BODY_START);
-		await page.keyboard.press('Tab');
-		await editor.bridge.waitForSourceContains('```js\n\tconst x = 1;');
+			await editor.bridge.waitForSourceEquals(
+				'Before\n\n```js\nconst x = 1;\nfoo();\n```\n\nYAfter\n'
+			);
+		});
 	});
 });
 
 test.describe('code block in live mode: an empty fence', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto('?presentationMode=live');
-		await editor.loadContent('Before\n\n```\n```\n\nAfter\n');
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
-	});
-
-	test('ArrowRight from above completes the fence and types into its body line', async ({
+	test('an empty fence completes as the caret arrives, and the delete leaves one caret', async ({
 		page
 	}) => {
-		await editor.focusBlockEnd(0);
-		await page.keyboard.press('ArrowRight');
-		await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceEquals('Before\n\n```\nX\n```\n\nAfter\n');
-	});
+		const editor = await liveEditor(page);
 
-	test('ArrowLeft from below enters, and ArrowLeft again leaves to the block above', async ({
-		page
-	}) => {
-		await editor.focusBlockStart(2);
-		await page.keyboard.press('ArrowLeft');
-		await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
-		expect(await landedIn(editor)).toBe(1);
-		await page.keyboard.press('ArrowLeft');
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceContains('BeforeX\n');
-	});
-
-	test('Backspace on the empty body line deletes the fence and lands at the end of the block above', async ({
-		page
-	}) => {
-		await editor.focusBlockEnd(0);
-		await page.keyboard.press('ArrowRight');
-		await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
-		// Which blocks took focus after the key: a delete that places its caret twice shows here even
-		// when the second placement happens to win.
-		await page.evaluate(() => {
-			const w = window as unknown as { focused: string[] };
-			w.focused = [];
-			document.addEventListener('focusin', (e) =>
-				w.focused.push((e.target as Element).textContent ?? '')
-			);
+		await test.step('ArrowRight from above completes the fence and types into its body line', async () => {
+			await editor.loadContent(EMPTY_FENCE_DOC);
+			await editor.focusBlockEnd(0);
+			await page.keyboard.press('ArrowRight');
+			await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceEquals('Before\n\n```\nX\n```\n\nAfter\n');
 		});
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('Before\n\nAfter\n');
-		await editor.waitForRenderFlush();
-		expect(await page.evaluate(() => (window as unknown as { focused: string[] }).focused)).toEqual(
-			['Before']
-		);
-		await page.keyboard.type('X');
-		await editor.bridge.waitForSourceEquals('BeforeX\n\nAfter\n');
+
+		await test.step('ArrowLeft from below enters, and ArrowLeft again leaves to the block above', async () => {
+			await editor.loadContent(EMPTY_FENCE_DOC);
+			await editor.focusBlockStart(2);
+			await page.keyboard.press('ArrowLeft');
+			await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
+			expect(await landedIn(editor)).toBe(1);
+			await page.keyboard.press('ArrowLeft');
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceContains('BeforeX\n');
+		});
+
+		await test.step('Backspace on the empty body line deletes the fence and lands at the end of the block above', async () => {
+			await editor.loadContent(EMPTY_FENCE_DOC);
+			await editor.focusBlockEnd(0);
+			await page.keyboard.press('ArrowRight');
+			await editor.bridge.waitForSourceEquals('Before\n\n```\n\n```\n\nAfter\n');
+			// Which blocks took focus after the key: a delete that places its caret twice shows here
+			// even when the second placement happens to win.
+			await page.evaluate(() => {
+				const w = window as unknown as { focused: string[] };
+				w.focused = [];
+				document.addEventListener('focusin', (e) =>
+					w.focused.push((e.target as Element).textContent ?? '')
+				);
+			});
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('Before\n\nAfter\n');
+			await editor.waitForRenderFlush();
+			expect(
+				await page.evaluate(() => (window as unknown as { focused: string[] }).focused)
+			).toEqual(['Before']);
+			await page.keyboard.type('X');
+			await editor.bridge.waitForSourceEquals('BeforeX\n\nAfter\n');
+		});
 	});
 });

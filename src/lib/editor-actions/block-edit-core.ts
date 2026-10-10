@@ -62,7 +62,7 @@ import {
 } from '../tree-operations/content-write';
 import { createPathScope, type CommitScope } from './block-edit-scope';
 import type { EditorRoot } from './deps';
-import { docPathFrom, extendDocPath } from '../cursor/coordinate-spaces';
+import { docPathFrom, extendDocPath } from '../caret/coordinate-spaces';
 import { mergedElseNext, mergedElsePrevious } from './merge-fallback';
 import { previewContentReparse, unlessFocusMoved } from './replacement-focus';
 import type { Landing } from '../selection/primitives';
@@ -312,7 +312,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				},
 				// The primitive's index, not `i + 1`: a first half that parses to several blocks
 				// pushes the second half further down.
-				landing: () => (split ? scope.at(split.secondHalfIndex, [], split.landingOffset) : null),
+				landing: () =>
+					split
+						? { ...scope.at(split.secondHalfIndex, [], split.landingOffset), fresh: true }
+						: null,
 				// A single-line block (a title row) splits to nothing, so discard rather than
 				// push a dead undo entry on a rebound Enter.
 				discardIfNoop: true

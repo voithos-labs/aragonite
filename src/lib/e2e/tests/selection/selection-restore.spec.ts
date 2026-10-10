@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { capturePageErrors } from '../../page-probes';
+import { capturePageErrors, deferImage } from '../../page-probes';
 import type { EditorSelection } from '../../../selection/primitives';
 import { dragBetweenCells } from '../blocks/table/helpers';
 
@@ -42,20 +42,6 @@ function lateGrowthDoc(): string {
 	);
 	blocks.push(`![late](${LATE_IMAGE_URL})`);
 	return blocks.join('\n\n') + '\n';
-}
-
-/** Hold the image response until the returned release is called, so its growth lands
- *  after the restore instead of racing it. */
-async function deferImage(page: Page): Promise<() => void> {
-	let release!: () => void;
-	const gate = new Promise<void>((resolve) => {
-		release = resolve;
-	});
-	await page.route('https://e2e-deferred.test/**', async (route) => {
-		await gate;
-		await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: LATE_IMAGE_SVG });
-	});
-	return release;
 }
 
 const imageHostHeight = (page: Page) =>
@@ -302,7 +288,7 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 		const snapshot = await editor.bridge.getSelection();
 		await editor.clickBlockAtPath([2], 0);
 
-		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
+		await editor.setPresentationMode('reading');
 		await editor.waitForRenderFlush();
 
 		expect(await editor.bridge.setSelection(snapshot!)).toBe(true);
@@ -357,7 +343,7 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 	test('hands the scroll position back once it resolves', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		// After the harness is up (beforeEach) but before any content asks for the image.
-		const releaseImage = await deferImage(page);
+		const releaseImage = await deferImage(page, LATE_IMAGE_SVG);
 
 		await editor.loadContent(lateGrowthDoc());
 		await editor.waitForRenderFlush();

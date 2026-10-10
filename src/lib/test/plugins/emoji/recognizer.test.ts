@@ -1,8 +1,7 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { parseInline, type InlineNode } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { registerEmoji, EMOJI_KIND } from '$lib/plugins/emoji/emoji-recognizer';
+import { parseInline, type InlineNode } from '#lib';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { registerEmoji, EMOJI_KIND } from '#lib/plugins/emoji/emoji-recognizer.js';
 
 const isEmoji = (n: InlineNode) => n.kind === EMOJI_KIND;
 const scan = (raw: string) => parseInline(raw, 0, raw.length);

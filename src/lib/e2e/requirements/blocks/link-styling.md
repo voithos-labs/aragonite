@@ -1,8 +1,9 @@
 # Feature: Link styling and click affordance
 
-Links must read as links without taking the plain click away from editing: a
-plain click places the caret, only a Ctrl/Cmd-click follows the link, and the
-cursor shows exactly that. Layout and safety follow the same rule: a link
+Links must read as links without taking the plain click away from editing: by
+default a plain click places the caret, only a Ctrl/Cmd-click follows the link,
+and the cursor shows exactly that. (A host that sets `linkClick: 'plain'` gets
+the pointer in live mode; `plugins/wikilinks.md` covers it.) Layout and safety follow the same rule: a link
 wrapped around an image hugs the image, and a link whose scheme is blocked
 never looks clickable.
 
@@ -25,6 +26,8 @@ never looks clickable.
 - Hold Ctrl/Cmd: links and autolinks switch from the text caret to a pointer
   cursor, and releasing it brings the text caret back. A plain click edits,
   only a modifier-click follows the link.
+- In reading mode a plain click follows a link, so links show the pointer
+  with no key held.
 - Release the modifier while the page is unfocused (alt-tab, an OS shortcut):
   the pointer cursor clears on its own instead of sticking until the next
   keypress.

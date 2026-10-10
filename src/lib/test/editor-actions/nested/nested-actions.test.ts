@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import type { CstNode } from '$lib/core/nodes';
-import type { BlockEditActions } from '$lib/action-contracts';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
 import {
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 
 // listItem is the container without an unwrapRole: kinds that declare one send
 // mergeWithPrevious(0) to an unwrap strategy instead of handing it to the parent.

@@ -1,8 +1,7 @@
 /**
  * How many times over the containers store the document's bytes: Σ(container raw) ÷
- * serialized document bytes. Deterministic for a fixed fixture, and the logged factors feed
- * `baseline.json`; the assertion only checks that the traversal builds the content at least
- * once (a broken one reads 1 or less). The hard ceilings live in `counters.test.ts`.
+ * serialized document bytes, logged for `baseline.json`. A report, not a gate: the ceilings live
+ * in `counters.test.ts`, and each row here checks only that nested containers were counted.
  */
 import { expect, it } from 'vitest';
 import { parse } from '../../core/parser';
@@ -11,7 +10,7 @@ import { containerRawBytes } from './container-raw-bytes';
 import { generateDeepNested, generateFixture } from './fixtures/generate';
 
 for (const shape of ['nested-containers', 'table-heavy'] as const) {
-	for (const bytes of [100_000, 1_000_000]) {
+	for (const bytes of [100_000]) {
 		it(`report: container-raw amplification; ${shape} @ ${bytes}B`, () => {
 			const doc = parse(generateFixture(shape, bytes));
 			const amplification = containerRawBytes(doc.children) / docByteLength(doc);

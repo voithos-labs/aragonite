@@ -1,22 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor-events';
-import { fixtureReading } from '../../harness/fixture-grammar';
-import { rangeContext } from './range-context';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { EditEvent } from '#lib/editor-events.js';
+import { makeRangeEnv } from './range-context';
 
-const SOURCE = '# A\n\npara B\n\npara C\n';
-
-function makeEnv() {
-	const harness = makeEditorActionsDeps(parse(SOURCE).children);
-	const controller = createUndoController(harness.deps);
-	return { ...harness, mutCtx: rangeContext(harness.deps, controller, fixtureReading()) };
-}
+const makeEnv = () => makeRangeEnv('# A\n\npara B\n\npara C\n');
 
 const BACKSPACE = { kind: 'none', gesture: 'Backspace' } as const;
 

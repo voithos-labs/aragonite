@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
+import { serialize } from '#lib/core/serializer.js';
 import { makeReorderContainer } from './reorder-harness';
 
 // Inside a container a move must keep a blank line between the pair it leaves, or a quote's HTML

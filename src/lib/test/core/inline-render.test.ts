@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
-import { rawTextOfNode } from '../../cursor/widget-offset';
+import { rawTextOfNode } from '../../caret/widget-offset';
 import type { InlineNode } from '../../core/nodes';
 import { renderOptions } from '../harness/fixture-grammar';
 
@@ -252,5 +252,47 @@ describe('inline-render: href + autolink anchor', () => {
 			renderOptions({ resolveLinkUrl: (u) => `https://host${u}` })
 		);
 		expect(frag.querySelector('a')?.getAttribute('href')).toBe('https://host/note');
+	});
+});
+
+describe('inline-render: one element per construct', () => {
+	const render = (raw: string): HTMLElement => {
+		const div = document.createElement('div');
+		div.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw, renderOptions()));
+		return div;
+	};
+
+	it.each([
+		{ name: 'bold', raw: '**bold text**', tag: 'strong', text: 'bold text' },
+		{ name: 'italic', raw: '*italic text*', tag: 'em', text: 'italic text' },
+		{ name: 'strikethrough', raw: '~~gone~~', tag: 's', text: 'gone' }
+	])('$name renders one <$tag> around its text', ({ raw, tag, text }) => {
+		const div = render(`a ${raw} b`);
+
+		expect(div.querySelectorAll(tag)).toHaveLength(1);
+		expect(div.querySelector(tag)?.textContent).toContain(text);
+	});
+
+	it('inline code renders its content in a <code> and keeps both backticks as markers', () => {
+		const div = render('a `inline code` b');
+
+		expect(div.querySelectorAll('code.inline-code-content')).toHaveLength(1);
+		expect(div.querySelector('code.inline-code-content')?.textContent).toBe('inline code');
+		expect(div.querySelectorAll('.md-marker').length).toBeGreaterThanOrEqual(2);
+	});
+
+	it('a link renders its text in one anchor', () => {
+		const div = render('a [link](https://example.com) b');
+
+		expect(div.querySelectorAll('a.md-link-content')).toHaveLength(1);
+		expect(div.querySelector('a.md-link-content')?.textContent).toBe('link');
+	});
+
+	it('italic inside bold nests the <em> inside the <strong>', () => {
+		const div = render('**bold *and italic* rest**');
+
+		expect(div.querySelectorAll('strong')).toHaveLength(1);
+		expect(div.querySelectorAll('strong em')).toHaveLength(1);
+		expect(div.querySelector('strong em')?.textContent).toContain('and italic');
 	});
 });

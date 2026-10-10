@@ -2,11 +2,11 @@
 // landed: a refused or discarded commit says nothing, at the document root and in a container.
 // Miss-analysis: each announcer checked for itself, so a no-op or refused move could still speak.
 import { describe, expect, it } from 'vitest';
-import type { StructuralChange } from '$lib/tree-operations/structural-change';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { asDocPath } from '$lib/selection/path-math';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeNestedHarness, makeTopHarness } from '../../harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { takeDevWarns } from '../../support/warn-gate';

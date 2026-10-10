@@ -1,14 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createRootGestures } from '$lib/components/editor-root-gestures';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { parse } from '$lib/core/parser';
-import type { BlockComponent } from '$lib/block-component';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { createRootGestures } from '#lib/components/editor-root-gestures.js';
+import { installPressTracker } from '#lib/components/editor-root-listeners.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import { parse } from '#lib/core/parser.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { bindActivationClick, createPressTracker, type LinkClick } from '#lib/activation-click.js';
+import { ACTIVATION_CLICK_CASES } from '#lib/test/support/activation-click-cases.js';
 
 // Miss-analysis: the click and margin drag were driven only through Playwright, never a refusal.
 
@@ -31,7 +35,7 @@ afterEach(() => {
 	document.elementFromPoint = origFromPoint;
 });
 
-function harness(opts: { mode?: PresentationMode } = {}) {
+function harness(opts: { mode?: PresentationMode; linkClick?: LinkClick } = {}) {
 	const root = document.createElement('div');
 	const list = document.createElement('div');
 	list.className = 'block-list';
@@ -82,7 +86,14 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 	const component = { focusable: true, focus, startDragAtPoint } as unknown as BlockComponent;
 	const activateLink = vi.fn();
 	const caretMemory = createCaretMemory();
+	const reading = fixtureReading(
+		{ resolver: refs.resolve, resolverSignature: refs.signature, resolverEpoch: 0 },
+		mode
+	);
+	const linkClick = opts.linkClick ?? 'modifier';
+	const presses = createPressTracker();
 	const gestures = createRootGestures({
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		selection,
 		caretMemory,
@@ -94,12 +105,11 @@ function harness(opts: { mode?: PresentationMode } = {}) {
 		isHostChrome: (node) => !!node && header.contains(node),
 		activateLink,
 		linkCard: { open: () => false },
-		reading: fixtureReading(
-			{ resolver: refs.resolve, resolverSignature: refs.signature, resolverEpoch: 0 },
-			mode
-		)
+		reading,
+		activationClick: bindActivationClick(reading.mode, () => linkClick, presses),
+		presses
 	});
-	teardowns.push(gestures.install(root));
+	teardowns.push(installPressTracker(root, presses), gestures.install(root));
 
 	const withRange = () =>
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 2 });
@@ -238,20 +248,14 @@ describe('editor-root gestures: the click priority order', () => {
 		expect(document.activeElement).toBe(h.editable);
 	});
 
-	it('a plain click on a link is suppressed without activating it', () => {
-		const h = harness();
-		expect(h.click(h.link).defaultPrevented).toBe(true);
-		expect(h.activateLink).not.toHaveBeenCalled();
-	});
-
-	it.each<[string, MouseEventInit, PresentationMode]>([
-		['a mod-click', { ctrlKey: true }, 'source'],
-		['a plain click in reading mode', {}, 'reading']
-	])('%s activates the link', (_label, init, mode) => {
-		const h = harness({ mode });
-		expect(h.click(h.link, init).defaultPrevented).toBe(true);
-		expect(h.activateLink).toHaveBeenCalledWith('https://example.com/', expect.any(MouseEvent));
-	});
+	for (const { name, linkClick, mode, modified, detail, follows } of ACTIVATION_CLICK_CASES) {
+		it(`a link click, ${name}, ${follows ? 'follows' : 'stays put'}`, () => {
+			const h = harness({ mode, linkClick });
+			expect(h.click(h.link, { ctrlKey: modified, detail }).defaultPrevented).toBe(true);
+			const followed = [['https://example.com/', expect.any(MouseEvent)]];
+			expect(h.activateLink.mock.calls).toEqual(follows ? followed : []);
+		});
+	}
 
 	it("host chrome keeps the page's own link behaviour", () => {
 		const h = harness();

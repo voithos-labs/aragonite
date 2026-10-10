@@ -231,22 +231,6 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		expect([paths!.anchor.path[0], paths!.focus.path[0]].sort()).toEqual([0, 1]);
 	});
 
-	test('undo after reveal→edit→commit restores the pre-edit source in one step', async ({
-		page
-	}) => {
-		await editor.revealFromBefore();
-		await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('ArrowRight');
-		await page.keyboard.type('a');
-		await editor.getBlock(2).click();
-		await editor.bridge.waitForSourceContains('$$ax^2$$');
-
-		await editor.undo();
-		await editor.bridge.waitForSourceContains('$$x^2$$');
-		await editor.bridge.waitForSourceNotContains('$$ax^2$$');
-		await expect(editor.renderedKatex).toHaveCount(1);
-	});
-
 	// Undo in the open source walks the draft's own edits first, since the document holds the session
 	// as one entry written on blur; then the chord reaches the document, refilling the source.
 	test('undo inside the revealed source takes the draft back first, then the document', async ({

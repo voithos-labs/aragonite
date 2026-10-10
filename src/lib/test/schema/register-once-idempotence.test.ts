@@ -1,27 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { configureEditorEnv } from '$lib/env';
+import { configureEditorEnv } from '#lib/env.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { registerBlockKind, getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import {
 	registerBlockComponent,
 	getBlockComponent,
 	type BlockComponentEntry
-} from '$lib/schema/block-component-registry';
+} from '#lib/schema/block-component-registry.js';
 import {
 	registerBlockOpener,
 	getOrderedOpeners,
 	type BlockOpener
-} from '$lib/schema/block-openers';
-import { registerBlockCommand, getBlockCommand } from '$lib/schema/block-commands';
-import type { AnyCommandId } from '$lib/schema/command-id';
+} from '#lib/schema/block-openers.js';
+import { registerBlockCommand, getBlockCommand } from '#lib/schema/block-commands.js';
+import type { AnyCommandId } from '#lib/schema/command-id.js';
 import {
 	registerInlineSyntax,
 	getInlineRungs,
 	type InlineSyntaxRecognizer
-} from '$lib/core/inline/scan/plugin-syntax';
-import { testClosure } from '$lib/test/support/closure';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+} from '#lib/core/inline/scan/plugin-syntax.js';
+import { testClosure } from '#lib/test/support/closure.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 const registration = (editable: boolean) =>
 	({

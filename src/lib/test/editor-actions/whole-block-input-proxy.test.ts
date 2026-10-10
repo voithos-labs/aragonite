@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
-import { serialize } from '$lib/core/serializer';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { settleEditor } from '$lib/test/harness/settle';
-import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
+import { allowDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { serialize } from '#lib/core/serializer.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { createContainerBlockComponent } from '#lib/editor-actions/container-block-component.js';
 import {
 	WHOLE_BLOCK_INPUT_ATTR,
 	composeWholeBlockFocusSurface,
@@ -14,9 +14,9 @@ import {
 	isEditableEventTarget,
 	isWholeBlockInputProxy,
 	type WholeBlockInputProxy
-} from '$lib/editor-actions/whole-block-focus-surface';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimDeps, makeTopHarness } from '$lib/test/harness/editor-actions';
+} from '#lib/editor-actions/whole-block-focus-surface.js';
+import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
+import { makeShimDeps, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 // The proxy factory mounts its host in `onMount`; outside a component the test runs the callback.
 const mountCallbacks = vi.hoisted(() => [] as (() => unknown)[]);
@@ -187,5 +187,31 @@ describe('the editing host in reading mode', () => {
 
 		expect(serialize(editor.doc)).toBe('---\n');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([READING_WRITE_TAG]);
+	});
+});
+
+// Miss-analysis: the only paste over a clicked divider sat in an exploration spec whose check
+// accepted either outcome, so nothing below e2e said a paste into the host writes nothing.
+describe('a paste that reaches the editing host', () => {
+	it('is refused and mints no paragraph', () => {
+		const minted: string[] = [];
+		const proxy = createWholeBlockInputProxy({
+			getBoxEl: () => box(),
+			getFocusEl: () => null,
+			isReading: () => false,
+			getLabel: () => 'Divider',
+			mint: (text) => void minted.push(text)
+		});
+		mountCallbacks.forEach((run) => run());
+
+		const paste = new InputEvent('beforeinput', {
+			inputType: 'insertFromPaste',
+			data: 'pasted',
+			cancelable: true
+		});
+		proxy.el()!.dispatchEvent(paste);
+
+		expect(paste.defaultPrevented).toBe(true);
+		expect(minted).toEqual([]);
 	});
 });

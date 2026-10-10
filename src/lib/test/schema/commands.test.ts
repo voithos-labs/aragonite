@@ -4,11 +4,11 @@ import {
 	GLOBAL_KEYMAP,
 	resolveBinding,
 	resolveKindBinding
-} from '$lib/schema/commands';
-import { dispatchKeyCommand } from '$lib/schema/block-commands';
+} from '#lib/schema/commands.js';
+import { dispatchKeyCommand } from '#lib/schema/block-commands.js';
 import { commandContext } from '../support/command-context';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 describe('global command registry', () => {
 	it('registers undo/redo and runs them via the context', () => {

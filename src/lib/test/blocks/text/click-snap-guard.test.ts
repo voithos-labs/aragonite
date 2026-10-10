@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	caretIsInTextContent,
 	isPlainTypingKey
-} from '$lib/components/blocks/text/click-snap-guard';
+} from '#lib/components/blocks/text/click-snap-guard.js';
 import { placeCaretAt } from './math-widget-fixture';
 
 describe('caretIsInTextContent', () => {

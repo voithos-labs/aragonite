@@ -2,18 +2,18 @@
 // share of it. Both throw sites here run plugin code: the snapshot push's ref walk and the
 // post-tick callback.
 import { describe, it, expect, afterEach } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { asDocPath } from '$lib/selection/path-math';
-import type { BlockComponent } from '$lib/block-component';
-import type { EditorError } from '$lib/editor-events';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { EditorError } from '#lib/editor-events.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	stubBlockComponent
-} from '$lib/test/harness/editor-actions';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/editor-actions.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 // The container fixtures are hand-built, not parser output, so the dev-mode stale-raw check
 // reads them as stale.

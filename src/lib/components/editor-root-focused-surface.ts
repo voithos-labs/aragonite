@@ -24,7 +24,7 @@ export interface FocusedSurfaceDeps {
 	insertParagraph(boundary: number, text: string): Promise<boolean>;
 	/** One undo entry for the paragraph `below` makes and the paste into it. */
 	undoStep(path: number[], offset: number, run: () => Promise<unknown>): Promise<void>;
-	/** The counter every byte write bumps (`reactivity/content-version.svelte.ts`). */
+	/** The counter every byte write bumps (`editor-actions/commit/content-version.svelte.ts`). */
 	contentVersion(): number;
 }
 

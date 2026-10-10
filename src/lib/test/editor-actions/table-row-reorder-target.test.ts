@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tableRowReorderTarget } from '$lib/editor-actions/table-context';
+import { tableRowReorderTarget } from '#lib/editor-actions/table-context.js';
 
 // rowCount is the full row count: the header is fixed at index 0 and body rows occupy
 // 1..rowCount-1. A null result means no-op, so a keypress at the edge pushes no undo entry.

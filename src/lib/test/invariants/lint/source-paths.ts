@@ -15,6 +15,7 @@ export const SOURCE = {
 	blockComponentApi: 'src/lib/block-component.ts',
 	actionContracts: 'src/lib/action-contracts.ts',
 	envFlags: 'src/lib/env.ts',
+	devChecks: 'src/lib/assert.ts',
 
 	// ── Parsing and the inline pipeline ─────────────────────────────────────
 	cstNodes: 'src/lib/core/nodes.ts',
@@ -33,6 +34,8 @@ export const SOURCE = {
 	formatToggle: 'src/lib/core/inline/format-toggle.ts',
 	imageSourceBytes: 'src/lib/core/inline/image-source-bytes.ts',
 	linkSourceBytes: 'src/lib/core/inline/link-source-bytes.ts',
+	tableLine: 'src/lib/core/parsers/table-line.ts',
+	tableParser: 'src/lib/core/parsers/table.ts',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'src/lib/schema/block-openers.ts',
@@ -47,6 +50,7 @@ export const SOURCE = {
 	// ── Tree operations ─────────────────────────────────────────────────────
 	treeOperationsBarrel: 'src/lib/tree-operations/index.ts',
 	nodePrimitives: 'src/lib/tree-operations/node-primitives.ts',
+	openTail: 'src/lib/tree-operations/open-tail.ts',
 	unshare: 'src/lib/tree-operations/unshare.ts',
 	settle: 'src/lib/tree-operations/settle.ts',
 	contentWrite: 'src/lib/tree-operations/content-write.ts',
@@ -75,17 +79,20 @@ export const SOURCE = {
 	rangeReplace: 'src/lib/selection/cross-block/range-replace.ts',
 
 	// ── Caret geometry and windowing ────────────────────────────────────────
-	coordinateBrands: 'src/lib/cursor/coordinate-spaces.ts',
-	domWalk: 'src/lib/cursor/dom-walk.ts',
-	scrollOwner: 'src/lib/cursor/scroll-owner.ts',
-	scrollport: 'src/lib/cursor/scrollport.ts',
-	holdAcross: 'src/lib/reactivity/hold-across.ts',
-	layoutState: 'src/lib/reactivity/layout-state.svelte.ts',
-	listWindowing: 'src/lib/reactivity/list-windowing.svelte.ts',
+	coordinateBrands: 'src/lib/caret/coordinate-spaces.ts',
+	domWalk: 'src/lib/caret/dom-walk.ts',
+	blockContentSelector: 'src/lib/caret/block-content-selector.ts',
+	blockElLookup: 'src/lib/caret/block-el-lookup.ts',
+	scrollOwner: 'src/lib/windowing/scroll-owner.ts',
+	scrollport: 'src/lib/windowing/scrollport.ts',
+	steadyBlock: 'src/lib/windowing/steady-block.ts',
+	layoutState: 'src/lib/windowing/layout-state.svelte.ts',
+	listWindowing: 'src/lib/windowing/list-windowing.svelte.ts',
 
 	// ── Components ──────────────────────────────────────────────────────────
 	editorShell: 'src/lib/components/Editor.svelte',
 	editorRootKeydown: 'src/lib/components/editor-root-keydown.ts',
+	editorRootGestures: 'src/lib/components/editor-root-gestures.ts',
 	blockList: 'src/lib/components/BlockList.svelte',
 	blockHost: 'src/lib/components/BlockHost.svelte',
 	searchBar: 'src/lib/components/SearchBar.svelte',
@@ -100,6 +107,7 @@ export const SOURCE = {
 	liveSelectionEdit: 'src/lib/components/blocks/text/live-selection-edit.ts',
 	delimiterAutopair: 'src/lib/components/blocks/text/delimiter-autopair.ts',
 	codeBlockComponent: 'src/lib/components/blocks/code/CodeBlock.svelte',
+	codeFenceBoundary: 'src/lib/components/blocks/code/code-fence-boundary.ts',
 	listBlock: 'src/lib/components/blocks/list/ListBlock.svelte',
 	tableBlock: 'src/lib/components/blocks/table/TableBlock.svelte',
 	tableCell: 'src/lib/components/blocks/table/TableCellBlock.svelte',
@@ -113,6 +121,7 @@ export const SOURCE = {
 	latexBlockMath: 'src/lib/plugins/latex/BlockMath.svelte',
 	mathShape: 'src/lib/plugins/latex/math-shape.ts',
 	mermaidBlock: 'src/lib/plugins/mermaid/MermaidBlock.svelte',
+	footnoteReference: 'src/lib/plugins/footnotes/FootnoteReference.svelte',
 	editorCss: 'src/lib/styles/editor.css',
 	themeTokens: 'src/lib/styles/editor-theme.css',
 
@@ -130,7 +139,13 @@ export const SOURCE = {
 	calloutReferenceKind: 'src/routes/test/plugins/callout/callout-kind.ts',
 	memoReferenceBlock: 'src/routes/test/plugins/memo/MemoBlock.svelte',
 	consumerPluginProbe: 'examples/consumer/src/plugin-probe.ts',
-	consumerQuickstartRoute: 'examples/consumer/src/routes/quickstart/+page.svelte'
+	consumerQuickstartRoute: 'examples/consumer/src/routes/quickstart/+page.svelte',
+
+	// ── Build config ────────────────────────────────────────────────────────
+	viteConfig: 'vite.config.js',
+
+	// ── Docs ────────────────────────────────────────────────────────────────
+	pluginGuide: 'docs/guide/plugin-guide.md'
 } as const;
 
 /** Text each file must hold, so an entry pointed at the wrong real file fails too. */
@@ -143,6 +158,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	blockComponentApi: 'export interface BlockComponent ',
 	actionContracts: 'export type CommitSnapshotArg',
 	envFlags: 'export const editorEnv',
+	devChecks: 'export function documentForCheck',
 
 	// ── Parsing and the inline pipeline ─────────────────────────────────────
 	cstNodes: 'export type LeafBlockKind',
@@ -161,6 +177,8 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	formatToggle: 'export interface InlineFormatEdit',
 	imageSourceBytes: 'export function buildImageEditBytes',
 	linkSourceBytes: 'export interface LinkFields',
+	tableLine: 'export function tableRowLine(',
+	tableParser: 'export function matchTableOpening(',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'export interface OpenContext',
@@ -175,6 +193,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	// ── Tree operations ─────────────────────────────────────────────────────
 	treeOperationsBarrel: 'export { updateNodeContent, reclassifyContainer }',
 	nodePrimitives: 'export type BodyParent',
+	openTail: 'export function keepOpenTail',
 	unshare: 'export function walkUnsharing',
 	settle: 'export function clearRedundantSeparator',
 	contentWrite: 'export interface LegalWrite',
@@ -205,22 +224,25 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	// ── Caret geometry and windowing ────────────────────────────────────────
 	coordinateBrands: 'export type RawOffset',
 	domWalk: 'export function* domDescendants',
+	blockContentSelector: 'export const BLOCK_CONTENT_SELECTOR',
+	blockElLookup: 'export function blockContentElAt',
 	scrollOwner: 'export type PlaceBlock',
 	scrollport: 'export interface ScrollportReader',
-	holdAcross: 'export interface HeightTable',
+	steadyBlock: 'export interface HeightTable',
 	layoutState: 'export interface LayoutState',
 	listWindowing: 'export interface ListScrollWrites',
 
 	// ── Components ──────────────────────────────────────────────────────────
 	editorShell: 'function isHostChrome(',
 	editorRootKeydown: 'export interface EditorRootKeydownDeps',
+	editorRootGestures: 'export function createRootGestures(',
 	blockList: 'function ambientFor(',
 	blockHost: 'function onRenderError(',
 	searchBar: 'function onFindKeydown(',
 	selectionOverlay: 'function textLineHeight(',
 	editableLeaf: 'export type EditableLeafMode',
 	surfaceWrite: 'export type WriteIntent',
-	textBlockComponent: 'function armSnapTarget(',
+	textBlockComponent: 'const widgetEdgeOwner = {};',
 	textRender: 'export interface TextRenderDeps',
 	textClipboard: 'export interface TextClipboardDeps',
 	edgePolicyDispatch: 'export type EdgePolicy',
@@ -228,6 +250,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	liveSelectionEdit: 'export interface LiveEditCursor',
 	delimiterAutopair: 'export type AutoPairEdit',
 	codeBlockComponent: 'function writeCode(',
+	codeFenceBoundary: 'export function editSpan(',
 	listBlock: 'class="list-block"',
 	tableBlock: 'function mirrorCaretCell(',
 	tableCell: 'function parkCursor(',
@@ -239,8 +262,9 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 
 	// ── Bundled plugins and styles ──────────────────────────────────────────
 	latexBlockMath: 'function keepSourceFocus(',
-	mathShape: 'export const BLOCK_FENCE',
+	mathShape: 'export function readMathSource(',
 	mermaidBlock: 'function focusSurfaceEl(',
+	footnoteReference: 'function jumpToDefinition(',
 	editorCss: '.code-tok-keyword {',
 	themeTokens: ':where(.aragonite-editor-theme) {',
 
@@ -258,7 +282,13 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	calloutReferenceKind: 'export const CALLOUT',
 	memoReferenceBlock: 'class="memo-block"',
 	consumerPluginProbe: 'export const _probe',
-	consumerQuickstartRoute: "const source = '# Hello\\n';"
+	consumerQuickstartRoute: "const source = '# Hello\\n';",
+
+	// ── Build config ────────────────────────────────────────────────────────
+	viteConfig: 'optimizeDeps:',
+
+	// ── Docs ────────────────────────────────────────────────────────────────
+	pluginGuide: '## The first fifteen minutes'
 };
 
 /** The directories the scans walk or bind by prefix. */
@@ -272,10 +302,10 @@ export const SOURCE_DIR = {
 	schema: 'src/lib/schema/',
 	treeOperations: 'src/lib/tree-operations/',
 	editorActions: 'src/lib/editor-actions/',
-	commit: 'src/lib/editor-actions/commit/',
 	selection: 'src/lib/selection/',
 	crossBlock: 'src/lib/selection/cross-block/',
-	cursor: 'src/lib/cursor/',
+	caret: 'src/lib/caret/',
+	windowing: 'src/lib/windowing/',
 	ambient: 'src/lib/ambient/',
 	decorations: 'src/lib/decorations/',
 	search: 'src/lib/search/',
@@ -301,7 +331,8 @@ export const SOURCE_DIR = {
 	e2eRequirements: 'src/lib/e2e/requirements/',
 	routes: 'src/routes/',
 	referencePlugins: 'src/routes/test/plugins/',
-	consumerExample: 'examples/consumer/src/'
+	consumerExample: 'examples/consumer/src/',
+	pluginGuidePages: 'docs/guide/plugin-guide/'
 } as const;
 
 /** An entry each directory must hold directly, so a directory entry pointed at a sibling fails. */
@@ -315,10 +346,10 @@ export const SOURCE_DIR_ANCHORS: Record<keyof typeof SOURCE_DIR, string> = {
 	schema: 'block-openers.ts',
 	treeOperations: 'node-primitives.ts',
 	editorActions: 'block-edit-core.ts',
-	commit: 'undo-controller.ts',
 	selection: 'path-math.ts',
 	crossBlock: 'range-replace.ts',
-	cursor: 'dom-walk.ts',
+	caret: 'dom-walk.ts',
+	windowing: 'list-windowing.svelte.ts',
 	ambient: 'ambient-dom.ts',
 	decorations: 'buckets.ts',
 	search: 'document-scan.ts',
@@ -344,5 +375,6 @@ export const SOURCE_DIR_ANCHORS: Record<keyof typeof SOURCE_DIR, string> = {
 	e2eRequirements: 'block-error-boundary.md',
 	routes: '+layout.svelte',
 	referencePlugins: 'callout',
-	consumerExample: 'plugin-probe.ts'
+	consumerExample: 'plugin-probe.ts',
+	pluginGuidePages: 'parrot-frames.md'
 };

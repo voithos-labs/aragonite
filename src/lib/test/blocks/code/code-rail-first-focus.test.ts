@@ -2,10 +2,10 @@
 // Miss-analysis: the language offer was tested by clicking into a fence, never by keyboard arrival.
 import { describe, it, expect, afterEach } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import { makeStubBlockEdit } from '$lib/test/harness/editor-actions';
-import { settleEditor } from '$lib/test/harness/settle';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { makeStubBlockEdit } from '#lib/test/harness/editor-actions.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountCode, type MountedCode } from './mount-code';
 
 const BARE_FENCE = '```\n```\n';

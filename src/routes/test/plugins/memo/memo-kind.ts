@@ -10,7 +10,7 @@ import {
 	registerBlockCommand,
 	registerBlockOpener,
 	simpleLeafClosure
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 export const MEMO_BLOCK = 'memo';
 

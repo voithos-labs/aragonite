@@ -4,7 +4,7 @@
 // Miss-analysis: every mounted-block suite used the internal harness, never the published API.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import { Editor, type EditorInstance } from '$lib';
+import { Editor, type EditorInstance } from '#lib';
 import {
 	declarePluginKind,
 	definePluginBlock,
@@ -14,12 +14,12 @@ import {
 	OPENER_PRIORITIES,
 	type EditorPlugin,
 	type ParsedLine
-} from '$lib/plugin';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { settleEditor } from '$lib/test/harness/settle';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/plugin.js';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import PlainLeafBlock from './fixtures/PlainLeafBlock.svelte';
 
 const KIND = 'jsdom-mount-leaf';

@@ -10,14 +10,14 @@ import {
 	toggleInlineFormat,
 	type InlineFormatEdit,
 	type ToggleInlineFormatResult
-} from '$lib/core/inline/format-toggle';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/core/inline/format-toggle.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import {
 	getInlineMarkPolicy,
 	listInlineMarks,
 	type InlineMarkKind
-} from '$lib/schema/inline-construct-policy';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/schema/inline-construct-policy.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 /** An edit without its link definitions and grammar: `toggleFormat` reads it with every installed
  *  plugin and no definitions, as an editor with no `plugins` prop and no reference links does. */

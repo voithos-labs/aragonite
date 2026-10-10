@@ -5,18 +5,19 @@
 // Miss-analysis: every swap test wrote a text the editor didn't hold, from a host that never echoed.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { flushSync, mount, tick, unmount } from 'svelte';
-import { installLayoutStubs, placeCaret } from '$lib/test/harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '$lib/test/harness/settle';
-import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
-import type { DocumentSwap } from '$lib/components/editor-root-document-swap';
-import { serialize } from '$lib/core/serializer';
+import { installLayoutStubs, placeCaret } from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey, settleEditor } from '#lib/test/harness/settle.js';
+import { UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';
+import type { DocumentSwap } from '#lib/components/editor-root-document-swap.js';
+import { serialize } from '#lib/core/serializer.js';
 import SourceHost from './fixtures/SourceHost.svelte';
 
 // Every `swapTo` call, and whether it replaced the document: the swap check itself has no
 // public trace, and a mount-time swap fires before a host can subscribe.
 const swapLog = vi.hoisted(() => ({ calls: [] as { source: string; swapped: boolean }[] }));
-vi.mock('$lib/components/editor-root-document-swap', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/components/editor-root-document-swap')>();
+vi.mock('#lib/components/editor-root-document-swap.js', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('#lib/components/editor-root-document-swap.js')>();
 	return {
 		...actual,
 		createDocumentSwap: (deps: Parameters<typeof actual.createDocumentSwap>[0]): DocumentSwap => {
@@ -34,8 +35,8 @@ vi.mock('$lib/components/editor-root-document-swap', async (importOriginal) => {
 });
 
 // Counted: an echoing host reads the text on every flushed keystroke, and each read may cost one.
-vi.mock('$lib/core/serializer', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/core/serializer')>();
+vi.mock('#lib/core/serializer.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/core/serializer.js')>();
 	return { ...actual, serialize: vi.fn(actual.serialize) };
 });
 

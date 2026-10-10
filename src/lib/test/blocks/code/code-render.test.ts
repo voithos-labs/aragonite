@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderCodeBlock } from '$lib/components/blocks/code/code-renderer';
-import { bootstrapCodeLanguages } from '$lib/components/blocks/code/code-bootstrap';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { CstNode } from '$lib/core/nodes';
+import { renderCodeBlock } from '#lib/components/blocks/code/code-renderer.js';
+import { bootstrapCodeLanguages } from '#lib/components/blocks/code/code-bootstrap.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { fencedCode } from './fenced-code-fixture';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 // The language registry is register-once, so each test resets it, or one describe's grammar
 // would leak into the next.

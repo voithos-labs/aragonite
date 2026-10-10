@@ -3,7 +3,7 @@
 // zero-width widget, `BADGE` a block decoration. They appear in no other `?seed=sim` document, so
 // this does nothing there. Every position is worked out from the text again on each edit, so a
 // decoration follows its bytes as the user types.
-import { definePlugin, type Decoration, type DocumentView, type NodeView } from '$lib/plugin';
+import { definePlugin, type Decoration, type DocumentView, type NodeView } from '#lib/plugin.js';
 import { forEachLeaf } from '../../../walk-views';
 
 const REPLACE_OPEN = '[>';

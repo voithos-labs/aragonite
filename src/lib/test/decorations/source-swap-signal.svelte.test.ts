@@ -6,10 +6,10 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	destroyMountedEditors
-} from '$lib/test/harness/mount-editor.svelte';
-import type { DecorationSource, MarkDecoration } from '$lib/decorations/types';
-import type { DecorationEngine } from '$lib/decorations/decoration-state.svelte';
-import { settleEditor } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { DecorationSource, MarkDecoration } from '#lib/decorations/types.js';
+import type { DecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 interface SwapSeam {
 	getDecorationEngine(): DecorationEngine;
@@ -75,7 +75,7 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 });
 
 // The swap is the one byte writer in the component rather than the action bundles (G4.52); the
-// others are tested without a DOM in `reactivity/content-version-doors`.
+// others are tested without a DOM in `editor-actions/commit/content-version-doors`.
 describe('a `source` prop swap moves the content version', () => {
 	it('announces the replaced document, and nothing when the prop is rewritten unchanged', async () => {
 		const { instance: editor, props } = mountSource('one\n\ntwo\n');

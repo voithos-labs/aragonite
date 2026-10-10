@@ -3,7 +3,7 @@
  * the single-kind `definePluginBlock` sugar.
  */
 
-import { definePlugin, registerInsertEntry, type EditorPlugin } from '$lib/plugin';
+import { definePlugin, registerInsertEntry, type EditorPlugin } from '#lib/plugin.js';
 import { registerAdmonitions, type AdmonitionsOptions } from './admonition-kind';
 
 export function admonitionsPlugin(options?: AdmonitionsOptions): EditorPlugin {

@@ -7,12 +7,12 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import type { EditorTestSurface } from '$lib/components/editor-root-test-surface';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { pressKey } from '$lib/test/harness/settle';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { EditorTestSurface } from '#lib/components/editor-root-test-surface.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { cellAt, installTableLayoutStubs, pressInCell } from './mount-table';
 
 let restoreLayout: () => void;

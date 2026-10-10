@@ -7,33 +7,33 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { AnyBlockKind } from '$lib/core/nodes';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
 import {
 	GLOBAL_KEYMAP,
 	pluginGlobalBindings,
 	resolveBinding,
 	type CommandId
-} from '$lib/schema/commands';
+} from '#lib/schema/commands.js';
 import {
 	getAllRegisteredKinds,
 	tryGetBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
-import { normalizeChord } from '$lib/schema/keybindings';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
-import { installPlugins } from '$lib';
-import { declaredPluginKind } from '$lib/plugin';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { ADMONITION, ADMONITION_TITLE } from '$lib/plugins/admonitions/kinds';
-import { detailsPlugin, DETAILS_SUMMARY } from '$lib/plugins/details';
-import { emojiPlugin } from '$lib/plugins/emoji';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
-import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
-import { latexPlugin } from '$lib/plugins/latex';
-import { mermaidPlugin, MERMAID } from '$lib/plugins/mermaid';
-import { parrotPlugin } from '$lib/plugins/parrot';
-import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '$lib/plugins/slash-commands';
-import { tocPlugin } from '$lib/plugins/toc';
+} from '#lib/schema/block-kind-descriptor.js';
+import { normalizeChord } from '#lib/schema/keybindings.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { HARDCODED_CHORD_SITES } from '#lib/schema/reserved-chords.js';
+import { installPlugins } from '#lib';
+import { declaredPluginKind } from '#lib/plugin.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { ADMONITION, ADMONITION_TITLE } from '#lib/plugins/admonitions/kinds.js';
+import { detailsPlugin, DETAILS_SUMMARY } from '#lib/plugins/details/index.js';
+import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { mermaidPlugin, MERMAID } from '#lib/plugins/mermaid/index.js';
+import { parrotPlugin } from '#lib/plugins/parrot/index.js';
+import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '#lib/plugins/slash-commands/index.js';
+import { tocPlugin } from '#lib/plugins/toc/index.js';
 import { readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
@@ -136,7 +136,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 	'Italic (toggle emphasis)': { kind: 'paragraph', commands: ['format.toggleEmphasis'] },
 	Strikethrough: { kind: 'paragraph', commands: ['format.toggleStrikethrough'] },
 	'Inline code': { kind: 'paragraph', commands: ['format.toggleCode'] },
-	"Edit a link's URL (live mode)": { kind: 'paragraph', commands: ['link.openCard'] },
+	'Edit a link': { kind: 'paragraph', commands: ['link.openCard'] },
 	'Cycle heading level': { kind: 'paragraph', commands: ['heading.cycle'] },
 	'Split a block': { kind: 'paragraph', commands: ['block.split'] },
 	'Hard line break': { kind: 'paragraph', commands: ['block.hardBreak'] },

@@ -2,8 +2,8 @@
 // The defensive branch in the range replace that consumes a paste and inserts nothing: the removal
 // wrote, but left no caret for the paste to go to.
 import { describe, it, expect, vi } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import type { EditorError } from '$lib/editor-events';
+import { serialize } from '#lib/core/serializer.js';
+import type { EditorError } from '#lib/editor-events.js';
 import { makeEnv, makeHandlers, makePasteEvent } from './typed-char-env';
 
 const SOURCE = 'para A\n\npara B\n\npara C\n';

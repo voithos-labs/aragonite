@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { FIXTURE_BYTES, cstBlockCount, spacerCount } from './vr-helpers';
+import { FIXTURE_BYTES, GIANT_LIST_OR_TABLE_BYTES, cstBlockCount, spacerCount } from './vr-helpers';
 import { capturePageErrors, topLevelHostPresent } from '../../page-probes';
 
 // Reaching an unmounted block: Ctrl+Shift+End, a scroll and a collapse must each mount the
@@ -94,7 +94,7 @@ test('reveals a deep off-window nested item and lands the caret there', async ({
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-list', 2_000_000);
+	await editor.loadLargeFixture('giant-single-list', GIANT_LIST_OR_TABLE_BYTES);
 
 	// The deepest last block sits at [0, lastItem, 0]: the list, its last item, its paragraph.
 	const lastItem = await page.evaluate(
@@ -128,7 +128,7 @@ test('collapsing a Ctrl+Shift+End list selection to start lands the caret in the
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-list', 2_000_000);
+	await editor.loadLargeFixture('giant-single-list', GIANT_LIST_OR_TABLE_BYTES);
 
 	const itemCountBefore = await page.evaluate(
 		() => (window as any).__test.getDocument().children[0].children.length
@@ -174,7 +174,7 @@ test('reveals an off-window table cell by scroll and edits it (phase 4)', async 
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+	await editor.loadLargeFixture('giant-single-table', GIANT_LIST_OR_TABLE_BYTES);
 
 	// The same behaviour the cross-block cases above reach by keyboard, reached by pointer.
 
@@ -227,7 +227,7 @@ test('Ctrl+Shift+End in a table reveals and mounts the off-window focus cell (ph
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+	await editor.loadLargeFixture('giant-single-table', GIANT_LIST_OR_TABLE_BYTES);
 
 	const lastRow = await page.evaluate(
 		() => (window as any).__test.getDocument().children[0].children.length - 1
@@ -264,7 +264,7 @@ test('collapsing a Ctrl+Shift+End table selection lands the caret in the reveale
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+	await editor.loadLargeFixture('giant-single-table', GIANT_LIST_OR_TABLE_BYTES);
 
 	const lastRow = await page.evaluate(
 		() => (window as any).__test.getDocument().children[0].children.length - 1
@@ -299,7 +299,7 @@ test('collapsing a Ctrl+Shift+End table selection to start does not wipe the tab
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+	await editor.loadLargeFixture('giant-single-table', GIANT_LIST_OR_TABLE_BYTES);
 
 	const rowCountBefore = await page.evaluate(
 		() => (window as any).__test.getDocument().children[0].children.length

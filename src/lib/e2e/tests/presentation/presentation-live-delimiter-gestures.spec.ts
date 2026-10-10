@@ -1,18 +1,20 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
-import { textRunEnd } from '../../text-runs';
+import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import {
 	clickBlockSettled,
+	clickEnd,
 	clickWordSettled,
 	enterPresentationMode,
 	focusOffset,
 	landAt,
+	nextRow,
 	stepTo
 } from './helpers';
 
 // Typing a construct closed and leaving it in live mode: auto-pairing and where the typed byte
-// goes, as one gesture. The source is the reference throughout.
+// goes, as one gesture. The source is the reference throughout. Each test walks its rows as
+// steps, every step on a fresh copy of the document.
 // Requirements: e2e/requirements/presentation/presentation-live-delimiter-gestures.md.
 
 const DOC = [
@@ -41,8 +43,6 @@ const PAIRS = [
 	['nested', 19, '*', 'Some **bold *nested*X bold** text']
 ] as const;
 
-const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
-
 async function atEnd(ep: EditorPage, page: Page, block: number, target: number): Promise<void> {
 	await clickBlockSettled(ep, block);
 	await page.keyboard.press('End');
@@ -50,15 +50,12 @@ async function atEnd(ep: EditorPage, page: Page, block: number, target: number):
 	await stepTo(ep, page, 'ArrowLeft', target);
 }
 
-test.describe('live mode: the closer typed over a hidden closer steps past it', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterLive(page);
-	});
+test('live mode: the closer typed over a hidden closer steps past it', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
 	for (const [word, contentEnd, closer, after] of PAIRS) {
-		test(`${word}: the next byte lands after the construct`, async ({ page }) => {
+		await test.step(`${word}: the next byte lands after the construct`, async () => {
+			await nextRow(ep, DOC);
 			await clickWordSettled(ep, page, word);
 			await landAt(ep, page, contentEnd);
 			await page.keyboard.type(closer);
@@ -67,41 +64,41 @@ test.describe('live mode: the closer typed over a hidden closer steps past it', 
 		});
 	}
 
-	test('arrived from outside, the press steps past it all the same', async ({ page }) => {
+	await test.step('arrived from outside, the press steps past it all the same', async () => {
+		await nextRow(ep, DOC);
 		await atEnd(ep, page, STRONG, 13);
 		await page.keyboard.type('**X');
 		await ep.bridge.waitForSourceContains('Some **strong**X text');
 	});
 
-	// The byte lands past the closer, and the auto-pair still writes its partner there.
-	test('a delimiter typed at the trailing edge from outside lands its paired closer past the closer', async ({
-		page
-	}) => {
+	// The pair goes where a letter would, inside the bold, and the auto-pair writes its partner there.
+	await test.step('a delimiter typed at the trailing edge pairs where a letter would go', async () => {
+		await nextRow(ep, DOC);
 		await atEnd(ep, page, STRONG, 13);
 		await page.keyboard.type('`');
-		await ep.bridge.waitForSourceContains('Some **strong**`` text');
+		await ep.bridge.waitForSourceContains('Some **strong``** text');
 	});
 });
 
 // Where the screen paints the closer, typing it steps past the closer the user sees.
-test.describe('every mode that paints the closer: typing it steps past it', () => {
-	for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
+for (const mode of ['source', 'preview-block', 'preview-inline'] as const) {
+	test(`${mode}: typing the painted closer steps past it`, async ({ page }) => {
+		const ep = await enterPresentationMode(page, mode, DOC);
+
 		for (const [word, closer, after] of [
 			['strong', '**', 'Some **strong**X text'],
 			['code', '`', 'Some `code`X text']
 		] as const) {
-			test(`${mode}, ${word}: the next byte lands after the construct`, async ({ page }) => {
-				const ep = await enterPresentationMode(page, mode, DOC);
-				const end = await textRunEnd(page, word);
-				await page.mouse.click(end.x, end.y);
-				await ep.waitForRenderFlush();
+			await test.step(`${word}: the next byte lands after the construct`, async () => {
+				await nextRow(ep, DOC);
+				await clickEnd(ep, page, word);
 				await page.keyboard.type(closer);
 				await page.keyboard.type('X');
 				await ep.bridge.waitForSourceContains(after);
 			});
 		}
-	}
-});
+	});
+}
 
 // A backtick typed at a hidden closer pairs where it lands, and the auto-pair records the pair as
 // its own: Backspace between the two takes both.
@@ -115,41 +112,39 @@ test('live mode: Backspace takes both of a pair written at a hidden closer', asy
 	await expect.poll(() => ep.bridge.getSource()).toBe('x **b** y\n');
 });
 
-test.describe('live mode: a construct typed to completion is left behind', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterLive(page);
+test('live mode: a construct typed to completion is left behind', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
+	const atPlainEnd = async () => {
+		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
-	});
+	};
 
 	// `tail*` pairs nothing (an opener straight after a word byte), so the closer is typed by hand.
-	test('a closer typed by hand puts the caret at the next byte outside', async ({ page }) => {
+	await test.step('a closer typed by hand puts the caret at the next byte outside', async () => {
+		await atPlainEnd();
 		await page.keyboard.type('*ab* z');
 		await ep.bridge.waitForSourceContains('plain tail*ab* z');
 	});
 
-	test('a link typed to completion keeps typing after it', async ({ page }) => {
+	await test.step('a link typed to completion keeps typing after it', async () => {
+		await atPlainEnd();
 		await page.keyboard.type(' [ab](u) z');
 		await ep.bridge.waitForSourceContains('plain tail [ab](u) z');
 	});
 });
 
-test.describe('live mode: the pairs the destructive-edges rows never covered', () => {
-	let ep: EditorPage;
+test('live mode: the pairs the destructive-edges rows never covered', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterLive(page);
-	});
-
-	for (const [word, contentEnd, , , shortened] of [
-		['em', 8, '*', '', 'Some *e* text'],
-		['code', 10, '`', '', 'Some `cod` text'],
-		['strike', 13, '~~', '', 'Some ~~strik~~ text']
+	for (const [word, contentEnd, shortened] of [
+		['em', 8, 'Some *e* text'],
+		['code', 10, 'Some `cod` text'],
+		['strike', 13, 'Some ~~strik~~ text']
 	] as const) {
-		test(`Backspace at ${word}’s trailing edge takes the content byte`, async ({ page }) => {
+		await test.step(`Backspace at ${word}’s trailing edge takes the content byte`, async () => {
+			await nextRow(ep, DOC);
 			await clickWordSettled(ep, page, word);
 			await landAt(ep, page, contentEnd);
 			await page.keyboard.press('Backspace');
@@ -157,42 +152,40 @@ test.describe('live mode: the pairs the destructive-edges rows never covered', (
 		});
 	}
 
-	test('Backspace at a code span’s trailing edge from outside takes the same byte', async ({
-		page
-	}) => {
+	await test.step('Backspace at a code span’s trailing edge from outside takes the same byte', async () => {
+		await nextRow(ep, DOC);
 		await atEnd(ep, page, 2, 10);
 		await page.keyboard.press('Backspace');
 		await ep.bridge.waitForSourceContains('Some `cod` text');
 	});
 
-	test('Enter inside a code span closes and reopens it', async ({ page }) => {
+	await test.step('Enter inside a code span closes and reopens it, and starts the new block plain', async () => {
+		await nextRow(ep, DOC);
 		await clickWordSettled(ep, page, 'code');
 		await landAt(ep, page, 8);
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('Some `co`\n\n`de` text');
 		await expect.poll(() => focusOffset(ep)).toBe(0);
 		await page.keyboard.type('Y');
-		await ep.bridge.waitForSourceContains('`Yde`');
+		await ep.bridge.waitForSourceContains('Y`de`');
 	});
 });
 
 const CELL_DOC = '| a | b |\n| --- | --- |\n| Some **strong** tail | plain |\n';
 
-test.describe('live mode: the same gestures in a table cell', () => {
-	let ep: EditorPage;
+test('live mode: the same gestures in a table cell', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', CELL_DOC);
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', CELL_DOC);
-	});
-
-	test('the closer typed over a hidden closer steps past it', async ({ page }) => {
+	await test.step('the closer typed over a hidden closer steps past it', async () => {
+		await nextRow(ep, CELL_DOC);
 		await clickWordSettled(ep, page, 'strong');
 		await landAt(ep, page, 13);
 		await page.keyboard.type('**X');
 		await ep.bridge.waitForSourceContains('| Some **strong**X tail |');
 	});
 
-	test('a closer typed by hand puts the caret at the next byte outside', async ({ page }) => {
+	await test.step('a closer typed by hand puts the caret at the next byte outside', async () => {
+		await nextRow(ep, CELL_DOC);
 		const cell = page
 			.locator("[role='table'] [contenteditable='true']")
 			.filter({ hasText: 'plain' });

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
-import { rebuildDetailsRaw, registerDetailsKind } from '$lib/plugins/details/details-kind';
-import { mergeIntoPrevDeepLeaf, mergeWithNext, splitNode } from '$lib/tree-operations/node-ops';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse, serialize } from '#lib';
+import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
+import { rebuildDetailsRaw, registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { mergeIntoPrevDeepLeaf, mergeWithNext, splitNode } from '#lib/tree-operations/node-ops.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 
 // The structural paths into the same `</details>` escape: they write the body themselves,

@@ -2,7 +2,7 @@
  * What a plugin's block component builds on: the caret, IME, undo and selection behaviour the
  * built-in blocks have, in one factory, so a plugin never touches an editor context key. `plain`
  * commits on every keystroke; `render-primary` shows its source and commits on blur. Call it
- * synchronously during initialisation; the contract is plugin-guide § The editable leaf.
+ * synchronously during initialisation. `plugin-guide/editable-content.md` § The editable leaf.
  */
 
 import { getContext, onDestroy } from 'svelte';
@@ -16,14 +16,14 @@ import {
 	type EditorPolicies,
 	type EditorServices
 } from '../../editor-keys';
-import { asRawOffset } from '../../cursor/coordinate-spaces';
-import { createSurfaceBackend } from '../../cursor/surface-backend';
+import { asRawOffset } from '../../caret/coordinate-spaces';
+import { createSurfaceBackend } from '../../caret/surface-backend';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
-	editableSurfaceAttributes,
 	createEditableSurface,
 	createClipboardHandlers,
 	consumePendingRestore,
+	REMOVED_IN_PLACE,
 	type EditableSurfaceAttributes
 } from './editable-surface';
 import type { ClipboardCopy } from './clipboard-step';
@@ -35,13 +35,13 @@ import {
 	clampToLandableRaw,
 	holdsOnlyMarkerChrome,
 	type RawRange
-} from '../../cursor/widget-offset';
+} from '../../caret/widget-offset';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { assertInvariant } from '../../assert';
 import { checkRenderedTextFidelity } from '../../invariants/render-fidelity';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
-import { placeCaret } from '../../selection/caret-doors';
-import { createSourceReveal } from '../../cursor/reveal-source';
+import { placeCaret } from '../../selection/place-caret';
+import { createSourceReveal } from '../../caret/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { isBlankText, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
@@ -115,7 +115,7 @@ export interface EditableLeafSurfaceProps extends EditableSurfaceAttributes {
 	/** Reading mode makes a plain leaf's always-mounted source inert. */
 	contenteditable: 'true' | 'false';
 	spellcheck: 'false';
-	oninput: () => void;
+	oninput: (e: Event) => void;
 	onbeforeinput: (e: InputEvent) => void;
 	onkeydown: (e: KeyboardEvent) => void | Promise<void>;
 	oncopy: (e: ClipboardEvent) => void;
@@ -215,6 +215,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const {
 		blockEdit,
 		caretMemory,
+		caretWriter,
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -224,7 +225,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		commands
 	} = wiring.deps;
 	const { pluginEditor } = commands;
-	const { inlineMenuCombobox, drafts } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { inlineMenuCombobox, drafts, presses } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme, onPasteImage } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const getPresentationMode = reading.mode;
 	const getEditor = (): EditorContext | undefined =>
@@ -246,7 +247,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	const sourceText = (): string => trimTrailingLineEnding(deps.getNode().raw);
 
-	const backend = createSurfaceBackend({ getEl: () => deps.getEl() });
+	const backend = createSurfaceBackend({ getEl: () => deps.getEl(), caretWriter });
 	// A leaf's text is its raw, so a computed caret lands exactly where the edit put it.
 	const setCaret = (offset: number): void =>
 		backend.setRaw(asRawOffset(offset), { clamp: 'exact' });
@@ -277,7 +278,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
 			stepSourceHistory(e, e.inputType === 'historyUndo'),
 		handleBeforeInput: onBeforeInput,
-		removeSelection: (range) => removeRange(range)
+		removeSelection: (range) => {
+			removeRange(range);
+			return REMOVED_IN_PLACE;
+		}
 	});
 
 	const surface = editableSurface.surface;
@@ -310,13 +314,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				}
 			});
 			clearSourceHistory();
-			deps.setRevealed?.(true);
+			setRevealed(true);
 		},
 		showRendered: () => {
 			endDraft();
 			clearSourceHistory();
-			deps.setRevealed?.(false);
-		}
+			setRevealed(false);
+		},
+		caretWriter
 	});
 
 	// A line the kind adds takes the block's ending, else the document's.
@@ -373,7 +378,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const edited = deps.getEl()?.textContent ?? sourceText();
 		const open = draft;
 		endDraft();
-		deps.setRevealed!(false);
+		setRevealed(false);
 		// An undo or a `source` swap can put another block at this index before the destroyed
 		// component's blur arrives, so the edit lands only where its draft still can.
 		if (open && !open.canWrite()) return;
@@ -399,7 +404,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		surface.parkCaret(offset);
 	}
 
-	const focus = placeCaret(selection, parkCaret);
+	const focus = placeCaret(selection, caretWriter, parkCaret);
 
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		void (async () => {
@@ -431,6 +436,20 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			el.textContent = text;
 		}
 		anchorTrailingNewline(el);
+		noteShownSource();
+	}
+
+	// Every open and fold goes through here; a folded source is gone, so the hint judges the node.
+	function setRevealed(value: boolean): void {
+		if (!value) editableSurface.noteShownSource(null);
+		deps.setRevealed?.(value);
+	}
+
+	// A shown render-primary source reaches the node only on blur, so the empty-block hint reads it.
+	function noteShownSource(): void {
+		const el = deps.getEl();
+		if (mode === 'render-primary' && el)
+			editableSurface.noteShownSource(() => el.textContent ?? '');
 	}
 
 	function repaintSource(): void {
@@ -536,7 +555,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setCaret(reshaped?.caret ?? start + insert.length);
 		// Started after the edit, so the pause measured is the one the user leaves.
 		if (deps.renderSource && keystroke) sourceBatch.armPause();
-		if (mode === 'plain') editableSurface.onInput();
+		if (mode === 'plain') editableSurface.commitInput();
 	}
 
 	// ── Clipboard ────────────────────────────────────────────────────────────
@@ -611,7 +630,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			) {
 				e.preventDefault();
 				endDraft();
-				deps.setRevealed?.(false);
+				setRevealed(false);
 				await blockEdit.deleteBlock(deps.getIndex(), 'Backspace');
 				return;
 			}
@@ -698,19 +717,18 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// Pointer-down only records where it landed, so a drag starting on the rendered view stays a
 	// selection drag; the click, a release that did not move, shows the source.
-	let renderPress: { x: number; y: number } | null = null;
+	let renderPressed = false;
 	function onRenderPointerDown(e: PointerEvent): void {
-		renderPress = e.shiftKey || isReading() ? null : { x: e.clientX, y: e.clientY };
+		renderPressed = !e.shiftKey && !isReading();
 	}
 
 	function onRenderClick(e: MouseEvent): void {
-		const press = renderPress;
-		renderPress = null;
-		if (!press || e.shiftKey || isReading()) return;
-		if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;
+		const pressed = renderPressed;
+		renderPressed = false;
+		if (!pressed || e.shiftKey || isReading() || presses.travelled(e)) return;
 		// Showing the source places a caret, so the pointer-down reset runs; not through
 		// `crossBlock.handlePointerDown`, which hit-tests the source text, not the rendered view.
-		resetForPointerDown(selection, caretMemory, false);
+		resetForPointerDown(selection, caretWriter, caretMemory, false);
 		void revealSource(revealOffsetAt(e));
 	}
 
@@ -733,7 +751,10 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const surfaceHandlers = {
 		tabindex: 0,
 		spellcheck: 'false' as const,
-		oninput: editableSurface.onInput,
+		oninput: (e: Event) => {
+			editableSurface.onInput(e);
+			noteShownSource();
+		},
 		onbeforeinput: editableSurface.onBeforeInput,
 		onkeydown: editableSurface.onKeyDown,
 		oncopy: clipboard.onCopy,
@@ -762,7 +783,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// never shown in reading mode, so its `contenteditable` stays true.
 	const buildSurfaceProps = (): EditableLeafSurfaceProps => ({
 		...surfaceHandlers,
-		...editableSurfaceAttributes(deps.getNode(), inlineMenuCombobox(deps.getPath())),
+		...editableSurface.attributes(inlineMenuCombobox(deps.getPath())),
 		contenteditable: mode === 'render-primary' || !isReading() ? 'true' : 'false',
 		[syncKey]: syncAttachment,
 		[parkKey]: parkAttachment

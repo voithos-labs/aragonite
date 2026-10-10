@@ -28,22 +28,22 @@ export interface HardcodedChordSite {
 
 export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
+		file: 'activation-click.ts',
+		chords: [],
+		keys: [],
+		note: 'Ctrl/Cmd on a click that may follow a link or a widget, read for every such route: no keystroke is consumed.'
+	},
+	{
 		file: 'components/editor-root-gestures.ts',
 		chords: [],
 		keys: [],
-		note: 'Mod-click link activation: no keystroke is consumed.'
+		note: 'A modified press declines the margin drag, and a live-mode Mod-click skips the link card: no keystroke is consumed.'
 	},
 	{
 		file: 'components/editor-root-keydown.ts',
 		chords: [],
 		keys: ['Escape', 'H'],
 		note: 'Escape closes the find bar, and Mod+H picks the replace row as the bar opens (reserved UI chords, enumerated). The modifier read is a refusal: an unchorded character over a live range is written as text, a chorded one goes to the handlers below it.'
-	},
-	{
-		file: 'components/editor-root-listeners.ts',
-		chords: [],
-		keys: [],
-		note: 'The Mod-held `data-mod-active` affordance tracks flag state only: no keystroke is consumed.'
 	},
 	{
 		file: 'selection/selection-drop.ts',
@@ -112,7 +112,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/table/TableCellBlock.svelte',
 		chords: ['Shift+ArrowUp', 'Shift+ArrowDown'],
 		keys: ['ArrowDown', 'ArrowUp', 'Enter'],
-		note: 'Starts the intra-table rectangle before the prose extend can walk the next leaf; the second modifier read is the widget activation click, which consumes no keystroke.'
+		note: 'Starts the intra-table rectangle before the prose extend can walk the next leaf.'
 	},
 	{
 		file: 'components/blocks/table/cell-keydown-plan.ts',
@@ -123,7 +123,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/text/TextEditableBlock.svelte',
 		chords: [],
 		keys: [],
-		note: 'Its modifier reads are on pointer events (Shift extends a selection instead of dragging a widget, and a click activates a widget), so it consumes no keystroke.'
+		note: 'Its modifier read is on a pointer event (Shift extends a selection instead of dragging a widget), so it consumes no keystroke.'
 	},
 	{
 		file: 'components/blocks/text/home-key.ts',
@@ -199,7 +199,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Shift-click declines, so the block keeps cross-block extension.'
 	},
 	{
-		file: 'cursor/edge-affinity.ts',
+		file: 'caret/edge-affinity.ts',
 		chords: [],
 		keys: [
 			'ArrowDown',
@@ -213,13 +213,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'Process',
 			'Unidentified'
 		],
-		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a hidden construct edge, so the modifier reads there are a refusal.'
-	},
-	{
-		file: 'cursor/caret-memory.ts',
-		chords: [],
-		keys: [],
-		note: 'Hands the meta flag to the arrival classifier: Cmd+Arrow is a line end. Consumes nothing.'
+		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a code chip’s border, so the modifier reads there are a refusal.'
 	},
 	{
 		file: 'editor-actions/container-block-component.ts',
@@ -242,18 +236,6 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		chords: [],
 		keys: [],
 		note: 'The arrow exit for a plugin editor declines every modified key rather than claiming one.'
-	},
-	{
-		file: 'plugins/footnotes/FootnoteDefinition.svelte',
-		chords: [],
-		keys: [],
-		note: 'Mod-click on the `[^label]` marker jumps back to the reference: no keystroke is consumed.'
-	},
-	{
-		file: 'plugins/footnotes/FootnoteReference.svelte',
-		chords: [],
-		keys: [' ', 'Enter'],
-		note: 'Mod-click jump to the definition, the link click’s gesture; Enter and Space on the reference, a tab stop in reading mode only, are bare keys.'
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',

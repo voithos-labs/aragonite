@@ -8,16 +8,16 @@ import {
 	matchFenceOpen,
 	OPENER_PRIORITIES,
 	registerBlockOpener
-} from '$lib/plugin';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { fencedCodeWrite } from '$lib/schema/fenced-code-raw';
-import type { WriteRule } from '$lib/schema/block-kind-descriptor';
-import { runKindConformance, type KindConformanceReport } from '$lib/testing';
-import { checkLeafRawWrite } from '$lib/testing/kind-conformance';
-import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
-import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
-import type { AnyBlockKind } from '$lib/core/nodes';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+} from '#lib/plugin.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { fencedCodeWrite } from '#lib/schema/fenced-code-raw.js';
+import type { WriteRule } from '#lib/schema/block-kind-descriptor.js';
+import { runKindConformance, type KindConformanceReport } from '#lib/testing.js';
+import { checkLeafRawWrite } from '#lib/testing/kind-conformance.js';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
+import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.js';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const rawWriteStatus = (report: KindConformanceReport) =>
 	report.cells.find((c) => c.cell === 'rawWrite')?.status;

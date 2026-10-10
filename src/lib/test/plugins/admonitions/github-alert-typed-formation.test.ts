@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { describeConvergence, parseConverges } from '$lib/testing/parse-convergence';
-import { nodeAt } from '$lib/tree-operations';
-import { makeContainerHarness, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { installPlugins, parse, serialize } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { describeConvergence, parseConverges } from '#lib/testing/parse-convergence.js';
+import { nodeAt } from '#lib/tree-operations/index.js';
+import { makeContainerHarness, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { containerAt, typeSlowly } from './formation-harness';
 
 // Per-keystroke `> [!TYPE]` formation. Typing the marker one character at a time only

@@ -7,12 +7,12 @@ import type { BlockEditActions } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
 import type { DocumentGetter, PasteImageHook } from '../../../editor-keys';
 import type { EditorEvents } from '../../../editor-events';
-import type { SurfaceBackend } from '../../../cursor/surface-backend';
+import type { SurfaceBackend } from '../../../caret/surface-backend';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
-import type { CaretMemory } from '../../../cursor/caret-memory';
+import type { CaretMemory } from '../../../caret/caret-memory';
 import {
 	createClipboardHandlers,
 	type ClipboardCaretIO,
@@ -24,7 +24,7 @@ import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { replaceSelectedWidget } from './widget-interaction';
 import { widgetSpanIn, type WidgetRange } from './widget-adjacency';
-import type { RawRange } from '../../../cursor/widget-offset';
+import type { RawRange } from '../../../caret/widget-offset';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 

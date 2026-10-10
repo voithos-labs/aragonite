@@ -119,6 +119,19 @@ test.describe('IME composition', () => {
 		await editor.bridge.waitForSourceEquals('alpha\n\nbeta\n');
 	});
 
+	// Chromium's beforeinput and input for that key say `isComposing: false`; only its keydown is true.
+	test('a Backspace inside a live composition leaves it to the IME', async ({ page }) => {
+		await editor.loadContent('hello\n');
+		await editor.focusBlockEnd(0);
+		const ime = await attachIme(page);
+
+		await ime.compose('かん');
+		await page.keyboard.press('Backspace');
+		await ime.commit('漢');
+
+		await expect.poll(() => editor.bridge.getSource()).toBe('hello漢\n');
+	});
+
 	test('undo after a composed commit restores the pre-composition text in one step', async ({
 		page
 	}) => {
@@ -135,4 +148,178 @@ test.describe('IME composition', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('hello world\n');
 	});
+});
+
+// ── Composing into an empty block ───────────────────────────────────────────
+
+interface EmptyBlockRoute {
+	name: string;
+	source: string;
+	/** Leaves the caret in an empty block the way a user gets there. */
+	reach(editor: EditorPage): Promise<void>;
+	/** The document once `text` is composed into that block. */
+	after(text: string): string;
+}
+
+const enterAtEnd = async (editor: EditorPage): Promise<void> => {
+	await editor.focusBlockEnd(0);
+	await editor.page.keyboard.press('Enter');
+};
+
+/** Every route where the editor, not the browser, puts the caret into the empty block. */
+const EDITOR_PLACED: EmptyBlockRoute[] = [
+	{
+		name: 'Enter at the end of a paragraph',
+		source: 'hello\n',
+		reach: enterAtEnd,
+		after: (text) => `hello\n\n${text}\n`
+	},
+	{
+		name: 'Backspace emptying a paragraph',
+		source: 'x\n\na\n',
+		async reach(editor) {
+			await editor.focusBlockEnd(1);
+			await editor.page.keyboard.press('Backspace');
+		},
+		after: (text) => `x\n\n${text}\n`
+	},
+	{
+		name: 'arrows back into an empty paragraph',
+		source: 'hello\n',
+		async reach(editor) {
+			await enterAtEnd(editor);
+			await editor.page.keyboard.press('ArrowUp');
+			await editor.page.keyboard.press('ArrowDown');
+		},
+		after: (text) => `hello\n\n${text}\n`
+	},
+	{
+		name: 'Tab into an empty table cell',
+		source: '| H | I |\n| - | - |\n| a |  |\n',
+		async reach(editor) {
+			await editor.page.locator('.table-cell').nth(2).click();
+			await editor.page.keyboard.press('Tab');
+		},
+		after: (text) => `| H | I |\n| - | - |\n| a | ${text} |\n`
+	},
+	{
+		name: 'Enter at the end of a quote',
+		source: '> quote\n',
+		reach: enterAtEnd,
+		after: (text) => `> quote\n>\n> ${text}\n`
+	},
+	{
+		name: 'placeCaret into an empty document',
+		source: '\n',
+		reach: (editor) => editor.focusBlockStart(0),
+		after: (text) => `${text}\n`
+	},
+	...['- ', '1. ', '- [ ] '].map((marker): EmptyBlockRoute => ({
+		name: `Ctrl+A in an emptied "${marker.trim()}" item`,
+		source: `${marker}a\n`,
+		async reach(editor) {
+			await editor.focusBlockEnd(0);
+			await editor.page.keyboard.press('Backspace');
+			await editor.page.keyboard.press('ControlOrMeta+a');
+		},
+		after: (text) => `${marker}${text}\n`
+	}))
+];
+
+/** Routes that already passed and must stay so: a click puts the caret before the `<br>` itself,
+ *  and Enter in a list item puts it between the marker and the `<br>`. */
+const ALREADY_PASSING: EmptyBlockRoute[] = [
+	{
+		name: 'a click into an empty document',
+		source: '\n',
+		reach: (editor) => editor.clickBlock(0),
+		after: (text) => `${text}\n`
+	},
+	{
+		name: 'Enter at the end of a list item',
+		source: '- a\n',
+		reach: enterAtEnd,
+		after: (text) => `- a\n- ${text}\n`
+	}
+];
+
+/** One candidate committed as is, and a romaji run converted on commit. */
+const SEQUENCES = [
+	{ name: 'a single update', updates: ['か'], commit: 'か' },
+	{ name: 'several updates', updates: ['k', 'か', 'かん'], commit: '漢' }
+];
+
+for (const mode of ['source', 'live'] as const) {
+	test.describe(`IME composition into an empty block (${mode})`, () => {
+		for (const route of [...EDITOR_PLACED, ...ALREADY_PASSING]) {
+			for (const sequence of SEQUENCES) {
+				test(`${route.name}: ${sequence.name} commits once`, async ({ page }) => {
+					const editor = new EditorPage(page);
+					await editor.goto(mode === 'live' ? '?presentationMode=live' : '');
+					await editor.loadContent(route.source);
+					await route.reach(editor);
+					const ime = await attachIme(page);
+
+					for (const update of sequence.updates) await ime.compose(update);
+					await ime.commit(sequence.commit);
+
+					await expect.poll(() => editor.bridge.getSource()).toBe(route.after(sequence.commit));
+				});
+			}
+		}
+	});
+}
+
+// No route places the caret after the `<br>` any more, so the spec puts it there to make Chromium
+// drop the composition, the state the block has to recover from.
+test.describe('a composition Chromium drops', () => {
+	test.use({ expectWarns: ['composition'] });
+
+	/** The paragraph Enter opens under `hello`, with the caret after its `<br>`. */
+	async function caretAfterBreak(editor: EditorPage): Promise<void> {
+		await editor.loadContent('hello\n');
+		await enterAtEnd(editor);
+		await editor.page.evaluate(() => {
+			const el = document.activeElement!;
+			const end = el.childNodes.length;
+			window.getSelection()!.setBaseAndExtent(el, end, el, end);
+		});
+	}
+
+	const KEYS = [
+		{ key: 'ArrowUp', then: 'End', after: 'helloQ\n\nか\n' },
+		{ key: 'Enter', then: null, after: 'hello\n\nか\n\nQ\n' }
+	];
+	for (const { key, then, after } of KEYS) {
+		test(`a dropped update, then ${key}: the key ends it and acts`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await caretAfterBreak(editor);
+			const ime = await attachIme(page);
+			await ime.compose('か');
+
+			await page.keyboard.press(key);
+			await expect.poll(() => editor.bridge.getSource()).toContain('hello\n\nか\n');
+			if (then) await page.keyboard.press(then);
+			await page.keyboard.type('Q');
+			await expect.poll(() => editor.bridge.getSource()).toBe(after);
+		});
+	}
+
+	for (const sequence of SEQUENCES) {
+		test(`${sequence.name}: the block saves what it shows and keeps saving`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await caretAfterBreak(editor);
+			const ime = await attachIme(page);
+
+			for (const update of sequence.updates) await ime.compose(update);
+			await ime.commit(sequence.commit);
+			const shown = await editor.getBlockText(1);
+			await expect.poll(() => editor.bridge.getSource()).toBe(`hello\n\n${shown}\n`);
+
+			await page.keyboard.type('x');
+			await expect.poll(() => editor.bridge.getSource()).toBe(`hello\n\n${shown}x\n`);
+		});
+	}
 });

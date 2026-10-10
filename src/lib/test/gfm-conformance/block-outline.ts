@@ -4,8 +4,8 @@
  */
 
 import { Parser, type Node } from 'commonmark';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 const REFERENCE_BLOCKS = new Set([
 	'paragraph',

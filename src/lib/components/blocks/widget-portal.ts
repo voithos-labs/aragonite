@@ -9,7 +9,12 @@ import { mount, unmount } from 'svelte';
 import type { AnyInlineKind, InlineNode } from '../../core/nodes';
 import type { DocumentView } from '../../core/node-views';
 import { inlineReaderFor } from '../../core/inline';
-import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
+import {
+	getInlineWidgetComponent,
+	getInlineWidgetEditing,
+	widgetActivates
+} from '../../core/inline/inline-widgets';
+import type { ActivationClick } from '../../activation-click';
 import type { Reading } from '../../schema/reading';
 import { tracePoolPass } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../assert';
@@ -139,12 +144,15 @@ export interface SvelteWidgetPoolDeps {
 	/** How the editor reads its bytes: a widget kind whose plugin it left out mounts nothing, and a
 	 *  mounted widget reads the mode and parses inline content through it. */
 	reading: Reading;
+	/** Whether a click follows what it lands on in this editor, for a widget that goes somewhere. */
+	activationClick: ActivationClick;
 }
 
 /** A mount throw is reported and returns null, so the caller falls back to the raw span. The
  *  getters are live props beside the frozen snapshot, since a pooled instance outlives a mode switch. */
 export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 	const { reportError, getTheme, getDocument, getContentVersion, navigateTo, reading } = deps;
+	const { activationClick } = deps;
 	const { grammar } = reading;
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
@@ -169,7 +177,10 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps): WidgetPool {
 						// A getter, so a pooled widget's reader changes with the document's definitions.
 						get computeInlineContent() {
 							return inlineReaderFor(reading);
-						}
+						},
+						// Read per click: a pooled widget outlives a mode switch and a policy augment.
+						isActivationClick: (click) =>
+							widgetActivates(getInlineWidgetEditing(kind, grammar), click, activationClick)
 					}
 				});
 				return { wrapper, instance };

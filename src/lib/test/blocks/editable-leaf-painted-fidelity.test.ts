@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount } from 'svelte';
 import { takeDevWarns } from '../support/warn-gate';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'painted-leaf';

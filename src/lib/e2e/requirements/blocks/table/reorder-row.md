@@ -9,21 +9,8 @@ and the row and its cells keep their identity across the move.
 The chord is handled before vertical cell navigation (Alt chooses reorder over
 the plain ArrowUp/ArrowDown caret move).
 
-## Happy paths
-
-- Alt+ArrowDown on an interior body row swaps it past the next body row; focus
-  follows and stays in the same column (a character typed after the move lands in
-  that column of the moved row).
-- Alt+ArrowUp on an interior body row moves it up one position among body rows.
-
 ## Edge cases
 
-- Alt+ArrowUp / Alt+ArrowDown from the header row does nothing: the source is
-  unchanged, since the header cannot move.
-- Alt+ArrowUp on the first body row does nothing and pushes no undo entry: typing,
-  then a press at the boundary, then Ctrl+Z restores the _typing_, not a move that
-  never happened.
-- Alt+ArrowDown on the last body row does nothing.
 - A row move on a tight table (no padding in the cells) keeps every row as it was written, and a
   single undo restores the source byte-for-byte as it was before the move.
 - Reorder → undo → reorder leaves the CST and the DOM in step and logs no page
@@ -40,3 +27,11 @@ the plain ArrowUp/ArrowDown caret move).
 - A successful row move updates the polite live region
   (`.editor-sr-live-reorder`) with the row's new position ("Moved row to
   position N of M").
+
+## Pinned below the browser
+
+These run the chord in a mounted cell:
+
+- Alt+ArrowDown and Alt+ArrowUp move an interior body row past its neighbour
+  (`test/blocks/table/cell-table-chords.test.ts`, `test/editor-actions/table-row-reorder-target.test.ts`); where the caret lands is `e2e/tests/blocks/table/action-landing.spec.ts`.
+- Alt+ArrowUp and Alt+ArrowDown in the header row, Alt+ArrowUp on the first body row and Alt+ArrowDown on the last do nothing and push no undo entry, so the Ctrl+Z after them takes back the edit before (`test/blocks/table/cell-table-chords.test.ts`).

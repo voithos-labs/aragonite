@@ -1,11 +1,13 @@
-// @vitest-environment jsdom
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { parseInline, type InlineNode } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { getInlineWidgetComponent, getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
-import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';
-import { FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes/constants';
+import { parseInline, type InlineNode } from '#lib';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import {
+	getInlineWidgetComponent,
+	getInlineWidgetEditing
+} from '#lib/core/inline/inline-widgets.js';
+import { registerFootnoteReference } from '#lib/plugins/footnotes/footnote-reference.js';
+import { FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/constants.js';
 
 const isRef = (n: InlineNode) => n.kind === FOOTNOTE_REF_KIND;
 const refsIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isRef);

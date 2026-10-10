@@ -4,7 +4,7 @@ import fc from 'fast-check';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { renderedText, screenVisibility } from '../../core/inline/visibility';
-import { CONTENT_EMPTY_ATTR, isHiddenMarkerText } from '../../cursor/widget-offset';
+import { CONTENT_EMPTY_ATTR, isHiddenMarkerText } from '../../caret/widget-offset';
 import type { PresentationMode } from '../../presentation-mode';
 import { arbRawString, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';

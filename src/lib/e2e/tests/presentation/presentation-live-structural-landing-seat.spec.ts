@@ -39,23 +39,20 @@ async function exitFenceUpward(ep: EditorPage, page: Page, word: string): Promis
 	await ep.waitForRenderFlush();
 }
 
-test.describe('live mode: a structural landing puts the caret outside the construct it lands on', () => {
+test.describe('live mode: a structural landing follows the character before the caret', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		ep = await enterLive(page);
 	});
 
-	// The caret was placed at the paragraph's end, behind a hidden `**`, not stepped there, so its
-	// side is construct-relative (`docs/design/live-mode.md` § 4.2).
-	test('a byte typed after exiting a fence upward lands past the closing marker', async ({
-		page
-	}) => {
+	// The landing is on text: the character before the caret is bold, so the byte joins it.
+	test('a byte typed after exiting a fence upward joins the bold before it', async ({ page }) => {
 		await exitFenceUpward(ep, page, 'fence');
 		await expect.poll(() => focusPath(ep)).toEqual([BOLD]);
 
 		await page.keyboard.type('x');
-		await ep.bridge.waitForSourceContains('A **bold**x');
+		await ep.bridge.waitForSourceContains('A **boldx**');
 	});
 
 	test('the exit press itself deletes nothing: the fence survives it whole', async ({ page }) => {

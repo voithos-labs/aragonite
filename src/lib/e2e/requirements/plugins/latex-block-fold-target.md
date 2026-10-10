@@ -13,8 +13,8 @@ Fixture: `/test/plugins?seed=mathblock`.
 
 ## Happy paths
 
-- Show the source, edit it, blur: the edit commits as one undo entry
-- Mod+Z with the rendered view focused undoes that entry
+- Show the source, edit it, blur: the edit commits, and one Mod+Z with the rendered view focused
+  undoes it
 - Mod+Z with the shown source focused undoes it too
 
 ## Edge cases
@@ -22,8 +22,7 @@ Fixture: `/test/plugins?seed=mathblock`.
 - `$$` and Enter creates a math block with the caret in its shown source. Mod+Z there walks the
   typed draft back one burst of typing per press, since the draft batches on the same pause the
   document does, and the press after the last one brings the paragraph back rather than moving
-  the document forward with the draft
-- Repeated Mod+Z keeps walking back, and no press is swallowed
+  the document forward with the draft. No press along the way is swallowed
 
 ## Miss-analysis
 

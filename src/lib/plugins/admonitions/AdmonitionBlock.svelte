@@ -9,7 +9,7 @@
 		getPluginMetadata,
 		isBlankText,
 		type NodeView
-	} from '$lib/plugin';
+	} from '#lib/plugin.js';
 	import {
 		capitalize,
 		coerceAdmonitionName,

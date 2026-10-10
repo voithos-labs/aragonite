@@ -2,7 +2,7 @@
 // The ordering cases belong to the internal `normalize` in `selection-point.test.ts`; what only
 // this layer can pin is the alias itself and the shape a hand-rolled comparison gets wrong.
 import { describe, it, expect } from 'vitest';
-import { normalizeSelection, type EditorSelection, type SelectionPoint } from '$lib';
+import { normalizeSelection, type EditorSelection, type SelectionPoint } from '#lib';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 const range = (anchor: SelectionPoint, focus: SelectionPoint): EditorSelection => ({

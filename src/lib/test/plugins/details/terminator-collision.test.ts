@@ -1,21 +1,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import { declaredPluginKind } from '$lib/plugin';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { parse, serialize } from '#lib';
+import { declaredPluginKind } from '#lib/plugin.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus
-} from '$lib/test/harness/editor-actions';
-import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
-import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
-import { admittedCaret } from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
+import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
+import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import { admittedCaret } from '#lib/test/harness/editor-actions.js';
 
 /**
  * `</details>` is a fixed terminator with no fence length to grow, so the fix happens on the

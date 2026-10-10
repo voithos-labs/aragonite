@@ -3,20 +3,20 @@
 // Miss-analysis: the keystroke cost tests counted rebuild depth and re-reads, never how many lines
 // a rebuild read, so a rebuild that walked every line of its container per key passed them.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import type { CstNode } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
+} from '#lib/perf/instruments.js';
 
 const TARGET = 1250;
 

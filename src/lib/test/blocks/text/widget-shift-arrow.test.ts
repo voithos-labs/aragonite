@@ -2,18 +2,19 @@
 // `widgetExtensionTarget` must let Shift+Arrow extend across any atomic inline widget, such as a
 // raw-HTML `<br>`, not only images. Chromium extends across a contenteditable=false element on its
 // own, so e2e cannot tell; jsdom does not, so this catches a filter narrowed to images.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { getInlineContent } from '$lib/core/inline/inline-cache';
-import { buildLiveHtmlWidget } from '$lib/core/inline/raw-html-widget';
+import { parse } from '#lib/core/parser.js';
+import { getInlineContent } from '#lib/core/inline/inline-cache.js';
+import { buildLiveHtmlWidget } from '#lib/core/inline/raw-html-widget.js';
 import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
-} from '$lib/components/blocks/text/widget-interaction';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/components/blocks/text/widget-interaction.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { placeCaretAt } from './math-widget-fixture';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 	let el: HTMLElement;
@@ -63,6 +64,7 @@ describe('handleShiftArrowIntoWidget: non-image inline widget', () => {
 			},
 			getEl: () => el,
 			getEditorContentWidth: trap,
+			caretWriter: testCaretWriter,
 			cursor: new Proxy({}, { get: trap }),
 			selection: new Proxy({}, { get: trap }),
 			blockEdit: new Proxy({}, { get: trap }),

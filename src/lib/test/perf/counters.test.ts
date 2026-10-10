@@ -28,10 +28,13 @@ describe('perf counter ceilings', () => {
 		expect(docByteLength(cloneDocument(doc))).toBe(docByteLength(doc));
 	});
 
+	// Miss-analysis: the ceilings bounded only from above, so a traversal counting no nested
+	// container passed them. Top-level containers hold the document at most once, hence over 1.
 	it('ceiling: container-raw amplification on the nested fixture', () => {
 		const doc = parse(generateFixture('nested-containers', 100_000));
 		const amplification = containerRawBytes(doc.children) / docByteLength(doc);
 		// Measured 3.55 (baseline.json); 3.9 is about 1.1 times that.
+		expect(amplification).toBeGreaterThan(1);
 		expect(amplification).toBeLessThanOrEqual(3.9);
 	});
 
@@ -39,6 +42,7 @@ describe('perf counter ceilings', () => {
 		const doc = parse(generateFixture('table-heavy', 100_000));
 		const amplification = containerRawBytes(doc.children) / docByteLength(doc);
 		// Measured 1.96 (baseline.json); 2.2 is about 1.1 times that.
+		expect(amplification).toBeGreaterThan(1);
 		expect(amplification).toBeLessThanOrEqual(2.2);
 	});
 

@@ -7,11 +7,11 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { takeDevWarns } from '../support/warn-gate';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });

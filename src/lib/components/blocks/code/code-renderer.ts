@@ -6,9 +6,14 @@
 
 import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
-import { displayLines, ownTrailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
+import {
+	displayLength,
+	displayLines,
+	ownTrailingLineEnding,
+	trimTrailingLineEnding
+} from '../../../core/lines';
 import { fenceAnatomy, type FenceRun } from '../../../core/parsers/fence-syntax';
-import { createCaretAnchor } from '../../../cursor/widget-offset';
+import { createCaretAnchor } from '../../../caret/widget-offset';
 import { devWarn } from '../../../dev-warn';
 import { assertInvariant } from '../../../assert';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
@@ -42,6 +47,21 @@ export function sliceFencedSource(text: string, fence?: FenceRun): FencedSource 
 		body: text.slice(anatomy.bodyStart, anatomy.closerStart),
 		closer: text.slice(anatomy.closerStart)
 	};
+}
+
+/** The body's bytes in a fenced source, its line ending left out; null when the fence has no
+ *  body line yet, as a closer on the line after the opener leaves it. */
+export function fencedBodyRange(
+	source: FencedSource | null
+): { start: number; end: number } | null {
+	if (!source || source.body === '') return null;
+	const start = source.opener.length;
+	return { start, end: start + displayLength(source.body) };
+}
+
+/** A code block's {@link fencedBodyRange}. */
+export function codeBodyRange(node: NodeView): { start: number; end: number } | null {
+	return fencedBodyRange(sliceFencedSource(node.raw, codeFenceRun(node)));
 }
 
 export function sliceFencedCode(node: NodeView): FencedCodeSlice {

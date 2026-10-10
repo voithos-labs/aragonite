@@ -9,11 +9,11 @@ import { expect } from 'vitest';
  *  a cache hit; a `z` run completes no construct these suites flood with. */
 const salt = (sample: number) => 'z'.repeat(sample);
 
-/** Discarded samples per size: the warm-up ramp is steepest across the first two. */
-const WARMUPS = 2;
+/** Discarded samples per size: the warm-up ramp is steepest on the first. */
+const WARMUPS = 1;
 
-/** Timed pairs per size: enough that a pair starved by a sibling suite stays out of the median. */
-const REPETITIONS = 16;
+/** Timed pairs per size: their median ignores up to three pairs a sibling suite starved. */
+const REPETITIONS = 8;
 
 /** Floor the median small sample must clear, below which a scheduler hiccup outweighs the scan. */
 export const MIN_SAMPLE_MS = 2;

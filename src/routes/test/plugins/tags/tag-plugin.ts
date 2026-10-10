@@ -11,7 +11,7 @@ import {
 	registerInlineWidgetKind,
 	type EditorPlugin,
 	type InlineNode
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import BodyTag from './BodyTag.svelte';
 import { recognizeTag } from '../../../demo-tags/tag-scan';
 

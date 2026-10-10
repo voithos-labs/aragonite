@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse, serialize } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { convertGithubAlertsInDocument } from '$lib/plugins/admonitions/convert-document';
+import { installPlugins, parse, serialize } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { convertGithubAlertsInDocument } from '#lib/plugins/admonitions/convert-document.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);

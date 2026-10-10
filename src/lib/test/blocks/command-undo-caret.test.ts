@@ -2,7 +2,7 @@
 // Miss-analysis: the command undo suites counted entries and read the bytes back, never the caret
 // an entry records, so a toggle or an indent that handed over its landing caret stayed green.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import type { UndoEntry } from '$lib/undo/types';
+import type { UndoEntry } from '#lib/undo/types.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -10,7 +10,7 @@ import {
 	selectRange,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt, installTableLayoutStubs } from './table/mount-table';
 import { rangeSelectionOf } from '../support/undo-entry';
 

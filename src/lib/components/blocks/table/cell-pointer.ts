@@ -10,13 +10,14 @@ import {
 	type CellSelectionPoint,
 	type SelectionEndpoint
 } from '../../../selection/primitives';
-import { rowMajorCellIndex } from '../../../cursor/coordinate-spaces';
+import { rowMajorCellIndex } from '../../../caret/coordinate-spaces';
 import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
-import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
-import { TABLE_CELL_SELECTOR } from '../../block-content-selector';
-import { caretOffsetAtPoint } from '../../../cursor/point-offset';
+import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';
+import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
+import { caretOffsetAtPoint } from '../../../caret/point-offset';
 import { applySingleBlockRange } from '../../../selection/native-bridge';
+import type { CaretWriter } from '../../../caret/widget-offset';
 import type { PaddingPress } from '../../../selection/cross-block/pointer';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ export interface CellAnchor {
 export interface CellDragContext {
 	editorRoot: HTMLElement;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	lifetimeSignal?: AbortSignal;
 }
 
@@ -87,7 +89,9 @@ export function installCellDragListener(
 	function paintInAnchorCell(clientX: number, clientY: number): void {
 		if (!padding?.press.placed()) return;
 		const focus = caretOffsetAtPoint(padding.surface, clientX, clientY);
-		if (focus !== null) applySingleBlockRange(padding.surface, padding.press.offset, focus);
+		if (focus !== null) {
+			applySingleBlockRange(ctx.caretWriter, padding.surface, padding.press.offset, focus);
+		}
 	}
 
 	function extendToCell(rowIdx: number, colIdx: number): void {
@@ -152,7 +156,7 @@ function enterOrExtend(
 // ── DOM geometry ─────────────────────────────────────────────────────────────
 //
 // Rows carry `data-table-row-idx` and cells match `TABLE_CELL_SELECTOR`; `selection/path-lookup.ts`
-// and `components/block-el-lookup.ts` read the same markup, so a change to it reaches all three.
+// and `caret/block-el-lookup.ts` read the same markup, so a change to it reaches all three.
 
 /** The mounted rows in DOM order; under row windowing the first need not be row 0, which
  *  column geometry can ignore because every row shares the column tracks. */

@@ -139,6 +139,50 @@
 	align-self: stretch;
 }
 
+/* An empty block's hint (the `placeholder` prop) paints where typing starts, out of the flow so
+   the caret and the line keep their place; `aria-placeholder` says it, so its alt text is empty. */
+:where(.editor) [data-placeholder]::before {
+	content: attr(data-placeholder);
+	content: attr(data-placeholder) / '';
+	float: left;
+	height: 0;
+	text-indent: 0;
+	color: var(--md-placeholder-color);
+	pointer-events: none;
+	user-select: none;
+}
+
+/* A heading's own marker sits where that float would, so its hint follows the marker instead. */
+:where(.editor) [data-placeholder]:has(> [data-block-prefix])::before {
+	content: none;
+}
+
+:where(.editor) [data-placeholder]:has(> [data-block-prefix])::after {
+	content: attr(data-placeholder);
+	content: attr(data-placeholder) / '';
+	position: absolute;
+	text-indent: 0;
+	color: var(--md-placeholder-color);
+	pointer-events: none;
+	user-select: none;
+}
+
+/* A fenced source's body is the line under its opening fence wherever that fence paints, so the
+   hint is placed there rather than floated onto the fence line. */
+:where(.editor) [data-placeholder]:has(> .md-fence-line)::before {
+	float: none;
+	position: absolute;
+}
+
+/* The fence paints in source mode, and in a preview mode on the focused block (the fence rule in
+   the preview section below); the hint keys on the same two conditions. */
+:where(.editor):not([data-presentation]) [data-placeholder]:has(> .md-fence-line)::before,
+:where(.editor)[data-presentation^='preview-']
+	.block-host[data-focused]
+	[data-placeholder]:has(> .md-fence-line)::before {
+	margin-top: 1lh;
+}
+
 /* A typed kind change names the new kind at the block's corner until the fade ends. The empty
    alternative text keeps it out of the accessibility tree, since the editor's announcer says it. */
 :where(.editor) .block-host[data-kind-cue]::after {
@@ -310,56 +354,6 @@
 	background: transparent;
 }
 
-/* A drawn caret on the edge the caret snaps to: Chromium does not reliably render
-   the real one next to a contenteditable=false neighbor. */
-:where(.editor) [data-inline-widget].md-snap-after::before,
-:where(.editor) [data-inline-widget].md-snap-before::before {
-	content: '';
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	width: 1.5px;
-	background-color: var(--color-text-primary, currentColor);
-	animation: md-snap-caret-blink 1s step-end infinite;
-	pointer-events: none;
-}
-
-:where(.editor) [data-inline-widget].md-snap-after::before {
-	right: -1px;
-}
-
-:where(.editor) [data-inline-widget].md-snap-before::before {
-	left: -1px;
-}
-
-/* An image's drawn caret is inset from the frame so it reads as a caret, not part of the border;
-   a text-height widget keeps the full box, where an inset would leave a stub. */
-:where(.editor) .md-image-widget.md-snap-after::before,
-:where(.editor) .md-image-widget.md-snap-before::before {
-	top: 4px;
-	bottom: 4px;
-}
-
-:where(.editor) .md-image-widget.md-snap-after::before {
-	right: -4px;
-}
-
-:where(.editor) .md-image-widget.md-snap-before::before {
-	left: -4px;
-}
-
-@keyframes md-snap-caret-blink {
-	50% {
-		opacity: 0;
-	}
-}
-
-/* The drawn caret replaces the browser's own: Chromium does sometimes render a caret beside a
-   non-editable inline widget, and two at one position read as two carets. */
-:where(.editor) .md-snap-caret-active {
-	caret-color: transparent;
-}
-
 /* Top, left, width, height set inline by syncOverlayToWidget. */
 :where(.editor) .md-image-overlay {
 	position: absolute;
@@ -390,7 +384,7 @@
 	text-decoration: underline;
 }
 
-/* A plain click edits and only Ctrl/Cmd+click opens the link (`Editor.svelte` sets
+/* Where a plain click edits, only Ctrl/Cmd+click opens the link (`Editor.svelte` sets
    `data-mod-active`), so the cursor overrides the browser's default for `<a href>`. */
 :where(.editor) a.md-link-content,
 :where(.editor) .md-autolink {
@@ -547,13 +541,6 @@
 	background-color: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 }
 
-/* The construct a typed byte would join at its hidden edge (`edge-step.ts`), where both sides
-   share a pixel. An outline, which never reflows the line and which no construct styles itself. */
-:where(.editor) .md-edge-held {
-	border-radius: 3px;
-	outline: 1px solid var(--md-edge-held-ring);
-}
-
 /* Raw-HTML block source text; inline raw HTML keeps --md-raw-html-color above. */
 :where(.editor) .text-editable-block.raw-block {
 	color: var(--syntax-comment, currentColor);
@@ -661,7 +648,7 @@
 }
 
 /* A focused construct whose only bytes are its markers shows them dimmed, since it has nothing
-   else to show and no caret position inside; mirrored in `cursor/widget-offset.ts`. */
+   else to show and no caret position inside; mirrored in `caret/widget-offset.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
 	[contenteditable][data-content-empty]:focus-within
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
@@ -888,9 +875,9 @@
 	background-color: transparent;
 }
 
-/* No caret to place: links read as links and activate on plain click. */
-:where(.editor)[data-presentation='reading'] a.md-link-content,
-:where(.editor)[data-presentation='reading'] .md-autolink:not(.md-link-blocked) {
+/* Reading mode, or a host whose links follow a plain click: links read as links. */
+:where(.editor)[data-plain-click-follows] a.md-link-content,
+:where(.editor)[data-plain-click-follows] .md-autolink:not(.md-link-blocked) {
 	cursor: pointer;
 }
 
@@ -948,4 +935,79 @@
 	.block-host[data-focused]
 	:is(.md-marker, .md-ref-label).md-construct-reveal {
 	display: inline;
+}
+
+/* The caret the editor draws (`caret/drawn-caret.svelte.ts`), one per editor: the paint sets its
+   box inline, and hides it while it draws nothing. */
+:where(.editor) .md-drawn-caret {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: var(--md-caret-width);
+	pointer-events: none;
+	background-color: var(--md-caret-color);
+	animation: md-caret-blink-a var(--md-caret-blink) step-end infinite;
+	/* A shape keeps the bar's foot where the browser's caret stands: a heavier bar grows to the
+	   right, a slant leans from the bottom. */
+	transform-origin: bottom left;
+}
+
+/* The format the next letter types in; the shapes compose, so bold italic is a slanted heavy bar. */
+:where(.editor) .md-drawn-caret[data-caret-marks~='strong'] {
+	width: var(--md-caret-strong-width);
+}
+
+:where(.editor) .md-drawn-caret[data-caret-marks~='emphasis'] {
+	transform: skewX(var(--md-caret-slant));
+}
+
+:where(.editor) .md-drawn-caret[data-caret-marks~='strikethrough']::after {
+	content: '';
+	position: absolute;
+	top: 55%;
+	left: calc(50% - var(--md-caret-strike-width) / 2);
+	width: var(--md-caret-strike-width);
+	height: 2px;
+	background-color: var(--md-caret-color);
+}
+
+/* Across a gap between blocks the bar lies flat over the boundary, centred so neither neighbour
+   appears to own it. */
+:where(.editor) .md-drawn-caret[data-caret-state='gap'] {
+	top: -1px;
+	right: 0;
+	width: auto;
+	height: 2px;
+	border-radius: 1px;
+	background-color: var(--color-text-secondary, #d6d9e0);
+}
+
+/* Two identical keyframes: the paint switches between them to restart the blink on a move. */
+:where(.editor) .md-drawn-caret[data-blink='b'] {
+	animation-name: md-caret-blink-b;
+}
+
+/* Only the editable the drawn caret draws for hides the browser's caret, so any other field keeps
+   its own. */
+:where(.editor) [data-caret-drawn] {
+	caret-color: transparent;
+}
+
+@keyframes md-caret-blink-a {
+	50% {
+		opacity: 0;
+	}
+}
+
+@keyframes md-caret-blink-b {
+	50% {
+		opacity: 0;
+	}
+}
+
+/* As specific as the second keyframe's rule, so a caret that moved stays still too. */
+@media (prefers-reduced-motion: reduce) {
+	:where(.editor) .md-drawn-caret[data-blink] {
+		animation: none;
+	}
 }

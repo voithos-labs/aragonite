@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 /**
  * The dev-mode warning when a plugin's hook refuses an image edit. A hook returning the same bytes
  * gets no warning (the commit drops it as unchanged), so a hook must refuse what it cannot store.

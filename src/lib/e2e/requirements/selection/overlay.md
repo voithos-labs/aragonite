@@ -2,7 +2,7 @@
 
 ## Happy paths
 
-- Cross-block selection renders middle-block overlay on every block between start and end
+- Cross-block selection renders middle-block overlay on every block between start and end (the drag across three paragraphs in `pointer.spec.ts`)
 - Single-block selection uses native rendering, no custom overlay divs
 - When selection collapses, all overlay divs are removed
 
@@ -13,15 +13,19 @@
   edges, not hugging the text: the start from its point to the right edge plus everything below
   it, the end everything above it plus the left edge up to its point (the rows under One paint per
   block check this for each kind of block)
-- A container the range holds whole (blockquote, list) paints one box over everything it renders, its own markers included; its children paint none, so nothing is drawn twice
-- A list item the range holds whole paints its own box over its marker and its content, though it renders no block host of its own; a nested sub-list under such an item paints no second box
-  - Miss-analysis: every overlay test ran over blocks a block host wraps, so an item, the one container that renders none, was the case no test could reach
-
 - A drag from a paragraph into a closed details' title row paints the details as one box, covering
   the title row end to end, and the title row paints no box of its own. The range takes the
   hidden body too, so the overlay shows what a delete or a cut would take
   - Miss-analysis: the overlay read the raw endpoints and painted only the title characters the
     drag crossed, and every overlay test ran over open blocks, so nothing compared it to the delete
+
+## Pinned below the browser
+
+These run against the mounted blocks:
+
+- A container the range holds whole (blockquote, list) paints one box over everything it renders, its own markers included; its children paint none, so nothing is drawn twice (`test/components/container-overlay-routing.svelte.test.ts`)
+- A list item the range holds whole paints its own box over its marker and its content, though it renders no block host of its own; a nested sub-list under such an item paints no second box (`test/components/container-overlay-routing.svelte.test.ts`)
+  - Miss-analysis: every overlay test ran over blocks a block host wraps, so an item, the one container that renders none, was the case no test could reach
 
 ## One paint per block
 
@@ -53,4 +57,5 @@
 
 ## Error / degenerate cases
 
-- Block content changes while cross-block selection exists: overlay should reflect new layout via reactivity
+- Block content changes while cross-block selection exists: overlay should reflect new layout via reactivity. The overlay re-measures on its block's scroll container scrolling, the editor root scrolling and the block's box resizing, and stops once the block goes; `overlay-remeasure.test.ts` pins that
+  - Miss-analysis: no test covered this bullet, and no unit drove the re-measure triggers

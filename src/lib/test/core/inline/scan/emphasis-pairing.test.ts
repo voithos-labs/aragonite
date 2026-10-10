@@ -1,4 +1,4 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import { scanInline } from '../../../../core/inline/scan';
 import { expectBoundedGrowth, measureScanGrowth } from '../../../harness/scan-growth';

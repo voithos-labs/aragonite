@@ -1,12 +1,14 @@
-// @vitest-environment jsdom
 // Where a leaf's bytes are stored: the kind and container write rules, and the slot reading a
 // reload gives them, a list item's marker line included.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { storedAsAt, storedAsIn } from '$lib/tree-operations/stored-as';
-import { fragmentReaderAt, readThroughItemMarker } from '$lib/tree-operations/list/task-paragraph';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { storedAsAt, storedAsIn } from '#lib/tree-operations/stored-as.js';
+import {
+	fragmentReaderAt,
+	readThroughItemMarker
+} from '#lib/tree-operations/list/task-paragraph.js';
 import { fixtureGrammar, fixtureReading } from '../harness/fixture-grammar';
 
 const storeAt = (source: string, path: number[]) =>

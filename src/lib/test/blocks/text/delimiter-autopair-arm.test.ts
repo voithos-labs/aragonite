@@ -6,10 +6,10 @@ import { describe, expect, it } from 'vitest';
 import {
 	applyDelimiterAutoPair,
 	type AutoPairSurface
-} from '$lib/components/blocks/text/delimiter-autopair';
-import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
-import type { ContentRange } from '$lib/core/inline';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/components/blocks/text/delimiter-autopair.js';
+import { createAutoPairRecord } from '#lib/components/blocks/text/auto-pair-record.js';
+import type { ContentRange } from '#lib/core/inline/index.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 interface Recorded {
 	writes: [string, number][];
@@ -37,6 +37,7 @@ function surfaceOver(
 		foldReveal: () => null,
 		setCaret: (offset) => recorded.carets.push(offset),
 		seatOutside: () => recorded.outside++,
+		passCloser: () => recorded.outside++,
 		hiddenRunAt: () => false,
 		write: (next, after) => recorded.writes.push([next, after]),
 		keepsKind,

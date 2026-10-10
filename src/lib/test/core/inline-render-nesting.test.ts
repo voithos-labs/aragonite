@@ -23,14 +23,6 @@ describe('inline render at input-controlled nesting depth', () => {
 		expect(markersOf(frag)).toEqual(['[', '**', '_', '_', '**', ']', '(u)']);
 	});
 
-	// jsdom's insert bookkeeping is superlinear in tree depth (a native DOM is not), so the
-	// environment, not the renderer, is what caps the size here.
-	it('renders past the recursion ceiling with full byte coverage', () => {
-		const raw = '*'.repeat(8_000) + 'a' + '*'.repeat(8_000);
-		expect(render(raw).textContent).toBe(raw);
-		// ~28s alone; a saturated full battery erases a 2x margin, so the cap carries 6x.
-	}, 180_000);
-
 	it('resolves an offset past the recursion ceiling', () => {
 		const raw = '*'.repeat(32_000) + 'a' + '*'.repeat(32_000);
 		const found = findNodeAtOffset(parseInline(raw, 0, raw.length), 32_000);

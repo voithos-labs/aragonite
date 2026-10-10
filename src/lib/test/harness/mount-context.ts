@@ -14,25 +14,29 @@ import {
 	type EditorDoc,
 	type EditorPolicies,
 	type EditorServices
-} from '$lib/editor-keys';
-import type { BlockEditActions, ContainerEditActions, FocusActions } from '$lib/action-contracts';
-import type { Document } from '$lib/core/nodes';
-import type { DocumentView } from '$lib/core/node-views';
-import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
-import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
-import { createMenuPresence } from '$lib/components/menu/menu-presence.svelte';
-import { createDraftRegistry } from '$lib/components/draft-registry';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
-import { defaultRegistryView } from '$lib/schema/registry-view';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { createEditorEvents, emitCommandError } from '$lib/editor-events';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { createScrollOwner } from '$lib/cursor/scroll-owner';
-import { createAutoPairRecord } from '$lib/components/blocks/text/auto-pair-record';
-import { createHeightOracle } from '$lib/cursor/height-oracle';
-import { createListTree } from '$lib/reactivity/list-tree';
-import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
+} from '#lib/editor-keys.js';
+import type {
+	BlockEditActions,
+	ContainerEditActions,
+	FocusActions
+} from '#lib/action-contracts.js';
+import type { Document } from '#lib/core/nodes.js';
+import type { DocumentView } from '#lib/core/node-views.js';
+import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
+import { createLinkCardState } from '#lib/components/link-card/link-card-state.svelte.js';
+import { createMenuPresence } from '#lib/components/menu/menu-presence.svelte.js';
+import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import { defaultRegistryView } from '#lib/schema/registry-view.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { createEditorEvents, emitCommandError } from '#lib/editor-events.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { createScrollOwner } from '#lib/windowing/scroll-owner.js';
+import { createAutoPairRecord } from '#lib/components/blocks/text/auto-pair-record.js';
+import { createHeightOracle } from '#lib/windowing/height-estimator.js';
+import { createListTree } from '#lib/windowing/list-tree.js';
+import { HEIGHT_ESTIMATES } from '#lib/windowing/typography-estimates.js';
 import {
 	makeCaretMemory,
 	makeStubBlockEdit,
@@ -40,6 +44,9 @@ import {
 	makeStubFocus
 } from './editor-actions';
 import { fixtureReading } from './fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { createWidgetEdgeHolder, type DrawnCaret } from '#lib/caret/drawn-caret.svelte.js';
+import { bindActivationClick, createPressTracker } from '#lib/activation-click.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -57,12 +64,24 @@ export interface MountContextOverrides {
 	doc?: Partial<EditorDoc>;
 }
 
+/** Draws no caret, but holds the widget edge a click meant the way the editor's drawn caret does. */
+function bareDrawnCaret(): DrawnCaret {
+	const widgetEdge = createWidgetEdgeHolder(() => {});
+	return {
+		request: () => {},
+		register: () => () => {},
+		armWidgetEdge: widgetEdge.arm,
+		widgetEdgeFor: widgetEdge.heldFor
+	};
+}
+
 /** A member a bare mount calls gets its empty production factory, since a partial stub breaks
  *  when a component reaches one more member; the rest keep a `{}` cast. */
 function stubbedServices(getDoc: () => DocumentView): EditorServices {
 	const selection = createSelectionState();
 	const stamps = createDocumentStamps();
 	return {
+		caretWriter: testCaretWriter,
 		events: createEditorEvents(),
 		// Real, not a cast: BlockHost and its overlays call four members of the decorations
 		// service during mount, and one with no sources answers all of them honestly.
@@ -71,6 +90,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		rangeCoverage: () => null,
 		search: {} as EditorServices['search'],
 		caretMemory: makeCaretMemory(),
+		drawnCaret: bareDrawnCaret(),
 		autoPairs: createAutoPairRecord(),
 		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
 		scrollOwner: {} as EditorServices['scrollOwner'],
@@ -105,7 +125,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Filled in by `editorMountContext`, which reads the other groups' overrides.
 		commands: {} as EditorServices['commands'],
 		// A bare mount has no announcer and no host to show a label on.
-		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} }
+		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },
+		presses: createPressTracker()
 	};
 }
 
@@ -115,8 +136,14 @@ function stubbedPolicies(): EditorPolicies {
 		resolveLinkUrl: (u) => u,
 		imageLoadPolicy: () => 'auto',
 		blockDragHandles: () => false,
+		placeholder: () => null,
 		presentationMode: () => 'source',
 		theme: () => 'dark',
+		activationClick: bindActivationClick(
+			() => 'source',
+			() => 'modifier',
+			createPressTracker()
+		),
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		onPasteImage: undefined,
 		onRunCode: undefined,

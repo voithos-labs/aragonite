@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 // Miss-analysis: the past-the-end append was tested only in source mode, never in reading mode.
 import { describe, it, expect, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const SOURCE = 'one\n\ntwo\n';
 

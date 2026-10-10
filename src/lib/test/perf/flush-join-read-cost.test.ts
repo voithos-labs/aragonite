@@ -1,24 +1,24 @@
 // Miss-analysis: the join a same-kind keystroke asks was costed by the perf gate's wall clock only,
 // so nothing said how many of a flush neighbour's bytes one keystroke parses.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite, type WriteTarget } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { installPlugins } from '$lib';
-import { latexPlugin } from '$lib/plugins/latex';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin } from '$lib/plugins/details';
+import type { CstNode } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite, type WriteTarget } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { installPlugins } from '#lib';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { detailsPlugin } from '#lib/plugins/details/index.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
+} from '#lib/perf/instruments.js';
 
 const lines = (line: (i: number) => string): string =>
 	Array.from({ length: 5000 }, (_, i) => line(i)).join('');

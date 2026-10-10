@@ -8,58 +8,61 @@ import type {
 	ContentWrite,
 	FocusActions,
 	ListContext
-} from '$lib/action-contracts';
-import type { BlockComponent } from '$lib/block-component';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
-import type { PendingMarks } from '$lib/cursor/pending-marks';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
-import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
-import { asDocPath } from '$lib/selection/path-math';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import { componentAt, type ChildList } from '$lib/reactivity/child-list';
-import { caretTargetFor, survivorAfterRemoval } from '$lib/selection/caret-target';
-import { delegateMoveFocus, type MoveFocusScope } from '$lib/editor-actions/focus/focus-dispatch';
-import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
-import type { PasteDispatchContext } from '$lib/tree-operations/paste/dispatch';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createListContext } from '$lib/editor-actions/list-context';
-import { createListOverrides } from '$lib/editor-actions/list-overrides';
+} from '#lib/action-contracts.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
+import type { PendingMarks } from '#lib/caret/pending-marks.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
+import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
+import type { CommitScope, ScopeCommitArgs } from '#lib/editor-actions/block-edit-scope.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import type { ContainerBlockComponentDeps } from '#lib/editor-actions/container-block-component.js';
+import { refSlotsOver } from '#lib/block-lists/child-refs.js';
+import { componentAt, type ChildList } from '#lib/block-lists/child-list.js';
+import { caretTargetFor, survivorAfterRemoval } from '#lib/selection/caret-target.js';
+import {
+	delegateMoveFocus,
+	type MoveFocusScope
+} from '#lib/editor-actions/focus/focus-dispatch.js';
+import type { PasteCommitCoordinator } from '#lib/tree-operations/paste/paste-deps.js';
+import type { PasteDispatchContext } from '#lib/tree-operations/paste/dispatch.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createListContext } from '#lib/editor-actions/list-context.js';
+import { createListOverrides } from '#lib/editor-actions/list-overrides.js';
 import {
 	createStandardNestedActions,
 	type NestedActionsBundle,
 	type NestedActionsDeps,
 	type NestedActionsInput,
 	type NestedActionsOverrideFactory
-} from '$lib/editor-actions/nested/nested-actions';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { Reading } from '$lib/schema/reading';
-import type { WriteMode } from '$lib/schema/block-kind-descriptor';
-import { withStoredCaret } from '$lib/editor-actions/stored-caret';
-import type { GrammarView } from '$lib/schema/block-openers';
+} from '#lib/editor-actions/nested/nested-actions.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { Reading } from '#lib/schema/reading.js';
+import type { WriteMode } from '#lib/schema/block-kind-descriptor.js';
+import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { fixtureReading } from './fixture-grammar';
-import { parse } from '$lib/core/parser';
-import type { EditEvent, EditorEvents } from '$lib/editor-events';
-import { mountBlockListState } from '$lib/testing/headless-block-list.svelte';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { getStateForNode, expectStateForNode } from '$lib/reactivity/state-registry';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import { parse } from '#lib/core/parser.js';
+import type { EditEvent, EditorEvents } from '#lib/editor-events.js';
+import { mountBlockListState } from '#lib/testing/headless-block-list.svelte.js';
+import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import { getStateForNode, expectStateForNode } from '#lib/block-lists/state-registry.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import {
 	createInlineRangeCommit,
 	type InlineRangeCommit
-} from '$lib/editor-actions/inline-range-commit';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { GapStopScope } from '$lib/selection/gap-caret';
+} from '#lib/editor-actions/inline-range-commit.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import type { GapStopScope } from '#lib/selection/gap-caret.js';
 import {
 	createHeadlessActions,
 	stubBlockComponent,
@@ -68,8 +71,9 @@ import {
 	type HeadlessActions,
 	type HeadlessActionsOptions,
 	type RecordedLanding
-} from '$lib/testing/headless-actions';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+} from '#lib/testing/headless-actions.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // ── CST node factory ─────────────────────────────────────────────────────────
 
@@ -101,6 +105,7 @@ export { stubBlockComponent };
 export function makeGapScope(source: string): GapStopScope {
 	const doc = parse(source);
 	return {
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		selection: createSelectionState(),
 		getPresentationMode: () => 'source'
@@ -248,6 +253,7 @@ export function makeShimDeps(
 	over: Partial<ContainerBlockComponentDeps> = {}
 ): ContainerBlockComponentDeps {
 	const deps: ContainerBlockComponentDeps = {
+		caretWriter: testCaretWriter,
 		selection: createSelectionState(),
 		reading: fixtureReading(),
 		get innerBlockRefs() {

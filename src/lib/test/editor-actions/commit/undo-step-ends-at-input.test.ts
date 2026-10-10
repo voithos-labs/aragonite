@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { asDocPath } from '$lib/selection/path-math';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { asDocPath } from '#lib/selection/path-math.js';
 
 // An open undo step ends at the author's next input, so a pick whose onCommit awaits something
 // slow cannot fold the author's typing into its entry.

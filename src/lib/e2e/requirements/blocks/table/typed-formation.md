@@ -11,7 +11,6 @@ instead of being split.
 - Type `| a | b |` into an empty paragraph and press Enter: the block becomes a table carrying the
   typed header, a canonical delimiter row and one empty body row, and the press creates nothing else
 - The caret lands in the first body cell, proven by typing a character and reading which cell holds it
-- Cell content is preserved verbatim and re-padded canonically: `|a|b|` completes to `| a | b |`
 - A header row typed below an existing table forms its own table; the blank line between them
   survives, so a reload still sees two
 - A header row typed inside a blockquote completes in place: the container's rebuild prefixes all
@@ -28,9 +27,6 @@ instead of being split.
   keeps pipes literal)
 - A single-cell row (`|a|`) falls through to the ordinary split, since the table scan would not accept it
   as a two-column header
-- A row without a leading pipe (`a | b`) falls through. The parser's scan alone would take it, so
-  the leading pipe is what says the user meant a table, and keeps prose carrying a pipe
-  (`ls | grep foo`) from becoming one
 - Miss-analysis: the interim hard-break branch read every trailing backslash as a break waiting to happen, so the `|` typed after `\` opened a new line; no unit case typed punctuation after a backslash, and this row was the only spec that did.
 - An escaped pipe inside a cell (`| a \| x | b |`) stays cell content, so the row completes with
   two columns, not three
@@ -48,3 +44,10 @@ all, because block formation was only ever tested through the paths that already
 single-line openers, and multi-line constructs arriving by paste or by load). The general answer is
 that a construct whose grammar spans adjacent lines has no way in by typing unless one is built,
 and nothing checked that this class of grammar was reachable by typing.
+
+## Pinned below the browser
+
+Which lines the completer takes, and the table bytes it answers with, run on the completer alone:
+
+- Cell content is kept as typed and padded canonically: `|a|b|` completes to `| a | b |` (`test/blocks/table/typed-completion.test.ts`).
+- A row without a leading pipe (`a | b`) is left alone. The parser's scan alone would take it, so the leading pipe is what says the user meant a table, and keeps prose carrying a pipe (`ls | grep foo`) from becoming one (`test/blocks/table/typed-completion.test.ts`).

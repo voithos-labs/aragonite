@@ -1,18 +1,19 @@
-import { parse } from '$lib/core/parser';
-import { recordingWrite, type RecordedWrite } from '$lib/test/harness/editor-actions';
+import { parse } from '#lib/core/parser.js';
+import { recordingWrite, type RecordedWrite } from '#lib/test/harness/editor-actions.js';
 import {
 	createWidgetInteraction,
 	type WidgetInteractionDeps
-} from '$lib/components/blocks/text/widget-interaction';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/components/blocks/text/widget-interaction.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import type { Reading } from '$lib/schema/reading';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import type { Reading } from '#lib/schema/reading.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** A recorded write less its mode. */
 export type Commit = Omit<RecordedWrite, 'mode'>;
@@ -29,7 +30,11 @@ export function harness(
 	const commits: Commit[] = [];
 	const carets: (number | null)[] = [];
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+	selectWidgetWhole(selection, testCaretWriter, {
+		paragraphPath: [0],
+		sourceStart,
+		preSelectOffset: sourceStart
+	});
 
 	const trap = () => {
 		throw new Error('unexpected dep access on the selected-widget resize path');

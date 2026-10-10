@@ -3,7 +3,7 @@
  * typing, an IME composition, paste, and a command key such as Enter. It removes what the range
  * covers in one commit picked by the kind of gesture and that coverage, puts the insertion where
  * the removal left the caret, and lands one caret, all as one undo entry
- * (`docs/design/editor.md` § Cross-block selection).
+ * (`docs/design/selection.md` § Cross-block selection).
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
@@ -32,8 +32,8 @@ import { parseReplacement } from '../../tree-operations/paste/replacement-parse'
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { countsCells } from '../../schema/block-kind-descriptor';
 import { dispatchKeyCommand } from '../../schema/block-commands';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
-import { getStateForNode } from '../../reactivity/state-registry';
+import { docPathFrom } from '../../caret/coordinate-spaces';
+import { getStateForNode } from '../../block-lists/state-registry';
 import { emitClipboardError } from '../../editor-events';
 import { assertInvariant } from '../../assert';
 import { isDevChecks } from '../../env';

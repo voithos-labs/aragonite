@@ -16,91 +16,137 @@ async function selectFrom(editor: EditorPage, start: number, presses: number) {
 	for (let i = 0; i < presses; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 }
 
+async function openFence(editor: EditorPage, source = SOURCE) {
+	await editor.loadContent(source);
+	await editor.getBlock(0).click();
+}
+
+async function sourceEditor(page: EditorPage['page']): Promise<EditorPage> {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	return editor;
+}
+
 test.describe('code block: fence lines the mode paints', () => {
-	let editor: EditorPage;
+	test('a delete in a fence line keeps one opener, one closer and the block below', async ({
+		page
+	}) => {
+		const editor = await sourceEditor(page);
 
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-		await editor.loadContent(SOURCE);
-		await editor.getBlock(0).click();
-	});
+		await test.step('a delete from the body into the closer lands, and a closer comes back', async () => {
+			await openFence(editor);
+			await selectFrom(editor, BODY_MID, INTO_CLOSER);
+			await editor.page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('```js\nconst `\n```\n\nafter\n');
+			expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 
-	test('a delete from the body into the closer lands, and a closer comes back', async () => {
-		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('```js\nconst `\n```\n\nafter\n');
-		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+			await editor.undo();
+			await editor.bridge.waitForSourceEquals(SOURCE);
+		});
 
-		await editor.undo();
-		await editor.bridge.waitForSourceEquals(SOURCE);
-	});
+		await test.step('Backspace in the closer run keeps one closer and the block below', async () => {
+			await openFence(editor);
+			await editor.focusBlock(0, 20);
+			await editor.page.keyboard.press('Backspace');
 
-	test('Backspace in the closer run keeps one closer and the block below', async () => {
-		await editor.focusBlock(0, 20);
-		await editor.page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('```js\nconst x = 1\n``\n```\n\nafter\n');
+			expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+		});
 
-		await editor.bridge.waitForSourceEquals('```js\nconst x = 1\n``\n```\n\nafter\n');
-		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-	});
+		await test.step('an opener backtick deleted demotes the block, and its closer goes with it', async () => {
+			await openFence(editor);
+			await editor.focusBlock(0, 3);
+			await editor.page.keyboard.press('Backspace');
 
-	test('an opener backtick deleted demotes the block, and its closer goes with it', async () => {
-		await editor.focusBlock(0, 3);
-		await editor.page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('``js\nconst x = 1\n\nafter\n');
+			expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+			expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+		});
 
-		await editor.bridge.waitForSourceEquals('``js\nconst x = 1\n\nafter\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
-		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-	});
-
-	// The demotion reparses the block into a paragraph, so the caret the edit left has to land in
-	// that paragraph where the typed character went, or the next key lands somewhere else.
-	for (const [label, act, expected] of [
-		['a character typed before the opener', () => editor.page.keyboard.type('x'), 'xQ```js'],
-		['a Backspace in the opener run', () => editor.page.keyboard.press('Backspace'), '``Qjs']
-	] as const) {
-		test(`the caret stays put after ${label} demotes the block`, async () => {
-			await editor.focusBlock(0, label.startsWith('a character') ? 0 : 3);
-			await act();
+		// The demotion reparses the block into a paragraph, so the caret the edit left has to land in
+		// that paragraph where the typed character went, or the next key lands somewhere else.
+		await test.step('the caret stays put after a character typed before the opener demotes the block', async () => {
+			await openFence(editor);
+			await editor.focusBlock(0, 0);
+			await editor.page.keyboard.type('x');
 			await expect.poll(() => editor.bridge.getBlockKind(0)).toBe('paragraph');
 			await editor.page.keyboard.type('Q');
 
-			await expect.poll(() => editor.bridge.getSource()).toContain(expected);
+			await expect.poll(() => editor.bridge.getSource()).toContain('xQ```js');
 		});
-	}
+
+		await test.step('the caret stays put after a Backspace in the opener run demotes the block', async () => {
+			await openFence(editor);
+			await editor.focusBlock(0, 3);
+			await editor.page.keyboard.press('Backspace');
+			await expect.poll(() => editor.bridge.getBlockKind(0)).toBe('paragraph');
+			await editor.page.keyboard.type('Q');
+
+			await expect.poll(() => editor.bridge.getSource()).toContain('``Qjs');
+		});
+
+		// An unclosed fence has no closer to orphan, so deleting its run just demotes it: that's how a
+		// just-typed ``` is taken back.
+		await test.step('an unclosed fence’s marker run deletes back to a paragraph', async () => {
+			await openFence(editor, '```js\nconst x\n');
+			await selectFrom(editor, 0, 3);
+			await editor.page.keyboard.press('Backspace');
+
+			await editor.bridge.waitForSourceEquals('js\nconst x\n');
+		});
+	});
 
 	// A bare opener has nothing after its run, where a typed backtick would otherwise auto-pair.
-	for (const [label, source, widened] of [
-		['an opener with an info string', SOURCE, '````js\nconst x = 1\n````\n\nafter\n'],
-		['a bare opener', '```\nx\n```\n\nafter\n', '````\nx\n````\n\nafter\n']
-	] as const) {
-		test(`a backtick typed at the end of ${label}'s run widens both fence lines by one`, async () => {
-			await editor.loadContent(source);
+	test('a backtick at the end of the opener run widens both fence lines by one', async ({
+		page
+	}) => {
+		const editor = await sourceEditor(page);
+
+		await test.step('typed after an opener with an info string', async () => {
+			await openFence(editor);
 			await editor.focusBlock(0, 3);
 			await editor.page.keyboard.type('`');
 
-			await expect.poll(() => editor.bridge.getSource()).toBe(widened);
+			await expect
+				.poll(() => editor.bridge.getSource())
+				.toBe('````js\nconst x = 1\n````\n\nafter\n');
 		});
-	}
 
-	test('a backtick pasted at the end of the opener run widens both fence lines', async () => {
-		await editor.seedClipboard('`');
-		await editor.focusBlock(0, 3);
-		await editor.paste();
+		await test.step('typed after a bare opener', async () => {
+			await openFence(editor, '```\nx\n```\n\nafter\n');
+			await editor.focusBlock(0, 3);
+			await editor.page.keyboard.type('`');
 
-		await expect.poll(() => editor.bridge.getSource()).toBe('````js\nconst x = 1\n````\n\nafter\n');
+			await expect.poll(() => editor.bridge.getSource()).toBe('````\nx\n````\n\nafter\n');
+		});
+
+		await test.step('pasted at the end of the opener run', async () => {
+			await openFence(editor);
+			await editor.seedClipboard('`');
+			await editor.focusBlock(0, 3);
+			await editor.paste();
+
+			await expect
+				.poll(() => editor.bridge.getSource())
+				.toBe('````js\nconst x = 1\n````\n\nafter\n');
+		});
+
+		await test.step('a paste over the closer keeps a closer below the pasted text', async () => {
+			await openFence(editor);
+			await editor.seedClipboard('Y');
+			await selectFrom(editor, 18, 3);
+			await editor.paste();
+
+			await editor.bridge.waitForSourceEquals('```js\nconst x = 1\nY\n```\n\nafter\n');
+			expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+		});
 	});
 
-	test('paste over the closer keeps a closer below the pasted text', async () => {
-		await editor.seedClipboard('Y');
-		await selectFrom(editor, 18, 3);
-		await editor.paste();
-
-		await editor.bridge.waitForSourceEquals('```js\nconst x = 1\nY\n```\n\nafter\n');
-		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-	});
-
-	test('an arrow from the body reaches the opener, and typing there writes the info', async () => {
+	test('an arrow from the body reaches the opener, and typing there writes the info', async ({
+		page
+	}) => {
+		const editor = await sourceEditor(page);
+		await openFence(editor);
 		await editor.focusBlock(0, BODY_MID);
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('ArrowUp');
@@ -110,25 +156,18 @@ test.describe('code block: fence lines the mode paints', () => {
 		await editor.bridge.waitForSourceEquals('```jsx\nconst x = 1\n```\n\nafter\n');
 	});
 
-	test('a selection inside the info string is edited verbatim', async () => {
+	test('a selection inside the info string is edited verbatim', async ({ page }) => {
+		const editor = await sourceEditor(page);
+		await openFence(editor);
 		await selectFrom(editor, 3, 2); // "js"
 		await editor.typeText('py');
 
 		await editor.bridge.waitForSourceEquals('```py\nconst x = 1\n```\n\nafter\n');
 	});
 
-	// An unclosed fence has no closer to orphan, so deleting its run just demotes it: that's how a
-	// just-typed ``` is taken back.
-	test('an unclosed fence’s marker run deletes back to a paragraph', async () => {
-		await editor.loadContent('```js\nconst x\n');
-		await editor.getBlock(0).click();
-		await selectFrom(editor, 0, 3);
-		await editor.page.keyboard.press('Backspace');
-
-		await editor.bridge.waitForSourceEquals('js\nconst x\n');
-	});
-
-	test('the preview modes take the edit on a focused block too', async () => {
+	test('the preview modes take the edit on a focused block too', async ({ page }) => {
+		const editor = await sourceEditor(page);
+		await editor.loadContent(SOURCE);
 		await editor.setPresentationMode('preview-block');
 		await editor.getBlock(0).click();
 		await editor.focusBlock(0, 20);

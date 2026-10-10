@@ -4,15 +4,15 @@
 // Miss-analysis: header deletes were checked by bytes only, and a header flag written through to a
 // row the undo entry held keeps the bytes, so neither route had a test that could see it.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
 import { rangeContext } from '../selection/cross-block/range-context';
-import type { SelectionPoint } from '$lib/selection/primitives';
-import { makeBlockListState } from '$lib/test/harness/editor-actions';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { makeHarness, runOp, type Harness } from '$lib/test/undo/restoration-ops';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { makeBlockListState } from '#lib/test/harness/editor-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { makeHarness, runOp, type Harness } from '#lib/test/undo/restoration-ops.js';
 
 const SOURCE = '| h | i |\n| --- | --- |\n| a | b |\n| c | d |\n';
 

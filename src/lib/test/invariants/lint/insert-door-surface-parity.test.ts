@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { balancedRegion, callArguments, callsTo, collectEditorSources } from './scan-source';
 import { SOURCE } from './source-paths';
-import { EDITABLE_SURFACE_MEMBERS } from '$lib/block-component';
+import { EDITABLE_SURFACE_MEMBERS } from '#lib/block-component.js';
 
 /** A component building its own editable element. */
 const SURFACE_FACTORY_RE = /\bcreateEditableSurface\s*\(/;

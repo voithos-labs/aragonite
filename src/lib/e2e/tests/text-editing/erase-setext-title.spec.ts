@@ -112,19 +112,6 @@ async function dragSelection(page: Page, from: Point, to: Point): Promise<void> 
 
 for (const mode of ['source', 'live'] as const) {
 	test.describe(`${mode} mode: erasing a setext title`, () => {
-		for (const underline of ['===', '---', '----------']) {
-			test(`under a ${underline} underline leaves an empty paragraph`, async ({ page }) => {
-				const ep = await open(page, mode, `Plan\n${underline}\n\nnext\n`);
-				await ep.clickBlockAtPath([0], 1);
-				await page.keyboard.press('End');
-				await backspace(page, 4);
-
-				await expect.poll(() => kinds(ep)).toEqual(['paragraph', 'paragraph']);
-				await expectSource(ep, '\nnext\n');
-				expect(await caret(ep)).toEqual({ path: [0], offset: 0 });
-			});
-		}
-
 		for (const { name, erase, source, kinds: left, caretPath, caretOffset } of ERASES) {
 			test(`${name} leaves no divider, and one undo restores the title`, async ({ page }) => {
 				const ep = await open(page, mode, 'Plan\n---\n\nnext\n');

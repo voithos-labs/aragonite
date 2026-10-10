@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { Document } from '$lib/core/nodes';
-import { deleteNode } from '$lib/tree-operations/settle';
-import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
-import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { Document } from '#lib/core/nodes.js';
+import { deleteNode } from '#lib/tree-operations/settle.js';
+import { mergeIntoPrevDeepLeaf } from '#lib/tree-operations/node-ops.js';
+import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // Backspace on an emptied middle block collapses its line on the merge route as on the delete
 // route, whatever kind of block follows it.

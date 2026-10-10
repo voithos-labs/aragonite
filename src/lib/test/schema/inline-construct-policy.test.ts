@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { configureEditorEnv } from '$lib/env';
+import { configureEditorEnv } from '#lib/env.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { INLINE_KIND_TABLE, type AnyInlineKind } from '$lib/core/nodes';
-import { declarePluginInlineKind } from '$lib/schema/plugin-kind';
+import { INLINE_KIND_TABLE, type AnyInlineKind } from '#lib/core/nodes.js';
+import { declarePluginInlineKind } from '#lib/schema/plugin-kind.js';
 import {
 	registerInlineConstructPolicy,
 	getInlineConstructPolicy,
@@ -17,14 +17,14 @@ import {
 	type InlineConstructPolicy,
 	type InlineMarkPolicy,
 	type LiveSplitRebalancer
-} from '$lib/schema/inline-construct-policy';
+} from '#lib/schema/inline-construct-policy.js';
 import {
 	flushPendingRegistrationChecks,
 	checkInlineConstructPoliciesAtMount
-} from '$lib/schema/registration-checks';
-import { mintCommandId } from '$lib/schema/command-id';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { collector } from '$lib/test/harness/violation-collector';
+} from '#lib/schema/registration-checks.js';
+import { mintCommandId } from '#lib/schema/command-id.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
+import { collector } from '#lib/test/harness/violation-collector.js';
 
 const atomic: InlineConstructPolicy = {
 	edgeAffinity: 'never-extend',
@@ -42,11 +42,16 @@ afterEach(() => {
 });
 
 describe('built-in rows', () => {
-	it.each(['emphasis', 'strong', 'strikethrough', 'inlineCode'] as const)(
-		'%s is a symmetric marker pair that closes and reopens across a split',
-		(kind) => {
+	it.each([
+		['emphasis', 'left-sticky'],
+		['strong', 'left-sticky'],
+		['strikethrough', 'left-sticky'],
+		['inlineCode', 'boxed']
+	] as const)(
+		'%s is a marker pair with a %s edge that closes and reopens across a split',
+		(kind, edgeAffinity) => {
 			expect(getInlineConstructPolicy(kind)).toMatchObject({
-				edgeAffinity: 'symmetric-pair',
+				edgeAffinity,
 				autoUnwrapOnEmpty: true,
 				splitBehavior: 'close-and-reopen',
 				revealable: true

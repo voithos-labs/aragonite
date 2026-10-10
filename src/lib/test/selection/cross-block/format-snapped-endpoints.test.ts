@@ -3,7 +3,7 @@
 // the cell set the highlight, copy and range delete agree on.
 // Miss-analysis: every plan case called `planCrossBlockFormat` with its own points, past the snap.
 import { describe, expect, it } from 'vitest';
-import type { SelectionPoint } from '$lib/selection/primitives';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'head\n\n| Ha | Hb |\n| --- | --- |\n| a1 | a2 |\n';

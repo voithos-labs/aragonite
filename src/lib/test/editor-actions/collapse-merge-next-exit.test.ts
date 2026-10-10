@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { parse } from '$lib/core/parser';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import { parse } from '#lib/core/parser.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import {
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus,
 	makeTopHarness
-} from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/test/harness/editor-actions.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 // Forward Delete at the end of a collapsed summary must exit past the container rather
 // than stop on the unmounted body (refAt(i+1) does nothing): a focus move, no edit.

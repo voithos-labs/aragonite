@@ -1,14 +1,13 @@
-// @vitest-environment jsdom
 // Miss-analysis: no case paired one trigger from two plugins under a grammar listing only one.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import {
 	INLINE_PRIORITIES,
 	isAutoPairTrigger,
 	registerInlineSyntax
-} from '$lib/core/inline/scan/plugin-syntax';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+} from '#lib/core/inline/scan/plugin-syntax.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { grammarListing } from './grammar-listing';
 
 /** A plugin pairing `%` at its own priority, so both registrations stand side by side. */

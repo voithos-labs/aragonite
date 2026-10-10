@@ -6,7 +6,7 @@ Block parsing gets you as far as "this is a paragraph". Inline parsing is what t
 
 It runs on every kind that declares `supportsInline` on its descriptor (a kind is the string on a node saying what block it is, and the descriptor is that kind's metadata record: how it merges, edits, renders). Today that's paragraphs, headings, setext headings, and table cells. Cells run the identical pipeline; they just have no ambient prefix (the read-only marker a container lends its first child, a list's `- `) and no block marker to skip.
 
-**The inline tree is derived, and disposable.** `raw` (a node's verbatim source bytes, markers included) is what gets serialized; the inline tree is a rendering cache computed lazily from it, and `serialize()` never looks at it. If the inline parser has a bug, the worst case is wrong styling. It can't lose data.
+**The inline tree is derived, and disposable.** `raw` (a node's verbatim source bytes, markers included) is what gets serialized; the inline tree is a rendering cache computed lazily from it, and `serialize()` never looks at it.
 
 The block layer's discipline applies one level down, and it's the rule to remember:
 
@@ -25,7 +25,7 @@ input → read raw back from the DOM → write node.raw
       → restore the cursor
 ```
 
-So the span structure is always correct, because it's rebuilt after every character. Rebuilding the whole thing per keystroke sounds wasteful, and what it buys is the property that matters: there's no incremental DOM patching to get subtly wrong.
+Rebuilding the whole span tree per keystroke sounds wasteful, but it means there's no incremental DOM patching to get subtly wrong.
 
 Reading `raw` back from the DOM is the step with a trap in it. **A prose block's `textContent` is not its `raw`**, for two independent reasons:
 
@@ -44,7 +44,7 @@ div.textContent; // 'a © b': the widget's six bytes are gone
 rawTextOfNode(div, raw); // 'a &copy; b': the walk puts them back
 ```
 
-So the read goes through that raw-aware DOM walk (`cursor/widget-offset.ts`), which sums text-node lengths _and_ widget raw lengths, marker-span text included. Leaving the lent marker out is the same module's job: `rawOffsetAt` reads the marker's length off the DOM and subtracts it, and `rawTextOfContent` skips the marker span. Surfaces with neither complication (code blocks, plain plugin leaves) can read `textContent` directly, because for them it genuinely is `raw`.
+So the read goes through that raw-aware DOM walk (`caret/widget-offset.ts`), which sums text-node lengths _and_ widget raw lengths, marker-span text included. Leaving the lent marker out is the same module's job: `rawOffsetAt` reads the marker's length off the DOM and subtracts it, and `rawTextOfContent` skips the marker span. Surfaces with neither complication (code blocks, plain plugin leaves) can read `textContent` directly, because for them it genuinely is `raw`.
 
 IME composition (typing through an input method, think Chinese or Japanese input) suppresses the rebuild until the composition ends. Blocks without inline support are untouched by any of this.
 
@@ -74,7 +74,7 @@ The two spaces are bridged **structurally**, not by any offset-rebasing function
 
 There's no function mapping an inline offset into a container's `raw`, because nothing needs one. Inline parsing, cursor offsets, and selection all work in the prose block's own `raw`.
 
-The only _runtime_ coordinate translation is between the DOM and raw, and it lives in exactly one module: `cursor/widget-offset.ts`, which reads a DOM position back as raw (`rawOffsetAt`) and writes a caret at a raw offset (`placeCaretAtRaw`), lent marker included. Offset arithmetic done anywhere else will eventually disagree with it. Not a hypothetical, either: every offset bug in the 2026-07 audit traced to arithmetic outside the shared walk (`contributing/casebook.md`).
+The only _runtime_ coordinate translation is between the DOM and raw, and it lives in exactly one module: `caret/widget-offset.ts`, which reads a DOM position back as raw (`rawOffsetAt`) and writes a caret at a raw offset (`placeCaretAtRaw`), lent marker included. Offset arithmetic done anywhere else will eventually disagree with it.
 
 ## 4. The parser
 
@@ -100,7 +100,7 @@ A single left-to-right scan, the commonmark.js reference architecture, fronted b
 parseInline('plain text', 0, 10); // [{ kind: 'text', start: 0, end: 10, text: 'plain text' }]
 ```
 
-- **Character dispatch.** Each construct-starting character runs its handler; handlers append completed nodes (code spans, escapes, entities, spec autolinks (the `<url>` form), raw HTML, hard breaks) and advance the scan. Unclaimed bytes accumulate as pending text. The characters and their handlers are one table, `core/inline/scan/triggers.ts :: BUILTIN_TRIGGERS`, which the fast bail and the plugin tier below both read. The scan itself still dispatches through a `switch` (a table lookup measured slower on the hot path), and a test holds the switch to the table's rows.
+- **Character dispatch.** Each construct-starting character runs its handler; handlers append completed nodes (code spans, escapes, entities, spec autolinks (the `<url>` form), raw HTML, hard breaks) and advance the scan. Unclaimed bytes accumulate as pending text. The characters and their handlers are one table, `core/inline/scan/triggers.ts :: BUILTIN_TRIGGERS`, which the fast bail and the plugin tier below both read. The scan itself dispatches through a `switch` (a table lookup measured slower on the hot path), so a new built-in trigger needs a row and a case, and a test fails when the two disagree.
 - **Delimiter stack.** `*` / `_` / `~~` runs are classified as opener or closer by the CommonMark flanking rules (the spec's test for whether a run can open or close emphasis) and pushed. Pairing is deferred.
 - **Bracket stack.** `[` and `![` push a candidate; `]` attempts an inline or reference link/image and, on success, pairs emphasis over the construct's interior. Links never contain links. A reference-form label with no matching definition commits to an `unresolvedReference` node rather than falling apart. The label, destination and title are read by the grammar the block parser's link reference definitions use too (see [One grammar per construct](#one-grammar-per-construct), below).
 - **Deferred passes.** GFM bare autolinks claim maximal text runs outside a link's text, as cmark-gfm does (a delimiter absorbed into a URL can never pair), then emphasis pairing consumes the remaining delimiter stack, then adjacent text nodes merge. A bare autolink starts only after a GFM boundary, read off the source byte before it (so `<http://a.com>www.b.com` links just the first one), and a `<` ends it.
@@ -208,10 +208,7 @@ A few rows, rendered (each fragment's `textContent` is its `raw`, which is the p
 'a&nbsp;b'; // a<span class="md-entity">&amp;nbsp;</span>b
 ```
 
-Two design rules the table depends on:
-
-- **Marker text is always sliced from `raw`, never reconstructed from parsed fields.** This is what guarantees `textContent` matches `raw` regardless of the original syntax's spacing or delimiter choice.
-- **Hard line breaks use `\n` text nodes, not `<br>`.** Text nodes produce consistent `textContent` across browsers; `<br>` doesn't.
+Hard line breaks use `\n` text nodes rather than `<br>`, because text nodes give the same `textContent` in every browser and `<br>` doesn't.
 
 ### The textContent invariant
 
@@ -234,7 +231,6 @@ A widget kind renders one of two ways.
 - It builds the atomic widget's span itself, stamping `[data-inline-widget]`, the `data-source-*` offsets, and `contenteditable="false"`.
 - It mounts the component inside with a frozen `{ inline, source }` snapshot.
 - Beside the snapshot ride live getters for the presentation mode, the theme, the root document, and the content version. A pooled instance survives a mode flip and an edit elsewhere, so those are read per render rather than captured at mount.
-- A table cell mounts through the same path, threading mode and theme as a prose block does, and a mode flip rebuilds a cell's inline DOM the same way.
 - Mounting is _injected_ into the core layer, so `core/` stays framework-free: the registry records only that a kind is a component widget, never how to mount one.
 
 **Hand-built.** The kind emits its own DOM root and has to carry those same attributes itself.

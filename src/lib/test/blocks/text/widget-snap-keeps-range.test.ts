@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 // Moving a click to a widget edge places a caret, so it does nothing while a range is selected.
 // Miss-analysis: every snap test started from a collapsed caret, never over a selected range.
-import { describe, it, expect } from 'vitest';
-import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
-import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { beforeAll, describe, it, expect } from 'vitest';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
+import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
+import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 installMathInline();
+beforeAll(installLayoutStubs);
 
 // "one $a^1$ two" with a real box on the widget, so a click to its right reaches the snap.
 function mountSnapBlock() {
@@ -18,6 +21,7 @@ function mountSnapBlock() {
 		widgetInteractionDeps(
 			{ node, el },
 			{
+				caretWriter: testCaretWriter,
 				cursor: {
 					setRaw: (offset: number) => {
 						snapped.push(offset);

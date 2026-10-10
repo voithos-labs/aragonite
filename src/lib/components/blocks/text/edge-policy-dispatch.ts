@@ -3,7 +3,7 @@
  * printable key at a caret edge resolves against a declared policy (the inline construct's beside
  * the caret, or the ancestor container's at the content start), never native editing, which would
  * corrupt the bytes those constructs stand for (G4.12). Which side of a hidden delimiter a typed
- * byte lands on is the write's question, not a key's (`cursor/next-insertion.ts`).
+ * byte lands on is the write's question, not a key's (`caret/next-insertion.ts`).
  */
 
 import type { ContentWrite } from '../../../action-contracts';
@@ -14,14 +14,15 @@ import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import { type RawOffset } from '../../../cursor/coordinate-spaces';
-import type { PendingMarks } from '../../../cursor/pending-marks';
+import { type RawOffset } from '../../../caret/coordinate-spaces';
+import type { PendingMarks } from '../../../caret/pending-marks';
 import {
 	landableRawBounds,
 	markerPrefixOf,
 	revealsNoMarkers,
-	screenVisibilityOf
-} from '../../../cursor/widget-offset';
+	screenVisibilityOf,
+	type CaretWriter
+} from '../../../caret/widget-offset';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import { createMarkerCompletion } from './marker-completion';
@@ -32,6 +33,7 @@ import {
 } from './construct-edge-delete';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { resolveMarkedInsertion } from './pending-mark-insert';
+import { PROBE_BYTE } from './edge-seat';
 import { widgetAtCursor, widgetsIn } from './widget-adjacency';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
@@ -100,6 +102,11 @@ export interface EdgePolicyDispatchDeps {
 	/** The constructs a toggle at a collapsed caret promised the next insertion. Read and spent
 	 *  here: the first byte after the chord is the insertion they were waiting for. */
 	pendingMarks: PendingMarks;
+	/** Where a byte typed at a raw offset lands (`TypedPlacement.offsetFor`): the chord's marks
+	 *  resolve where a letter would, so a caret either side of a hidden closer means one thing. */
+	offsetFor: (caret: number, typed: string) => number;
+	/** The editor's caret writer, which selects a decoration widget whole. */
+	caretWriter: CaretWriter;
 }
 
 export interface EdgePolicyDispatch {
@@ -325,12 +332,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	function selectIslandWhole(el: HTMLElement): void {
-		const sel = window.getSelection();
-		if (!sel) return;
 		const range = document.createRange();
 		range.selectNode(el);
-		sel.removeAllRanges();
-		sel.addRange(range);
+		deps.caretWriter.selectDomRange(range);
 	}
 
 	function handleIsland(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
@@ -492,7 +496,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!marks) return false;
 		const marked = resolveMarkedInsertion(
 			display(),
-			caretOffset,
+			deps.offsetFor(caretOffset, PROBE_BYTE),
 			e.key,
 			marks,
 			inlinesOf(deps.node),

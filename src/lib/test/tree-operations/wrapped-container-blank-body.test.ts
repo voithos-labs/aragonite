@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/content-write';
-import { firstLineEnding, trailingLineEnding } from '$lib/core/lines';
-import { rebuildAncestryRaw } from '$lib/schema/container-raw';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { firstLineEnding, trailingLineEnding } from '#lib/core/lines.js';
+import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
-import type { CstNode } from '$lib/core/nodes';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { fixtureGrammar } from '$lib/test/harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import type { CstNode } from '#lib/core/nodes.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // Emptying every body block of a fenced container leaves a blank run that is the whole body, and
 // the reload strips a line into both `innerPrefix` and `innerSuffix`, so the run carries two lines.

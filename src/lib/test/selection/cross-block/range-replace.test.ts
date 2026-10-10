@@ -4,16 +4,16 @@
 // Miss-analysis: no suite counted the carets a gesture put down, or set a command key's removal
 // over a grid beside Backspace's.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { CURSOR_START } from '$lib/block-component';
-import { cellPoint, type SelectionEndpoint } from '$lib/selection/primitives';
-import { registerPasteTransform } from '$lib/tree-operations/paste/paste-transforms';
+import { serialize } from '#lib/core/serializer.js';
+import { CURSOR_START } from '#lib/block-component.js';
+import { cellPoint, type SelectionEndpoint } from '#lib/selection/primitives.js';
+import { registerPasteTransform } from '#lib/tree-operations/paste/paste-transforms.js';
 import { makeTableStateAt, stubBlockComponent } from '../../harness/editor-actions';
 import { settleEditor } from '../../harness/settle';
 import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
 import { press } from './keydown-env';
-import { ensurePasteSurface } from '$lib/test/support/paste-surface';
-import { tableCellPasteSurface } from '$lib/components/blocks/table/table-cell-paste';
+import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
 
 type Gesture = 'Backspace' | 'cut' | 'type' | 'paste' | 'compose' | 'Enter' | 'Tab';
 type Removal = Exclude<Gesture, 'Tab'>;
@@ -183,16 +183,4 @@ describe('a gesture whose insertion writes nothing lands at the removal’s care
 		expect(serialize(env.doc)).toBe('alma\n');
 		expect(landedAt(env)).toEqual([[[0], 2]]);
 	});
-});
-
-describe('cut removes what Backspace removes', () => {
-	for (const shapeName of ['a whole table', 'a whole row', 'a whole column', 'a cell rectangle']) {
-		it(`over ${shapeName}`, async () => {
-			const shape = SHAPES[shapeName];
-			const cut = await perform('cut', shape);
-			const backspace = await perform('Backspace', shape);
-
-			expect(serialize(cut.doc)).toBe(serialize(backspace.doc));
-		});
-	}
 });

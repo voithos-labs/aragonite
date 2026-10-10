@@ -4,7 +4,7 @@ import { resolveSelectionPoint } from '../../selection/selection-restore';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import type { EditorSelection } from '../../selection/primitives';
 import { parse } from '../../core/parser';
-import { asEditorX } from '../../cursor/coordinate-spaces';
+import { asEditorX } from '../../caret/coordinate-spaces';
 import { restoreLandingOver } from '../harness/restore-landing';
 
 const PROSE = 'Alpha one\n\nBravo two\n';

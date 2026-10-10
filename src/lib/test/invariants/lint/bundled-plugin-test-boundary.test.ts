@@ -6,15 +6,18 @@
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
-import { bundledPluginDirs, collectEditorSources, importSpecifiers } from './scan-source';
+import {
+	aliasPath,
+	bundledPluginDirs,
+	collectEditorSources,
+	importSpecifiers,
+	isAliasSpelling,
+	publishedEntrySources,
+	resolveSpecifier
+} from './scan-source';
 import { SOURCE_DIR } from './source-paths';
 
 const PLUGIN_TEST_ROOT = SOURCE_DIR.pluginTests;
-
-/** A library path as the `$lib` specifier that imports it. */
-const libSpecifier = (relPath: string): string =>
-	`$lib/${relPath.slice(SOURCE_DIR.library.length)}`;
 
 interface Exemption {
 	/** The exact specifiers this file may still reach for. */
@@ -26,15 +29,15 @@ interface Exemption {
 /** Publishing the entry point an entry waits on empties that entry, and a dead one fails below. */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
-		specifiers: ['$lib/schema/block-kind-descriptor'],
+		specifiers: ['#lib/schema/block-kind-descriptor.js'],
 		reason: 'no registry read-back: a kind can be registered and probed, never read back'
 	},
 	'src/lib/test/plugins/admonitions/fence-escalation.test.ts': {
 		specifiers: [
-			'$lib/schema/block-kind-descriptor',
-			'$lib/invariants/node-shape',
-			'$lib/tree-operations/sharing',
-			'$lib/tree-operations/chain-rebuild'
+			'#lib/schema/block-kind-descriptor.js',
+			'#lib/invariants/node-shape.js',
+			'#lib/tree-operations/sharing.js',
+			'#lib/tree-operations/chain-rebuild.js'
 		],
 		reason:
 			'no registry read-back, the opaque stale-raw / rebuild-determinism predicates are off the ' +
@@ -43,11 +46,11 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/admonitions/formation-harness.ts': {
 		specifiers: [
-			'$lib/editor-actions/commit/undo-controller',
-			'$lib/editor-actions/commit/history',
-			'$lib/editor-actions/container-edit',
-			'$lib/editor-actions/nested/nested-actions',
-			'$lib/reactivity/block-list-state.svelte'
+			'#lib/editor-actions/commit/undo-controller.js',
+			'#lib/editor-actions/commit/history.js',
+			'#lib/editor-actions/container-edit.js',
+			'#lib/editor-actions/nested/nested-actions.js',
+			'#lib/block-lists/block-list-state.svelte.js'
 		],
 		reason:
 			'no headless editor-actions environment on the testing barrel: the conformance kits ' +
@@ -55,9 +58,9 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/admonitions/github-alert-empty-body.test.ts': {
 		specifiers: [
-			'$lib/tree-operations',
-			'$lib/tree-operations/sharing',
-			'$lib/invariants/node-shape'
+			'#lib/tree-operations/index.js',
+			'#lib/tree-operations/sharing.js',
+			'#lib/invariants/node-shape.js'
 		],
 		reason:
 			'nothing published mutates a parsed document off an instance (nor makes the sharing state ' +
@@ -65,9 +68,9 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/admonitions/github-alert-formation-siblings.test.ts': {
 		specifiers: [
-			'$lib/editor-actions/block-edit',
-			'$lib/editor-actions/commit/undo-controller',
-			'$lib/testing/parse-convergence'
+			'#lib/editor-actions/block-edit.js',
+			'#lib/editor-actions/commit/undo-controller.js',
+			'#lib/testing/parse-convergence.js'
 		],
 		reason:
 			'no headless editor-actions environment, and parse convergence lives in src/lib/testing ' +
@@ -75,28 +78,28 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/admonitions/github-alert-typed-formation.test.ts': {
 		specifiers: [
-			'$lib/editor-actions/block-edit',
-			'$lib/editor-actions/commit/undo-controller',
-			'$lib/testing/parse-convergence',
-			'$lib/tree-operations'
+			'#lib/editor-actions/block-edit.js',
+			'#lib/editor-actions/commit/undo-controller.js',
+			'#lib/testing/parse-convergence.js',
+			'#lib/tree-operations/index.js'
 		],
 		reason:
 			'no headless editor-actions environment, no published parse convergence, and nothing published ' +
 			'reads a node by path out of a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-unwrap.test.ts': {
-		specifiers: ['$lib/tree-operations', '$lib/schema/block-openers'],
+		specifiers: ['#lib/tree-operations/index.js', '#lib/schema/block-openers.js'],
 		reason:
 			'nothing published unwraps a child from its quote off a parsed document, or names the grammar the unwrap reads its remainder with'
 	},
 	'src/lib/test/plugins/details/terminator-collision.test.ts': {
 		specifiers: [
-			'$lib/editor-actions/commit/undo-controller',
-			'$lib/editor-actions/container-edit',
-			'$lib/editor-actions/nested/nested-actions',
-			'$lib/reactivity/block-list-state.svelte',
-			'$lib/invariants/node-shape',
-			'$lib/schema/block-kind-descriptor'
+			'#lib/editor-actions/commit/undo-controller.js',
+			'#lib/editor-actions/container-edit.js',
+			'#lib/editor-actions/nested/nested-actions.js',
+			'#lib/block-lists/block-list-state.svelte.js',
+			'#lib/invariants/node-shape.js',
+			'#lib/schema/block-kind-descriptor.js'
 		],
 		reason:
 			'no headless editor-actions environment, no published opaque stale-raw predicate, and ' +
@@ -104,12 +107,12 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/details/terminator-collision-paste.test.ts': {
 		specifiers: [
-			'$lib/editor-actions/commit/undo-controller',
-			'$lib/editor-actions/paste-coordinator',
-			'$lib/invariants/node-shape',
-			'$lib/reactivity/state-registry',
-			'$lib/schema/block-openers',
-			'$lib/tree-operations/paste/dispatch'
+			'#lib/editor-actions/commit/undo-controller.js',
+			'#lib/editor-actions/paste-coordinator.js',
+			'#lib/invariants/node-shape.js',
+			'#lib/block-lists/state-registry.js',
+			'#lib/schema/block-openers.js',
+			'#lib/tree-operations/paste/dispatch.js'
 		],
 		reason:
 			'the paste pipeline publishes applyPasteTransforms alone: no dispatch, and no headless ' +
@@ -117,33 +120,33 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/details/terminator-collision-structural.test.ts': {
 		specifiers: [
-			'$lib/invariants/node-shape',
-			'$lib/selection/range-delete',
-			'$lib/selection/range-coverage',
-			'$lib/tree-operations/node-ops',
-			'$lib/tree-operations/sharing'
+			'#lib/invariants/node-shape.js',
+			'#lib/selection/range-delete.js',
+			'#lib/selection/range-coverage.js',
+			'#lib/tree-operations/node-ops.js',
+			'#lib/tree-operations/sharing.js'
 		],
 		reason:
 			'nothing published splits, joins or range-deletes a parsed document, and no published opaque ' +
 			'stale-raw predicate to hold the result to'
 	},
 	'src/lib/test/plugins/emoji/coexistence.test.ts': {
-		specifiers: ['$lib/core/directive/kinds'],
+		specifiers: ['#lib/core/directive/kinds.js'],
 		reason:
 			'the directive inline level has no published kind name; the plugin barrel publishes the ' +
 			'body wrap and the registration entry points only'
 	},
 	'src/lib/test/plugins/emoji/widget.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/block-openers.js'],
 		reason:
 			'no registry read-back: a widget kind registers its editing policy but never reads it, ' +
 			'and the read takes a grammar no entry point publishes'
 	},
 	'src/lib/test/plugins/footnotes/definition-split-separator.test.ts': {
 		specifiers: [
-			'$lib/tree-operations',
-			'$lib/tree-operations/sharing',
-			'$lib/testing/parse-convergence'
+			'#lib/tree-operations/index.js',
+			'#lib/tree-operations/sharing.js',
+			'#lib/testing/parse-convergence.js'
 		],
 		reason:
 			'nothing published splits a parsed document (nor makes the sharing state the split takes), ' +
@@ -151,98 +154,113 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/footnotes/numbering-incremental.test.ts': {
 		specifiers: [
-			'$lib/editor-actions/block-edit',
-			'$lib/editor-actions/commit/undo-controller',
-			'$lib/perf/instruments',
-			'$lib/schema/container-raw'
+			'#lib/editor-actions/block-edit.js',
+			'#lib/editor-actions/commit/undo-controller.js',
+			'#lib/perf/instruments.js',
+			'#lib/schema/container-raw.js'
 		],
 		reason:
 			'no headless editor-actions environment, no published ancestry rebuild, and the perf ' +
 			'instruments a plugin proves its own memoization with are unpublished'
 	},
 	'src/lib/test/plugins/footnotes/reference-shared-walk.test.ts': {
-		specifiers: ['$lib/perf/instruments', '$lib/components/blocks/text/TextEditableBlock.svelte'],
+		specifiers: [
+			'#lib/perf/instruments.js',
+			'#lib/components/blocks/text/TextEditableBlock.svelte'
+		],
 		reason:
 			'the perf instruments are unpublished, and so is the built-in text surface a widget ' +
 			'renders into'
 	},
 	'src/lib/test/plugins/footnotes/reference.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/block-openers.js'],
 		reason:
 			'no registry read-back: a widget kind registers its component but never reads it, and ' +
 			'the read takes a grammar no entry point publishes'
 	},
 	'src/lib/test/plugins/highlight-occurrences/wiring.test.ts': {
-		specifiers: ['$lib/schema/plugin-install'],
+		specifiers: ['#lib/schema/plugin-install.js'],
 		reason:
 			'no registry read-back: `onEditor` callbacks can be registered but not enumerated, so a ' +
 			'per-instance wiring test cannot run one without mounting an editor'
 	},
 	'src/lib/test/plugins/latex/block.test.ts': {
-		specifiers: ['$lib/core/inline/scan/plugin-syntax'],
+		specifiers: ['#lib/core/inline/scan/plugin-syntax.js'],
 		reason:
 			'no registry read-back: an inline syntax handler registers on a trigger but is never listed back'
 	},
 	'src/lib/test/plugins/latex/inline.test.ts': {
-		specifiers: ['$lib/core/inline/inline-widgets', '$lib/schema/block-openers'],
+		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/block-openers.js'],
 		reason:
 			'no registry read-back for a widget kind, no published core widget shell builder, and ' +
 			'no published grammar for either read'
 	},
 	'src/lib/test/plugins/latex/raw-write-rule.test.ts': {
-		specifiers: ['$lib/tree-operations/node-primitives', '$lib/schema/block-kind-descriptor'],
+		specifiers: ['#lib/tree-operations/node-primitives.js', '#lib/schema/block-kind-descriptor.js'],
 		reason:
 			'a kind declares rawWrite but nothing published applies one, so an author cannot ' +
 			'check what their rule makes of bytes a tree operation wrote, nor read the rule back'
 	},
 	'src/lib/test/plugins/latex/math-shape.property.test.ts': {
 		specifiers: [
-			'$lib/tree-operations/content-write',
-			'$lib/test/invariants/arbitraries/property-seed'
+			'#lib/tree-operations/content-write.js',
+			'#lib/test/invariants/arbitraries/property-seed.js'
 		],
 		reason:
 			'nothing published applies a rawWrite the way a leaf commit does (an authored write), and ' +
 			'the fixed property seed is the suite’s own helper, with no published counterpart'
 	},
+	'src/lib/test/plugins/latex/math-block-writers.test.ts': {
+		specifiers: ['#lib/schema/block-kind-descriptor.js', '#lib/schema/insert-catalogue.js'],
+		reason:
+			'no registry read-back: an insert entry and a kind’s conformance fixture are registered ' +
+			'but never read back, so an author cannot check the bytes they carry'
+	},
+	'src/lib/test/plugins/latex/math-shape-parity.test.ts': {
+		specifiers: ['#lib/tree-operations/content-write.js', '#lib/schema/block-kind-descriptor.js'],
+		reason:
+			'nothing published applies a rawWrite the way a leaf commit does (an authored write), nor ' +
+			'reads a kind’s rule back to ask it for the block’s text'
+	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
-		specifiers: ['$lib/cursor/widget-offset'],
+		specifiers: ['#lib/caret/widget-offset.js'],
 		reason: "no published read of an inline node's raw text out of its parent's bytes"
 	},
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {
 		specifiers: [
-			'$lib/editor-actions/enter-completion',
-			'$lib/schema/block-completions',
-			'$lib/schema/block-openers'
+			'#lib/editor-actions/enter-completion.js',
+			'#lib/schema/block-completions.js',
+			'#lib/schema/block-openers.js'
 		],
 		reason:
 			'a completer registers but nothing published runs one, and the Enter handler that consults ' +
 			'it has no headless entry, nor a published grammar to run it under'
 	},
 	'src/lib/test/plugins/mermaid/fence-escalation.test.ts': {
-		specifiers: ['$lib/testing/parse-convergence'],
+		specifiers: ['#lib/testing/parse-convergence.js'],
 		reason: 'parse convergence lives in src/lib/testing without reaching the testing barrel'
 	},
 	'src/lib/test/plugins/mermaid/raw-write-rule.test.ts': {
 		specifiers: [
-			'$lib/tree-operations/node-primitives',
-			'$lib/selection/range-delete',
-			'$lib/selection/range-coverage',
-			'$lib/tree-operations/sharing'
+			'#lib/tree-operations/node-primitives.js',
+			'#lib/selection/range-delete.js',
+			'#lib/selection/range-coverage.js',
+			'#lib/tree-operations/sharing.js'
 		],
 		reason: 'nothing published applies a kind’s rawWrite or range-deletes a parsed document'
 	},
 	'src/lib/test/plugins/parrot/caption.test.ts': {
-		specifiers: ['$lib/schema/block-kind-descriptor'],
+		specifiers: ['#lib/schema/block-kind-descriptor.js'],
 		reason: "no registry read-back: the kind's caretTargetAtPoint cannot be read back to call"
 	},
 	'src/lib/test/plugins/slash-commands/slash-harness.ts': {
 		specifiers: [
-			'$lib/editor-events',
-			'$lib/inline-menu/inline-menu-state.svelte',
-			'$lib/schema/insert-catalogue',
-			'$lib/schema/plugin-activation',
-			'$lib/schema/plugin-editor-context',
-			'$lib/schema/plugin-install'
+			'#lib/editor-events.js',
+			'#lib/inline-menu/inline-menu-state.svelte.js',
+			'#lib/schema/insert-catalogue.js',
+			'#lib/schema/plugin-activation.js',
+			'#lib/schema/plugin-editor-context.js',
+			'#lib/schema/plugin-install.js'
 		],
 		reason:
 			'no headless inline-menu session on the testing barrel: a source can be called directly, ' +
@@ -252,9 +270,9 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
 		specifiers: [
-			'$lib/schema/commands',
-			'$lib/schema/keybindings',
-			'$lib/schema/plugin-activation'
+			'#lib/schema/commands.js',
+			'#lib/schema/keybindings.js',
+			'#lib/schema/plugin-activation.js'
 		],
 		reason:
 			'no command dispatch or chord read off a mounted editor: the handler of a global command, ' +
@@ -264,22 +282,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 
 // ── The published API ────────────────────────────────────────────────────────
 
-const PUBLIC_BARRELS = new Set(['$lib', '$lib/plugin', '$lib/testing']);
-
-/** `$lib/...` specifiers the package's `exports` map publishes, read off package.json so a
- *  newly published plugin subpath needs no edit here. */
-function publishedPluginSubpaths(): Set<string> {
-	const pkg = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as {
-		exports: Record<string, unknown>;
-	};
-	const out = new Set<string>();
-	for (const key of Object.keys(pkg.exports)) {
-		if (key.startsWith('./plugins/')) out.add(`$lib${key.slice(1)}`);
-	}
-	return out;
-}
-
-const PUBLISHED_PLUGIN_SUBPATHS = publishedPluginSubpaths();
+const PUBLISHED_ENTRIES = publishedEntrySources();
 
 const BUNDLED_PLUGINS = new Set(bundledPluginDirs());
 
@@ -297,20 +300,15 @@ function isAllowedSpecifier(relPath: string, specifier: string): boolean {
 		const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(relPath), specifier));
 		return !resolved.startsWith(SOURCE_DIR.library) || resolved.startsWith(SOURCE_DIR.unitTests);
 	}
-	if (!specifier.startsWith('$lib')) return true;
-	if (PUBLIC_BARRELS.has(specifier)) return true;
-	if (
-		specifier.startsWith(libSpecifier(SOURCE_DIR.testSupport)) ||
-		specifier.startsWith(libSpecifier(SOURCE_DIR.testHarness))
-	) {
+	if (!isAliasSpelling(specifier)) return true;
+	const target = aliasPath(specifier);
+	if (target === null) return false;
+	if (PUBLISHED_ENTRIES.has(resolveSpecifier(relPath, specifier) ?? '')) return true;
+	if (target.startsWith(SOURCE_DIR.testSupport) || target.startsWith(SOURCE_DIR.testHarness)) {
 		return true;
 	}
-	if (PUBLISHED_PLUGIN_SUBPATHS.has(specifier)) return true;
-
 	const suite = suiteOf(relPath);
-	if (suite === null) return false;
-	const own = libSpecifier(`${SOURCE_DIR.plugins}${suite}`);
-	return specifier === own || specifier.startsWith(`${own}/`);
+	return suite !== null && target.startsWith(`${SOURCE_DIR.plugins}${suite}/`);
 }
 
 interface Reach {
@@ -378,33 +376,33 @@ describe('G4.63 classifier non-vacuity', () => {
 	const file = `${PLUGIN_TEST_ROOT}details/round-trip.test.ts`;
 
 	it('allows the three published entry points', () => {
-		for (const barrel of ['$lib', '$lib/plugin', '$lib/testing']) {
+		for (const barrel of ['#lib', '#lib/plugin.js', '#lib/testing.js']) {
 			expect(isAllowedSpecifier(file, barrel)).toBe(true);
 		}
 	});
 
-	it('rejects every deep $lib reach-in a rewrite is supposed to remove', () => {
+	it('rejects every deep #lib reach-in a rewrite is supposed to remove', () => {
 		for (const deep of [
-			'$lib/core/parser',
-			'$lib/core/serializer',
-			'$lib/core/nodes',
-			'$lib/schema/registry-reset',
-			'$lib/editor-actions/commit/undo-controller'
+			'#lib/core/parser.js',
+			'#lib/core/serializer.js',
+			'#lib/core/nodes.js',
+			'#lib/schema/registry-reset.js',
+			'#lib/editor-actions/commit/undo-controller.js'
 		]) {
 			expect(isAllowedSpecifier(file, deep)).toBe(false);
 		}
 	});
 
 	it('allows the suite its own plugin source, and another plugin only where published', () => {
-		expect(isAllowedSpecifier(file, '$lib/plugins/details')).toBe(true);
-		expect(isAllowedSpecifier(file, '$lib/plugins/details/details-kind')).toBe(true);
-		expect(isAllowedSpecifier(file, '$lib/plugins/emoji')).toBe(true);
-		expect(isAllowedSpecifier(file, '$lib/plugins/emoji/emoji-recognizer')).toBe(false);
+		expect(isAllowedSpecifier(file, '#lib/plugins/details/index.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#lib/plugins/details/details-kind.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#lib/plugins/emoji/index.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#lib/plugins/emoji/emoji-recognizer.js')).toBe(false);
 	});
 
 	it('allows the copyable test support and any npm package', () => {
-		expect(isAllowedSpecifier(file, '$lib/test/support/round-trip')).toBe(true);
-		expect(isAllowedSpecifier(file, '$lib/test/harness/editor-actions')).toBe(true);
+		expect(isAllowedSpecifier(file, '#lib/test/support/round-trip.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#lib/test/harness/editor-actions.js')).toBe(true);
 		expect(isAllowedSpecifier(file, 'vitest')).toBe(true);
 		expect(isAllowedSpecifier(file, 'fast-check')).toBe(true);
 		expect(isAllowedSpecifier(file, 'svelte/store')).toBe(true);

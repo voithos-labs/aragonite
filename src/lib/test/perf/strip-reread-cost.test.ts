@@ -1,20 +1,20 @@
 // Miss-analysis: the rederive gate counted parses per keystroke but never their size, so nothing
 // said a list item's re-read stays the size of the item in a long list.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import type { CstNode } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
+} from '#lib/perf/instruments.js';
 
 const TARGET = 100;
 /** A long list: the target's first line continues on a second, and the item after it holds a

@@ -13,7 +13,7 @@ import {
 	docPathFrom,
 	type CellIndex,
 	type RawOffset
-} from '../cursor/coordinate-spaces';
+} from '../caret/coordinate-spaces';
 import { devWarn } from '../dev-warn';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -75,6 +75,9 @@ export type SelectionEndpoint = SelectionPoint | WholeBlockEndpoint;
 export interface CaretPosition {
 	readonly path: DocPath;
 	readonly offset: number;
+	/** A split's second half: the next letter types outside every construct at the caret's hidden
+	 *  edge until the caret moves, so Enter starts the new block plain. */
+	readonly fresh?: true;
 }
 
 /** What an edit hands back for the caret: a position, or a stored selection to put back. */

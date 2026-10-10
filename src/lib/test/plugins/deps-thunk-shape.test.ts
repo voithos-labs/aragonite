@@ -6,10 +6,10 @@
  * shape can reject a captured value.
  */
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { NodeView } from '$lib/core/node-views';
-import type { ContainerBlockDeps } from '$lib/editor-actions/plugin/container';
-import type { EditableLeafDeps } from '$lib/components/blocks/editable-leaf';
+import { parse } from '#lib/core/parser.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import type { ContainerBlockDeps } from '#lib/editor-actions/plugin/container.js';
+import type { EditableLeafDeps } from '#lib/components/blocks/editable-leaf.js';
 
 // A value under the field's real name, rejected only because `NodeView` is not `() => NodeView`.
 export function valueCaptureRejected(view: NodeView): void {

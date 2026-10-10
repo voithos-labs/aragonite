@@ -1,22 +1,22 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import type { Document } from '$lib/core/nodes';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { splitNode } from '$lib/tree-operations/node-ops';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { Document } from '#lib/core/nodes.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { splitNode } from '#lib/tree-operations/node-ops.js';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { triviaRawOf } from '$lib/test/harness/parse-converged';
+} from '#lib/test/harness/editor-actions.js';
+import { triviaRawOf } from '#lib/test/harness/parse-converged.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A pasted blank line must reach the same shape the same bytes reach by loading or typing.
 // Paste parses the clipboard, so the parser's separator rule is the whole answer.

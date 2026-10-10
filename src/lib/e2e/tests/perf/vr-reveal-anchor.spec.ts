@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
-import { capturePageErrors } from '../../page-probes';
+import { capturePageErrors, deferImage } from '../../page-probes';
 
 /**
  * Who holds the scroll position after scrolling to a block, once the scroll is done. The held
@@ -18,20 +18,6 @@ const LATE_IMAGE_URL = 'https://e2e-deferred.test/late-growth.svg';
 const LATE_IMAGE_SVG =
 	'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="1400">' +
 	'<rect width="100%" height="100%" fill="#4488cc"/></svg>';
-
-/** Holds the image's response until the returned function is called, so it grows in a measure
- *  pass after the scroll is done rather than during it. */
-async function deferImage(page: Page): Promise<() => void> {
-	let release!: () => void;
-	const gate = new Promise<void>((resolve) => {
-		release = resolve;
-	});
-	await page.route('https://e2e-deferred.test/**', async (route) => {
-		await gate;
-		await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: LATE_IMAGE_SVG });
-	});
-	return release;
-}
 
 /**
  * The image sits below the container, so nothing above the viewport moves when it decodes and any
@@ -115,7 +101,7 @@ test.describe('reveal anchor: the pin names the full target path', () => {
 		const { md, targetPath } = tallContainerDoc();
 
 		await editor.gotoPlugins('toc');
-		const releaseImage = await deferImage(page);
+		const releaseImage = await deferImage(page, LATE_IMAGE_SVG);
 		await editor.loadContent(md);
 		await editor.waitForRenderFlush();
 
@@ -143,7 +129,7 @@ test.describe('reveal anchor: a stale claimant cannot release a fresher pin', ()
 		const { md, targetPath } = growthAboveDoc();
 
 		await editor.gotoPlugins('toc');
-		const releaseImage = await deferImage(page);
+		const releaseImage = await deferImage(page, LATE_IMAGE_SVG);
 		await editor.loadContent(md);
 		await editor.waitForRenderFlush();
 

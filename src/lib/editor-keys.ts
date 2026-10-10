@@ -10,9 +10,10 @@ import type { DraftRegistry } from './components/draft-registry';
 import type { DocumentStamps } from './editor-actions/commit/document-stamp';
 import type { Document } from './core/nodes';
 import type { ImageLoadPolicy } from './core/inline-render';
-import type { UserScrollport } from './cursor/scroll-ancestors';
-import type { ScrollportReader } from './cursor/scrollport';
+import type { UserScrollport } from './windowing/scroll-ancestors';
+import type { ScrollportReader } from './windowing/scrollport';
 import type { PresentationMode } from './presentation-mode';
+import type { ActivationClick, PressTracker } from './activation-click';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
@@ -29,14 +30,17 @@ import type { CaretLanding } from './selection/caret-landing';
 import type { RangeCoverage } from './selection/range-coverage';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
-import type { CaretMemory } from './cursor/caret-memory';
+import type { CaretMemory } from './caret/caret-memory';
+import type { CaretWriter } from './caret/widget-offset';
+import type { DrawnCaret } from './caret/drawn-caret.svelte';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
-import type { ScrollOwner } from './cursor/scroll-owner';
-import type { HeightOracle } from './cursor/height-oracle';
-import type { ListTree } from './reactivity/list-tree';
+import type { ScrollOwner } from './windowing/scroll-owner';
+import type { HeightOracle } from './windowing/height-estimator';
+import type { ListTree } from './windowing/list-tree';
 import type { InlineMenuCombobox } from './inline-menu/inline-menu-state.svelte';
 import type { LinkCardState } from './components/link-card/link-card-state.svelte';
 import type { KindCue } from './components/kind-cue.svelte';
+import type { PlaceholderPolicy } from './components/blocks/placeholder-hint.svelte';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
@@ -146,6 +150,12 @@ export interface EditorServices {
 	/** How the caret arrived: the sticky column, the side of a hidden marker run and the
 	 *  pending marks, kept and dropped as one. */
 	caretMemory: CaretMemory;
+	/** The one writer of the native selection; each write asks the drawn caret to repaint. */
+	caretWriter: CaretWriter;
+	/** Where each press in the editor went down: the one answer to whether a release ended a drag. */
+	presses: PressTracker;
+	/** The caret the editor draws; each editable surface registers itself with it. */
+	drawnCaret: DrawnCaret;
 	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
 	 *  or deletes; each typing block takes its own view of it. */
 	autoPairs: AutoPairRecord;
@@ -193,10 +203,16 @@ export interface EditorPolicies {
 	/** Read live, so a prop change reaches built blocks: render the mouse-only hover controls,
 	 *  the block drag handle and the table's handles. False renders neither; keyboard stays. */
 	blockDragHandles: () => boolean;
+	/** Read live, so a prop change repaints built blocks: the `placeholder` prop and whether the
+	 *  document is one top-level block, or null while the prop is unset. */
+	placeholder: () => PlaceholderPolicy | null;
 	presentationMode: PresentationModeGetter;
 	/** For a renderer that paints rather than styles: a plugin emitting its own colored
 	 *  markup (a diagram SVG) cannot pick the theme up from CSS, so it needs the name. */
 	theme: ThemeGetter;
+	/** Whether a click follows what it lands on (a link, a widget that goes somewhere): the one
+	 *  answer every such route reads, with the mode and the `linkClick` prop read at the click. */
+	activationClick: ActivationClick;
 	keybindingOverrides: KeybindingOverridesGetter;
 	/** Set-once host import hook for image-bearing pastes. Required-nullable: a mount must
 	 *  answer, and `undefined` deliberately leaves the paste on the plain-text path. */

@@ -1,25 +1,26 @@
 <script lang="ts">
-	import { Editor, type PresentationMode } from '$lib';
+	import { Editor, type EditorProps, type PresentationMode } from '#lib';
 	// `?extraLanguage=on` registers a grammar the editor does not bundle, through the public API a
 	// host uses (`@voithos-labs/aragonite/plugin`): one import, one call, before any editor mounts.
 	// Off by default, because the picker specs measure the language list.
-	import { isLanguageRegistered, registerLanguage } from '$lib/plugin';
+	import { isLanguageRegistered, registerLanguage } from '#lib/plugin.js';
 	import elixir from 'highlight.js/lib/languages/elixir';
-	import { HARNESS_SHOWCASE_CONTENT } from '$lib/e2e/test-content';
-	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+	import { HARNESS_SHOWCASE_CONTENT } from '#lib/e2e/test-content.js';
+	import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 	import DebugPanel from '../../debug-panel/DebugPanel.svelte';
 	import { createPanelState } from '../../debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
 	import InsertToolbar from '../../InsertToolbar.svelte';
 	import { harnessPasteImage, installTestProbes } from './test-probes';
+	import { HarnessSource } from './harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
-	import { slashCommandsPlugin } from '$lib/plugins/slash-commands';
+	import { slashCommandsPlugin } from '#lib/plugins/slash-commands/index.js';
 
 	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
 	const param = (name: string): string | null =>
 		typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(name);
 
-	let source = $state(HARNESS_SHOWCASE_CONTENT);
+	const source = new HarnessSource(HARNESS_SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
@@ -30,7 +31,7 @@
 	let dragHandlesOn = $state(param('dragHandles') !== 'false');
 
 	function toggleDragHandles() {
-		if (editor) source = editor.getSource();
+		if (editor) source.load(editor.getSource());
 		dragHandlesOn = !dragHandlesOn;
 	}
 
@@ -94,6 +95,16 @@
 		PARAM_MODES.find((m) => m === param('presentationMode')) ?? 'source'
 	);
 
+	// `?placeholder=…` starts with that string; the prop reads live, so a spec sets the function
+	// form through `__test.setPlaceholder` with no remount.
+	let placeholder = $state<EditorProps['placeholder']>(param('placeholder') ?? undefined);
+
+	// `?caret=native|drawn` starts with that prop; the prop reads live, like the mode.
+	const CARET_MODES = ['auto', 'native', 'drawn'] as const;
+	let caret = $state<NonNullable<EditorProps['caret']>>(
+		CARET_MODES.find((m) => m === param('caret')) ?? 'auto'
+	);
+
 	// The testids are pinned by the presentation e2e.
 	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
 		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
@@ -117,14 +128,18 @@
 		if (!editor) return;
 		installTestProbes({
 			editor,
-			setSource: (md) => {
-				source = md;
-			},
+			source,
 			setKeybindings: (overrides) => {
 				keybindings = overrides;
 			},
 			setPresentationMode: (mode) => {
 				presentationMode = mode;
+			},
+			setPlaceholder: (value) => {
+				placeholder = value;
+			},
+			setCaret: (mode) => {
+				caret = mode;
 			}
 		});
 	});
@@ -218,10 +233,12 @@
 			{#key dragHandlesOn}
 				<Editor
 					bind:this={editor}
-					{source}
+					source={source.text}
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
 					{presentationMode}
+					{placeholder}
+					{caret}
 					{onRunCode}
 					{codeMenuItems}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}

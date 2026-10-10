@@ -7,7 +7,7 @@ import {
 	isBlockComponentRegistered
 } from '../../schema/block-component-registry';
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
-import { testClosure } from '$lib/test/support/closure';
+import { testClosure } from '#lib/test/support/closure.js';
 
 const fakeComponent = (() => {}) as unknown as Parameters<typeof defineBlockComponent>[0];
 

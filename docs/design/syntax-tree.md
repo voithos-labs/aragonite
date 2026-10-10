@@ -120,7 +120,7 @@ parse(':::note My title\n\nbody\n:::\n').children[0];
 
 `childIds`, `childSpans` and `ownerEpoch` are editor bookkeeping, not facts about the source. They play no part in the round trip, and if all you do is parse, you can ignore them. The split even has a type: code outside the tree-editing layers holds node views (`core/node-views.ts`) whose serialized fields are readonly while the bookkeeping stays writable.
 
-**Inline content is not a node field.** Prose kinds get an inline tree (§ 4), but it's computed from `raw` when something reads it, and never stored on the node. Why so strict? A cache field on the node once broke keyed rendering; `editor.md` § Reactive state plumbing has the story.
+**Inline content is not a node field.** Prose kinds get an inline tree (§ 4), but it's computed from `raw` when something reads it, and never stored on the node (`editor.md` § Reactive state plumbing says why).
 
 ### The container contract
 
@@ -152,7 +152,7 @@ An edit that leaves spaces between an item's marker and its text keeps exactly t
 
 Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaque'` are exempt from it, for different reasons and with different consequences:
 
-- **Grid.** A cell has no line syntax of its own, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the table's `rebuildRaw` owns the pipes around them. One function reads a table line into cells and says where each one sits (`core/parsers/table-line.ts :: rowCellSpans`), and one writes a row back (`schema/container-rebuilders.ts :: writeTableRow`); a copied piece of a table is written by the second, and pasted GFM rows are split by the first.
+- **Grid.** A cell has no line syntax of its own, so `parse(cell.raw)` would come back a paragraph. That's why table cells are `contextDependentKind`, and why the table's `rebuildRaw` owns the pipes around them. To read a table line into cells (and where each one sits), call `core/parsers/table-line.ts :: rowCellSpans`; to write a row back, `core/parsers/table-line.ts :: tableRowLine`.
 
   A rebuilt row is written into its own old bytes, touching as little as it can:
   - a row whose cells all still match what its bytes read stays exactly as it was, line ending included
@@ -301,7 +301,6 @@ A container inherits all of this through strip-and-recurse, with two wrinkles an
 
 - **Inline parsing is separate.** The block parser doesn't parse inline syntax; the editor layer triggers it. See `inline-parsing.md`.
 - **No incremental parsing.** It's a full parse every time. It could be added without changing the architecture, but the editor only ever re-parses one block at a time anyway, so nobody has needed it.
-- **No error-recovery machinery.** There's nothing to recover _from_; the paragraph fallback absorbs anything (see above).
 
 ## 4. Inline nodes
 
@@ -339,7 +338,7 @@ The built-in kinds:
 
 **The set is open.** A plugin registers its own inline kind (`PluginInlineKind`, the inline mirror of `PluginBlockKind`) and hooks the scanner on a trigger character; that's how inline math ships. `AnyInlineKind` spans both. An inline kind nobody recognizes falls back to its verbatim source, so bytes survive a plugin being uninstalled.
 
-**Relationship to `raw`:** the inline tree is **derived**, a rendering cache computed lazily on read and never used for serialization. The cache is checked against the block's `raw` and against the document's link-reference signature (a string built from every `[label]: url` definition in the document, so a definition edit anywhere invalidates every reference-bearing block). The invariant: concatenating the tree's leaf text and marker syntax reproduces the slice of `raw` it was parsed from.
+**Relationship to `raw`:** the inline tree is a rendering cache, checked against the block's `raw` and against the document's link-reference signature (a string built from every `[label]: url` definition in the document, so a definition edit anywhere invalidates every reference-bearing block). The invariant: concatenating the tree's leaf text and marker syntax reproduces the slice of `raw` it was parsed from.
 
 ## 5. GFM coverage
 
@@ -362,7 +361,7 @@ Every GFM block type is implemented with its own kind:
 
 Inline: emphasis and strong (`*`, `_`, `**`, `__`), strikethrough, inline code, links, images, autolinks (bare URLs and emails), hard line breaks, and reference-style links and images.
 
-Every rule reads whitespace the way GFM does (§ 2.1): spaces and tabs where a rule asks for them, and the ASCII whitespace set where it says whitespace. A non-breaking space is never one of them, so `#<NBSP>foo` is a paragraph, not a heading, and a bare link runs straight through one. The outsiders are emphasis and the code that edits it, since the flanking rule is written over Unicode whitespace, and inline math's `$`, which flanks the same way. Directive and bundled plugin grammars read GFM's whitespace too, through the same helpers (`src/lib/core/lines.ts :: isWhitespaceChar`, `trimWhitespace`). `src/lib/test/gfm-conformance/whitespace-class.test.ts` pins each shape.
+Every rule reads whitespace the way GFM does (§ 2.1): spaces and tabs where a rule asks for them, and the ASCII whitespace set where it says whitespace. A non-breaking space is never one of them, so `#<NBSP>foo` is a paragraph, not a heading, and a bare link runs straight through one. The outsiders are emphasis and the code that edits it, since the flanking rule is written over Unicode whitespace, and inline math's `$`, which flanks the same way. Directive and bundled plugin grammars read GFM's whitespace too, through the same helpers (`src/lib/core/lines.ts :: isWhitespaceChar`, `trimWhitespace`).
 
 The table row's mismatch note, since it bites:
 
@@ -394,7 +393,7 @@ The tree itself doesn't care about kind strings: the parser, the serializer, and
 
 ## Appendix: the architecture that was rejected
 
-The CST was designed around three phases. Two shipped; the third was evaluated and rejected. _Why isn't the inline tree authoritative?_ is the first question a rich-text-editor person asks, and the answer decided the architecture, so it's written down here rather than left to folklore.
+The CST was designed around three phases. Two shipped; the third was evaluated and rejected. _Why isn't the inline tree authoritative?_ is the first question a rich-text-editor person asks, and the answer decided the architecture.
 
 - **Phase 1: blocks with raw source.** Parse GFM into a recursive tree; each node stores its source verbatim. Round-trip by construction.
 - **Phase 2: inline parsing.** Prose blocks parse their content into an inline tree, derived from `raw` and re-parsed on every edit. `serialize()` still reads `raw` only. This is where we are, and it's permanent.
@@ -405,5 +404,5 @@ Why it was rejected, once the editing loop had matured enough to judge:
 - **Round-trip fidelity.** Phase 2's guarantee is trivial because serialization _is_ concatenation. Tree-as-truth requires the serializer to reproduce exact delimiter styles (`*italic*` vs `_italic_`, `- ` vs `* `), which turns the round trip from a property into an ongoing fight.
 - **Partial syntax while typing.** `**bold` mid-keystroke is just a string in raw-as-truth. In tree-as-truth it's an invalid tree state that every keystroke has to handle.
 - **Semantic editing already works.** Toggle bold = insert `**` around the selection in `raw`. Change heading level = swap the `# ` prefix. The editor already does this. No tree manipulation needed.
-- **Syntax hiding never needed the flip.** The one thing Phase 3 promised over Phase 2, hiding markers on unfocus, ships instead as CSS view treatments (the presentation modes: reading, block- and inline-granular preview, and fully live) over the single render path, marker visibility keyed on focus and caret proximity, never a derived-`raw` tree. The feature that seemed to justify the flip arrived without it.
+- **Syntax hiding never needed the flip.** The one thing Phase 3 promised over Phase 2, hiding markers on unfocus, ships instead as CSS view treatments (the presentation modes: reading, block- and inline-granular preview, and fully live) over the single render path, marker visibility keyed on focus and caret proximity, never a derived-`raw` tree.
 - **Complexity cost.** Tree-DOM sync, fragile serialization, and a new bug class, in exchange for the above. The editors that went this way (ProseMirror, Slate) pay an enormous complexity tax for it, and they don't even have a byte-lossless round trip to protect.

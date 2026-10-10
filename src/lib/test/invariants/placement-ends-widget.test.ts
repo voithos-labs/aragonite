@@ -2,18 +2,19 @@
 // G1.46: a block's focus and the restore check, as they place, that no widget stayed selected.
 import { describe, it, expect } from 'vitest';
 import { checkPlacementEndsWidget } from '../../invariants/placement-ends-widget';
-import { placeCaret, selectWidgetWhole } from '../../selection/caret-doors';
+import { placeCaret, selectWidgetWhole } from '../../selection/place-caret';
 import { applySelectionToDom } from '../../selection/native-bridge';
 import { createSelectionState, type SelectionState } from '../../selection/selection-state.svelte';
 import { restoreTarget } from '../harness/restore-landing';
 import { takeDevWarns } from '../support/warn-gate';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const IMAGE = { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 };
 
 /** A selection state whose clears forget the widget, the break the check exists to catch. */
 function clearsSkipTheWidget(): SelectionState {
 	const real = createSelectionState();
-	selectWidgetWhole(real, IMAGE);
+	selectWidgetWhole(real, testCaretWriter, IMAGE);
 	return new Proxy(real, {
 		get(target, prop) {
 			if (prop === 'clear' || prop === 'collapse') return () => {};
@@ -30,7 +31,7 @@ describe('G1.46 a placed caret or range leaves no widget selected', () => {
 	});
 
 	it('fires from a block’s focus when the clear leaves the widget', () => {
-		placeCaret(clearsSkipTheWidget(), () => {})(1);
+		placeCaret(clearsSkipTheWidget(), testCaretWriter, () => {})(1);
 
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:placement-ends-widget']);
 	});
@@ -50,9 +51,9 @@ describe('G1.46 a placed caret or range leaves no widget selected', () => {
 
 	it('stays silent when the store ends the widget as it should', () => {
 		const selection = createSelectionState();
-		selectWidgetWhole(selection, IMAGE);
+		selectWidgetWhole(selection, testCaretWriter, IMAGE);
 
-		placeCaret(selection, () => {})(1);
+		placeCaret(selection, testCaretWriter, () => {})(1);
 
 		expect(selection.widget).toBeNull();
 		expect(takeDevWarns()).toEqual([]);

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { blockNearPoint, descendToLevelChild, nearestBand } from '$lib/selection/nearest-block';
-import { blockAtPoint } from '$lib/selection/block-hit-test';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { blockNearPoint, descendToLevelChild, nearestBand } from '#lib/selection/nearest-block.js';
+import { blockAtPoint } from '#lib/selection/block-hit-test.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 // Which block a point off every block belongs to, and where inside it the gesture is answered.
 // The geometry needs real layout, so `e2e/tests/selection/dead-space-click.spec.ts` covers it.

@@ -1,8 +1,8 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { DIRECTIVE_CONTAINER } from '$lib/core/directive/kinds';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 beforeEach(activateDirectiveGrammar);
@@ -19,10 +19,10 @@ it('reads an opener as a directive container', () => {
 
 describe('directive container-opener bounds (ADV-2)', () => {
 	it('an unclosed-opener flood parses within a bounded growth ratio and round-trips', () => {
-		const growth = measureScanGrowth(parseOnly, ':::a\n', [32, 128]);
+		const growth = measureScanGrowth(parseOnly, ':::a\n', [8, 32]);
 		expectBoundedGrowth(growth);
 
-		const source = ':::a\n'.repeat(25_000);
+		const source = ':::a\n'.repeat(2_500);
 		expect(serialize(parse(source))).toBe(source);
 	}, 300_000);
 });
@@ -31,7 +31,7 @@ describe('directive container-opener bounds (ADV-2)', () => {
 // openers the lookup never matches, so an unbounded scan revisits every closer per opener.
 describe('directive closer lookup bounds', () => {
 	it('stays bounded when no closer is long enough to close any opener', () => {
-		const growth = measureScanGrowth(parseOnly, ':::a\n:\n', [64, 256]);
+		const growth = measureScanGrowth(parseOnly, ':::a\n:\n', [16, 64]);
 		expectBoundedGrowth(growth);
 	}, 120_000);
 

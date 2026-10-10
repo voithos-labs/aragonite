@@ -42,21 +42,24 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 		expect(lines[line]).toContain('X');
 	}
 
-	for (const direction of DIRECTIONS) {
-		test(`rapid ${direction.key} across headings crosses to the ${direction.edge} heading`, () =>
-			crossesRapidly(HEADINGS, direction));
+	/** Both directions of one document, each on a fresh load. */
+	async function crossesBothWays(doc: (edge: 'first' | 'last') => string): Promise<void> {
+		for (const direction of DIRECTIONS) {
+			await test.step(`rapid ${direction.key} crosses to the ${direction.edge} block`, async () => {
+				await crossesRapidly(doc(direction.edge), direction);
+			});
+		}
 	}
 
+	test('rapid arrows across headings cross to the first and last heading', () =>
+		crossesBothWays(() => HEADINGS));
+
 	// The control: plain text on both ends, where the block boundary is never in doubt.
-	for (const direction of DIRECTIONS) {
-		test(`rapid ${direction.key} across plain paragraphs crosses to the ${direction.edge}`, () =>
-			crossesRapidly(PARAGRAPHS, direction));
-	}
+	test('rapid arrows across plain paragraphs cross to the first and last', () =>
+		crossesBothWays(() => PARAGRAPHS));
 
 	// The dimmed `**` marker span as first or last child: the same non-text edge a heading has,
 	// reached through inline markup instead of a block marker.
-	for (const direction of DIRECTIONS) {
-		test(`rapid ${direction.key} across paragraphs whose ${direction.edge} child is a markup span`, () =>
-			crossesRapidly(direction.edge === 'first' ? MARKER_LEAD : MARKER_TAIL, direction));
-	}
+	test('rapid arrows across paragraphs whose edge child is a markup span', () =>
+		crossesBothWays((edge) => (edge === 'first' ? MARKER_LEAD : MARKER_TAIL)));
 });

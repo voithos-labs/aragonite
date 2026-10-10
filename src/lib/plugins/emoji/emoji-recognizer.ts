@@ -13,7 +13,7 @@ import {
 	registerInlineWidgetKind,
 	type InlineNode,
 	type PluginInlineKind
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { EMOJI_TABLE } from './emoji-table';
 
 export const EMOJI_KIND = 'emoji';

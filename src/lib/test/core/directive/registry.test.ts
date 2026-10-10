@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { CstNode, PluginBlockKind } from '$lib/core/nodes';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
+import type { CstNode, PluginBlockKind } from '#lib/core/nodes.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	registerDirective,
 	resolveDirective,
 	isDirectiveRegistered,
 	type DirectiveDefinition
-} from '$lib/core/directive/registry';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+} from '#lib/core/directive/registry.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 let kind: PluginBlockKind;
 beforeEach(() => {

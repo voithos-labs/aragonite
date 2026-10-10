@@ -6,7 +6,7 @@ import {
 	type RegexScanRequest
 } from '../../search/regex-executor';
 import { makeSearchHarness, type ReplaceStub } from './harness';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 /** An executor that resolves only when the test says so, so the gap between starting and
  *  finishing can be inspected. */

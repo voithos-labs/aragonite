@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { keepFlyoutOnScreen } from '$lib/components/menu/flyout-placement';
+import { keepFlyoutOnScreen } from '#lib/components/menu/flyout-placement.js';
 
 // A flyout that overflows the viewport is lifted at the bottom and flipped left at the right edge
 // when the parent menu leaves room, by inline styles over the CSS placement.

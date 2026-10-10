@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { checkChildIdParity, childIdDrifts } from '$lib/invariants/child-id-parity';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { checkChildIdParity, childIdDrifts } from '#lib/invariants/child-id-parity.js';
 
 /** `- a` over a nested `- b` list: a list, its item, and the item's own list. */
 function nestedList(): CstNode {

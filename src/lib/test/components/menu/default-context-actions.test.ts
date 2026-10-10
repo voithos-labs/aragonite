@@ -1,22 +1,21 @@
-// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { NodeView } from '$lib/core/node-views';
+import { parse } from '#lib/core/parser.js';
+import type { NodeView } from '#lib/core/node-views.js';
 import {
 	EVERY_KIND,
 	blockContextActionsFor,
 	registerBlockContextActions,
 	type BlockActionContext,
 	type BlockContextAction
-} from '$lib/schema/context-actions';
+} from '#lib/schema/context-actions.js';
 import {
 	blockNoun,
 	registerDefaultContextActions
-} from '$lib/components/menu/default-context-actions';
-import { isProseLeaf } from '$lib/schema/page-role';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+} from '#lib/components/menu/default-context-actions.js';
+import { isProseLeaf } from '#lib/schema/page-role.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 const block = (md: string): NodeView => parse(md).children[0];
 // The document's own link definitions, as the editor's reading carries them.

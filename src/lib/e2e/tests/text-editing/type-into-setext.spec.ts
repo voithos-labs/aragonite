@@ -23,14 +23,16 @@ const expectSource = (ep: EditorPage, expected: string) =>
 
 for (const mode of ['source', 'live'] as const) {
 	test.describe(`${mode} mode: typing into a setext heading`, () => {
-		for (const underline of ['---', '===', '----------']) {
-			test(`End then a character keeps a ${underline} underline`, async ({ page }) => {
-				const ep = await open(page, mode, `Plan\n${underline}\n`);
+		// Only the source row: the live End row below the larger document walks the same keys, and the
+		// other underlines are pinned in `setext-dom-read.test.ts`.
+		if (mode === 'source') {
+			test('End then a character keeps a --- underline', async ({ page }) => {
+				const ep = await open(page, mode, 'Plan\n---\n');
 				await ep.clickBlockAtPath([0], 1);
 				await page.keyboard.press('End');
 				await page.keyboard.type('s');
 
-				await expectSource(ep, `Plans\n${underline}\n`);
+				await expectSource(ep, 'Plans\n---\n');
 				expect(await ep.bridge.getBlockKind(0)).toBe('setextHeading');
 			});
 		}
@@ -58,15 +60,6 @@ for (const mode of ['source', 'live'] as const) {
 }
 
 test.describe('typing into a setext heading: other shapes and routes', () => {
-	test('a CRLF document keeps its underline and its endings', async ({ page }) => {
-		const ep = await open(page, 'source', 'Plan\r\n===\r\n');
-		await ep.clickBlockAtPath([0], 1);
-		await page.keyboard.press('End');
-		await page.keyboard.type('s');
-
-		await expectSource(ep, 'Plans\r\n===\r\n');
-	});
-
 	for (const [label, doc, path, typed] of [
 		['a list item', '- Plan\n  ---\n', [0, 0, 0], '- Plans\n  ---\n'],
 		['a quote', '> Plan\n> ===\n', [0, 0], '> Plans\n> ===\n']

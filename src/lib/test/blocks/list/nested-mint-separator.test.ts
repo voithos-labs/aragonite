@@ -3,9 +3,13 @@
 // blank separating line is written too, at the cost of a loose item.
 // Miss-analysis: the Tab suite nested only items with content, and no Enter test pressed Tab.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { assertParseConverged } from '$lib/testing/parse-convergence';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import { parse } from '#lib/core/parser.js';
+import { assertParseConverged } from '#lib/testing/parse-convergence.js';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 

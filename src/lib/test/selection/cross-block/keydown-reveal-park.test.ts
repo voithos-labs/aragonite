@@ -4,7 +4,7 @@
 // contract promises no caret placed, the range kept and the scroll still run, which no extend
 // spec can see.
 import { describe, it, expect, vi } from 'vitest';
-import { CURSOR_START, type BlockComponent } from '$lib/block-component';
+import { CURSOR_START, type BlockComponent } from '#lib/block-component.js';
 import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';

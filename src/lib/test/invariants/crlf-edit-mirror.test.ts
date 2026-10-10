@@ -46,7 +46,7 @@ import { createFocusActions } from '../../editor-actions/focus/focus';
 import { blockContextActionsFor } from '../../schema/context-actions';
 import { everyInstalledPlugin } from '../../schema/plugin-activation';
 import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
-import { ensurePasteSurface } from '$lib/test/support/paste-surface';
+import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
 
 interface EditGesture {
 	name: string;

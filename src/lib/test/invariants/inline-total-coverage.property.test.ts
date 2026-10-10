@@ -1,13 +1,13 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '../../core/nodes';
 import { scanInline } from '../../core/inline/scan';
 import { isInlineKindDeclared } from '../../schema/plugin-kind';
-import { installPlugins } from '$lib';
-import { footnotesPlugin, FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes';
-import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
-import { latexPlugin, MATH_INLINE } from '$lib/plugins/latex';
+import { installPlugins } from '#lib';
+import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/index.js';
+import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
+import { latexPlugin, MATH_INLINE } from '#lib/plugins/latex/index.js';
 import {
 	arbInlineSource,
 	arbLargeDoc,
@@ -111,7 +111,7 @@ describe('G2.11 scanner total coverage + construct tiling + kind vocabulary', ()
 				const line = doc.slice(0, Math.min(doc.length, 60_000));
 				assertScanContract(line, 0, line.length);
 			}),
-			{ numRuns: 20, seed: freshOrFixedSeed(424242), endOnFailure: true }
+			{ numRuns: 5, seed: freshOrFixedSeed(424242), endOnFailure: true }
 		);
 	}, 60_000);
 

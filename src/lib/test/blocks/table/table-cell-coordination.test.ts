@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { vi } from 'vitest';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
-import { pressKey } from '$lib/test/harness/settle';
+import { pressKey } from '#lib/test/harness/settle.js';
 
 let restoreLayout: () => void;
 beforeAll(() => {

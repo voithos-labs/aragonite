@@ -4,28 +4,29 @@
 // reading-mode check is proven by the bytes not moving, which a spy cannot do.
 
 import { vi } from 'vitest';
-import type { BlockComponent } from '$lib/block-component';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { CrossBlockDispatchContext } from '$lib/selection/cross-block/dispatch';
-import { createCrossBlockKeydown } from '$lib/selection/cross-block/keydown';
-import { createCrossBlockCommands } from '$lib/selection/cross-block/format-toggle';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { CrossBlockDispatchContext } from '#lib/selection/cross-block/dispatch.js';
+import { createCrossBlockKeydown } from '#lib/selection/cross-block/keydown.js';
+import { createCrossBlockCommands } from '#lib/selection/cross-block/format-toggle.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
-} from '$lib/schema/keybinding-overrides';
-import type { Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { installEditorDomStubsForTests } from '$lib/testing';
+} from '#lib/schema/keybinding-overrides.js';
+import type { Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 import { stubScrollOwner, stubScrollport } from '../../harness/stub-scrollport';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { commandContextWith } from '../../support/command-context';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -103,6 +104,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		getEl: () => getBlockElByPath(opts.myPath ?? [0]),
 		getMyPath: () => opts.myPath ?? [0],
 		selection,
+		caretWriter: testCaretWriter,
 		getDoc: () => harness.deps.doc,
 		getBlockElByPath,
 		// Real, so a scroll to a mounted endpoint reaches that element's `scrollIntoView`.

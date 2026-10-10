@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { documentBody, type BodyParent } from '$lib/tree-operations/node-primitives';
-import { settleSeparatorOnBlank } from '$lib/tree-operations/settle';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { documentBody, type BodyParent } from '#lib/tree-operations/node-primitives.js';
+import { settleSeparatorOnBlank } from '#lib/tree-operations/settle.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A body names its container once, as `owner`, and the document root names none. The separator
 // fix-ups read the owner's fence lines and title off it, so a body is the only thing they take.

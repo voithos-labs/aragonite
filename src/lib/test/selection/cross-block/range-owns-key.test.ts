@@ -5,7 +5,7 @@
 // same keys through both, so the arrows, Escape and Mod+A ran in a container and the range at once.
 import { describe, it, expect } from 'vitest';
 import { makeKeydownEnv, press } from './keydown-env';
-import { rangeOwnsKey } from '$lib/selection/cross-block/keydown';
+import { rangeOwnsKey } from '#lib/selection/cross-block/keydown.js';
 
 const SOURCE = '- alpha\n- beta\n- gamma\n';
 

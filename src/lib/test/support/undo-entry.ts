@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
-import { isGapSelection, type UndoEntry } from '$lib/undo/types';
-import type { EditorSelection, SelectionPoint } from '$lib/selection/primitives';
-import type { MountedEditor } from '$lib/test/harness/mount-editor.svelte';
+import { isGapSelection, type UndoEntry } from '#lib/undo/types.js';
+import type { EditorSelection, SelectionPoint } from '#lib/selection/primitives.js';
+import type { MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
 
 /**
  * The anchor/focus branch of an entry's selection union, for suites asserting on a range they

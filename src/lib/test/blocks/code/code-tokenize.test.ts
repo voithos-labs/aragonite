@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { tokenizeBody } from '../../../components/blocks/code/code-renderer';
 import { bootstrapCodeLanguages } from '../../../components/blocks/code/code-bootstrap';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 describe('tokenizeBody', () => {
 	beforeEach(() => {

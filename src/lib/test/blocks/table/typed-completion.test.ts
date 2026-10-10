@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { tryCompleteTableRow } from '$lib/core/parsers/table-completion';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { tryCompleteTableRow } from '#lib/core/parsers/table-completion.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 
-// The completer's test for a line and the bytes it answers with. What matters is the pair of
-// checks: the parser's own row scan is the outer bound, and the leading pipe narrows it to a
-// deliberate table gesture, so prose that happens to carry a pipe is left alone.
+// Which lines the table's Enter completer claims: the parser's row scan, narrowed by a leading
+// pipe so prose carrying a pipe is left alone. `table-row-writers.test.ts` pins the bytes.
 
 const claim = (line: string) => tryCompleteTableRow(line);
 
@@ -31,37 +30,26 @@ describe('table Enter completer: which lines it claims', () => {
 	])('declines %j (%s)', (line) => {
 		expect(claim(line)).toBeNull();
 	});
-
-	// The escaping is the parser's business, not a second rule here: `\|` stays inside its
-	// cell, so answering with two cells is what the row scan already sees.
-	it('counts an escaped pipe as cell content, not a cell boundary', () => {
-		expect(claim('| a \\| x | b |')!.lines[0]).toBe('| a \\| x | b |');
-		expect(claim('| a \\| x | b |')!.lines[1]).toBe('| --- | --- |');
-	});
 });
 
-describe('table Enter completer: the bytes it answers', () => {
-	it('preserves cell content verbatim and re-pads it canonically', () => {
-		expect(claim('|a|b|')!.lines).toEqual(['| a | b |', '| --- | --- |', '|  |  |']);
-		expect(claim('| **x** | `y` |')!.lines[0]).toBe('| **x** | `y` |');
-	});
-
-	it('gives the delimiter and the body row the header’s cell count', () => {
-		for (const count of [2, 3, 5]) {
-			const header = '|' + ' c |'.repeat(count);
-			const { lines } = claim(header)!;
-			expect(lines).toHaveLength(3);
-			expect(lines[1]).toBe('| ' + Array(count).fill('---').join(' | ') + ' |');
-			expect(lines[2]).toBe('| ' + Array(count).fill('').join(' | ') + ' |');
-		}
-	});
-
+describe('table Enter completer: the answer it gives', () => {
 	it('puts the caret in the first body cell', () => {
 		expect(claim('| a | b |')!.caret).toEqual({ path: [1, 0], line: 0, column: 0 });
 	});
 
-	// The answer is only worth anything if the bytes parse back as the table it describes,
-	// so the round trip is asserted on the completer's own output.
+	// Cell text is kept as typed and padded canonically; an escaped pipe stays inside its cell.
+	it.each([
+		['|a|b|', '| a | b |\n| --- | --- |\n|  |  |\n'],
+		['| a \\| x | b |', '| a \\| x | b |\n| --- | --- |\n|  |  |\n']
+	])('completes %j to %j', (line, bytes) => {
+		expect(
+			claim(line)!
+				.lines.map((l) => l + '\n')
+				.join('')
+		).toBe(bytes);
+	});
+
+	// The answer is worth something only if its bytes parse back as the table it describes.
 	it('answers bytes that parse to one table and serialize back unchanged', () => {
 		const source = claim('| a | b |')!
 			.lines.map((l) => l + '\n')

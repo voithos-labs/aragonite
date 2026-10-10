@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The plugin guide's plain-mode editable-leaf recipe as a mountable fixture: one factory
 	// call, one spread, and the `bind:this` the factory's `getEl` reads in both modes.
-	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '#lib/plugin.js';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 

@@ -28,7 +28,7 @@ import {
 	type CstNode,
 	type OpenContext,
 	type ParsedLine
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import { matchAlertMarker, stripQuoteMarker } from './gh-alert';
 import { GITHUB_ALERT, type GithubAlertMetadata } from './kinds';
 import AdmonitionBlock from './AdmonitionBlock.svelte';

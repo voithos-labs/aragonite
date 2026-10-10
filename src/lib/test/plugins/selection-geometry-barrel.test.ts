@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import * as pluginBarrel from '$lib/plugin';
-import * as mainBarrel from '$lib/index';
-import { SELECTION_END } from '$lib/block-component';
-import type { EditorSelection, SelectionPoint } from '$lib/plugin';
+import * as pluginBarrel from '#lib/plugin.js';
+import * as mainBarrel from '#lib/index.js';
+import { SELECTION_END } from '#lib/block-component.js';
+import type { EditorSelection, SelectionPoint } from '#lib/plugin.js';
 
 // The selection-geometry API is not frozen yet, so the suite pins the sentinel value on both
 // barrels to the one place it is defined (block-component): a dropped re-export fails here

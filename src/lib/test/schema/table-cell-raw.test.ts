@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { parse } from '$lib/core/parser';
-import { trimWhitespace } from '$lib/core/lines';
-import type { CstNode } from '$lib/core/nodes';
-import { rebuildTableRaw } from '$lib/schema/container-rebuilders';
+import { parse } from '#lib/core/parser.js';
+import { trimWhitespace } from '#lib/core/lines.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { rebuildTableRaw } from '#lib/schema/container-rebuilders.js';
 import {
 	escapeUnescapedPipes,
 	normalizeCellRaw,
 	tableCellWrite,
 	unescapeCellPipes
-} from '$lib/schema/table-cell-raw';
+} from '#lib/schema/table-cell-raw.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries';
 
 describe('escapeUnescapedPipes', () => {

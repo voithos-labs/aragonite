@@ -14,21 +14,24 @@ import {
 	githubAnchors,
 	headingsOf
 } from '../../../../../scripts/check-codebase-map.mjs';
+import { pluginGuidePages } from './scan-source';
 
 const ROOT = path.resolve('.');
 
 // ── The heading index ────────────────────────────────────────────────────────
 
 describe('in-pack anchors: the index', () => {
-	const guide = readFileSync(path.join(ROOT, 'docs/guide/plugin-guide.md'), 'utf8');
+	// The guide is an entry page plus the pages beside it, and a heading may sit on any of them.
+	const pages = pluginGuidePages().map((relPath) => readFileSync(path.join(ROOT, relPath), 'utf8'));
+	const closurePage = pages.find((page) => /^#+ The closure block$/m.test(page)) ?? '';
 
 	it('indexes a real pack doc rather than an empty set', () => {
-		expect(anchorsOf(guide).size).toBeGreaterThan(20);
-		expect(anchorsOf(guide)).toContain('the-closure-block');
+		expect(pages.flatMap((page) => [...anchorsOf(page)]).length).toBeGreaterThan(20);
+		expect(anchorsOf(closurePage)).toContain('the-closure-block');
 	});
 
 	it('drops the anchor a renamed heading no longer defines', () => {
-		const renamed = guide.replace(/^#+ The closure block$/m, '## The closure');
+		const renamed = closurePage.replace(/^#+ The closure block$/m, '## The closure');
 		expect(anchorsOf(renamed).has('the-closure-block')).toBe(false);
 		expect(anchorsOf(renamed)).toContain('the-closure');
 	});
@@ -109,41 +112,48 @@ function packGateOutput(docs: Record<string, string>): string {
 
 const DANGLING = 'docs-pack: dangling anchors';
 
-const pack = (anchors: [same: string, cross: string]): Record<string, string> => ({
-	'a.md': `# Title\n\n[here](#${anchors[0]}) and [there](b.md#${anchors[1]})\n\n## The new name\n`,
+// Spawned at collection, which no test timeout bounds: each run starts node and git.
+const STALE = packGateOutput({
+	'a.md': '# Title\n\n[here](#the-old-name) and [there](b.md#the-old-section)\n',
 	'b.md': '# Other\n\n## A section\n'
 });
 
+// One pack holds every passing shape, so the gate spawns once; a made-up anchor in a code example
+// passes, since only the file it names must ship.
+const SPELLED = packGateOutput({
+	'a.md': [
+		'# Title',
+		'',
+		'[here](#the-new-name) and [there](b.md#a-section)',
+		'',
+		'[api](b.md#what-you-get-on-voithos-labsaragoniteplugin)',
+		'',
+		'```md',
+		'[see](b.md#some-heading)',
+		'```',
+		'',
+		'## The new name',
+		''
+	].join('\n'),
+	'b.md': '# Other\n\n## A section\n\n## What you get on `@voithos-labs/aragonite/plugin`\n'
+});
+
+const DEAD_FILE = packGateOutput({ 'a.md': '# A\n\n```md\n[see](gone.md#x)\n```\n' });
+
 describe('in-pack anchors: the gate', () => {
 	it('reds on an anchor no heading spells, same doc or across two', () => {
-		const output = packGateOutput(pack(['the-old-name', 'the-old-section']));
-		expect(output).toContain(DANGLING);
-		expect(output).toContain('a.md: #the-old-name');
-		expect(output).toContain('a.md: b.md#the-old-section');
+		expect(STALE).toContain(DANGLING);
+		expect(STALE).toContain('a.md: #the-old-name');
+		expect(STALE).toContain('a.md: b.md#the-old-section');
 	});
 
-	it('passes the same two links once each heading spells them', () => {
-		const output = packGateOutput(pack(['the-new-name', 'a-section']));
+	it('passes every anchor a heading spells, and a link in code on its file alone', () => {
 		// The summary line prints past both gates, so a green here cannot be a crash before Gate 1.
-		expect(output).toContain('docs-pack: 2 docs link-closed');
-		expect(output).not.toContain(DANGLING);
+		expect(SPELLED).toContain('docs-pack: 2 docs link-closed');
+		expect(SPELLED).not.toContain(DANGLING);
 	});
 
-	it('resolves the anchor GitHub gives a punctuated heading', () => {
-		const output = packGateOutput({
-			'a.md': '# A\n\n[api](b.md#what-you-get-on-voithos-labsaragoniteplugin)\n',
-			'b.md': '# B\n\n## What you get on `@voithos-labs/aragonite/plugin`\n'
-		});
-		expect(output).toContain('docs-pack: 2 docs link-closed');
-	});
-
-	// A guide teaching cross-references shows one in a fence; the file it names must still ship.
-	it('checks a link shown in code for its file, not its anchor', () => {
-		const example = '```md\n[see](b.md#some-heading)\n```\n';
-		expect(packGateOutput({ 'a.md': `# A\n\n${example}`, 'b.md': '# B\n' })).toContain(
-			'docs-pack: 2 docs link-closed'
-		);
-		const deadFile = packGateOutput({ 'a.md': '# A\n\n```md\n[see](gone.md#x)\n```\n' });
-		expect(deadFile).toContain('docs-pack: dead pointers');
+	it('reds on a link in code whose file the pack does not ship', () => {
+		expect(DEAD_FILE).toContain('docs-pack: dead pointers');
 	});
 });

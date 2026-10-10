@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
+import { parseInline } from '#lib/core/inline/index.js';
 import {
 	resolveEdgeDeletion,
 	type DeleteDirection
-} from '$lib/components/blocks/text/construct-edge-delete';
-import { screenVisibility } from '$lib/core/inline/visibility';
-import { makeBlockNode, type BlockKind } from '$lib/core/nodes';
-import { topLevelStore } from '$lib/test/harness/fixture-grammar';
+} from '#lib/components/blocks/text/construct-edge-delete.js';
+import { screenVisibility } from '#lib/core/inline/visibility.js';
+import { makeBlockNode, type BlockKind } from '#lib/core/nodes.js';
+import { topLevelStore } from '#lib/test/harness/fixture-grammar.js';
 
 // The bytes a destructive key at a hidden delimiter run produces in live mode: a key must never
 // leave a delimiter on screen, and a pair the cut empties must not survive as invisible `****`.

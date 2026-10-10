@@ -9,7 +9,7 @@ import type { CommitLanding } from '../../action-contracts';
 import { metadataOf, type CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { SharingState } from '../sharing';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { ensureUnsharedChild } from '../unshare';
 import { trackChildIds } from '../structural-change';
 import { spliceChildren } from '../children';

@@ -9,6 +9,7 @@ import type { Component } from 'svelte';
 import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../nodes';
 import type { DocumentView, NodeView } from '../node-views';
 import type { PresentationMode } from '../../presentation-mode';
+import type { ActivationClick, ClickInput } from '../../activation-click';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { createInlineKindRegistry } from '../../schema/plugin-registry';
@@ -64,12 +65,9 @@ export interface InlineWidgetComponentProps {
 	/** `EditorContext.computeInlineContent` for the widget's editor: it parses as that editor draws,
 	 *  and it's a new function whenever the document's definitions change. */
 	computeInlineContent: (node: NodeView) => InlineNode[];
-}
-
-/** Shared by the editable element deciding whether to show the source and the widget deciding
- *  whether to act. Reading mode has no caret to place, so a plain click activates, as for links. */
-export function isWidgetActivationClick(modified: boolean, mode: PresentationMode): boolean {
-	return modified || mode === 'reading';
+	/** Whether a click is this widget's to act on: false unless the kind claims the activation
+	 *  click, then the host's gesture in the mode in force. The editor shows no source for these. */
+	isActivationClick: (click: ClickInput) => boolean;
 }
 
 /** The closed vocabularies as values, so the published conformance kit checks a registration
@@ -99,9 +97,19 @@ export interface InlineWidgetEditingPolicy {
 	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
-	/** The widget's own component handles an activation click ({@link isWidgetActivationClick}),
-	 *  so the editable element does not show the source, which would unmount the widget. */
+	/** The widget goes somewhere on a click, as a link does, so the click the host picked for
+	 *  links is its component's to act on and shows no source, which would unmount the widget. */
 	claimsActivationClick?: boolean;
+}
+
+/** The one answer both sides of a click on a widget read: the editable element leaves the source
+ *  hidden for it, and the widget's component (its `isActivationClick` prop) acts on it. */
+export function widgetActivates(
+	policy: InlineWidgetEditingPolicy | undefined,
+	click: ClickInput,
+	activationClick: ActivationClick
+): boolean {
+	return policy?.claimsActivationClick === true && activationClick(click);
 }
 
 export interface InlineWidgetEditingContext {

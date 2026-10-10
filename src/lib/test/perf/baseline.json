@@ -1,4 +1,5 @@
 {
+	"caretFrame": { "browserMoves": { "lagFramesPerMove": 0.021 } },
 	"recorded": "2026-08-26",
 	"reVerified": "2026-08-26 — the e2e rows are one epoch measured on the PRODUCTION build (the `perf:check` route), replacing the 2026-07-24 dev-build epoch: the instrument changed, so the values were re-recorded rather than re-verified. Container-interior rows fell from 52.1/29.1 ms (dev, pre child-spans) to 3.3/3.0 ms; every other keystroke row read at or below its dev value; the giant-single-paragraph rows were re-measured after a bisected toolbar regression was fixed the same day. giant-single-list-interior-10MB is blessed from the gate's own run (its p95 is the first keystroke after load, which seeds the spans once); its loadMs is the same fixture's giant-single-list-10MB load. flat-prose-10MB-structural was blessed 2026-09-24 from the gate's own production run (its first value was a dev-server stand-in); its loadMs is the same run's flat-prose-10MB load.",
 	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",

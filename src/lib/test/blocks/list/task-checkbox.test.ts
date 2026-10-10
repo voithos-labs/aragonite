@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import {
 	buildTaskItemAmbient,
 	TASK_HANGING_INDENT
-} from '$lib/components/blocks/list/task-checkbox';
-import type { ListItemMetadata } from '$lib/core/nodes';
+} from '#lib/components/blocks/list/task-checkbox.js';
+import type { ListItemMetadata } from '#lib/core/nodes.js';
 import { takeDevWarns } from '../../support/warn-gate';
 
 function plainListMeta(): ListItemMetadata {

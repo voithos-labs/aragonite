@@ -5,10 +5,11 @@
 
 import type { BlockEditActions } from '../../action-contracts';
 import type { BlockElLookup, DocumentGetter } from '../../editor-keys';
-import type { UserScrollport } from '../../cursor/scroll-ancestors';
-import type { ScrollOwner } from '../../cursor/scroll-owner';
+import type { UserScrollport } from '../../windowing/scroll-ancestors';
+import type { ScrollOwner } from '../../windowing/scroll-owner';
 import type { SelectionState } from '../selection-state.svelte';
-import type { CaretMemory } from '../../cursor/caret-memory';
+import type { CaretMemory } from '../../caret/caret-memory';
+import type { CaretWriter } from '../../caret/widget-offset';
 import type { CaretLanding } from '../caret-landing';
 import type { CommitController } from '../../action-contracts';
 import type { CommandDispatchContext } from '../../schema/block-commands';
@@ -29,13 +30,15 @@ export interface CrossBlockDispatchContext {
 	getMyPath: () => number[];
 
 	selection: SelectionState;
+	/** The editor's caret writer, which every caret and range the dispatch puts down goes through. */
+	caretWriter: CaretWriter;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	/** Where a collapse, an extend's parked caret and a command's target block are put down. */
 	caretLanding: Pick<CaretLanding, 'restore' | 'park' | 'mount'>;
 	getEditorRoot: () => HTMLElement | null;
 	/** What autoscrolls a drag-select that reaches an edge: the root, the host's scroller, or the
-	 *  window. See `cursor/scroll-ancestors`. */
+	 *  window. See `windowing/scroll-ancestors`. */
 	getScrollHost: () => UserScrollport | null;
 	/** Brings the endpoint a keyboard extend reached to the nearest edge. */
 	scrollOwner: Pick<ScrollOwner, 'place'>;

@@ -4,11 +4,12 @@
 // the CST, and after `compositionend` it splices its newline.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mountCode, type MountedCode } from './mount-code';
-import { settleEditor } from '$lib/test/harness/settle';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
-function lineBreak(): InputEvent {
+function lineBreak(isComposing = false): InputEvent {
 	return new InputEvent('beforeinput', {
 		inputType: 'insertLineBreak',
+		isComposing,
 		bubbles: true,
 		cancelable: true
 	});
@@ -28,7 +29,7 @@ describe('CodeBlock: insertLineBreak composition gate', () => {
 	it('mid-composition insertLineBreak does not sync the CST', async () => {
 		const { el, blockEdit } = mounted;
 		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-		el.dispatchEvent(lineBreak());
+		el.dispatchEvent(lineBreak(true));
 		await settleEditor();
 
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();

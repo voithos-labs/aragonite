@@ -16,17 +16,21 @@ const PROD_PORT = OWN_PORT ? OWN_PORT + 1 : ISOLATED ? 1431 : 1421;
 // `server-warn-reporter` fail a run on an SSR-side `[aragonite:` guard fire. Stderr already pipes.
 const devServer = {
 	// `vite.config.js` pins the default port with `strictPort`, so isolation must move it on
-	// the command line — Playwright's `port` only says where to wait.
+	// the command line; Playwright's `url` only says where to wait.
 	command: ISOLATED ? `npm run dev -- --port ${DEV_PORT} --strictPort` : 'npm run dev',
-	port: DEV_PORT,
+	// Waits for the harness page: Vite opens and closes the port while checking it is free,
+	// before it serves, so a port check can pass early and the first page load is refused.
+	url: `http://localhost:${DEV_PORT}/test/editor`,
 	reuseExistingServer: !ISOLATED,
 	stdout: 'pipe' as const,
-	timeout: 15_000
+	// Covers the first compile of the harness page, which has taken about 40s on a loaded machine.
+	timeout: 60_000
 };
 
 const prodServer = {
 	command: `npm run build && npm run preview -- --port ${PROD_PORT} --strictPort`,
-	port: PROD_PORT,
+	// Waits for a page, not the port, for the same reason as the dev server.
+	url: `http://localhost:${PROD_PORT}/test/editor`,
 	reuseExistingServer: !ISOLATED,
 	stdout: 'pipe' as const,
 	timeout: 180_000
@@ -43,10 +47,11 @@ const PROJECT_DIRS = [
 	'selection',
 	'sticky-column',
 	'a11y',
-	'search'
+	'search',
+	'clipboard'
 ];
 
-// The second-engine slice, run per release rather than per commit. It carries no known-red
+// The second-engine slice, run on every pull request rather than every commit. It carries no known-red
 // backlog, which is what lets the lane fail rather than report: any red is a regression.
 const WEBKIT_LANE = [
 	'smoke.spec.ts',
@@ -59,6 +64,7 @@ const WEBKIT_LANE = [
 	'selection/keyboard/collapse.spec.ts',
 	'selection/dead-space-click.spec.ts',
 	'selection/gap-caret-arrival.spec.ts',
+	'caret/**/*.spec.ts',
 	'webkit/**/*.spec.ts'
 ];
 
@@ -85,7 +91,6 @@ export default defineConfig({
 			testMatch: '*.spec.ts',
 			testIgnore: [
 				...PROJECT_DIRS.map((dir) => `${dir}/**`),
-				'clipboard/**',
 				'simulation/**',
 				'perf/**',
 				'capture/**',
@@ -127,12 +132,6 @@ export default defineConfig({
 			use: { viewport: { width: 1280, height: 900 } }
 		},
 		...PROJECT_DIRS.map((dir) => ({ name: `e2e-${dir}`, testMatch: `${dir}/**/*.spec.ts` })),
-		{
-			name: 'e2e-clipboard',
-			testMatch: 'clipboard/**/*.spec.ts',
-			testIgnore: 'clipboard/exploration/**/*'
-		},
-		{ name: 'e2e-exploration', testMatch: 'clipboard/exploration/**/*.spec.ts' },
 		...(WEBKIT
 			? [
 					{

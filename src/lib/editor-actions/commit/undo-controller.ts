@@ -19,10 +19,10 @@ import { readCurrentSelection } from '../../selection/native-bridge';
 import { asDocPath, pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../assert';
 import { checkLandingIsAValue, readCaretWhereabouts } from '../../invariants/landing-value';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
-import { replaceRefs } from '../../reactivity/publish-ref.svelte';
+import { replaceRefs } from '../../block-lists/child-refs';
 import { blockNodeAt, documentBody, nodeAt } from '../../tree-operations/node-primitives';
 import { settleSeparator } from '../../tree-operations/settle';
 import { endsOpen, endWindowLines, keepOpenTail } from '../../tree-operations/open-tail';
@@ -57,7 +57,7 @@ import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
+import type { BlockListState } from '../../block-lists/block-list-state.svelte';
 import {
 	assertCommitPaths,
 	assertCommittedNodes,

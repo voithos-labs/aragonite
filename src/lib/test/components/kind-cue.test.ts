@@ -1,10 +1,10 @@
 // Miss-analysis: nothing reported a typed kind change, so no test could tell one from none.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { Document } from '$lib/core/nodes';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { createKindCue } from '$lib/components/kind-cue.svelte';
-import { shownKind } from '$lib/core/parsers/heading';
+import { parse } from '#lib/core/parser.js';
+import type { Document } from '#lib/core/nodes.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { createKindCue } from '#lib/components/kind-cue.svelte.js';
+import { shownKind } from '#lib/core/parsers/heading.js';
 
 function cueOver(source: string, mode: PresentationMode) {
 	let doc: Document = parse(source);

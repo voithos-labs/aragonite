@@ -1,6 +1,6 @@
 {
 	"name": "@voithos-labs/aragonite",
-	"version": "0.10.8",
+	"version": "0.10.9",
 	"description": "cute svelte-based markdown editor lib",
 	"keywords": [
 		"editor",
@@ -21,8 +21,18 @@
 	"engines": {
 		"node": "^20.19.0 || >=22.12.0"
 	},
+	"devEngines": {
+		"runtime": {
+			"name": "node",
+			"version": ">=22.17.0"
+		}
+	},
 	"svelte": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"imports": {
+		"#lib": "./src/lib/index.js",
+		"#lib/*": "./src/lib/*"
+	},
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
@@ -128,9 +138,10 @@
 		"test:editor:tree-ops": "vitest run src/lib/test/tree-operations",
 		"test:editor:editor-actions": "vitest run src/lib/test/editor-actions",
 		"test:editor:ambient": "vitest run src/lib/test/ambient",
-		"test:editor:cursor": "vitest run src/lib/test/cursor",
+		"test:editor:caret": "vitest run src/lib/test/caret",
 		"test:editor:schema": "vitest run src/lib/test/schema",
-		"test:editor:reactivity": "vitest run src/lib/test/reactivity",
+		"test:editor:windowing": "vitest run src/lib/test/windowing",
+		"test:editor:block-lists": "vitest run src/lib/test/block-lists",
 		"test:editor:selection": "vitest run src/lib/test/selection",
 		"test:editor:blocks": "vitest run src/lib/test/blocks",
 		"test:editor:image": "vitest run src/lib/test/image",
@@ -153,7 +164,6 @@
 		"test:e2e:blocks:image": "playwright test --project=e2e-blocks blocks/image",
 		"test:e2e:blocks:blockquote": "playwright test --project=e2e-blocks blocks/blockquote",
 		"test:e2e:clipboard": "playwright test --project=e2e-clipboard",
-		"test:e2e:exploration": "playwright test --project=e2e-exploration",
 		"test:e2e:selection": "playwright test --project=e2e-selection",
 		"test:e2e:sticky-column": "playwright test --project=e2e-sticky-column",
 		"test:e2e:simulation": "playwright test --project=e2e-simulation",
@@ -162,7 +172,7 @@
 		"test:e2e:vr": "playwright test --project=e2e-vr",
 		"test:e2e:webkit": "node scripts/run-with-env.mjs WEBKIT=1 -- playwright test --project=e2e-webkit",
 		"test:e2e:isolated": "node scripts/run-with-env.mjs E2E_ISOLATED=1 -- playwright test",
-		"perf:editor": "vitest bench --run src/lib/test/perf",
+		"perf:editor": "vitest bench --run --pool=forks src/lib/test/perf",
 		"perf:e2e": "node scripts/run-with-env.mjs PERF=1 -- playwright test --project=e2e-perf",
 		"perf:check": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 PERF_PROD=1 -- playwright test --project=e2e-perf-prod",
 		"conformance:full": "node scripts/run-with-env.mjs CONFORMANCE_FULL=1 -- vitest run src/lib/test/gfm-conformance/full-sweep.test.ts",
@@ -200,9 +210,9 @@
 		"@fontsource/inter": "^5.3.0",
 		"@fontsource/jetbrains-mono": "^5.3.0",
 		"@playwright/test": "^1.62.0",
-		"@sveltejs/adapter-static": "^3.0.0",
-		"@sveltejs/kit": "^2.70.3",
-		"@sveltejs/package": "^2.5.8",
+		"@sveltejs/adapter-static": "^4.0.0",
+		"@sveltejs/kit": "^3.0.1",
+		"@sveltejs/package": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@types/commonmark": "^0.27.10",
 		"@types/node": "^26.2.0",
@@ -217,7 +227,7 @@
 		"mermaid": "^12.0.0",
 		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^4.1.1",
-		"svelte": "^5.56.10",
+		"svelte": "^5.57.2",
 		"svelte-check": "^4.7.6",
 		"svelte-eslint-parser": "^1.8.1",
 		"typescript": "^6.0.3",
@@ -227,7 +237,6 @@
 		"wrangler": "4.147.0"
 	},
 	"overrides": {
-		"cookie": "^0.7.2",
 		"lodash-es": "^4.18.0"
 	},
 	"publishConfig": {

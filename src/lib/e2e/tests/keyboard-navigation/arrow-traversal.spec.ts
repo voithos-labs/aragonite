@@ -102,53 +102,28 @@ test.describe('keyboard navigation', () => {
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('XBelow.');
 	});
-
-	test('navigate down through multiple blocks and type in final', async () => {
-		await editor.loadContent('Block one.\n\nBlock two.\n\nBlock three.\n');
-
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.keyboard.press('ArrowDown');
-
-		await editor.page.keyboard.press('End');
-		await editor.typeText('!');
-		await editor.bridge.waitForSource(
-			(s) => s.includes('Block two.!') || s.includes('Block three.!')
-		);
-	});
-
-	test('navigate up then type at start of first block', async () => {
-		await editor.loadContent('Hello.\n\nWorld.\n');
-
-		await editor.focusBlockStart(1);
-		await editor.page.keyboard.press('ArrowUp');
-		await editor.typeText('hi ');
-		await editor.bridge.waitForSourceContains('hi Hello.');
-	});
 });
 
-// Backspace leaves no side of its own, so the move's end arrival decides it; the top level and a
+// Backspace lands the caret on text, where the character before it decides; the top level and a
 // quote run different traversals, so each route runs.
 const CLOSER_SIDE_ROUTES = [
 	{
 		where: 'at the top level',
 		source: '**a**\n\n```\ncode\n```\n',
 		from: [1],
-		typed: '**a**x\n\n```\ncode\n```\n'
+		typed: '**ax**\n\n```\ncode\n```\n'
 	},
 	{
 		where: 'inside a quote',
 		source: '> **a**\n>\n> ```\n> code\n> ```\n',
 		from: [0, 1],
-		typed: '> **a**x\n>\n> ```\n> code\n> ```\n'
+		typed: '> **ax**\n>\n> ```\n> code\n> ```\n'
 	}
 ] as const;
 
 test.describe('keyboard navigation: leaving a code block into a hidden closer, live mode', () => {
 	for (const { where, source, from, typed } of CLOSER_SIDE_ROUTES) {
-		test(`Backspace out of a code body types after the bold closer above, ${where}`, async ({
-			page
-		}) => {
+		test(`Backspace out of a code body types into the bold above, ${where}`, async ({ page }) => {
 			const editor = new EditorPage(page);
 			await editor.goto('?presentationMode=live');
 			await editor.loadContent(source);

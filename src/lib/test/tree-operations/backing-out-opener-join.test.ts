@@ -3,27 +3,27 @@
 // Miss-analysis: the rows pinning the one-line read wrote under blocks whose reading ends at their
 // own last line, so no row put a backed-out `$$` or `:::` above a block that later closes it.
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
-import { installPlugins } from '$lib';
+import type { CstNode } from '#lib/core/nodes.js';
+import { installPlugins } from '#lib';
 import {
 	OPENER_PRIORITIES,
 	registerBlockOpener,
 	type BlockOpener,
 	type BlockOpenerResult
-} from '$lib/plugin';
-import { parse } from '$lib/core/parser';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite, updateNodeContent } from '$lib/tree-operations/content-write';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { describeConvergence, expectParseConverged } from '$lib/test/harness/parse-converged';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { latexPlugin } from '$lib/plugins/latex';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { detailsPlugin } from '$lib/plugins/details';
+} from '#lib/plugin.js';
+import { parse } from '#lib/core/parser.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence, expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { detailsPlugin } from '#lib/plugins/details/index.js';
 
 /** The top-level kinds after `text` is written over block `index` through the keystroke route. */
 function typedOverSecond(source: string, text: string, index = 1): string[] {

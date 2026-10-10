@@ -5,7 +5,7 @@
 	import { ambientHoldsTaskBox } from '../list/task-checkbox';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
-	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
+	import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
@@ -27,8 +27,10 @@
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { trimTrailingLineEnding } from '../../../core/lines';
 	import { caretIsInTextContent, seatIsInTextContent } from './click-snap-guard';
-	import { caretSeatInElement } from '../../../cursor/point-offset';
-	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
+	import { caretSeatInElement } from '../../../caret/point-offset';
+	import { widgetEdgeBox } from '../../../caret/drawn-caret-measure';
+	import type { WidgetEdgeBox } from '../../../caret/drawn-caret-target';
+	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import {
 		createInlineFormatActiveMemo,
 		toggleInlineFormat
@@ -65,12 +67,9 @@
 	import { assertInvariant } from '../../../assert';
 	import { widgetElByStart, widgetsIn } from './widget-adjacency';
 	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
-	import {
-		editableSurfaceAttributes,
-		createEditableSurface,
-		consumePendingRestore
-	} from '../editable-surface';
+	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
 	import { rangeWrite, withOwnEnding } from '../surface-write';
+	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
 		rawOffsetAt,
@@ -78,9 +77,9 @@
 		revealsNoMarkers,
 		rawSelectionFocus,
 		caretOnPendingBreakLine
-	} from '../../../cursor/widget-offset';
-	import { asRawOffset } from '../../../cursor/coordinate-spaces';
-	import { createSurfaceBackend } from '../../../cursor/surface-backend';
+	} from '../../../caret/widget-offset';
+	import { asRawOffset } from '../../../caret/coordinate-spaces';
+	import { createSurfaceBackend } from '../../../caret/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
 	import type { CommandRun } from '../../../schema/block-commands';
 	import { planTypedCompletion } from '../../../editor-actions/enter-completion';
@@ -132,6 +131,7 @@
 		controller,
 		pasteCoordinator,
 		caretMemory,
+		caretWriter,
 		selection,
 		getDoc,
 		getEditorRoot,
@@ -149,7 +149,9 @@
 		linkCard,
 		inlineMenuCombobox,
 		decorations: decorationEngine,
-		drafts
+		drafts,
+		drawnCaret,
+		presses
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 
@@ -159,7 +161,8 @@
 		imageLoadPolicy,
 		brokenImageUrls: brokenUrlCache,
 		theme: getTheme,
-		onPasteImage
+		onPasteImage,
+		activationClick
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const readOnly = $derived(reading.mode() === 'reading');
@@ -179,7 +182,8 @@
 		if (el) {
 			enterLinkCardAtCaret({
 				...linkCardQuery(el, cursor.getRawSelection()),
-				card: linkCard
+				card: linkCard,
+				enterWidget: widgetInteraction.enterWidget
 			});
 		}
 	};
@@ -192,21 +196,21 @@
 	let revealing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
-	// Survives the click-to-keydown gap when Chromium clears the caret beside a non-editable
-	// widget. Reactive so the snap-caret overlay sees changes.
-	let lastSnapTargetOffset = $state<number | null>(null);
-	/** Counted up on every `armSnapTarget` call, so setting the offset already held still repaints:
-	 *  Svelte coalesces a null-then-same-value write into no change at all. */
-	let snapEpoch = $state(0);
-
-	function armSnapTarget(offset: number | null): void {
-		lastSnapTargetOffset = offset;
-		snapEpoch++;
-	}
-	// Beside a non-editable widget Chromium paints a taller caret for the length of the press.
-	// Reactive, so the synthetic caret can hide it as the press lands rather than after the click.
-	let pressSeatedBesideIsland = $state(false);
+	// The drawn caret holds the widget edge a click meant under this block's own key, which survives
+	// the click-to-keydown gap where Chromium clears the caret beside a non-editable widget.
+	const widgetEdgeOwner = {};
+	const holdWidgetEdge = (offset: number | null) =>
+		drawnCaret.armWidgetEdge(widgetEdgeOwner, offset);
+	// Beside a non-editable widget Chromium paints a taller caret while the button is down, so the
+	// drawn caret hides it from the pointer-down rather than from the click.
+	let downBesideWidget = false;
 	let pressPending = false;
+
+	function markDownBesideWidget(down: boolean): void {
+		if (down === downBesideWidget) return;
+		downBesideWidget = down;
+		drawnCaret.request();
+	}
 
 	// The one place a pending cursor is written, tagged so the interaction trace names
 	// which gesture set the restore; the render effect reads and clears it.
@@ -217,7 +221,8 @@
 
 	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null,
-		getSnapTarget: () => lastSnapTargetOffset
+		caretWriter,
+		getSnapTarget: () => drawnCaret.widgetEdgeFor(widgetEdgeOwner)
 	});
 
 	const edgeStep = createEdgeStep({
@@ -229,8 +234,7 @@
 			pendingBreak.at() !== null || cursor.getRawSelection() ? null : cursor.getRaw(),
 		isReading: () => readOnly,
 		reading,
-		caretMemory,
-		heldSpace: () => editableSurface.heldSpace
+		caretMemory
 	});
 	const typedPlacement = createTypedPlacement({
 		getEl: () => el ?? null,
@@ -239,8 +243,27 @@
 		caretMemory,
 		heldSpace: () => editableSurface.heldSpace
 	});
-	// Set on the block's first focus: until then a render has no shown marker or ring to re-apply.
+	// Set on the block's first focus: until then a render has no shown marker to re-apply.
 	let caretHasEntered = false;
+
+	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
+	const compositionSeat = createCompositionSeat({
+		getDisplayText: () => getDisplayText(),
+		getInlines: () => resolvedInlineContent(node, reading),
+		reading,
+		offsetFor: typedPlacement.offsetFor,
+		consumePendingMarks: caretMemory.pendingMarks.consume,
+		restorePendingMarks: caretMemory.pendingMarks.restore,
+		getRawSelection: () => cursor.getRawSelection(),
+		// The in-leaf range replace `handleLiveSelectionEdit` uses, as the displayed text the
+		// composition commit writes.
+		resolveRangeEdit: (range, typed) => {
+			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
+			if (edit.matchesBrowserEdit) return null;
+			const { text, caretAfter } = rangeWrite(edit);
+			return { raw: text, caret: caretAfter };
+		}
+	});
 
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
@@ -260,17 +283,23 @@
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		readText: () => readRawText(),
-		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
-		placeInsertion: typedPlacement.insertion,
+		compositionSeat,
+		placement: typedPlacement,
+		getInlines: () => resolvedInlineContent(node, reading),
 		inputPrelude: () => {
 			markKeystrokeStart();
-			armSnapTarget(null);
+			holdWidgetEdge(null);
+		},
+		widgetEdge: {
+			owner: widgetEdgeOwner,
+			box: (offset) => widgetEdgeBoxAt(offset),
+			pressed: () => downBesideWidget
 		},
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
 		// After a shown source is written: until then the selected text lives in the DOM only.
 		removeSelection: (range) =>
-			new Promise((written) =>
+			new Promise<ContentWrite>((written) =>
 				afterSourceCommit(() =>
 					written(
 						writeText({
@@ -304,12 +333,11 @@
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
 		selection,
+		caretWriter,
 		blockEdit,
 		writeText,
 		focusActions,
-		setSnapTarget: (offset) => {
-			armSnapTarget(offset);
-		},
+		setSnapTarget: holdWidgetEdge,
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'widget'),
 		readRawText: () => readRawText(),
 		setRevealing: (value) => {
@@ -317,6 +345,9 @@
 		},
 		isCrossBlock: () => selection.isCrossBlock,
 		drafts,
+		caretMemory,
+		pinChipSide: edgeStep.pinChipSide,
+		activationClick,
 		get reading() {
 			return reading;
 		}
@@ -391,32 +422,14 @@
 		getRawSelection: () => cursor.getRawSelection(),
 		writeText,
 		completeMarker: () => void blockEdit.completeMarker(index),
-		setSnapTarget: (offset) => {
-			armSnapTarget(offset);
-		},
+		setSnapTarget: holdWidgetEdge,
 		isRevealing: () => widgetInteraction.isRevealing(),
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
-		pendingMarks: caretMemory.pendingMarks
-	});
-
-	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
-	const compositionSeat = createCompositionSeat({
-		getDisplayText: () => getDisplayText(),
-		getInlines: () => resolvedInlineContent(node, reading),
-		reading,
-		consumePendingMarks: caretMemory.pendingMarks.consume,
-		restorePendingMarks: caretMemory.pendingMarks.restore,
-		getRawSelection: () => cursor.getRawSelection(),
-		// The in-leaf range replace `handleLiveSelectionEdit` uses, as the displayed text the
-		// composition commit writes.
-		resolveRangeEdit: (range, typed) => {
-			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
-			if (edit.matchesBrowserEdit) return null;
-			const { text, caretAfter } = rangeWrite(edit);
-			return { raw: text, caret: caretAfter };
-		}
+		pendingMarks: caretMemory.pendingMarks,
+		offsetFor: typedPlacement.offsetFor,
+		caretWriter
 	});
 
 	const textRender = createTextRender({
@@ -444,12 +457,14 @@
 		getDocument: () => getDoc(),
 		getContentVersion,
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),
+		activationClick,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
 		brokenUrlCache,
 		reportRenderError: (error) =>
-			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
+			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } }),
+		caretWriter
 	});
 
 	$effect(() => () => textRender.dispose());
@@ -652,7 +667,7 @@
 		if (!marked) {
 			// The link card is the one pressed state no mark policy answers.
 			if (id !== 'link.openCard' || !el) return false;
-			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
+			return editTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
 		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
@@ -728,32 +743,42 @@
 		// A rebuild makes spans with no marker class, so the shown markers are re-applied before paint.
 		// Untracked, so the caret's reads never join this effect's dependencies.
 		untrack(() => {
-			// Both read the selection, which forces a layout: never in a block the caret has not
+			// It reads the selection, which forces a layout: never in a block the caret has not
 			// been in, since a fling mounts many.
 			if (composing || !caretHasEntered) return;
 			constructReveal.update(true);
-			edgeStep.refresh();
 		});
 		markKeystrokeSettle();
 	});
 
 	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
-	// Only clears: the snap target means "the click meant this", and only `snapClickToWidgetEdge`
+	// Only clears: the widget edge means "the click meant this", and only `snapClickToWidgetEdge`
 	// sets it.
 	function clearSnapTargetIfMoved(root: HTMLElement): void {
-		if (lastSnapTargetOffset === null) return;
+		const held = drawnCaret.widgetEdgeFor(widgetEdgeOwner);
+		if (held === null) return;
 		const sel = window.getSelection();
-		// With no range there is nothing to compare the snap target against, and this function only
-		// clears: the gestures that move the caret elsewhere clear it through their own handlers.
+		// With no range there is nothing to compare the edge against, and this function only clears:
+		// the gestures that move the caret elsewhere clear it through their own handlers.
 		if (!sel || sel.rangeCount === 0) return;
 		const range = sel.getRangeAt(0);
 		if (!root.contains(range.startContainer)) {
-			armSnapTarget(null);
+			holdWidgetEdge(null);
 			return;
 		}
-		const off = rawOffsetAt(root, range.startContainer, range.startOffset);
-		if (off !== lastSnapTargetOffset) armSnapTarget(null);
+		if (rawOffsetAt(root, range.startContainer, range.startOffset) !== held) holdWidgetEdge(null);
+	}
+
+	/** The drawn caret's bar beside the widget that starts or ends at `offset`. */
+	function widgetEdgeBoxAt(offset: number): WidgetEdgeBox | null {
+		if (!el) return null;
+		for (const inline of widgetsIn(node, reading)) {
+			if (inline.end !== offset && inline.start !== offset) continue;
+			const widget = widgetElByStart(el, inline.start);
+			return widget && widgetEdgeBox(widget, inline.end === offset ? 'after' : 'before');
+		}
+		return null;
 	}
 
 	/** Whether the press left the browser's caret at an element-level offset in this block, the
@@ -761,21 +786,21 @@
 	function notePressSeat(root: HTMLElement): void {
 		if (!pressPending) return;
 		const sel = window.getSelection();
-		const seated =
+		markDownBesideWidget(
 			!!sel &&
-			sel.isCollapsed &&
-			sel.rangeCount > 0 &&
-			root.contains(sel.getRangeAt(0).startContainer) &&
-			!caretIsInTextContent(root, sel);
-		if (seated !== pressSeatedBesideIsland) pressSeatedBesideIsland = seated;
+				sel.isCollapsed &&
+				sel.rangeCount > 0 &&
+				root.contains(sel.getRangeAt(0).startContainer) &&
+				!caretIsInTextContent(root, sel)
+		);
 	}
 
 	function endPress(): void {
 		pressPending = false;
-		if (pressSeatedBesideIsland) pressSeatedBesideIsland = false;
+		markDownBesideWidget(false);
 	}
 
-	// The snap target is cleared even during composition, since an IME caret move invalidates it;
+	// The widget edge is cleared even during composition, since an IME caret move invalidates it;
 	// the source and marker updates skip composition as `onInput` does.
 	$effect(() => {
 		const root = el;
@@ -788,64 +813,10 @@
 			if (pendingBreak.at() !== null && !caretOnPendingBreakLine(root)) pendingBreak.end();
 			widgetInteraction.foldRevealIfSelectionEscaped();
 			constructReveal.update();
-			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
 	});
-
-	$effect(() => {
-		if (!el) return;
-		// Read so that setting the offset already held still repaints and clears the other blocks.
-		void snapEpoch;
-		for (const w of el.querySelectorAll('.md-snap-after, .md-snap-before')) {
-			w.classList.remove('md-snap-after', 'md-snap-before');
-		}
-		// Chromium draws its caret unreliably beside a non-editable widget and nothing can ask
-		// whether it did, so the editor hides it and draws its own.
-		el.classList.remove('md-snap-caret-active');
-		// Hidden from the press, not from the click, so a press beside a widget does not show the
-		// browser's caret first and the synthetic one after it.
-		if (pressSeatedBesideIsland) el.classList.add('md-snap-caret-active');
-		// A cross-block range owns the caret's position wherever its endpoints landed, so no block
-		// paints one of its own under it, however the range was entered.
-		if (lastSnapTargetOffset === null || selection.isCrossBlock) return;
-		const off = lastSnapTargetOffset;
-		for (const inline of widgetsIn(node, reading)) {
-			if (inline.end !== off && inline.start !== off) continue;
-			const widget = widgetElByStart(el, inline.start);
-			if (widget) {
-				sweepOtherBlocksSnap();
-				widget.classList.add(inline.end === off ? 'md-snap-after' : 'md-snap-before');
-				el.classList.add('md-snap-caret-active');
-				// One caret is one position, so one widget in the document carries the paint (G1.39).
-				assertInvariant('snap-caret-unique', () => {
-					const root = getEditorRoot();
-					const painted = root?.querySelectorAll('.md-snap-after, .md-snap-before').length ?? 1;
-					return painted > 1
-						? {
-								code: 'snap-caret-not-unique',
-								message: `${painted} synthetic carets painted at once; one caret is one position`
-							}
-						: null;
-				});
-			}
-			return;
-		}
-	});
-
-	/** A block painting its synthetic caret clears every other block's: one that unmounts with the
-	 *  caret inside never hears the change that clears its own. */
-	function sweepOtherBlocksSnap(): void {
-		const root = getEditorRoot();
-		if (!root || !el) return;
-		for (const stale of root.querySelectorAll('.md-snap-after, .md-snap-before')) {
-			if (!el.contains(stale)) stale.classList.remove('md-snap-after', 'md-snap-before');
-		}
-		for (const block of root.querySelectorAll('.md-snap-caret-active')) {
-			if (block !== el) block.classList.remove('md-snap-caret-active');
-		}
-	}
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 
@@ -853,18 +824,6 @@
 
 	function readRawText(): string {
 		return el ? rawTextOfContent(el, node.raw, structuralSuffix(node)) : '';
-	}
-
-	// Captured before the shared handler: its cross-block half clears the arrival side, and the
-	// first `input` during the composition resets that side to the typed one.
-	function onCompositionStart(): void {
-		compositionSeat.noteStart();
-		editableSurface.onCompositionStart();
-	}
-
-	function onCompositionEnd(): void {
-		editableSurface.onCompositionEnd();
-		compositionSeat.noteEnd();
 	}
 
 	// Built once, not per keydown: every typed character passes both key handlers.
@@ -882,7 +841,8 @@
 		caretBounds,
 		getFocusOffset: () => cursor.getFocusOffset(),
 		// Not offset 0: the start value is the one a caret placement clamps past hidden markers.
-		focusContentStart: () => focus(CURSOR_START)
+		focusContentStart: () => focus(CURSOR_START),
+		caretWriter
 	};
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
@@ -957,7 +917,8 @@
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
-			seatOutside: caretMemory.noteExtreme,
+			seatOutside: caretMemory.noteOutside,
+			passCloser: typedPlacement.passCloser,
 			hiddenRunAt: edgeStep.hiddenRunAt,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, editableSurface.lineEnding()) !== null,
@@ -1006,14 +967,15 @@
 		if (crossBlock.handlePointerDown(e, islandPress(e))) return;
 		lastClickClientX = e.clientX;
 		lastClickClientY = e.clientY;
-		armSnapTarget(null);
+		holdWidgetEdge(null);
 		// Only a primary press ends in a click; a context-menu press would keep the caret hidden.
 		pressPending = e.button === 0;
 		// Read now, not at the `selectionchange` that follows: that event can arrive after a frame
 		// has already painted the native caret. Level with a line, where a padding press lands.
 		const seat = pressPending && el ? caretSeatInElement(el, e.clientX, e.clientY) : null;
-		pressSeatedBesideIsland =
-			!!seat && !!el && el.contains(seat.node) && !seatIsInTextContent(el, seat.node);
+		markDownBesideWidget(
+			!!seat && !!el && el.contains(seat.node) && !seatIsInTextContent(el, seat.node)
+		);
 		// A click on a widget that can show its source is this editor's gesture: cancelling the
 		// browser's caret default leaves that code as the only writer of the selection.
 		if (widgetInteraction.isPointOnRevealWidget(e.clientX, e.clientY)) e.preventDefault();
@@ -1024,17 +986,16 @@
 		// Save an edit to a shown source before the caret is gone.
 		widgetInteraction.commitRevealOnBlur();
 		pendingBreak.end();
-		armSnapTarget(null);
+		holdWidgetEdge(null);
 		endPress();
 		demoteEmptyHeadingOnBlur();
 		syncCaretChrome();
 	}
 
-	/** The shown backticks and the edge ring follow focus as well as the caret: a click out of the
-	 *  window keeps the selection but fires no `selectionchange`. */
+	/** The shown markers follow focus as well as the caret: a click out of the window keeps the
+	 *  selection but fires no `selectionchange`. */
 	function syncCaretChrome(): void {
 		constructReveal.update();
-		edgeStep.sync();
 	}
 
 	function onFocus(): void {
@@ -1065,14 +1026,13 @@
 		lastClickClientY = null;
 		cursor.clampOutOfMarkerPrefix();
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
-			modified: e.ctrlKey || e.metaKey,
+			click: e,
 			clickCount: e.detail,
 			// A release that travelled ends a drag rather than a click: showing the source there
 			// would unmount the widget the drag just painted a range across.
-			moved:
-				x !== null && y !== null && (Math.abs(e.clientX - x) > 3 || Math.abs(e.clientY - y) > 3)
+			moved: presses.travelled(e)
 		});
-		// The click has decided: from here the snap target hides the browser's caret, or nothing does.
+		// The click has decided: from here the widget edge hides the browser's caret, or nothing does.
 		endPress();
 	}
 
@@ -1129,12 +1089,11 @@
 	class="text-editable-block {blockClass}"
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
-	{...editableSurfaceAttributes(node, combobox)}
+	{...editableSurface.attributes(combobox)}
 	style:text-indent={ambientPrefixText ? `calc(-1 * ${ambientIndent})` : null}
 	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
-	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}
@@ -1143,8 +1102,8 @@
 	onclick={onClick}
 	onblur={onBlur}
 	onfocus={onFocus}
-	oncompositionstart={onCompositionStart}
-	oncompositionend={onCompositionEnd}
+	oncompositionstart={editableSurface.onCompositionStart}
+	oncompositionend={editableSurface.onCompositionEnd}
 ></div>
 
 <style>

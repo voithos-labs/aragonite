@@ -5,8 +5,8 @@
  * covers every document on the page rather than whichever one the hook points at.
  */
 
-import type { NodeView } from '$lib/core/node-views';
-import { childIdDrifts, type ChildIdDrift } from '$lib/invariants/child-id-parity';
+import type { NodeView } from '#lib/core/node-views.js';
+import { childIdDrifts, type ChildIdDrift } from '#lib/invariants/child-id-parity.js';
 
 export interface ParityDocument {
 	children: readonly NodeView[];

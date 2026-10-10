@@ -4,7 +4,7 @@ import {
 	filterEntries,
 	splitQuery,
 	type FilterableEntry
-} from '$lib/plugins/slash-commands/filter';
+} from '#lib/plugins/slash-commands/filter.js';
 
 const row = (label: string, keywords: string[] = [], takesArgument = false): FilterableEntry => ({
 	label,

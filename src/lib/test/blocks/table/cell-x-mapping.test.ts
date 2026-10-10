@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { columnNearestX } from '$lib/components/blocks/table/cell-x-mapping';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { columnNearestX } from '#lib/components/blocks/table/cell-x-mapping.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
 
 describe('columnNearestX', () => {
 	const rects: { left: number; right: number }[] = [

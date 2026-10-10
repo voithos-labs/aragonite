@@ -2,7 +2,7 @@
 // node — a plausible answer with the inline structure silently absent. Untyped consumers
 // reach that shape without a compile error, so the arity is guarded at runtime too.
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
+import { parseInline } from '#lib/core/inline/index.js';
 
 const callWith = (...args: unknown[]) =>
 	(parseInline as unknown as (...a: unknown[]) => unknown)(...args);

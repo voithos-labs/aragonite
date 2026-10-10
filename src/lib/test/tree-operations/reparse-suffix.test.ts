@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode, updateNodeContent } from '../../tree-operations';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A fragment parse splits a half's trailing blank line off into `doc.suffix`, and that line stands
 // between the halves, so it becomes the second half's `leadingTrivia`, not part of either raw.

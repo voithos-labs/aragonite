@@ -1,8 +1,9 @@
 /**
  * Every traversal over an inline tree or its rendered DOM is iterative (G4.56): inline nesting
  * depth comes from the input, so one call frame per level overflows the stack and strands the
- * block in a fallback it cannot recover from. The scan covers `core/inline/`, `cursor/`, `ambient/`
- * and the live gesture code in `components/blocks/text/`, whose join rebuild walks the same way.
+ * block in a fallback it cannot recover from. The scan covers `core/inline/`, `caret/`, `windowing/`,
+ * `ambient/` and the live gesture code in `components/blocks/text/`, whose join rebuild walks the
+ * same way.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -17,7 +18,13 @@ import {
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 /** Library-internal: the rule binds traversals over aragonite's own tree, which no plugin owns. */
-const SCOPE = [SOURCE_DIR.inline, SOURCE_DIR.cursor, SOURCE_DIR.ambient, SOURCE_DIR.textBlock];
+const SCOPE = [
+	SOURCE_DIR.inline,
+	SOURCE_DIR.caret,
+	SOURCE_DIR.windowing,
+	SOURCE_DIR.ambient,
+	SOURCE_DIR.textBlock
+];
 
 /** Keyed by `path :: name`, one traversal each, so a file spelling two walkers alike fails below.
  *  Empty by design: a recursive walk overflows on a deep enough document, so an entry says why. */
@@ -41,21 +48,28 @@ function bodyAfterParams(code: string, parenIndex: number): string | null {
 	return code[at] === '{' ? balancedBlock(code, at + 1) : null;
 }
 
-/** Every named function-like in `code` that reads a node's children, with its body. */
-function walkerDeclarations(code: string): Declaration[] {
+/** Every named function-like in `code`, with its body. */
+function declarationsIn(code: string): Declaration[] {
 	const out: Declaration[] = [];
 	const re = new RegExp(DECLARATION);
 	let match: RegExpExecArray | null;
 	while ((match = re.exec(code)) !== null) {
 		const name = match[1] ?? match[2];
 		const body = bodyAfterParams(code, re.lastIndex - 1);
-		if (name && body !== null && TOUCHES_CHILDREN.test(body)) out.push({ name, body });
+		if (name && body !== null) out.push({ name, body });
 	}
 	return out;
 }
 
-/** Declarations on a call cycle, a self-call being a cycle of one. A call reaches every declaration
- *  with its name, since which one the source means cannot be decided here. */
+const readsChildren = (declaration: Declaration): boolean =>
+	TOUCHES_CHILDREN.test(declaration.body);
+
+/** The declarations in `code` that read a node's children. */
+const walkerDeclarations = (code: string): Declaration[] =>
+	declarationsIn(code).filter(readsChildren);
+
+/** Children readers on a call cycle, a self-call being a cycle of one. The cycle may pass through
+ *  helpers that read no children, and a call reaches every declaration with its name. */
 function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
 	const reach = declarations.map(
 		(declaration) =>
@@ -79,11 +93,13 @@ function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
 			}
 		}
 	}
-	return declarations.filter((_, index) => reach[index].has(index));
+	return declarations.filter(
+		(declaration, index) => reach[index].has(index) && readsChildren(declaration)
+	);
 }
 
 const recursiveWalkNames = (code: string): string[] =>
-	recursiveDeclarations(walkerDeclarations(code)).map((declaration) => declaration.name);
+	recursiveDeclarations(declarationsIn(code)).map((declaration) => declaration.name);
 
 /** Walker names a file spells more than once: an `EXCEPTIONS` key is a path and a name, so a
  *  repeat would exempt a traversal nobody stated. */
@@ -109,6 +125,44 @@ function visit(nodes) {
 		const node = stack.pop();
 		if (node.children) stack.push(...node.children);
 	}
+}
+`;
+
+// Miss-analysis: the cycle check saw only children readers, so a walk recursing through a helper
+// that reads none passed it.
+const HELPER_CYCLES = `
+function visit(node) {
+	pushChildren(node);
+}
+function pushChildren(node) {
+	for (const child of node.children) visit(child);
+}
+function render(node) {
+	for (const child of node.childNodes) step(child);
+}
+function step(child) {
+	render(child);
+}
+`;
+
+/** Mutual recursion over no children, and an iterative walk handing each node to a helper. */
+const NO_WALK_CYCLE = `
+function parseList(text) {
+	return text.startsWith('(') ? parseItem(text.slice(1)) : [];
+}
+function parseItem(text) {
+	return parseList(text);
+}
+function collect(root) {
+	const stack = [root];
+	while (stack.length > 0) {
+		const node = stack.pop();
+		record(node);
+		if (node.children) stack.push(...node.children);
+	}
+}
+function record(node) {
+	seen.add(node);
 }
 `;
 
@@ -138,6 +192,11 @@ describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
 		expect(walkerDeclarations(TWO_WALKERS_ALIKE)).toHaveLength(2);
 		expect(recursiveWalkNames(TWO_WALKERS_ALIKE)).toEqual(['visit']);
 		expect(repeatedWalkerNames(TWO_WALKERS_ALIKE)).toEqual(['visit']);
+	});
+
+	it('reports a walk that recurses through a helper, whichever side reads the children', () => {
+		expect(recursiveWalkNames(HELPER_CYCLES).sort()).toEqual(['pushChildren', 'render']);
+		expect(recursiveWalkNames(NO_WALK_CYCLE)).toEqual([]);
 	});
 
 	it('no scoped file spells two walkers alike', () => {

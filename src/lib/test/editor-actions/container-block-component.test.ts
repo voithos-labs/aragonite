@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
-import { CURSOR_END, type BlockComponent } from '$lib/block-component';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { makeShimChildList, makeShimDeps } from '$lib/test/harness/editor-actions';
+import { createContainerBlockComponent } from '#lib/editor-actions/container-block-component.js';
+import { CURSOR_END, type BlockComponent } from '#lib/block-component.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
+import { makeShimChildList, makeShimDeps } from '#lib/test/harness/editor-actions.js';
 
 function makeRef(overrides: Partial<BlockComponent> = {}): BlockComponent {
 	return {

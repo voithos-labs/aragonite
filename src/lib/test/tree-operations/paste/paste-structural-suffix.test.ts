@@ -1,11 +1,11 @@
 // Miss-analysis: no paste case cut a block with structure past its text.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
-import { splitLeafForPaste } from '$lib/tree-operations/list/list-builders';
-import { fragmentReaderAt } from '$lib/tree-operations/list/task-paragraph';
-import { TOP_SLOT } from '$lib/test/harness/fixture-grammar';
+import { parse } from '#lib/core/parser.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { buildPastedReplacement } from '#lib/tree-operations/paste/paste-replacement.js';
+import { splitLeafForPaste } from '#lib/tree-operations/list/list-builders.js';
+import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
+import { TOP_SLOT } from '#lib/test/harness/fixture-grammar.js';
 
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {

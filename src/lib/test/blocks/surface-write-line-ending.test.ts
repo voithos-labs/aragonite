@@ -8,19 +8,19 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
-	placeCaret,
 	pressKeyAt,
 	selectRange,
 	surfaceAt,
+	typeInto,
 	type MountedEditor
 } from '../harness/mount-editor.svelte';
 import { pressKey, settleEditor } from '../harness/settle';
 import { mountBlock } from '../harness/mount-block';
 import { leafDocument, registerRevealLeafKind } from './fixtures/reveal-leaf';
 import PlainOneLineLeafBlock from './fixtures/PlainOneLineLeafBlock.svelte';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-import type { EditorProps } from '$lib/editor-props';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import type { EditorProps } from '#lib/editor-props.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
@@ -34,12 +34,6 @@ afterEach(async () => {
 	await destroyMountedEditors();
 	document.body.innerHTML = '';
 });
-
-function typeInto(el: HTMLElement, text: string): void {
-	el.textContent = text;
-	placeCaret(el, text.length);
-	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
-}
 
 describe('a keystroke on the unterminated last block', () => {
 	it.each([

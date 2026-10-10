@@ -33,21 +33,17 @@
 	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { applyDelimiterAutoPair } from '../text/delimiter-autopair';
-	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
+	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import {
 		rawTextOfNode,
 		containerDomTextLength,
 		landableDomTextBounds,
 		rawSelectionFocus,
 		type RawRange
-	} from '../../../cursor/widget-offset';
-	import {
-		asRawOffset,
-		rowMajorCellIndex,
-		type RawOffset
-	} from '../../../cursor/coordinate-spaces';
-	import { createSurfaceBackend } from '../../../cursor/surface-backend';
-	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
+	} from '../../../caret/widget-offset';
+	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../caret/coordinate-spaces';
+	import { createSurfaceBackend } from '../../../caret/surface-backend';
+	import { getCurrentCursorEditorRelativeX } from '../../../caret/sticky-measure';
 	import { handleEdgeStep, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		createEditableSurface,
@@ -59,14 +55,14 @@
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
-	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
 	import {
 		selectWholeDocument,
 		extendFocusToNextBlock,
 		extendFocusToPreviousBlock
 	} from '../../../selection/keyboard-extend';
 	import { intraTableRectExtension } from '../../../selection/table-rect-extend';
-	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../caret/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
 	import { cellPoint } from '../../../selection/primitives';
@@ -90,7 +86,7 @@
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
+	import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -126,6 +122,7 @@
 		controller,
 		pasteCoordinator,
 		caretMemory,
+		caretWriter,
 		selection,
 		getDoc,
 		getBlockElByPath,
@@ -144,13 +141,15 @@
 		rects,
 		decorations: decorationEngine,
 		rangeCoverage,
-		drafts
+		drafts,
+		presses
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const ownPairs = autoPairs.forBlock();
 	const {
 		theme: getTheme,
 		resolveLinkUrl,
-		onPasteImage
+		onPasteImage,
+		activationClick
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { contentVersion: getContentVersion, lifetime: editorLifetime } =
 		getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -188,7 +187,8 @@
 	let lastClickClientY: number | null = null;
 
 	const cursor = createSurfaceBackend({
-		getEl: () => el ?? null
+		getEl: () => el ?? null,
+		caretWriter
 	});
 
 	const edgeStep = createEdgeStep({
@@ -198,8 +198,7 @@
 		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
 		isReading: () => readOnly,
 		reading,
-		caretMemory,
-		heldSpace: () => editableSurface.heldSpace
+		caretMemory
 	});
 
 	const typedPlacement = createTypedPlacement({
@@ -208,6 +207,16 @@
 		reading,
 		caretMemory,
 		heldSpace: () => editableSurface.heldSpace
+	});
+
+	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
+	const compositionSeat = createCompositionSeat({
+		getDisplayText: () => trimTrailingLineEnding(node.raw),
+		getInlines: () => resolvedInlineContent(node, reading),
+		reading,
+		offsetFor: typedPlacement.offsetFor,
+		consumePendingMarks: caretMemory.pendingMarks.consume,
+		restorePendingMarks: caretMemory.pendingMarks.restore
 	});
 
 	const editableSurface = createEditableSurface({
@@ -228,8 +237,9 @@
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		stepEdge: edgeStep.step,
 		readText: () => readCellText(),
-		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
-		placeInsertion: typedPlacement.insertion,
+		compositionSeat,
+		placement: typedPlacement,
+		getInlines: () => resolvedInlineContent(node, reading),
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
 		removeSelection: (range) =>
@@ -241,15 +251,6 @@
 			})
 	});
 	const { writeText } = editableSurface;
-
-	// The same placement rules the keydown dispatch uses, for the one insertion it cannot reach.
-	const compositionSeat = createCompositionSeat({
-		getDisplayText: () => trimTrailingLineEnding(node.raw),
-		getInlines: () => resolvedInlineContent(node, reading),
-		reading,
-		consumePendingMarks: caretMemory.pendingMarks.consume,
-		restorePendingMarks: caretMemory.pendingMarks.restore
-	});
 
 	const crossBlock = editableSurface.crossBlock;
 	const sharedCtx = editableSurface.sharedCtx;
@@ -271,17 +272,21 @@
 		getEditorContentWidth: () => getEditorRoot()?.clientWidth ?? FALLBACK_CONTENT_WIDTH,
 		cursor,
 		selection,
+		caretWriter,
 		blockEdit,
 		writeText,
 		focusActions,
 		setSnapTarget: () => {},
 		setPendingCursor: parkCursor,
 		readRawText: () => readCellText(),
+		activationClick,
 		setRevealing: (value) => {
 			revealing = value;
 		},
 		isCrossBlock: () => selection.isCrossBlock,
 		drafts,
+		caretMemory,
+		pinChipSide: edgeStep.pinChipSide,
 		get reading() {
 			return reading;
 		}
@@ -337,7 +342,9 @@
 				: undefined;
 		},
 		isReading: () => readOnly,
-		pendingMarks: caretMemory.pendingMarks
+		pendingMarks: caretMemory.pendingMarks,
+		offsetFor: typedPlacement.offsetFor,
+		caretWriter
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -374,7 +381,7 @@
 		const marked = inlineMarkForCommand(id);
 		if (!marked) {
 			if (id !== 'link.openCard') return false;
-			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
+			return editTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
 		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
@@ -454,7 +461,12 @@
 		// Consumed whether or not a card opens, the same rule the prose block follows:
 		// `reservedChords()` reports Mod+K as the editor's wherever the keymaps bind it.
 		if (id === 'link.openCard') {
-			return () => enterLinkCardAtCaret({ ...linkCardQuery(contentEl, null), card: linkCard });
+			return () =>
+				enterLinkCardAtCaret({
+					...linkCardQuery(contentEl, null),
+					card: linkCard,
+					enterWidget: widgetInteraction.enterWidget
+				});
 		}
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {
@@ -501,6 +513,7 @@
 			setSelection,
 			measurePartialRects,
 			runCommand,
+			isCommandActive,
 			afterSourceCommit,
 			getSelectionOffsets,
 			applyMenuClipboard,
@@ -529,11 +542,13 @@
 		getDocument: () => getDoc(),
 		getContentVersion,
 		navigateTo: (path) => rects.navigateTo(path),
+		activationClick,
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
 		reportRenderError: (error) =>
-			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } })
+			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } }),
+		caretWriter
 	});
 
 	$effect(() => {
@@ -563,7 +578,6 @@
 		const handler = () => {
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
-			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -581,18 +595,6 @@
 	// ── Event handlers ─────────────────────────────────────────────────────
 
 	const onInput = editableSurface.onInput;
-	// Captured before the shared handler: its cross-block half clears the arrival side, and the
-	// first `input` during the composition resets that side to the typed one.
-	function onCompositionStart(): void {
-		compositionSeat.noteStart();
-		editableSurface.onCompositionStart();
-	}
-
-	function onCompositionEnd(): void {
-		editableSurface.onCompositionEnd();
-		compositionSeat.noteEnd();
-	}
-
 	// Callers guard `el` first.
 	function cellPlanState(offset: number): CellKeyState {
 		// A cell has no marker prefix, so these are raw offsets; they follow what is on screen,
@@ -682,7 +684,7 @@
 				selection.incrementSelectAllCount();
 				if (plan.step === 'native') return;
 				e.preventDefault();
-				selectWholeDocument(selection, getDoc(), getBlockElByPath);
+				selectWholeDocument(selection, caretWriter, getDoc(), getBlockElByPath);
 				return;
 			default:
 				e.preventDefault();
@@ -737,8 +739,24 @@
 		selection.enterCrossBlock(anchor, cellPoint(tablePath, anchor.offset));
 		const extended =
 			ext.direction === 'forward'
-				? extendFocusToNextBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'vertical')
-				: extendFocusToPreviousBlock(selection, getDoc(), grammar, el, ext.fromCellPath, 'start');
+				? extendFocusToNextBlock(
+						selection,
+						caretWriter,
+						getDoc(),
+						grammar,
+						el,
+						ext.fromCellPath,
+						'vertical'
+					)
+				: extendFocusToPreviousBlock(
+						selection,
+						caretWriter,
+						getDoc(),
+						grammar,
+						el,
+						ext.fromCellPath,
+						'start'
+					);
 		if (!extended) {
 			selection.collapse();
 			return false;
@@ -783,7 +801,8 @@
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
-			seatOutside: caretMemory.noteExtreme,
+			seatOutside: caretMemory.noteOutside,
+			passCloser: typedPlacement.passCloser,
 			hiddenRunAt: edgeStep.hiddenRunAt,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
@@ -860,7 +879,7 @@
 	function shiftClickFromAnotherCell(e: PointerEvent, tableEl: HTMLElement): boolean {
 		const prev = cellCoordsOfElement(document.activeElement, tableEl);
 		if (!prev || (prev.rowIdx === rowIdx && prev.colIdx === colIdx)) return false;
-		resetForPointerDown(selection, caretMemory, true);
+		resetForPointerDown(selection, caretWriter, caretMemory, true);
 		handleCellShiftClick(
 			selection,
 			{ ...anchorIn(tableEl), rowIdx: prev.rowIdx, colIdx: prev.colIdx },
@@ -881,7 +900,7 @@
 				const editorRoot = getEditorRoot();
 				if (!editorRoot) return;
 				installCellDragListener(
-					{ editorRoot, selection, lifetimeSignal: editorLifetime },
+					{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime },
 					anchorIn(tableEl),
 					e,
 					padding && { surface: cellEl, press: padding }
@@ -1042,8 +1061,10 @@
 		lastClickClientX = null;
 		lastClickClientY = null;
 		widgetInteraction.snapClickToWidgetEdge(x, y, {
-			modified: e.ctrlKey || e.metaKey,
-			clickCount: e.detail
+			click: e,
+			clickCount: e.detail,
+			// A release that travelled ends a drag, whose range a shown source would unmount.
+			moved: presses.travelled(e)
 		});
 	}
 
@@ -1053,7 +1074,6 @@
 
 	function onFocus(): void {
 		tableContext.notifyCellFocused(rowIdx, colIdx);
-		edgeStep.sync();
 	}
 
 	function onBlur(e: FocusEvent): void {
@@ -1063,9 +1083,6 @@
 			widgetInteraction.commitRevealOnBlur();
 		}
 		tableContext.notifyCellBlurred();
-		// The ring follows focus too: a click out of the window keeps the selection but fires no
-		// `selectionchange`.
-		edgeStep.sync();
 	}
 </script>
 
@@ -1080,7 +1097,6 @@
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
-	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}
@@ -1089,8 +1105,9 @@
 	onpaste={onPaste}
 	onfocus={onFocus}
 	onblur={onBlur}
-	oncompositionstart={onCompositionStart}
-	oncompositionend={onCompositionEnd}
+	oncompositionstart={editableSurface.onCompositionStart}
+	oncompositionend={editableSurface.onCompositionEnd}
+	{@attach editableSurface.caretSource}
 ></div>
 
 <style>

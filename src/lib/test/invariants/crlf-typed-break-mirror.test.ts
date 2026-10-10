@@ -4,11 +4,11 @@
 // Miss-analysis: GH #637, the mirror check ran pure functions only, so no row ever typed a break
 // into a plugin leaf's source, the one surface that spliced a bare LF.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { createSurfaceBackend } from '$lib/cursor/surface-backend';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
+import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -18,6 +18,7 @@ import {
 	type MountedEditor
 } from '../harness/mount-editor.svelte';
 import { pressKey, settleEditor } from '../harness/settle';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 // One definition for both runs of a row: installing a second is refused with a warning.
@@ -48,7 +49,7 @@ async function mathSourceAfter(editor: MountedEditor<Seam>, after: string): Prom
 /** A `beforeinput` as the browser sends it: its target range is the caret, or the `back`
  *  characters before it for a delete. */
 function inputAtCaret(el: HTMLElement, inputType: string, back = 0): void {
-	const at = createSurfaceBackend({ getEl: () => el }).getRaw() ?? 0;
+	const at = createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).getRaw() ?? 0;
 	const target = createRangeAtDomTextOffsets(el, asDomTextOffset(at - back), asDomTextOffset(at));
 	const e = new InputEvent('beforeinput', { inputType, bubbles: true, cancelable: true });
 	Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });

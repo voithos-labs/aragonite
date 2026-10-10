@@ -1,15 +1,15 @@
 // Miss-analysis: the open-last-line suite checked the bytes a structural edit left, never an edit
 // after it, so no test saw an opaque container rebuild from a line ending its metadata had missed.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins, serialize } from '$lib';
-import { documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
-import { makeTopHarness, type TopHarness } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/testing/parse-convergence';
+import { installPlugins, serialize } from '#lib';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/testing/parse-convergence.js';
 
 type Edit = (h: TopHarness) => Promise<unknown> | void;
 

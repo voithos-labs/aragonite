@@ -2,17 +2,20 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	flushPendingRegistrationChecks,
 	hasPendingRegistrationChecks
-} from '$lib/schema/registration-checks';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { registerBlockKind, type BlockKindRegistration } from '$lib/schema/block-kind-descriptor';
+} from '#lib/schema/registration-checks.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import {
+	registerBlockKind,
+	type BlockKindRegistration
+} from '#lib/schema/block-kind-descriptor.js';
 import {
 	registerBlockOpener,
 	lineInterruptsParagraph,
 	type BlockOpener
-} from '$lib/schema/block-openers';
-import { testClosure } from '$lib/test/support/closure';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { collector } from '$lib/test/harness/violation-collector';
+} from '#lib/schema/block-openers.js';
+import { testClosure } from '#lib/test/support/closure.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { collector } from '#lib/test/harness/violation-collector.js';
 
 // lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it has the same duties
 // around pending registrations: the two sibling paths must behave alike.

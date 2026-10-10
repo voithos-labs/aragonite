@@ -50,20 +50,23 @@ test.describe('image resize', () => {
 		await editor.bridge.waitForSourceContains('|200');
 	});
 
-	test('Shift+ArrowRight grows width', async ({ page }) => {
-		await editor.loadContent('![cat|400](/test-fixtures/sample.png)\n');
-		const widget = page.locator('[data-image-widget]').first();
-		await widget.click();
-		await page.keyboard.press('Shift+ArrowRight');
-		await editor.bridge.waitForSourceContains('|420');
-	});
+	test('Shift+ArrowRight grows and Shift+ArrowLeft shrinks the width', async ({ page }) => {
+		const selectFresh = async () => {
+			await editor.loadContent('![cat|400](/test-fixtures/sample.png)\n');
+			await page.locator('[data-image-widget]').first().click();
+		};
 
-	test('Shift+ArrowLeft shrinks width', async ({ page }) => {
-		await editor.loadContent('![cat|400](/test-fixtures/sample.png)\n');
-		const widget = page.locator('[data-image-widget]').first();
-		await widget.click();
-		await page.keyboard.press('Shift+ArrowLeft');
-		await editor.bridge.waitForSourceContains('|380');
+		await test.step('Shift+ArrowRight grows by 20', async () => {
+			await selectFresh();
+			await page.keyboard.press('Shift+ArrowRight');
+			await editor.bridge.waitForSourceContains('|420');
+		});
+
+		await test.step('Shift+ArrowLeft shrinks by 20', async () => {
+			await selectFresh();
+			await page.keyboard.press('Shift+ArrowLeft');
+			await editor.bridge.waitForSourceContains('|380');
+		});
 	});
 
 	// The same upper clamp as the drag path: a unit test over the arithmetic cannot catch the

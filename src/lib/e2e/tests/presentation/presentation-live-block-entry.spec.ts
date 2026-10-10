@@ -65,8 +65,8 @@ test.describe('live mode: an arrival puts the caret where the walk could have st
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		// Arrow arrival from outside: the byte lands past the closing delimiter.
-		expect(await ep.bridge.getSource()).toContain('**bold**Z');
+		// The character before the caret is bold, so the byte joins it.
+		expect(await ep.bridge.getSource()).toContain('**boldZ**');
 	});
 
 	// Every offset is clamped where the caret is placed; only a split's continuation keeps byte 0,
@@ -78,8 +78,8 @@ test.describe('live mode: an arrival puts the caret where the walk could have st
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		// The caret goes outside a construct that opens the line, so the byte lands before it.
-		expect(await ep.bridge.getSource()).toContain('Z**bold** opens this');
+		// At a line start the character after the caret decides, so the byte joins the bold.
+		expect(await ep.bridge.getSource()).toContain('**Zbold** opens this');
 	});
 
 	// A structural edit also puts the caret at a block's start, and a literal 0 there would sit
@@ -97,9 +97,9 @@ test.describe('live mode: an arrival puts the caret where the walk could have st
 		expect(await ep.bridge.getSource()).toContain('## ZBeta');
 	});
 
-	// Home in a list item: raw 0 sits behind the hidden opener, and a byte typed there would join the
-	// construct.
-	test('Home in a list item opening with a construct types outside it', async ({ page }) => {
+	// Home in a list item: raw 0 sits behind the hidden marker prefix, where a byte would break the
+	// list item; the caret lands at the construct's content start instead.
+	test('Home in a list item opening with a construct types inside it', async ({ page }) => {
 		await ep.loadContent('- **bold** tail\n');
 		await ep.waitForRenderFlush();
 		await clickBlockSettled(ep, 0);
@@ -111,7 +111,7 @@ test.describe('live mode: an arrival puts the caret where the walk could have st
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		expect(await ep.bridge.getSource()).toContain('- Z**bold** tail');
+		expect(await ep.bridge.getSource()).toContain('- **Zbold** tail');
 	});
 
 	// Arriving from above or below lands by pixel column, so it already stops on an offset the caret

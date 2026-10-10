@@ -17,18 +17,18 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { asEditorX, docPathFrom } from '../../../cursor/coordinate-spaces';
-	import { observeResize } from '../../../cursor/observe-resize';
+	import { asEditorX, docPathFrom } from '../../../caret/coordinate-spaces';
+	import { observeResize } from '../../../windowing/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
-	import { placeCaret } from '../../../selection/caret-doors';
+	import { placeCaret } from '../../../selection/place-caret';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { tableCaretAtPoint } from './table-caret-at-point';
 	import { selectedCells } from './selected-cells';
-	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { sliceWindow } from '../../../reactivity/window-slice';
-	import { useWindowFloor } from '../../../reactivity/use-window-floor.svelte';
-	import { componentAt, type ChildList } from '../../../reactivity/child-list';
+	import { useContainerWindowing } from '../../../windowing/use-container-windowing.svelte';
+	import { sliceWindow } from '../../../windowing/window-slice';
+	import { useWindowFloor } from '../../../windowing/use-window-floor.svelte';
+	import { componentAt, type ChildList } from '../../../block-lists/child-list';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createTableMutationsContext } from '../../../editor-actions/table-context';
 	import TableRowBlock from './TableRowBlock.svelte';
@@ -62,6 +62,7 @@
 		// the cell's, through the shared editable surface.
 		caretMemory: { captureColumn: captureExitColumn },
 		selection,
+		caretWriter,
 		menuPresence,
 		caretLanding,
 		rangeCoverage
@@ -265,6 +266,8 @@
 		x: number;
 		y: number;
 		clipboardSel: CellSelection | null;
+		/** Where the cell's caret sat when Mod+K there would edit a link or widget, else null. */
+		editLinkAt: number | null;
 		/** Re-reads the open point where its element is now (scroll, resize). */
 		anchor?: () => { x: number; y: number } | null;
 	} | null>(null);
@@ -278,10 +281,16 @@
 
 	const menuItems = $derived(
 		menu
-			? tableMenuItems(menu.target, { rowCount, colCount: columnCount }, meta.alignments ?? [], {
-					hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end,
-					hasRect: rectActive
-				})
+			? tableMenuItems(
+					menu.target,
+					{ rowCount, colCount: columnCount },
+					meta.alignments ?? [],
+					{
+						hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end,
+						hasRect: rectActive
+					},
+					menu.editLinkAt !== null
+				)
 			: []
 	);
 
@@ -331,10 +340,15 @@
 	// Capture the cell's selection now, before a menu-item click moves focus off it, so
 	// Cut/Copy have a range to act on.
 	function openMenuAtCell(rowIdx: number, colIdx: number, x: number, y: number): void {
-		const clipboardSel = cellRefAt(rowIdx, colIdx)?.getSelectionOffsets?.() ?? null;
+		const cell = cellRefAt(rowIdx, colIdx);
+		const clipboardSel = cell?.getSelectionOffsets?.() ?? null;
 		const cellEl = cellElementAt(rowIdx, colIdx);
 		const anchor = cellEl ? anchorOn(cellEl, { x, y }) : undefined;
-		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel, anchor };
+		// The press left the caret where it landed unless a range or rectangle held it; a live
+		// rectangle keeps the menu to Cut/Copy.
+		const editsLink = !rectActive && (cell?.isCommandActive?.('link.openCard') ?? false);
+		const editLinkAt = editsLink ? (cell?.getCursorOffset() ?? null) : null;
+		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel, editLinkAt, anchor };
 	}
 
 	// `preventDefault` only over a cell, so a right-click in the table's padding gaps keeps
@@ -393,6 +407,15 @@
 		await cellRefAt(rowIdx, colIdx)?.applyMenuClipboard?.(action, sel);
 	}
 
+	// The menu took focus, so the caret goes back where Mod+K would read it first.
+	function runEditLink(): void {
+		if (!menu || menu.editLinkAt === null) return;
+		const { rowIdx, colIdx } = menu.target;
+		focusCell(rowIdx, colIdx, menu.editLinkAt);
+		menu = null;
+		cellRefAt(rowIdx, colIdx)?.runCommand?.('link.openCard');
+	}
+
 	async function runAlign(alignment: 'left' | 'center' | 'right'): Promise<void> {
 		if (!menu) return;
 		const { colIdx } = menu.target;
@@ -430,7 +453,7 @@
 			: { rowIdx: rowCount - 1, colIdx: columnCount - 1, at: edge.offset };
 	}
 
-	export const focus = placeCaret(selection, (offset: number) => {
+	export const focus = placeCaret(selection, caretWriter, (offset: number) => {
 		if (rowCount === 0) return;
 		const { rowIdx, colIdx, at } = entryCell(offset);
 		focusCell(rowIdx, colIdx, at);
@@ -511,7 +534,7 @@
 		if (!target || !editorRoot) return false;
 		const [rowIdx, colIdx] = target.path;
 		installCellDragListener(
-			{ editorRoot, selection, lifetimeSignal: editorLifetime },
+			{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime },
 			{ tableEl, tablePath: myPath.slice(), rowIdx, colIdx, columnCount },
 			e
 		);
@@ -566,7 +589,7 @@
 	onkeydown={onTableKeyDown}
 >
 	<!-- No whitespace between the blocks: a stray text node joins the raw-offset traversal
-	     and shifts a remembered caret (cursor/widget-offset.ts). -->
+	     and shifts a remembered caret (caret/widget-offset.ts). -->
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
@@ -593,6 +616,7 @@
 			onaction={runAction}
 			onclipboard={runClipboard}
 			onalign={runAlign}
+			oneditlink={runEditLink}
 			anchor={menu.anchor}
 			onclose={() => (menu = null)}
 			onescape={closeMenuRestoringFocus}

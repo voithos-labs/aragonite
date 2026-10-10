@@ -10,6 +10,7 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode, Document } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const TABLE_FIRST = '| A | B |\n| --- | --- |\n| 1 | 2 |\n\npara\n';
 const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
@@ -59,7 +60,7 @@ describe('table endpoints normalize at the selection-state choke point', () => {
 	it('selectWholeDocument on a table-first doc snaps the start to a cell coordinate', () => {
 		const doc = parse(TABLE_FIRST);
 		const s = makeState(doc);
-		expect(selectWholeDocument(s, doc)).toBe(true);
+		expect(selectWholeDocument(s, testCaretWriter, doc)).toBe(true);
 		expect(s.start).toEqual({ path: [0], offset: 0, cellCoordinate: true });
 		const { newDoc } = deleteSelected(doc, s);
 		expect(gridForeigners(newDoc)).toEqual([]);
@@ -69,7 +70,7 @@ describe('table endpoints normalize at the selection-state choke point', () => {
 	it('selectWholeDocument on a table-last doc snaps the end to a cell coordinate', () => {
 		const doc = parse(TABLE_LAST);
 		const s = makeState(doc);
-		expect(selectWholeDocument(s, doc)).toBe(true);
+		expect(selectWholeDocument(s, testCaretWriter, doc)).toBe(true);
 		expect(s.end).toEqual({ path: [1], offset: 3, cellCoordinate: true });
 		const { newDoc } = deleteSelected(doc, s);
 		expect(gridForeigners(newDoc)).toEqual([]);

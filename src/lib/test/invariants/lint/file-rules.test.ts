@@ -16,6 +16,7 @@ import {
 	isProseSurface,
 	languageOf,
 	LEXICAL_CLASSES,
+	quotedSpecifierEnding,
 	type SourceFile
 } from './scan-source';
 import {
@@ -68,7 +69,9 @@ const BENIGN_BRAND_USES =
 /** `as CstNode` / `as Document`, the tail of `as unknown as X` included; an indexed-access
  *  type (`as CstNode['metadata']`) is not a cast back to mutable. */
 const STRIP_CAST_RE = /\bas\s+(CstNode|Document)\b(?!\s*\[\s*')/g;
-const CST_DOCUMENT_IMPORT_RE = /import[^;]*\bDocument\b[^;]*from\s+'[^']*core\/nodes'/;
+const CST_DOCUMENT_IMPORT_RE = new RegExp(
+	String.raw`import[^;]*\bDocument\b[^;]*from\s+` + quotedSpecifierEnding('core/nodes')
+);
 
 /** `as Document` counts only where the CST `Document` is imported; elsewhere it is the DOM one. */
 function stripsView(file: SourceFile): boolean {
@@ -248,6 +251,7 @@ const EDITOR_GETTERS = [
 	'presentationMode',
 	'blockDragHandles',
 	'getDragHandles',
+	'placeholder',
 	'getDocument',
 	'getContentVersion',
 	'navigateTo',
@@ -298,6 +302,16 @@ const holdsLiveRewrites = (file: SourceFile): boolean =>
 const LIST_MARKER_READ =
 	/\{\s*marker\?:\s*string\s*\}|'listItem'\)\??\.marker\b|\b\w*[mM]eta(?:data)?\??\.marker\b/;
 
+// ── G4.34 / G4.74 private writers ────────────────────────────────────────────
+
+/** Writers whose callers are their own module: unexported today, held here so one `export`
+ *  keyword can't hand them a second caller. */
+const PRIVATE_WRITER_HOMES: Record<string, string> = {
+	buildLinkSourceBytes: SOURCE.linkSourceBytes,
+	terminateLastLine: SOURCE.openTail,
+	releaseLastLine: SOURCE.openTail
+};
+
 // ── The rules ────────────────────────────────────────────────────────────────
 
 /** A file the G4.80 population holds, for its probes. */
@@ -311,10 +325,12 @@ const RULES: FileRule[] = [
 			'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop: an animation cadence, not ordering',
 			'src/lib/components/blocks/editable-leaf.ts':
 				'rAF fold of a revealed source after a range drag: the blur it answers arrives inside the frame that measured the range',
-			'src/lib/cursor/observe-resize.ts':
+			'src/lib/windowing/observe-resize.ts':
 				'rAF start of a size observation: one begun while a frame delivers resize notifications is skipped and reported as a loop error',
 			'src/lib/components/drag-handle.ts':
 				'rAF placement of the drag handle once its block has laid out; the handle is its own hit target before any hover',
+			'src/lib/caret/drawn-caret.svelte.ts':
+				'frame-time paint of a caret the browser moved: reads layout, writes only the caret element (G4.143)',
 			'src/lib/selection/pointer-session.ts':
 				'rAF pointermove coalescing: the one place every drag lifecycle runs',
 			'src/lib/editor-actions/commit/text-batch.ts':
@@ -517,9 +533,9 @@ const RULES: FileRule[] = [
 			[COORDINATE_HOME]: 'the numeric-space conversions themselves',
 			[DOCPATH_HOME]: 'the DocPath brand and its base conversion (asDocPath)',
 			// Modules that own a coordinate space.
-			'src/lib/cursor/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
-			'src/lib/cursor/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
-			'src/lib/cursor/surface-backend.ts':
+			'src/lib/caret/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
+			'src/lib/caret/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
+			'src/lib/caret/surface-backend.ts':
 				'RawOffset home for the caret intent a block records as a plain number (the snap target)',
 			'src/lib/selection/table-endpoint-snap.ts':
 				'CellIndex home: a row-major cell index from table geometry',
@@ -572,7 +588,7 @@ const RULES: FileRule[] = [
 		id: 'the browser is asked for a caret at a point in one module',
 		matches: /\bcaret(Range|Position)FromPoint\b/,
 		allowed: {
-			'src/lib/cursor/point-offset.ts':
+			'src/lib/caret/point-offset.ts':
 				'caretSeatFromPoint, behind the offset lookups that move a padding point level with a line'
 		},
 		reason:
@@ -636,8 +652,8 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.13 no view-stripping cast outside tree-operations and the commit sequence',
-		population: notUnder(SOURCE_DIR.treeOperations, SOURCE_DIR.commit, SOURCE.cstNodes),
+		id: 'G4.13 no view-stripping cast outside tree-operations and the undo controller',
+		population: notUnder(SOURCE_DIR.treeOperations, SOURCE.undoController, SOURCE.cstNodes),
 		matches: stripsView,
 		mustMatch: [SOURCE.unshare],
 		reason:
@@ -647,6 +663,7 @@ const RULES: FileRule[] = [
 			'const n = doc as unknown as CstNode;',
 			`${CST_IMPORT}const d = view as Document;`,
 			`${CST_IMPORT}const d = (x as Document & { y?: number }).y;`,
+			"import type { Document } from '#lib/core/nodes.js';\nconst d = view as Document;",
 			'x as CstNode | null'
 		],
 		misses: [
@@ -771,11 +788,11 @@ const RULES: FileRule[] = [
 		population: (file) => ACTIVE_IDENTITY_RE.test(file.code),
 		matches: (file) => !HOST_AWARE_RE.test(file.code),
 		allowed: {
-			'src/lib/cursor/surface-backend.ts':
+			'src/lib/caret/surface-backend.ts':
 				'the editable surface this backend was built over; a whole-block kind builds none',
 			'src/lib/components/blocks/editable-surface.ts':
 				'the pending-restore guard, reachable only from an editable leaf surface',
-			'src/lib/cursor/reveal-source.ts':
+			'src/lib/caret/reveal-source.ts':
 				'the reveal target is a text surface; the host paints no source',
 			'src/lib/selection/native-bridge.ts':
 				'blockEl is an editable leaf surface; neither entry is reachable from whole-block focus'
@@ -888,21 +905,22 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.74 only the commit writes the open last line',
-		matches: /\b(?:terminateLastLine|releaseLastLine)\b/,
-		allowed: {
-			'src/lib/tree-operations/open-tail.ts':
-				'the walk down the last line, private to the two steps every structural commit runs'
-		},
+		id: 'G4.34 G4.74 the link serializer and the last-line walk are named only in their own files',
+		matches: (file) =>
+			Object.entries(PRIVATE_WRITER_HOMES).some(
+				([name, home]) => file.relPath !== home && new RegExp(`\\b${name}\\b`).test(file.code)
+			),
 		reason:
-			'the commit ends every placed line and gives the ending back to the last block; an edit that writes the tail itself is a second copy of that rule, and the next route will not carry it',
+			're-emitting a link’s fields as GFM replaces an author’s own syntax, and a route that ends the last line itself is a second copy of the commit’s rule: call the byte writer or let the commit end the line',
 		hits: [
-			'terminateLastLine(node, ending, sharing, grammar);',
-			'releaseLastLine(tail, sharing, grammar);'
+			at(SOURCE.nodePrimitives, 'releaseLastLine(tail, sharing, grammar);'),
+			at(SOURCE.openTail, 'buildLinkSourceBytes(fields);'),
+			'terminateLastLine(node, ending, sharing, grammar);'
 		],
 		misses: [
-			'endWindowLines(body, change, sharing, grammar);',
-			'text = terminateLine(text, ending);'
+			at(SOURCE.openTail, 'terminateLastLine(node, ending, sharing, grammar);'),
+			at(SOURCE.linkSourceBytes, 'return buildLinkSourceBytes(fields);'),
+			'endWindowLines(body, change, sharing, grammar);\ntext = terminateLine(text, ending);'
 		]
 	},
 	{
@@ -911,7 +929,7 @@ const RULES: FileRule[] = [
 			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`
 		),
 		allowed: {
-			'src/lib/cursor/widget-offset.ts':
+			'src/lib/caret/widget-offset.ts':
 				'the mode a mounted block wears in the DOM, where no hiding attribute means source'
 		},
 		reason:
@@ -1063,7 +1081,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/range-coverage.ts':
 				'decides once what a range covers: the blocks between, the units, the edges, the cells, the rectangle',
 			'src/lib/selection/path-math.ts': 'defines the two path predicates',
-			'src/lib/cursor/coordinate-spaces.ts': 'defines the rectangle two cells span',
+			'src/lib/caret/coordinate-spaces.ts': 'defines the rectangle two cells span',
 			'src/lib/selection/primitives.ts': 'defines the cell index read of a table endpoint',
 			'src/lib/schema/block-kind-descriptor.ts':
 				"defines a table's cell count and the clamp every cell index takes",
@@ -1163,14 +1181,70 @@ const RULES: FileRule[] = [
 			'const prefix = meta?.marker ?? "- ";'
 		],
 		misses: ['const run = fence.marker.repeat(3);', 'mark.markerBytes']
+	},
+	{
+		id: 'G4.145 a click asks the shared rule whether it follows, never Ctrl or Cmd by hand',
+		population: (file) => /\bonclick\b|\bonClick\b|['"]click['"]|\bMouseEvent\b/.test(file.code),
+		matches:
+			/\.ctrlKey\s*\|\|\s*\w+\.metaKey|\.metaKey\s*\|\|\s*\w+\.ctrlKey|!\s*\w+\.ctrlKey\s*&&\s*!\s*\w+\.metaKey|!\s*\w+\.metaKey\s*&&\s*!\s*\w+\.ctrlKey/,
+		allowed: {
+			'src/lib/activation-click.ts': 'the rule itself',
+			'src/lib/components/blocks/editable-leaf.ts':
+				'a modified Backspace is a shortcut, not the plain key the leaf handles',
+			'src/lib/components/blocks/table/TableCellBlock.svelte':
+				'a modified Enter or arrow is a shortcut, not the plain key the cell handles',
+			'src/lib/components/menu/BlockMenu.svelte':
+				'a modified key is left to the editor, not read as menu navigation',
+			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+				'Ctrl/Cmd+wheel zooms the diagram and Mod+Enter commits its edit: shortcuts, not a click that follows',
+			'src/lib/selection/dead-space-caret.ts': 'a modified click places no caret in empty space',
+			'src/lib/selection/multi-click.ts': 'a modified press is not a multi-click select'
+		},
+		reaches: [SOURCE.editorRootGestures, SOURCE.footnoteReference],
+		reason:
+			'whether a click follows a link or a widget depends on the mode and the host’s `linkClick`, so a hand Ctrl/Cmd read answers for one host only: call `EditorContext.isActivationClick(e)` in a block, the `isActivationClick` prop in an inline widget, or `EditorPolicies.activationClick` inside the editor',
+		hits: [
+			at(
+				'src/routes/test/plugins/x/Link.svelte',
+				"<a onclick={(e) => { if (e.ctrlKey || e.metaKey || mode === 'reading') go(); }}>x</a>"
+			),
+			'function onClick(e: MouseEvent) { if (e.metaKey || e.ctrlKey) follow(); }',
+			"function onClick(e: MouseEvent) { if (!e.ctrlKey && !e.metaKey && mode !== 'reading') return; }"
+		],
+		misses: [
+			at(
+				'src/routes/test/plugins/x/Link.svelte',
+				'<a onclick={(e) => { if (isActivationClick(e)) go(); }}>x</a>'
+			),
+			'function onClick(e: MouseEvent) { if (e.shiftKey) extend(); }',
+			'const plainClickJumps = isActivationClick({ ctrlKey: false, metaKey: false });'
+		]
+	},
+	{
+		id: 'G4.146 a release asks the press tracker whether it ended a drag',
+		matches: /Math\.abs\([^)]*\bclient[XY]\b/,
+		allowed: {
+			'src/lib/activation-click.ts': 'the press tracker itself',
+			'src/lib/components/image/ImageResizeHandles.svelte':
+				'a dev warning sizing a resize gesture, not a click told from a drag'
+		},
+		reason:
+			'a second press record or threshold drifts from the first, so one route calls a release a click and another calls it a drag: ask `EditorServices.presses.travelled(e)`',
+		hits: [
+			'if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;',
+			'const dragged = Math.abs(e.clientY - down.y) > SLOP;'
+		],
+		misses: ['if (presses.travelled(e)) return;', 'const dx = Math.abs(width - startWidth);']
 	}
 ];
 
 // ── G4.89, G4.90 one in-leaf range replace ─────────────────────────────────
 
-/** The directories holding live editing paths; a fenced code body has no inline constructs. */
+/** The directories and files holding live editing paths; a fenced code body has no inline constructs. */
 const SPLICE_PATHS = [
 	SOURCE_DIR.components,
+	SOURCE.blockContentSelector,
+	SOURCE.blockElLookup,
 	SOURCE_DIR.selection,
 	SOURCE_DIR.editorActions,
 	SOURCE_DIR.treeOperations,
@@ -1239,6 +1313,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'a typed byte probed or placed at a caret position, which deletes nothing',
 			'src/lib/components/blocks/text/pending-mark-insert.ts':
 				'a typed run inserted wrapped in the pending marks, which deletes nothing',
+			'src/lib/components/blocks/text/next-byte.ts':
+				'a probe letter inserted at the caret to read its formats, which writes nothing',
 			'src/lib/components/blocks/text/delimiter-autopair.ts':
 				'a delimiter inserted with its pair, or the empty pair it wrote taken back whole',
 			'src/lib/components/blocks/text/auto-pair-record.ts':
@@ -1322,9 +1398,9 @@ const SCROLL_WRITERS: ManifestRule[] = [
 		id: 'G4.87 only the scroll owner writes the editor’s scroll position',
 		matches: SCROLL_WRITE_RE,
 		declared: {
-			'src/lib/cursor/scroll-owner.ts':
+			'src/lib/windowing/scroll-owner.ts':
 				'the one writer, which asks who owns the position before each write',
-			'src/lib/cursor/scrollport.ts':
+			'src/lib/windowing/scrollport.ts':
 				'the scroll container’s write methods, which only the owner opens',
 			'src/lib/selection/autoscroll.ts':
 				'a drag’s own cadence, driven by the pointer; its pointerdown already dropped any hold',
@@ -1363,8 +1439,8 @@ const SCROLL_WRITERS: ManifestRule[] = [
 		id: 'G4.87 a list asks for a mount scroll by path, from its descent alone',
 		matches: /(?<![\w$])scrollToMount\s*\(/,
 		declared: {
-			'src/lib/cursor/scroll-owner.ts': 'the owner, which works out where from the list tree',
-			'src/lib/reactivity/list-windowing.svelte.ts':
+			'src/lib/windowing/scroll-owner.ts': 'the owner, which works out where from the list tree',
+			'src/lib/windowing/list-windowing.svelte.ts':
 				'`revealChild`, the descent’s one scroll, naming the block and never a position'
 		},
 		reason:
@@ -1391,7 +1467,7 @@ const BARE_FOCUSES: ManifestRule[] = [
 		declared: {
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'a click that reveals a widget’s source focuses the surface under the pointer, already on screen',
-			'src/lib/cursor/reveal-source.ts':
+			'src/lib/caret/reveal-source.ts':
 				'the revealed source takes focus where the click that revealed it landed',
 			'src/lib/components/GapCaret.svelte':
 				'an arrow move arriving on a gap caret keeps the browser’s own scroll to it',
@@ -1431,11 +1507,11 @@ const BARE_FOCUSES: ManifestRule[] = [
 /** Every call that corrects, picks a held block or holds nothing, keyed by path, function and
  *  kind, so a call moved elsewhere fails. `<module>` is a function with a bracketed return type. */
 const CORRECTIONS: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-tree.ts :: descend :: heldBlock': {
+	'src/lib/windowing/list-tree.ts :: descend :: heldBlock': {
 		calls: 1,
 		reason: 'the one pick of the block a measure round keeps still, level by level'
 	},
-	'src/lib/reactivity/list-tree.ts :: movedSince :: held move': {
+	'src/lib/windowing/list-tree.ts :: movedSince :: held move': {
 		calls: 1,
 		reason: 'the one distance the round corrects by, read through the same walk as `resolve`'
 	},
@@ -1479,15 +1555,15 @@ function callSites(file: SourceFile, kinds: CallKind[]): Map<string, number> {
 }
 
 const HELD_BRANDS: FileRule = {
-	id: 'G4.93 only `hold-across.ts` makes a held block or the distance it moved',
+	id: 'G4.93 only `steady-block.ts` makes a held block or the distance it moved',
 	matches: /\bas\s+(?:HeldBlock|HeldDelta)\b/,
 	allowed: {
-		'src/lib/reactivity/hold-across.ts':
+		'src/lib/windowing/steady-block.ts':
 			'`heldBlock` and `heldDelta`, the one pick and the one distance'
 	},
 	reason:
 		'a cast to a held block or a held distance picks the block a list keeps still somewhere other than `heldBlock`: call `heldBlock` and `heldDelta` instead',
-	reaches: [SOURCE.holdAcross],
+	reaches: [SOURCE.steadyBlock],
 	hits: ['return 0 as HeldDelta;', "const held = { id: 'b3', index: 3 } as HeldBlock;"],
 	misses: ['const held: HeldBlock | null = heldBlock(table, top, focused);']
 };
@@ -1531,20 +1607,20 @@ function describeCorrections(sources: SourceFile[]): void {
 
 /** Every write of a measured height and every registration with a list, keyed like G4.93. */
 const MEASURE_WRITES: Record<string, { calls: number; reason: string }> = {
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: table write': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyMeasured :: table write': {
 		calls: 1,
 		reason:
 			'the one write of a child’s height into its list’s table, only while that index still holds that id'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyMeasured :: cache write': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyMeasured :: cache write': {
 		calls: 1,
 		reason: 'records the height under the id the child passed'
 	},
-	'src/lib/reactivity/list-windowing.svelte.ts :: applyHeight :: applyMeasured': {
+	'src/lib/windowing/list-windowing.svelte.ts :: applyHeight :: applyMeasured': {
 		calls: 1,
 		reason: 'the batched pass applies each registered child through the one write'
 	},
-	'src/lib/reactivity/use-container-windowing.svelte.ts :: register :: registration': {
+	'src/lib/windowing/use-container-windowing.svelte.ts :: register :: registration': {
 		calls: 1,
 		reason: 'the channel every list provides, which checks the child is its own'
 	}
@@ -1563,8 +1639,8 @@ const MEASURE_CHANNEL: ManifestRule = {
 	matches: /(?<![\w$])CHILD_MEASURE_KEY\b/,
 	declared: {
 		'src/lib/editor-keys.ts': 'defines the key',
-		'src/lib/reactivity/use-container-windowing.svelte.ts': 'every list provides the channel',
-		'src/lib/reactivity/use-measured-child.svelte.ts':
+		'src/lib/windowing/use-container-windowing.svelte.ts': 'every list provides the channel',
+		'src/lib/windowing/use-measured-child.svelte.ts':
 			'the one reader, which registers at mount, re-measures after an edit and on a resize'
 	},
 	reason:
@@ -1616,7 +1692,7 @@ const HEIGHT_LIFETIME: ManifestRule[] = [
 		],
 		misses: [
 			'export function createHeightOracle(opts: HeightOracleOptions): MeasuredHeightOracle {',
-			"import { createHeightOracle } from '../cursor/height-oracle';",
+			"import { createHeightOracle } from '../windowing/height-estimator';",
 			'const layout = createLayoutState();',
 			'// createHeightOracle(opts) builds one.\nconst a = 1;'
 		]
@@ -1647,23 +1723,23 @@ const HEIGHT_LIFETIME: ManifestRule[] = [
 /** The owner's raw writes of its port, keyed like G4.93: `writeScroll`, which closes an open
  *  round before it writes, and the round's own correction beneath it. */
 const OWNER_RAW_WRITES: Record<string, { calls: number; reason: string }> = {
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: absolute': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: absolute': {
 		calls: 1,
 		reason: 'every owner write but the round’s, once the round is closed'
 	},
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: relative': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: relative': {
 		calls: 1,
 		reason: 'the same write, by a distance'
 	},
-	'src/lib/cursor/scroll-owner.ts :: writeScroll :: into view': {
+	'src/lib/windowing/scroll-owner.ts :: writeScroll :: into view': {
 		calls: 1,
 		reason: 'a placement’s scroll, once the round is closed'
 	},
-	'src/lib/cursor/scroll-owner.ts :: closeRound :: absolute': {
+	'src/lib/windowing/scroll-owner.ts :: closeRound :: absolute': {
 		calls: 1,
 		reason: 'a held placement put back as the round closes'
 	},
-	'src/lib/cursor/scroll-owner.ts :: closeRound :: relative': {
+	'src/lib/windowing/scroll-owner.ts :: closeRound :: relative': {
 		calls: 1,
 		reason: 'the round’s own correction'
 	}
@@ -1698,14 +1774,14 @@ function describeOwnerWrites(sources: SourceFile[]): void {
 
 const SELECTION_WRITERS: ManifestRule[] = [
 	{
-		id: 'G4.94 a gap caret or a widget is selected only through the caret doors',
+		id: 'G4.94 a gap caret or a widget is selected only through `place-caret.ts`',
 		matches: /\.(?:setGapCaret|selectWidget)\s*\(/,
 		declared: {
-			'src/lib/selection/caret-doors.ts':
+			'src/lib/selection/place-caret.ts':
 				'`placeGapCaret` and `selectWidgetWhole`, which end the browser’s own range in the same batch'
 		},
 		reason:
-			'a gap caret or a widget selected outside `selection/caret-doors.ts` can leave a browser caret live beside it: call `placeGapCaret` or `selectWidgetWhole`',
+			'a gap caret or a widget selected outside `selection/place-caret.ts` can leave a browser caret live beside it: call `placeGapCaret` or `selectWidgetWhole`',
 		hits: [
 			'selection.setGapCaret(pos);',
 			'deps.selection.selectWidget({ paragraphPath, sourceStart, preSelectOffset });',
@@ -1747,7 +1823,7 @@ const ROGUE_WRITER = `${SOURCE_DIR.blocks}x/rogue-writer.ts`;
 const TYPED_WRITE_ASKS: ManifestRule[] = [
 	{
 		id: 'G4.101 only the surface write names a typed kind change or completes a typed line',
-		population: under(SOURCE_DIR.components, SOURCE_DIR.selection),
+		population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.selection),
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/surface-write.ts':
@@ -1909,43 +1985,146 @@ const REF_FOCUS: FileRule = {
 	misses: ['ref.focus(offset);', 'blockRefs[i] = ref;', 'const r = refAt(list, i);']
 };
 
-// ── G4.113 one reading of a `$$` math block's shape ────────────────────────
+// ── G4.131 a block syntax's bytes are read and written in its own module only ──
 
 const MATH_SHAPE_HOME = SOURCE.mathShape;
 const ROGUE_MATH_READER = `${SOURCE_DIR.latexPlugin}rogue.ts`;
-const DOLLAR_FENCE = String.raw`(?:\bBLOCK_FENCE\b|\bFENCE\b|['"\x60]\$\$['"\x60])`;
+// The fence constant, or a string opening or closing on the fence: `$$` read or written by hand.
+const DOLLAR_FENCE = String.raw`\b(?:BLOCK_FENCE|FENCE)\b|['"\x60]\$\$|\$\$['"\x60]`;
 // A regex for the fence spells it escaped: `\$\$` in a literal, `\\$\\$` in a string.
 const ESCAPED_FENCE = String.raw`\\\$\\\$|\\\\\$\\\\\$`;
+// A source split into lines, or a fence test handed a line read off one: a closer search by hand.
+const MATH_LINE_SEARCH = String.raw`\b(?:displayLines|firstDisplayLine|splitLines)\s*\(|\b(?:isMathFenceLine|opensMathBlock)\s*\(\s*[\w$.[\]]*\.text\s*\)`;
 
-const MATH_SHAPE: FileRule = {
-	id: 'G4.113 a `$$` block’s shape is read in the math shape module only',
-	population: under(SOURCE_DIR.latexPlugin),
-	matches: new RegExp(
-		String.raw`(?:startsWith|endsWith|indexOf|lastIndexOf|includes)\(\s*${DOLLAR_FENCE}|[=!]==\s*${DOLLAR_FENCE}|${DOLLAR_FENCE}\s*[=!]==|${ESCAPED_FENCE}`
-	),
-	allowed: {
-		[MATH_SHAPE_HOME]:
-			'reads opener, body and closer for the parser, the write rule and the painter'
+const TABLE_LINE_HOME = SOURCE.tableLine;
+const ROGUE_TABLE_WRITER = `${SOURCE_DIR.schema}rogue.ts`;
+// A row edge spelled as a string: a padded pipe (`'| '`, `' |'`), or a bare one joined on with `+`.
+const PADDED_PIPE = String.raw`['"\x60]\| ['"\x60]|['"\x60] \|['"\x60]|['"\x60]\|['"\x60]\s*\+|\+\s*['"\x60]\|['"\x60]`;
+// A template padding an interpolation with a pipe (`| ${cell}`, `${cell} |`), or ending on one.
+const TEMPLATE_ROW = String.raw`\| \$\{|\$\{[^}\x60]*\} \||\}\|\x60`;
+// A row's edge pipe read by hand: a regex anchored on it, a string test, or an index read.
+const EDGE_PIPE_READ = String.raw`/\^(?:\\s|\[[^\]\n]*\]| )?[*+?]?\\\||\\\|(?:\\s|\[[^\]\n]*\]| )?[*+?]?\$/|(?:startsWith|endsWith)\(\s*['"\x60]\|['"\x60]\s*\)|(?:\[\s*0\s*\]|\[[^\]\n]*length\s*-\s*1\s*\]|\.at\(\s*-1\s*\))\s*[!=]==?\s*['"\x60]\|['"\x60]`;
+// A header's cell count compared with a delimiter's: the table opening test written again.
+const OPENING_ARITY =
+	/\.length\s*[!=]==?\s*[\w.?]*columnCount\b|\bcolumnCount\s*[!=]==?\s*[\w.?]*\.length\b/;
+// A delimiter cell spelled as a string; a comparison or search with `---` is a divider's.
+const DELIMITER_CELL = String.raw`(?<!(?:[=!]==?|(?:startsWith|endsWith|includes|indexOf)\()\s*)['"\x60]:?-{3,}:?['"\x60]`;
+
+/** One row per block syntax: the module its bytes are read and written in, and what a copy looks like. */
+const SYNTAX_MODULES: FileRule[] = [
+	{
+		id: 'G4.131 a `$$` block’s opener, body and closer are read and written in `math-shape.ts` only',
+		population: under(SOURCE_DIR.latexPlugin),
+		matches: new RegExp(`${DOLLAR_FENCE}|${ESCAPED_FENCE}|${MATH_LINE_SEARCH}`),
+		allowed: {
+			[MATH_SHAPE_HOME]:
+				'the closer search, the split and the block lines the parser, the write rule, the painter and the completer all ask'
+		},
+		reaches: [MATH_SHAPE_HOME],
+		reason:
+			'a second copy of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: ask `readMathSource`, `mathCloserLine` over a line array, or `mathBlockLines` to write a block',
+		hits: [
+			at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
+			at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
+			at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);'),
+			at(ROGUE_MATH_READER, "if (text.indexOf('$$') === 0) return null;"),
+			at(ROGUE_MATH_READER, "return text.lastIndexOf('$$') === text.length - 2;"),
+			at(ROGUE_MATH_READER, 'if (line.includes(BLOCK_FENCE)) return null;'),
+			at(ROGUE_MATH_READER, 'if (/^\\$\\$/.test(text)) return null;'),
+			at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');"),
+			at(ROGUE_MATH_READER, 'while (i < ctx.end && !isMathFenceLine(ctx.lines[i].text)) i++;'),
+			at(ROGUE_MATH_READER, 'return rest.some((line) => isMathFenceLine(line.text));'),
+			at(ROGUE_MATH_READER, 'const [openerLine] = displayLines(opener);'),
+			at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
+			at(ROGUE_MATH_READER, "registerInsertEntry({ markdown: '$$\\n\\n$$\\n' });"),
+			at(ROGUE_MATH_READER, 'const block = `$$${body}$$`;')
+		],
+		misses: [
+			at(ROGUE_MATH_READER, "return { lines: mathBlockLines(''), caret };"),
+			at(
+				ROGUE_MATH_READER,
+				"registerInsertEntry({ markdown: `${mathBlockLines('').join('\\n')}\\n` });"
+			),
+			at(ROGUE_MATH_READER, 'if (!isMathFenceLine(trimWhitespace(line))) return null;'),
+			at(ROGUE_MATH_READER, 'const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);'),
+			at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
+			at(ROGUE_MATH_READER, "const price = '$' + amount;"),
+			at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
+		]
 	},
-	reaches: [MATH_SHAPE_HOME],
-	reason:
-		'a second reader of the `$$` shape drifts from the first, so the painted source, the bytes its blur writes and a reload stop agreeing on one edit: read it through `math-shape.ts`',
-	hits: [
-		at(ROGUE_MATH_READER, "if (text.startsWith('$$')) return null;"),
-		at(ROGUE_MATH_READER, 'return line.text === BLOCK_FENCE;'),
-		at(ROGUE_MATH_READER, 'if (inner.endsWith(FENCE)) inner = inner.slice(0, -2);'),
-		at(ROGUE_MATH_READER, "if (text.indexOf('$$') === 0) return null;"),
-		at(ROGUE_MATH_READER, "return text.lastIndexOf('$$') === text.length - 2;"),
-		at(ROGUE_MATH_READER, 'if (line.includes(BLOCK_FENCE)) return null;'),
-		at(ROGUE_MATH_READER, 'if (/^\\$\\$/.test(text)) return null;'),
-		at(ROGUE_MATH_READER, "const opener = new RegExp('^\\\\$\\\\$');")
-	],
-	misses: [
-		at(ROGUE_MATH_READER, "return { lines: [BLOCK_FENCE, '', BLOCK_FENCE] };"),
-		at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
-		at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
-	]
-};
+	{
+		id: 'G4.131 a table row’s pipes are read and written in `table-line.ts` only',
+		population: under(SOURCE_DIR.library),
+		matches: new RegExp(`${PADDED_PIPE}|${TEMPLATE_ROW}|${EDGE_PIPE_READ}|${DELIMITER_CELL}`),
+		allowed: {
+			[TABLE_LINE_HOME]:
+				'the row reader, and the row, delimiter, new-table and in-place writers the rebuild, the Enter completer, the copy, the grid paste and the insert menu all call'
+		},
+		reaches: [TABLE_LINE_HOME],
+		reason:
+			'a second spelling of a table row drifts from the first, so a new table, a copied rectangle, a pasted grid and a rebuilt row stop agreeing on bytes: write a row with `tableRowLine`, `tableDelimiterLine`, `newTableLines` or `spliceCells`, and read one with `rowCellSpans`, `opensOnPipe`, `wrappedInPipes` or `boundaryPipeAt`',
+		hits: [
+			at(ROGUE_TABLE_WRITER, "const plain = '| ' + cells.join(' | ') + ' |';"),
+			at(ROGUE_TABLE_WRITER, "return line + ' |';"),
+			at(
+				ROGUE_TABLE_WRITER,
+				'const line = (cell: string) => `|${` ${cell} |`.repeat(columns)}\\n`;'
+			),
+			at(ROGUE_TABLE_WRITER, "const row = `| ${cells.join(' | ')} |`;"),
+			at(ROGUE_TABLE_WRITER, "return [header, cells.map(() => '---'), empty];"),
+			at(ROGUE_TABLE_WRITER, "case 'center': return ':---:';"),
+			at(ROGUE_TABLE_WRITER, "return '|' + cells.map((c) => ' ' + c + ' ').join('|') + '|';"),
+			at(ROGUE_TABLE_WRITER, "const row = '|' + cells.join(' | ') + '|';"),
+			at(ROGUE_TABLE_WRITER, "const row = `|${cells.map((c) => ` ${c} `).join('|')}|`;"),
+			at(ROGUE_TABLE_WRITER, 'if (!lines.every((l) => /^\\|.*\\|$/.test(l))) return null;'),
+			at(ROGUE_TABLE_WRITER, 'const opens = /^[ \\t]*\\|/.test(line);'),
+			at(ROGUE_TABLE_WRITER, "if (!trimWhitespace(line).startsWith('|')) return null;"),
+			at(ROGUE_TABLE_WRITER, "if (trimWhitespace(line)[0] !== '|') return null;"),
+			at(ROGUE_TABLE_WRITER, "return line.trimEnd().at(-1) === '|';"),
+			at(ROGUE_TABLE_WRITER, "return t[t.length - 1] === '|';"),
+			at(ROGUE_TABLE_WRITER, 'const opens = /^ *\\|/.test(line);'),
+			at(ROGUE_TABLE_WRITER, 'const closes = /\\|[ \\t]*$/.test(line);')
+		],
+		misses: [
+			at(ROGUE_TABLE_WRITER, 'return tableRowLine(cells);'),
+			at(ROGUE_TABLE_WRITER, 'const lines = newTableLines(header, rows - 1);'),
+			at(ROGUE_TABLE_WRITER, 'return `|${width}x${height}`;'),
+			at(ROGUE_TABLE_WRITER, 'const key = `${version}|${start}|${end}`;'),
+			at(ROGUE_TABLE_WRITER, "if (rowText[lo] === '|') lo++;"),
+			at(ROGUE_TABLE_WRITER, "if (rowText[hi - 1] === '|') hi--;"),
+			at(ROGUE_TABLE_WRITER, "return pieces.join('|');"),
+			at(ROGUE_TABLE_WRITER, '`"${kind}" onEdge is one of ${ON_EDGE_POLICIES.join(\' | \')}`;'),
+			at(ROGUE_TABLE_WRITER, "entry('divider', 'Divider', 'minus', [], '---\\n');"),
+			at(ROGUE_TABLE_WRITER, "if (line === '---') return 'front matter';"),
+			at(ROGUE_TABLE_WRITER, "if (text.startsWith('---')) return null;"),
+			at(ROGUE_TABLE_WRITER, 'const name = /^\\w+/.exec(text);'),
+			"const plain = '| ' + cells.join(' | ') + ' |';"
+		]
+	},
+	{
+		id: 'G4.131 whether two lines open a table is decided in `matchTableOpening` only',
+		population: under(SOURCE_DIR.library),
+		matches: OPENING_ARITY,
+		allowed: {
+			[SOURCE.tableParser]: '`matchTableOpening`, which the parser and the grid paste both ask'
+		},
+		reaches: [SOURCE.tableParser],
+		reason:
+			'a second test for whether two lines open a table drifts from the parser’s, so a paste and a reload disagree on what is a table: ask `matchTableOpening`',
+		hits: [
+			at(
+				ROGUE_TABLE_WRITER,
+				'if (delimiter && header && header.length === delimiter.columnCount) {'
+			),
+			at(ROGUE_TABLE_WRITER, 'return delim?.columnCount !== cells.length ? null : delim;')
+		],
+		misses: [
+			at(ROGUE_TABLE_WRITER, 'const delimiter = matchTableOpening(lines[0], lines[1]);'),
+			at(ROGUE_TABLE_WRITER, 'if (row.children.length < meta.columnCount) pad(row);'),
+			'if (header.length === delimiter.columnCount) return delimiter;'
+		]
+	}
+];
 
 // ── G4.114 one paint decision for a block under a range ─────────────────────
 
@@ -2071,7 +2250,7 @@ const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
 
 const WIDGET_LIST: FileRule = {
 	id: 'G4.125 a component asks which inlines are widgets only in `widget-adjacency.ts`',
-	population: under(SOURCE_DIR.components, SOURCE_DIR.plugins),
+	population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.plugins),
 	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
 	allowed: {
 		[WIDGET_LIST_HOME]:
@@ -2092,16 +2271,233 @@ const WIDGET_LIST: FileRule = {
 	]
 };
 
+// ── G4.127 every branch on whether a DOM exists is declared ─────────────────
+
+/** Globals a DOM provides and plain Node lacks, so a test of one answers differently per file. */
+const DOM_GLOBAL = String.raw`(?:document|window|getSelection|getComputedStyle|matchMedia|requestAnimationFrame|Element|(?:HTML|SVG)\w*Element|Node|NodeFilter|Range|Selection|Text|Document|DOMParser|DOMRect|MutationObserver)\b`;
+
+/** A test of whether a DOM exists that runs quietly without one: `typeof` on a bare DOM global,
+ *  a `globalThis` read of one, or an `in globalThis` test. A bare read without `typeof` throws. */
+const DOM_PRESENCE_RE = new RegExp(
+	[
+		String.raw`\btypeof\s+${DOM_GLOBAL}(?!\s*(?:\?\.|\.|\[))`,
+		String.raw`\bglobalThis\s*(?:\?\.|\.)\s*${DOM_GLOBAL}`,
+		String.raw`\bglobalThis\s*(?:\?\.)?\s*\[\s*(['"\`])${DOM_GLOBAL}\1\s*\]`,
+		String.raw`(['"\`])${DOM_GLOBAL}\2\s+in\s+(?:globalThis|window|self)\b`
+	].join('|'),
+	'g'
+);
+
+/** Every DOM-presence test in the shipped source, keyed `path :: function` with how many it holds. */
+const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
+	[`${SOURCE.devChecks} :: documentForCheck`]: {
+		branches: 1,
+		reason: 'where a dev check that would do more with a DOM reports that it skipped that part'
+	},
+	'src/lib/invariants/landing-value.ts :: readCaretWhereabouts': {
+		branches: 1,
+		reason:
+			'with no document there is no focus or selection a landing could move, so nothing to compare'
+	},
+	'src/lib/schema/commands.ts :: warnSelectionKept': {
+		branches: 1,
+		reason: 'with no DOM a block holds no selection, so no command runs beside one'
+	},
+	'src/lib/editor-actions/replacement-focus.ts :: focusMovedOutsideReplacement': {
+		branches: 1,
+		reason: 'with no document nothing holds focus, so the caret goes back where the write left it'
+	},
+	'src/lib/selection/caret-landing.ts :: caretBox': {
+		branches: 1,
+		reason:
+			'with no window there is no selection to measure, so the caret’s box is the element’s own'
+	},
+	'src/lib/selection/native-bridge.ts :: nativeRangeInFocusedBlock': {
+		branches: 2,
+		reason: 'an undo snapshot taken with no DOM keeps the caret offset alone'
+	},
+	'src/lib/caret/drawn-caret.svelte.ts :: caretMedia': {
+		branches: 1,
+		reason:
+			'with no media queries (no DOM, or jsdom) there is no pointer to ask, so `auto` leaves the browser’s caret alone'
+	},
+	'src/lib/testing/mount-dom-stubs.ts :: installEditorDomStubsForTests': {
+		branches: 2,
+		reason: 'with no DOM there is no element or range prototype to fill in'
+	}
+};
+
+const DOM_PRESENCE_REASON =
+	'a branch on whether a DOM exists decides what a test without jsdom runs: a dev check that would do more with a DOM calls `documentForCheck` in assert.ts, which reports the skip; any other branch is declared in G4.127’s table in this file, per function, with what it does without one';
+
+/** Each `path :: function` in `file` holding a DOM-presence test, with its count. */
+function domPresenceSites(file: SourceFile): Map<string, number> {
+	const found = new Map<string, number>();
+	const classes = fileClasses(file);
+	for (const { index, 0: read } of file.code.matchAll(DOM_PRESENCE_RE)) {
+		if (classes[index + read.length - 1] !== CODE) continue;
+		const key = `${file.relPath} :: ${enclosingFunction(file.code, index, classes)}`;
+		found.set(key, (found.get(key) ?? 0) + 1);
+	}
+	return found;
+}
+
+const DOM_PRESENCE_HITS = [
+	"if (typeof document === 'undefined') return null;",
+	"if (typeof document == 'undefined') return null;",
+	"const s = typeof window !== 'undefined' ? window.getSelection() : null;",
+	"if (typeof Element !== 'undefined') {}",
+	"if (typeof HTMLElement === 'function') {}",
+	"if (typeof Node != 'undefined') {}",
+	'const doc = globalThis.document;',
+	'if (!globalThis.window) return;',
+	'if (globalThis.getSelection?.()?.isCollapsed !== false) return;',
+	"const doc = globalThis['document'];",
+	"if ('document' in globalThis) {}"
+];
+
+const DOM_PRESENCE_MISSES = [
+	"if (typeof document.elementFromPoint !== 'function') return null;",
+	"if (typeof ResizeObserver !== 'function') return;",
+	"if (typeof CSS === 'undefined' || typeof Worker === 'undefined') return;",
+	"if (typeof TextEncoder === 'undefined' || typeof myElement === 'undefined') return;",
+	'const doc = documentForCheck(name);',
+	'if (!document) return entries;',
+	"const note = 'typeof document === undefined';",
+	'// typeof document === "undefined" outside a browser\nconst a = 1;'
+];
+
+function describeDomPresence(sources: SourceFile[]): void {
+	describe('G4.127 every branch on whether a DOM exists says what runs without one', () => {
+		const found = Object.fromEntries(sources.flatMap((file) => [...domPresenceSites(file)]));
+		const declared = Object.fromEntries(
+			Object.entries(DOM_PRESENCE).map(([site, { branches }]) => [site, branches])
+		);
+		const sitesOf = (code: string) => Object.fromEntries(domPresenceSites(probeFile(code)));
+		const hits = DOM_PRESENCE_HITS.map((code) => ({ code, sites: sitesOf(code) }));
+		const misses = DOM_PRESENCE_MISSES.map((code) => ({ code, sites: sitesOf(code) }));
+		const keyed = sitesOf(
+			"function a() {\n\tif (typeof document === 'undefined') return;\n\tif (typeof window === 'undefined') return;\n}\nfunction b() {\n\treturn globalThis.document;\n}"
+		);
+
+		it('the branches are exactly the declared ones, function by function', () => {
+			expect(found, DOM_PRESENCE_REASON).toEqual(declared);
+		});
+
+		it('the matcher flags every hit and spares every miss', () => {
+			for (const { code, sites } of hits) expect(sites, code).not.toEqual({});
+			for (const { code, sites } of misses) expect(sites, code).toEqual({});
+		});
+
+		it('the census keys each branch by its function and counts it', () => {
+			expect(keyed).toEqual({ 'probe.ts :: a': 2, 'probe.ts :: b': 1 });
+		});
+	});
+}
+
+// ── G4.130 one span for every ranged write to a code block ──────────────────
+
+const EDIT_SPAN_HOME = SOURCE.codeFenceBoundary;
+const ROGUE_CODE_WRITE = `${SOURCE_DIR.codeBlock}RogueCode.svelte`;
+
+const FENCE_LINES_FLAG = 'fenceLinesShown';
+
+/** Whether a file reads a fence-lines flag, or the mode check behind it, other than `fenceLinesShown`
+ *  where it's derived, as the whole last argument of `editSpan`, or as an early return's last condition. */
+function readsFenceLinesByHand(file: SourceFile): boolean {
+	const code = file.code;
+	const spanArgs: number[] = [];
+	for (const call of code.matchAll(/(?<![\w.])editSpan\s*\(/g)) {
+		const from = call.index + call[0].length;
+		const args = balancedCall(code, from) ?? '';
+		const last = callArguments(args).at(-1) ?? '';
+		if (last !== FENCE_LINES_FLAG) return true;
+		spanArgs.push(from + args.lastIndexOf(last));
+	}
+	const flagReads = [...code.matchAll(/(?<![\w.])fenceLines\w*\b/g)].filter((read) => {
+		if (read[0] !== FENCE_LINES_FLAG) return true;
+		const before = code.slice(0, read.index);
+		const after = code.slice(read.index + read[0].length);
+		const derived = /\b(?:const|let)\s+$/.test(before) && /^\s*=\s*\$derived\(/.test(after);
+		const earlyReturn =
+			/(?:\|\||\bif\s*\()\s*$/.test(before) && /^\s*\)\s*return(?:\s+false)?\s*;/.test(after);
+		return !derived && !earlyReturn && !spanArgs.includes(read.index);
+	});
+	const modeChecks = [
+		...code.matchAll(/(?<![\w.])(?:paintsFocusedMarkers|hidesDelimitersAtCaret)\s*\(/g)
+	].filter((check) => !/\bfenceLinesShown\s*=\s*\$derived\(\s*$/.test(code.slice(0, check.index)));
+	return flagReads.length > 0 || modeChecks.length > 0;
+}
+
+const CODE_EDIT_SPAN: FileRule[] = [
+	{
+		id: 'G4.130 a code block range is clamped to its body in `code-fence-boundary.ts` only',
+		population: under(SOURCE_DIR.library),
+		matches: /(?<![\w.])(?<!function\s+)clampRangeToBody\s*\(/,
+		allowed: {
+			[EDIT_SPAN_HOME]: '`editSpan` and the caret clamp',
+			[`${SOURCE_DIR.codeBlock}code-indent.ts`]:
+				'an indent keeps every fence line unindented in every mode, a line rule rather than an edit span'
+		},
+		reaches: [EDIT_SPAN_HOME],
+		reason:
+			'a route that clamps its own range keeps its own copy of the span a code block edit rewrites, and the copies drift: ask `editSpan`',
+		hits: [
+			at(ROGUE_CODE_WRITE, 'const span = clampRangeToBody(node, range);'),
+			at(`${SOURCE_DIR.selection}x.ts`, 'return clampRangeToBody (node, { start, end });')
+		],
+		misses: [
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, "import { clampRangeToBody } from './code-fence-boundary';"),
+			at(ROGUE_CODE_WRITE, 'export function clampRangeToBody(node, range) {}')
+		]
+	},
+	{
+		id: 'G4.130 a code block reads whether its fence lines show only for `editSpan` or an early return',
+		population: under(SOURCE_DIR.codeBlock),
+		matches: readsFenceLinesByHand,
+		allowed: { [EDIT_SPAN_HOME]: '`editSpan` itself, which picks the span from the flag' },
+		reaches: [SOURCE.codeBlockComponent, EDIT_SPAN_HOME],
+		reason:
+			'whether the fence lines show decides the span a code block edit rewrites, and any other read of it picks that span by hand: pass the flag to `editSpan`, or return early on it before the block takes the edit',
+		hits: [
+			at(ROGUE_CODE_WRITE, 'const sel = fenceLinesShown ? range : clamp(range);'),
+			at(ROGUE_CODE_WRITE, 'if (fenceLinesShown) return range;'),
+			at(ROGUE_CODE_WRITE, 'if (!fenceLinesShown && crosses) write(clamp(range));'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, true);'),
+			at(ROGUE_CODE_WRITE, 'editSpan(node, fenceLinesShown ? range : body, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown || true);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown && !mode);'),
+			at(
+				ROGUE_CODE_WRITE,
+				'const fenceLinesForced = true;\nconst span = editSpan(node, range, fenceLinesForced);'
+			),
+			at(ROGUE_CODE_WRITE, 'const fenceLinesForced = true;\nif (fenceLinesForced) return;'),
+			at(ROGUE_CODE_WRITE, 'const span = paintsFocusedMarkers(mode) ? range : body;'),
+			at(ROGUE_CODE_WRITE, 'if (hidesDelimitersAtCaret(mode)) return clamp(range);')
+		],
+		misses: [
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(node, range, fenceLinesShown);'),
+			at(ROGUE_CODE_WRITE, 'const span = editSpan(\n\tnode,\n\trange,\n\tfenceLinesShown\n);'),
+			at(ROGUE_CODE_WRITE, 'if (composing || !el || fenceLinesShown) return false;'),
+			at(ROGUE_CODE_WRITE, 'if (!sel || sel.start === sel.end || fenceLinesShown) return;'),
+			at(ROGUE_CODE_WRITE, 'const fenceLinesShown = $derived(paintsFocusedMarkers(mode));'),
+			at(`${SOURCE_DIR.textBlock}x.ts`, 'const span = paintsFocusedMarkers(mode) ? range : body;')
+		]
+	}
+];
+
 const SOURCES = collectEditorSources();
 describeFileRules(
 	[
 		...RULES,
 		...LEAF_RANGE_RULES,
 		REF_FOCUS,
-		MATH_SHAPE,
 		RANGE_PAINT,
 		PIECES_UNDER_ORDER_CHECK,
-		WIDGET_LIST
+		WIDGET_LIST,
+		...CODE_EDIT_SPAN,
+		...SYNTAX_MODULES
 	],
 	SOURCES
 );
@@ -2118,3 +2514,4 @@ describeMeasureWrites(SOURCES);
 describeManifests([MEASURE_CHANNEL], SOURCES);
 describeManifests(HEIGHT_LIFETIME, SOURCES);
 describeManifests(SELECTION_WRITERS, SOURCES);
+describeDomPresence(SOURCES);

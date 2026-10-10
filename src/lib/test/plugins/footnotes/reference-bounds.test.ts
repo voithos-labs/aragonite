@@ -1,8 +1,7 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { parseInline } from '$lib';
-import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';
-import { FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes/constants';
+import { parseInline } from '#lib';
+import { registerFootnoteReference } from '#lib/plugins/footnotes/footnote-reference.js';
+import { FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/constants.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 beforeEach(() => {

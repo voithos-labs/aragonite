@@ -1,22 +1,22 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { parseInline } from '$lib/core/inline';
-import { screenVisibility } from '$lib/core/inline/visibility';
+import { parse } from '#lib/core/parser.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { screenVisibility } from '#lib/core/inline/visibility.js';
 import {
 	buildLinkReferenceMap,
 	type LinkReferenceResolver
-} from '$lib/core/inline/link-reference-resolver';
-import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
-import { resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
+} from '#lib/core/inline/link-reference-resolver.js';
+import { resolveMarkedInsertion } from '#lib/components/blocks/text/pending-mark-insert.js';
+import { resolveEdgeSeat } from '#lib/components/blocks/text/edge-seat.js';
 import {
 	resolveEdgeDeletion,
 	type DeleteDirection
-} from '$lib/components/blocks/text/construct-edge-delete';
-import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
-import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
-import { makeBlockNode } from '$lib/core/nodes';
-import { fixtureReading, topLevelStore } from '$lib/test/harness/fixture-grammar';
+} from '#lib/components/blocks/text/construct-edge-delete.js';
+import { createCompositionSeat } from '#lib/components/blocks/text/composition-seat.js';
+import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
+import { makeBlockNode } from '#lib/core/nodes.js';
+import { fixtureReading, topLevelStore } from '#lib/test/harness/fixture-grammar.js';
 
 /** A prose block stores a block; a table cell stores text. */
 type StoredKind = 'paragraph' | 'tableCell';
@@ -60,6 +60,7 @@ describe('a pending mark beside a reference link', () => {
 			getDisplayText: () => display,
 			getInlines: () => inlines,
 			reading: fixtureReading({ resolver: resolver }),
+			offsetFor: (caret) => caret,
 			consumePendingMarks: () => new Set<InlineMarkKind>(['strong']),
 			restorePendingMarks: () => {}
 		});

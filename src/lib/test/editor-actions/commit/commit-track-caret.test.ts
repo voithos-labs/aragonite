@@ -1,13 +1,13 @@
 // A caret position handed to a commit follows the fix-up's merges, at the root as in a container.
 // Miss-analysis: only the multi-scope commit took a tracked position, so no test asked the root.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { asDocPath } from '$lib/selection/path-math';
-import { replacePreservingFirst } from '$lib/tree-operations/structural-change';
-import type { TrackedPosition } from '$lib/tree-operations/settle';
-import { makeContainerHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { replacePreservingFirst } from '#lib/tree-operations/structural-change.js';
+import type { TrackedPosition } from '#lib/tree-operations/settle.js';
+import { makeContainerHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 /** A paragraph flush under the block above, which the fix-up merges into that block. */
 const flushParagraph = (): CstNode => parse('x\n').children[0];

@@ -37,7 +37,9 @@ export class Recorder {
 		// review needs the whole document at each checkpoint.
 		await this.page.screenshot({
 			path: `${this.runDir}/${screenshot}`,
-			fullPage: true
+			fullPage: true,
+			// Playwright hides the browser's caret; the drawn one goes too, so no shot catches a blink.
+			style: '.md-drawn-caret { display: none !important; }'
 		});
 		const [expectedSource, cstDump, selection, undoDepth] = await Promise.all([
 			this.editor.bridge.getSource(),

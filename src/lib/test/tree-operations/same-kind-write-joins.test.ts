@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import type { CstNode } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite, updateNodeContent } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { spliceChildrenSettled } from '$lib/tree-operations/settle';
+import type { CstNode } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { spliceChildrenSettled } from '#lib/tree-operations/settle.js';
 
 // A write that keeps its block's kind still asks whether a reload reads it and a neighbour as one:
 // the block above when no blank line parts them, the block below whatever parts them.

@@ -4,13 +4,13 @@
 // silently drops the last column. Gestures that write their own bytes are in
 // `cell-write-escape.test.ts`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { metadataOf } from '$lib/core/nodes';
+import { parse } from '#lib/core/parser.js';
+import { metadataOf } from '#lib/core/nodes.js';
 import {
 	installLayoutStubs,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt } from './mount-table';
 
 beforeAll(installLayoutStubs);
@@ -96,7 +96,7 @@ describe('a composed (IME) cell edit commits once, through the same escape', () 
 
 		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 		el.textContent = 'x|y';
-		el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		el.dispatchEvent(new InputEvent('input', { bubbles: true, isComposing: true }));
 		await mounted.settle();
 		// While a composition runs the document is untouched: the commit is suppressed.
 		expect(mounted.source()).toBe(GRID);

@@ -193,49 +193,40 @@ const SLASH_AFTER_OPERATOR: Array<[op: string, source: string, opensRegex: boole
 ];
 
 describe('G4.57 the scan lexer reads what TypeScript reads', () => {
-	const classified = collectEditorSources().map((file) => ({
-		file,
-		hand: lexicalClasses(file.text, languageOf(file.relPath))
-	}));
+	// The comment and wall-clock lints also lex the test tree and `src/routes` (G4.26, G4.48), so
+	// the differential runs over that wider corpus, deduped since two roots share a folder.
+	const corpus = new Map<string, SourceFile>();
+	for (const file of [
+		...collectEditorSources(undefined, { includeTests: true }),
+		...collectEditorSources(ROUTES_SRC, { includeTests: true })
+	]) {
+		corpus.set(file.relPath, file);
+	}
+	const outside = collectEditorSources()
+		.map((file) => file.relPath)
+		.filter((relPath) => !corpus.has(relPath));
 
-	it('reached the scanned trees, with every class represented', () => {
-		expect(classified.length).toBeGreaterThan(0);
-		const seen = new Set<number>();
-		for (const { hand } of classified) for (const cls of hand) seen.add(cls);
+	// Lexed at collection, which no test timeout bounds: the corpus takes seconds on a busy machine.
+	const seen = new Set<number>();
+	const found: string[] = [];
+	for (const file of corpus.values()) {
+		const hand = lexicalClasses(file.text, languageOf(file.relPath));
+		for (const cls of hand) seen.add(cls);
+		const report = divergenceIn(file, hand);
+		if (report !== null) found.push(report);
+	}
+
+	it('lexed every editor source, tests and routes besides, with every class represented', () => {
+		expect(outside, 'editor sources the wider corpus misses').toEqual([]);
 		expect([...seen].sort((a, b) => a - b)).toEqual(LEXICAL_CLASSES.map((_, index) => index));
 	});
 
-	it('every scanned character lexes the same as TypeScript reads it', () => {
-		const found = classified
-			.map(({ file, hand }) => divergenceIn(file, hand))
-			.filter((report) => report !== null);
+	it('every character of the census corpus lexes the same as TypeScript reads it', () => {
 		expect(
 			found,
 			'fix the lexer in scan-source.ts, or pin the shape here with the reason no census can move'
 		).toEqual([]);
 	});
-
-	// The comment and wall-clock lints also lex the test tree and `src/routes` (G4.26, G4.48);
-	// collected inside the test, where the timeout covers it.
-	it('the wider census corpus, tests and routes included, lexes the same', () => {
-		// Deduped by path: `REPO_WIDE_ROOTS` already carries `src/routes/test/plugins`, and a
-		// file scanned twice reports its divergence twice.
-		const wider = new Map<string, SourceFile>();
-		for (const file of [
-			...collectEditorSources(undefined, { includeTests: true }),
-			...collectEditorSources(ROUTES_SRC, { includeTests: true })
-		]) {
-			wider.set(file.relPath, file);
-		}
-		expect(wider.size).toBeGreaterThan(classified.length);
-		const found = [...wider.values()]
-			.map((file) => divergenceIn(file, lexicalClasses(file.text, languageOf(file.relPath))))
-			.filter((report) => report !== null);
-		expect(
-			found,
-			'fix the lexer in scan-source.ts, or pin the shape here with the reason no census can move'
-		).toEqual([]);
-	}, 30_000);
 
 	it('markup and stylesheet shapes TypeScript cannot lex keep their class', () => {
 		for (const [source, classes] of MARKUP_CORPUS) {

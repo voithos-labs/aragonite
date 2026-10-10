@@ -1,4 +1,4 @@
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import type { InlineNode } from '../../../../core/nodes';
 import { parseInline } from '../../../../core/inline';
@@ -8,35 +8,38 @@ import {
 	type LinkReferenceResolver,
 	type ResolvedReference
 } from '../../../../core/inline/link-reference-resolver';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 // ── Coverage assertions ─────────────────────────────────────────────────────
-
-export function assertTotalCoverage(nodes: InlineNode[], start: number, end: number): void {
-	let pos = start;
-	for (const n of nodes) {
-		expect(n.start).toBe(pos);
-		expect(n.end).toBeGreaterThan(n.start);
-		pos = n.end;
-	}
-	expect(pos).toBe(end);
-}
+// Each check runs as plain code and calls `expect` only where it fails: on a flood of tens of
+// thousands of nodes, a per-node `expect` costs more than the scan it checks.
 
 export interface MarkerRange {
 	start: number;
 	end: number;
 }
 
+/** Fails at the first piece that does not start where the last ended, or is empty. */
+function expectTiled(pieces: Iterable<MarkerRange>, start: number, end: number): void {
+	let pos = start;
+	for (const piece of pieces) {
+		if (piece.start !== pos || piece.end <= piece.start) {
+			expect(piece.start).toBe(pos);
+			expect(piece.end).toBeGreaterThan(piece.start);
+		}
+		pos = piece.end;
+	}
+	expect(pos).toBe(end);
+}
+
+export function assertTotalCoverage(nodes: InlineNode[], start: number, end: number): void {
+	expectTiled(nodes, start, end);
+}
+
 /** Markers plus children must tile the parent's range exactly, in offset order. */
 export function assertChildCoverage(parent: InlineNode, markerRanges: MarkerRange[]): void {
 	const pieces = [...markerRanges, ...(parent.children ?? [])].sort((a, b) => a.start - b.start);
-	let pos = parent.start;
-	for (const piece of pieces) {
-		expect(piece.start).toBe(pos);
-		expect(piece.end).toBeGreaterThan(piece.start);
-		pos = piece.end;
-	}
-	expect(pos).toBe(parent.end);
+	expectTiled(pieces, parent.start, parent.end);
 }
 
 const FIXED_MARKER_LEN: Partial<Record<InlineNode['kind'], number>> = {
@@ -55,8 +58,10 @@ function emphasisMarkerLen(node: InlineNode): number | undefined {
 	const interiorEnd = children.length > 0 ? children[children.length - 1].end : node.start;
 	const openLen = interiorStart - node.start;
 	const closeLen = node.end - interiorEnd;
-	expect(openLen).toBe(closeLen);
-	expect(openLen === 1 || openLen === 2).toBe(true);
+	if (openLen !== closeLen || (openLen !== 1 && openLen !== 2)) {
+		expect(openLen).toBe(closeLen);
+		expect(openLen === 1 || openLen === 2).toBe(true);
+	}
 	return openLen;
 }
 

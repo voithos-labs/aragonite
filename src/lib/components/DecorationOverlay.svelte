@@ -9,7 +9,7 @@
 	} from '../editor-keys';
 	import type { MarkDecoration } from '../decorations/types';
 	import { collapseCellMarks, type IndexedDecoration } from '../decorations/buckets';
-	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
+	import { wireOverlayRemeasure } from '../caret/overlay-remeasure';
 
 	let {
 		path,

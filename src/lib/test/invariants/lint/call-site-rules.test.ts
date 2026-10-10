@@ -102,6 +102,7 @@ const RULES: CallSiteRule[] = [
 		population: (file) =>
 			under(
 				SOURCE_DIR.components,
+				SOURCE_DIR.caret,
 				SOURCE_DIR.selection,
 				SOURCE_DIR.plugins,
 				SOURCE_DIR.referencePlugins

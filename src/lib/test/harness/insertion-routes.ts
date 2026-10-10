@@ -47,15 +47,43 @@ export async function insertBy(
 	}
 }
 
-/** A `beforeinput` of `inputType`, then the browser's insert and `input` unless it was prevented. */
-async function inputEvent(el: HTMLElement, inputType: string, data: string): Promise<void> {
-	const before = new InputEvent('beforeinput', {
+/** A `beforeinput` sent to `el` as the browser sends it, aimed at `target` when one is given.
+ *  Returned, so a test can read whether the editor prevented it. */
+export function dispatchBeforeInput(
+	el: HTMLElement,
+	inputType: string,
+	opts: { data?: string; target?: Range } = {}
+): InputEvent {
+	const e = new InputEvent('beforeinput', {
 		inputType,
-		data,
+		data: opts.data,
 		bubbles: true,
 		cancelable: true
 	});
-	el.dispatchEvent(before);
+	const { target } = opts;
+	if (target) Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
+	el.dispatchEvent(e);
+	return e;
+}
+
+/** A paste of plain `text` sent to `el`. jsdom has no DataTransfer, so the event carries a
+ *  clipboard holding that text alone. */
+export function dispatchPaste(el: HTMLElement, text: string): Event {
+	const e = new Event('paste', { bubbles: true, cancelable: true });
+	const clipboardData = {
+		types: ['text/plain'],
+		files: [],
+		items: [],
+		getData: (type: string) => (type === 'text/plain' ? text : '')
+	};
+	Object.defineProperty(e, 'clipboardData', { value: clipboardData });
+	el.dispatchEvent(e);
+	return e;
+}
+
+/** A `beforeinput` of `inputType`, then the browser's insert and `input` unless it was prevented. */
+async function inputEvent(el: HTMLElement, inputType: string, data: string): Promise<void> {
+	const before = dispatchBeforeInput(el, inputType, { data });
 	if (!before.defaultPrevented) {
 		insertAtCaret(data);
 		el.dispatchEvent(new InputEvent('input', { inputType, data, bubbles: true }));
@@ -71,11 +99,7 @@ async function compose(el: HTMLElement, text: string): Promise<void> {
 }
 
 async function paste(el: HTMLElement, text: string): Promise<void> {
-	const e = new Event('paste', { bubbles: true, cancelable: true });
-	Object.defineProperty(e, 'clipboardData', {
-		value: { getData: (type: string) => (type === 'text/plain' ? text : ''), files: [], items: [] }
-	});
-	el.dispatchEvent(e);
+	dispatchPaste(el, text);
 	await settleEditor();
 }
 

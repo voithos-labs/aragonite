@@ -7,7 +7,7 @@
 
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Editor, type PresentationMode } from '$lib';
+	import { Editor, type PresentationMode } from '#lib';
 	import SHOWCASE_DOCUMENT from './showcase-content.md?raw';
 	import './demo-tags/tag-marks.css';
 	import { trackParityDocument } from './parity-documents.svelte';
@@ -159,6 +159,7 @@
 				onPasteImage={demoPasteImage}
 				resolveImageUrl={resolveDemoImageUrl}
 				{presentationMode}
+				linkClick="plain"
 				selectionToolbar={presentationMode === 'live' && selectionMenu}
 				{theme}
 			/>

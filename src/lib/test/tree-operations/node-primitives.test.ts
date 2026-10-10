@@ -8,8 +8,8 @@ import {
 import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
-import { testLeaf } from '$lib/test/harness/test-kinds';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 describe('emptyParagraph', () => {
 	it('creates the empty-paragraph placeholder shape, blank lines and ending parameterized', () => {

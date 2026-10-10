@@ -1,13 +1,13 @@
 // Miss-analysis: the opaque stale-raw check compared kind and children with the reparse, never
 // metadata, so a rebuild that left a fence count behind its bytes passed every dev build.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
-import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { registerMermaidKind, type MermaidMetadata } from '$lib/plugins/mermaid/mermaid-kind';
+import { installPlugins, parse } from '#lib';
+import { getPluginMetadata, setPluginMetadata } from '#lib/plugin.js';
+import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { registerMermaidKind, type MermaidMetadata } from '#lib/plugins/mermaid/mermaid-kind.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);

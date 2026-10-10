@@ -5,11 +5,11 @@ has to land somewhere in the next one. The one entry point for landing asks for
 `CURSOR_END` (the block's raw length) or raw 0, and in live mode both can sit past
 the offsets the caret can actually reach: after a trailing construct's hidden
 closer, or before a leading construct's hidden opener. Nothing on screen tells
-those offsets apart from the content edge, but the rule for where typed bytes go
-reads them as inside the construct, so the first byte after the arrival extends a
-construct the arrival was outside of. The contract: an arrival puts the caret
-where stepping with an arrow could have stopped, and the byte typed there obeys
-the same § 5 arrival rules as every other caret. Driven on `/test/editor` via
+those offsets apart from the content edge, and a caret parked between hidden
+delimiter bytes would type where nothing on screen says. The contract: an arrival puts the caret
+where stepping with an arrow could have stopped, and the byte typed there follows
+the same edge rule as every other caret: it takes the format of the character
+before it, or at a line start the one after. Driven on `/test/editor` via
 `?presentationMode=live`; offsets come from the `window.__test` selection bridge
 and the bytes from the source bridge.
 
@@ -19,17 +19,17 @@ and the bytes from the source bridge.
   link: the caret lands on the link's content end, and a typed byte lands after
   the whole link, since links never extend at either edge
 - the same arrival into a block ending in `**bold**` lands on the bold content
-  end, and a typed byte lands after the closing delimiter (arrow arrival from
-  outside)
+  end, and a typed byte joins the bold, since the character before it is bold
 - `ArrowRight` at the end of a block, entering the next one which begins with
   `**bold**`: the caret lands at the construct's content start, and a typed byte
-  lands before the construct. Every offset is clamped where the caret is put;
+  joins the construct, since at a line start the character after decides. Every
+  offset is clamped where the caret is put;
   only a live split's continuation keeps byte 0, through its own sentinel value
   (`presentation-live-split.md`)
 - `Home` in a list item whose content opens with a construct: the `Home` handler
   for a container's marker prefix goes through that same sentinel entry point, so
-  the caret lands at the construct's content start and a typed byte stays outside
-  the construct. Miss-analysis (GH #110): that handler wrote raw 0 straight into
+  the caret lands at the construct's content start, and a typed byte joins the
+  construct rather than landing in front of the list marker. Miss-analysis (GH #110): that handler wrote raw 0 straight into
   the DOM, bypassing the sentinel entry point, and no spec typed after a `Home`
   in a block with a marker prefix
 

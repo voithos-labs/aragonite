@@ -4,12 +4,12 @@
 // document a `source` swap replaced is refused quietly.
 // Miss-analysis: each route carried its own reading-mode check, so no test drove the replace alone.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { stampWrites } from '$lib/editor-actions/commit/document-stamp';
-import { replaceRange, type RangeInsertion } from '$lib/selection/cross-block/range-replace';
-import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
+import { serialize } from '#lib/core/serializer.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { stampWrites } from '#lib/editor-actions/commit/document-stamp.js';
+import { replaceRange, type RangeInsertion } from '#lib/selection/cross-block/range-replace.js';
+import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { takeDevWarns } from '../../support/warn-gate';
 import { rangeContext } from './range-context';

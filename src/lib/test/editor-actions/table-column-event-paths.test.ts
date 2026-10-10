@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { commitGridLineDelete } from '$lib/selection/range-delete-table-coverage';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { takeDevWarns } from '../support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { commitGridLineDelete } from '#lib/selection/range-delete-table-coverage.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { makeTableMutations } from './table-mutations-harness';
-import type { EditEvent } from '$lib/editor-events';
+import type { EditEvent } from '#lib/editor-events.js';
+import type { GridLineCoverage } from '#lib/selection/range-delete-table-coverage.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 
 // A column is not a child node, so column edits address the table and carry the column
 // index in the event detail. Two sites share the contract: the alignment edits
@@ -49,8 +53,8 @@ describe('alignment ops emit the table path with colIdx in the detail', () => {
 
 // ── Coverage-driven column delete (range-delete-table-coverage) ───────────────
 
-function makeColumnCoverageEnv() {
-	const { deps, events } = makeEditorActionsDeps([parse(TABLE).children[0]]);
+function makeColumnCoverageEnv(source = TABLE) {
+	const { deps, events } = makeEditorActionsDeps([parse(source).children[0]]);
 	const table = deps.doc.children[0];
 	registerBlockListState(
 		table,
@@ -87,5 +91,24 @@ describe('coverage-driven column delete emits the table path with colIdx in the 
 		expect(del).toBeDefined();
 		expect(del!.path).toEqual([0]);
 		expect(del!.detail).toMatchObject({ colIdx: 0, crossBlock: true });
+	});
+
+	// Miss-analysis: `rangeCoverage` reads a one-column table as the whole table, so no test reached
+	// the refusal; only a hand-made coverage does, and a delete there would leave no column.
+	it('a column coverage handed over for a one-column table is refused and flagged', async () => {
+		const source = '| a |\n| --- |\n| c |\n';
+		const { ctx, edits } = makeColumnCoverageEnv(source);
+		const grid: GridLineCoverage = {
+			kind: 'column',
+			path: docPathFrom([0]),
+			rect: { top: 0, left: 0, rows: 2, cols: 1 }
+		};
+
+		const caret = await commitGridLineDelete(ctx, grid);
+
+		expect(caret).toBeNull();
+		expect(edits).toEqual([]);
+		expect(serialize(ctx.getDoc())).toBe(source);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:grid-column-delete']);
 	});
 });

@@ -14,13 +14,12 @@ toolbar (Edit, Focus, Reset view) stays hidden until the block is hovered or foc
 
 - The seed renders both valid diagrams as the `mermaid` kind, through the bridge's tree path,
   with a rendered `<svg>` in each, and the ` ```js ` block stays `fencedCode`
-- Edit flow: the Edit button swaps in a textarea holding the fence's code; changing the code and
-  pressing Ctrl+Enter re-renders, and `getSource()` reflects the new code byte for byte inside
-  the same fence
+- The whole flow in one go: the Edit button swaps in a textarea holding the fence's code, and
+  new code plus Ctrl+Enter closes it and puts that code byte for byte inside the same fence. The
+  Focus button then opens the overlay, Escape closes it, and `getSource()` still parses and
+  serializes to the same bytes
 - One undo (Mod+Z) after a commit restores the previous source byte for byte, both with the
   caret left elsewhere and with the diagram itself focused
-- Focus view: the Focus button opens the overlay, and Escape closes it, asserted by the overlay
-  being there or not
 - The `Mod+M` chord for this kind opens the focus view when the diagram has focus, through the
   block command the plugin registered
 
@@ -43,8 +42,6 @@ toolbar (Edit, Focus, Reset view) stays hidden until the block is hovered or foc
 - Escape in the textarea cancels the edit: the code and `getSource()` are unchanged
 - Committing by blurring, which means clicking another block, keeps the edit the same way
   Ctrl+Enter does
-- Round-trip stability after the whole flow: `getSource()` parses and serializes again to the
-  same bytes
 - A change to the code that lands while the edit box is open fills the textarea again, and the
   commit on blur writes nothing that reverts it (driven at the unit level, where the live tree
   is reachable)

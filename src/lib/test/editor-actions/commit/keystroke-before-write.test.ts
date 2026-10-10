@@ -2,21 +2,21 @@
 // caret arrived, and in reading mode it stops before the typing batch and the trial reparse.
 // Miss-analysis: the reading-mode rows never read the caret memory after a key.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import type { UndoController } from '$lib/editor-actions/deps';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
-import { previewContentReparse } from '$lib/editor-actions/replacement-focus';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { parse } from '#lib/core/parser.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import type { UndoController } from '#lib/editor-actions/deps.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
+import { previewContentReparse } from '#lib/editor-actions/replacement-focus.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { makeEditorActionsDeps, makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
-vi.mock('$lib/editor-actions/replacement-focus', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/editor-actions/replacement-focus')>();
+vi.mock('#lib/editor-actions/replacement-focus.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/editor-actions/replacement-focus.js')>();
 	return { ...actual, previewContentReparse: vi.fn(actual.previewContentReparse) };
 });
 

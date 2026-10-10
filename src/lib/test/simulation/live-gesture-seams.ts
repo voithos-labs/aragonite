@@ -5,52 +5,60 @@
  * calls those is what this tests.
  */
 
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
-import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
-import { renderInlineNodes } from '$lib/core/inline-render';
-import { listInlineMarks, type InlineMark } from '$lib/schema/inline-construct-policy';
-import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
+import type { BlockEditActions } from '#lib/action-contracts.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { getContentRange, isProseKind, parseInline } from '#lib/core/inline/index.js';
+import {
+	snapToScalarBoundary,
+	trailingLineEnding,
+	trimTrailingLineEnding
+} from '#lib/core/lines.js';
+import { renderInlineNodes } from '#lib/core/inline-render.js';
+import { listInlineMarks, type InlineMark } from '#lib/schema/inline-construct-policy.js';
+import { toggleInlineFormat } from '#lib/core/inline/format-toggle.js';
 import {
 	CONTENT_EMPTY_ATTR,
 	holdsOnlyMarkerChrome,
 	isHiddenMarkerText
-} from '$lib/cursor/widget-offset';
-import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import { createEdgePolicyDispatch } from '$lib/components/blocks/text/edge-policy-dispatch';
-import { createSurfaceWrite } from '$lib/components/blocks/surface-write';
-import { keepsKindAt } from '$lib/core/inline/live-edit/read-back';
-import { storedAsAt } from '$lib/tree-operations/stored-as';
-import { resolveDelimiterAutoPair } from '$lib/components/blocks/text/delimiter-autopair';
-import { createTypedPlacement, type TypedPlacement } from '$lib/components/blocks/text/edge-seat';
-import { resolveLiveRangeEdit } from '$lib/components/blocks/text/live-selection-edit';
-import { replaceRangeInLeaf } from '$lib/tree-operations/leaf-range';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { blockNodeAt, nodeAt } from '$lib/tree-operations/node-primitives';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
+} from '#lib/caret/widget-offset.js';
+import { asRawOffset, type RawOffset } from '#lib/caret/coordinate-spaces.js';
+import { createEdgePolicyDispatch } from '#lib/components/blocks/text/edge-policy-dispatch.js';
+import { createSurfaceWrite } from '#lib/components/blocks/surface-write.js';
+import { keepsKindAt } from '#lib/core/inline/live-edit/read-back.js';
+import { storedAsAt } from '#lib/tree-operations/stored-as.js';
+import { resolveDelimiterAutoPair } from '#lib/components/blocks/text/delimiter-autopair.js';
+import {
+	createTypedPlacement,
+	type TypedPlacement
+} from '#lib/components/blocks/text/edge-seat.js';
+import { resolveLiveRangeEdit } from '#lib/components/blocks/text/live-selection-edit.js';
+import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { blockNodeAt, nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import {
 	applyCrossBlockFormat,
 	planCrossBlockFormat
-} from '$lib/selection/cross-block/format-range';
-import { normalizeCharEndpoint } from '$lib/selection/char-endpoint-snap';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+} from '#lib/selection/cross-block/format-range.js';
+import { normalizeCharEndpoint } from '#lib/selection/char-endpoint-snap.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import {
 	containerBundleOver,
 	makeEditorActionsDeps,
 	makeNestedHarness,
 	makePendingMarks
-} from '$lib/test/harness/editor-actions';
+} from '#lib/test/harness/editor-actions.js';
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
-import { documentBody } from '$lib/tree-operations/node-primitives';
-import { createInsertionRecords } from '$lib/cursor/next-insertion';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export type GestureKind =
 	| 'type'
@@ -371,8 +379,8 @@ async function pressEdgeKey(
 		getEl: () => el,
 		getNode: node,
 		reading: fixtureReading(),
-		caretMemory: { side: () => gesture.affinity },
-		heldSpace: () => ({ at: () => null, inside: () => null })
+		caretMemory: { side: () => gesture.affinity, noteOutside: () => {} },
+		heldSpace: () => ({ at: () => null, inside: () => null, passCloser: () => false })
 	});
 	// The block anchors a key's write at the caret it recorded when the key arrived.
 	const writeText = createSurfaceWrite({
@@ -386,6 +394,7 @@ async function pressEdgeKey(
 		holdInsertion: () => createInsertionRecords([]).hold({}, gesture.affinity, placement.insertion)
 	});
 	const dispatch = createEdgePolicyDispatch({
+		caretWriter: testCaretWriter,
 		get node() {
 			return nodeAt(h.doc, leaf.path) as CstNode;
 		},
@@ -408,7 +417,8 @@ async function pressEdgeKey(
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => false,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		offsetFor: placement.offsetFor
 	});
 	const event = new KeyboardEvent('keydown', { key, cancelable: true });
 	if (dispatch.handleKeydown(event, asRawOffset(offset) as RawOffset)) return true;

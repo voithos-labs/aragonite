@@ -15,7 +15,7 @@ test.describe('table block: clipboard cut', () => {
 		await editor.seedClipboard('');
 	});
 
-	test('intra-cell Ctrl+X removes selected text from cell and writes it to clipboard', async ({
+	test('intra-cell Ctrl+X removes selected text from cell and writes it to clipboard, and one undo restores it', async ({
 		page
 	}) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | 2 |\n');
@@ -26,18 +26,6 @@ test.describe('table block: clipboard cut', () => {
 
 		await expect.poll(() => editor.readClipboard()).toBe('hello');
 		await editor.bridge.waitForSourceContains('|  | 2 |');
-		await editor.bridge.waitForSourceNotContains('hello');
-	});
-
-	test('intra-cell Ctrl+X then Ctrl+Z restores the original cell content in one undo', async ({
-		page
-	}) => {
-		const source = '| A | B |\n| --- | --- |\n| hello | 2 |\n';
-		await editor.loadContent(source);
-		await page.locator('.table-cell').nth(2).click();
-		await page.keyboard.press('End');
-		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowLeft');
-		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('hello');
 
 		await editor.undo();
@@ -109,10 +97,11 @@ test.describe('table block: clipboard cut', () => {
 		await expect(page.locator('.table-cell')).toHaveCount(9);
 	});
 
-	test('cross-block Ctrl+X originating in a cell writes the range to clipboard and clears the source', async ({
+	test('cross-block Ctrl+X originating in a cell writes the range to clipboard and clears the source, and one undo restores the document', async ({
 		page
 	}) => {
-		await editor.loadContent(`${TABLE_2BODY}\nfollow paragraph\n`);
+		const source = `${TABLE_2BODY}\nfollow paragraph\n`;
+		await editor.loadContent(source);
 		// Anchor inside cell "1" (row 1, col 0), extend down into the paragraph below.
 		await page.locator('.table-cell').nth(2).click();
 		await page.keyboard.press('End');
@@ -137,6 +126,10 @@ test.describe('table block: clipboard cut', () => {
 		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
 		await editor.bridge.waitForSourceContains('| A | B |');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('| 1 | 2 |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
 
 	test('partial-column cross-block Cut keeps clipboard and surviving cells complementary', async ({
@@ -191,29 +184,5 @@ test.describe('table block: clipboard cut', () => {
 			const survived = surviving.includes(value);
 			expect(copied !== survived, `${value}: copied=${copied} survived=${survived}`).toBe(true);
 		}
-	});
-
-	test('cross-block Ctrl+X then Ctrl+Z restores the original document in one undo', async ({
-		page
-	}) => {
-		const original = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nfollow paragraph\n';
-		await editor.loadContent(original);
-		await page.locator('.table-cell').nth(2).click();
-		await page.keyboard.press('End');
-		const [cell, paragraph] = await boxesOf(
-			page.locator('.table-cell').nth(2),
-			page.getByText('follow paragraph')
-		);
-		await dragBetweenBoxes(page, cell, paragraph);
-		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('ControlOrMeta+x');
-		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
-
-		await editor.undo();
-		await editor.bridge.waitForSourceContains('| 1 | 2 |');
-		await editor.bridge.waitForSourceContains('follow paragraph');
-		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			original.replace(/\s+$/, '')
-		);
 	});
 });

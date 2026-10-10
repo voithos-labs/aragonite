@@ -9,10 +9,6 @@
 ## Edge cases
 
 - A 2×2 rectangle of cells, dragged, copies as a valid GFM sub-table.
-- A one-row rectangle (several columns) copies as a header-only sub-table: the header and the
-  delimiter row, no body.
-- The sub-table keeps the source's column alignments for the columns it takes. From
-  `| :--- | :---: | ---: |`, copying the second and third columns gives `:---:` and `---:`.
 - A second Ctrl+A in a cell selects the whole table, and its copy is the table's source, unchanged.
 
 ## Spreadsheet interchange
@@ -28,3 +24,10 @@
 ## User interactions
 
 - Ctrl+A inside an empty cell with no text produces an empty clipboard string.
+
+## Pinned below the browser
+
+What a rectangle copy writes is a pure function of the table and two corners:
+
+- A one-row rectangle (several columns) copies as a header-only sub-table: the header and the delimiter row, no body (`test/tree-operations/sub-table-copy.test.ts`).
+- The sub-table keeps the source's column alignments for the columns it takes. From `| :--- | :---: | ---: |`, copying the second and third columns gives `:---:` and `---:` (`test/tree-operations/sub-table-copy.test.ts`).

@@ -15,9 +15,10 @@ import {
 	extendFocusToPreviousBlock
 } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
-import { createCaretMemory } from '$lib/cursor/caret-memory';
-import { commandContext } from '$lib/test/support/command-context';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
+import { commandContext } from '#lib/test/support/command-context.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -31,6 +32,7 @@ function makeCtx(over: {
 	// Cast only the members this fixture does not stand up, never the whole context, so a new
 	// required reader fails to type-check here.
 	return {
+		caretWriter: testCaretWriter,
 		// No plugins stood up here, so every installed one is active.
 		commands: commandContext(),
 		reading: fixtureReading(),

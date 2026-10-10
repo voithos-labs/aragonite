@@ -152,7 +152,7 @@ describe('describeGrowth', () => {
 	it('names the sizes actually measured, not the ones declared', () => {
 		const { run, now } = virtualScan(linear(HALF_FLOOR_AT_8KB));
 		expect(describeGrowth(measureScanGrowth(run, 'x', [8, 32], now))).toBe(
-			'32KB=4.0ms 128KB=16.0ms ratio=3.99'
+			'32KB=4.0ms 128KB=16.0ms ratio=4.00'
 		);
 	});
 });

@@ -1,22 +1,21 @@
 // @vitest-environment jsdom
-// The table that decides where a typed byte goes: construct edge, policy and arrival side give
-// the raw offset. Pure over the inline tree, so no DOM here; the block's placement that uses it
-// is covered in `typed-placement.test.ts`.
+// Where a typed byte goes at the shapes a hidden edge meets: childless constructs, shared and
+// abutting runs. Pure over the inline tree; the block's placement is `typed-placement.test.ts`.
 import { describe, expect, it } from 'vitest';
-import { relocateInsertion, resolveEdgeSeat } from '$lib/components/blocks/text/edge-seat';
-import { parseInline } from '$lib/core/inline';
-import { screenVisibility } from '$lib/core/inline/visibility';
-import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { relocateInsertion, resolveEdgeSeat } from '#lib/components/blocks/text/edge-seat.js';
+import { parseInline } from '#lib/core/inline/index.js';
+import { screenVisibility } from '#lib/core/inline/visibility.js';
+import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 /** Every case below is a block holding content, so its markers are hidden: the live reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });
 
-function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, typed = 'X') {
+function seatIn(source: string, offset: number, record: EdgeAffinity | null, typed = 'X') {
 	return resolveEdgeSeat(
 		offset,
 		parseInline(source, 0, source.length),
-		affinity,
+		record,
 		source,
 		LIVE,
 		typed,
@@ -24,70 +23,16 @@ function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, t
 	);
 }
 
-// `Some **bold** text`: strong [5,13), runs [5,7) and [11,13). A point over either run reads as
-// the run's near side, so 5 and 11 are the offsets real gestures produce.
-describe('a symmetric pair follows the arrival', () => {
-	const BOLD = 'Some **bold** text';
-
-	it('leaves the near side alone at either edge: where native insertion already lands', () => {
-		expect(seatIn(BOLD, 11, 'near')).toBeNull();
-		expect(seatIn(BOLD, 5, 'near')).toBeNull();
-	});
-
-	it('moves to the far side when the arrival came from there', () => {
-		expect(seatIn(BOLD, 11, 'far')).toEqual({ offset: 13, kind: 'strong' });
-		expect(seatIn(BOLD, 5, 'far')).toEqual({ offset: 7, kind: 'strong' });
-	});
-
-	// A click resets the arrival side, and the default, as in Google Docs, is the construct the
-	// caret touches.
-	it('defaults to the near side with no arrival on record: the click default', () => {
-		expect(seatIn(BOLD, 11, null)).toBeNull();
-		expect(seatIn(BOLD, 5, null)).toBeNull();
-	});
-
-	// Relative to the construct, not to a direction: the same value reads as the run's start at
-	// an opener and its end at a closer, so the end of a line never lands between delimiters.
-	it('puts the caret outside the construct at both edges for a line extreme', () => {
-		expect(seatIn(BOLD, 11, 'outside')).toEqual({ offset: 13, kind: 'strong' });
-		expect(seatIn(BOLD, 5, 'outside')).toBeNull();
-		expect(seatIn('**Lead** in', 2, 'outside')).toEqual({ offset: 0, kind: 'strong' });
-	});
-
-	it('declines an offset no marker run touches', () => {
-		for (const offset of [0, 4, 9, 15]) expect(seatIn(BOLD, offset, 'far')).toBeNull();
-	});
-
-	// A code span carries its content as text, not children; its fences still bound it.
-	it('bounds a code span by its backtick runs', () => {
-		expect(seatIn('a `code` b', 7, 'far')).toEqual({ offset: 8, kind: 'inlineCode' });
-		expect(seatIn('a `code` b', 7, 'near')).toBeNull();
-	});
-
-	// The innermost pair owns its own edge, or a nested emphasis would never extend.
-	it('the innermost construct claims a shared edge', () => {
-		expect(seatIn('**a *b* c**', 6, 'far')).toEqual({ offset: 7, kind: 'emphasis' });
-	});
-});
-
-describe('a never-extend construct ignores the arrival', () => {
-	const LINK = 'A [link](http://e.com) tail';
-
-	it('puts the caret outside the construct at the trailing edge, whatever the arrival', () => {
-		for (const affinity of ['near', 'far', 'outside', null] as const) {
-			expect(seatIn(LINK, 7, affinity)).toEqual({ offset: 22, kind: 'link' });
-		}
-	});
-
-	it('puts the caret outside the construct at the leading edge, which is already the near side', () => {
-		for (const affinity of ['near', 'far', 'outside', null] as const) {
-			expect(seatIn(LINK, 2, affinity)).toBeNull();
-		}
+// The table of what the edge rule answers is `edge-rule.test.ts`; these are the shapes around it.
+describe('a caret away from every hidden run', () => {
+	it('is no edge at all', () => {
+		for (const offset of [0, 4, 9, 15])
+			expect(seatIn('Some **bold** text', offset, null)).toBeNull();
 	});
 
 	// `[](url)`: it draws nothing at all, so there is no content edge to resolve.
-	it('declines a pair emptied of content', () => {
-		expect(seatIn('a [](http://e.com) b', 3, 'far')).toBeNull();
+	it('nor is a pair emptied of content', () => {
+		expect(seatIn('a [](http://e.com) b', 3, 'outside')).toBeNull();
 	});
 });
 
@@ -97,20 +42,20 @@ describe('a childless construct is all delimiters', () => {
 	// `x \* y`: the escape shows `*`, so its backslash is the leading run and offset 3 is that
 	// run's end; never-extend puts the byte outside it.
 	it('puts the caret at a byte against an escape outside the pair', () => {
-		expect(seatIn('x \\* y', 3, 'far')).toEqual({ offset: 2, kind: 'escape' });
+		expect(seatIn('x \\* y', 3, null)).toEqual({ offset: 2, kind: 'escape' });
 		// Already outside it: there is nothing to move.
-		expect(seatIn('x \\* y', 2, 'far')).toBeNull();
+		expect(seatIn('x \\* y', 2, null)).toBeNull();
 	});
 
 	// `end  \nnext`: the two spaces are the run, and the break's `\n` is what shows.
 	it('puts the caret at a byte against a hard break before its spaces', () => {
-		expect(seatIn('end  \nnext', 4, 'far')).toEqual({ offset: 3, kind: 'hardLineBreak' });
+		expect(seatIn('end  \nnext', 4, null)).toEqual({ offset: 3, kind: 'hardLineBreak' });
 	});
 
 	// `\\` shows `\`, which also matches at the construct's own start, so the match must be the
 	// last one, or a byte typed at offset 1 goes to the pair's end instead of its start.
-	it('puts the caret at a byte at an escaped backslash on the near side, not past the pair', () => {
-		expect(seatIn('\\\\x y', 1, 'far')).toEqual({ offset: 0, kind: 'escape' });
+	it('puts the caret at a byte at an escaped backslash before the pair, not past it', () => {
+		expect(seatIn('\\\\x y', 1, null)).toEqual({ offset: 0, kind: 'escape' });
 	});
 
 	// `<https://e.com>`: the URL is what shows, so the brackets are the two runs. A byte at
@@ -128,8 +73,8 @@ describe('a childless construct is all delimiters', () => {
 	// An entity shows a character that is none of its bytes, so its whole span reads as visible
 	// and neither end is a run. The dispatch's widget branch owns a caret there.
 	it('declines at either end of an entity widget', () => {
-		expect(seatIn('a&copy;b', 1, 'near')).toBeNull();
-		expect(seatIn('a&copy;b', 7, 'far')).toBeNull();
+		expect(seatIn('a&copy;b', 1, null)).toBeNull();
+		expect(seatIn('a&copy;b', 7, 'outside')).toBeNull();
 	});
 });
 
@@ -137,19 +82,19 @@ describe('a childless construct is all delimiters', () => {
 // and a paste are moved once, on the write that lands them.
 describe('relocateInsertion', () => {
 	const BOLD = 'Some **bold** text';
-	const relocate = (at: number, typed: string, affinity: EdgeAffinity | null, source = BOLD) =>
+	const relocate = (at: number, typed: string, record: EdgeAffinity | null, source = BOLD) =>
 		relocateInsertion(
 			source,
 			at,
 			typed,
 			parseInline(source, 0, source.length),
-			affinity,
+			record,
 			LIVE,
 			fixtureReading()
 		);
 
 	it('moves a run inserted at the trailing content edge past the closing delimiter', () => {
-		expect(relocate(11, 'かん', 'far')).toEqual({
+		expect(relocate(11, 'かん', 'outside')).toEqual({
 			text: 'Some **bold**かん text',
 			caretAfter: 15,
 			crossed: ['strong']
@@ -157,11 +102,20 @@ describe('relocateInsertion', () => {
 	});
 
 	it('leaves a run the caret position agrees with alone', () => {
-		expect(relocate(11, 'かん', 'near')).toBeNull();
+		expect(relocate(11, 'かん', null)).toBeNull();
 	});
 
-	it('relocates a never-extend edge whatever the arrival', () => {
-		expect(relocate(7, '感', 'near', 'A [link](http://e.com) tail')).toEqual({
+	// The browser can put the run past the closer; the character before the caret is still bold.
+	it('moves a run inserted past the closer back inside', () => {
+		expect(relocate(13, 'かん', null)).toEqual({
+			text: 'Some **boldかん** text',
+			caretAfter: 13,
+			crossed: ['strong']
+		});
+	});
+
+	it('relocates a never-extend edge with no record', () => {
+		expect(relocate(7, '感', null, 'A [link](http://e.com) tail')).toEqual({
 			text: 'A [link](http://e.com)感 tail',
 			caretAfter: 23,
 			crossed: ['link']
@@ -174,15 +128,18 @@ describe('relocateInsertion', () => {
 describe('a delimiter run shared between two pairings', () => {
 	const SHARED = '***foo****foo*';
 
-	it('declines every side at the issue’s own draw', () => {
-		for (const affinity of ['near', 'far', 'outside', null] as const) {
-			expect(seatIn(SHARED, 6, affinity), `${affinity}`).toBeNull();
-		}
+	it('declines with no record at the issue’s own draw', () => {
+		expect(seatIn(SHARED, 6, null)).toBeNull();
+	});
+
+	// The boundary between the two runs is outside both constructs, and the reading keeps it.
+	it('takes the boundary between the runs at a fresh start', () => {
+		expect(seatIn(SHARED, 6, 'outside')).toEqual({ offset: 9, kind: 'strong' });
 	});
 
 	// Checking beats refusing outright: the run's other end keeps the pairing, and is still taken.
 	it('still puts the caret where a reading keeps the pairing', () => {
-		expect(seatIn(SHARED, 8, 'near')).toEqual({ offset: 6, kind: 'strong' });
+		expect(seatIn(SHARED, 8, null)).toEqual({ offset: 6, kind: 'strong' });
 		expect(seatIn(SHARED, 13, 'outside')).toEqual({ offset: 14, kind: 'emphasis' });
 	});
 });
@@ -191,9 +148,9 @@ describe('a delimiter run shared between two pairings', () => {
 describe('a run enclosing a bare autolink', () => {
 	// GFM's bare-autolink scanner takes a trailing `*` into the URL, so a byte outside the closer
 	// strands the opener. Inside it the URL absorbs the byte and both delimiters stay hidden.
-	it('puts the caret inside the closing delimiter, whatever the arrival', () => {
-		for (const affinity of ['near', 'far', 'outside', null] as const) {
-			expect(seatIn('*www.example.com*', 17, affinity), `${affinity}`).toEqual({
+	it('puts the caret inside the closing delimiter, with or without a record', () => {
+		for (const record of ['outside', null] as const) {
+			expect(seatIn('*www.example.com*', 17, record), `${record}`).toEqual({
 				offset: 16,
 				kind: 'emphasis'
 			});
@@ -206,8 +163,8 @@ describe('abutting marker runs are one screen position', () => {
 	// `_foo_\*x`: the emphasis closer [4,5) and the escape's backslash [5,6) abut, so 4, 5 and 6
 	// are one screen position. 5 kills the underscore pair, 6 kills the escape, 4 keeps both.
 	it('reaches a neighbour’s run when the construct’s own outside edge is poisoned', () => {
-		for (const affinity of ['near', 'far', 'outside', null] as const) {
-			expect(seatIn('_foo_\\*x', 6, affinity), `${affinity}`).toEqual({
+		for (const record of ['outside', null] as const) {
+			expect(seatIn('_foo_\\*x', 6, record), `${record}`).toEqual({
 				offset: 4,
 				kind: 'escape'
 			});
@@ -222,8 +179,8 @@ describe('a never-extend construct admits no interior caret position', () => {
 	it.each([['_foo_[link](url)'], ['_foo_<https://e.com>'], ['_foo_![alt](u)']])(
 		'seats outside the construct in %s, never between its delimiters',
 		(source) => {
-			for (const affinity of ['near', 'far', 'outside', null] as const) {
-				expect(seatIn(source, 5, affinity), `${affinity}`).toEqual(
+			for (const record of ['outside', null] as const) {
+				expect(seatIn(source, 5, record), `${record}`).toEqual(
 					expect.objectContaining({ offset: 4 })
 				);
 			}

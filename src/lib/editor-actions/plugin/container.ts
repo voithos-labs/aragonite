@@ -31,10 +31,10 @@ import {
 } from '../../editor-keys';
 import type { EditorContext } from '../../schema/plugin-install';
 import { componentPluginEditor } from '../../schema/block-component-registry';
-import type { WindowResult } from '../../reactivity/block-window.svelte';
-import type { RefSlots } from '../../reactivity/publish-ref.svelte';
-import type { ChildList } from '../../reactivity/child-list';
-import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
+import type { WindowResult } from '../../windowing/block-window.svelte';
+import type { RefSlots } from '../../block-lists/child-refs';
+import type { ChildList } from '../../block-lists/child-list';
+import { useContainerWindowing } from '../../windowing/use-container-windowing.svelte';
 import { createContainerExitOverrides } from '../container-exit-overrides';
 import { delegateMoveFocus } from '../focus/focus-dispatch';
 import {
@@ -265,7 +265,7 @@ export function buildContainerKindTarget(
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
-	const { caretMemory, selection, scrollOwner, commands, drafts } =
+	const { caretMemory, caretWriter, selection, scrollOwner, commands, drafts } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -356,6 +356,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			return getBlockKindDescriptor(deps.getNode().kind).editable;
 		},
 		selection,
+		caretWriter,
 		reading,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;

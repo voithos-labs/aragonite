@@ -4,9 +4,9 @@
  * per callback, so there is no timer (G4.4).
  */
 
-import type { UserScrollport } from '../cursor/scroll-ancestors';
-import type { RootListScroll, ScrollOwner } from '../cursor/scroll-owner';
-import { ESTIMATE_BASE_FONT_SIZE } from '../cursor/typography-estimates';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
+import type { RootListScroll, ScrollOwner } from '../windowing/scroll-owner';
+import { ESTIMATE_BASE_FONT_SIZE } from '../windowing/typography-estimates';
 import { onRoot, removeAll } from './editor-root-listeners';
 
 // ── Width and height ────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
+import { serialize } from '#lib/core/serializer.js';
 import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
 
 // A paste that demotes the survivor merges the block above in, so the caret lands in that block.

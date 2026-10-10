@@ -5,7 +5,8 @@ import {
 	clickWordSettled,
 	enterPresentationMode,
 	extendTo,
-	landAt
+	landAt,
+	nextRow
 } from '../../presentation/helpers';
 
 // Over a selection, ArrowUp and ArrowDown, shifted or not, ask which line and column the
@@ -86,13 +87,13 @@ for (const mode of ['source', 'live'] as const) {
 
 /** Where a key leaves the caret, read back as the source a typed `Z` makes there. */
 async function landingAfter(
+	ep: EditorPage,
 	page: Page,
-	mode: 'source' | 'live',
 	word: string,
 	from: [anchor: number, focus: number],
 	key: string
 ): Promise<string> {
-	const ep = await enterPresentationMode(page, mode, TWO_PARAGRAPHS);
+	await nextRow(ep, TWO_PARAGRAPHS);
 	await clickWordSettled(ep, page, word);
 	await landAt(ep, page, from[0]);
 	const path = (await selection(ep)).focus.path;
@@ -112,9 +113,10 @@ for (const mode of ['source', 'live'] as const) {
 			['backward, ArrowDown', 'abcdefghijkl', [9, 1], 'ArrowDown']
 		] as const) {
 			test(`${name}: lands where a caret at its moving end would`, async ({ page }) => {
-				const fromCaret = await landingAfter(page, mode, word, [from[1], from[1]], key);
+				const ep = await enterPresentationMode(page, mode, TWO_PARAGRAPHS);
+				const fromCaret = await landingAfter(ep, page, word, [from[1], from[1]], key);
 
-				expect(await landingAfter(page, mode, word, [...from], key)).toBe(fromCaret);
+				expect(await landingAfter(ep, page, word, [...from], key)).toBe(fromCaret);
 			});
 		}
 	});

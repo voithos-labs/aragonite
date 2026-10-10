@@ -4,12 +4,12 @@
 // run through the real entry points, so invalidation is exercised rather than assumed.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { makeBlockNode, type BlockMetadata, type CstNode } from '$lib/core/nodes';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { pushChild, spliceChildren } from '$lib/tree-operations/children';
+import { makeBlockNode, type BlockMetadata, type CstNode } from '#lib/core/nodes.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { pushChild, spliceChildren } from '#lib/tree-operations/children.js';
 
-import { makeNestedHarness } from '$lib/test/harness/editor-actions';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 import { freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(717171) } as const;

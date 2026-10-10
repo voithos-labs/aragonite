@@ -50,15 +50,20 @@ sequence.
   is on and leaves the widget whole: the dispatcher hands a plain key to the marks handler before
   the widget handler sees it, and the rewrite is checked against the render path, so a splice that
   would change painted text is declined
+  - Miss-analysis: these two rows opened the live URL and never checked the mode took. Source
+    mode writes the same bytes here, so they'd have passed with live mode off. Every way a spec
+    picks a mode checks it took: the URL `EditorPage.goto` loads, `EditorPage.setPresentationMode`,
+    and `clickModeToggle` for the header toggles.
 
 ## Edge cases
 
 - `Mod+B` then click away: the source is byte-identical to before the chord, since the empty pair
   the other modes create is exactly what live must never write
 - the mark is spent by one insertion: the second keystroke extends the construct the first one
-  made, by the ordinary arrival rule, rather than wrapping a second pair of its own
+  made, since the character before it is in that construct, rather than wrapping a second pair of
+  its own
 - an arrow step clears the mark: the caret moved, so the promise no longer applies to it
-- a click clears the mark, the same way it clears the arrival side
+- a click clears the mark, the same way it ends every caret memory record
 - a host `setSelection` clears the mark as a click does: the next keystroke types plain where
   the host put the caret
   - Miss-analysis: every clearing scenario was a key or a click, so the restore shared by

@@ -3,20 +3,20 @@
 // Miss-analysis: the escape was tested on typing, joins and pastes, never on a replace a
 // container's own Backspace makes in its parent.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '$lib';
-import type { CstNode } from '$lib/core/nodes';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { parse, serialize } from '#lib';
+import type { CstNode } from '#lib/core/nodes.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubFocus
-} from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
+} from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 
 beforeEach(() => {
 	registerDetailsKind();

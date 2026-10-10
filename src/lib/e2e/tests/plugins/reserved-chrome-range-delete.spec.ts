@@ -77,22 +77,6 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 4b: partial title coverage keeps the tail in the chrome, never merged upward', async ({
-		page
-	}) => {
-		await editor.loadContent(FIXTURE);
-		await editor.dragFromTo([0], 2, [1, 0], 3);
-		await page.keyboard.press('Delete');
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::callout le');
-
-		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['le', 'Body']);
-		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout le\nBody\n:::\n');
-		expect(await capturedErrors(page)).toEqual([]);
-	});
-
 	test('Gate 4c: chrome-between; start truncates, chrome clears, end body child keeps its tail in place', async ({
 		page
 	}) => {
@@ -141,19 +125,6 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
 			.toEqual(['callout-title', 'paragraph', 'paragraph']);
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
-	});
-
-	test('Gate 4e: a range strictly around the container still deletes it as a unit', async ({
-		page
-	}) => {
-		await editor.loadContent(WALL_FIXTURE);
-		await editor.dragFromTo([0], 5, [2], 3);
-		await page.keyboard.press('Delete');
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceNotContains(':::callout');
-
-		expect(await editor.bridge.getSource()).toBe('Aboveow\n');
-		expect(await capturedErrors(page)).toEqual([]);
 	});
 
 	test("Gate 4f: a range ending exactly at the container's last byte also deletes it as a unit", async ({

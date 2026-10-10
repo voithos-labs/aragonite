@@ -1,11 +1,11 @@
 // Mounting one BlockHost the way BlockList does: a node from a live document, its index, and
 // the pair of ref entries the host writes into.
 
-import BlockHost from '$lib/components/BlockHost.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import type { Document } from '$lib/core/nodes';
-import type { NodeView } from '$lib/core/node-views';
-import { refSlotsOver, type RefSlots } from '$lib/reactivity/publish-ref.svelte';
+import BlockHost from '#lib/components/BlockHost.svelte';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { Document } from '#lib/core/nodes.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { refSlotsOver, type RefSlots } from '#lib/block-lists/child-refs.js';
 import { mountBlock } from '../harness/mount-block';
 import type { MountContextOverrides } from '../harness/mount-context';
 

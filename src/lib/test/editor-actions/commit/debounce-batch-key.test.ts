@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
+import { makeEditorActionsDeps, makeNestedHarness } from '#lib/test/harness/editor-actions.js';
+import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 /** A quote holding one paragraph per raw, a blank line apart so a reload reads them as written. */
 function makeContainer(childRaws: string[]): CstNode {

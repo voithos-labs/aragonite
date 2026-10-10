@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
-import type { CstNode } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { TOP_SLOT } from '$lib/test/harness/fixture-grammar';
+import { buildPastedReplacement } from '#lib/tree-operations/paste/paste-replacement.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { TOP_SLOT } from '#lib/test/harness/fixture-grammar.js';
 
 describe('buildPastedReplacement: blank-line preservation between blocks', () => {
 	it('preserves blank line between two pasted paragraphs at end of leaf', () => {

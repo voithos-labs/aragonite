@@ -18,9 +18,9 @@ on:
       - 'src/lib/plugins/**'
       # Synced into the consumer by `sync-consumer-plugins.mjs` as the external-author probe.
       - 'src/routes/test/plugins/**'
-      - 'svelte.config.js'
       - 'vite.config.js'
       - 'scripts/consumer-smoke.mjs'
+      - 'scripts/lib-alias.mjs'
       - 'scripts/pack-manifest.mjs'
       - 'scripts/prune-dist.mjs'
       - 'scripts/sync-consumer-plugins.mjs'

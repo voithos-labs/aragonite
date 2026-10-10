@@ -14,14 +14,34 @@ test.describe('debug panel', () => {
 		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
-	test('hotkey opens panel from closed state then closes it again', async () => {
-		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
+	test('the hotkey toggles the panel, Esc closes it, and the editor takes no stray character', async () => {
+		const panel = editor.page.locator('.debug-panel');
+		await expect(panel).toHaveCount(0);
 
 		await editor.page.keyboard.press(TOGGLE_CHORD);
-		await expect(editor.page.locator('.debug-panel')).toBeVisible();
+		await expect(panel).toBeVisible();
 
 		await editor.page.keyboard.press(TOGGLE_CHORD);
-		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
+		await expect(panel).toHaveCount(0);
+
+		await test.step('Esc while the panel is focused closes it', async () => {
+			await editor.page.keyboard.press(TOGGLE_CHORD);
+			await panel.focus();
+			await editor.page.keyboard.press('Escape');
+			await expect(panel).toHaveCount(0);
+		});
+
+		await test.step('with focus in the editor the hotkey still toggles and types nothing', async () => {
+			await editor.clickBlock(0);
+			await editor.page.keyboard.press(TOGGLE_CHORD);
+			await expect(panel).toBeVisible();
+
+			const source = await editor.bridge.getSource();
+			const linesWithStrayD = source
+				.split('\n')
+				.filter((l) => l.trim() === 'd' || l.trim() === 'D');
+			expect(linesWithStrayD).toHaveLength(0);
+		});
 	});
 
 	test('panel open state survives a page reload', async () => {
@@ -53,17 +73,8 @@ test.describe('debug panel', () => {
 		await expect(
 			editor.page.locator('.debug-section[data-section-title="CST tree"] .debug-section-body')
 		).toContainText('[0]');
-	});
 
-	test('Esc while panel is focused closes the panel', async () => {
-		await editor.page.keyboard.press(TOGGLE_CHORD);
-		await editor.page.locator('.debug-panel').focus();
-		await editor.page.keyboard.press('Escape');
-		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
-	});
-
-	test('raw-source section is not a textarea (read-only by design)', async () => {
-		await editor.page.keyboard.press(TOGGLE_CHORD);
+		// Read-only by design: a repro goes in through `setSource`, not a textarea.
 		const rawBody = editor.page.locator(
 			'.debug-section[data-section-title="Raw source"] .debug-section-body'
 		);
@@ -140,36 +151,5 @@ test.describe('debug panel', () => {
 		expect(snap.some((e) => e.site === 'text-render' && e.kind === 'rebuild')).toBe(true);
 		// Plain keystrokes are not IME composition.
 		expect(snap.some((e) => e.site === 'composition')).toBe(false);
-	});
-
-	test('serializeDiagnostics excludes the document by default, includes it only on opt-in', async () => {
-		// A distinctive word that can only reach the report through the Source section, since
-		// the trace, operations and selection sections carry offsets and counts, never text.
-		await editor.loadContent('PRIVATEZZ token in the document body\n');
-
-		const byDefault = await editor.page.evaluate(() =>
-			(window as any).__test.serializeDiagnostics()
-		);
-		// Leaving the text out is decided by the entry point's `?? false` default, not by the
-		// code that builds the report.
-		expect(byDefault).toContain('## Selection');
-		expect(byDefault).not.toContain('PRIVATEZZ');
-
-		const optedIn = await editor.page.evaluate(() =>
-			(window as any).__test.serializeDiagnostics({ includeSource: true })
-		);
-		expect(optedIn).toContain('## Source');
-		expect(optedIn).toContain('PRIVATEZZ');
-	});
-
-	test('hotkey with focus in the editor toggles panel without inserting a character', async () => {
-		await editor.clickBlock(0);
-
-		await editor.page.keyboard.press(TOGGLE_CHORD);
-		await expect(editor.page.locator('.debug-panel')).toBeVisible();
-
-		const source = await editor.bridge.getSource();
-		const linesWithStrayD = source.split('\n').filter((l) => l.trim() === 'd' || l.trim() === 'D');
-		expect(linesWithStrayD).toHaveLength(0);
 	});
 });

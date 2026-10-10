@@ -3,14 +3,12 @@ import {
 	classifyFenceBoundary,
 	clampEnterOffsetToBody,
 	clampRangeToBody,
-	computeFenceRangedEdit,
 	crossesFenceBoundary,
-	fenceEditSpan,
-	isStructureOnlyRange
-} from '$lib/components/blocks/code/code-fence-boundary';
-import { computeCodeEnter } from '$lib/components/blocks/code/code-enter';
-import { indentLines } from '$lib/components/blocks/code/code-indent';
-import { trimTrailingLineEnding } from '$lib/core/lines';
+	editSpan
+} from '#lib/components/blocks/code/code-fence-boundary.js';
+import { computeCodeEnter } from '#lib/components/blocks/code/code-enter.js';
+import { indentLines } from '#lib/components/blocks/code/code-indent.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { fencedCode } from './fenced-code-fixture';
 
 describe('classifyFenceBoundary', () => {
@@ -352,110 +350,37 @@ describe('crossesFenceBoundary', () => {
 	});
 });
 
-describe('fenceEditSpan', () => {
+// Where the fence lines are hidden, a range holding no body is declined rather than moved onto a
+// body edge; the routes that ask are run in `code-fence-edit-span.test.ts`.
+describe('editSpan', () => {
 	const closed = fencedCode('```js\nconst x = 1\n```\n', 'js');
+	const span = (start: number, end: number) => ({ start, end });
 
-	it('leaves a non-crossing range alone, ordering its endpoints', () => {
-		expect(fenceEditSpan(closed, { start: 8, end: 14 })).toEqual({ start: 8, end: 14 });
-		expect(fenceEditSpan(closed, { start: 14, end: 8 })).toEqual({ start: 8, end: 14 });
-		expect(fenceEditSpan(closed, { start: 3, end: 5 })).toEqual({ start: 3, end: 5 });
+	it.each([
+		['a body range', span(8, 14), span(8, 14)],
+		['a backwards range, ordered', span(14, 8), span(8, 14)],
+		['the info string', span(3, 5), span(3, 5)],
+		['a caret in the body', span(8, 8), span(8, 8)],
+		['a caret in the info string', span(4, 4), span(4, 4)],
+		['a body-into-closer range, cut to the body', span(12, 20), span(12, 17)],
+		['an opener-into-body range, cut to the body', span(3, 9), span(6, 9)],
+		['the whole display, cut to the body', span(0, 21), span(6, 17)],
+		["the body's own line ending", span(17, 18), null],
+		["the opener's line ending", span(5, 6), null],
+		['the closer text', span(18, 21), null],
+		['the opener marker run', span(0, 3), null],
+		['a caret in the closer run', span(19, 19), null]
+	])('hidden fence lines: %s', (_name, range, expected) => {
+		expect(editSpan(closed, range, false)).toEqual(expected);
 	});
 
-	it('intersects a crossing range with the body', () => {
-		expect(fenceEditSpan(closed, { start: 12, end: 20 })).toEqual({ start: 12, end: 17 });
-		expect(fenceEditSpan(closed, { start: 3, end: 9 })).toEqual({ start: 6, end: 9 });
-		expect(fenceEditSpan(closed, { start: 0, end: 21 })).toEqual({ start: 6, end: 17 });
+	it('shown fence lines: the range itself, ordered, structure included', () => {
+		expect(editSpan(closed, span(20, 12), true)).toEqual(span(12, 20));
+		expect(editSpan(closed, span(18, 21), true)).toEqual(span(18, 21));
 	});
 
-	it('collapses a fence-only range to an empty span', () => {
-		expect(fenceEditSpan(closed, { start: 17, end: 18 })).toEqual({ start: 17, end: 17 });
-		expect(fenceEditSpan(closed, { start: 5, end: 6 })).toEqual({ start: 6, end: 6 });
-		expect(fenceEditSpan(closed, { start: 18, end: 21 })).toEqual({ start: 17, end: 17 });
-		expect(fenceEditSpan(closed, { start: 0, end: 3 })).toEqual({ start: 6, end: 6 });
-	});
-});
-
-// Every editing gesture refuses a range holding only fence structure: the check and cut reach
-// it through `computeFenceRangedEdit`, and paste calls it directly since it owns its splice.
-describe('isStructureOnlyRange', () => {
-	const closed = fencedCode('```js\nconst x = 1\n```\n', 'js');
-
-	it('is true for a range confined to either fence line', () => {
-		expect(isStructureOnlyRange(closed, { start: 19, end: 19 })).toBe(true); // caret in closer
-		expect(isStructureOnlyRange(closed, { start: 18, end: 21 })).toBe(true); // closer text
-		expect(isStructureOnlyRange(closed, { start: 1, end: 1 })).toBe(true); // caret in markers
-		expect(isStructureOnlyRange(closed, { start: 0, end: 3 })).toBe(true); // marker run
-		expect(isStructureOnlyRange(closed, { start: 17, end: 18 })).toBe(true); // body ending
-	});
-
-	it('is false wherever an edit has body to land in', () => {
-		expect(isStructureOnlyRange(closed, { start: 12, end: 20 })).toBe(false); // crosses, body survives
-		expect(isStructureOnlyRange(closed, { start: 8, end: 8 })).toBe(false); // caret in body
-		expect(isStructureOnlyRange(closed, { start: 4, end: 4 })).toBe(false); // caret in info
-		expect(isStructureOnlyRange(closed, { start: 0, end: 21 })).toBe(false); // whole display
-	});
-});
-
-describe('computeFenceRangedEdit', () => {
-	const closed = fencedCode('```js\nconst x = 1\n```\n', 'js');
-
-	it('deletes only the body half of a body-into-closer range', () => {
-		expect(computeFenceRangedEdit(closed, { start: 12, end: 20 }, '')).toEqual({
-			newText: '```js\nconst \n```',
-			newCursor: 12
-		});
-	});
-
-	it('types over only the body half, landing the caret past the inserted text', () => {
-		expect(computeFenceRangedEdit(closed, { start: 12, end: 20 }, 'Z')).toEqual({
-			newText: '```js\nconst Z\n```',
-			newCursor: 13
-		});
-	});
-
-	it('keeps the opener line when the range starts inside it', () => {
-		expect(computeFenceRangedEdit(closed, { start: 3, end: 9 }, '')).toEqual({
-			newText: '```js\nst x = 1\n```',
-			newCursor: 6
-		});
-	});
-
-	it('empties the body (never the block) for a whole-display range', () => {
-		expect(computeFenceRangedEdit(closed, { start: 0, end: 21 }, '')).toEqual({
-			newText: '```js\n\n```',
-			newCursor: 6
-		});
-	});
-
-	it('splices a non-crossing range verbatim, fence text included', () => {
-		expect(computeFenceRangedEdit(closed, { start: 3, end: 5 }, 'py')).toEqual({
-			newText: '```py\nconst x = 1\n```',
-			newCursor: 5
-		});
-	});
-
-	// An edit with no body to rewrite is refused rather than re-sited: a character aimed at a
-	// fence must not land where the user never pointed.
-	it('returns null for a range with no body intersection, insertion or not', () => {
-		expect(computeFenceRangedEdit(closed, { start: 17, end: 18 }, '')).toBeNull();
-		expect(computeFenceRangedEdit(closed, { start: 18, end: 21 }, '```')).toBeNull();
-		expect(computeFenceRangedEdit(closed, { start: 5, end: 6 }, 'Z')).toBeNull();
-		expect(computeFenceRangedEdit(closed, { start: 19, end: 19 }, 'x')).toBeNull();
-		expect(computeFenceRangedEdit(closed, { start: 0, end: 3 }, '~~~')).toBeNull();
-	});
-
-	it('still edits the info string of a closed fence verbatim', () => {
-		expect(computeFenceRangedEdit(closed, { start: 5, end: 5 }, 'x')).toEqual({
-			newText: '```jsx\nconst x = 1\n```',
-			newCursor: 6
-		});
-	});
-
-	it('rewrites an unclosed fence’s marker run verbatim, nothing to orphan', () => {
+	it('hidden fence lines: an unclosed fence’s marker run is content, nothing to orphan', () => {
 		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
-		expect(computeFenceRangedEdit(unclosed, { start: 0, end: 3 }, '')).toEqual({
-			newText: 'js\nconst x',
-			newCursor: 0
-		});
+		expect(editSpan(unclosed, span(0, 3), false)).toEqual(span(0, 3));
 	});
 });

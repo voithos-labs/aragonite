@@ -2,13 +2,13 @@
 // selection changes within one re-filter the cached index without rebuilding it. `onScan` is
 // what a test watches, and it fires only on a real rebuild.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib';
-import type { EditorSelection, MarkDecoration } from '$lib/plugin';
+import { parse } from '#lib';
+import type { EditorSelection, MarkDecoration } from '#lib/plugin.js';
 import {
 	createOccurrenceSource,
 	type OccurrenceSource
-} from '$lib/plugins/highlight-occurrences/occurrence-source';
-import { OCCURRENCE_CLASS } from '$lib/plugins/highlight-occurrences/occurrences';
+} from '#lib/plugins/highlight-occurrences/occurrence-source.js';
+import { OCCURRENCE_CLASS } from '#lib/plugins/highlight-occurrences/occurrences.js';
 
 function caret(path: number[], offset: number): EditorSelection {
 	const point = { path, offset };

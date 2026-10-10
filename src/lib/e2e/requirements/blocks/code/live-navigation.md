@@ -1,7 +1,7 @@
 # Feature: code block navigation in live mode
 
 Live mode hides a fence's opener and closer lines, so the offsets the caret can sit at are the
-body's (`cursor/widget-offset.ts`), and every path that places or moves the caret reads those
+body's (`caret/widget-offset.ts`), and every path that places or moves the caret reads those
 bounds rather than the ends of the raw text: a click at the body start is a click at the block's
 start, a click at the body end is one at its end, and no line extreme or edge click reaches a
 hidden fence line. The same cases for source mode are in `editing-block-exit.md` and

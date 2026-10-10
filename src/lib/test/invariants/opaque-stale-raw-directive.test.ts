@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
+import { installPlugins, parse } from '#lib';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // The stale-raw mismatch branch (G1.12) gives up for a kind with no standalone recognizer. A
 // directive container has one, since the shared `:::` opener recognizes it on the kind's behalf,

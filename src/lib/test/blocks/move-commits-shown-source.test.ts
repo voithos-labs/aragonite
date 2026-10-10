@@ -11,14 +11,14 @@ import {
 	placeCaret,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey, dispatchKey } from '$lib/test/harness/settle';
-import { latexPlugin, MATH_BLOCK } from '$lib/plugins/latex';
-import { parrotPlugin } from '$lib/plugins/parrot';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey, dispatchKey } from '#lib/test/harness/settle.js';
+import { latexPlugin, MATH_BLOCK } from '#lib/plugins/latex/index.js';
+import { parrotPlugin } from '#lib/plugins/parrot/index.js';
 import { revealLeafPlugin } from './fixtures/reveal-leaf';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import type { AnyBlockKind } from '$lib/core/nodes';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 

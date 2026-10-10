@@ -2,10 +2,10 @@
 // Miss-analysis: every follow case wrote a paragraph, never a kind whose write rule changes bytes.
 import { describe, expect, it } from 'vitest';
 import { tick } from 'svelte';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { parse } from '../../core/parser';
@@ -13,7 +13,8 @@ import type { CstNode, Document } from '../../core/nodes';
 import { createEditorEvents } from '../../editor-events';
 import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** A leaf kind that renders inline images and stores `rule(raw)` for every write of its bytes. */
 function probeKind(name: string, rule: (raw: string, node: { raw: string }) => string): string {
@@ -33,6 +34,7 @@ function secondImageSelected(kind: string) {
 	(doc.children[0] as CstNode).kind = kind as CstNode['kind'];
 	const selection = createSelectionState();
 	const committer = createImageEditCommitter({
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		getEditorEl: () => null,
 		selection,
@@ -40,7 +42,11 @@ function secondImageSelected(kind: string) {
 		events: createEditorEvents(),
 		reading: fixtureReading()
 	});
-	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 12, preSelectOffset: 0 });
+	selectWidgetWhole(selection, testCaretWriter, {
+		paragraphPath: [0],
+		sourceStart: 12,
+		preSelectOffset: 0
+	});
 	const first = getInlineContent(
 		doc.children[0] as CstNode,
 		undefined,

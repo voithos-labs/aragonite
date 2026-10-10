@@ -3,11 +3,12 @@
 // composition end, hand the write what the browser left as typed bytes, and the write's fence
 // rule reconciles them.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { placeCaretAtRaw } from '$lib/cursor/widget-offset';
-import { parse } from '$lib/core/parser';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
+
+import { parse } from '#lib/core/parser.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { mountCode, type MountedCode } from './mount-code';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const SOURCE = '```js\nconst x = 1\n```\n';
 
@@ -17,7 +18,7 @@ let mounted: MountedCode;
 function nativeEdit(display: string, caret: number): void {
 	mounted.el.textContent = display;
 	mounted.el.focus();
-	placeCaretAtRaw(mounted.el, caret, { clamp: 'exact' });
+	testCaretWriter.placeCaretAtRaw(mounted.el, caret, { clamp: 'exact' });
 }
 
 /** The bytes the write stores for the one commit the block made. */

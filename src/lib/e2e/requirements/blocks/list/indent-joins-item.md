@@ -7,9 +7,8 @@ A paragraph after a blank line under a list joins the item above once its first 
 - Two spaces typed at the start of `zz` in `- a\n\nzz\n`: the paragraph is the item's second paragraph, and the source reloads as the tree the editor holds (regression: the editor kept `zz` as a block of its own; miss-analysis: a write that keeps its block's kind skipped the neighbour merge for typing cost, and no join case indented a paragraph by less than the four spaces that turn it into code)
 - The same two spaces pasted: the same join
 - A pasted tab: the same join (a tab reads as code on its own, so this one always joined)
-- Three spaces under `1. a`: the join, at the ordered item's wider content
 - Four spaces under a nested item: the paragraph joins the inner item
-- Two spaces under the outer of two nested items: the paragraph joins the outer item
+- Three spaces under `1. a` (the ordered item's wider content): the paragraph joins `1. a`. Two spaces under the outer of two nested items: it joins the outer item. Both pinned in `src/lib/test/tree-operations/indent-write-settle.test.ts`
 
 ## Edge cases
 

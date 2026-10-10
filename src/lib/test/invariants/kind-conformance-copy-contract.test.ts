@@ -6,13 +6,13 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 // A collector that puts an interior offset back on a whole-unit endpoint, the bytes the cell must
 // reject; keyed on the endpoint's own value, so neither side depends on the kit's anchor order.
 const stub = vi.hoisted(() => ({ mode: 'off' as 'off' | 'unit-start' | 'unit-end' }));
-vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/selection/clipboard-text')>();
+vi.mock('#lib/selection/clipboard-text.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/selection/clipboard-text.js')>();
 	// A mock factory is hoisted above the file's imports, so it loads what it needs itself.
-	const { nodeAt } = await import('$lib/tree-operations/node-primitives');
-	const { getBlockKindDescriptor } = await import('$lib/schema/block-kind-descriptor');
-	const { displayLength } = await import('$lib/core/lines');
-	const { coverRange, rangeCoverage } = await import('$lib/selection/range-coverage');
+	const { nodeAt } = await import('#lib/tree-operations/node-primitives.js');
+	const { getBlockKindDescriptor } = await import('#lib/schema/block-kind-descriptor.js');
+	const { displayLength } = await import('#lib/core/lines.js');
+	const { coverRange, rangeCoverage } = await import('#lib/selection/range-coverage.js');
 	type Args = Parameters<typeof actual.collectCrossBlockText>;
 	type Point = Args[1]['range']['start'];
 	const cut = (doc: Args[0], point: Point): Point => {
@@ -32,10 +32,10 @@ vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	};
 });
 
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { checkCopyIsRawByteSlice } from '$lib/testing';
-import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
-import { declaredPluginKind } from '$lib/plugin';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { checkCopyIsRawByteSlice } from '#lib/testing.js';
+import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { declaredPluginKind } from '#lib/plugin.js';
 
 function mermaidFixture() {
 	registerMermaidKind();

@@ -4,8 +4,8 @@
  * editor has no `[[…]]` construct of its own, so the pick lands as plain text, which is all the
  * menu promises: the bytes, the caret after them, one undo entry.
  */
-import { definePlugin } from '$lib/plugin';
-import type { EditorPlugin } from '$lib/plugin';
+import { definePlugin } from '#lib/plugin.js';
+import type { EditorPlugin } from '#lib/plugin.js';
 
 export const DOC_LINK_MENU = 'harness-doc-links';
 

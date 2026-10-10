@@ -1,13 +1,12 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
+import { parse } from '#lib/core/parser.js';
 import {
 	orderedBaseOf,
 	readOrderedSuffix,
 	renumberOrderedListFrom
-} from '$lib/tree-operations/list/ordered-markers';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import type { CstNode } from '$lib/core/nodes';
+} from '#lib/tree-operations/list/ordered-markers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import type { CstNode } from '#lib/core/nodes.js';
 
 describe('ordered-markers reads', () => {
 	it('orderedBaseOf reads numeric prefix; defaults to 1', () => {

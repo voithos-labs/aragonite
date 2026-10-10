@@ -4,7 +4,11 @@
 // Miss-analysis: every lift fixture lifted the last item of its sublist, or checked the lifted
 // line with a regex, so none read the order of the items left after it.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(installLayoutStubs);
 
@@ -100,4 +104,34 @@ describe('lifting a nested item keeps the document in order', () => {
 
 		expect(mounted.source()).toBe('1. P A\n2. N A\n   1. N B\n   2. N C\n3. P B\n');
 	});
+
+	it('the only item of an ordered sublist leaves the parent list renumbered around it', async () => {
+		mounted = mountEditor({ source: '1. First\n   1. Nested\n2. Second\n' });
+		await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, { key: 'Tab', shiftKey: true });
+
+		expect(mounted.source()).toBe('1. First\n2. Nested\n3. Second\n');
+	});
+
+	// Miss-analysis: only browser rows crossed bullet and ordered lists, so the lifted item's marker
+	// rewrite had no unit guard.
+	it.each([
+		[
+			'an ordered sublist in a bullet list',
+			'- P A\n  1. N1\n  2. N2\n- P B\n',
+			'- P A\n- N1\n  1. N2\n- P B\n'
+		],
+		[
+			'a bullet sublist in an ordered list',
+			'1. P A\n   - N1\n   - N2\n2. P B\n',
+			'1. P A\n2. N1\n   - N2\n3. P B\n'
+		]
+	])(
+		'lifting out of %s rewrites the lifted marker to the parent list’s',
+		async (_shape, source, lifted) => {
+			mounted = mountEditor({ source });
+			await pressKeyAt(mounted, [0, 0, 1, 0, 0], 0, { key: 'Tab', shiftKey: true });
+
+			expect(mounted.source()).toBe(lifted);
+		}
+	);
 });

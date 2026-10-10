@@ -5,10 +5,10 @@
 // had a host react to it.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { flushSync, mount, tick, unmount } from 'svelte';
-import { installLayoutStubs, placeCaret } from '$lib/test/harness/mount-editor.svelte';
-import { dispatchKey, settleEditor } from '$lib/test/harness/settle';
-import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
-import type { EditEvent } from '$lib/editor-events';
+import { installLayoutStubs, placeCaret } from '#lib/test/harness/mount-editor.svelte.js';
+import { dispatchKey, settleEditor } from '#lib/test/harness/settle.js';
+import { UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';
+import type { EditEvent } from '#lib/editor-events.js';
 import SourceHost from './fixtures/SourceHost.svelte';
 
 beforeAll(installLayoutStubs);

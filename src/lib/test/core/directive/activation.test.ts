@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { InvariantViolation } from '$lib/assert';
-import { parse } from '$lib/core/parser';
-import { isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
-import { isBlockOpenerRegistered } from '$lib/schema/block-openers';
+import type { InvariantViolation } from '#lib/assert.js';
+import { parse } from '#lib/core/parser.js';
+import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
+import { isBlockOpenerRegistered } from '#lib/schema/block-openers.js';
 import {
 	flushPendingRegistrationChecks,
 	type RegistrationCheckReport
-} from '$lib/schema/registration-checks';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '$lib/core/directive/kinds';
+} from '#lib/schema/registration-checks.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
 
 // Activation is call-based, so the reset before each case lets the opener register both before and
 // after the first parse.

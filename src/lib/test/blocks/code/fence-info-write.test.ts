@@ -3,7 +3,7 @@
 // reading as this block's opener.
 // Miss-analysis: fence byte edits were tested only where a caret reaches, never the info string.
 import { describe, it, expect } from 'vitest';
-import { writeFenceInfo, type FenceShape } from '$lib/schema/fenced-code-raw';
+import { writeFenceInfo, type FenceShape } from '#lib/schema/fenced-code-raw.js';
 
 const backtick = (length = 3, closed = true): FenceShape => ({ marker: '`', length, closed });
 const tilde = (length = 3, closed = true): FenceShape => ({ marker: '~', length, closed });

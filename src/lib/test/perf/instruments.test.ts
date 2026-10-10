@@ -23,10 +23,14 @@ import {
 	recordRebuildDepth,
 	recordScreenRead,
 	recordSnapshotClone,
+	countCaretPaint,
+	markCaretPaint,
+	markCaretRequest,
+	recordCaretFrameMove,
 	resetPerfInstruments,
 	setUndoGauge
 } from '../../perf/instruments';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 const EMPTY: PerfSnapshot = {
 	snapshotCount: 0,
@@ -48,6 +52,14 @@ const EMPTY: PerfSnapshot = {
 	blockRenderCount: 0,
 	blockRenderMsTotal: 0,
 	keystrokeInPageMs: [],
+	caretPaintMs: [],
+	caretFrameMoves: 0,
+	caretPaints: 0,
+	caretLookComputes: 0,
+	caretLookNodeVisits: 0,
+	caretLookOffsetWalks: 0,
+	caretLookPreviews: 0,
+	caretLookParses: 0,
 	blockRenderPaths: [],
 	mountedBlockCount: 0,
 	decorationRuns: 0,
@@ -73,6 +85,10 @@ function recordOneOfEach(): void {
 	recordNeighbourPass();
 	markKeystrokeStart();
 	markKeystrokeSettle();
+	markCaretRequest();
+	markCaretPaint();
+	recordCaretFrameMove();
+	countCaretPaint();
 }
 
 beforeEach(() => {

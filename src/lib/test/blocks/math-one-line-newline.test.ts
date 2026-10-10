@@ -4,22 +4,25 @@
 // Miss-analysis: every Enter row opened a multi-line source, so none read a one-line `$$` with a
 // line break in it, the shape the painter, the write rule and the parser each read differently.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { parse } from '$lib';
-import { latexPlugin } from '$lib/plugins/latex';
-import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
-import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets } from '$lib/cursor/widget-offset';
-import { createSurfaceBackend } from '$lib/cursor/surface-backend';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { parse } from '#lib';
+import { latexPlugin } from '#lib/plugins/latex/index.js';
+import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
 	placeCaret,
 	surfaceAt,
+	typeInto,
 	type MountedEditor
 } from '../harness/mount-editor.svelte';
 import { pressKey, settleEditor } from '../harness/settle';
+import { dispatchBeforeInput, dispatchPaste } from '../harness/insertion-routes';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 // One definition for every row: installing a second is refused with a warning.
@@ -54,24 +57,8 @@ async function showSourceAt(editor: MountedEditor<Seam>, offset: number): Promis
 	return el;
 }
 
-const caretIn = (el: HTMLElement) => createSurfaceBackend({ getEl: () => el }).getRaw();
-
-/** A `beforeinput` as the browser sends it, its target range collapsed at the caret. */
-function inputAtCaret(el: HTMLElement, inputType: string): void {
-	const at = caretIn(el) ?? 0;
-	const target = createRangeAtDomTextOffsets(el, asDomTextOffset(at), asDomTextOffset(at));
-	const e = new InputEvent('beforeinput', { inputType, bubbles: true, cancelable: true });
-	Object.defineProperty(e, 'getTargetRanges', { value: () => [target] });
-	el.dispatchEvent(e);
-}
-
-// jsdom has no DataTransfer, so the event carries a clipboard holding plain text only.
-function pasteText(el: HTMLElement, text: string): void {
-	const e = new Event('paste', { bubbles: true, cancelable: true });
-	const clipboardData = { files: [], types: ['text/plain'], getData: () => text };
-	Object.defineProperty(e, 'clipboardData', { value: clipboardData });
-	el.dispatchEvent(e);
-}
+const caretIn = (el: HTMLElement) =>
+	createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).getRaw();
 
 async function blur(el: HTMLElement): Promise<void> {
 	el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
@@ -82,51 +69,66 @@ async function blur(el: HTMLElement): Promise<void> {
 const ROUTES: Array<[string, (el: HTMLElement) => Promise<void>]> = [
 	['Enter', (el) => pressKey(el, { key: 'Enter' }).then(() => undefined)],
 	['Shift+Enter', (el) => pressKey(el, { key: 'Enter', shiftKey: true }).then(() => undefined)],
-	['a paragraph input', async (el) => inputAtCaret(el, 'insertParagraph')],
+	[
+		'a paragraph input',
+		async (el) => {
+			const at = asDomTextOffset(caretIn(el) ?? 0);
+			dispatchBeforeInput(el, 'insertParagraph', {
+				target: createRangeAtDomTextOffsets(el, at, at)!
+			});
+		}
+	],
 	[
 		'a pasted line break',
 		async (el) => {
-			pasteText(el, '\n');
+			dispatchPaste(el, '\n');
 			await settleEditor();
 		}
 	]
 ];
 
+type Shape = [shape: string, source: string, expected: string];
+
+const SHAPES: Shape[] = [
+	['with a paragraph below', '$$x^2$$\n\nafter\n', '$$\nx^2\n\n$$\n\nafter\n'],
+	['as the last block', '$$x^2$$\n', '$$\nx^2\n\n$$\n'],
+	[
+		'above another multi-line equation',
+		'$$x^2$$\n\nafter\n\n$$\ny\n$$\n',
+		'$$\nx^2\n\n$$\n\nafter\n\n$$\ny\n$$\n'
+	],
+	// The multi-line form already does this; the one-line form has to land on the same bytes.
+	['in the multi-line form', '$$\nx^2\n$$\n\nafter\n', '$$\nx^2\n\n$$\n\nafter\n']
+];
+
+// The math block treats every editing mode alike, so the other modes need only the first shape.
+const ROWS: [PresentationMode, ...Shape][] = [
+	...SHAPES.map((shape): [PresentationMode, ...Shape] => ['live', ...shape]),
+	...EDITING_MODES.slice(1).map((mode): [PresentationMode, ...Shape] => [mode, ...SHAPES[0]])
+];
+
 describe('a line break at the end of a one-line math body', () => {
-	const rows: Array<[string, string, string]> = [
-		['with a paragraph below', '$$x^2$$\n\nafter\n', '$$\nx^2\n\n$$\n\nafter\n'],
-		['as the last block', '$$x^2$$\n', '$$\nx^2\n\n$$\n'],
-		[
-			'above another multi-line equation',
-			'$$x^2$$\n\nafter\n\n$$\ny\n$$\n',
-			'$$\nx^2\n\n$$\n\nafter\n\n$$\ny\n$$\n'
-		],
-		// The multi-line form already does this; the one-line form has to land on the same bytes.
-		['in the multi-line form', '$$\nx^2\n$$\n\nafter\n', '$$\nx^2\n\n$$\n\nafter\n']
-	];
+	for (const [mode, shape, source, expected] of ROWS) {
+		it(`${shape}, in ${mode} mode, gives the multi-line form`, async () => {
+			const editor = mountEditor<Seam>({ source, presentationMode: mode, plugins: [math] });
+			const bodyEnd = source.indexOf('x^2') + 3;
+			const el = await showSourceAt(editor, bodyEnd);
 
-	for (const mode of EDITING_MODES) {
-		for (const [shape, source, expected] of rows) {
-			it(`${shape}, in ${mode} mode, gives the multi-line form`, async () => {
-				const editor = mountEditor<Seam>({ source, presentationMode: mode, plugins: [math] });
-				const bodyEnd = source.indexOf('x^2') + 3;
-				const el = await showSourceAt(editor, bodyEnd);
+			await pressKey(el, { key: 'Enter' });
 
-				await pressKey(el, { key: 'Enter' });
-
-				expect(el.textContent).toBe('$$\nx^2\n\n$$');
-				expect(caretIn(el)).toBe(7);
-				await blur(el);
-				expect(editor.source()).toBe(expected);
-				const live = editor.instance.__test.getDocument().children.map((c) => c.kind);
-				expect(live).toEqual(parse(expected).children.map((c) => c.kind));
-			});
-		}
+			expect(el.textContent).toBe('$$\nx^2\n\n$$');
+			expect(caretIn(el)).toBe(7);
+			await blur(el);
+			expect(editor.source()).toBe(expected);
+			const live = editor.instance.__test.getDocument().children.map((c) => c.kind);
+			expect(live).toEqual(parse(expected).children.map((c) => c.kind));
+		});
 	}
 });
 
 describe('every route that puts a line break into a one-line math body', () => {
-	for (const [route, breakLine] of ROUTES) {
+	// Enter at the body's end is the first row of the table above.
+	for (const [route, breakLine] of ROUTES.slice(1)) {
 		it(`${route} at the body's end leaves the caret on a new empty line`, async () => {
 			const editor = mountEditor<Seam>({
 				source: '$$x^2$$\n\nafter\n',
@@ -142,7 +144,9 @@ describe('every route that puts a line break into a one-line math body', () => {
 			await blur(el);
 			expect(editor.source()).toBe('$$\nx^2\n\n$$\n\nafter\n');
 		});
+	}
 
+	for (const [route, breakLine] of ROUTES) {
 		it(`${route} at the body's start pushes the body down a line`, async () => {
 			const editor = mountEditor<Seam>({
 				source: '$$x^2$$\n\nafter\n',
@@ -205,9 +209,7 @@ describe('Backspace up into a one-line math block, then Enter', () => {
 		await editor.settle();
 		const paragraph = surfaceAt(editor, [1]);
 		// The browser deletes the character itself, so the input event is what the editor sees.
-		paragraph.textContent = '';
-		placeCaret(paragraph, 0);
-		paragraph.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		typeInto(paragraph, '');
 		await editor.settle();
 		expect(editor.source()).toBe('$$x^2$$\n\n\n');
 		await pressKey(surfaceAt(editor, [1]), { key: 'Backspace' });

@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createDocumentSwap, initDocument } from '$lib/components/editor-root-document-swap';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { serialize } from '$lib/core/serializer';
-import type { Document } from '$lib/core/nodes';
-import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { createRegistryView } from '$lib/schema/registry-view';
+import { createDocumentSwap, initDocument } from '#lib/components/editor-root-document-swap.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
+import { serialize } from '#lib/core/serializer.js';
+import type { Document } from '#lib/core/nodes.js';
+import type { LinkReferenceResolver } from '#lib/core/inline/link-reference-resolver.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Miss-analysis: the swap was tested one consequence at a time, so a dropped middle step passed.
 
@@ -107,7 +108,11 @@ describe('the swap commit sequence', () => {
 
 	it('drops a selected widget in the same announcement', () => {
 		const h = harness();
-		selectWidgetWhole(h.selection, { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 });
+		selectWidgetWhole(h.selection, testCaretWriter, {
+			paragraphPath: [0],
+			sourceStart: 0,
+			preSelectOffset: 0
+		});
 		h.order.length = 0;
 		h.swap.swapTo('# B\n');
 		expect(h.selection.widget).toBeNull();

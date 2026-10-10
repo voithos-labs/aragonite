@@ -7,7 +7,7 @@ import {
 	INLINE_PRIORITIES,
 	type ImageFields,
 	type InlineNode
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 
 const EMBED = /^!\[\[([^\]|]+?)(?:\|(\d+))?\]\]/;
 // The two grammars overlap: `![[a]](u)` is a built-in image whose alt is `[a]`, and a handler

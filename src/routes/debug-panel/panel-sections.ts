@@ -4,12 +4,12 @@
  * and the probes never describe a selection two ways.
  */
 
-import type { Editor } from '$lib';
-import { readBlocks } from '$lib/core/parser';
-import { readInline, getContentRange, isProseKind } from '$lib/core/inline';
-import { dumpInlineTree } from '$lib/debug/inspect';
-import { findBlockPathForElement } from '$lib/selection/path-lookup';
-import { isBlockNode, nodeAt } from '$lib/tree-operations/node-primitives';
+import type { Editor } from '#lib';
+import { readBlocks } from '#lib/core/parser.js';
+import { readInline, getContentRange, isProseKind } from '#lib/core/inline/index.js';
+import { dumpInlineTree } from '#lib/debug/inspect.js';
+import { findBlockPathForElement } from '#lib/selection/path-lookup.js';
+import { isBlockNode, nodeAt } from '#lib/tree-operations/node-primitives.js';
 
 type EditorInstance = ReturnType<typeof Editor>;
 

@@ -11,10 +11,10 @@ import {
 	selectRange,
 	surfaceAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -26,7 +26,9 @@ const ACROSS = { anchor: { path: [0], offset: 1 }, focus: { path: [1], offset: 2
 
 const MOD_1 = { key: '1', ctrlKey: true };
 const MOD_ALT_1 = { key: '1', ctrlKey: true, altKey: true };
+const MOD_2 = { key: '2', ctrlKey: true };
 const ENTER = { key: 'Enter' };
+const SHIFT_ENTER = { key: 'Enter', shiftKey: true };
 const ALT_ENTER = { key: 'Enter', altKey: true };
 
 type Row = [name: string, key: KeyboardEventInit, keybindings: KeybindingOverride[], after: string];
@@ -47,7 +49,9 @@ const ROWS: Row[] = [
 		ALT_ENTER,
 		[{ chord: 'Alt+Enter', command: 'block.split' }],
 		'a\n\nta\n'
-	]
+	],
+	['Mod+2 by default makes the level-2 heading', MOD_2, [], '## ata\n'],
+	['Shift+Enter by default writes a hard break', SHIFT_ENTER, [], 'a\\\nta\n']
 ];
 
 async function mountWith(keybindings: KeybindingOverride[]): Promise<MountedEditor<Seam>> {
@@ -69,6 +73,21 @@ describe('a command key over a range', () => {
 			if (after === SOURCE) expect(mounted.instance.__test.isCrossBlockActive()).toBe(true);
 		});
 	}
+
+	// Mod+0 acts only on a heading, so it needs a heading to show it ran at the caret the removal left.
+	it('Mod+0 by default strips the heading prefix from the merged block', async () => {
+		const mounted = mountEditor<Seam>({ source: '# alpha\n\nbeta\n' });
+		await mounted.settle();
+		await mounted.instance.setSelection({
+			anchor: { path: [0], offset: 4 },
+			focus: { path: [1], offset: 2 }
+		});
+		await mounted.settle();
+
+		await pressKey(surfaceAt(mounted, [1]), { key: '0', ctrlKey: true });
+
+		expect(mounted.source()).toBe('alta\n');
+	});
 });
 
 // Miss-analysis: every binding row above was global, where any kind's answer is every kind's, so

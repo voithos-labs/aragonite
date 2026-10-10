@@ -3,7 +3,7 @@
 // Miss-analysis: the indent's undo rows ran the command over a selection, never the key at a
 // caret, and none read the caret the undo put back.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { createSurfaceBackend } from '$lib/cursor/surface-backend';
+import { createSurfaceBackend } from '#lib/caret/surface-backend.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -11,9 +11,10 @@ import {
 	placeCaret,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import { newestEntryCaret } from '../../support/undo-entry';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 beforeAll(() => {
 	installLayoutStubs();
@@ -47,6 +48,11 @@ describe.each([
 		await pressKey(el, { key: 'z', ctrlKey: true });
 		await editor.settle();
 		expect(editor.source()).toBe(source);
-		expect(createSurfaceBackend({ getEl: () => surfaceAt(editor, [0]) }).getRaw()).toBe(start);
+		expect(
+			createSurfaceBackend({
+				caretWriter: testCaretWriter,
+				getEl: () => surfaceAt(editor, [0])
+			}).getRaw()
+		).toBe(start);
 	});
 });

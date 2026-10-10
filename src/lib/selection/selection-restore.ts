@@ -8,11 +8,12 @@ import type { DocumentView } from '../core/node-views';
 import type { BlockComponent } from '../block-component';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { cellPoint, type SelectionPoint } from './primitives';
-import { placeGapCaret } from './caret-doors';
+import { placeGapCaret } from './place-caret';
 import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import { clampCellIndex, countsCells } from '../schema/block-kind-descriptor';
 import type { SelectionState } from './selection-state.svelte';
-import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretMemory } from '../caret/caret-memory';
+import type { CaretWriter } from '../caret/widget-offset';
 
 /**
  * `unresolvable` is decided before anything happens and is the only outcome that leaves the
@@ -24,6 +25,7 @@ export type SelectionRestoreOutcome = 'applied' | 'unresolvable' | 'unplaced';
 export interface GapCaretRestoreDeps {
 	getDoc(): DocumentView;
 	selectionState: SelectionState;
+	caretWriter: CaretWriter;
 	/** Mounts the block at `path`: the caret landing's `mount`. */
 	mount(path: number[]): Promise<BlockComponent | null>;
 	/** Brings the mounted block into view as the restore's reveal policy says. */
@@ -49,7 +51,7 @@ export async function restoreGapCaret(
 	const neighbourPath = [...pos.parentPath, neighbour];
 	const mounted = (await deps.mount(neighbourPath)) !== null;
 	if (mounted) await deps.reveal(neighbourPath);
-	placeGapCaret(deps.selectionState, { parentPath: pos.parentPath, index });
+	placeGapCaret(deps.selectionState, deps.caretWriter, { parentPath: pos.parentPath, index });
 	return mounted ? 'applied' : 'unplaced';
 }
 

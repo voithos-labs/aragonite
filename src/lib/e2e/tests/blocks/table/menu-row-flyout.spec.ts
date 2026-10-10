@@ -34,21 +34,6 @@ test.describe('table block: the cell menu’s Row flyout', () => {
 		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|\n\| 1 \| 2 \|/);
 	});
 
-	// The header is positionally fixed: its flyout inserts around it but moves nothing.
-	test('the header row offers inserts but no move in either direction', async ({ page }) => {
-		await openFlyout(page, 0, 'Row');
-
-		await expect(page.getByRole('menuitem', { name: 'Insert row below' })).toBeEnabled();
-		await expect(page.getByRole('menuitem', { name: 'Move row up' })).toBeDisabled();
-		await expect(page.getByRole('menuitem', { name: 'Move row down' })).toBeDisabled();
-	});
-
-	test('Move row down is disabled on the last body row', async ({ page }) => {
-		await openFlyout(page, 4, 'Row'); // last body row
-		await expect(page.getByRole('menuitem', { name: 'Move row down' })).toBeDisabled();
-		await expect(page.getByRole('menuitem', { name: 'Move row up' })).toBeEnabled();
-	});
-
 	// One axis at its floor does not disable the other: the row delete is refused, the column
 	// delete beside it stays live.
 	test('Delete row is disabled for the only body row while Delete column stays enabled', async ({

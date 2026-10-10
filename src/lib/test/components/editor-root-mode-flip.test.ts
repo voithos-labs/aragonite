@@ -1,20 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { createModeFlip } from '$lib/components/editor-root-mode-flip';
-import { createEditorEvents } from '$lib/editor-events';
-import { createDraftRegistry } from '$lib/components/draft-registry';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { EditorSelection } from '$lib/selection/primitives';
-import { settleEditor } from '$lib/test/harness/settle';
+import { createModeFlip } from '#lib/components/editor-root-mode-flip.js';
+import { createEditorEvents } from '#lib/editor-events.js';
+import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
+import { caretAt } from '#lib/test/harness/editor-selection.js';
 
 afterEach(() => {
 	document.body.replaceChildren();
-});
-
-const caretAt = (path: number[], offset: number): EditorSelection => ({
-	anchor: { path, offset },
-	focus: { path, offset }
 });
 
 // Miss-analysis: every mode-change test drove a mounted editor, never which mode captured.

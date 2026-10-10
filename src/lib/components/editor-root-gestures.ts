@@ -5,9 +5,10 @@
  */
 
 import type { BlockComponent } from '../block-component';
-import type { CaretMemory } from '../cursor/caret-memory';
+import type { CaretMemory } from '../caret/caret-memory';
+import type { CaretWriter } from '../caret/widget-offset';
 import type { CaretLanding } from '../selection/caret-landing';
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import { placeContextPress, resetForPointerDown } from '../selection/cross-block/pointer';
 import { createDeadSpaceCaret } from '../selection/dead-space-caret';
@@ -22,10 +23,12 @@ import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at
 import { onRoot, removeAll } from './editor-root-listeners';
 import type { LinkCardState } from './link-card/link-card-state.svelte';
 import type { Reading } from '../schema/reading';
+import { isModifiedClick, type ActivationClick, type PressTracker } from '../activation-click';
 
 export interface RootGesturesDeps {
 	getDoc: DocumentGetter;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	caretMemory: Pick<CaretMemory, 'forget'>;
 	getBlockElByPath: BlockElLookup;
 	getBlockComponent(path: number[]): BlockComponent | null;
@@ -35,6 +38,10 @@ export interface RootGesturesDeps {
 	getLifetime(): AbortSignal;
 	isHostChrome(node: Node | null): boolean;
 	activateLink(href: string, event: MouseEvent): void;
+	/** Whether a click on a link follows it rather than placing the caret. */
+	activationClick: ActivationClick;
+	/** Whether a release travelled from its press, which makes it the end of a drag. */
+	presses: Pick<PressTracker, 'travelled'>;
 	linkCard: Pick<LinkCardState, 'open'>;
 	/** Read at the gesture: every branch below checks the mode in force then. */
 	reading: Reading;
@@ -54,15 +61,15 @@ const NOT_A_DRAG_START =
 	'button:not(.editor-tail-row), input, textarea, select, a, summary, [role="checkbox"], ' +
 	'.code-rail, .table-add-zone, .md-menu, .block-drag-handle';
 
-const DRAG_SLOP_PX = 3;
-
 export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	const deadSpaceCaret = createDeadSpaceCaret({
 		getBlockComponent: (path) => deps.getBlockComponent(path),
-		resetSelectionForClick: () => resetForPointerDown(deps.selection, deps.caretMemory, false),
+		resetSelectionForClick: () =>
+			resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false),
 		gapScope: {
 			getDoc: deps.getDoc,
 			selection: deps.selection,
+			caretWriter: deps.caretWriter,
 			getPresentationMode: deps.reading.mode
 		},
 		lastBlockIndex: () => deps.getDoc().children.length - 1,
@@ -108,7 +115,6 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	function install(root: HTMLElement): () => void {
 		// Per install: rebinding the root starts with no click in progress.
 		let marginDrag = false;
-		let marginDown = { x: 0, y: 0 };
 		let marginSession: { dispose(): void } | null = null;
 
 		const handleAnchorClick = (anchor: HTMLAnchorElement, e: MouseEvent) => {
@@ -116,24 +122,24 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			if (deps.isHostChrome(anchor)) return;
 			const href = anchor.getAttribute('href');
 			if (!href) return;
-			// Always suppressed: cursor placement comes from mousedown. Reading mode has no caret
-			// for a plain click to place, so there links behave as in a rendered document.
+			// Always suppressed: cursor placement comes from mousedown.
 			e.preventDefault();
-			if (e.ctrlKey || e.metaKey || deps.reading.mode() === 'reading') deps.activateLink(href, e);
+			if (deps.activationClick(e)) deps.activateLink(href, e);
 		};
 
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Element | null;
-			// Ahead of the link branch: a link with a blocked scheme renders as a plain span, and
-			// it is exactly the link a user opens the card to fix. Mod-click still activates, below.
-			if (deps.reading.mode() === 'live' && !e.ctrlKey && !e.metaKey) {
+			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
+			// A plain click the link doesn't follow opens its card, as does one on a blocked-scheme
+			// link (a plain span, and exactly the link a user opens the card to fix).
+			const follows = anchor !== null && deps.activationClick(e);
+			if (deps.reading.mode() === 'live' && !isModifiedClick(e) && !follows) {
 				const linkEl = target?.closest(LINK_ELEMENT_SELECTOR);
 				if (linkEl && !deps.isHostChrome(linkEl) && openLinkCard(linkEl)) {
 					e.preventDefault();
 					return;
 				}
 			}
-			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
 			if (anchor) {
 				handleAnchorClick(anchor, e);
 				return;
@@ -144,10 +150,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				return;
 			}
 			const pressed = marginDrag;
-			const dragged =
-				pressed &&
-				(Math.abs(e.clientX - marginDown.x) > DRAG_SLOP_PX ||
-					Math.abs(e.clientY - marginDown.y) > DRAG_SLOP_PX);
+			const dragged = pressed && deps.presses.travelled(e);
 			marginDrag = false;
 			if (dragged) return;
 			if (deadSpaceCaret.handleClick(root, e)) return;
@@ -165,13 +168,12 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		// selection fights the drag, and `click` still fires.
 		const startMarginDrag = (e: PointerEvent) => {
 			marginDrag = false;
-			marginDown = { x: e.clientX, y: e.clientY };
-			if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+			if (e.button !== 0 || e.shiftKey || isModifiedClick(e) || e.altKey) return;
 			if (deps.reading.mode() === 'reading' || !dragStartsHere(root, e.target)) return;
 			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
 			if (!anchor) return;
 			marginDrag = true;
-			resetForPointerDown(deps.selection, deps.caretMemory, false);
+			resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false);
 			// A block that runs its own drag from a nearby click (a table's cell rectangle) takes
 			// it; the generic drag is for blocks that have none.
 			if (!('offset' in anchor)) {
@@ -183,6 +185,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 					editorRoot: root,
 					scrollContainer: deps.getScrollHost() ?? root,
 					selection: deps.selection,
+					caretWriter: deps.caretWriter,
 					getBlockElByPath: deps.getBlockElByPath,
 					lifetimeSignal: deps.getLifetime(),
 					paintSameBlock: () => true
@@ -208,6 +211,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			installMultiClickSelect({
 				editorRoot: root,
 				selection: deps.selection,
+				caretWriter: deps.caretWriter,
 				getBlockElByPath: deps.getBlockElByPath,
 				getScrollContainer: () => deps.getScrollHost() ?? root,
 				lifetimeSignal: deps.getLifetime(),
@@ -219,9 +223,14 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			}),
 			onRoot(root, 'pointerdown', startMarginDrag),
 			onRoot(root, 'mousedown', handleMouseDown),
-			onRoot<MouseEvent>(root, 'contextmenu', (e) => placeContextPress(deps.selection, e), {
-				capture: true
-			})
+			onRoot<MouseEvent>(
+				root,
+				'contextmenu',
+				(e) => placeContextPress(deps.selection, deps.caretWriter, e),
+				{
+					capture: true
+				}
+			)
 		);
 	}
 

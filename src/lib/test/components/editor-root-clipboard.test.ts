@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createEditorRootClipboard } from '$lib/components/editor-root-clipboard';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { selectWidgetWhole } from '$lib/selection/caret-doors';
-import { registerEditor, __resetActiveEditorForTests } from '$lib/active-editor';
-import { parse } from '$lib/core/parser';
-import { createEditorEvents, type EditorError } from '$lib/editor-events';
-import type { BlockComponent } from '$lib/block-component';
-import type { PasteImageHook } from '$lib/editor-keys';
-import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
+import { createEditorRootClipboard } from '#lib/components/editor-root-clipboard.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
+import { registerEditor, __resetActiveEditorForTests } from '#lib/active-editor.js';
+import { parse } from '#lib/core/parser.js';
+import { createEditorEvents, type EditorError } from '#lib/editor-events.js';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { PasteImageHook } from '#lib/editor-keys.js';
+import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Chromium retargets a clipboard event to <body> when the selection has no caret, at a cross-block
 // endpoint or a selected widget; driven through `target`, since a block still holds focus.
@@ -30,7 +31,11 @@ function harness(options: HarnessOptions = {}) {
 
 	const selection = createSelectionState();
 	if (options.widgetBlock) {
-		selectWidgetWhole(selection, { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 });
+		selectWidgetWhole(selection, testCaretWriter, {
+			paragraphPath: [0],
+			sourceStart: 0,
+			preSelectOffset: 0
+		});
 	}
 	const doc = parse('hello\n\nworld\n');
 	const pasted: (string | undefined)[] = [];

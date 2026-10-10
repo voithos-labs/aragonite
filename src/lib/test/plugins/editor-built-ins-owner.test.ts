@@ -1,14 +1,13 @@
-// @vitest-environment jsdom
 // Miss-analysis: the built-in tests reached the editor's bootstraps outside any plugin, so a
 // kind-keyed built-in that a plugin's setup reached first answering to that plugin never showed.
 import { describe, expect, it } from 'vitest';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { definePlugin, installPlugins } from '$lib/schema/plugin-install';
-import { activationFor } from '$lib/schema/plugin-activation';
-import { getBlockComponent } from '$lib/schema/block-component-registry';
-import { getPasteSurface } from '$lib/tree-operations/paste-surfaces';
-import { listLanguages } from '$lib/components/blocks/code/code-languages';
-import { registerEditorBuiltIns } from '$lib/components/editor-built-ins';
+import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
+import { getBlockComponent } from '#lib/schema/block-component-registry.js';
+import { getPasteSurface } from '#lib/tree-operations/paste-surfaces.js';
+import { listLanguages } from '#lib/components/blocks/code/code-languages.js';
+import { registerEditorBuiltIns } from '#lib/components/editor-built-ins.js';
 
 const noPlugins = activationFor([]);
 const builtInsResolve = () => {

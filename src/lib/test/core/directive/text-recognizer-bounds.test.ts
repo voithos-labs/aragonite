@@ -1,13 +1,12 @@
-// @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import { recognizeTextDirective } from '$lib/core/directive/text-recognizer';
-import { declaredPluginInlineKind } from '$lib/schema/plugin-kind';
-import type { PluginInlineKind } from '$lib/core/nodes';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
+import { parseInline } from '#lib/core/inline/index.js';
+import { recognizeTextDirective } from '#lib/core/directive/text-recognizer.js';
+import { declaredPluginInlineKind } from '#lib/schema/plugin-kind.js';
+import type { PluginInlineKind } from '#lib/core/nodes.js';
+import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
+import { DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 let kind: PluginInlineKind;
 beforeEach(() => {

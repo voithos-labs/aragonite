@@ -29,22 +29,28 @@ test.describe('a paragraph joined into the last item of a long list', () => {
 	});
 
 	for (const mode of ['source', 'live'] as const) {
-		for (const { gesture, items, typed, pasted, pressed, tail } of JOINS) {
-			test(`${mode}: the key after ${gesture} lands in the joined paragraph`, async ({ page }) => {
-				await editor.setPresentationMode(mode);
-				await editor.loadContent(`${listOf(items)}\nzz\n`);
-				if (pasted) await editor.seedClipboard(pasted);
-				await editor.focusBlockAtPath([1], 0);
-				if (pasted) await editor.paste();
-				else if (pressed) await page.keyboard.press(pressed);
-				else await page.keyboard.type(typed ?? '');
-				await page.keyboard.type('Q');
+		test(`${mode}: the key after each join lands in the joined paragraph`, async ({ page }) => {
+			await editor.setPresentationMode(mode);
 
-				await expect
-					.poll(async () => (await editor.bridge.getSource()).slice(-tail.length))
-					.toBe(tail);
-				expect(await editor.parseConverged()).toBe(true);
-			});
-		}
+			for (const { gesture, items, typed, pasted, pressed, tail } of JOINS) {
+				await test.step(gesture, async () => {
+					// Scrolled to the top first, as a fresh page is: the last items still mounted from the
+					// step before would hide a caret placement that never waits for the joined item.
+					await editor.scrollEditorTo(0);
+					await editor.loadContent(`${listOf(items)}\nzz\n`);
+					if (pasted) await editor.seedClipboard(pasted);
+					await editor.focusBlockAtPath([1], 0);
+					if (pasted) await editor.paste();
+					else if (pressed) await page.keyboard.press(pressed);
+					else await page.keyboard.type(typed ?? '');
+					await page.keyboard.type('Q');
+
+					await expect
+						.poll(async () => (await editor.bridge.getSource()).slice(-tail.length))
+						.toBe(tail);
+					expect(await editor.parseConverged()).toBe(true);
+				});
+			}
+		});
 	}
 });

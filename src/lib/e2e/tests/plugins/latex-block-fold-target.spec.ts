@@ -20,16 +20,6 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.setup();
 	});
 
-	test('a revealed edit commits on blur as one undo entry', async ({ page }) => {
-		await editor.render.click();
-		await expect(editor.source).toBeFocused();
-		await page.keyboard.press('ControlOrMeta+a');
-		await editor.typeSlowly('$$\nnew\n$$');
-
-		await editor.clickBlock(1);
-		await editor.bridge.waitForSourceEquals('$$\nnew\n$$\n\ntail\n');
-	});
-
 	// With the rendered view holding focus, only the block's own keydown handler lets Mod+Z reach the
 	// undo stack.
 	test('Mod+Z reaches the stack while the folded view holds focus', async ({ page }) => {

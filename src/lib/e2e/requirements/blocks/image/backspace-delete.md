@@ -7,7 +7,7 @@
 - Delete at left boundary enters selected state
 - Delete while selected deletes
 - Type single character while selected replaces widget with character
-- Paste markdown image source while selected replaces with new widget
+- Paste markdown image source while selected replaces with new widget (`e2e/tests/blocks/image/clipboard.spec.ts` holds the paste)
 
 ## Edge cases
 

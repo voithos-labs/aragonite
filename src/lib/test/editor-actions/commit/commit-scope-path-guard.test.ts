@@ -3,15 +3,15 @@
 // corrupt the newest undo entry, which the dev warnings don't catch in production. The
 // keystroke's in-place write (`leaf-write.ts`) likewise writes nothing on a too-short path.
 import { describe, it, expect } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
-import { concatChildren, serialize } from '$lib/core/serializer';
-import type { EditorError } from '$lib/editor-events';
-import type { MultiScopeTarget } from '$lib/action-contracts';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { makeListItem } from '$lib/test/harness/list-fixtures';
-import { asDocPath } from '$lib/selection/path-math';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { parse } from '#lib/core/parser.js';
+import { concatChildren, serialize } from '#lib/core/serializer.js';
+import type { EditorError } from '#lib/editor-events.js';
+import type { MultiScopeTarget } from '#lib/action-contracts.js';
+import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { makeListItem } from '#lib/test/harness/list-fixtures.js';
+import { asDocPath } from '#lib/selection/path-math.js';
 
 function harness(scopePath: number[]) {
 	const { deps, events } = makeEditorActionsDeps(parse('- a\n- b\n').children);

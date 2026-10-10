@@ -3,17 +3,17 @@
 // Miss-analysis: every table fixture was already canonical, so a rebuild that respelled every
 // row wrote the bytes it had read and no test saw the rest of the table move.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { documentLineEnding } from '$lib/core/lines';
-import type { CstNode } from '$lib/core/nodes';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { makeHarness, runOp, type Op } from '$lib/test/undo/restoration-ops';
+import { serialize } from '#lib/core/serializer.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { makeHarness, runOp, type Op } from '#lib/test/undo/restoration-ops.js';
 
 /** `source` with the cell at `[row, column]` of its first table written to each of `texts` in
  *  turn, given the cell's raw, through the keystroke's in-place route. */

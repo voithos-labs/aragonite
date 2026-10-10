@@ -6,8 +6,8 @@ import {
 	isReservedInlineTrigger,
 	registerInlineSyntax,
 	type InlineSyntaxRecognizer
-} from '$lib/core/inline/scan/plugin-syntax';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+} from '#lib/core/inline/scan/plugin-syntax.js';
+import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 const decline: InlineSyntaxRecognizer = () => null;
 

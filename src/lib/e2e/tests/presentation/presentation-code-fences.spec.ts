@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { clickModeToggle } from '../../mode-switch';
 
 // Each fence line is wrapped so reading and preview collapse the whole line, marker and its
 // `\n` together, instead of leaving a bare newline painting a blank line in the code box.
@@ -29,8 +30,7 @@ test.describe('code fences, reading mode collapses the fence lines', () => {
 		const sourceHeight = await boxHeight(ep);
 		const perLine = sourceHeight / SOURCE_LINES;
 
-		await page.getByTestId('presentation-toggle').click();
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await clickModeToggle(page, 'reading');
 		await ep.waitForRenderFlush();
 
 		// Opener and closer gone, body untouched: about 2 line-heights shorter. The band has both
@@ -41,8 +41,7 @@ test.describe('code fences, reading mode collapses the fence lines', () => {
 	});
 
 	test('both fence-line wrappers compute display:none, bytes stay in the DOM', async ({ page }) => {
-		await page.getByTestId('presentation-toggle').click();
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await clickModeToggle(page, 'reading');
 
 		const displays = await page
 			.locator('.code-block .md-fence-line')
@@ -73,8 +72,7 @@ test.describe('code fences: an all-blank body keeps its blank lines in reading m
 
 		const sourceContent = await blockHeight(ep, 0);
 
-		await page.getByTestId('presentation-toggle').click();
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await clickModeToggle(page, 'reading');
 		await ep.waitForRenderFlush();
 
 		const readingContent = await blockHeight(ep, 0);
@@ -89,19 +87,15 @@ test.describe('code fences: an all-blank body keeps its blank lines in reading m
 	});
 });
 
-for (const mode of [
-	{ name: 'preview-block', testid: 'preview-block-toggle', attr: 'preview-block' },
-	{ name: 'preview-inline', testid: 'preview-inline-toggle', attr: 'preview-inline' }
-] as const) {
-	test.describe(`code fences: ${mode.name} reveals on focus`, () => {
+for (const mode of ['preview-block', 'preview-inline'] as const) {
+	test.describe(`code fences: ${mode} reveals on focus`, () => {
 		let ep: EditorPage;
 
 		test.beforeEach(async ({ page }) => {
 			ep = new EditorPage(page);
 			await ep.goto();
 			await ep.loadContent(DOC);
-			await page.getByTestId(mode.testid).click();
-			await expect(ep.editorContainer).toHaveAttribute('data-presentation', mode.attr);
+			await clickModeToggle(page, mode);
 			await ep.waitForRenderFlush();
 		});
 

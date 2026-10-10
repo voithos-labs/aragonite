@@ -1,17 +1,17 @@
 // Miss-analysis: `createContainerActions` was tested only through a mounted editor, in e2e.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { ListContext } from '$lib/action-contracts';
-import type { NodeView } from '$lib/core/node-views';
+import type { ListContext } from '#lib/action-contracts.js';
+import type { NodeView } from '#lib/core/node-views.js';
 import {
 	BLOCK_EDIT_KEY,
 	CONTAINER_EDIT_KEY,
 	EDITOR_DOC_KEY,
 	EDITOR_SERVICES_KEY,
 	FOCUS_KEY
-} from '$lib/editor-keys';
-import { createContainerActions } from '$lib/editor-actions/nested/container-actions';
-import type { NestedActionsInput } from '$lib/editor-actions/nested/nested-actions';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/editor-keys.js';
+import { createContainerActions } from '#lib/editor-actions/nested/container-actions.js';
+import type { NestedActionsInput } from '#lib/editor-actions/nested/nested-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // Outside a component there is no context, so the test hands out its own.
 const contexts = vi.hoisted(() => new Map<unknown, unknown>());
@@ -24,10 +24,10 @@ vi.mock('svelte', async (original) => ({
 	...(await original<typeof import('svelte')>()),
 	getContext: (key: unknown) => contexts.get(key)
 }));
-vi.mock('$lib/reactivity/block-list-state.svelte', () => ({
+vi.mock('#lib/block-lists/block-list-state.svelte.js', () => ({
 	createBlockListState: (getNode: () => NodeView) => ({ getNode })
 }));
-vi.mock('$lib/editor-actions/nested/nested-actions', () => ({
+vi.mock('#lib/editor-actions/nested/nested-actions.js', () => ({
 	createStandardNestedActions: (state: unknown, deps: unknown, overrides: unknown) => {
 		built.calls.push({ state, deps, overrides });
 		return { bundle: true };

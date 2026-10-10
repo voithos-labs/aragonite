@@ -1,25 +1,25 @@
 // @vitest-environment jsdom
 // Miss-analysis: no test pasted a plugin kind's syntax into an editor that left it out (GH #267).
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { installPlugins } from '$lib';
-import { parse } from '$lib/core/parser';
-import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { normalizeReplacementForBody } from '$lib/tree-operations/paste/body-write';
-import { declaredPluginKind } from '$lib/schema/plugin-kind';
-import { DETAILS, registerDetailsKind } from '$lib/plugins/details/details-kind';
-import type { CstNode } from '$lib/core/nodes';
-import { createRegistryView } from '$lib/schema/registry-view';
-import { defaultGrammarView, type GrammarView } from '$lib/schema/block-openers';
-import { activationFor } from '$lib/schema/plugin-activation';
+import { installPlugins } from '#lib';
+import { parse } from '#lib/core/parser.js';
+import { parrotPlugin, PARROT } from '#lib/plugins/parrot/index.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
+import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
+import { DETAILS, registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { createRegistryView } from '#lib/schema/registry-view.js';
+import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+} from '#lib/test/harness/editor-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 const PARROT_LINE = '%%parrot party responsibly\n';
 

@@ -3,6 +3,7 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import {
 	FIXTURE_BYTES,
+	GIANT_LIST_OR_TABLE_BYTES,
 	MAX_UNMOUNTED_EDGE_FRACTION,
 	TOP_LEVEL_HOSTS,
 	cstBlockCount,
@@ -172,7 +173,7 @@ test('giant single list windows its items (phase 3)', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-list', 2_000_000);
+	await editor.loadLargeFixture('giant-single-list', GIANT_LIST_OR_TABLE_BYTES);
 
 	// One top-level list with thousands of items: without checking that count, the limit of
 	// 200 mounted below proves nothing.
@@ -196,7 +197,7 @@ test('giant single table windows its rows (phase 4)', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadLargeFixture('giant-single-table', 2_000_000);
+	await editor.loadLargeFixture('giant-single-table', GIANT_LIST_OR_TABLE_BYTES);
 
 	// One top-level table with thousands of rows: without checking that count, the limit
 	// below proves nothing.

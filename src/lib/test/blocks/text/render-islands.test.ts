@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
-import { islandRenderKeyPart } from '$lib/decorations/island-dom';
+import { createTextRender } from '#lib/components/blocks/text/text-render.js';
+import { islandRenderKeyPart } from '#lib/decorations/island-dom.js';
 import {
 	disableInteractionTrace,
 	enableInteractionTrace,
 	interactionTraceSnapshot,
 	resetInteractionTrace
-} from '$lib/debug/interaction-trace';
-import type { CstNode } from '$lib/core/nodes';
-import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
+} from '#lib/debug/interaction-trace.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { domTextOffsetAtNode } from '#lib/caret/widget-offset.js';
 import { placeCaretAt } from './math-widget-fixture';
-import { blockNode, makeRenderHarness, type Island } from '$lib/test/harness/text-render';
+import { blockNode, makeRenderHarness, type Island } from '#lib/test/harness/text-render.js';
 
 const widgetIsland = (offset: number, buildDom?: () => HTMLElement): Island => ({
 	index: 0,

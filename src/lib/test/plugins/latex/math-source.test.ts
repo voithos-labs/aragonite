@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { mathBodySpan, renderMathSource, reshapeMathEdit } from '$lib/plugins/latex/math-source';
-
-// The painted source's slicer, over both block shapes: the `$$` pair and GitHub's ```math fence.
-// Miss-analysis: only the `$$` block's e2e reached the slicer, never the fence shape.
+import { mathDisplaySource, reshapeMathEdit } from '#lib/plugins/latex/math-source.js';
 
 describe('reshapeMathEdit completes a bare source from the block’s own delimiters', () => {
 	const completes: Array<[label: string, source: string, text: string, caret: number]> = [
@@ -56,45 +53,9 @@ describe('math sources on CRLF keep their line endings', () => {
 	it('keeps an opener’s own LF in a CRLF file', () => {
 		expect(reshapeMathEdit('$$\n$$', 0, '\r\n')).toEqual({ text: '$$\n\n$$', caret: 3 });
 	});
-
-	it('reads a CRLF $$ block as a fence around its body', () => {
-		const source = '$$\r\nx^2\r\n$$';
-		const { start, end } = mathBodySpan(source);
-		expect(source.slice(start, end)).toBe('x^2');
-		expect(renderMathSource(source).querySelectorAll('.md-fence-line')).toHaveLength(2);
-	});
 });
 
-describe('mathBodySpan names the body of either shape', () => {
-	const cases: Array<[source: string, body: string]> = [
-		['$$x^2$$', 'x^2'],
-		['$$\nx^2\n$$', 'x^2'],
-		['$$ x^2 $$', ' x^2 '],
-		['```math\nx^2\n```', 'x^2'],
-		['```math linenums\nx^2\n```', 'x^2'],
-		['~~~math\n\\alpha\n~~~', '\\alpha']
-	];
-	for (const [source, body] of cases) {
-		it(`spans the body of ${JSON.stringify(source)}`, () => {
-			const { start, end } = mathBodySpan(source);
-			expect(source.slice(start, end)).toBe(body);
-		});
-	}
-});
-
-describe('renderMathSource paints both fence lines as marker chrome', () => {
-	const sources = ['$$\nx^2\n$$', '$$x^2$$', '```math\nx^2\n```', '~~~math\nx^2\n~~~'];
-	for (const source of sources) {
-		it(`wraps the delimiters of ${JSON.stringify(source)} and keeps every byte`, () => {
-			const frag = renderMathSource(source);
-			expect(frag.textContent).toBe(source);
-			expect(frag.querySelectorAll('.md-fence-line')).toHaveLength(2);
-		});
-	}
-
-	it('paints a source shaped like neither form as plain tokens', () => {
-		const frag = renderMathSource('loose prose');
-		expect(frag.textContent).toBe('loose prose');
-		expect(frag.querySelectorAll('.md-fence-line')).toHaveLength(0);
-	});
+// Miss-analysis: every case padded with ASCII, never a non-breaking space KaTeX would paint.
+it('keeps a non-breaking space the formula pads with', () => {
+	expect(mathDisplaySource('$$\u00a0x^2 $$')).toBe('\u00a0x^2');
 });

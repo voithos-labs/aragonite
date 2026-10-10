@@ -2,9 +2,9 @@
 // Miss-analysis: reveals came only through `parkCaret`, and no fixture spread `renderProps`.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
-import type { BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
-import { settleEditor } from '$lib/test/harness/settle';
+import type { BlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
 
 const KIND = 'reveal-point-leaf';

@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 // Which root-level moves stop in a gap instead of entering the target block.
 import { describe, it, expect, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps, stubBlockComponent } from '$lib/test/harness/editor-actions';
-import type { FocusPosition } from '$lib/block-component';
-import type { MoveFocusOptions } from '$lib/action-contracts';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { parse } from '#lib/core/parser.js';
+import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
+import type { FocusPosition } from '#lib/block-component.js';
+import type { MoveFocusOptions } from '#lib/action-contracts.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 const TABLE = '| a | b |\n| - | - |\n';
 const FENCE = '```\ncode\n```\n';

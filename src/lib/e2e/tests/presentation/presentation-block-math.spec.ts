@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable } from '../plugins/helpers';
+import { clickModeToggle } from '../../mode-switch';
 
 // Switching mode while a revealed source holds an uncommitted edit commits it through the mode
 // effect that blurs. The header toggle keeps editor focus, so the commit comes from the mode
@@ -28,10 +29,6 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 		await ep.waitForRenderFlush();
 	}
 
-	async function toggleMode() {
-		await ep.page.getByTestId('presentation-toggle').click();
-	}
-
 	test('an uncommitted reveal edit commits on the flip and the render shows', async ({ page }) => {
 		await revealFromBefore();
 		// Step two characters past the opening `$$` and insert: `$$ax^2$$`, still showing its
@@ -43,7 +40,7 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 
 		// Switch to reading with no click in between: the mode effect blurs the still-focused
 		// source and commits while the mode is already reading.
-		await toggleMode();
+		await clickModeToggle(ep.page, 'reading');
 
 		await ep.bridge.waitForSourceContains('$$ax^2$$');
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
@@ -57,11 +54,10 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('a');
-		await toggleMode(); // to reading, which commits `$$ax^2$$`
+		await clickModeToggle(ep.page, 'reading'); // to reading, which commits `$$ax^2$$`
 		await ep.bridge.waitForSourceContains('$$ax^2$$');
 
-		await toggleMode(); // back to source
-		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await clickModeToggle(ep.page, 'reading'); // back to source
 		// The block shows its source and edits again after the round trip through reading.
 		await page.locator(RENDER).click();
 		await expect(page.locator(SOURCE)).toHaveCount(1);
@@ -78,7 +74,7 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 		await ep.page.locator(RENDER).click();
 		await expect(page.locator(SOURCE)).toHaveCount(1);
 
-		await toggleMode(); // to reading with the source showing but unedited
+		await clickModeToggle(ep.page, 'reading'); // to reading with the source showing but unedited
 		await expect(page.locator(SOURCE)).toHaveCount(0);
 		await expect(page.locator(`${RENDER} .katex`)).toHaveCount(1);
 		// A mode-toggle click while the source shows unedited, not a keystroke.

@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { isBlankParagraph, parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { isBlankParagraph, parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 import {
 	deleteNode,
 	mergeIntoPrevDeepLeaf,
 	mergeWithNext,
 	splitNode,
 	updateNodeContent
-} from '$lib/tree-operations';
-import { isMergeEligible } from '$lib/schema/merge-rules';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { settled } from '$lib/test/harness/settle-funnel';
-import { keepsEveryByte } from '$lib/test/harness/live-oracles';
+} from '#lib/tree-operations/index.js';
+import { isMergeEligible } from '#lib/schema/merge-rules.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { settled } from '#lib/test/harness/settle-funnel.js';
+import { keepsEveryByte } from '#lib/test/harness/live-oracles.js';
 import {
 	arbBlankSeparatedGfmDoc,
 	arbInlineSource,
@@ -31,23 +31,23 @@ import {
 	ownTrailingLineEnding,
 	trailingLineEnding,
 	trimTrailingLineEnding
-} from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt, documentBody } from '$lib/tree-operations/node-primitives';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+} from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt, documentBody } from '#lib/tree-operations/node-primitives.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import {
 	registerLiveSplitRebalancer,
 	__resetLiveSplitRebalancerForTests
-} from '$lib/schema/inline-construct-policy';
-import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
-import { createSharingState } from '$lib/tree-operations/sharing';
+} from '#lib/schema/inline-construct-policy.js';
+import { rebalanceLiveSplit } from '#lib/components/blocks/text/live-split-rebalance.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 // An edit on a loaded document leaves a tree that reloads to the same block shape (G2.13), which

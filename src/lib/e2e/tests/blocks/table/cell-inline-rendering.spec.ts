@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { clickModeToggle } from '../../../mode-switch';
 
 const HEADER = '| H |\n| :- |\n';
 
@@ -10,28 +11,6 @@ test.describe('table cell: inline rendering', () => {
 		editor = new EditorPage(page);
 		await editor.goto();
 	});
-
-	// ── Styled inline constructs ─────────────────────────────────────────
-
-	const STYLED_CONSTRUCTS: Array<
-		[source: string, selector: string, expectedText: string, href?: string]
-	> = [
-		['*x*', 'em', 'x'],
-		['**x**', 'strong', 'x'],
-		['`x`', 'code.inline-code-content', 'x'],
-		['~~x~~', 's', 'x'],
-		['[t](https://example.com)', 'a.md-link-content', 't', 'https://example.com']
-	];
-
-	for (const [source, selector, expectedText, href] of STYLED_CONSTRUCTS) {
-		test(`${source} in a cell renders a styled <${selector}>`, async ({ page }) => {
-			await editor.loadContent(`${HEADER}| ${source} |\n`);
-			const styled = page.locator('.table-cell').nth(1).locator(selector);
-			await expect(styled).toHaveCount(1);
-			await expect(styled).toHaveText(expectedText);
-			if (href) await expect(styled).toHaveAttribute('href', href);
-		});
-	}
 
 	// ── Reference resolution (LRD signature keying) ──────────────────────
 
@@ -69,14 +48,6 @@ test.describe('table cell: inline rendering', () => {
 		await expect(cell.locator('.md-marker', { hasText: '\\' })).toHaveCount(1);
 	});
 
-	test('image in a cell stays alt-text, no widget', async ({ page }) => {
-		await editor.loadContent(`${HEADER}| ![alt](u) |\n`);
-		const cell = page.locator('.table-cell').nth(1);
-		await expect(cell).toHaveText('![alt](u)');
-		await expect(cell.locator('img')).toHaveCount(0);
-		await expect(cell.locator('[data-inline-widget]')).toHaveCount(0);
-	});
-
 	// The collapse is CSS, so no unit test reaches it: a single unsplit span, from either branch,
 	// leaves the whole source painted here or nothing at all.
 	test('image in a cell paints its alt alone in reading mode', async ({ page }) => {
@@ -86,7 +57,7 @@ test.describe('table cell: inline rendering', () => {
 		await expect(markers).toHaveCount(2);
 		await expect(markers.first()).toBeVisible();
 
-		await page.getByTestId('presentation-toggle').click();
+		await clickModeToggle(page, 'reading');
 		await expect(markers.first()).toBeHidden();
 		await expect(markers.last()).toBeHidden();
 		expect(await cell.innerText()).toBe('alt');

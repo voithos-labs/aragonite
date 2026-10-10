@@ -5,22 +5,22 @@
 // hiding are recorded on the interaction trace.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
-import { parse } from '$lib/core/parser';
-import type { CstNode } from '$lib/core/nodes';
-import { createTextRender } from '$lib/components/blocks/text/text-render';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { createTextRender } from '#lib/components/blocks/text/text-render.js';
 import {
 	createConstructReveal,
 	type ConstructReveal
-} from '$lib/components/blocks/text/construct-reveal';
-import { CONSTRUCT_REVEAL_CLASS } from '$lib/cursor/widget-offset';
+} from '#lib/components/blocks/text/construct-reveal.js';
+import { CONSTRUCT_REVEAL_CLASS } from '#lib/caret/widget-offset.js';
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,
 	resetInteractionTrace,
 	interactionTraceSnapshot
-} from '$lib/debug/interaction-trace';
+} from '#lib/debug/interaction-trace.js';
 import { placeCaretAt } from './math-widget-fixture';
-import { makeRenderHarness, type RenderHarness } from '$lib/test/harness/text-render';
+import { makeRenderHarness, type RenderHarness } from '#lib/test/harness/text-render.js';
 
 // 'alpha **bold** tail': strong spans [6,14), and its two `**` spans carry the attribute.
 const RAW = 'alpha **bold** tail\n';

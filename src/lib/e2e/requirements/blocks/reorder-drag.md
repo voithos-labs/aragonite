@@ -22,9 +22,6 @@ for. The keyboard move is the opposite: the caret travels with the block.
 
 ## Edge cases
 
-- A block dropped into a gap whose neighbors had no blank line between them (a heading
-  interrupting the paragraph above it) arrives with one: the table stays a table under the
-  paragraph, and the source reloads to the same three blocks.
 - A drag inside a quote marks the whole quote as its scope, bar and padding included, the way a
   drag inside a list marks the list.
 - Drop outside any valid sibling gap / release without moving: no change.
@@ -40,6 +37,7 @@ for. The keyboard move is the opposite: the caret travels with the block.
 
 - Every reorder fixture separated its blocks with blank lines, so no gap a move landed in ever
   lacked a blank-line separator; the one shape that does, a heading interrupting the paragraph
-  above it, was never dragged past. It is now pinned here for the handle, in
-  `reorder-keyboard.md` and `table/shortcuts.md` for the chords, and as a property over
-  every kind pair in `test/tree-operations/reorder-lands-whole.property.test.ts`.
+  above it, was never dragged past. A drop there is pinned in
+  `test/editor-actions/reorder-seam-undo.test.ts` (a table dropped flush under a paragraph stays a
+  table), and every move from one position to another as a property over every kind pair in
+  `test/tree-operations/reorder-lands-whole.property.test.ts`.

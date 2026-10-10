@@ -1,91 +1,73 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
-import type { Page } from '@playwright/test';
-import { enterPresentationMode, focusPath } from './helpers';
-import { textRunEnd } from '../../text-runs';
+import { clickEnd, enterPresentationMode, focusPath, keys, nextRow } from './helpers';
+import { drawnBar } from '../../carets-showing';
 
-// An arrow press at a hidden construct edge moves the typing offset, not the caret. The pixel
-// never moves, so the source and the ring are what tell the two offsets apart.
+// An arrow press at a code chip's edge moves the typing offset across the chip's border, not the
+// caret; at a mark's edge the arrow moves the caret like anywhere else. Each test walks its rows as
+// steps, every step on a fresh copy of the document.
 // Requirements: e2e/requirements/presentation/presentation-live-edge-step.md.
 
-async function clickEnd(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await textRunEnd(page, word);
-	await page.mouse.click(point.x, point.y);
-	await ep.waitForRenderFlush();
-}
-
-async function keys(ep: EditorPage, page: Page, ...pressed: string[]): Promise<void> {
-	for (const key of pressed) {
-		await page.keyboard.press(key);
-		await ep.waitForRenderFlush();
-	}
-}
-
-const held = (page: Page) =>
-	page.evaluate(() =>
-		[...document.querySelectorAll('.md-edge-held')].map((el) => el.tagName.toLowerCase())
-	);
-
-test.describe('live mode: a construct that ends its line', () => {
+test('live mode: a code span that ends its line', async ({ page }) => {
 	const DOC = '- [ ] possibly via `scheduled`\n\nplain';
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', DOC);
+	const ep = await enterPresentationMode(page, 'live', DOC);
+	const atEnd = async () => {
+		await nextRow(ep, DOC);
 		await clickEnd(ep, page, 'scheduled');
-	});
+	};
 
-	test('a click at its end types inside', async ({ page }) => {
+	await test.step('a click at its end types inside', async () => {
+		await atEnd();
 		await page.keyboard.type(')');
 		await ep.bridge.waitForSourceContains('`scheduled)`');
 	});
 
-	test('one ArrowRight types past the backtick, in the same block', async ({ page }) => {
+	await test.step('one ArrowRight types past the backtick, in the same block', async () => {
+		await atEnd();
 		await keys(ep, page, 'ArrowRight');
 		await page.keyboard.type(')');
 		await ep.bridge.waitForSourceContains('- [ ] possibly via `scheduled`)\n');
 	});
 
-	test('a second ArrowRight leaves the block', async ({ page }) => {
+	await test.step('a second ArrowRight leaves the block', async () => {
+		await atEnd();
 		await keys(ep, page, 'ArrowRight', 'ArrowRight');
 		await page.keyboard.type(')');
 		await ep.bridge.waitForSourceContains(')plain');
 	});
 
-	test('ArrowLeft steps back inside', async ({ page }) => {
+	await test.step('ArrowLeft steps back inside', async () => {
+		await atEnd();
 		await keys(ep, page, 'ArrowRight', 'ArrowLeft');
 		await page.keyboard.type(')');
 		await ep.bridge.waitForSourceContains('`scheduled)`');
 	});
 });
 
-// The same line-ending edge on a construct whose ring the next rows check.
-test.describe('live mode: a hidden-marker construct that ends its line', () => {
+test('live mode: a hidden-marker construct that ends its line', async ({ page }) => {
 	const DOC = '- [ ] possibly via **scheduled**\n\nplain';
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', DOC);
+	const ep = await enterPresentationMode(page, 'live', DOC);
+	const atEnd = async () => {
+		await nextRow(ep, DOC);
 		await clickEnd(ep, page, 'scheduled');
-	});
+	};
 
-	test('Shift+ArrowRight never stops at a hidden edge', async ({ page }) => {
+	await test.step('Shift+ArrowRight never stops at a hidden edge', async () => {
+		await atEnd();
 		const start = await focusPath(ep);
 		await keys(ep, page, 'Shift+ArrowRight');
 		const sel = await ep.bridge.getSelectionPaths();
 		expect(sel?.focus.path.join()).not.toBe(start.join());
 	});
 
-	test('the ring shows inside, and goes with the step out', async ({ page }) => {
-		await expect.poll(() => held(page)).toEqual(['strong']);
+	await test.step('a plain ArrowRight leaves the block, with no stop at the bold', async () => {
+		await atEnd();
 		await keys(ep, page, 'ArrowRight');
-		await expect.poll(() => held(page)).toEqual([]);
-		await keys(ep, page, 'ArrowLeft');
-		await expect.poll(() => held(page)).toEqual(['strong']);
+		await page.keyboard.type(')');
+		await ep.bridge.waitForSourceContains(')plain');
 	});
 });
 
-test.describe('live mode: every symmetric pair, mid-line', () => {
+test('live mode: a chip and every mark, mid-line', async ({ page }) => {
 	const DOC = [
 		'a `code` b',
 		'',
@@ -99,101 +81,109 @@ test.describe('live mode: every symmetric pair, mid-line', () => {
 		'',
 		'tail'
 	].join('\n');
-	let ep: EditorPage;
+	const ep = await enterPresentationMode(page, 'live', DOC);
+	const atEnd = async (word: string) => {
+		await nextRow(ep, DOC);
+		await clickEnd(ep, page, word);
+	};
 
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', DOC);
+	await test.step('code: one press types past the closer, the second moves the caret', async () => {
+		await atEnd('code');
+		await keys(ep, page, 'ArrowRight');
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('a `code`X b');
 	});
 
-	for (const [word, after, beyond] of [
-		['code', 'a `code`X b', 'a `code` Xb'],
-		['bold', 'a **bold**X b', 'a **bold** Xb'],
-		['em', 'a *em*X b', 'a *em* Xb'],
-		['gone', 'a ~~gone~~X b', 'a ~~gone~~ Xb']
-	] as const) {
-		test(`${word}: one press types past the closer, the second moves the caret`, async ({
-			page
-		}) => {
-			await clickEnd(ep, page, word);
-			await keys(ep, page, 'ArrowRight');
-			await page.keyboard.type('X');
-			await ep.bridge.waitForSourceContains(after);
-		});
+	await test.step('code: two presses move the caret past the space', async () => {
+		await atEnd('code');
+		await keys(ep, page, 'ArrowRight', 'ArrowRight');
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('a `code` Xb');
+	});
 
-		test(`${word}: two presses move the caret past the space`, async ({ page }) => {
-			await clickEnd(ep, page, word);
-			await keys(ep, page, 'ArrowRight', 'ArrowRight');
+	for (const [word, beyond] of [
+		['bold', 'a **bold** Xb'],
+		['em', 'a *em* Xb'],
+		['gone', 'a ~~gone~~ Xb']
+	] as const) {
+		await test.step(`${word}: one press moves the caret past the space`, async () => {
+			await atEnd(word);
+			await keys(ep, page, 'ArrowRight');
 			await page.keyboard.type('X');
 			await ep.bridge.waitForSourceContains(beyond);
 		});
 	}
 
-	test('a link offers only its outside: ArrowRight at its end leaves the block', async ({
-		page
-	}) => {
-		await clickEnd(ep, page, 'link');
+	await test.step('a link offers only its outside: ArrowRight at its end leaves the block', async () => {
+		await atEnd('link');
 		await keys(ep, page, 'ArrowRight');
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('Xtail');
 	});
-});
 
-test.describe('live mode: a leading edge', () => {
-	test('ArrowLeft from the first content byte steps outside the opener first', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', 'lead\n\na **bold** b');
-		const point = await textRunEnd(page, 'bold');
-		await page.mouse.click(point.x, point.y);
-		await ep.waitForRenderFlush();
-		// Walk left to the first content byte: each press moves the caret until the opener.
-		for (let i = 0; i < 4; i++) await keys(ep, page, 'ArrowLeft');
-		await keys(ep, page, 'ArrowLeft');
+	// The character before the opener is the space, so the letter there types plain.
+	await test.step('a leading edge: walked back to the first content byte, the letter types outside', async () => {
+		await atEnd('bold');
+		await keys(ep, page, ...Array<string>(4).fill('ArrowLeft'));
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('a X**bold** b');
 	});
 });
 
-test.describe('live mode: abutting closers', () => {
+test('live mode: abutting closers have no stop of their own', async ({ page }) => {
 	const DOC = 'a ***both***\n\ntail';
+	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	for (const [presses, source, rings] of [
-		[0, 'a ***bothX***', ['em', 'strong']],
-		[1, 'a ***both**X*', ['em']],
-		[2, 'a ***both***X', []]
-	] as const) {
-		test(`${presses} press(es) at the end`, async ({ page }) => {
-			const ep = await enterPresentationMode(page, 'live', DOC);
-			await clickEnd(ep, page, 'both');
-			await keys(ep, page, ...Array<string>(presses).fill('ArrowRight'));
-			await expect.poll(async () => (await held(page)).sort()).toEqual([...rings].sort());
-			await page.keyboard.type('X');
-			await ep.bridge.waitForSourceContains(source);
-		});
-	}
-
-	test('a third press leaves the block', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', DOC);
+	await test.step('the end types inside both', async () => {
+		await nextRow(ep, DOC);
 		await clickEnd(ep, page, 'both');
-		await keys(ep, page, 'ArrowRight', 'ArrowRight', 'ArrowRight');
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('a ***bothX***');
+	});
+
+	await test.step('one press leaves the block', async () => {
+		await nextRow(ep, DOC);
+		await clickEnd(ep, page, 'both');
+		await keys(ep, page, 'ArrowRight');
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('Xtail');
 	});
 });
 
-test.describe('live mode: a table cell', () => {
-	test('one ArrowRight types past the backtick inside the cell', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', '| h | h2 |\n| - | - |\n| a `cee` | z |');
-		await clickEnd(ep, page, 'cee');
-		await keys(ep, page, 'ArrowRight');
-		await page.keyboard.type('X');
-		await ep.bridge.waitForSourceContains('| a `cee`X | z |');
-	});
+// Two constructs of one kind meet at the edge; the letter joins the one before the caret.
+test('live mode: two same-kind constructs at one edge', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', '\n');
+
+	for (const [doc, inside] of [
+		['a _bold_*more* b', 'a _boldX_*more* b'],
+		['a __bold__**more** b', 'a __boldX__**more** b']
+	] as const) {
+		await test.step(`${doc}: the end of bold types into bold`, async () => {
+			await nextRow(ep, doc);
+			await clickEnd(ep, page, 'bold');
+			await page.keyboard.type('X');
+			await ep.bridge.waitForSourceContains(inside);
+		});
+	}
 });
 
-// Live keeps a code span's backticks hidden like every other marker: the edge step and the ring
-// are the cue at its edge, in prose and in a cell alike.
-test.describe("live mode: a code span's backticks stay hidden", () => {
+test('live mode: in a table cell, one ArrowRight types past the backtick inside the cell', async ({
+	page
+}) => {
+	const ep = await enterPresentationMode(page, 'live', '| h | h2 |\n| - | - |\n| a `cee` | z |');
+	await clickEnd(ep, page, 'cee');
+	await keys(ep, page, 'ArrowRight');
+	await page.keyboard.type('X');
+	await ep.bridge.waitForSourceContains('| a `cee`X | z |');
+});
+
+// Live keeps a code span's backticks hidden like every other marker: the edge step and the bar's
+// two stops are the cue at its edge, in prose and in a cell alike.
+test("live mode: a code span's backticks stay hidden, and the caret's stop marks the edge", async ({
+	page
+}) => {
 	/** The computed display of the spans either side of each code element. */
-	const backticks = (page: Page) =>
+	const backticks = () =>
 		page.evaluate(() =>
 			[...document.querySelectorAll('code.inline-code-content')].flatMap((code) =>
 				[code.previousElementSibling, code.nextElementSibling].map((el) =>
@@ -201,75 +191,17 @@ test.describe("live mode: a code span's backticks stay hidden", () => {
 				)
 			)
 		);
+	const ep = await enterPresentationMode(page, 'live', '\n');
 
 	for (const [place, doc, word] of [
 		['prose', 'a `code` b\n\ntail', 'code'],
 		['a table cell', '| h | h2 |\n| - | - |\n| a `cee` | z |', 'cee']
 	] as const) {
-		test(`${place}: with the caret at the span's end, the ring marks it instead`, async ({
-			page
-		}) => {
-			const ep = await enterPresentationMode(page, 'live', doc);
+		await test.step(`${place}: with the caret at the span's end`, async () => {
+			await nextRow(ep, doc);
 			await clickEnd(ep, page, word);
-			await expect.poll(() => backticks(page)).toEqual(['none', 'none']);
-			await expect.poll(() => held(page)).toEqual(['code']);
+			await expect.poll(backticks).toEqual(['none', 'none']);
+			await expect.poll(async () => (await drawnBar(page))?.state).toBe('chip');
 		});
-	}
-});
-
-/** Whether the ringed construct draws the ring's colour around itself, read off its computed style,
- *  with the ring and the code chip's border colours from the editor's own theme. */
-async function ringPaint(page: Page): Promise<{ shown: boolean; ring: string; border: string }> {
-	return page.evaluate(() => {
-		const theme = document.querySelector('.aragonite-editor-theme');
-		if (!theme) throw new Error('no themed wrapper');
-		const probe = document.createElement('span');
-		theme.appendChild(probe);
-		probe.style.color = 'var(--md-edge-held-ring)';
-		const ring = getComputedStyle(probe).color;
-		probe.style.color = 'var(--md-inline-code-border)';
-		const border = getComputedStyle(probe).color;
-		probe.remove();
-		const held = document.querySelector('.md-edge-held');
-		if (!held) return { shown: false, ring, border };
-		const style = getComputedStyle(held);
-		const outlined =
-			style.outlineStyle !== 'none' &&
-			parseFloat(style.outlineWidth) > 0 &&
-			style.outlineColor === ring;
-		const shadowed = style.boxShadow
-			.split(/,(?![^(]*\))/)
-			.some((shadow) => shadow.includes(ring) && !shadow.includes('inset'));
-		return { shown: outlined || shadowed, ring, border };
-	});
-}
-
-test.describe('live mode: the ring paints on every symmetric pair, in both themes', () => {
-	const DOC = [
-		'`alone`',
-		'',
-		'a `code` b',
-		'',
-		'a **bold** b',
-		'',
-		'a *em* b',
-		'',
-		'a ~~gone~~ b'
-	].join('\n');
-
-	for (const theme of ['light', 'dark']) {
-		for (const word of ['alone', 'code', 'bold', 'em', 'gone']) {
-			test(`${theme}: at the end of ${word}`, async ({ page }) => {
-				const ep = new EditorPage(page);
-				await ep.goto(`?presentationMode=live&theme=${theme}`);
-				await ep.loadContent(DOC);
-				await clickEnd(ep, page, word);
-				await expect.poll(async () => (await held(page)).length).toBe(1);
-
-				const paint = await ringPaint(page);
-				expect(paint.shown).toBe(true);
-				expect(paint.ring).not.toBe(paint.border);
-			});
-		}
 	}
 });

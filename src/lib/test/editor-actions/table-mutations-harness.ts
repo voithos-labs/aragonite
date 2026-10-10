@@ -3,17 +3,17 @@
 // windowing leaves a mounted slice.
 
 import { vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createTableMutationsContext } from '$lib/editor-actions/table-context';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { parse } from '#lib/core/parser.js';
+import { createTableMutationsContext } from '#lib/editor-actions/table-context.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	mountEveryBlock
-} from '$lib/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor-events';
+} from '#lib/test/harness/editor-actions.js';
+import type { EditEvent } from '#lib/editor-events.js';
 
 export function makeTableMutations(
 	source: string,

@@ -14,8 +14,8 @@
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
 	import { hidesMarkers } from '../../../presentation-mode';
-	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
-	import { useMeasuredChild } from '../../../reactivity/use-measured-child.svelte';
+	import { useContainerWindowing } from '../../../windowing/use-container-windowing.svelte';
+	import { useMeasuredChild } from '../../../windowing/use-measured-child.svelte';
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createListItemOverrides } from '../../../editor-actions/list-overrides';
@@ -25,8 +25,8 @@
 	} from '../../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
-	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
-	import type { ChildList } from '../../../reactivity/child-list';
+	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
+	import type { ChildList } from '../../../block-lists/child-list';
 	import type { AnyCommandId } from '../../../schema/command-id';
 	import BlockDragHandle from '../../BlockDragHandle.svelte';
 	import SelectionOverlay from '../../SelectionOverlay.svelte';
@@ -50,7 +50,7 @@
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
-	const { selection, decorations, events, commands } =
+	const { selection, caretWriter, decorations, events, commands } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { blockDragHandles: getDragHandles } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -164,6 +164,7 @@
 
 	export const containerApi = createContainerBlockComponent({
 		selection,
+		caretWriter,
 		reading,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;

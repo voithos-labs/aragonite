@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 // A plugin's inline read in a mounted editor resolves the document's link reference definitions.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, type EditorContext } from '$lib/plugin';
-import { installEditorDomStubsForTests } from '$lib/testing';
-import { tocPlugin } from '$lib/plugins/toc';
-import { collectHeadings } from '$lib/plugins/toc/heading-outline';
-import { footnotesPlugin } from '$lib/plugins/footnotes';
+import { definePlugin, type EditorContext } from '#lib/plugin.js';
+import { installEditorDomStubsForTests } from '#lib/testing.js';
+import { tocPlugin } from '#lib/plugins/toc/index.js';
+import { collectHeadings } from '#lib/plugins/toc/heading-outline.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 import {
 	destroyMountedEditors,
 	mountEditor,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 
 let editorContext: EditorContext | undefined;
 const probe = definePlugin({

@@ -3,14 +3,12 @@ import { test, expect } from '../../fixtures';
 import { MermaidPage } from './mermaid-helpers';
 
 /**
- * Opening a diagram's source at the end of the document must not move the user further than the
- * height the swap itself loses (requirements/plugins/mermaid-source-scroll.md). The tall render
- * gives way to a short box, and the momentary layout that box passes through on its way to its
- * final height is where a scroll container already at its bottom clamps too far.
+ * Opening a diagram's source in the middle of a document leaves the page where it was
+ * (requirements/plugins/mermaid-source-scroll.md). At the document's end the scroll container has
+ * to come up by the height the swap removed; `view-swap-end-scroll.spec.ts` covers that.
  */
 
-// The showcase's trailing diagram, tall rendered and short in source: the lost height pulls the
-// scroll container up, and the box's momentary two-row layout is where it clamps too far.
+// The showcase's trailing diagram: tall rendered, short in source.
 const TALL_DIAGRAM = [
 	'```mermaid',
 	'xychart-beta',
@@ -22,13 +20,10 @@ const TALL_DIAGRAM = [
 ].join('\n');
 
 const PROSE = Array.from({ length: 40 }, (_, i) => `Paragraph ${i} of filler prose.`).join('\n\n');
-const DOC = `${PROSE}\n\n${TALL_DIAGRAM}\n`;
 
 interface PortGeometry {
 	scrollTop: number;
-	maxScrollTop: number;
 	portHeight: number;
-	scrollHeight: number;
 	blockTop: number;
 	blockBottom: number;
 }
@@ -41,64 +36,12 @@ function portGeometry(page: Page): Promise<PortGeometry> {
 		const blockRect = block.getBoundingClientRect();
 		return {
 			scrollTop: port.scrollTop,
-			maxScrollTop: port.scrollHeight - port.clientHeight,
 			portHeight: port.clientHeight,
-			scrollHeight: port.scrollHeight,
 			blockTop: blockRect.top - portRect.top,
 			blockBottom: blockRect.bottom - portRect.top
 		};
 	});
 }
-
-test.describe('opening a diagram source at the document end', () => {
-	let editor: MermaidPage;
-	let before: PortGeometry;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new MermaidPage(page);
-		await editor.loadDiagram(DOC);
-		await editor.scrollEditorTo(1e6);
-		await editor.waitForRenderFlush();
-		// The click focuses the block and brings up the hover-only toolbar the test clicks next.
-		await editor.viewport.click();
-		await editor.waitForRenderFlush();
-		before = await portGeometry(page);
-		// This is only a fixture while the diagram really is tall and at the bottom of a scrolled
-		// document; one that stopped being either would pass every assertion below for nothing.
-		expect(before.scrollTop).toBe(before.maxScrollTop);
-		expect(before.blockBottom - before.blockTop).toBeGreaterThan(before.portHeight / 3);
-	});
-
-	async function openSource(page: Page): Promise<PortGeometry> {
-		await page.getByTestId('mermaid-edit').click();
-		await editor.textarea.waitFor({ state: 'visible' });
-		await editor.waitForRenderFlush();
-		await editor.waitForRenderFlush();
-		const after = await portGeometry(page);
-		expect(after.scrollHeight).toBeLessThan(before.scrollHeight);
-		return after;
-	}
-
-	test('the swap costs no scroll beyond the height it removed', async ({ page }) => {
-		const after = await openSource(page);
-
-		// Sub-pixel layout makes the two differences vary by a fraction, never by the gap the
-		// box's momentary layout would leave.
-		expect(before.scrollTop - after.scrollTop).toBeCloseTo(
-			before.scrollHeight - after.scrollHeight,
-			0
-		);
-		expect(after.scrollTop).toBeCloseTo(after.maxScrollTop, 0);
-	});
-
-	test('the source card lands fully inside the scrollport', async ({ page }) => {
-		const after = await openSource(page);
-
-		expect(after.blockBottom - after.blockTop).toBeLessThan(after.portHeight);
-		expect(after.blockTop).toBeGreaterThanOrEqual(0);
-		expect(after.blockBottom).toBeLessThanOrEqual(after.portHeight);
-	});
-});
 
 test.describe('opening a diagram source that runs off the bottom of the screen', () => {
 	test('the page stays where it was', async ({ page }) => {

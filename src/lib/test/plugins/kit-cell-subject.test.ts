@@ -10,14 +10,14 @@ import {
 	type CstNode,
 	type PluginBlockKind,
 	type PluginInlineKind
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import {
 	runContainerConformance,
 	runInlineKindConformance,
 	type ContainerConformanceProfile,
 	type InlineConformanceProfile
-} from '$lib/testing';
-import { testContainer, testLeaf } from '$lib/test/harness/test-kinds';
+} from '#lib/testing.js';
+import { testContainer, testLeaf } from '#lib/test/harness/test-kinds.js';
 import { registerWikiRung, rewriteWikiImage } from '../image/wiki-image-rung';
 
 const EXCUSED = 'the plugin kind in this suite exists only to probe the cell it asserts';

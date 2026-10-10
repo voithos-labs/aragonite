@@ -5,13 +5,15 @@
 
 import { mount, unmount, flushSync } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import Editor from '$lib/components/Editor.svelte';
-import type { EditorInstance, EditorProps } from '$lib/editor-props';
-import { placeCaretAtRaw, selectRawRange } from '$lib/cursor/widget-offset';
-import { settleEditor, pressKey } from '$lib/test/harness/settle';
+import Editor from '#lib/components/Editor.svelte';
+import type { EditorInstance, EditorProps } from '#lib/editor-props.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+
+import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** Every mount suite runs the published helpers, so a plugin author's stub is checked here. */
-export { installEditorDomStubsForTests as installLayoutStubs } from '$lib/testing';
+export { installEditorDomStubsForTests as installLayoutStubs } from '#lib/testing.js';
 
 export interface MountedEditor<Seam = unknown> {
 	instance: EditorInstance & { __test: Seam };
@@ -24,6 +26,9 @@ export interface MountedEditor<Seam = unknown> {
 	/** A second call does nothing, so a test may unmount mid-case and still tear down after. */
 	destroy(): Promise<void>;
 }
+
+/** The test handle's block lookup, for a test that focuses a block through its component. */
+export type BlockLookup = { getBlockComponent(path: number[]): { focus?(offset: number): void } };
 
 const live = new Set<MountedEditor<unknown>>();
 
@@ -82,6 +87,21 @@ export function typeInFirstBlock(target: HTMLElement, text: string): void {
 	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
 }
 
+/** Leave `el` holding `text` with the caret at its end, as a browser edit does, then send `input`. */
+export function typeInto(el: HTMLElement, text: string): void {
+	el.textContent = text;
+	placeCaret(el, text.length);
+	el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+}
+
+/** `source` mounted in `mode`, with the caret at `at` in its first block. */
+export function mountWithCaret(source: string, at: number, mode: PresentationMode = 'live') {
+	const editor = mountEditor({ source, presentationMode: mode });
+	const el = surfaceAt(editor, [0]);
+	placeCaret(el, at);
+	return { editor, el };
+}
+
 /** The BlockHost at `path`, addressed the way the CST addresses it. */
 export function blockHostAt(mounted: MountedEditor, path: number[]): HTMLElement {
 	const el = mounted.target.querySelector<HTMLElement>(
@@ -103,7 +123,7 @@ export function surfaceAt(mounted: MountedEditor, path: number[]): HTMLElement {
 /** Put a real caret at `rawOffset` in `el`, through the editor's own caret writer. */
 export function placeCaret(el: HTMLElement, rawOffset: number): void {
 	el.focus();
-	if (!placeCaretAtRaw(el, rawOffset, { clamp: 'exact' })) {
+	if (!testCaretWriter.placeCaretAtRaw(el, rawOffset, { clamp: 'exact' })) {
 		throw new Error(`offset ${rawOffset} is out of range for this block`);
 	}
 }
@@ -111,7 +131,7 @@ export function placeCaret(el: HTMLElement, rawOffset: number): void {
 /** Select `[start, end)` of `el` as a native range, the way a drag inside one block leaves it. */
 export function selectRange(el: HTMLElement, start: number, end: number): void {
 	el.focus();
-	if (!selectRawRange(el, start, end)) {
+	if (!testCaretWriter.selectRawRange(el, start, end)) {
 		throw new Error(`range ${start}..${end} is out of range for this block`);
 	}
 }

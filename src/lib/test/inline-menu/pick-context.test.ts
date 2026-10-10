@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { openPick } from '$lib/inline-menu/pick-context';
-import { createDraftRegistry } from '$lib/components/draft-registry';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
-import type { EditorContext } from '$lib/schema/plugin-install';
+import { openPick } from '#lib/inline-menu/pick-context.js';
+import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import type { EditorContext } from '#lib/schema/plugin-install.js';
 
 // A pick's commit gets the owner's context with refusing writers: everything else must still read
 // live through it, since a spread would freeze `document` and the other getters.

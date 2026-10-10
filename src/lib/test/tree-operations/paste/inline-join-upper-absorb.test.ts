@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
 	pasteContext
-} from '$lib/test/harness/editor-actions';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+} from '#lib/test/harness/editor-actions.js';
+import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 
 // An inline paste at a heading's start demotes it into the block above; the caret follows its byte.
 // Miss-analysis: the caret was pinned only at the content-write primitive, never at this caller.

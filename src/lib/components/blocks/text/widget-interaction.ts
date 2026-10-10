@@ -9,25 +9,22 @@ import { tick } from 'svelte';
 import type { BlockEditActions, ContentWrite, FocusActions } from '../../../action-contracts';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import type { SurfaceBackend } from '../../../cursor/surface-backend';
-import { selectWidgetWhole } from '../../../selection/caret-doors';
+import type { SurfaceBackend } from '../../../caret/surface-backend';
+import { selectWidgetWhole } from '../../../selection/place-caret';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,
 	isCharacterLikeWidget,
-	isWidgetActivationClick
+	widgetActivates
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import { asRawOffset } from '../../../cursor/coordinate-spaces';
-import {
-	extendSelectionToRaw as extendSelectionToRawIn,
-	rawOffsetAt,
-	rawSelectionFocus,
-	selectRawRange
-} from '../../../cursor/widget-offset';
-import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
-import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../cursor/widget-edge-snap';
+import { asRawOffset } from '../../../caret/coordinate-spaces';
+import { rawOffsetAt, rawSelectionFocus, type CaretWriter } from '../../../caret/widget-offset';
+import { createSourceReveal, type SourceReveal } from '../../../caret/reveal-source';
+import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../caret/widget-edge-snap';
+import type { CaretMemory } from '../../../caret/caret-memory';
+import { clickSide } from './click-side';
 import {
 	traceRevealOpen,
 	traceRevealFold,
@@ -56,6 +53,9 @@ import type { Reading } from '../../../schema/reading';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../surface-write';
 import type { DraftRegistry } from '../../draft-registry';
 import type { Draft } from '../../../schema/drafts';
+import type { ActivationClick, ClickInput } from '../../../activation-click';
+
+const PLAIN_CLICK: ClickInput = { ctrlKey: false, metaKey: false };
 
 export interface WidgetInteractionDeps {
 	get node(): NodeView;
@@ -65,6 +65,8 @@ export interface WidgetInteractionDeps {
 	getEditorContentWidth: () => number;
 	cursor: SurfaceBackend;
 	selection: SelectionState;
+	/** The editor's caret writer, for the ranges and the widget selections made here. */
+	caretWriter: CaretWriter;
 	blockEdit: BlockEditActions;
 	/** The block's one write to its own text, for a key over a selected widget. */
 	writeText: (write: TextWrite) => ContentWrite;
@@ -85,14 +87,20 @@ export interface WidgetInteractionDeps {
 	/** The grammar the widgets were rendered with, and the presentation mode: reading mode shows
 	 *  no source and edits no widget. */
 	get reading(): Reading;
+	/** Whether a click follows a widget that goes somewhere, rather than showing its source. */
+	activationClick: ActivationClick;
 	/** Where the block's bytes are stored, read when a selected widget is replaced. */
 	storedAs: () => StoredAs;
+	/** Told when a click starts the caret fresh (`click-side.ts`). */
+	caretMemory: Pick<CaretMemory, 'noteOutside'>;
+	/** Puts the caret on the side of a code chip's border a click hit. */
+	pinChipSide: (side: 'inside' | 'outside') => void;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
 export interface WidgetPress {
-	/** Ctrl or Cmd held at the click: with it, a widget that takes the activation click keeps it. */
-	modified?: boolean;
+	/** The click itself, which decides whether a widget that goes somewhere follows it. */
+	click?: ClickInput;
 	/** `MouseEvent.detail`; two or more is a double-click, which selects the token it just opened. */
 	clickCount?: number;
 	/** The pointer travelled between press and release, so the gesture was a drag. Showing a
@@ -329,7 +337,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			},
 			// Re-inserts the exact element the swap detached, still current because the edit
 			// was discarded. The persist path re-renders reactively instead.
-			showRendered: restoreRenderedWidget
+			showRendered: restoreRenderedWidget,
+			caretWriter: deps.caretWriter
 		});
 		revealState = {
 			kernel,
@@ -456,7 +465,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	async function restoreRangeInBlock(span: { start: number; end: number }): Promise<void> {
 		await tick();
 		const el = deps.getEl();
-		if (el) selectRawRange(el, span.start, span.end);
+		if (el) deps.caretWriter.selectRawRange(el, span.start, span.end);
 	}
 
 	// Compared by raw offset, bounds included: a caret at the source's edge may sit in the
@@ -619,11 +628,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const onSource = Array.from(range.getClientRects()).some(
 			(r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
 		);
-		const selection = window.getSelection();
-		if (!onSource || !selection) return false;
-		selection.removeAllRanges();
-		selection.addRange(range);
-		return true;
+		return onSource && deps.caretWriter.selectDomRange(range);
 	}
 
 	function isRevealing(): boolean {
@@ -792,7 +797,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			const atSourceOffset = fromTrailingEdge ? widget.end - widget.start : 0;
 			void startReveal(widget, enteredOffset, atSourceOffset);
 		} else {
-			selectWidgetWhole(deps.selection, {
+			selectWidgetWhole(deps.selection, deps.caretWriter, {
 				paragraphPath: deps.myPath,
 				sourceStart: widget.start,
 				preSelectOffset: enteredOffset
@@ -849,8 +854,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				// Returns rather than falls through: the edge-snap below would focus this block and
 				// place a caret, stealing back what the widget's own navigation just landed.
 				if (
-					widgetEditing(hit.inline.kind)?.claimsActivationClick &&
-					isWidgetActivationClick(press.modified ?? false, deps.reading.mode())
+					widgetActivates(
+						widgetEditing(hit.inline.kind),
+						press.click ?? PLAIN_CLICK,
+						deps.activationClick
+					)
 				) {
 					return;
 				}
@@ -865,6 +873,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// range, which it would collapse; `clampOutOfMarkerPrefix` already holds that rule.
 		const live = window.getSelection();
 		if (surfaceHoldsRange(el, live)) return;
+		const side = clickY === null ? null : clickSide(el, clickX, clickY, press.moved === true);
+		if (side === 'fresh') deps.caretMemory.noteOutside();
+		else if (side) deps.pinChipSide(side === 'chip-inside' ? 'inside' : 'outside');
 		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), clickX, clickY);
 		if (seat === null) return;
 		// A click beside a widget leaves a visible caret alone; a click on one cannot, since the
@@ -917,7 +928,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	function extendSelectionToRaw(rawOffset: number): void {
 		const el = deps.getEl();
-		if (el) extendSelectionToRawIn(el, rawOffset);
+		if (el) deps.caretWriter.extendSelectionToRaw(el, rawOffset);
 	}
 
 	return {

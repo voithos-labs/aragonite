@@ -7,6 +7,7 @@
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { percentileMs } from './latency-harness';
+import { editorScrollTop } from './vr-helpers';
 
 // ── The in-page probe ───────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ export interface TickSample {
 	mounted: number;
 	renderCount: number;
 	renderMs: number;
+	caretPaints: number;
 }
 
 /** Counts what one wheel notch does to the editor: blocks mounted and unmounted, scrollTop
@@ -100,7 +102,8 @@ async function drainProbe(page: Page): Promise<Omit<TickSample, 'scrolled' | 'se
 			maxFrameGap: p.frameGaps.length ? Math.max(...p.frameGaps) : 0,
 			mounted: document.querySelectorAll('[data-block-path]').length,
 			renderCount: (perf?.blockRenderCount ?? 0) as number,
-			renderMs: (perf?.blockRenderMsTotal ?? 0) as number
+			renderMs: (perf?.blockRenderMsTotal ?? 0) as number,
+			caretPaints: (perf?.caretPaints ?? 0) as number
 		};
 		p.added = 0;
 		p.removed = 0;
@@ -112,10 +115,6 @@ async function drainProbe(page: Page): Promise<Omit<TickSample, 'scrolled' | 'se
 		(window as any).__test?.perf.reset();
 		return out;
 	});
-}
-
-function editorScrollTop(page: Page): Promise<number> {
-	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollTop);
 }
 
 /** The scroll has not moved for two frames; a smooth wheel scroll animates over several. */
@@ -244,6 +243,7 @@ export function summarize(samples: TickSample[]) {
 		scrolledMax: round(max((s) => s.scrolled)),
 		renderCount: sum((s) => s.renderCount),
 		renderMs: round(sum((s) => s.renderMs)),
+		caretPaints: sum((s) => s.caretPaints),
 		// Every notch that moved the scroll, with what it mounted, which is where a jump came from.
 		writeTicks: samples
 			.map((s, i) => ({ i, scrolled: s.scrolled, writes: s.writes, addedKinds: s.addedKinds }))

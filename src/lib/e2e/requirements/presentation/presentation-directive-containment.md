@@ -5,7 +5,7 @@ Markdown source, and a container's own markers never toggle. This pins that rule
 across a plugin `:::name` directive container: focusing a body leaf shows that
 leaf's own inline markers, but the directive fences (`.directive-marker`) belong
 to the container and stay hidden. Runs on `/test/plugins` for the directive
-grammar, with `__test.setPresentationMode('preview-block')`. Fixture: `:::foo\nBody with
+grammar, with `EditorPage.setPresentationMode('preview-block')`. Fixture: `:::foo\nBody with
 **bold** here.\n:::\n`.
 
 ## Happy paths

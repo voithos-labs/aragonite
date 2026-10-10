@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	augmentBlockKind,
 	getBlockKindDescriptor,
 	registerBlockKind,
 	type BlockKindRegistration
-} from '$lib/schema/block-kind-descriptor';
-import { testClosure } from '$lib/test/support/closure';
+} from '#lib/schema/block-kind-descriptor.js';
+import { testClosure } from '#lib/test/support/closure.js';
 
 const leaf = {
 	gapEdges: 'none',

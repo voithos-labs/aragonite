@@ -6,14 +6,16 @@
 
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
-import type { HeightOracle } from '../cursor/height-oracle';
-import type { ListTree } from '../reactivity/list-tree';
+import type { HeightOracle } from '../windowing/height-estimator';
+import type { ListTree } from '../windowing/list-tree';
 import type { OperationsLog } from '../debug/operations-log';
 import type { DecorationEngine } from '../decorations/decoration-state.svelte';
-import type { RefSlots } from '../reactivity/publish-ref.svelte';
+import type { RefSlots } from '../block-lists/child-refs';
 import type { GapCaretPosition } from '../selection/gap-caret';
 import type { GrammarView } from '../schema/block-openers';
 import type { UndoManager } from '../undo/types';
+import type { DrawnCaret } from '../caret/drawn-caret.svelte';
+import type { CaretWriter } from '../caret/widget-offset';
 
 export interface EditorTestSurface {
 	/** The live CST; read-only by contract, since a write bypasses the undo pipeline. */
@@ -47,4 +49,8 @@ export interface EditorTestSurface {
 	getWidthVersion(): number;
 	/** Creates the stale child-ref entry an unmounted block's cleanup can leave behind. */
 	setBlockRefSlot: RefSlots<BlockComponent>['set'];
+	/** The drawn caret, so a test can request a paint the way a caret write does. */
+	getDrawnCaret(): DrawnCaret;
+	/** This editor's caret writer, whose writes request that paint. */
+	getCaretWriter(): CaretWriter;
 }

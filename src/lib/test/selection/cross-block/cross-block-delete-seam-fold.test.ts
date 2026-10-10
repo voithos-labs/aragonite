@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { replaceRange } from '$lib/selection/cross-block/range-replace';
-import { rangeContext } from './range-context';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
+import { makeRangeEnv } from './range-context';
+import { serialize } from '#lib/core/serializer.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import { makeBlockListState } from '#lib/test/harness/editor-actions.js';
 
 // A survivor absorbed by the neighbour above merges blocks outside the range; the ids must follow.
 // Miss-analysis: no cross-block delete case compared the state's id array with the children left.
@@ -16,13 +12,7 @@ import { fixtureReading } from '../../harness/fixture-grammar';
 /** A list above indented text: their adjacent bytes re-read as one list, and the merge cascades. */
 const ABSORBING_NEIGHBOUR = '- a\n\nAB\n\n  cd\n\n  ef\n';
 
-function makeEnv(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	harness.deps.selectionState = createSelectionState({ getDoc: () => harness.deps.doc });
-	const controller = createUndoController(harness.deps);
-	const mutCtx = rangeContext(harness.deps, controller, fixtureReading());
-	return { ...harness, controller, mutCtx };
-}
+const makeEnv = (source: string) => makeRangeEnv(source, { liveSelection: true });
 
 describe('a cross-block delete whose settle folds a join above the selection', () => {
 	it('publishes one doc id per surviving block, and the absorber keeps its own', async () => {

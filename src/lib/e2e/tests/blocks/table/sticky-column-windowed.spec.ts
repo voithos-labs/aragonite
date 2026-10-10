@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { capturePageErrors } from '../../../page-probes';
+import { GIANT_LIST_OR_TABLE_BYTES } from '../../perf/vr-helpers';
 
 // Entering a row-windowed table with a sticky column must read the column geometry from a mounted
 // row, not a hardcoded row 0: an unmounted row 0 gives no rects and `columnNearestX` collapses the
@@ -10,7 +11,7 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 
 	test.beforeEach(async ({ page }) => {
 		// A fixed viewport keeps the windowed mount set deterministic, as in the VR table suite,
-		// even though a 2MB table windows at any height.
+		// even though a table this long windows at any height.
 		await page.setViewportSize({ width: 1280, height: 900 });
 		editor = new EditorPage(page);
 		await editor.goto();
@@ -19,15 +20,15 @@ test.describe('table block: sticky-column entry into a row-windowed table', () =
 	test('ArrowUp from below lands the nearest-X column, not column 0, when row 0 is windowed out', async ({
 		page
 	}) => {
-		// Row windowing on a 2MB load is bound by layout, so this gets the VR table suite's
-		// headroom.
-		test.setTimeout(120_000);
-
 		const pageErrors = capturePageErrors(page);
 
 		// Trailing paragraph below the table: ArrowDown out of the last row captures
 		// the sticky-X, ArrowUp re-enters the last row via focusAtColumn(x, 'below').
-		await editor.loadLargeFixture('giant-single-table', 2_000_000, '\nbelow paragraph\n');
+		await editor.loadLargeFixture(
+			'giant-single-table',
+			GIANT_LIST_OR_TABLE_BYTES,
+			'\nbelow paragraph\n'
+		);
 
 		const lastRow = await page.evaluate(
 			() => (window as any).__test.getDocument().children[0].children.length - 1

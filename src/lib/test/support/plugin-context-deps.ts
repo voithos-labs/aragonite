@@ -1,12 +1,12 @@
 // Inert dependencies for `createEditorPluginContexts`, so a test overrides only what it reads.
-import { everyInstalledPlugin, type PluginActivation } from '$lib/schema/plugin-activation';
-import type { DecorationRegistry } from '$lib/decorations/types';
-import type { EditorRects } from '$lib/editor-rects';
-import type { InlineMenuRegistry } from '$lib/inline-menu/types';
-import type { InsertMarkdownOptions } from '$lib/editor-props';
-import { kitReading } from '$lib/testing/kit-reading';
-import { createDraftRegistry } from '$lib/components/draft-registry';
-import { createDocumentStamps } from '$lib/editor-actions/commit/document-stamp';
+import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-activation.js';
+import type { DecorationRegistry } from '#lib/decorations/types.js';
+import type { EditorRects } from '#lib/editor-rects.js';
+import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
+import type { InsertMarkdownOptions } from '#lib/editor-props.js';
+import { kitReading } from '#lib/testing/kit-reading.js';
+import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 
 export const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
@@ -39,6 +39,7 @@ export const pluginContextDeps = (
 	getDocumentGeneration: () => 0,
 	getPresentationMode: () => 'source' as const,
 	getTheme: () => 'dark',
+	activationClick: () => false,
 	activation: everyInstalledPlugin as PluginActivation,
 	insertMarkdown: (async () => false) as (
 		md: string,

@@ -8,7 +8,7 @@ import type { AnyBlockKind } from '../core/nodes';
 import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
 import { tryGetBlockKindDescriptor, type CaretTarget } from '../schema/block-kind-descriptor';
 import { cellPoint, type SelectionEndpoint } from './primitives';
-import { caretOffsetAtPoint, offsetFromViewportPoint } from '../cursor/point-offset';
+import { caretOffsetAtPoint, offsetFromViewportPoint } from '../caret/point-offset';
 import { readBlockPath } from './path-lookup';
 import { pathsEqual } from './path-math';
 

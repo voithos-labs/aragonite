@@ -66,37 +66,41 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await editor.goto();
 	});
 
-	for (const { name, doc } of SHAPES) {
-		test(`${name}: same landing X both directions`, async () => {
-			await editor.loadContent(doc);
+	test('every code block shape: same landing X both directions', async () => {
+		for (const { name, doc } of SHAPES) {
+			await test.step(name, async () => {
+				await editor.loadContent(doc);
 
-			const fromAbove = await captureEntry(editor, 1, 'above');
-			await resetStickyByClickingOutside(editor);
-			const fromBelow = await captureEntry(editor, 1, 'below');
+				const fromAbove = await captureEntry(editor, 1, 'above');
+				await resetStickyByClickingOutside(editor);
+				const fromBelow = await captureEntry(editor, 1, 'below');
 
-			expect(Math.abs(fromAbove.sourceX - fromBelow.sourceX)).toBeLessThan(PIXEL_TOLERANCE);
-			expect(Math.abs(fromAbove.landingX - fromBelow.landingX)).toBeLessThan(PIXEL_TOLERANCE);
-		});
-	}
+				expect(Math.abs(fromAbove.sourceX - fromBelow.sourceX)).toBeLessThan(PIXEL_TOLERANCE);
+				expect(Math.abs(fromAbove.landingX - fromBelow.landingX)).toBeLessThan(PIXEL_TOLERANCE);
+			});
+		}
+	});
 
-	for (const from of ['above', 'below'] as const) {
-		test(`entry from ${from} lands in the body, never on a fence line`, async () => {
-			// The opener carries an info string and the closer does not, so a landing on either
-			// fence line is a different column from a landing in the body.
-			await editor.loadContent(fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript'));
-			await captureEntry(editor, 1, from);
-			// The body line is raw [14, 44]: past "```javascript\n", before "\n```".
-			const landed = await editor.bridge.getSelectionPaths();
-			expect(landed?.focus.path).toEqual([1]);
-			expect(landed?.focus.offset).toBeGreaterThanOrEqual(14);
-			expect(landed?.focus.offset).toBeLessThanOrEqual(44);
-			await editor.typeText('X');
-			await editor.bridge.waitForSourceContains('X');
-			const src = await editor.bridge.getSource();
-			expect(src).toContain('```javascript\n');
-			expect(src).toMatch(/\nb+Xb+\n/);
-		});
-	}
+	test('entry from above and from below lands in the body, never on a fence line', async () => {
+		for (const from of ['above', 'below'] as const) {
+			await test.step(from, async () => {
+				// The opener carries an info string and the closer does not, so a landing on either
+				// fence line is a different column from a landing in the body.
+				await editor.loadContent(fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript'));
+				await captureEntry(editor, 1, from);
+				// The body line is raw [14, 44]: past "```javascript\n", before "\n```".
+				const landed = await editor.bridge.getSelectionPaths();
+				expect(landed?.focus.path).toEqual([1]);
+				expect(landed?.focus.offset).toBeGreaterThanOrEqual(14);
+				expect(landed?.focus.offset).toBeLessThanOrEqual(44);
+				await editor.typeText('X');
+				await editor.bridge.waitForSourceContains('X');
+				const src = await editor.bridge.getSource();
+				expect(src).toContain('```javascript\n');
+				expect(src).toMatch(/\nb+Xb+\n/);
+			});
+		}
+	});
 
 	test('landing body offset (not just X) matches from both directions', async () => {
 		// A 2px X-match could still hide a one-offset discrepancy; compare byte positions instead.

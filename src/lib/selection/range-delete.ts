@@ -1,6 +1,6 @@
 /**
  * Deletes a covered range from the tree in place, merging what survives at the start. The
- * "start wins" rule is in `docs/design/editor.md` § Cross-block selection.
+ * "start wins" rule is in `docs/design/selection.md` § Cross-block selection.
  */
 
 import type { Reading } from '../schema/reading';
@@ -12,7 +12,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import { charOffsetOf } from './primitives';
 import { comparePaths } from './path-math';
 import { caretPointFor, type RemovalGesture } from './caret-target';
-import { docPathFrom } from '../cursor/coordinate-spaces';
+import { docPathFrom } from '../caret/coordinate-spaces';
 import {
 	blockNodeAt,
 	bodyUnder,

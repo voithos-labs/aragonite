@@ -5,8 +5,8 @@
  * rule under the same G-number. The scan is `file-rule.ts`.
  */
 
-import { MARKER_FAMILY_CLASSES } from '$lib/core/inline/visibility';
-import { collectEditorSources, type SourceFile } from './scan-source';
+import { MARKER_FAMILY_CLASSES } from '#lib/core/inline/visibility.js';
+import { collectEditorSources, quotedSpecifierEnding, type SourceFile } from './scan-source';
 import {
 	describeFileRules,
 	describeManifests,
@@ -16,6 +16,7 @@ import {
 	type Probe
 } from './file-rule';
 import { SOURCE, SOURCE_DIR } from './source-paths';
+import { NATIVE_SELECTION_WRITE } from './native-selection-write';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 const keys = (...groups: Record<string, string>[]) => groups.flatMap((g) => Object.keys(g));
@@ -130,7 +131,7 @@ const STAMP_WRITE = /\.(?:toggle|set)Attribute\(\s*CONTENT_EMPTY_ATTR\b/;
 
 const CLASSIFICATION_HOMES: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts': 'the families and the hiding rule',
-	'src/lib/cursor/widget-offset.ts': 'applies them to a live DOM, and owns the reveal branches'
+	'src/lib/caret/widget-offset.ts': 'applies them to a live DOM, and owns the reveal branches'
 };
 
 /** Resolving marker-hiding state either way: a DOM read of the mode root, the block-focus, construct
@@ -158,16 +159,14 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-reveal.ts':
 		'the preview-inline reveal writer: it stamps the class the classification reads, and asks nothing about hiding',
 	'src/lib/invariants/marker-css-parity.ts':
-		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer',
-	'src/lib/components/blocks/text/edge-step.ts':
-		'reads the construct tags only to find the content element a typed byte would join; whether markers hide is `revealsNoMarkers`, asked of the home'
+		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer'
 };
 
 // Read off the families themselves, so a new one is scanned the day it is added.
 const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal', 'directive-marker'];
 
 const MARKER_CLASS_FILES: Record<string, string> = {
-	'src/lib/cursor/widget-offset.ts': 'the classification home',
+	'src/lib/caret/widget-offset.ts': 'the classification home',
 	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
 		'creates the directive container chrome: contenteditable="false" and outside every walk container, so the hiding classification excludes it twice over',
 	'src/lib/ambient/ambient-dom.ts': 'creates and identifies the marker-prefix span',
@@ -277,15 +276,6 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['buildLinkEditBytes(link, display, fields)']
 	},
 	{
-		id: 'G4.34 the link GFM serializer is named only inside the byte writer',
-		matches: /\bbuildLinkSourceBytes\b/,
-		declared: { [LINK_BYTES]: 'the byte writer itself' },
-		reason:
-			'an inline handler may create a built-in link over syntax of its own; re-emitting its fields as GFM replaces the author’s bytes',
-		hits: ['buildLinkSourceBytes(fields)'],
-		misses: ['// buildLinkSourceBytes(fields)\n']
-	},
-	{
 		id: 'G4.34 exactly the declared write paths call the link byte writer',
 		matches: /\bbuildLink(?:Edit|Unwrap|Wrap)Bytes\b/,
 		declared: {
@@ -304,34 +294,39 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['buildImageEditBytes(image, raw, fields)']
 	},
 	{
-		id: 'G4.36 the files writing the native selection are the one caret writer and the node-range writers',
-		// Only the two-argument collapse and setPosition: Range.collapse(true) and the editor's own
-		// selectionState.collapse() take one argument or none, and write no caret.
-		matches:
-			/\.(?:addRange|setBaseAndExtent|extend|selectAllChildren)\s*\(|\.(?:collapse|setPosition)\s*\([^,()]*,/,
+		id: 'G4.36 the one file writing the native selection is the caret writer',
+		// A one-argument collapse counts on a selection only: Range.collapse(toStart) and the
+		// selection store's own collapse() write no caret.
+		matches: NATIVE_SELECTION_WRITE,
 		declared: {
-			'src/lib/cursor/widget-offset.ts':
-				'placeCaretAtRaw and the raw range writers: the one translation from a raw offset to a native selection',
-			'src/lib/components/blocks/text/edge-policy-dispatch.ts':
-				'selects a replace widget whole: a range over one element, not a raw offset',
-			'src/lib/components/blocks/text/widget-interaction.ts':
-				"a double-click selects the revealed token whole, over the reveal's own text node"
+			'src/lib/caret/widget-offset.ts':
+				'createCaretWriter, one per editor: its writes check every endpoint against an empty block’s <br> (G1.75) and ask the drawn caret to repaint'
 		},
 		reason:
-			'a caret written from a raw offset goes through placeCaretAtRaw, which skips the marker prefix and clamps; any other native write must be a range over nodes it already holds',
+			'every write or clear of the native selection goes through the editor’s caret writer (EditorServices.caretWriter), which skips the marker prefix, clamps, and asks the drawn caret to repaint',
 		hits: [
 			'sel?.addRange(range);',
+			'window.getSelection()?.removeAllRanges();',
+			'sel.empty();',
 			'sel.setBaseAndExtent(n, 0, n, 0);',
 			'sel.extend(node, 2);',
 			'window.getSelection()?.collapse(node, 2);',
 			'sel.setPosition(node, 2);',
-			'sel.selectAllChildren(node);'
+			'sel.selectAllChildren(node);',
+			'sel.collapseToEnd();',
+			'sel.collapseToStart();',
+			"sel.modify('move', 'forward', 'character');",
+			'sel.collapse(node);',
+			'window.getSelection()?.collapse(node);',
+			'window.getSelection()!.collapse(node);',
+			'sel.setPosition(node);'
 		],
 		misses: [
 			'sel.getRangeAt(0);',
 			'selectionState.collapse();',
+			'ctx.selection.collapse();',
 			'range.collapse(true);',
-			'sel.collapseToEnd();'
+			'range.collapse(toStart);'
 		]
 	},
 	{
@@ -340,13 +335,13 @@ const MANIFESTS: ManifestRule[] = [
 			'(?:createRangeAtDomTextOffsets|findDomTextOffsetTarget|findDomTextLanding)'
 		),
 		declared: {
-			'src/lib/cursor/widget-offset.ts': 'defines the walk and the one caret writer over it',
-			'src/lib/cursor/overlay-rects.ts': "measures a range's client rects, and writes no caret",
-			'src/lib/cursor/sticky-measure.ts':
+			'src/lib/caret/widget-offset.ts': 'defines the walk and the one caret writer over it',
+			'src/lib/caret/overlay-rects.ts': "measures a range's client rects, and writes no caret",
+			'src/lib/caret/sticky-measure.ts':
 				'measures the caret box a column scan compares, and writes no caret'
 		},
 		reason:
-			'a DOM position built outside the walk module skips the prefix and clamp rules a caret write needs; write a caret with placeCaretAtRaw',
+			'a DOM position built outside the walk module skips the prefix and clamp rules a caret write needs; write a caret through the editor’s caret writer',
 		hits: [
 			'const range = createRangeAtDomTextOffsets(el, a, a);',
 			'findDomTextOffsetTarget(el, t)'
@@ -357,19 +352,22 @@ const MANIFESTS: ManifestRule[] = [
 		id: 'G4.36 the files naming rawRangeToDomRange measure or decorate, never place a caret',
 		matches: namesToken('rawRangeToDomRange'),
 		declared: {
-			'src/lib/cursor/widget-offset.ts': 'defines it',
+			'src/lib/caret/widget-offset.ts': 'defines it',
 			'src/lib/decorations/island-dom.ts':
 				'inserts and replaces decoration widgets in a built fragment',
 			'src/lib/selection/selection-drop.ts': "measures the drop caret's rect"
 		},
 		reason:
-			'a range from raw offsets is for measuring or decorating; a caret goes through placeCaretAtRaw',
+			'a range from raw offsets is for measuring or decorating; a caret goes through the editor’s caret writer',
 		hits: ['rawRangeToDomRange(root, 0, 3)'],
 		misses: ['// rawRangeToDomRange measures']
 	},
 	{
 		id: 'G4.36 the files building a public focus from placeCaret are the declared surfaces',
-		matches: /import\s*(?:type\s*)?\{[^}]*(?<!\w)placeCaret\b[^}]*\}\s*from\s*'[^']*caret-doors'/,
+		matches: new RegExp(
+			String.raw`import\s*(?:type\s*)?\{[^}]*(?<!\w)placeCaret\b[^}]*\}\s*from\s*` +
+				quotedSpecifierEnding('place-caret')
+		),
 		declared: {
 			'src/lib/components/blocks/editable-leaf.ts': 'the plugin leaf surface',
 			'src/lib/components/blocks/editable-surface.ts': 'the shared editable factory',
@@ -378,8 +376,11 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/editor-actions/container-block-component.ts': 'the container walk-in shim'
 		},
 		reason: 'a new surface building its focus is a new caret writer',
-		hits: ["import { placeCaret } from '../../selection/caret-doors';"],
-		misses: ["import { focusAtColumn } from '../../selection/caret-doors';"]
+		hits: [
+			"import { placeCaret } from '../../selection/place-caret';",
+			"import { placeCaret } from '#lib/selection/place-caret.js';"
+		],
+		misses: ["import { focusAtColumn } from '../../selection/place-caret';"]
 	},
 	{
 		id: 'G4.36 the files naming checkLandableCaret are the definition and its one caller',

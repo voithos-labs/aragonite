@@ -3,11 +3,11 @@
 // Miss-analysis: the range removal wrote the live document for months; only a splice counter on
 // one route could see it, and no check sat at the commit every route goes through.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { checkTopLevelUntouched } from '$lib/invariants/top-level-untouched';
-import { asDocPath } from '$lib/selection/path-math';
-import { makeTopHarness } from '$lib/test/harness/editor-actions';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { serialize } from '#lib/core/serializer.js';
+import { checkTopLevelUntouched } from '#lib/invariants/top-level-untouched.js';
+import { asDocPath } from '#lib/selection/path-math.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 describe('checkTopLevelUntouched', () => {
 	const a = { kind: 'a' };

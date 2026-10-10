@@ -10,14 +10,7 @@ test.describe('image popover commit', () => {
 		await editor.goto();
 	});
 
-	test('popover appears on selection', async ({ page }) => {
-		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
-		const widget = page.locator('[data-image-widget]').first();
-		await widget.click();
-		await expect(page.locator('.md-image-properties')).toBeVisible();
-	});
-
-	test('popover disappears on deselect', async ({ page }) => {
+	test('popover appears on selection and disappears on deselect', async ({ page }) => {
 		await editor.loadContent('text\n\n![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();

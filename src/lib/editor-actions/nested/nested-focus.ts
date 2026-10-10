@@ -5,8 +5,8 @@
 
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
 import type { FocusPosition } from '../../block-component';
-import type { BlockListState } from '../../reactivity/block-list-state.svelte';
-import { descendTo, type ChildList } from '../../reactivity/child-list';
+import type { BlockListState } from '../../block-lists/block-list-state.svelte';
+import { descendTo, type ChildList } from '../../block-lists/child-list';
 import { delegateMoveFocus, dispatchMoveFocus, type MoveFocusScope } from '../focus/focus-dispatch';
 import type { NestedActionsDeps } from './nested-actions';
 

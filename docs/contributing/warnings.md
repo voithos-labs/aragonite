@@ -24,11 +24,11 @@ fyi:
 
 ## The three channels
 
-| Channel        | Looks like                     | What it means                                                                                                                                                                                                                                                                 |
-| -------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Guard          | `[aragonite:invariant:<name>]` | A contract was violated. Always a defect, yours or one you just uncovered.                                                                                                                                                                                                    |
-| Diagnostic     | `[aragonite:<subsystem>]`      | A seam (i.e. boundary; a place where responsibility changes hands from one piece of code to another, so to speak) refused something and degraded gracefully. Usually a defect upstream of it, occasionally benign.                                                            |
-| Svelte runtime | `[svelte] <code>`              | Svelte's own runtime, complaining about how the editor drives it: a derived read past its owner's death, a binding to a non-reactive property, a raw object compared against its proxy. Every code is gated; the one you'll meet most is in "The proxy-versus-raw one" below. |
+| Channel        | Looks like                     | What it means                                                                                                                                                                                                                                      |
+| -------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Guard          | `[aragonite:invariant:<name>]` | A contract was violated. Always a defect, yours or one you just uncovered.                                                                                                                                                                         |
+| Diagnostic     | `[aragonite:<subsystem>]`      | A subsystem refused something and degraded gracefully. Usually a defect upstream of it, occasionally benign.                                                                                                                                       |
+| Svelte runtime | `[svelte] <code>`              | Svelte's own runtime complaining about how the editor drives it (a derived read past its owner's death, a raw object compared against its proxy, and so on). Every code is gated; the one you'll meet most is in "The proxy-versus-raw one" below. |
 
 To find **guards**, understand that guard sites use `assertInvariant` in `src/lib/assert.ts`. Also note that guards don't throw, because we don't want a false positive to crash the editor.
 
@@ -36,7 +36,7 @@ To find **guards**, understand that guard sites use `assertInvariant` in `src/li
 
 ## The proxy-versus-raw one
 
-Of all the Svelte codes the gate catches, this is the one this codebase trips, so it gets a section to itself. When a plain object is written into Svelte's `$state`, Svelte wraps it in a proxy, and `$state` hands the proxy back on every later read. The proxy and your original raw object are the same node but two different JavaScript identities, so a `===` comparison is false even though both "are" that node. Svelte detects code comparing a raw object against its own proxy and emits `[svelte] state_proxy_equality_mismatch`. In this codebase the usual cause is holding a node copy past the insertion into the live tree (i.e. the CST, see [`syntax-tree.md`](../design/syntax-tree.md)), which is rule 1's incident (see [`rules.md`](rules.md)); remember, re-read through the tree, never keep the copy.
+Of all the Svelte codes the gate catches, this is the one this codebase trips. When a plain object is written into Svelte's `$state`, Svelte wraps it in a proxy, and `$state` hands the proxy back on every later read. The proxy and your original raw object are the same node but two different JavaScript identities, so a `===` comparison is false even though both "are" that node. Svelte detects code comparing a raw object against its own proxy and emits `[svelte] state_proxy_equality_mismatch`. In this codebase the usual cause is holding a node copy past the insertion into the live tree (i.e. the CST, see [`syntax-tree.md`](../design/syntax-tree.md)), which is rule 1's incident (see [`rules.md`](rules.md)); remember, re-read through the tree, never keep the copy.
 
 fyi, in a dev build the warning's message embeds the comparison operator that tripped it (`===`, `!==`, etc.), which narrows the hunt to comparison sites of that exact spelling; in prod it degrades to a bare documentation URL, so diagnose it in dev.
 
@@ -44,7 +44,7 @@ fyi, in a dev build the warning's message embeds the comparison operator that tr
 
 Four things watch the console for these warnings. The unit suite and the e2e specs you have already met; the other two are the **simulation sessions** (long scripted editing runs that type whole documents through real keystrokes, see `testing.md`) and the dev server the e2e suite runs the editor on.
 
-One mechanism to know before the table: under Vitest the console line never happens at all. The test setup registers a **sink** (a function `devWarn` hands entries to instead of printing), and the gate reads that. Svelte has no sink to register, so the same setup wraps `console.warn`, and a `[svelte] <code>` line lands in those same records under the tag `svelte:<code>`: one set of fires, one set of claim routes.
+One mechanism to know before the table: under Vitest the console line never happens at all. The test setup registers a **sink** (a function `devWarn` hands entries to instead of printing), and the gate reads that. Svelte has no sink to register, so the same setup wraps `console.warn`, and a `[svelte] <code>` line lands in those same records under the tag `svelte:<code>`.
 
 | Gate                    | Watches                                                                                                                                                                                     | What goes red                                                                                                             |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -56,11 +56,18 @@ One mechanism to know before the table: under Vitest the console line never happ
 Though, two consequences of the sink:
 
 - a `console.warn` spy sees no `devWarn` fire, and a spy that swallows the call takes the Svelte channel off the gate too
-- `vi.mock`ing `$lib/dev-warn` deletes the emitter entirely
+- `vi.mock`ing `#lib/dev-warn.js` deletes the emitter entirely
 
-Either one blinds the gate for that whole file, so a source scan (G4.41 in `invariants.md`) fails on both.
+Either one blinds the gate for that whole file, so a source scan fails on both.
 
-On the e2e side the expectation runs in both directions: a spec that trips a fire on purpose declares its tags, `test.use({ expectInvariants: ['late-opener-registration'] })` for a guard (the bare tag; `assertInvariant` prepends the `invariant:` half), `test.use({ expectWarns: ['tree-ops'] })` for a diagnostic, `test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code (the bare code; the watch prepends the `svelte:` half), `test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] })` for a `window.onerror` message (matched whole). A declared tag that stops firing also fails the spec, so an expectation can't outlive its cause.
+On the e2e side, a spec that trips a fire on purpose declares it:
+
+- a guard: `test.use({ expectInvariants: ['late-opener-registration'] })` (the bare tag, without `invariant:`)
+- a diagnostic: `test.use({ expectWarns: ['tree-ops'] })`
+- a Svelte code: `test.use({ expectSvelteWarns: ['derived_inert'] })` (the bare code, without `svelte:`)
+- a `window.onerror` message: `test.use({ expectPageErrors: [RESIZE_OBSERVER_LOOP] })` (matched whole)
+
+A declared tag that stops firing also fails the spec, so an expectation can't outlive its cause.
 
 And if a fire ever shows up that no gate goes red for, that's a bug in the gate; file it.
 

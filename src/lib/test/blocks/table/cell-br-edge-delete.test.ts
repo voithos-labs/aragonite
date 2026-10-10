@@ -5,7 +5,7 @@
 // the step-over.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mountCell } from './mount-cell';
-import { settleEditor, dispatchKey } from '$lib/test/harness/settle';
+import { settleEditor, dispatchKey } from '#lib/test/harness/settle.js';
 
 // `<br>` at raw [4,8) with text on both sides, so both its edges are mid-cell: at a cell's
 // text boundaries the navigation plan owns the key and it never reaches here.

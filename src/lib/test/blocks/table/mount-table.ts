@@ -2,16 +2,16 @@
 // children, so a gesture in a cell reaches the table context the way it does in the editor
 // (`mount-cell.ts` stubs that context instead).
 
-import TableBlock from '$lib/components/blocks/table/TableBlock.svelte';
-import type { BlockComponent } from '$lib/block-component';
-import type { CstNode, Document } from '$lib/core/nodes';
-import type { FocusActions } from '$lib/action-contracts';
-import type { CaretMemory } from '$lib/cursor/caret-memory';
+import TableBlock from '#lib/components/blocks/table/TableBlock.svelte';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { FocusActions } from '#lib/action-contracts.js';
+import type { CaretMemory } from '#lib/caret/caret-memory.js';
 import { makeCaretMemory, makeStubFocus } from '../../harness/editor-actions';
 import { mountBlock } from '../../harness/mount-block';
 import type { MountContextOverrides } from '../../harness/mount-context';
-import { blockHostAt, type MountedEditor } from '$lib/test/harness/mount-editor.svelte';
-import { pressKey } from '$lib/test/harness/settle';
+import { blockHostAt, type MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 
 /** jsdom implements neither the caret geometry an exit gesture measures nor a windowing
  *  observer. Measuring a Range's rectangles throws, so an exit without this kills the handler. */

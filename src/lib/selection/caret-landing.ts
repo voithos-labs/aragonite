@@ -5,18 +5,19 @@
  */
 
 import { assertInvariant } from '../assert';
-import { CURSOR_END, CURSOR_START, type BlockComponent } from '../block-component';
+import type { BlockComponent } from '../block-component';
 import type { DocumentView } from '../core/node-views';
-import type { CaretMemory } from '../cursor/caret-memory';
-import { docPathFrom } from '../cursor/coordinate-spaces';
-import type { ScrollOwner } from '../cursor/scroll-owner';
+import type { CaretMemory } from '../caret/caret-memory';
+import { docPathFrom } from '../caret/coordinate-spaces';
+import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { BlockElLookup } from '../editor-keys';
 import { isDevChecks } from '../env';
 import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';
-import { descendTo, type ChildList } from '../reactivity/child-list';
+import { descendTo, type ChildList } from '../block-lists/child-list';
 import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
-import { firstUsefulRect } from '../cursor/visual-lines';
+import type { CaretWriter } from '../caret/widget-offset';
+import { firstUsefulRect } from '../caret/visual-lines';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
 import {
@@ -76,7 +77,9 @@ export interface CaretLandingDeps {
 	/** The editor root's child list, where every descent starts. */
 	root: ChildList;
 	selectionState: SelectionState;
-	caretMemory: Pick<CaretMemory, 'forget' | 'noteExtreme'>;
+	/** The editor's caret writer, which every landing's caret and range goes through. */
+	caretWriter: CaretWriter;
+	caretMemory: Pick<CaretMemory, 'forget' | 'noteOutside'>;
 	getBlockElByPath: BlockElLookup;
 	/** The editor's own element, which holds focus while a block with no text is selected whole. */
 	getEditorRoot(): HTMLElement | null;
@@ -145,11 +148,8 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		if (!component) return 'unresolvable';
 		deps.caretMemory.forget();
 		placeWithoutScrolling(() => component.focus(target.offset));
-		// Placed at an edge rather than stepped there, so the caret means the outside of a
-		// hidden closer (`docs/design/live-mode.md` § 4.2).
-		if (target.offset === CURSOR_END || target.offset === CURSOR_START) {
-			deps.caretMemory.noteExtreme();
-		}
+		// A split's second half starts plain, whatever format the text after the cut carries.
+		if (pos.fresh) deps.caretMemory.noteOutside();
 		await bringIntoView(target.leafPath, reveal);
 		return 'placed';
 	}
@@ -164,6 +164,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 				return restoreGapCaret(selection.gapCaret, {
 					getDoc: deps.getDoc,
 					selectionState: deps.selectionState,
+					caretWriter: deps.caretWriter,
 					caretMemory: deps.caretMemory,
 					mount: (path) => descendTo(deps.root, path),
 					reveal: (path) => bringIntoView(path, reveal)
@@ -194,7 +195,8 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 						selectionState: deps.selectionState,
 						getBlockElByPath: deps.getBlockElByPath,
 						caretAt,
-						getEditorRoot: deps.getEditorRoot
+						getEditorRoot: deps.getEditorRoot,
+						caretWriter: deps.caretWriter
 					}
 				)
 			);

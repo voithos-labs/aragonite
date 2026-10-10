@@ -3,26 +3,26 @@
 // container's metadata may have (any outer line but a title row's). That keeps a keystroke off
 // the container-size axis: typing into a list's first item or a directive's title parses nothing.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { installPlugins } from '$lib';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
-import { parse } from '$lib/core/parser';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
-import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { parse } from '#lib/core/parser.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { ensureUnsharedPath } from '#lib/tree-operations/unshare.js';
+import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
 	perfSnapshot,
 	resetPerfInstruments
-} from '$lib/perf/instruments';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import type { CstNode, Document } from '$lib/core/nodes';
+} from '#lib/perf/instruments.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
 import {
 	chromeChild,
 	declarePluginKind,
@@ -33,9 +33,9 @@ import {
 	serializeChildren as concatChildren,
 	setPluginMetadata,
 	trimTrailingLineEnding
-} from '$lib/plugin';
-import { describeConvergence } from '$lib/testing/parse-convergence';
-import { testContainer } from '$lib/test/harness/test-kinds';
+} from '#lib/plugin.js';
+import { describeConvergence } from '#lib/testing/parse-convergence.js';
+import { testContainer } from '#lib/test/harness/test-kinds.js';
 
 // ── A fence that prints its body's size on the opener line ──────────────────
 // `==[5] Title` … `==[end Title]`: a body keystroke moves only the opener, and the size in

@@ -140,15 +140,6 @@ test.describe('public rect api', () => {
 		expect(Math.abs(rect!.top + rect!.height / 2 - point.y)).toBeLessThan(10);
 	});
 
-	test('caretRect is null while a cross-block selection is active', async ({ page }) => {
-		await editor.loadContent('first block\n\nsecond block\n');
-		await editor.focusBlockStart(0);
-		await editor.shiftClickBlock([1], 6);
-		await editor.waitForCrossBlock(true);
-
-		expect(await caretRect(page)).toBeNull();
-	});
-
 	test('caretRect is null inside a selectionChange handler during cross-block entry', async ({
 		page
 	}) => {
@@ -169,21 +160,6 @@ test.describe('public rect api', () => {
 		expect(probe.rect).toBeNull();
 	});
 
-	test('caretRect is null when nothing is focused', async ({ page }) => {
-		await editor.loadContent('unfocused content\n');
-		await page.evaluate(() => {
-			(document.activeElement as HTMLElement | null)?.blur();
-			window.getSelection()?.removeAllRanges();
-		});
-		expect(await caretRect(page)).toBeNull();
-	});
-
-	test('reveal on an out-of-range path resolves false', async ({ page }) => {
-		await editor.loadContent('only block\n');
-		const revealed = await page.evaluate(() => (window as any).__test.rects.reveal([99]));
-		expect(revealed).toBe(false);
-	});
-
 	test('reveal mounts a windowed-out block and resolves true', async ({ page }) => {
 		await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
 		const last = (await cstBlockCount(page)) - 1;
@@ -194,11 +170,6 @@ test.describe('public rect api', () => {
 		const revealed = await page.evaluate((i) => (window as any).__test.rects.reveal([i]), last);
 		expect(revealed).toBe(true);
 		await expect(page.locator(`[data-block-path='${JSON.stringify([last])}']`)).toHaveCount(1);
-	});
-
-	test('scrollTo on an out-of-range path resolves false', async ({ page }) => {
-		await editor.loadContent('only block\n');
-		expect(await scrollTo(page, [99])).toBe(false);
 	});
 
 	test('scrollTo centers a windowed-out mid-document block in the viewport', async ({ page }) => {

@@ -4,8 +4,8 @@
 // leaves it stuck at one block; compositionstart has no beforeinput to wait for, so an active range
 // must be deleted synchronously or composed text lands on a stale one.
 import { describe, it, expect } from 'vitest';
-import { asEditorX } from '$lib/cursor/coordinate-spaces';
-import { READING_WRITE_TAG } from '$lib/editor-actions/commit/reading-write-gate';
+import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { takeDevWarns } from '../../support/warn-gate';
 import { makeKeydownEnv, press } from './keydown-env';
 

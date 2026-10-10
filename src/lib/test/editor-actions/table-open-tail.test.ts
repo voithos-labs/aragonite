@@ -1,7 +1,7 @@
 // Miss-analysis: every table fixture ended in a line break, so no rebuild met an open last line.
 import { describe, it, expect } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { makeHarness, runOp, type Op } from '$lib/test/undo/restoration-ops';
+import { serialize } from '#lib/core/serializer.js';
+import { makeHarness, runOp, type Op } from '#lib/test/undo/restoration-ops.js';
 
 const TABLE = '| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |';
 

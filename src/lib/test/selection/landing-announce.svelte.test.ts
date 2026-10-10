@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 // Miss-analysis: every selection-channel test moved a state field; a plain caret move moves none.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs, mountEditor, pressKeyAt } from '$lib/test/harness/mount-editor.svelte';
-import type { MountedEditor } from '$lib/test/harness/mount-editor.svelte';
+import {
+	installLayoutStubs,
+	mountEditor,
+	pressKeyAt
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
 import type { EditorSelection } from '../../selection/primitives';
+import { caretAt } from '#lib/test/harness/editor-selection.js';
 
 beforeAll(installLayoutStubs);
 
@@ -12,11 +17,6 @@ let mounted: MountedEditor | null = null;
 afterEach(async () => {
 	await mounted?.destroy();
 	mounted = null;
-});
-
-const caretAt = (path: number[], offset: number): EditorSelection => ({
-	anchor: { path, offset },
-	focus: { path, offset }
 });
 
 /** Mount over `source` and record what subscribers hear from here on. */

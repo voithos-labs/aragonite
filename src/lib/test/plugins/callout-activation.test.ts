@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
+import { getInlineRungs } from '#lib/core/inline/scan/plugin-syntax.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 
 // Every other suite turns the inline `:` handler on some other way, so only here does a callout

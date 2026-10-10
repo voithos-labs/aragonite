@@ -4,9 +4,9 @@
 // hit-tests the block wrapper and gets a plausible but wrong offset instead of a refusal. The
 // built-in table declares both hooks, so only test kinds reach every branch.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { blockAtPoint, endpointAtPoint, type BlockHit } from '$lib/selection/block-hit-test';
-import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { blockAtPoint, endpointAtPoint, type BlockHit } from '#lib/selection/block-hit-test.js';
+import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/editor-actions/whole-block-focus-surface.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const CARET_TARGET = { path: [1, 2], offset: 7 };
 

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { lrdMapCouldChange } from '$lib/components/link-reference-map';
-import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor-events';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { lrdMapCouldChange } from '#lib/components/link-reference-map.js';
+import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import type { EditEvent } from '#lib/editor-events.js';
 
 // Why the leaf path matters: `lrdMapCouldChange` reads the event path, so a container-level
 // path hides a nested link-definition edit from the map rebuild.

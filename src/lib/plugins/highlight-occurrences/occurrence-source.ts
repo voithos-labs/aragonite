@@ -10,7 +10,7 @@ import type {
 	EditorSelection,
 	MarkDecoration,
 	ProvideContext
-} from '$lib/plugin';
+} from '#lib/plugin.js';
 import {
 	anchorWord,
 	buildOccurrenceIndex,

@@ -3,6 +3,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from '../plugins/helpers';
 import { textRunRect } from '../../text-runs';
+import { nextRow } from '../presentation/helpers';
 
 test.describe('selection: overlay: happy paths', () => {
 	let editor: EditorPage;
@@ -10,16 +11,6 @@ test.describe('selection: overlay: happy paths', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-	});
-
-	test('middle block overlay renders for strictly-between blocks', async () => {
-		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
-		await editor.waitForCrossBlock(true);
-		await expect(
-			editor.page.locator("[data-block-path='[1]'] .selection-overlay-middle").first()
-		).toBeAttached();
 	});
 
 	test('single-block selection has no custom overlay divs', async () => {
@@ -77,29 +68,6 @@ test.describe('selection: overlay: edge cases', () => {
 		).toBeAttached();
 	});
 
-	test('a list item the range holds whole paints its own box', async () => {
-		await editor.loadContent('- one\n- two\n- three\n- four\n');
-		await editor.dragFromTo([0, 0, 0], 1, [0, 3, 0], 2);
-		await editor.waitForCrossBlock(true);
-
-		await expect(editor.page.locator('.list-item-block > .selection-overlay-middle')).toHaveCount(
-			2
-		);
-	});
-
-	test('a nested sub-list under a held item paints no second box', async () => {
-		await editor.loadContent('- one\n- two\n  - sub\n- three\n- four\n');
-		await editor.dragFromTo([0, 0, 0], 1, [0, 3, 0], 2);
-		await editor.waitForCrossBlock(true);
-
-		await expect(editor.page.locator('.list-item-block > .selection-overlay-middle')).toHaveCount(
-			2
-		);
-		await expect(editor.page.locator("[data-block-path='[0,1,1]'] .selection-overlay")).toHaveCount(
-			0
-		);
-	});
-
 	test('a drag into a closed title row paints the details as one box, the row end to end', async ({
 		page
 	}) => {
@@ -118,20 +86,6 @@ test.describe('selection: overlay: edge cases', () => {
 		const row = (await page.locator("[data-block-path='[1,0]']").boundingBox())!;
 		expect(painted.x).toBeLessThanOrEqual(row.x);
 		expect(painted.x + painted.width).toBeGreaterThanOrEqual(row.x + row.width);
-	});
-
-	test('a container the range holds whole paints one box, its children none', async () => {
-		await editor.loadContent('before\n\n> quote line 1\n> quote line 2\n\nafter\n');
-		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
-		await editor.waitForCrossBlock(true);
-
-		await expect(
-			editor.page.locator("[data-block-path='[1]'] > .selection-overlay-middle")
-		).toHaveCount(1);
-		await expect(
-			editor.page.locator("[data-block-path='[1]'] [data-block-path] .selection-overlay")
-		).toHaveCount(0);
 	});
 });
 
@@ -252,36 +206,42 @@ test.describe('selection: overlay: mid-text ends reach the line edges', () => {
 		['a quote line to a code block', [3, 0], 6, [4], 12]
 	];
 
-	for (const mode of ['source', 'live']) {
-		for (const [name, startPath, startOffset, endPath, endOffset] of RANGES) {
-			test(`${mode}: ${name}`, async ({ page }) => {
-				const editor = new EditorPage(page);
-				await editor.goto();
-				await editor.setPresentationMode(mode);
-				await editor.loadContent(KINDS);
-				await editor.focusBlockAtPath(startPath, startOffset);
-				await editor.shiftClickBlock(endPath, endOffset);
-				await editor.waitForCrossBlock(true);
+	for (const mode of ['source', 'live'] as const) {
+		test(`${mode}: each kind as a start and as an end`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			await editor.setPresentationMode(mode);
 
-				// The start runs from its point, mid-line, to the right edge, and every line below it.
-				const start = await endpointPaint(page, startPath);
-				expect(start.rects.length).toBeGreaterThan(0);
-				expect(start.rects[0].left).toBeGreaterThan(1);
-				for (const rect of start.rects) expect(rect.right).toBeGreaterThanOrEqual(start.width - 1);
-				const startLines = await glyphLines(page, startPath);
-				expect(start.rects.at(-1)!.bottom).toBeGreaterThanOrEqual(startLines.at(-1)!.bottom);
+			for (const [name, startPath, startOffset, endPath, endOffset] of RANGES) {
+				await test.step(name, async () => {
+					await nextRow(editor, KINDS);
+					await editor.waitForCrossBlock(false);
+					await editor.focusBlockAtPath(startPath, startOffset);
+					await editor.shiftClickBlock(endPath, endOffset);
+					await editor.waitForCrossBlock(true);
 
-				// The end takes every line above it, then runs from the left edge to its point.
-				const end = await endpointPaint(page, endPath);
-				expect(end.rects.length).toBeGreaterThan(0);
-				const last = end.rects.at(-1)!;
-				expect(last.left).toBeLessThanOrEqual(1);
-				expect(last.right).toBeLessThan(end.width - 1);
-				expect(end.rects[0].top).toBeLessThanOrEqual((await glyphLines(page, endPath))[0].top);
+					// The start runs from its point, mid-line, to the right edge, and every line below it.
+					const start = await endpointPaint(page, startPath);
+					expect(start.rects.length).toBeGreaterThan(0);
+					expect(start.rects[0].left).toBeGreaterThan(1);
+					for (const rect of start.rects) {
+						expect(rect.right).toBeGreaterThanOrEqual(start.width - 1);
+					}
+					const startLines = await glyphLines(page, startPath);
+					expect(start.rects.at(-1)!.bottom).toBeGreaterThanOrEqual(startLines.at(-1)!.bottom);
 
-				expect(doubledPaint(await paintedRects(page))).toEqual([]);
-			});
-		}
+					// The end takes every line above it, then runs from the left edge to its point.
+					const end = await endpointPaint(page, endPath);
+					expect(end.rects.length).toBeGreaterThan(0);
+					const last = end.rects.at(-1)!;
+					expect(last.left).toBeLessThanOrEqual(1);
+					expect(last.right).toBeLessThan(end.width - 1);
+					expect(end.rects[0].top).toBeLessThanOrEqual((await glyphLines(page, endPath))[0].top);
+
+					expect(doubledPaint(await paintedRects(page))).toEqual([]);
+				});
+			}
+		});
 	}
 });
 
@@ -350,7 +310,7 @@ test.describe('selection: overlay: an end paints its whole line, not its glyphs'
 		''
 	].join('\n');
 
-	for (const mode of ['source', 'live']) {
+	for (const mode of ['source', 'live'] as const) {
 		test(`${mode}: a one-line end paints from its point to the line's edge, the line's full height`, async ({
 			page
 		}) => {

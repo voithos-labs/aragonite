@@ -4,9 +4,10 @@ import {
 	granularityForClickCount,
 	installMultiClickSelect,
 	wordSpanAt
-} from '$lib/selection/multi-click';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { maskedWalkText } from '$lib/cursor/widget-offset';
+} from '#lib/selection/multi-click.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { maskedWalkText } from '#lib/caret/widget-offset.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const span = (text: string, offset: number) => {
 	const s = wordSpanAt(text, offset);
@@ -100,6 +101,7 @@ describe('installMultiClickSelect: the press the block level declines', () => {
 		const origFromPoint = document.elementFromPoint;
 		document.elementFromPoint = (() => widget) as typeof document.elementFromPoint;
 		const dispose = installMultiClickSelect({
+			caretWriter: testCaretWriter,
 			editorRoot: root,
 			selection: createSelectionState(),
 			getBlockElByPath: () => null,

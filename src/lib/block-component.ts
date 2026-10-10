@@ -7,7 +7,7 @@
 
 import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
-import type { ChildList } from './reactivity/child-list';
+import type { ChildList } from './block-lists/child-list';
 import type { AnyCommandId } from './schema/command-id';
 import type { BlockCommandTarget, CommandRun } from './schema/block-commands';
 
@@ -118,7 +118,7 @@ interface AmbientRangeBase {
 	/** The block's drag handle centres on this span's box rather than on its text line. */
 	dragAnchor?: boolean;
 	/** The click lands on the range's own span, before the leaf's caret handling; a handler
-	 *  reading the chord (`isWidgetActivationClick`) stops propagation to keep the gesture. */
+	 *  that follows on `EditorContext.isActivationClick(e)` stops propagation to keep the gesture. */
 	onClick: (e: MouseEvent) => void;
 }
 
@@ -278,7 +278,8 @@ export interface BlockComponent {
 	/**
 	 * Remove this block's own selection, then call `run(true)` at the caret that's left, as one undo
 	 * entry: how a command that breaks the line replaces what's selected. With nothing selected,
-	 * return `run(false)`. A block that omits it runs every command at the caret.
+	 * return `run(false)`. A removal the block declines, or whose bytes don't land, gets no `run`,
+	 * and the method still returns true. A block that omits it runs every command at the caret.
 	 */
 	afterSelectionRemoved?(run: (removed: boolean) => boolean): boolean;
 	/**

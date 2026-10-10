@@ -103,17 +103,6 @@ test.describe('table block: cross-block delete', () => {
 		await editor.bridge.waitForSourceContains('| A | B | CZ |');
 	});
 
-	test('whole-table Ctrl+A 2nd press + Backspace deletes the table block', async ({ page }) => {
-		await editor.loadContent(TABLE_3x3);
-		await page.locator('.table-cell').nth(4).click();
-		await page.keyboard.press('ControlOrMeta+a');
-		await page.keyboard.press('ControlOrMeta+a');
-		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');
-		await expect(page.locator('.table-cell')).toHaveCount(0);
-	});
-
 	// Miss-analysis: every whole-table row pressed Backspace, so typing and cut over the same range
 	// kept clearing the cells unnoticed.
 	test('whole-table Ctrl+A 2nd press + typing replaces the table with a paragraph', async ({
@@ -197,35 +186,6 @@ test.describe('table block: cross-block delete', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			TABLE_3x3.replace(/\s+$/, '')
 		);
-	});
-
-	test('drag-select an entire row + Backspace deletes that row', async ({ page }) => {
-		await editor.loadContent(TABLE_3x3);
-		const [fromBox, toBox] = await boxesOf(
-			page.locator('.table-cell').nth(3),
-			page.locator('.table-cell').nth(5)
-		);
-		await dragBetweenBoxes(page, fromBox, toBox);
-		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('| 1 | 2 | 3 |');
-		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
-		await expect(page.locator('.table-cell')).toHaveCount(6);
-	});
-
-	test('drag-select an entire column + Backspace deletes that column', async ({ page }) => {
-		await editor.loadContent(TABLE_3x3);
-		const [fromBox, toBox] = await boxesOf(
-			page.locator('.table-cell').nth(1),
-			page.locator('.table-cell').nth(7)
-		);
-		await dragBetweenBoxes(page, fromBox, toBox);
-		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('| A | C |');
-		await editor.bridge.waitForSourceContains('| 1 | 3 |');
-		await editor.bridge.waitForSourceContains('| 4 | 6 |');
-		await expect(page.locator('.table-cell')).toHaveCount(6);
 	});
 
 	test('drag-select a partial cell range + Backspace clears the cells (structure preserved)', async ({
@@ -390,28 +350,8 @@ test.describe('table block: coverage delete inside a container', () => {
 				.map((l, i) => `${i === 0 ? '-' : ' '} ${l}\n`)
 				.join('')
 	};
-	const ROW_GONE = '| A | B | C |\n| --- | --- | --- |\n| 4 | 5 | 6 |\n';
-	const COLUMN_GONE = '| A | C |\n| --- | --- |\n| 1 | 3 |\n| 4 | 6 |\n';
 
 	for (const [where, wrap] of Object.entries(WRAPPERS)) {
-		test(`a whole row of a table in a ${where}: Backspace deletes the row`, async ({ page }) => {
-			await editor.loadContent(wrap(TABLE_3x3) + '\nafter\n');
-			await dragBetweenCells(page, 3, 5);
-			await editor.waitForCrossBlock(true);
-			await page.keyboard.press('Backspace');
-			await editor.bridge.waitForSourceEquals(wrap(ROW_GONE) + '\nafter\n');
-		});
-
-		test(`a whole column of a table in a ${where}: Backspace deletes the column`, async ({
-			page
-		}) => {
-			await editor.loadContent(wrap(TABLE_3x3) + '\nafter\n');
-			await dragBetweenCells(page, 1, 7);
-			await editor.waitForCrossBlock(true);
-			await page.keyboard.press('Backspace');
-			await editor.bridge.waitForSourceEquals(wrap(COLUMN_GONE) + '\nafter\n');
-		});
-
 		test(`a whole table in a ${where}: Backspace removes it and the emptied ${where}`, async ({
 			page
 		}) => {

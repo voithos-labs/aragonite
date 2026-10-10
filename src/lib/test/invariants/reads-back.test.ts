@@ -4,17 +4,17 @@
 // Miss-analysis: the in-place keystroke ran no read-back check at all, and the commit compares
 // bytes, which a list whose second item a reload nests under the first still passes.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { CstNode, Document } from '$lib/core/nodes';
-import { documentLineEnding } from '$lib/core/lines';
-import { docPathFrom } from '$lib/cursor/coordinate-spaces';
-import { createLeafTyping } from '$lib/editor-actions/leaf-write';
-import { legalizeWrite } from '$lib/tree-operations/content-write';
-import { blockNodeAt } from '$lib/tree-operations/node-primitives';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { checkReadsBack, READ_BACK_LIMIT, takeReadBackBytes } from '$lib/invariants/reads-back';
-import { installPlugins } from '$lib/schema/plugin-install';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { parse } from '#lib/core/parser.js';
+import type { CstNode, Document } from '#lib/core/nodes.js';
+import { documentLineEnding } from '#lib/core/lines.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { checkReadsBack, READ_BACK_LIMIT, takeReadBackBytes } from '#lib/invariants/reads-back.js';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { makeContainerHarness, makeTopHarness } from '../harness/editor-actions';
 
 function typeAtEnd(source: string, leaf: number[], text: string) {

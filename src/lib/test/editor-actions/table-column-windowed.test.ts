@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { serialize } from '$lib/core/serializer';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { serialize } from '#lib/core/serializer.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { makeTableMutations } from './table-mutations-harness';
 
 afterEach(() => vi.restoreAllMocks());

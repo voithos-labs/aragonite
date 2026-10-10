@@ -1,54 +1,59 @@
 import { tick } from 'svelte';
-import type { Editor, PastedImage, PresentationMode } from '$lib';
-import { readBlocks } from '$lib/core/parser';
-import type { GrammarView } from '$lib/schema/block-openers';
-import { serialize } from '$lib/core/serializer';
-import { parseConverges } from '$lib/testing/parse-convergence';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
-import { spliceChildren } from '$lib/tree-operations/children';
-import { getStateForNode } from '$lib/reactivity/state-registry';
-import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
-import type { GapCaretPosition } from '$lib/selection/gap-caret';
-import type { EditorSelection } from '$lib/selection/primitives';
-import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+import type { Editor, EditorProps, PastedImage, PresentationMode } from '#lib';
+import { readBlocks } from '#lib/core/parser.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
+import { serialize } from '#lib/core/serializer.js';
+import { parseConverges } from '#lib/testing/parse-convergence.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { spliceChildren } from '#lib/tree-operations/children.js';
+import { getStateForNode } from '#lib/block-lists/state-registry.js';
+import type { BlockKind, CstNode, Document } from '#lib/core/nodes.js';
+import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+import type { DecorationSource, DecorationSourceHandle } from '#lib/decorations/types.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor,
 	registerBlockKind,
 	tryGetBlockKindDescriptor
-} from '$lib/schema/block-kind-descriptor';
-import { registerBlockComponent } from '$lib/schema/block-component-registry';
+} from '#lib/schema/block-kind-descriptor.js';
+import { registerBlockComponent } from '#lib/schema/block-component-registry.js';
+import type { HarnessSource } from './harness-source.svelte';
 import {
 	isPasteTransformRegistered,
 	registerPasteTransform
-} from '$lib/tree-operations/paste/paste-transforms';
+} from '#lib/tree-operations/paste/paste-transforms.js';
 import {
 	dumpTree,
 	dumpUndoStack,
 	dumpOperationsLog,
 	dumpInteractionTrace
-} from '$lib/debug/inspect';
+} from '#lib/debug/inspect.js';
 import {
 	dumpFocusedInlineTree,
 	isCrossBlockSnapshot,
 	liveSelectionText
 } from '../../debug-panel/panel-sections';
-import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
+import {
+	enablePerfInstruments,
+	resetPerfInstruments,
+	perfSnapshot
+} from '#lib/perf/instruments.js';
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,
 	interactionTraceKeydownCount,
 	interactionTraceSnapshot
-} from '$lib/debug/interaction-trace';
-import type { ClosureBlock } from '$lib/schema/closure';
-import { blockContentElAt } from '$lib/components/block-el-lookup';
-import { TABLE_CELL_SELECTOR } from '$lib/components/block-content-selector';
-import { domDescendants } from '$lib/cursor/dom-walk';
-import { isHiddenMarkerText } from '$lib/cursor/widget-offset';
-import { childIdDrifts } from '$lib/invariants/child-id-parity';
-import { isProseLeaf } from '$lib/schema/page-role';
-import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
+} from '#lib/debug/interaction-trace.js';
+import type { ClosureBlock } from '#lib/schema/closure.js';
+import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
+import { TABLE_CELL_SELECTOR } from '#lib/caret/block-content-selector.js';
+import { domDescendants } from '#lib/caret/dom-walk.js';
+import { isHiddenMarkerText } from '#lib/caret/widget-offset.js';
+import { childIdDrifts } from '#lib/invariants/child-id-parity.js';
+import { isProseLeaf } from '#lib/schema/page-role.js';
+import { buildLinkReferenceMap } from '#lib/core/inline/link-reference-resolver.js';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
@@ -72,9 +77,13 @@ const HARNESS_PROBE_CLOSURE: ClosureBlock = {
 
 export interface TestProbeDeps {
 	editor: EditorInstance;
-	setSource: (md: string) => void;
+	source: HarnessSource;
 	setKeybindings: (overrides: KeybindingOverride[] | undefined) => void;
 	setPresentationMode: (mode: PresentationMode) => void;
+	/** Only the editor harness takes it; another route leaves the prop alone. */
+	setPlaceholder?: (placeholder: EditorProps['placeholder']) => void;
+	/** Only the editor harness takes it, like `setPlaceholder`. */
+	setCaret?: (mode: NonNullable<EditorProps['caret']>) => void;
 }
 
 // ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
@@ -87,6 +96,8 @@ interface ConformanceSweepEntry {
 	// Taken from the fixture's first text leaf, so a match can only come from this block; null
 	// when the block has no searchable text.
 	token: string | null;
+	/** Focused as one unit, so arrival puts DOM focus on the block's hidden editing host. */
+	wholeBlock: boolean;
 	cells: {
 		focus: { mode: string };
 		selectionPaint: { mode: string };
@@ -129,6 +140,7 @@ function collectConformanceEntries(grammar: GrammarView): ConformanceSweepEntry[
 			kind,
 			fixture,
 			token: node ? firstTextLeafToken(node) : null,
+			wholeBlock: descriptor.blockFocus === 'whole-block',
 			cells: {
 				focus: { mode: descriptor.closure.focus.mode },
 				selectionPaint: { mode: descriptor.closure.selectionPaint.mode },
@@ -336,9 +348,11 @@ const decorationHandles = new Map<string, DecorationSourceHandle>();
 // the e2e suite drives the editor through them.
 export function installTestProbes({
 	editor,
-	setSource,
+	source,
 	setKeybindings,
-	setPresentationMode
+	setPresentationMode,
+	setPlaceholder,
+	setCaret
 }: TestProbeDeps): void {
 	if (typeof window === 'undefined' || !editor) return;
 
@@ -364,8 +378,22 @@ export function installTestProbes({
 		getDocument: () => editor.__test.getDocument(),
 		// The height guesses a windowed list's spacers are built from, so a spec can recompute them.
 		getHeightOracle: () => editor.__test.getHeightOracle(),
-		setSource: (md: string) => {
-			setSource(md);
+		// Every load is a fresh document. The editor keeps its document for a write equal to its own
+		// text, so that write goes through another document first; a load that never swapped throws.
+		setSource: async (md: string): Promise<void> => {
+			let swaps = 0;
+			const off = editor.getEvents().on('sourceSwap', () => swaps++);
+			try {
+				if (editor.getSource() === md) {
+					source.load(md === '' ? '\n' : '');
+					await tick();
+				}
+				source.load(md);
+				await tick();
+			} finally {
+				off();
+			}
+			if (swaps === 0) throw new Error('setSource: the editor never replaced its document');
 		},
 		setKeybindings: (overrides: KeybindingOverride[] | undefined) => {
 			setKeybindings(overrides);
@@ -374,6 +402,15 @@ export function installTestProbes({
 		// reconciles data-focused on a mode change (the header toggles blur instead).
 		setPresentationMode: (mode: PresentationMode) => {
 			setPresentationMode(mode);
+		},
+		// A spec builds the function form inside the page, since a function cannot cross `evaluate`.
+		setPlaceholder: (placeholder: EditorProps['placeholder']) => {
+			if (!setPlaceholder) throw new Error('this route mounts no settable placeholder');
+			setPlaceholder(placeholder);
+		},
+		setCaret: (mode: NonNullable<EditorProps['caret']>) => {
+			if (!setCaret) throw new Error('this route mounts no settable caret prop');
+			setCaret(mode);
 		},
 		// getBlockCount, getBlockKind and dumpTree read the live CST: a reparse cannot see a
 		// block whose kind has left its raw text behind, or a short-lived block the serializer trims.

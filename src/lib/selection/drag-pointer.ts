@@ -4,12 +4,13 @@
  * pointer leaves the originating block.
  */
 
-import type { UserScrollport } from '../cursor/scroll-ancestors';
+import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionEndpoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
-import { caretOffsetAtPoint } from '../cursor/point-offset';
-import { applyCollapsedCaret, applySingleBlockRange, clearNativeSelection } from './native-bridge';
+import { caretOffsetAtPoint } from '../caret/point-offset';
+import { applyCollapsedCaret, applySingleBlockRange } from './native-bridge';
+import type { CaretWriter } from '../caret/widget-offset';
 import { isWholeBlockEndpoint, type SelectionPoint } from './primitives';
 import { comparePaths } from './path-math';
 import { createPointerDragSession } from './pointer-session';
@@ -19,9 +20,10 @@ import { blockNearPoint } from './nearest-block';
 
 export interface DragContext {
 	editorRoot: HTMLElement;
-	/** What autoscrolls this drag: an element, or the window (`cursor/scroll-ancestors`). */
+	/** What autoscrolls this drag: an element, or the window (`windowing/scroll-ancestors`). */
 	scrollContainer: UserScrollport;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	getBlockElByPath: BlockElLookup;
 	/** Aborted on editor unmount; forwarded to the session's teardown. */
 	lifetimeSignal?: AbortSignal;
@@ -106,6 +108,7 @@ export function installDragListener(
 			const span = unit.spanAround(offset);
 			unit.surface.focus({ preventScroll: true });
 			applySingleBlockRange(
+				ctx.caretWriter,
 				unit.surface,
 				Math.min(unit.anchorSpan.start, span.start),
 				Math.max(unit.anchorSpan.end, span.end)
@@ -166,6 +169,7 @@ export function installDragListener(
 		// drag from the right margin leftward would otherwise collapse it).
 		blockEl.focus({ preventScroll: true });
 		applySingleBlockRange(
+			ctx.caretWriter,
 			blockEl,
 			Math.min(anchorPoint.offset, focusPoint.offset),
 			Math.max(anchorPoint.offset, focusPoint.offset)
@@ -214,7 +218,7 @@ function parkCaretInFocusBlock(ctx: DragContext): void {
 	// A whole-block range has no text node for a caret, so the editor root takes focus and its
 	// keydown and clipboard handlers serve the range.
 	if (ctx.selection.wholeUnitPath) {
-		clearNativeSelection();
+		ctx.caretWriter.clear();
 		ctx.editorRoot.focus({ preventScroll: true });
 		return;
 	}
@@ -223,5 +227,5 @@ function parkCaretInFocusBlock(ctx: DragContext): void {
 	const landing = ctx.selection.cellLandingFor(focus);
 	const blockEl = ctx.getBlockElByPath(landing.path);
 	if (!blockEl) return;
-	applyCollapsedCaret(blockEl, landing);
+	applyCollapsedCaret(ctx.caretWriter, blockEl, landing);
 }

@@ -4,11 +4,11 @@
 // would put the caret's written offset inside bytes the user can see.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { constructContentRange, parseInline } from '$lib/core/inline';
-import { screenVisibility, visibleRuns, type VisibleRun } from '$lib/core/inline/visibility';
-import type { AnyInlineKind, InlineNode } from '$lib/core/nodes';
-import { arbInlineSource, freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
-import '$lib/schema/built-in-descriptors';
+import { constructContentRange, parseInline } from '#lib/core/inline/index.js';
+import { screenVisibility, visibleRuns, type VisibleRun } from '#lib/core/inline/visibility.js';
+import type { AnyInlineKind, InlineNode } from '#lib/core/nodes.js';
+import { arbInlineSource, freshOrFixedSeed } from '#lib/test/invariants/arbitraries/index.js';
+import '#lib/schema/built-in-descriptors.js';
 import { renderOptions } from '../../harness/fixture-grammar';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(413771) } as const;

@@ -1,25 +1,27 @@
 // @vitest-environment jsdom
 // Miss-analysis: no test edited under a selected image, so an undo that moved it went unchecked.
-import { defaultGrammarView } from '$lib/schema/block-openers';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import { tick } from 'svelte';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { createEditorEvents } from '../../editor-events';
 import { makeInlineRange, makeStubController } from '../harness/editor-actions';
 import type { Document } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** The widget starting at `sourceStart` in block 0 of `raw`, selected, and an edit to it. */
 function selectedAt(raw: string, sourceStart: number) {
 	let doc: Document = parse(raw);
 	const selection = createSelectionState();
 	const committer = createImageEditCommitter({
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		getEditorEl: () => null,
 		selection,
@@ -27,7 +29,11 @@ function selectedAt(raw: string, sourceStart: number) {
 		events: createEditorEvents(),
 		reading: fixtureReading()
 	});
-	selectWidgetWhole(selection, { paragraphPath: [0], sourceStart, preSelectOffset: 0 });
+	selectWidgetWhole(selection, testCaretWriter, {
+		paragraphPath: [0],
+		sourceStart,
+		preSelectOffset: 0
+	});
 	const editTo = (next: string) => {
 		doc = parse(next);
 		committer.clearStaleSelection();

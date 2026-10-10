@@ -3,10 +3,10 @@
 // stray text node shifts a remembered caret; placing a caret does not end a live range; and a
 // caret addressed by path carries its offset down to the cell, which is how undo restores it.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '$lib/block-component';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '#lib/block-component.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
-import { componentAt } from '$lib/reactivity/child-list';
+import { componentAt } from '#lib/block-lists/child-list.js';
 
 let restoreLayout: () => void;
 beforeAll(() => {

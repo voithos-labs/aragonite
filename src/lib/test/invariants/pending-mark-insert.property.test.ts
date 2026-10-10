@@ -9,10 +9,10 @@ import {
 	type MarkedInsertion
 } from '../../components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
-import { isSubsequence } from '$lib/test/harness/live-oracles';
-import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
+import { isSubsequence } from '#lib/test/harness/live-oracles.js';
+import { caretPositions, countOnScreen, paintedText } from '#lib/test/harness/painted-text.js';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
-import { fixtureReading } from '$lib/test/harness/fixture-grammar';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // A pending mark rewrites bytes the user never sees, so the render path is the check: at every
 // caret the toggle took exactly or wrote nothing, only the typed letter painted, no byte was lost.
@@ -105,12 +105,11 @@ function resolveDraw(
 }
 
 describe('pending-mark insertion over generated formatted fixtures', () => {
-	// Declining is a legal answer (markdown cannot express every combination at every caret), so
-	// the run is only meaningful if both answers actually occur.
-	let written = 0;
-	let declined = 0;
-
-	it('either the toggle took exactly, or nothing was written', () => {
+	it('either the toggle took exactly and painted only the typed character, or nothing was written', () => {
+		// Declining is a legal answer (markdown cannot express every combination at every caret),
+		// so the run is only meaningful if both answers actually occur.
+		let written = 0;
+		let declined = 0;
 		fc.assert(
 			fc.property(
 				arbInlineSource,
@@ -132,59 +131,27 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 						[...before].filter((kind) => !(marks as string[]).includes(kind))
 					);
 					for (const mark of marks) if (!before.has(mark)) intended.add(mark);
-
 					const around = kindsCovering(result.raw, result.caret - 1, result.caret);
 					expect(
 						sorted(around),
 						`chain around the insertion in ${JSON.stringify(result.raw)}`
 					).toEqual(sorted(intended));
-				}
-			),
-			PARAMS
-		);
-	});
 
-	it('the painted text gains only the typed character, and no delimiter with it', () => {
-		fc.assert(
-			fc.property(
-				arbInlineSource,
-				fc.nat(),
-				fc.constantFrom(...MARK_SUBSETS),
-				(display, caretPick, marks) => {
-					const hit = resolveDraw(display, caretPick, marks);
-					if (hit === null) return;
-					const { result } = hit;
-
-					// Exactly one character appeared on screen, and it is the one that was typed. A
-					// delimiter that stopped being a delimiter shows up here as extra painted text.
-					const before = paintedText(display);
-					const after = paintedText(result.raw);
-					expect(after.length, `painted text grew by more than the typed byte`).toBe(
-						before.length + 1
+					// A delimiter that stopped being a delimiter shows up as extra painted text.
+					const paintedBefore = paintedText(display);
+					const paintedAfter = paintedText(result.raw);
+					expect(paintedAfter.length, `painted text grew by more than the typed byte`).toBe(
+						paintedBefore.length + 1
 					);
-					expect(after.replace('X', ''), `painted text changed around the insertion`).toBe(before);
+					expect(paintedAfter.replace('X', ''), `painted text changed around the insertion`).toBe(
+						paintedBefore
+					);
 					// Independent of the equality above: a rewrite may never put a delimiter on screen
 					// that was not already there, whichever kind painted it.
 					expect(
 						countOnScreen(result.raw, DELIMITERS),
 						`a delimiter surfaced in ${JSON.stringify(result.raw)}`
 					).toBe(countOnScreen(display, DELIMITERS));
-				}
-			),
-			PARAMS
-		);
-	});
-
-	it('the original bytes survive and the caret sits just past what was typed', () => {
-		fc.assert(
-			fc.property(
-				arbInlineSource,
-				fc.nat(),
-				fc.constantFrom(...MARK_SUBSETS),
-				(display, caretPick, marks) => {
-					const hit = resolveDraw(display, caretPick, marks);
-					if (hit === null) return;
-					const { result } = hit;
 
 					// A rewrite only splices: every original byte is still there, in order.
 					expect(isSubsequence(display, result.raw), `${JSON.stringify(display)} was cut`).toBe(
@@ -192,25 +159,8 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 					);
 					expect(result.raw.slice(result.caret - 1, result.caret)).toBe('X');
 					expect(result.caret).toBeLessThanOrEqual(result.raw.length);
-				}
-			),
-			PARAMS
-		);
-	});
 
-	it('no construct kind vanishes from the block', () => {
-		fc.assert(
-			fc.property(
-				arbInlineSource,
-				fc.nat(),
-				fc.constantFrom(...MARK_SUBSETS),
-				(display, caretPick, marks) => {
-					const hit = resolveDraw(display, caretPick, marks);
-					if (hit === null) return;
-					const { result } = hit;
-
-					// A rewrite splits and reopens constructs; it never spends one. A kind that was in
-					// the block and is not in it afterwards was destroyed by the splice.
+					// A rewrite splits and reopens constructs; it never spends one.
 					const after = kindsPresent(result.raw);
 					const lost = [...kindsPresent(display)].filter((kind) => !after.has(kind));
 					expect(lost, `${JSON.stringify(display)} → ${JSON.stringify(result.raw)}`).toEqual([]);
@@ -218,10 +168,7 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 			),
 			PARAMS
 		);
-	});
-
-	it('the run exercised both answers', () => {
-		expect(written, 'every case declined: the properties above proved nothing').toBeGreaterThan(0);
+		expect(written, 'every case declined: the checks above proved nothing').toBeGreaterThan(0);
 		expect(declined, 'no case declined: the fallback path is unexercised').toBeGreaterThan(0);
 	});
 });

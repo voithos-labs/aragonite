@@ -9,10 +9,10 @@ import {
 	mountEditor,
 	placeCaret,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
+} from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt, installTableLayoutStubs } from './mount-table';
-import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
-import type { UndoEntry } from '$lib/undo/types';
+import { domTextOffsetAtNode } from '#lib/caret/widget-offset.js';
+import type { UndoEntry } from '#lib/undo/types.js';
 import { rangeSelectionOf } from '../../support/undo-entry';
 
 let restoreLayout: () => void;

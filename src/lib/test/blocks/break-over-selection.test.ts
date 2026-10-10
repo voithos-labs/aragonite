@@ -10,13 +10,13 @@ import {
 	mountEditor,
 	selectRange,
 	surfaceAt
-} from '$lib/test/harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '$lib/test/harness/settle';
-import { cellAt } from '$lib/test/blocks/table/mount-table';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey, settleEditor } from '#lib/test/harness/settle.js';
+import { cellAt } from '#lib/test/blocks/table/mount-table.js';
 import {
 	AFTER_RANGE_REMOVAL_COMMAND_IDS,
 	AFTER_SELECTION_REMOVAL_COMMAND_IDS
-} from '$lib/schema/commands';
+} from '#lib/schema/commands.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

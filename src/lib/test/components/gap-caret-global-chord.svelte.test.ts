@@ -4,9 +4,9 @@
 // Miss-analysis: the gap caret had no keydown test at all.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-import GapCaret from '$lib/components/GapCaret.svelte';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
+import GapCaret from '#lib/components/GapCaret.svelte';
+import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import { editorMountContext } from '../harness/mount-context';
 
 interface Mounted {

@@ -34,6 +34,21 @@ export interface PerfSnapshot {
 	blockRenderCount: number;
 	blockRenderMsTotal: number;
 	keystrokeInPageMs: number[];
+	/** From the first repaint request of a task to the drawn caret's paint, one entry per paint. */
+	caretPaintMs: number[];
+	/** Paints at an animation frame that moved the drawn caret: a move no caret write asked for. */
+	caretFrameMoves: number;
+	/** Every paint of the drawn caret, at a frame or not; a page scroll should cost none. */
+	caretPaints: number;
+	/** Answers the caret's look computed rather than found in its cache: one per change, not per paint. */
+	caretLookComputes: number;
+	/** Inline nodes the look examined to find the constructs around the caret. */
+	caretLookNodeVisits: number;
+	/** Reads of the caret's raw offset from the DOM the look made. */
+	caretLookOffsetWalks: number;
+	/** Dry runs of the next insertion the look made, and the parses of their results. */
+	caretLookPreviews: number;
+	caretLookParses: number;
 	blockRenderPaths: string[];
 	mountedBlockCount: number;
 	decorationRuns: number;
@@ -49,6 +64,7 @@ export interface PerfSnapshot {
 let enabled = false;
 let counters = emptySnapshot();
 let keystrokeStart: number | null = null;
+let caretRequestedAt: number | null = null;
 
 function emptySnapshot(): PerfSnapshot {
 	return {
@@ -71,6 +87,14 @@ function emptySnapshot(): PerfSnapshot {
 		blockRenderCount: 0,
 		blockRenderMsTotal: 0,
 		keystrokeInPageMs: [],
+		caretPaintMs: [],
+		caretFrameMoves: 0,
+		caretPaints: 0,
+		caretLookComputes: 0,
+		caretLookNodeVisits: 0,
+		caretLookOffsetWalks: 0,
+		caretLookPreviews: 0,
+		caretLookParses: 0,
 		blockRenderPaths: [],
 		mountedBlockCount: 0,
 		decorationRuns: 0,
@@ -94,6 +118,7 @@ export function disablePerfInstruments(): void {
 export function resetPerfInstruments(): void {
 	counters = emptySnapshot();
 	keystrokeStart = null;
+	caretRequestedAt = null;
 }
 
 export function perfEnabled(): boolean {
@@ -105,6 +130,7 @@ export function perfSnapshot(): PerfSnapshot {
 		...counters,
 		rebuildDepths: { ...counters.rebuildDepths },
 		keystrokeInPageMs: [...counters.keystrokeInPageMs],
+		caretPaintMs: [...counters.caretPaintMs],
 		blockRenderPaths: [...counters.blockRenderPaths],
 		heightTableBuilds: [...counters.heightTableBuilds]
 	};
@@ -222,6 +248,40 @@ export function markKeystrokeSettle(): void {
 	if (!enabled || keystrokeStart === null) return;
 	counters.keystrokeInPageMs.push(performance.now() - keystrokeStart);
 	keystrokeStart = null;
+}
+
+export function markCaretRequest(): void {
+	if (!enabled || caretRequestedAt !== null) return;
+	caretRequestedAt = performance.now();
+}
+
+export function recordCaretFrameMove(): void {
+	if (!enabled) return;
+	counters.caretFrameMoves++;
+}
+
+export function countCaretPaint(): void {
+	if (!enabled) return;
+	counters.caretPaints++;
+}
+
+/** One unit of the drawn caret's look work, by the counter it falls under. */
+export function recordCaretLook(
+	what:
+		| 'caretLookComputes'
+		| 'caretLookNodeVisits'
+		| 'caretLookOffsetWalks'
+		| 'caretLookPreviews'
+		| 'caretLookParses'
+): void {
+	if (!enabled) return;
+	counters[what]++;
+}
+
+export function markCaretPaint(): void {
+	if (!enabled || caretRequestedAt === null) return;
+	counters.caretPaintMs.push(performance.now() - caretRequestedAt);
+	caretRequestedAt = null;
 }
 
 /**

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { installPlugins, parse } from '$lib';
-import { liftFirstChild, plainQuote } from '$lib/tree-operations';
-import { defaultGrammarView } from '$lib/schema/block-openers';
-import { admonitionsPlugin } from '$lib/plugins/admonitions';
+import { installPlugins, parse } from '#lib';
+import { liftFirstChild, plainQuote } from '#lib/tree-operations/index.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 
 // The alert branch of the shared quote-unwrap primitive (Rule U2): a `[!TYPE]` marker
 // is opener-only, so lifting a body child drops it and the remainder reparses as a

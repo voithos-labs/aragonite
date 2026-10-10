@@ -4,10 +4,10 @@
 // block already owns, undo among them. A declined key keeps `defaultPrevented` false and leaves
 // the `ListContext` untouched.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { installLayoutStubs } from '$lib/test/harness/mount-editor.svelte';
+import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { mountItem, type MountedItem } from './mount-item';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-import { dispatchKey } from '$lib/test/harness/settle';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { dispatchKey } from '#lib/test/harness/settle.js';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));

@@ -5,10 +5,10 @@
  * a new claim fails the gate until the manifest names it.
  */
 import { describe, it, expect } from 'vitest';
-import { collectReservedChords, HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
-import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
-import { isChordWellFormed } from '$lib/schema/keybindings';
-import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
+import { collectReservedChords, HARDCODED_CHORD_SITES } from '#lib/schema/reserved-chords.js';
+import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
+import { isChordWellFormed } from '#lib/schema/keybindings.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 

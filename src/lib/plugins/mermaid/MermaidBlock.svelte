@@ -12,7 +12,7 @@
 		POINTER_GESTURE_ATTR,
 		type Draft,
 		type NodeView
-	} from '$lib/plugin';
+	} from '#lib/plugin.js';
 	import { joinMermaidBody, type MermaidMetadata } from './mermaid-kind';
 	import { mermaidSlot, type MermaidRenderResult } from './mermaid-renderer';
 

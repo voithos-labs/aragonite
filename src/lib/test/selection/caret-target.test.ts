@@ -5,7 +5,7 @@ import { parse } from '../../core/parser';
 import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt } from '../../tree-operations/node-primitives';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-component';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { docPathFrom } from '../../caret/coordinate-spaces';
 import {
 	caretTargetFor,
 	survivorAfterRemoval,

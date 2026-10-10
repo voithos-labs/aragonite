@@ -6,16 +6,17 @@ import type { Document, ImageFields, InlineNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { InlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
-import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
+import { FALLBACK_CONTENT_WIDTH } from '../../windowing/typography-estimates';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import {
 	buildImageEditBytes,
 	imageFieldsFromInline,
 	sameImageFields
 } from '../../core/inline/image-source-bytes';
-import { selectWidgetWhole } from '../../selection/caret-doors';
+import { selectWidgetWhole } from '../../selection/place-caret';
 import type { WidgetTarget } from '../../selection/primitives';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import type { CaretWriter } from '../../caret/widget-offset';
 import type { Reading } from '../../schema/reading';
 import { widgetNodeIn, widgetSpanAt } from '../blocks/text/widget-adjacency';
 
@@ -25,6 +26,7 @@ export interface ImageEditCommitterDeps {
 	getDoc: () => Document;
 	getEditorEl: () => HTMLElement | null;
 	selection: SelectionState;
+	caretWriter: CaretWriter;
 	/** The editor's inline range write, which every popover edit goes through. */
 	inlineRange: InlineRangeCommit;
 	events: EditorEvents;
@@ -193,7 +195,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 		const root = getEditorEl();
 		if (!root) return () => {};
 		const handler = (e: Event) =>
-			selectWidgetWhole(selection, (e as CustomEvent).detail as WidgetTarget);
+			selectWidgetWhole(selection, deps.caretWriter, (e as CustomEvent).detail as WidgetTarget);
 		root.addEventListener('image-widget-select', handler);
 		return () => root.removeEventListener('image-widget-select', handler);
 	}

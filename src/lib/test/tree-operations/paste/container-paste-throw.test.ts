@@ -3,11 +3,11 @@
 // runs, so an escaping throw loses the selection with nothing pasted and nothing on the
 // `error` channel. A throw must decline, exactly as a `false` return does.
 import { afterEach, describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { findContainerMatchingUnwrap } from '$lib/tree-operations/paste/container-match';
-import { findListAbsorb } from '$lib/tree-operations/paste/list-absorb';
-import { findListBreakOut } from '$lib/tree-operations/paste/list-break-out';
+import { parse } from '#lib/core/parser.js';
+import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { findContainerMatchingUnwrap } from '#lib/tree-operations/paste/container-match.js';
+import { findListAbsorb } from '#lib/tree-operations/paste/list-absorb.js';
+import { findListBreakOut } from '#lib/tree-operations/paste/list-break-out.js';
 import { takeDevWarns } from '../../support/warn-gate';
 
 const original = {

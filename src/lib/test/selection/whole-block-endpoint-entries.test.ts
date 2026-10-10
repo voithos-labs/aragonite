@@ -6,21 +6,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // jsdom lays nothing out, so the click's caret read is stubbed exactly as
 // `keyboard-shift-click.test.ts` stubs it; the branch under test is what the selection state stores.
-vi.mock('$lib/selection/native-bridge', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/selection/native-bridge')>()),
+vi.mock('#lib/selection/native-bridge.js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/selection/native-bridge.js')>()),
 	readNativeCaretInBlock: vi.fn()
 }));
-vi.mock('$lib/cursor/point-offset', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/cursor/point-offset')>()),
+vi.mock('#lib/caret/point-offset.js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('#lib/caret/point-offset.js')>()),
 	offsetFromViewportPoint: vi.fn()
 }));
 
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { handleShiftClick } from '$lib/selection/keyboard-extend';
-import { readNativeCaretInBlock } from '$lib/selection/native-bridge';
-import { offsetFromViewportPoint } from '$lib/cursor/point-offset';
-import { parse } from '$lib/core/parser';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { handleShiftClick } from '#lib/selection/keyboard-extend.js';
+import { readNativeCaretInBlock } from '#lib/selection/native-bridge.js';
+import { offsetFromViewportPoint } from '#lib/caret/point-offset.js';
+import { parse } from '#lib/core/parser.js';
 import { restoreLandingOver } from '../harness/restore-landing';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const BREAK_DOC = 'Above text\n\n---\n\ntail text\n';
 const clickOffset = vi.mocked(offsetFromViewportPoint);
@@ -39,7 +40,7 @@ describe('whole-block endpoints arriving from an entry path', () => {
 		clickOffset.mockReturnValue(1);
 		anchorCaret.mockReturnValue({ path: [0], offset: 6 });
 
-		expect(handleShiftClick(s, el(), [1], 0, 0, el(), [0])).toBe(true);
+		expect(handleShiftClick(s, testCaretWriter, el(), [1], 0, 0, el(), [0])).toBe(true);
 		expect(s.focus).toEqual({ path: [1], offset: 3 });
 	});
 

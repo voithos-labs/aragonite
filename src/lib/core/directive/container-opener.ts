@@ -2,7 +2,7 @@
  * The one block opener owning `:::`/`::` directive syntax, dispatching by name through the
  * registry: a registered name delegates to its `fromDirective` factory, an unregistered one
  * falls back to the lossless generic kinds. Imports stay core-relative because the
- * `$lib/plugin` barrel pulls in a Svelte component and would cycle.
+ * plugin barrel (`plugin.ts`) pulls in a Svelte component and would cycle.
  */
 
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';

@@ -2,11 +2,11 @@
 // the block menu builds its rows from.
 // Miss-analysis: axe's unnamed-textbox rule sat in the allowlist, so no test read a block's name.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { NodeView } from '$lib/core/node-views';
-import { blockAccessibleName, blockKindLabel } from '$lib/a11y-strings';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { testLeaf } from '$lib/test/harness/test-kinds';
+import { parse } from '#lib/core/parser.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { blockAccessibleName, blockKindLabel } from '#lib/a11y-strings.js';
+import { declarePluginKind } from '#lib/schema/plugin-kind.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const first = (md: string): NodeView => parse(md).children[0];
 

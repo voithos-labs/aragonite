@@ -2,7 +2,7 @@
 // arrowing into the table lands near where the caret was horizontally. The result is
 // a column index, not a row-major cell index.
 
-import type { EditorX } from '../../../cursor/coordinate-spaces';
+import type { EditorX } from '../../../caret/coordinate-spaces';
 
 export interface ColumnRect {
 	left: number;

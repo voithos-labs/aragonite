@@ -6,8 +6,8 @@ import {
 	mountEditor,
 	pressKeyAt,
 	type MountedEditor
-} from '$lib/test/harness/mount-editor.svelte';
-import type { PresentationMode } from '$lib/presentation-mode';
+} from '#lib/test/harness/mount-editor.svelte.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 
 beforeAll(installLayoutStubs);
 

@@ -2,16 +2,17 @@
 // asks, and each mounted path is recorded. `mounted: false` answers no element, so a placement
 // finds nothing to put the caret in.
 
-import type { BlockComponent } from '$lib/block-component';
-import type { Document } from '$lib/core/nodes';
-import { createCaretMemory, type CaretMemory } from '$lib/cursor/caret-memory';
-import type { ChildList } from '$lib/reactivity/child-list';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
-import { createCaretLanding } from '$lib/selection/caret-landing';
-import type { RestoreTarget } from '$lib/selection/native-bridge';
-import type { SelectionState } from '$lib/selection/selection-state.svelte';
-import { stubBlockComponent } from '$lib/testing/headless-actions';
-import { nodeAt } from '$lib/tree-operations/node-primitives';
+import type { BlockComponent } from '#lib/block-component.js';
+import type { Document } from '#lib/core/nodes.js';
+import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
+import type { ChildList } from '#lib/block-lists/child-list.js';
+import { refSlotsOver } from '#lib/block-lists/child-refs.js';
+import { createCaretLanding } from '#lib/selection/caret-landing.js';
+import type { RestoreTarget } from '#lib/selection/native-bridge.js';
+import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
+import { stubBlockComponent } from '#lib/testing/headless-actions.js';
+import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** What `applySelectionToDom` writes into, with a caret at each endpoint's own cell. */
 export function restoreTarget(
@@ -19,6 +20,7 @@ export function restoreTarget(
 	getBlockElByPath: (path: number[]) => HTMLElement | null
 ): RestoreTarget {
 	return {
+		caretWriter: testCaretWriter,
 		selectionState,
 		getBlockElByPath,
 		caretAt: (point) => selectionState.cellLandingFor(point),
@@ -56,6 +58,7 @@ export function restoreLandingOver(
 		};
 	};
 	const landing = createCaretLanding({
+		caretWriter: testCaretWriter,
 		getDoc: () => doc,
 		root: listAt([]),
 		selectionState,

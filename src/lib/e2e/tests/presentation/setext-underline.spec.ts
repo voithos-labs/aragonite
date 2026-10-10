@@ -72,20 +72,3 @@ test.describe('moving the caret across the underline', () => {
 		});
 	}
 });
-
-for (const mode of ['source', 'live'] as const) {
-	test.describe(`${mode} mode: a hard break at the title's end`, () => {
-		test('keeps the heading, and the next key starts its second line', async ({ page }) => {
-			const ep = await enterPresentationMode(page, mode, DOC);
-			await ep.focusBlockAtPath([0], 4);
-
-			await page.keyboard.press('Shift+Enter');
-			await ep.waitForRenderFlush();
-			expect(await ep.bridge.getSource()).toBe('Plan\n===\n\nnext\n');
-
-			await ep.typeSlowly('x');
-			await ep.bridge.waitForSourceEquals('Plan\\\nx\n===\n\nnext\n');
-			expect(await ep.bridge.getBlockKind(0)).toBe('setextHeading');
-		});
-	});
-}

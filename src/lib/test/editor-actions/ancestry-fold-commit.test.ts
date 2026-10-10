@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { createListOverrides } from '$lib/editor-actions/list-overrides';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { createListOverrides } from '#lib/editor-actions/list-overrides.js';
+import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
 	makeContainerHarness,
@@ -16,10 +16,10 @@ import {
 	makeStubBlockEdit,
 	makeStubFocus,
 	stubBlockComponent
-} from '$lib/test/harness/editor-actions';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { describeConvergence } from '$lib/test/harness/parse-converged';
-import type { BlockComponent } from '$lib/block-component';
+} from '#lib/test/harness/editor-actions.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import type { BlockComponent } from '#lib/block-component.js';
 
 // A nested delete can stop a list interrupting the paragraph above, so the ancestor fix-up
 // merges the two and swallows the container the commit ran in; the caret, the parent's ids and

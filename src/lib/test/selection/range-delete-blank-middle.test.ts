@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { rangeDelete } from '$lib/selection/range-delete';
-import { coverRange, rangeCoverage } from '$lib/selection/range-coverage';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { rangeDelete } from '#lib/selection/range-delete.js';
+import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
-import type { Document } from '$lib/core/nodes';
-import type { SelectionPoint } from '$lib/selection/primitives';
+import type { Document } from '#lib/core/nodes.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 
 // A blank block covered as a range's middle is the separating line of the block after it, but

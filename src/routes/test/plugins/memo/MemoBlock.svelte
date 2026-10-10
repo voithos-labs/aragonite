@@ -1,7 +1,7 @@
 <script lang="ts">
 	// A plain-mode editable leaf: every editing behavior lives in `createEditableLeaf`, and
 	// spreading `leaf.surfaceProps` sets up the whole editable element.
-	import { createEditableLeaf, type NodeView } from '$lib/plugin';
+	import { createEditableLeaf, type NodeView } from '#lib/plugin.js';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
