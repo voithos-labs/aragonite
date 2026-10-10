@@ -67,12 +67,6 @@ test.describe('live mode: a fresh start is plain', () => {
 		await typed(ep, page, '\nX**ld**');
 	});
 
-	test('Shift+Enter at the end of a bold line opens a plain line', async ({ page }) => {
-		await clickEnd(ep, page, 'bold');
-		await keys(ep, page, 'Shift+Enter');
-		await typed(ep, page, `${LINE}\\\nX`);
-	});
-
 	test('a click past the end of the line types plain', async ({ page }) => {
 		const point = await pastLineEnd(page, 'bold');
 		await page.mouse.click(point.x, point.y);

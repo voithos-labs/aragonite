@@ -145,20 +145,26 @@ function registerBuiltInInlinePolicies(): void {
 	// Outermost first, and code is innermost because its content is literal: no other mark can
 	// take effect inside it.
 	const marks = [
-		{ kind: 'strong', markerBytes: '**', command: 'format.toggleStrong' },
-		{ kind: 'emphasis', markerBytes: '*', command: 'format.toggleEmphasis' },
-		{ kind: 'strikethrough', markerBytes: '~~', command: 'format.toggleStrikethrough' },
+		{ kind: 'strong', edge: 'left-sticky', markerBytes: '**', command: 'format.toggleStrong' },
+		{ kind: 'emphasis', edge: 'left-sticky', markerBytes: '*', command: 'format.toggleEmphasis' },
+		{
+			kind: 'strikethrough',
+			edge: 'left-sticky',
+			markerBytes: '~~',
+			command: 'format.toggleStrikethrough'
+		},
+		// A code span paints a chip, whose border gives its edge two visible caret stops.
 		{
 			kind: 'inlineCode',
+			edge: 'boxed',
 			markerBytes: '`',
 			command: 'format.toggleCode',
 			wrapBytes: wrapAsCodeSpan
 		}
 	] as const;
-	marks.forEach(({ kind, ...mark }, nestingRank) => {
+	marks.forEach(({ kind, edge, ...mark }, nestingRank) => {
 		registerInlineConstructPolicy(kind, {
-			// A code span paints a chip, whose border gives its edge two visible caret stops.
-			edgeAffinity: kind === 'inlineCode' ? 'boxed' : 'left-sticky',
+			edgeAffinity: edge,
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
 			revealable: true,

@@ -122,7 +122,10 @@ const OUTSIDE: [line: string, want: string][] = [
 	['|**bold** b', 'X**bold** b'],
 	['|***both*** b', 'X***both*** b'],
 	['a **a**|*b* c', 'a **a**X*b* c'],
-	['a `code`| b', 'a `code`X b']
+	['a `code`| b', 'a `code`X b'],
+	// Outside can't render after a run ending in punctuation, so the nearest boundary that can wins,
+	// whichever raw offset the caret holds.
+	['a ~~**both**~~|', 'a ~~**both**X~~']
 ];
 
 describe('a fresh start or a typed closer puts the letter outside', () => {

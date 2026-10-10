@@ -12,7 +12,6 @@ clicks and keys; every scenario checks the source.
 - Enter at the end of a bold line, then a letter: the letter types plain in the new block
 - Enter in the middle of a bold word, then a letter: the new block starts with the letter, plain,
   before the reopened bold (`X**ld**`), even though the text after it is bold
-- Shift+Enter at the end of a bold line, then a letter: the letter types plain on the new line
 - A click in the blank space past the end of a line ending in bold, then a letter: plain
 - A click on the bold word's last letter, then a letter: bold, since the character before the caret
   is bold

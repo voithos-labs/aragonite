@@ -345,7 +345,7 @@ interface ScreenPosition {
 }
 
 /** The offsets to try, best first: a chip stop the position holds, the offset the record or the
- *  character beside the position names, the caret, then the rest; none inside a never-extend. */
+ *  character beside the position names, the rest nearest it, then the caret; none in a never-extend. */
 function candidateOffsets(
 	position: ScreenPosition,
 	record: EdgeAffinity | null,
@@ -359,11 +359,13 @@ function candidateOffsets(
 			: null;
 	const preferred =
 		record === 'outside' ? outsideOffset(position) : neighbourOffset(position, raw, inlines);
-	const ranked = [...(pinned === null ? [] : [pinned]), preferred, caretOffset];
+	const ranked = [...(pinned === null ? [] : [pinned]), preferred];
+	// Nearest the preferred offset, never by the caret's own, so every raw offset of the position
+	// falls back alike; the caret comes last for an offset inside a run, which no boundary lists.
 	const rest = position.offsets
 		.filter((offset) => !ranked.includes(offset))
 		.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred));
-	return [...new Set([...ranked, ...rest])].filter((offset) =>
+	return [...new Set([...ranked, ...rest, caretOffset])].filter((offset) =>
 		takesNothingInside(position, offset)
 	);
 }
