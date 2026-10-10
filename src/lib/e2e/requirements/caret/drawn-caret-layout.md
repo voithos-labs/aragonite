@@ -12,6 +12,7 @@ browser's own caret would do there, and the observer to every block that shares 
   - Miss-analysis: no row scrolled an inner scroller with the caret parked, though the drawn caret
     listens for exactly that scroll; the repaint moved the bar, and nothing clipped it
 - The clipped caret wheeled back into view: the bar draws again, where the browser paints
+  - Skipped in the WebKit lane until #716 (Linux WebKit doesn't repaint after the scroll back)
   - Miss-analysis: the clip rows only scrolled the caret out; the scroll repaint ran only while a
     bar showed, so nothing brought it back until the caret moved
 - A caret at a cell's end, a table of 18 columns wheeled sideways until that cell leaves its box: no

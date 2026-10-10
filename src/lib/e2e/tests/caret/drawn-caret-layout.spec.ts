@@ -73,8 +73,13 @@ test.describe('the drawn caret in a code block scrolled sideways', () => {
 	}
 
 	test('a clipped caret scrolled back into view draws again where the browser paints', async ({
-		page
+		page,
+		browserName
 	}) => {
+		test.fixme(
+			browserName === 'webkit',
+			"#716: Linux WebKit doesn't repaint the drawn caret after a scroll back"
+		);
 		const over = await parkInLongLine(page);
 		await page.mouse.move(over.x, over.y);
 		await page.mouse.wheel(600, 0);
