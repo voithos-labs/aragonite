@@ -36,13 +36,6 @@ async function expectLookNow(page: Page, marks: readonly string[], when: string)
 	expect(await drawnCaretMarks(page), when).toEqual(marks);
 }
 
-/** The bar's x within half a pixel of `x`. */
-async function expectBarAt(page: Page, x: number): Promise<void> {
-	const box = await drawnCaretBox(page);
-	expect(box, 'the drawn caret draws').not.toBeNull();
-	expect(Math.abs(box!.left - x), `x ${box!.left} vs ${x}`).toBeLessThanOrEqual(0.5);
-}
-
 async function barX(page: Page): Promise<number> {
 	await expect.poll(() => drawnCaretBox(page)).not.toBeNull();
 	return (await drawnCaretBox(page))!.left;
@@ -53,10 +46,10 @@ for (const c of CONSTRUCTS) {
 		test(`live mode: ${c.name} in ${host.name}, inside and out`, async ({ page }) => {
 			const d = c.delimiter;
 			const construct = `${d}${c.word}${d}`;
-			const ep = await enterPresentationMode(page, 'live', host.doc(`a ${construct} b`));
+			const ep = await enterPresentationMode(page, 'live', host.doc(`a ${construct} end`));
 
 			for (const [place, tail] of [
-				['mid-line', ' b'],
+				['mid-line', ' end'],
 				['at the line’s end', '']
 			] as const) {
 				const doc = host.doc(`a ${construct}${tail}`);
@@ -88,19 +81,20 @@ for (const c of CONSTRUCTS) {
 					const space = held ? ' ' : '';
 					const label = `${place}${held ? ', after a held space' : ''}`;
 
-					await test.step(`${label}: one ArrowRight keeps the x and the look turns plain`, async () => {
-						await fresh(held);
-						const x = await barX(page);
-						await keys(ep, page, 'ArrowRight');
-						await expectLookNow(page, [], 'after one ArrowRight');
-						await expectBarAt(page, x);
-						await typed(`a ${construct}${space}X${tail}`);
-					});
+					if (tail !== '') {
+						await test.step(`${label}: one ArrowRight moves the caret, and the look follows`, async () => {
+							await fresh(held);
+							const x = await barX(page);
+							await keys(ep, page, 'ArrowRight');
+							await expectLookNow(page, [], 'after one ArrowRight');
+							expect(await barX(page), 'the bar moved').toBeGreaterThan(x + 1);
+							await typed(`a ${construct}${space} Xend`);
+						});
+					}
 
 					await test.step(`${label}: the typed closer turns the look plain`, async () => {
 						await fresh(held);
-						// A held space already sits past the closer, so one of its bytes steps out.
-						await page.keyboard.type(held ? d[0] : d);
+						await page.keyboard.type(d);
 						await ep.waitForRenderFlush();
 						await expectLookNow(page, [], 'after the closer');
 						await typed(`a ${construct}${space}X${tail}`);
@@ -113,19 +107,33 @@ for (const c of CONSTRUCTS) {
 						await expectLookNow(page, [], 'after the chord');
 						await typed(`a ${construct}${space}X${tail}`);
 					});
-
-					if (tail !== '') continue;
-					await test.step(`${label}: End turns the look plain`, async () => {
-						if (held) await fresh(true);
-						else {
-							await nextRow(ep, doc);
-							await clickWordSettled(ep, page, c.word);
-						}
-						await keys(ep, page, 'End');
-						await expectLookNow(page, [], 'after End');
-						await typed(`a ${construct}${space}X`);
-					});
 				}
+
+				if (tail !== '') {
+					await test.step(`${place}: ArrowLeft back from the text after it types inside`, async () => {
+						await nextRow(ep, doc);
+						await clickEnd(ep, page, 'end');
+						await keys(ep, page, 'ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowLeft');
+						await expectLookNow(page, c.marks, 'back at the end of the construct');
+						await typed(`a ${d}${c.word}X${d}${tail}`);
+					});
+					continue;
+				}
+
+				await test.step(`${place}: End keeps the look, and the letter types inside`, async () => {
+					await nextRow(ep, doc);
+					await clickWordSettled(ep, page, c.word);
+					await keys(ep, page, 'End');
+					await expectLookNow(page, c.marks, 'after End');
+					await typed(`a ${d}${c.word}X${d}`);
+				});
+
+				await test.step(`${place}: End after a held space turns the look plain`, async () => {
+					await fresh(true);
+					await keys(ep, page, 'End');
+					await expectLookNow(page, [], 'after End');
+					await typed(`a ${construct} X`);
+				});
 			}
 		});
 	}

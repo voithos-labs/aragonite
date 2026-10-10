@@ -7,7 +7,7 @@
 
 import { firstUsefulRect, neighbourCaretRect, type CaretRect } from './visual-lines';
 import { isAtomicInlineWidget, isHiddenMarkerText } from './widget-offset';
-import type { HostBox, WidgetEdgeBox } from './drawn-caret-target';
+import type { ClientCaretBox, HostBox, WidgetEdgeBox } from './drawn-caret-target';
 
 export interface CaretMeasure {
 	host: HTMLElement;
@@ -19,9 +19,15 @@ export interface CaretMeasure {
 	atSoftWrap: boolean;
 	/** A scroller between the editable and its host clips the caret's box out of view. */
 	clipped: boolean;
-	/** The caret sits at a code chip's edge, where each engine paints on its own side of the
-	 *  chip's padding. */
-	atCodeChipEdge: boolean;
+	/** The code chip whose edge the caret sits at, where each engine paints on its own side of the
+	 *  chip's padding, so the bar draws against the chip's box instead. */
+	chipEdge: ChipEdge | null;
+}
+
+/** A code chip, and which of its edges. */
+export interface ChipEdge {
+	chip: HTMLElement;
+	at: 'opener' | 'closer';
 }
 
 /** The element the bar draws in for a caret in `surface`: its block host. */
@@ -67,8 +73,24 @@ export function measureCaret(surface: HTMLElement, range: Range): CaretMeasure |
 		besideWidget: own === null && touchesWidget(range),
 		atSoftWrap: own !== null && atSoftWrap(range, surface),
 		clipped: caret !== null && clippedBetween(surface, host, caret),
-		atCodeChipEdge: atCodeChipEdge(range, surface)
+		chipEdge: codeChipEdge(range, surface)
 	};
+}
+
+/** The bar at one of a chip's two stops: inside, at its first or last letter in the padding;
+ *  outside, 2px past its border. The opener reads the chip's first line box, the closer its last. */
+export function chipStopBox(edge: ChipEdge, side: 'inside' | 'outside'): ClientCaretBox | null {
+	const boxes = edge.chip.getClientRects();
+	const text = document.createRange();
+	text.selectNodeContents(edge.chip);
+	const glyphs = [...text.getClientRects()].filter((r) => r.width > 0);
+	if (boxes.length === 0 || glyphs.length === 0) return null;
+	const closer = edge.at === 'closer';
+	const box = boxes[closer ? boxes.length - 1 : 0];
+	const glyph = glyphs[closer ? glyphs.length - 1 : 0];
+	const inside = closer ? glyph.right : glyph.left;
+	const outside = closer ? box.right + CHIP_STOP_GAP : box.left - CHIP_STOP_GAP;
+	return { left: side === 'inside' ? inside : outside, top: glyph.top, bottom: glyph.bottom };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
@@ -79,7 +101,11 @@ const IMAGE_WIDGET = '.md-image-widget';
 
 const WRAP_SPACE = [' ', '\t'];
 
-const CODE_CHIP = '.inline-code-content';
+/** A code span's painted chip. */
+export const CODE_CHIP = '.inline-code-content';
+
+/** How far past a chip's border its outside stop draws. */
+const CHIP_STOP_GAP = 2;
 
 // A line wraps inside a run of spaces, and the range reads one line or the other there whatever
 // line the browser draws on; the letters bounding the run sit on different lines exactly then.
@@ -123,15 +149,22 @@ function letterBox(letter: { node: Text; at: number } | null): DOMRect | null {
 	return firstUsefulRect(range);
 }
 
-// The caret at a code chip's first or last letter, or in the text just past the chip.
-function atCodeChipEdge(range: Range, surface: HTMLElement): boolean {
+// The caret at a code chip's first or last letter, or in the text just outside the chip.
+function codeChipEdge(range: Range, surface: HTMLElement): ChipEdge | null {
 	const node = range.startContainer;
-	if (!(node instanceof Text)) return false;
+	if (!(node instanceof Text)) return null;
 	const at = range.startOffset;
-	if (node.parentElement?.closest(CODE_CHIP)) return at === 0 || at === node.data.length;
+	const own = node.parentElement?.closest<HTMLElement>(CODE_CHIP);
+	if (own) {
+		if (at === 0) return { chip: own, at: 'opener' };
+		return at === node.data.length ? { chip: own, at: 'closer' } : null;
+	}
 	const before = at === 0 ? nearestLetter(node, 0, surface, false) : null;
 	const after = at === node.data.length ? nearestLetter(node, at, surface, true) : null;
-	return [before, after].some((letter) => !!letter?.node.parentElement?.closest(CODE_CHIP));
+	const closing = before?.node.parentElement?.closest<HTMLElement>(CODE_CHIP);
+	if (closing) return { chip: closing, at: 'closer' };
+	const opening = after?.node.parentElement?.closest<HTMLElement>(CODE_CHIP);
+	return opening ? { chip: opening, at: 'opener' } : null;
 }
 
 // A scroller inside the block (a code block's long lines, a wide cell) clips the browser's caret,

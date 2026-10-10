@@ -1,8 +1,8 @@
 /**
  * The constructs the next typed letter would sit inside, answered the way typing writes it: pending
  * marks through the insertion a chord promised, otherwise the caret memory's records and the block's
- * move across a hidden edge, run dry on a trial letter. The drawn caret's look and the edge ring both
- * read it, so what the caret shows is what the letter becomes.
+ * move across a hidden edge, run dry on a trial letter. The drawn caret's look reads it, so what the
+ * caret shows is what the letter becomes.
  */
 
 import type { InlineNode } from '../../../core/nodes';
@@ -11,13 +11,12 @@ import type { NextByte } from '../../../caret/caret-look';
 import type { CaretMemory } from '../../../caret/caret-memory';
 import type { PreviewInsertion, TextEdit } from '../../../caret/next-insertion';
 import { revealsNoMarkers } from '../../../caret/widget-offset';
-import { constructContentRange } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import { listInlineMarks, type InlineMarkKind } from '../../../schema/inline-construct-policy';
 import type { Reading } from '../../../schema/reading';
 import { recordCaretLook } from '../../../perf/instruments';
-import { PROBE_BYTE } from './edge-seat';
+import { PROBE_BYTE, constructsCovering } from './edge-seat';
 import { withOwnEnding } from '../surface-write';
 import { constructChainAt, resolveMarkedInsertion } from './pending-mark-insert';
 
@@ -32,6 +31,8 @@ export interface NextByteBlock {
 	pendingMarks: ReadonlySet<InlineMarkKind> | null;
 	/** The caret memory's records for this block, run dry with the block's placement. */
 	preview: PreviewInsertion;
+	/** Where a letter typed at a raw offset lands, which the chord's marks resolve against. */
+	seatOf(caret: number): number;
 	/** The inline tree of a rewritten `display`. */
 	inlinesOf(display: string): readonly InlineNode[];
 }
@@ -42,7 +43,7 @@ export function nextByte(caret: number, block: NextByteBlock): NextByte {
 	if (pendingMarks) {
 		const marked = resolveMarkedInsertion(
 			display,
-			caret,
+			block.seatOf(caret),
 			PROBE_BYTE,
 			pendingMarks,
 			block.inlines,
@@ -77,6 +78,8 @@ export interface NextByteSource {
 	caretMemory: Pick<CaretMemory, 'pendingMarks' | 'changeCount'>;
 	/** The memory's records for this block, run dry with its placement. */
 	preview(): PreviewInsertion;
+	/** The block's read of where a byte typed at a raw offset lands (`TypedPlacement.offsetFor`). */
+	offsetFor(caret: number, typed: string): number;
 }
 
 /** `nextByte` for one block, kept until its inline tree, the caret, the caret memory or whether its
@@ -96,6 +99,7 @@ export function createNextByte(source: NextByteSource): (caret: number) => NextB
 			reading: source.reading,
 			pendingMarks: source.caretMemory.pendingMarks.get(),
 			preview: source.preview(),
+			seatOf: (at) => source.offsetFor(at, PROBE_BYTE),
 			inlinesOf: (text) =>
 				resolvedInlineContent({ ...node, raw: withOwnEnding(node, text) }, source.reading)
 		});
@@ -148,35 +152,16 @@ function characterBefore(display: string, at: number): string {
 function marksOfLetter(edit: TextEdit, block: NextByteBlock): NextByte {
 	recordCaretLook('caretLookParses');
 	const at = edit.caretAfter - PROBE_BYTE.length;
-	const holders: InlineNode[] = [];
-	for (let level: readonly InlineNode[] | undefined = block.inlinesOf(edit.text); level;) {
-		const holder: InlineNode | undefined = level.find((node) => covers(node, at));
-		if (!holder) break;
-		holders.push(holder);
-		level = holder.children;
-	}
-	return answerOf(holders);
+	return answerOf(constructsCovering(block.inlinesOf(edit.text), at));
 }
 
-/** Whether the letter at `at` is this construct's content. */
-function covers(node: InlineNode, at: number): boolean {
-	if (node.kind === 'text') return false;
-	const content = constructContentRange(node) ?? node;
-	return content.start <= at && at < content.end;
-}
-
-/** The answer for the constructs holding the letter, outermost first: the ones a format chord
- *  writes, each kept by its start, so the edge ring can find the very construct. */
-function answerOf(holding: readonly { kind: InlineMarkKind; start: number }[]): NextByte {
-	const markable = new Set(listInlineMarks().map((entry) => entry.kind));
-	const holders = holding.flatMap((node) =>
-		markable.has(node.kind) ? [{ kind: node.kind, start: node.start }] : []
-	);
-	const kinds = new Set(holders.map((holder) => holder.kind));
+/** The answer for the constructs holding the letter: the ones a format chord writes, in the
+ *  policy table's nesting order. */
+function answerOf(holding: readonly { kind: InlineMarkKind }[]): NextByte {
+	const kinds = new Set(holding.map((node) => node.kind));
 	return {
 		marks: listInlineMarks()
 			.map((entry) => entry.kind)
-			.filter((kind) => kinds.has(kind)),
-		holders
+			.filter((kind) => kinds.has(kind))
 	};
 }

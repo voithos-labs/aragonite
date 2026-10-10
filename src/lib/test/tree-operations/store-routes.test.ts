@@ -288,14 +288,12 @@ function typedAtWidget(place: Place, range: typeof X, typed: string): string[] {
 	return h.edits.map((edit) => edit[1]);
 }
 
-/** A delimiter typed after an arrow stepped the caret past a hidden closing run, without moving. */
+/** A delimiter typed after the caret stepped past a hidden closing run by typing its closer. */
 async function typedPastHiddenRun(place: Place, caret: number, typed: string): Promise<string[]> {
 	const mounted = mountText(place, createCaretMemory());
 	mounted.el.focus();
 	select(mounted.el, caret);
-	mounted.el.dispatchEvent(
-		new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
-	);
+	beforeInput(mounted.el, 'insertText', '*');
 	await settleEditor();
 	return commitsAfter(mounted, () => beforeInput(mounted.el, 'insertText', typed));
 }

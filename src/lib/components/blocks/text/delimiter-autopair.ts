@@ -21,8 +21,8 @@ export type AutoPairEdit =
 	| { kind: 'write'; text: string; caret: number; pair?: ContentRange }
 	/** The typed byte completed a construct's closer; what follows belongs outside it. */
 	| { kind: 'close'; text: string; caret: number }
-	/** Nothing written: the caret passes its partner. Over a hidden closer only the caret's arrival
-	 *  side changes. `pair` is the auto-pair's own empty pair the caret stepped past. */
+	/** Nothing written: the caret passes its partner. Over a hidden closer only the caret memory's
+	 *  record changes. `pair` is the auto-pair's own empty pair the caret stepped past. */
 	| { kind: 'step-over'; caret: number; overConstruct: boolean; pair?: ContentRange };
 
 /** What the resolver reads about the line besides its bytes. */
@@ -169,8 +169,10 @@ export interface AutoPairSurface {
 	isRevealing(): boolean;
 	foldReveal(): { settled: Promise<void> } | null;
 	setCaret(offset: number): void;
-	/** Record the arrival side the next typed byte reads: past the construct's delimiters. */
+	/** The next letter types past the construct's delimiters: a closer typed by hand completed it. */
 	seatOutside(): void;
+	/** A byte of a hidden closer was typed over at `from`, leaving `to` (`TypedPlacement`). */
+	passCloser(from: number, to: number): void;
 	/** Whether a marker run the screen paints nothing for touches `caret`. */
 	hiddenRunAt(caret: number): boolean;
 	/** One CST write plus the caret it leaves behind; the block picks the undo caret. */
@@ -180,8 +182,7 @@ export interface AutoPairSurface {
 	completesLine?(caret: number): boolean;
 	/** Whether a line the pair would write still reads as this block's kind where it is stored. */
 	keepsKind(line: string): boolean;
-	/** How the block was drawn: a plugin's delimiter pairs only where the plugin is listed, and a
-	 *  step-over past a hidden closer moves only the arrival side. */
+	/** How the block was drawn: a plugin's delimiter pairs only where the plugin is listed. */
 	reading: Reading;
 	/** This block's view of the editor's record of the pair the auto-pair last wrote. */
 	ownPairs: BlockAutoPairs;
@@ -189,7 +190,7 @@ export interface AutoPairSurface {
 
 /**
  * The `beforeinput` handler. True when the key belonged here: the event is cancelled and the
- * block has written bytes, moved the caret, or changed its arrival side.
+ * block has written bytes, moved the caret, or changed the caret memory's record.
  */
 export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface): boolean {
 	const typing = e.inputType === 'insertText';
@@ -220,9 +221,9 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	noteOwnPair(surface.ownPairs, text, edit);
 	switch (edit.kind) {
 		case 'step-over':
-			// A hidden closer shares the caret's pixel, so only the arrival side moves; a shown one is
-			// passed like any byte.
-			if (edit.overConstruct && surface.hiddenRunAt(caret)) surface.seatOutside();
+			// A hidden closer shares the caret's pixel, so only the record moves; a shown one is passed
+			// like any byte.
+			if (edit.overConstruct && surface.hiddenRunAt(caret)) surface.passCloser(caret, edit.caret);
 			else if (surface.completesLine?.(edit.caret)) surface.write(text, edit.caret);
 			else surface.setCaret(edit.caret);
 			return true;

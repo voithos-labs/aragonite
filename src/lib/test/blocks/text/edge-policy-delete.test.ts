@@ -410,7 +410,7 @@ describe('deferring to the delete rules', () => {
 		/** `**a&copy;** t` with an element-level caret between the entity widget and the closing run,
 		 *  where Chromium drops the key and this branch writes it through the CST instead. */
 		function withElementCaret(mode: string): Surface {
-			const s = surface('**a&copy;** t\n', { mode, affinity: 'far' });
+			const s = surface('**a&copy;** t\n', { mode, affinity: 'outside' });
 			const widget = document.createElement('span');
 			widget.dataset.inlineWidget = '';
 			widget.textContent = '©';
@@ -424,7 +424,7 @@ describe('deferring to the delete rules', () => {
 			return s;
 		}
 
-		it('writes at the caret position the arrival names, not at the caret', () => {
+		it('writes at the caret position the record names, not at the caret', () => {
 			const s = withElementCaret('live');
 			const e = key('.');
 			expect(s.handleKeydown(e, at(9))).toBe(true);

@@ -7,7 +7,7 @@
 import type { InlineNode } from '../../../core/nodes';
 import type { Reading } from '../../../schema/reading';
 import type { InlineMarkKind } from '../../../schema/inline-construct-policy';
-import { plainInsertionAt } from './edge-seat';
+import { PROBE_BYTE, plainInsertionAt } from './edge-seat';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 
 export interface CompositionSeatDeps {
@@ -17,6 +17,9 @@ export interface CompositionSeatDeps {
 	/** The reading `getInlines` reads with, so a candidate keeps the reference links it shows and
 	 *  reads back as the syntax the editor draws. */
 	reading: Reading;
+	/** Where a byte typed at a raw offset lands (`TypedPlacement.offsetFor`); marks resolve where a
+	 *  letter would. */
+	offsetFor: (caret: number, typed: string) => number;
 	/** Spend the pending marks: a composition is the one insertion they were promised to. */
 	consumePendingMarks: () => ReadonlySet<InlineMarkKind> | null;
 	/** Give them back when the composition wrote nothing: a cancelled IME run inserts nothing, so
@@ -35,7 +38,7 @@ export interface CompositionSeatDeps {
 
 export interface CompositionSeat {
 	/** Capture the state the composition opened in. Call it before the block's own
-	 *  `compositionstart` and the first `input`, which both overwrite the arrival side. */
+	 *  `compositionstart` and the first `input`, which both end the caret memory's records. */
 	noteStart(): void;
 	/** The bytes the commit should write, or null to write the DOM read as an insertion. */
 	relocate(after: string, composedAt: number): { raw: string; caret: number } | null;
@@ -75,14 +78,14 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 				if (typed === null) return null;
 				return deps.resolveRangeEdit?.(started.range, typed) ?? null;
 			}
-			// Marks beat the arrival side (live-mode.md § 4.2): a toggle is the newer instruction about the
-			// same bytes, so the side only answers when nothing was pending.
+			// Marks beat the edge record (live-mode.md § 4.2): a toggle is the newer instruction about
+			// the same bytes, so the record only answers when nothing was pending.
 			if (!started.marks) return null;
 			const composed = plainInsertionAt(started.before, after, composedAt);
 			if (composed === null) return null;
 			return resolveMarkedInsertion(
 				started.before,
-				composedAt,
+				deps.offsetFor(composedAt, PROBE_BYTE),
 				composed,
 				started.marks,
 				deps.getInlines(),

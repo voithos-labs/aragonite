@@ -85,7 +85,7 @@ import { flipPresentationMode } from './gestures/presentation';
 import {
 	liveDemoteHeading,
 	liveEdgeBackspace,
-	liveEdgeStep,
+	liveRichTextEdge,
 	liveExtendIntoTablePark,
 	liveLinkCardEdit,
 	liveListHomeSeat,
@@ -614,9 +614,9 @@ export class Gestures {
 		return liveEdgeBackspace(this.ctx, blockIndex, content);
 	}
 
-	/** A plain ArrowRight at a construct's text end moves the next byte past the hidden closer. */
-	liveEdgeStep(blockIndex: number, content: string, closer: string): Promise<void> {
-		return liveEdgeStep(this.ctx, blockIndex, content, closer);
+	/** A letter at a construct's text end types inside it, and one ArrowRight later outside it. */
+	liveRichTextEdge(blockIndex: number, content: string, closer: string): Promise<void> {
+		return liveRichTextEdge(this.ctx, blockIndex, content, closer);
 	}
 
 	/** Backspace at a heading's content start demotes it before any merge. */

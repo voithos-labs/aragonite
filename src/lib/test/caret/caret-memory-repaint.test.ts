@@ -3,11 +3,23 @@
 // methods are read off the object, so a new one has to join a table here before the row passes.
 import { describe, expect, it } from 'vitest';
 import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
+import type { PlaceInsertion } from '#lib/caret/next-insertion.js';
 
 const BLOCK = {};
 const LINE = { textEnd: 3, lineEnd: 3, ending: '\n' as const };
 
 type Step = (memory: CaretMemory) => void;
+
+/** A space typed at `a **x**`'s hidden closer, written past it while a letter would go inside. */
+const HOLD: Step = (memory) => {
+	const place: PlaceInsertion = (before, edit, at) =>
+		at === 7 && edit.text[at] === 'a'
+			? { text: `${before.slice(0, 5)}a${before.slice(5)}`, caretAfter: 6, crossed: ['strong'] }
+			: null;
+	const held = memory.holdInsertion(BLOCK, place);
+	held.spend('a **x**', { text: 'a **x** ', caretAfter: 8 });
+	held.finish(true);
+};
 
 /** For each method: a call from a state where it changes the answer, and, where one exists, a call
  *  that changes nothing. `from` builds the state before the counted call. */
@@ -16,26 +28,30 @@ const CHANGES: Record<
 	{ change: [from: Step, call: Step]; noop?: [from: Step, call: Step] }
 > = {
 	noteKey: {
-		change: [() => {}, (m) => m.noteKey({ key: 'ArrowRight' }, null)],
+		change: [(m) => m.noteOutside(), (m) => m.noteKey({ key: 'ArrowRight' }, null)],
 		noop: [
 			(m) => m.noteKey({ key: 'ArrowRight' }, null),
 			(m) => m.noteKey({ key: 'ArrowDown' }, null)
 		]
 	},
 	noteTyping: {
-		change: [() => {}, (m) => m.noteTyping()],
+		change: [(m) => m.noteOutside(), (m) => m.noteTyping()],
 		noop: [(m) => m.noteTyping(), (m) => m.noteTyping()]
 	},
-	noteExtreme: {
-		change: [() => {}, (m) => m.noteExtreme()],
-		noop: [(m) => m.noteExtreme(), (m) => m.noteExtreme()]
+	noteOutside: {
+		change: [() => {}, (m) => m.noteOutside()],
+		noop: [(m) => m.noteOutside(), (m) => m.noteOutside()]
+	},
+	'heldSpace.forBlock().passCloser': {
+		change: [HOLD, (m) => m.heldSpace.forBlock(BLOCK).passCloser(6)],
+		noop: [() => {}, (m) => m.heldSpace.forBlock(BLOCK).passCloser(6)]
 	},
 	pin: {
 		change: [() => {}, (m) => m.pin(3)],
 		noop: [(m) => m.pin(3), (m) => m.pin(3)]
 	},
 	forget: {
-		change: [(m) => m.noteTyping(), (m) => m.forget()],
+		change: [(m) => m.noteOutside(), (m) => m.forget()],
 		noop: [() => {}, (m) => m.forget()]
 	},
 	'pendingMarks.toggle': {
@@ -68,6 +84,7 @@ const CHANGES: Record<
 const EXEMPT: Record<string, string> = {
 	column: 'a read',
 	side: 'a read',
+	arrivedByKey: 'a read, and nothing the drawn caret shows',
 	'pendingMarks.get': 'a read',
 	'pendingBreak.forBlock().lines': 'a read',
 	'pendingBreak.forBlock().at': 'a read',
@@ -77,6 +94,7 @@ const EXEMPT: Record<string, string> = {
 	changeCount: 'a read',
 	holdInsertion:
 		'its records change only inside a write, which asks for its own paint when it puts the caret back',
+	pinOnArrival: 'it holds the pin until the next key is noted, and noting it asks for the paint',
 	captureColumn: 'the column aims a run of Up and Down presses, and the drawn caret never reads it'
 };
 

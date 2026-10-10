@@ -5,7 +5,7 @@
  */
 
 import { assertInvariant } from '../assert';
-import { CURSOR_END, CURSOR_START, type BlockComponent } from '../block-component';
+import type { BlockComponent } from '../block-component';
 import type { DocumentView } from '../core/node-views';
 import type { CaretMemory } from '../caret/caret-memory';
 import { docPathFrom } from '../caret/coordinate-spaces';
@@ -79,7 +79,7 @@ export interface CaretLandingDeps {
 	selectionState: SelectionState;
 	/** The editor's caret writer, which every landing's caret and range goes through. */
 	caretWriter: CaretWriter;
-	caretMemory: Pick<CaretMemory, 'forget' | 'noteExtreme'>;
+	caretMemory: Pick<CaretMemory, 'forget' | 'noteOutside'>;
 	getBlockElByPath: BlockElLookup;
 	/** The editor's own element, which holds focus while a block with no text is selected whole. */
 	getEditorRoot(): HTMLElement | null;
@@ -148,11 +148,8 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		if (!component) return 'unresolvable';
 		deps.caretMemory.forget();
 		placeWithoutScrolling(() => component.focus(target.offset));
-		// Placed at an edge rather than stepped there, so the caret means the outside of a
-		// hidden closer (`docs/design/live-mode.md` § 4.2).
-		if (target.offset === CURSOR_END || target.offset === CURSOR_START) {
-			deps.caretMemory.noteExtreme();
-		}
+		// A split's second half starts plain, whatever format the text after the cut carries.
+		if (pos.fresh) deps.caretMemory.noteOutside();
 		await bringIntoView(target.leafPath, reveal);
 		return 'placed';
 	}

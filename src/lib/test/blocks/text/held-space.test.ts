@@ -62,15 +62,6 @@ describe.each(TEXT_HOSTS)('a held space in $name', (host) => {
 
 		expect(host.line(editor.source())).toBe('a **two w**');
 	});
-
-	it('one ArrowRight ends it, and the next letter lands outside', async () => {
-		const { editor, el } = await heldIn();
-
-		await pressKey(el, { key: 'ArrowRight' });
-		await insertBy('hardware key', el, 'w');
-
-		expect(host.line(editor.source())).toBe('a **two** w');
-	});
 });
 
 describe('typing on after an existing bold', () => {
@@ -99,15 +90,6 @@ describe('typing on after an existing bold', () => {
 		expect(editor.source()).toBe('a **two  w**\n');
 	});
 
-	it('an arrival from outside types the space and the word outside', async () => {
-		const { editor, el } = mountWithCaret('**bold**\n', 8);
-		await pressKey(el, { key: 'ArrowLeft' });
-
-		await insertBy('hardware key', el, ' more');
-
-		expect(editor.source()).toBe('**bold** more\n');
-	});
-
 	it('the format chord before the space types outside', async () => {
 		const { editor, el } = mountWithCaret('**bold**\n', 6);
 		await pressKey(el, { key: 'b', ctrlKey: true });
@@ -116,21 +98,10 @@ describe('typing on after an existing bold', () => {
 
 		expect(editor.source()).toBe('**bold** more\n');
 	});
-
-	it('an arrow step back inside, where the ring shows, types the space and the word inside', async () => {
-		const { editor, el } = mountWithCaret('a **bold**\n', 8);
-		await pressKey(el, { key: 'ArrowRight' });
-		await pressKey(el, { key: 'ArrowLeft' });
-
-		await insertBy('hardware key', el, ' w');
-
-		expect(editor.source()).toBe('a **bold w**\n');
-	});
 });
 
-/** The ways out of a held space Finn asked for: one arrow, End, the closer, the format chord. */
+/** The ways out of a held space Finn asked for that move no caret: the closer, the format chord. */
 const EXITS: [string, KeyboardEventInit][] = [
-	['ArrowRight', { key: 'ArrowRight' }],
 	['the typed closer', { key: '*' }],
 	['the format chord', { key: 'b', ctrlKey: true }]
 ];
@@ -158,6 +129,28 @@ describe.each(EXITS)('%s ends the hold, and the next letter lands outside', (_na
 	});
 });
 
+// A closer typed whole across a held space steps past the whole closer run; the space stays put.
+// Miss-analysis: the closer exit rows typed one byte of a two-byte closer, never the whole of it.
+describe.each([
+	['**', 'bold'],
+	['~~', 'gone']
+])('a held space, then the whole %s closer', (delimiter, word) => {
+	it('types the next letter outside, past the space', async () => {
+		const at = 2 + delimiter.length + word.length;
+		const { editor, el } = mountWithCaret(
+			`a ${delimiter}${word}${delimiter} b
+`,
+			at
+		);
+		await insertBy('hardware key', el, ' ');
+
+		await insertBy('hardware key', el, `${delimiter}X`);
+
+		expect(editor.source()).toBe(`a ${delimiter}${word}${delimiter} X b
+`);
+	});
+});
+
 // The held construct's own chord leaves it; another chord pends its mark, as at any caret.
 // Miss-analysis: the exit rows pressed only Mod+B in a bold, so a chord swallowed whole stayed green.
 describe.each([
@@ -178,6 +171,18 @@ describe.each([
 });
 
 describe('the hold ends without touching the bytes', () => {
+	// jsdom moves no caret on an arrow, so this reads only the record the key ends; the browser's
+	// move is `drawn-caret-look.spec.ts`.
+	it('an arrow key, mid-line', async () => {
+		const { editor, el } = mountWithCaret('a **two** b\n', 7);
+		await insertBy('hardware key', el, ' ');
+
+		await pressKey(el, { key: 'ArrowRight' });
+		await insertBy('hardware key', el, 'w');
+
+		expect(editor.source()).toBe('a **two** w b\n');
+	});
+
 	it('End at the line’s end', async () => {
 		const { editor, el } = mountWithCaret('a **two**\n', 7);
 		await insertBy('hardware key', el, ' ');

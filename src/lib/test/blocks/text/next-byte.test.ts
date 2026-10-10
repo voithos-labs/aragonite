@@ -89,6 +89,7 @@ function answer(
 		reading,
 		pendingMarks: pending ? new Set(pending) : null,
 		preview: counted.preview,
+		seatOf: (at) => at,
 		inlinesOf: parse
 	});
 	return { marks: next.marks, trials: counted.trials() };
@@ -170,7 +171,8 @@ describe('the cached answer', () => {
 			getInlines: () => inlines,
 			reading,
 			caretMemory: memory,
-			preview: () => memory.previewInsertion(block, INTO_BOLD)
+			preview: () => memory.previewInsertion(block, INTO_BOLD),
+			offsetFor: (caret) => caret
 		});
 
 		// A composition holds the records while the ring asks.

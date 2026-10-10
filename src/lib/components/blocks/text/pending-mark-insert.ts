@@ -245,7 +245,8 @@ function markOf(kind: AnyInlineKind): InlineMarkKind | null {
 /** Whether a construct's closer mirrors its opener, so a split can close and reopen it. The policy
  *  table answers, not this module's mark list: the rule is the table's to change. */
 function isSymmetricPair(kind: AnyInlineKind): boolean {
-	return getInlineConstructPolicy(kind)?.edgeAffinity === 'symmetric-pair';
+	const edge = getInlineConstructPolicy(kind)?.edgeAffinity;
+	return edge === 'left-sticky' || edge === 'boxed';
 }
 
 /** Every construct holding `offset`, outermost first; one missing here could be destroyed unnoticed.

@@ -20,6 +20,7 @@ const DRAWING: DrawnCaretReads = {
 	atSoftWrap: false,
 	clipped: false,
 	atCodeChipEdge: false,
+	chip: null,
 	caret: { left: 40.3, top: 25, bottom: 45 },
 	host: { left: 10, top: 20, scale: 1 },
 	devicePixelRatio: 1
@@ -65,7 +66,7 @@ const NATIVE: Array<[string, Partial<DrawnCaretReads>]> = [
 	['a composition at a widget edge', { ...BESIDE, widgetEdge: EDGE, source: { drawable: false } }],
 	['the caret sits where a line soft-wraps', { atSoftWrap: true }],
 	['a scroller inside the block clips the caret out of view', { clipped: true }],
-	['the caret sits at a code chip’s edge', { atCodeChipEdge: true }],
+	['the caret sits at a code chip’s edge, and no look says which side', { atCodeChipEdge: true }],
 	['the range measures to no rect', { caret: null }],
 	['the surface has no host box to draw in', { host: null }]
 ];
@@ -102,6 +103,21 @@ describe('the drawn caret draws a bar', () => {
 	it('in the host’s own units when an ancestor scales the editor', () => {
 		const target = drawnCaretTarget(read({ host: { left: 10, top: 20, scale: 2 } }));
 		expect(target).toEqual({ state: 'text', rect: { x: 15, y: 2.5, height: 10 } });
+	});
+});
+
+describe('the drawn caret draws a chip stop', () => {
+	// Drawn against the chip's own box, so where the range or the browser put the caret is moot.
+	it('at the stop the next letter types at, snapped, whatever the range measured', () => {
+		const target = drawnCaretTarget(
+			read({ atCodeChipEdge: true, chip: { left: 60.4, top: 24, bottom: 44 } })
+		);
+		expect(target).toEqual({ state: 'chip', rect: { x: 50, y: 4, height: 20 } });
+	});
+
+	it('hides with the rest when the editor loses focus', () => {
+		const chip = { left: 60, top: 24, bottom: 44 };
+		expect(drawnCaretTarget(read({ chip, focused: false })).state).toBe('hidden');
 	});
 });
 

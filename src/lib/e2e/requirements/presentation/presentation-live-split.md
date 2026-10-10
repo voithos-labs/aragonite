@@ -18,8 +18,9 @@ identical on screen.
 
 - Enter in the middle of a bold word yields two blocks, each rendering bold, and the source
   carries a balanced `**` pair in each: no star reaches the screen at any point
-- the caret lands in the second block on the character that followed the cut, so typing
-  continues inside the reopened construct rather than in front of its delimiters
+- the caret lands at the second block's start, and the next letter types plain, in front of the
+  reopened construct (`X**ld**`): Enter starts a new block plain, whatever the text after the cut
+  carries
 - Enter inside a reference link's text yields two links on the same label: the resolver rides the
   split call, so the split reads the construct the render path drew instead of a pair of brackets
 - one `Mod+Z` restores the single original block, bytes identical, with the caret back inside it
@@ -65,8 +66,8 @@ carries it):
 - Enter just before a construct (a code span, a bold run, a code span opening a list item's text)
   cuts no construct, so nothing reopens and the landing is structural: the next byte lands before
   the construct in live and in preview-inline (``Y`code` z``, `Y**bold** z`). Miss-analysis:
-  every landing row split inside a construct, where typing continues inside the reopened one, so
-  no row asked where a split that reopened nothing puts the next byte
+  every landing row split inside a construct, so no row asked where a split that reopened nothing
+  puts the next byte
 - in a list item, `- **bo ld**` cut after `bo` writes `- **bo**` and `-  **ld**`. The space the
   second half starts with stays, and the new item reads it the way a reload does, as part of a
   wider `-  ` marker, so the tree matches the reload and `ld` is still bold

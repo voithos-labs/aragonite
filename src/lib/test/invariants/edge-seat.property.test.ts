@@ -25,8 +25,8 @@ import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 const FIXED_SEED = 818818;
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(FIXED_SEED) } as const;
 
-/** Every arrival the caret placement can be asked about, including the one that says nothing. */
-const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
+/** Every record the caret placement can be asked about, including none. */
+const AFFINITIES: (EdgeAffinity | null)[] = ['outside', null];
 
 /** Delimiter bytes any construct can paint, plus the escape's backslash. `_` is left out: a byte
  *  typed at either outside edge of `__x__` kills the pair wherever it goes, by markdown's rule. */
@@ -193,6 +193,6 @@ describe('a surfaced delimiter is classified, never excluded', () => {
 	// and it lies in the neighbouring run rather than in this construct's own.
 	it('still claims a shared run the caret can sit in', () => {
 		expect(rescueOffset('**a *b** c*', 0)).toBe(2);
-		expect(typeThroughSeat('**a *b** c*', 0, 'near').after).toBe('**Za *b** c*');
+		expect(typeThroughSeat('**a *b** c*', 0, null).after).toBe('**Za *b** c*');
 	});
 });

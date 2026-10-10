@@ -210,7 +210,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { at: offset, itemIndex, innerIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				landing: () => itemAt(itemIndex + 1, secondHalfLanding)
+				landing: () => ({ ...itemAt(itemIndex + 1, secondHalfLanding), fresh: true })
 			});
 		},
 

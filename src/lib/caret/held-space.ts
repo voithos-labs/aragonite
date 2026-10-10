@@ -27,6 +27,9 @@ export interface HeldSpaceView {
 	at(): number | null;
 	/** Where the next letter joins the construct, before its hidden closer, while the space holds. */
 	inside(): number | null;
+	/** A byte of the hidden closer at `inside` was typed over, with more of that closer to come: the
+	 *  space waits for the next byte at `next` and takes no letter back inside. False with no hold. */
+	passCloser(next: number): boolean;
 }
 
 interface Hold {
@@ -40,6 +43,8 @@ interface Hold {
 	side: EdgeAffinity | null;
 	/** The constructs whose closers the space was written past. */
 	kinds: readonly string[];
+	/** Part of the closer was typed across the space, so a letter stays where it is typed. */
+	closing: boolean;
 }
 
 export function createHeldSpace(): HeldSpace {
@@ -48,7 +53,12 @@ export function createHeldSpace(): HeldSpace {
 	return {
 		forBlock: (block) => ({
 			at: () => (hold?.block === block ? hold.end : null),
-			inside: () => (hold?.block === block ? hold.inside : null)
+			inside: () => (hold?.block === block ? hold.inside : null),
+			passCloser: (next) => {
+				if (hold?.block !== block) return false;
+				hold = { ...hold, inside: next, closing: true };
+				return true;
+			}
 		}),
 		holding: () => hold !== null,
 		holdsInside: (kind) => hold?.kinds.includes(kind) === true,
@@ -66,6 +76,7 @@ export function createHeldSpace(): HeldSpace {
 					const keep = (next: Hold) => ({ ...edit, kept: () => void (hold = next) });
 					if (taken && at === taken.end) {
 						if (isWhitespace(typed)) return keep({ ...taken, end: taken.end + typed.length });
+						if (taken.closing) return edit;
 						return carried(before, taken, typed, placement.place) ?? edit;
 					}
 					if (taken || !isWhitespace(typed)) return null;
@@ -78,7 +89,8 @@ export function createHeldSpace(): HeldSpace {
 						start: at,
 						end: at + typed.length,
 						side: placement.side,
-						kinds
+						kinds,
+						closing: false
 					});
 				},
 				release: (waiting) => {

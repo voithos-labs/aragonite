@@ -18,9 +18,10 @@ describe('caret memory', () => {
 	// Every input route (a keystroke, dictation, a soft keyboard) ends in the input commit, so the
 	// committed byte is what resets the caret memory, not the key that may or may not precede it.
 	describe('editable surface: an input commit settles the caret memory', () => {
-		it('drops the column and the marks and records the near side', () => {
+		it('drops the column, the marks and the edge record', () => {
 			const caretMemory = createCaretMemory();
 			caretMemory.noteKey({ key: 'ArrowUp' }, null, () => asEditorX(240));
+			caretMemory.noteOutside();
 			caretMemory.pendingMarks.toggle('strong');
 			const { surface, el } = makeSurface({ caretMemory });
 
@@ -28,7 +29,7 @@ describe('caret memory', () => {
 			surface.onInput(new InputEvent('input'));
 
 			expect(caretMemory.column()).toBeNull();
-			expect(caretMemory.side()).toBe('near');
+			expect(caretMemory.side()).toBeNull();
 			expect(caretMemory.pendingMarks.get()).toBeNull();
 		});
 	});

@@ -64,14 +64,14 @@ describe('cross-block keydown: the reorder chord follows a rebinding', () => {
 		return env;
 	}
 
-	it('the freed Alt+ArrowUp is an arrow: the side is set and the marks drop', async () => {
+	it('the freed Alt+ArrowUp is an arrow: it reads as a key arrival and the marks drop', async () => {
 		const env = armed();
 		await env.keydown.handleKeyDown(press('ArrowUp', { altKey: true }));
-		expect(env.caretMemory.side()).toBe('far');
+		expect(env.caretMemory.arrivedByKey()).toBe(true);
 		expect(env.caretMemory.pendingMarks.get()).toBeNull();
 	});
 
-	it('the rebound chord keeps the column, the side and the marks', async () => {
+	it('the rebound chord keeps the column, the record and the marks', async () => {
 		const env = armed();
 		await env.keydown.handleKeyDown(press('ArrowUp', { ctrlKey: true }));
 		expect(env.caretMemory.column()).toBe(600);

@@ -107,14 +107,15 @@ export function makeEdgeDispatch(
 		enterWidget: () => {},
 		isReading: () => false,
 		pendingMarks: makePendingMarks(),
+		offsetFor: (caret, typed) => placement.offsetFor(caret, typed),
 		...overrides
 	};
 	const placement = createTypedPlacement({
 		getEl: () => el,
 		getNode: readNode,
 		reading: deps.reading,
-		caretMemory: { side: () => side },
-		heldSpace: () => ({ at: () => null, inside: () => null })
+		caretMemory: { side: () => side, noteOutside: () => {} },
+		heldSpace: () => ({ at: () => null, inside: () => null, passCloser: () => false })
 	});
 	const dispatch = createEdgePolicyDispatch(deps);
 	// A held range reads as its start, as the block's caret read does.

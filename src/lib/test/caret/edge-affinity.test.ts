@@ -1,23 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import {
-	classifyArrivalKey,
+	classifyCaretKey,
 	edgeStepDirection,
-	type EdgeAffinityAction
+	type CaretKeyAction
 } from '../../caret/edge-affinity';
 
-// The arrival table decides which of two offsets sharing one pixel a caret means. A single step
-// stops on the side of the run it came from; the ends of a line answer `outside` both ways.
-// Miss-analysis: the table ignored direction, and nothing contradicted it until e2e typing rows.
-describe('classifyArrivalKey', () => {
-	const MATRIX: Record<string, EdgeAffinityAction> = {
-		ArrowLeft: 'far',
-		ArrowRight: 'near',
-		ArrowUp: 'far',
-		ArrowDown: 'near',
-		PageUp: 'far',
-		PageDown: 'near',
-		Home: 'outside',
-		End: 'outside',
+// Which keys end the caret memory's record at a hidden edge: every key that moves the caret or
+// changes the text another way, and none of the keys that type or only hold a modifier.
+describe('classifyCaretKey', () => {
+	const MATRIX: Record<string, CaretKeyAction> = {
+		ArrowLeft: 'navigate',
+		ArrowRight: 'navigate',
+		ArrowUp: 'navigate',
+		ArrowDown: 'navigate',
+		PageUp: 'navigate',
+		PageDown: 'navigate',
+		Home: 'navigate',
+		End: 'navigate',
 		Shift: 'preserve',
 		Control: 'preserve',
 		Alt: 'preserve',
@@ -30,6 +29,8 @@ describe('classifyArrivalKey', () => {
 		// Astral-plane keys arrive as one code point in two UTF-16 units.
 		'😀': 'preserve',
 		'𝄞': 'preserve',
+		Unidentified: 'preserve',
+		Process: 'preserve',
 		Enter: 'reset',
 		Tab: 'reset',
 		Escape: 'reset',
@@ -41,24 +42,12 @@ describe('classifyArrivalKey', () => {
 
 	for (const [key, action] of Object.entries(MATRIX)) {
 		it(`${JSON.stringify(key)} → ${action}`, () => {
-			expect(classifyArrivalKey(key)).toBe(action);
+			expect(classifyCaretKey(key)).toBe(action);
 		});
 	}
-
-	// On macOS the caret jumps to the line's edge, which is a placement rather than a step, so
-	// the answer is Home and End's, relative to the construct, not the arrow's.
-	it('meta+ArrowLeft/Right classify as line extremes, not steps', () => {
-		expect(classifyArrivalKey('ArrowLeft', true)).toBe('outside');
-		expect(classifyArrivalKey('ArrowRight', true)).toBe('outside');
-	});
-
-	it('meta leaves the vertical arrows and plain arrows directional', () => {
-		expect(classifyArrivalKey('ArrowUp', true)).toBe('far');
-		expect(classifyArrivalKey('ArrowLeft', false)).toBe('far');
-	});
 });
 
-// Only a plain arrow crosses a hidden edge one boundary at a time; every chord moves by more.
+// Only a plain arrow crosses a code chip's border one stop at a time; every chord moves by more.
 describe('edgeStepDirection', () => {
 	const plain = {
 		shiftKey: false,

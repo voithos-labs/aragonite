@@ -97,9 +97,8 @@ test('live mode, extending across a construct-ending block', async ({ page }) =>
 		expect(await focusOffset(ep)).toBe(CONTENT_END);
 	});
 
-	// The arrival rule applied to a collapse: the caret got there by arrow, from outside, so the
-	// byte lands after the construct rather than extending it.
-	await test.step('typing at the collapsed caret writes past the construct', async () => {
+	// A collapse lands on text, where the character before the caret, bold here, decides.
+	await test.step('typing at the collapsed caret extends the construct', async () => {
 		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('Home');
@@ -109,7 +108,7 @@ test('live mode, extending across a construct-ending block', async ({ page }) =>
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		expect(await ep.bridge.getSource()).toContain('**bold**Z');
+		expect(await ep.bridge.getSource()).toContain('**boldZ**');
 	});
 
 	await test.step('extending backward into a block that begins with a construct reaches its neighbour', async () => {
@@ -147,8 +146,8 @@ const CELL_DOC = [
 	'After table'
 ].join('\n');
 
-// 'near' and 'far' are positions in step order, so the same key means opposite sides at an opener
-// and a closer; the whole matrix is checked, since one row can be right by coincidence.
+// Every key that collapses a range lands on text, at an opener and at a closer; the whole matrix is
+// checked, since one row can be right by coincidence.
 const MATRIX_DOC = [
 	'Lead **bold**',
 	'',
@@ -168,7 +167,7 @@ interface CollapseArm {
 	key: 'ArrowLeft' | 'ArrowRight' | 'Escape';
 	/** Build a cross-block range whose collapse target is this row's edge. */
 	extend: (ep: EditorPage, page: Page) => Promise<void>;
-	/** The bytes a caret outside the construct writes. */
+	/** The bytes the letter writes, inside the construct the caret lands against. */
 	expected: string;
 }
 
@@ -186,8 +185,8 @@ async function fromCloserStart(ep: EditorPage, page: Page): Promise<void> {
 }
 
 const COLLAPSE_ARMS: CollapseArm[] = [
-	{ edge: 'opener', key: 'ArrowLeft', extend: fromOpenerStart, expected: 'Z**bold** tail' },
-	{ edge: 'opener', key: 'Escape', extend: fromOpenerStart, expected: 'Z**bold** tail' },
+	{ edge: 'opener', key: 'ArrowLeft', extend: fromOpenerStart, expected: '**Zbold** tail' },
+	{ edge: 'opener', key: 'Escape', extend: fromOpenerStart, expected: '**Zbold** tail' },
 	{
 		edge: 'opener',
 		key: 'ArrowRight',
@@ -196,10 +195,10 @@ const COLLAPSE_ARMS: CollapseArm[] = [
 			await page.keyboard.press('End');
 			await extendTo(ep, page, 'ArrowDown', [OPENER], 0);
 		},
-		expected: 'Z**bold** tail'
+		expected: '**Zbold** tail'
 	},
-	{ edge: 'closer', key: 'ArrowLeft', extend: fromCloserStart, expected: 'Lead **bold**Z' },
-	{ edge: 'closer', key: 'Escape', extend: fromCloserStart, expected: 'Lead **bold**Z' },
+	{ edge: 'closer', key: 'ArrowLeft', extend: fromCloserStart, expected: 'Lead **boldZ**' },
+	{ edge: 'closer', key: 'Escape', extend: fromCloserStart, expected: 'Lead **boldZ**' },
 	{
 		edge: 'closer',
 		key: 'ArrowRight',
@@ -209,18 +208,20 @@ const COLLAPSE_ARMS: CollapseArm[] = [
 			await page.keyboard.press('ControlOrMeta+Shift+End');
 			await ep.waitForCrossBlock(true);
 		},
-		expected: 'Ends with **bold**Z'
+		expected: 'Ends with **boldZ**'
 	}
 ];
 
 /** `Lead **bold**`: 13 raw bytes, the far side of the closing run. */
 const RAW_END_OF_LEAD = 13;
 
-test('live mode: a collapse puts the caret outside, on both axes', async ({ page }) => {
+test('live mode: a collapse follows the character beside the caret, on both axes', async ({
+	page
+}) => {
 	const ep = await enterPresentationMode(page, 'live', MATRIX_DOC);
 
 	for (const arm of COLLAPSE_ARMS) {
-		await test.step(`${arm.edge} + ${arm.key}: the byte lands outside the construct`, async () => {
+		await test.step(`${arm.edge} + ${arm.key}: the byte joins the construct`, async () => {
 			await nextRow(ep, MATRIX_DOC);
 			await arm.extend(ep, page);
 
@@ -238,9 +239,9 @@ test('live mode: a collapse puts the caret outside, on both axes', async ({ page
 test('live mode, collapsing onto a leading construct', async ({ page }) => {
 	const ep = await enterPresentationMode(page, 'live', '\n');
 
-	// The prose counterpart of the cell case below: a collapse is not a step, so reading the
-	// arrow's direction gives the wrong side; the caret jumps to the range's edge.
-	await test.step('the prose arrival types outside the construct the block opens with', async () => {
+	// The prose counterpart of the cell case below: the caret lands at a line start, where the
+	// character after it decides.
+	await test.step('the prose arrival types inside the construct the block opens with', async () => {
 		await nextRow(ep, '**bold** para\n\nAfter para\n');
 		await clickBlockSettled(ep, 0);
 		await page.keyboard.press('Home');
@@ -253,10 +254,10 @@ test('live mode, collapsing onto a leading construct', async ({ page }) => {
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		expect(await ep.bridge.getSource()).toContain('Z**bold** para');
+		expect(await ep.bridge.getSource()).toContain('**Zbold** para');
 	});
 
-	await test.step('the cell arrival types outside the construct it opens with', async () => {
+	await test.step('the cell arrival types inside the construct it opens with', async () => {
 		await nextRow(ep, CELL_DOC);
 		await clickBlockSettled(ep, 1);
 		await page.keyboard.press('Home');
@@ -270,7 +271,7 @@ test('live mode, collapsing onto a leading construct', async ({ page }) => {
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		expect(await ep.bridge.getSource()).toContain('| Z**bold** cell |');
+		expect(await ep.bridge.getSource()).toContain('| **Zbold** cell |');
 	});
 });
 

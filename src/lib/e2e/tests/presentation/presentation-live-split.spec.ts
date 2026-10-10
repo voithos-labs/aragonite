@@ -51,9 +51,8 @@ test('live mode: Enter inside a construct closes and reopens it', async ({ page 
 		});
 	});
 
-	// The caret reports the second block's raw 0, which is the same pixel as the reopened run's
-	// far side; what the user can observe is where the next byte lands, and it lands inside.
-	await test.step('typing continues inside the reopened construct', async () => {
+	// Enter starts the new block plain, whatever the text after the cut carries.
+	await test.step('the new block starts plain, in front of the reopened construct', async () => {
 		await atCut();
 
 		await page.keyboard.press('Enter');
@@ -61,8 +60,8 @@ test('live mode: Enter inside a construct closes and reopens it', async ({ page 
 		await expect.poll(() => focusOffset(ep)).toBe(0);
 
 		await page.keyboard.insertText('X');
-		await ep.bridge.waitForSourceContains('**Xld** text');
-		await expect(ep.getBlock(BOLD + 1).locator('strong')).toHaveText('Xld', {
+		await ep.bridge.waitForSourceContains('X**ld** text');
+		await expect(ep.getBlock(BOLD + 1).locator('strong')).toHaveText('ld', {
 			useInnerText: true
 		});
 	});

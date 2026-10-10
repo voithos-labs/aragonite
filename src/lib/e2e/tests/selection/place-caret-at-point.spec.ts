@@ -84,8 +84,8 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 		expect((await editor.bridge.getSource()).trim()).toBe('!first para\n\nsecond para');
 	});
 
-	// The tail is windowed out, so the landing mounts it first; the end it lands at is the outside
-	// of the hidden closer, as an End key there would be.
+	// The tail is windowed out, so the landing mounts it first; a point below every line is past
+	// the last one's end, so the letter starts plain.
 	test('live mode: a point below a windowed-out tail lands after a closing marker', async () => {
 		await editor.setPresentationMode('live');
 		const body = Array.from({ length: 200 }, (_, i) => `paragraph ${i}`).join('\n\n');

@@ -198,9 +198,7 @@
 		getCaret: () => (cursor.getRawSelection() ? null : cursor.getRaw()),
 		isReading: () => readOnly,
 		reading,
-		caretMemory,
-		heldSpace: () => editableSurface.heldSpace,
-		nextByte: (caret) => editableSurface.nextByte(caret)
+		caretMemory
 	});
 
 	const typedPlacement = createTypedPlacement({
@@ -216,6 +214,7 @@
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
+		offsetFor: typedPlacement.offsetFor,
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore
 	});
@@ -239,7 +238,7 @@
 		stepEdge: edgeStep.step,
 		readText: () => readCellText(),
 		compositionSeat,
-		placeInsertion: typedPlacement.insertion,
+		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
@@ -286,6 +285,8 @@
 		},
 		isCrossBlock: () => selection.isCrossBlock,
 		drafts,
+		caretMemory,
+		pinChipSide: edgeStep.pinChipSide,
 		get reading() {
 			return reading;
 		}
@@ -342,6 +343,7 @@
 		},
 		isReading: () => readOnly,
 		pendingMarks: caretMemory.pendingMarks,
+		offsetFor: typedPlacement.offsetFor,
 		caretWriter
 	});
 
@@ -576,7 +578,6 @@
 		const handler = () => {
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
-			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);
 		return () => document.removeEventListener('selectionchange', handler);
@@ -800,7 +801,8 @@
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
-			seatOutside: caretMemory.noteExtreme,
+			seatOutside: caretMemory.noteOutside,
+			passCloser: typedPlacement.passCloser,
 			hiddenRunAt: edgeStep.hiddenRunAt,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),
@@ -1072,7 +1074,6 @@
 
 	function onFocus(): void {
 		tableContext.notifyCellFocused(rowIdx, colIdx);
-		edgeStep.sync();
 	}
 
 	function onBlur(e: FocusEvent): void {
@@ -1082,9 +1083,6 @@
 			widgetInteraction.commitRevealOnBlur();
 		}
 		tableContext.notifyCellBlurred();
-		// The ring follows focus too: a click out of the window keeps the selection but fires no
-		// `selectionchange`.
-		edgeStep.sync();
 	}
 </script>
 
@@ -1099,7 +1097,6 @@
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
 	onkeydown={editableSurface.onKeyDown}
-	onkeyup={edgeStep.afterKey}
 	onbeforeinput={editableSurface.onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}

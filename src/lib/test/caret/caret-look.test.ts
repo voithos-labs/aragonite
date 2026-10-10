@@ -19,7 +19,16 @@ const ROWS: [name: string, marks: InlineMarkKind[]][] = [
 
 describe('caretLook', () => {
 	it.each(ROWS)('%s shows every mark the letter would carry, outermost first', (_name, marks) => {
-		const holders = marks.map((kind, start) => ({ kind, start }));
-		expect(caretLook({ marks, holders })).toEqual({ marks });
+		expect(caretLook({ marks }).marks).toEqual(marks);
+	});
+
+	// The chip's border has two stops; the look says which side the next letter is on.
+	it.each([
+		['inside a code chip', ['inlineCode'], true],
+		['inside a chip in bold', ['strong', 'inlineCode'], true],
+		['in bold, outside any chip', ['strong'], false],
+		['in plain text', [], false]
+	] as const)('%s: boxed is %s', (_name, marks, boxed) => {
+		expect(caretLook({ marks: [...marks] }).boxed).toBe(boxed);
 	});
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createCaretMemory, type CaretMemory } from '../../caret/caret-memory';
-import type { EdgeAffinityAction } from '../../caret/edge-affinity';
+import type { CaretKeyAction } from '../../caret/edge-affinity';
 import { flipMark } from '../../caret/pending-marks';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 
@@ -53,17 +53,17 @@ describe('pending marks clear with the caret side', () => {
 		expect(memory.pendingMarks.get()).toBeNull();
 	});
 
-	// The memory only records a side for these, but a caret that moved is a caret the promise no
+	// A caret that moved, or a key that changed the text another way, is a caret the promise no
 	// longer applies to.
-	const MOVED: Record<string, EdgeAffinityAction> = {
-		ArrowLeft: 'far',
-		ArrowRight: 'near',
-		ArrowUp: 'far',
-		ArrowDown: 'near',
-		PageUp: 'far',
-		PageDown: 'near',
-		Home: 'outside',
-		End: 'outside',
+	const MOVED: Record<string, CaretKeyAction> = {
+		ArrowLeft: 'navigate',
+		ArrowRight: 'navigate',
+		ArrowUp: 'navigate',
+		ArrowDown: 'navigate',
+		PageUp: 'navigate',
+		PageDown: 'navigate',
+		Home: 'navigate',
+		End: 'navigate',
 		Escape: 'reset',
 		Enter: 'reset',
 		Backspace: 'reset',

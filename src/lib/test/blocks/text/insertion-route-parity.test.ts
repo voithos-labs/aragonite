@@ -11,7 +11,6 @@ import {
 	mountWithCaret,
 	placeCaret
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { pressKey } from '#lib/test/harness/settle.js';
 import {
 	INSERTION_ROUTES,
 	TEXT_HOSTS,
@@ -24,9 +23,10 @@ afterEach(destroyMountedEditors);
 
 // A space at a new bold's hidden closer, on every route, is the first table in `held-space.test.ts`.
 describe.each(INSERTION_ROUTES)('typed by %s', (route) => {
-	it('text after an arrow stepped out of a bold lands outside it', async () => {
+	// The typed closer leaves the outside record, which every route has to read.
+	it('text after a typed closer lands outside the bold', async () => {
 		const { editor, el } = mountWithCaret('a **bold** b\n', 8);
-		await pressKey(el, { key: 'ArrowRight' });
+		await insertBy('hardware key', el, '**');
 
 		await insertBy(route, el, 'X');
 

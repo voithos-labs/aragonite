@@ -312,7 +312,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				},
 				// The primitive's index, not `i + 1`: a first half that parses to several blocks
 				// pushes the second half further down.
-				landing: () => (split ? scope.at(split.secondHalfIndex, [], split.landingOffset) : null),
+				landing: () =>
+					split
+						? { ...scope.at(split.secondHalfIndex, [], split.landingOffset), fresh: true }
+						: null,
 				// A single-line block (a title row) splits to nothing, so discard rather than
 				// push a dead undo entry on a rebound Enter.
 				discardIfNoop: true

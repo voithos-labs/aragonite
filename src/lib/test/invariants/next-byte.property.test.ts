@@ -94,10 +94,14 @@ const line = fc
 
 // ── The caret memory, set by real input ──────────────────────────────────────
 
+/** Each record the edge rule reads, set by real input. jsdom moves no caret on an arrow, so an arrow
+ *  only ends every record, or steps between a code chip's two stops. */
 type Memory =
 	| { kind: 'none' }
 	| { kind: 'arrow'; key: 'ArrowLeft' | 'ArrowRight' }
 	| { kind: 'space' }
+	| { kind: 'closer'; delimiter: string }
+	| { kind: 'fresh' }
 	| { kind: 'chord'; init: KeyboardEventInit };
 
 const CHORDS: KeyboardEventInit[] = [
@@ -114,6 +118,8 @@ const memory = fc.oneof(
 		{ kind: 'arrow', key: 'ArrowRight' }
 	),
 	fc.constant<Memory>({ kind: 'space' }),
+	fc.constantFrom('*', '~', '`', '_').map((delimiter): Memory => ({ kind: 'closer', delimiter })),
+	fc.constant<Memory>({ kind: 'fresh' }),
 	fc.constantFrom(...CHORDS).map((init): Memory => ({ kind: 'chord', init }))
 );
 
@@ -124,6 +130,8 @@ const SPENDING_ROUTES: readonly InsertionRoute[] = ['hardware key', 'composition
 async function arrive(el: HTMLElement, state: Memory): Promise<void> {
 	if (state.kind === 'arrow') await pressKey(el, { key: state.key });
 	else if (state.kind === 'space') await insertBy('hardware key', el, ' ');
+	else if (state.kind === 'closer') await insertBy('hardware key', el, state.delimiter);
+	else if (state.kind === 'fresh') await pressKey(el, { key: 'Enter' });
 	else if (state.kind === 'chord') await pressKey(el, state.init);
 }
 
@@ -168,14 +176,25 @@ async function promiseAndDelivery(
 		el.focus();
 		testCaretWriter.placeCaretAtRaw(el, Math.min(c.caret, c.line.length), { clamp: 'reachable' });
 		await editor.settle();
+		// Enter in a cell is the table's own key, so only a paragraph splits to a fresh start.
+		if (c.memory.kind === 'fresh' && c.host !== TEXT_HOSTS[0]) return null;
 		await arrive(el, c.memory);
-		// An arrow at the block's end leaves it, and the promise is then another block's.
-		if (document.activeElement !== el) return null;
+		// An arrow at the block's end leaves it, and the promise is then another block's; Enter's is
+		// the new block's.
+		const typingIn = document.activeElement;
+		if (c.memory.kind === 'fresh' ? !(typingIn instanceof HTMLElement) : typingIn !== el) {
+			return null;
+		}
 		await paintCaret(editor);
 		const promised = caretMarks(editor);
 		if (promised === null) return null;
-		await insertBy(c.memory.kind === 'chord' ? spendingRoute(c.route) : c.route, el, LETTER);
-		const result = c.host.line(editor.source().replace(DEFINITION, ''));
+		await insertBy(
+			c.memory.kind === 'chord' ? spendingRoute(c.route) : c.route,
+			typingIn as HTMLElement,
+			LETTER
+		);
+		const lines = c.host.line(editor.source().replace(DEFINITION, '')).split('\n');
+		const result = lines.find((text) => text.includes(LETTER)) ?? lines.join('\n');
 		const at = result.indexOf(LETTER);
 		expect(at, `the letter never reached ${JSON.stringify(result)}`).toBeGreaterThanOrEqual(0);
 		return { promised, typed: marksAround(result, at), result };
@@ -259,6 +278,16 @@ const PINNED: [name: string, c: Omit<Case, 'host'>][] = [
 		{ line: 'b ~~cd~~ e', caret: 6, mode: 'live', memory: { kind: 'space' }, route: 'replacement' }
 	],
 	[
+		'a typed closer at a bold’s inside end',
+		{
+			line: 'b **cd** e',
+			caret: 6,
+			mode: 'live',
+			memory: { kind: 'closer', delimiter: '*' },
+			route: 'hardware key'
+		}
+	],
+	[
 		'a code span inside bold',
 		{
 			line: 'b **c `dd` c** e',
@@ -274,4 +303,17 @@ describe.each(TEXT_HOSTS)('in $name, the look keeps its promise for', (host) => 
 	it.each(PINNED)('%s', async (_name, c) => {
 		expect(await expectPromiseKept({ ...c, host }), 'the bar drew a text caret').toBe(true);
 	});
+});
+
+// Enter in a cell is the table's own key, so the fresh start is pinned in a paragraph.
+it('in a paragraph, the look keeps its promise for a fresh start in the middle of a bold word', async () => {
+	const fresh: Case = {
+		line: 'b **cd** e',
+		caret: 5,
+		mode: 'live',
+		host: TEXT_HOSTS[0],
+		memory: { kind: 'fresh' },
+		route: 'hardware key'
+	};
+	expect(await expectPromiseKept(fresh), 'the bar drew a text caret').toBe(true);
 });

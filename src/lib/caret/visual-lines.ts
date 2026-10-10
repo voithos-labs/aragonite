@@ -62,6 +62,31 @@ export function sameLineTolerance(el: HTMLElement): number {
 	return lineHeight * SAME_LINE_TOLERANCE;
 }
 
+/** The right edge of what `el` draws on the visual line nearest `y`, or null where it draws
+ *  nothing: a point in a line's leading, or below the last line, reads that line. */
+export function lineEndNearest(el: HTMLElement, y: number): number | null {
+	const range = document.createRange();
+	range.selectNodeContents(el);
+	const lines: { top: number; bottom: number; right: number }[] = [];
+	for (const rect of range.getClientRects()) {
+		if (rect.width === 0 || rect.height === 0) continue;
+		const line = lines.find((each) => rect.top < each.bottom && rect.bottom > each.top);
+		if (!line) lines.push({ top: rect.top, bottom: rect.bottom, right: rect.right });
+		else {
+			line.top = Math.min(line.top, rect.top);
+			line.bottom = Math.max(line.bottom, rect.bottom);
+			line.right = Math.max(line.right, rect.right);
+		}
+	}
+	const distance = (line: { top: number; bottom: number }) =>
+		y < line.top ? line.top - y : y > line.bottom ? y - line.bottom : 0;
+	const nearest = lines.reduce<(typeof lines)[number] | null>(
+		(best, line) => (best === null || distance(line) < distance(best) ? line : best),
+		null
+	);
+	return nearest?.right ?? null;
+}
+
 /** Non-collapsed ranges reliably return rects where collapsed ones don't. */
 export function getCharRangeTop(container: Node, offset: number, atEnd: boolean): number | null {
 	try {

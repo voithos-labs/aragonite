@@ -216,13 +216,14 @@ describe('composed text placement', () => {
 		const node = parse(`${source}\n`, { scope: 'fragment' }).children[0];
 		let rawSelection: { start: number; end: number } | null = null;
 		const caretMemory = createCaretMemory();
-		if (affinity === 'far') caretMemory.noteKey({ key: 'ArrowLeft' }, null);
+		if (affinity === 'outside') caretMemory.noteOutside();
 		const getInlines = () => parseInline(source, 0, source.length);
 		// The deps read `surface` lazily, so the const below is initialized before any of them run.
 		const seat = createCompositionSeat({
 			getDisplayText: () => surface.el.textContent ?? '',
 			getInlines,
 			reading: fixtureReading(),
+			offsetFor: (caret) => caret,
 			consumePendingMarks: () => null,
 			restorePendingMarks: () => {},
 			getRawSelection: () => rawSelection,
@@ -244,7 +245,7 @@ describe('composed text placement', () => {
 			compositionSeat: seat,
 			caretMemory,
 			getNode: () => node,
-			overrides: { placeInsertion: placement.insertion }
+			overrides: { placement }
 		});
 		surface.el.textContent = source;
 
@@ -264,7 +265,7 @@ describe('composed text placement', () => {
 
 	describe('the composition caret position is gated on the mode, like its keydown sibling', () => {
 		it('source mode commits the DOM read verbatim: the delimiter the caret touched is visible', () => {
-			const { surface, compose } = makeSeatHarness(BOLD, 'far');
+			const { surface, compose } = makeSeatHarness(BOLD, 'outside');
 			compose('Some **boldかん** text', 11);
 			expect(surface.commits.map((c) => trimTrailingLineEnding(c.text))).toEqual([
 				'Some **boldかん** text'
@@ -272,7 +273,7 @@ describe('composed text placement', () => {
 		});
 
 		it('live mode relocates the composed run through the caret position', () => {
-			const { surface, compose } = makeSeatHarness(BOLD, 'far');
+			const { surface, compose } = makeSeatHarness(BOLD, 'outside');
 			surface.el.setAttribute('data-presentation', 'live');
 			compose('Some **boldかん** text', 11);
 			expect(surface.commits.map((c) => trimTrailingLineEnding(c.text))).toEqual([

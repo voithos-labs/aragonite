@@ -695,7 +695,8 @@ pending, a caret still where the last paint drew it must still measure where the
 pixel. A fire means something changed the caret's line without writing the caret; call
 `EditorServices.drawnCaret.request()` where that change is made. It doesn't run after a typed key, a
 click or a press (each asks for a paint first), it can't see a caret range that was wrong to begin
-with, and a reflow of the editable is left to its size observer. Predicate
+with, and a reflow of the editable is left to its size observer. A bar at a code chip's stop draws
+against the chip's box, not the caret's, so it's not checked. Predicate
 `invariants/drawn-caret.ts :: checkDrawnCaretAgrees` · run in `caret/drawn-caret.svelte.ts` · every
 e2e run through the invariant watcher, and `e2e/tests/caret/drawn-caret.spec.ts`.
 
@@ -834,7 +835,7 @@ what the type retired.
 | G3.6  | A container registration missing its rebuild, or a leaf claiming container fields | T     |
 | G3.7  | Arithmetic across two different coordinate spaces                                 | T     |
 | G3.8  | A reader writing a node's serialized bytes                                        | T     |
-| G3.9  | Forgetting one part of how the caret arrived without the others                   | T     |
+| G3.9  | Forgetting one part of what the caret means without the others                    | T     |
 | G3.10 | A registration pairing fields that can't mean anything together                   | T     |
 
 ### The entries
@@ -878,7 +879,7 @@ is G1.9 as a type: readers hold views, constructors and writers keep `CstNode`, 
 reader-side byte writes.
 
 **G3.9 · One caret memory.** `src/lib/caret/caret-memory.ts` :: `createCaretMemory` holds the
-sticky column, the edge affinity and the pending marks. A keydown updates them through `noteKey`,
+sticky column, the edge record and the pending marks. A keydown updates them through `noteKey`,
 and every other caret move (a click, a paste, an undo, a swap, a blur, a mode switch, a restore)
 calls `forget`, which drops all three. There's no method that forgets one alone, so clearing the
 column and leaving the side behind doesn't compile. Retired: G4.31's reset half and G2.10's
@@ -1037,12 +1038,14 @@ unguarded.
 | G4.141 | Only the drawn caret writes its element and the mark hiding the browser's caret           | L       |
 | G4.142 | `caret-color` is declared only for the known surfaces                                     | L       |
 | G4.143 | Every caret write asks the drawn caret to repaint, and its frame paint only paints        | T·L     |
-| G4.144 | The old widget and gap caret painters stay gone                                           | L       |
+| G4.144 | The old widget and gap caret painters and the edge ring stay gone                         | L       |
 | G4.145 | A click decides whether it follows a link or widget through the shared rule only          | L       |
 | G4.146 | A release tells a click from a drag only through the editor's press tracker               | L       |
 | G4.147 | Every change to the caret memory repaints the drawn caret, and a no-op asks nothing       | harness |
 | G4.148 | The caret's look adds no inline-tree walk, parse or paint to a key outside brackets       | harness |
 | G4.149 | A preview of the next insertion runs a write's own spend, and changes no record           | harness |
+| G4.150 | One placer for a hidden edge: no other file reads the caret's side or how it arrived      | L       |
+| G4.151 | One click-side check, called from the click entry both prose blocks share                 | L       |
 
 ### The entries
 
@@ -1332,8 +1335,8 @@ a `BodyParent`, so none loses track of whose fence lines it's reading.
 `lint/separator-write-doors.test.ts`.
 
 **G4.43 · Split-landing parity.** Every file naming `splitNode` reads `secondHalfIndex` at least
-once per split CALL, so a caller growing a second split whose caret it puts at `i + 1` fails too.
-`lint/split-landing-parity.test.ts`.
+once per split CALL, so a caller growing a second split whose caret it puts at `i + 1` fails too,
+and marks that landing `fresh`, so Enter starts the new block plain. `lint/split-landing-parity.test.ts`.
 
 **G4.44 · Live ranged-edit parity.** Every editable prose surface resolves native ranged edits
 through `components/blocks/text/live-selection-edit.ts :: resolveLiveRangeEdit`, and no other file
@@ -1903,11 +1906,12 @@ table typed over the writer's keys). The frame callback in `caret/drawn-caret.sv
 `paint` and nothing else, keeping G4.4's allowlisted frame paint read-only.
 `lint/drawn-caret-guards.test.ts`.
 
-**G4.144 · The old widget and gap caret painters stay gone.** Nothing under `src/lib`, tests
-included, names the classes the old widget and gap carets painted with (`md-snap-after`,
-`md-snap-before`, `md-snap-caret-active`, `gap-caret-line`) or declares a caret blink `@keyframes`
-other than `md-caret-blink-a`/`-b`. A second element painting a caret is a second caret; draw a new one as a
-state of the drawn caret. `lint/drawn-caret-guards.test.ts`.
+**G4.144 · The old widget and gap caret painters and the edge ring stay gone.** Nothing under
+`src/lib`, tests included, names the classes the old widget and gap carets painted with
+(`md-snap-after`, `md-snap-before`, `md-snap-caret-active`, `gap-caret-line`), the edge ring's names
+(`md-edge-held`, its token, `EDGE_HELD_CLASS`, `heldElements`), or a caret blink `@keyframes` other
+than `md-caret-blink-a`/`-b`. A second element painting a caret cue is a second caret; draw it as a
+state or a look of the drawn caret. `lint/drawn-caret-guards.test.ts`.
 
 **G4.145 · One rule for whether a click follows.** A file that handles a click doesn't test
 `ctrlKey || metaKey` (or `!ctrlKey && !metaKey`) itself; it asks `src/lib/activation-click.ts` (through
@@ -1941,6 +1945,16 @@ one loop for a write's hold and for the preview the caret's look reads, and a re
 changes nothing: one that waits on returns `kept`, which the hold runs when the write lets go.
 `test/caret/next-insertion.test.ts` applies each record twice and compares every preview with its
 spend.
+
+**G4.150 · One placer for a hidden edge.** Which side of a hidden edge a letter takes is decided
+in `components/blocks/text/edge-seat.ts :: seatAt` alone, from the caret memory's record, and no
+other file reads that record or how the caret arrived. `lint/edge-rule-guards.test.ts`.
+
+**G4.151 · One click-side check.** `components/blocks/text/click-side.ts :: clickSide` (a fresh
+start past a line's end, or the side of a code chip's border) is called only from
+`widget-interaction.ts :: snapClickToWidgetEdge`, the click entry both prose blocks' `onClick` go
+through, and neither `onClick` measures the press against its text itself.
+`lint/edge-rule-guards.test.ts`.
 
 ## Accessibility
 

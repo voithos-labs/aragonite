@@ -64,7 +64,7 @@ describe('the typing position at a hidden run reads the syntax the editor draws'
 		const seat = resolveEdgeSeat(
 			8,
 			inlinesOf(raw),
-			'near',
+			null,
 			raw,
 			LIVE,
 			':',

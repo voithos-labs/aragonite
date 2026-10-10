@@ -159,9 +159,7 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-reveal.ts':
 		'the preview-inline reveal writer: it stamps the class the classification reads, and asks nothing about hiding',
 	'src/lib/invariants/marker-css-parity.ts':
-		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer',
-	'src/lib/components/blocks/text/edge-step.ts':
-		'reads the construct tags only to find the content element a typed byte would join; whether markers hide is `revealsNoMarkers`, asked of the home'
+		'the DEV probe comparing the two homes against the stylesheet, the opposite of holding a third answer'
 };
 
 // Read off the families themselves, so a new one is scanned the day it is added.

@@ -173,23 +173,23 @@ describe('block-exit branches read the reachable bounds', () => {
 });
 
 describe('the keydown entry point notes the arrival', () => {
-	// A horizontal step stops on the side it came from (live-mode.md § 4.2): Right records the
-	// near side, Left the far one, so the byte typed next lands where the caret meant.
-	it('a forward arrow records the run’s near side, Home the construct-relative outside', async () => {
+	// An arrow or Home moves the caret, which ends the edge record (live-mode.md § 4.2): the next
+	// letter follows the character before wherever the caret lands.
+	it('an arrow and Home end the edge record and note the caret arrived by a key', async () => {
 		const { ctx } = makeEnv('Title\n', 2, 'live');
-		await handleSharedKeydown(press('ArrowRight'), ctx);
-		expect(ctx.caretMemory.side()).toBe('near');
-		await handleSharedKeydown(press('ArrowLeft'), ctx);
-		expect(ctx.caretMemory.side()).toBe('far');
-		await handleSharedKeydown(press('Home'), ctx);
-		expect(ctx.caretMemory.side()).toBe('outside');
+		for (const key of ['ArrowRight', 'ArrowLeft', 'Home']) {
+			ctx.caretMemory.noteOutside();
+			await handleSharedKeydown(press(key), ctx);
+			expect(ctx.caretMemory.side(), key).toBeNull();
+			expect(ctx.caretMemory.arrivedByKey(), key).toBe(true);
+		}
 	});
 
 	// The shared handler reads the chord through the block's keymap before the memory sees it:
 	// the default reorder chord moves the block, so the caret's memory stays for the move's commit.
-	it('the reorder chord leaves the side and the pending marks alone', async () => {
+	it('the reorder chord leaves the record and the pending marks alone', async () => {
 		const { ctx } = makeEnv('Title\n', 2, 'live');
-		await handleSharedKeydown(press('Home'), ctx);
+		ctx.caretMemory.noteOutside();
 		ctx.caretMemory.pendingMarks.toggle('strong');
 		const reorder = new KeyboardEvent('keydown', {
 			key: 'ArrowUp',

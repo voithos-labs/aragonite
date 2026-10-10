@@ -46,18 +46,22 @@ export function stubCaretMemory(): CaretMemory {
 	return {
 		column: () => null,
 		side: () => null,
+		arrivedByKey: () => false,
 		pendingMarks: { get: () => null, toggle: () => {}, consume: () => null, restore: () => {} },
 		pendingBreak: {
 			forBlock: () => ({ lines: () => 0, at: () => null, open: () => {}, end: () => {} })
 		},
-		heldSpace: { forBlock: () => ({ at: () => null, inside: () => null }) },
+		heldSpace: {
+			forBlock: () => ({ at: () => null, inside: () => null, passCloser: () => false })
+		},
 		holdInsertion: (block, place) => createInsertionRecords([]).hold(block, null, place),
 		previewInsertion: (block, place) => createInsertionRecords([]).preview(block, null, place),
 		changeCount: () => 0,
 		noteKey: () => {},
 		noteTyping: () => {},
-		noteExtreme: () => {},
+		noteOutside: () => {},
 		pin: () => {},
+		pinOnArrival: () => {},
 		captureColumn: () => {},
 		forget: () => {}
 	};
@@ -209,7 +213,7 @@ export function createHeadlessActions(
 			// Read live: a suite may swap in its own caret memory after building the deps.
 			caretMemory: {
 				forget: () => deps.caretMemory.forget(),
-				noteExtreme: () => deps.caretMemory.noteExtreme()
+				noteOutside: () => deps.caretMemory.noteOutside()
 			},
 			getBlockElByPath: (path) => deps.getBlockElByPath(path),
 			getEditorRoot: () => null,
