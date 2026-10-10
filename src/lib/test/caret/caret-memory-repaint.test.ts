@@ -94,6 +94,7 @@ const EXEMPT: Record<string, string> = {
 	changeCount: 'a read',
 	holdInsertion:
 		'its records change only inside a write, which asks for its own paint when it puts the caret back',
+	pinOnArrival: 'it holds the pin until the next key is noted, and noting it asks for the paint',
 	captureColumn: 'the column aims a run of Up and Down presses, and the drawn caret never reads it'
 };
 

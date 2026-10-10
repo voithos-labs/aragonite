@@ -29,8 +29,8 @@ export function edgeStepDirection(
 	return e.key === 'ArrowLeft' ? 'backward' : null;
 }
 
-/** The plain key whose caret move a code chip's edge settles after the browser makes it, or
- *  null: ArrowLeft arrives from the chip's right, and End lands past a chip ending the line. */
+/** The plain key that can land the caret at a code chip's edge from its right-hand side, or
+ *  null: ArrowLeft from the text after it, and End past a chip ending the line. */
 export function chipArrivalKey(
 	e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey' | 'isComposing'>
 ): 'ArrowLeft' | 'End' | null {

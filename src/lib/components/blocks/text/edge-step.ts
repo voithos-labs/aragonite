@@ -23,7 +23,7 @@ export interface EdgeStepDeps {
 	isReading: () => boolean;
 	/** The reading `getInlines` was read with, so a reference link reads as one. */
 	reading: Reading;
-	caretMemory: Pick<CaretMemory, 'side' | 'pin'>;
+	caretMemory: Pick<CaretMemory, 'side' | 'pin' | 'pinOnArrival'>;
 }
 
 export interface EdgeStep {
@@ -34,15 +34,9 @@ export interface EdgeStep {
 	hiddenRunAt(caret: number): boolean;
 	/** A click at a code chip's edge meant this side of its border. */
 	pinChipSide(side: 'inside' | 'outside'): void;
-	/** The browser moved the caret for the last key; at a chip's edge, ArrowLeft and End leave it
-	 *  on the side it came from, past the border. */
-	settleArrival(): void;
 }
 
 export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
-	// The plain key whose move the browser makes, read at the selection change it causes.
-	let arrival: 'ArrowLeft' | 'End' | null = null;
-
 	/** The block's element where its screen hides markers at the caret: elsewhere every delimiter
 	 *  is a byte on screen, which the arrow and a typed closer already step over. */
 	function hidingEl(): HTMLElement | null {
@@ -64,49 +58,60 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		return offsets.length > 0;
 	}
 
-	/** The caret's chip stops, where it sits at a chip's border in a block that hides markers. */
-	function stopsHere(): { inside: number; outside: number } | null {
+	/** The chip stops at `at`, where it is a chip's border in a block that hides markers. */
+	function stopsAt(at: number | null): { inside: number; outside: number } | null {
 		const el = hidingEl();
-		const caret = deps.getCaret();
-		if (!el || caret === null) return null;
+		if (!el || at === null) return null;
 		const screen = screenVisibilityOf(el);
-		return chipStops(caret, deps.getInlines(), deps.getRaw(), screen, deps.reading);
+		return chipStops(at, deps.getInlines(), deps.getRaw(), screen, deps.reading);
+	}
+
+	/** Where ArrowLeft or End will land the caret, in raw offsets: one character left, or the end
+	 *  of the caret's raw line, which is past a chip ending that line. */
+	function landing(e: KeyboardEvent, caret: number): number | null {
+		const key = chipArrivalKey(e);
+		const raw = deps.getRaw();
+		if (key === 'End') {
+			const end = raw.indexOf('\n', caret);
+			return end === -1 ? raw.length : end;
+		}
+		if (key !== 'ArrowLeft' || caret === 0) return null;
+		const low = raw.charCodeAt(caret - 1);
+		return caret - (low >= 0xdc00 && low <= 0xdfff ? 2 : 1);
 	}
 
 	function step(e: KeyboardEvent): boolean {
-		arrival = chipArrivalKey(e);
-		const direction = edgeStepDirection(e);
-		const el = hidingEl();
 		const caret = deps.getCaret();
-		if (direction === null || !el || caret === null) return false;
-		const target = edgeStep(
-			caret,
-			deps.getInlines(),
-			deps.caretMemory.side(),
-			deps.getRaw(),
-			screenVisibilityOf(el),
-			deps.reading,
-			direction
-		);
-		if (target === null) return false;
-		arrival = null;
-		deps.caretMemory.pin(target);
-		return true;
+		const el = hidingEl();
+		const direction = edgeStepDirection(e);
+		if (direction !== null && el && caret !== null) {
+			const target = edgeStep(
+				caret,
+				deps.getInlines(),
+				deps.caretMemory.side(),
+				deps.getRaw(),
+				screenVisibilityOf(el),
+				deps.reading,
+				direction
+			);
+			if (target !== null) {
+				deps.caretMemory.pin(target);
+				return true;
+			}
+		}
+		// ArrowLeft arrives at a chip's edge from its right-hand side, and End lands past a chip
+		// ending the line: both mean the right-hand stop, decided here so no paint shows the other.
+		const stops = caret === null ? null : stopsAt(landing(e, caret));
+		deps.caretMemory.pinOnArrival(e, stops && Math.max(stops.inside, stops.outside));
+		return false;
 	}
 
 	return {
 		step,
 		hiddenRunAt,
 		pinChipSide: (side) => {
-			const stops = stopsHere();
+			const stops = stopsAt(deps.getCaret());
 			if (stops) deps.caretMemory.pin(stops[side]);
-		},
-		settleArrival: () => {
-			const key = arrival;
-			arrival = null;
-			const stops = key && stopsHere();
-			// ArrowLeft arrives from the right-hand side; End only ever lands at a closer.
-			if (stops) deps.caretMemory.pin(Math.max(stops.inside, stops.outside));
 		}
 	};
 }

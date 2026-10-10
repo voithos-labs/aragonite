@@ -66,6 +66,9 @@ export interface CaretMemory {
 	/** An arrow press moved the bar across a code chip's border, not the caret (`edge-step.ts`):
 	 *  the next byte lands at `offset`. Called instead of `noteKey`. */
 	pin(offset: number): void;
+	/** Key `e` lands the caret at a code chip's edge, where the next byte goes at `offset`; noting
+	 *  `e` records it, and the resolver reads it once the caret is there. */
+	pinOnArrival(e: CaretKey, offset: number | null): void;
 	/** Record a column a surface measured itself on the way out (the table, which has no caret
 	 *  of its own at the moment it leaves). Keeps a column already held. */
 	captureColumn(x: EditorX): void;
@@ -84,6 +87,7 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 	let changes = 0;
 	let side: EdgeAffinity | null = null;
 	let arrivedByKey = false;
+	let arriving: { key: CaretKey; offset: number } | null = null;
 	let marks: ReadonlySet<InlineMarkKind> | null = null;
 	const pendingBreak = createPendingBreak();
 	const heldSpace = createHeldSpace();
@@ -174,7 +178,14 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 		holdInsertion: (block, place) => records.hold(block, side, place),
 		previewInsertion: (block, place) => records.preview(block, side, place),
 		changeCount: () => changes + records.holdChanges(),
+		pinOnArrival: (e, offset) => {
+			arriving = offset === null ? null : { key: e, offset };
+		},
 		noteKey: (e, command, measureX) => {
+			// A keydown is noted twice, by the cross-block dispatch and by the block, so the pin
+			// stays with its own event.
+			const landing = arriving?.key === e ? arriving.offset : null;
+			if (landing === null) arriving = null;
 			// A block move leaves the caret where it was; the move's own commit forgets the memory.
 			if (command !== null && BLOCK_MOVE_COMMAND_IDS.has(command)) return;
 
@@ -190,7 +201,7 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 			// character that spends it both preserve, so neither may clear the marks.
 			if (keyAction === 'preserve') return;
 			arrivedByKey = keyAction === 'navigate';
-			settleSide(null);
+			settleSide(keyAction === 'navigate' && landing !== null ? { offset: landing } : null);
 		},
 		noteTyping: () => {
 			dropColumn();

@@ -110,6 +110,27 @@ describe('noteKey across the parts', () => {
 	});
 });
 
+// Miss-analysis: the first cut kept the pin for one note, and a keydown is noted twice.
+describe('a pin for where a key lands', () => {
+	it('outlives every note of its own key and drops at the next key', () => {
+		const m = createCaretMemory();
+		const end = { key: 'End' };
+		m.pinOnArrival(end, 10);
+		m.noteKey(end, null);
+		m.noteKey(end, null);
+		expect(m.side()).toEqual({ offset: 10 });
+		m.noteKey({ key: 'End' }, null);
+		expect(m.side()).toBeNull();
+	});
+
+	it('a key that is not its own drops it unrecorded', () => {
+		const m = createCaretMemory();
+		m.pinOnArrival({ key: 'End' }, 10);
+		m.noteKey({ key: 'ArrowRight' }, null);
+		expect(m.side()).toBeNull();
+	});
+});
+
 // A chord that moves the caret's block or row keeps the memory: the move's commit forgets it.
 // The chord comes from the keymap, so a rebinding moves the rule with it.
 describe('noteKey reads the chord as the command it resolves to', () => {

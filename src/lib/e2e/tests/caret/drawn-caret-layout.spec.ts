@@ -362,4 +362,60 @@ test.describe('the drawn caret at a code chip’s edge, live mode', () => {
 		expect(await chipBarX(page)).toBeLessThan(chip.right - 1);
 		await typed(editor, 'see `codeX` after');
 	});
+
+	/** Every x the bar is written at while `key` is pressed, read off the bar's own writes. */
+	async function barXsAcross(editor: EditorPage, key: string): Promise<number[]> {
+		await editor.page.evaluate(() => {
+			const bar = document.querySelector<HTMLElement>('.md-drawn-caret')!;
+			const seen: number[] = [];
+			(window as unknown as { __barXs: number[] }).__barXs = seen;
+			new MutationObserver(() => seen.push(bar.getBoundingClientRect().left)).observe(bar, {
+				attributes: true
+			});
+		});
+		await press(editor, key);
+		await nextFrames(editor.page);
+		return editor.page.evaluate(() => (window as unknown as { __barXs: number[] }).__barXs);
+	}
+
+	// Miss-analysis: the arrival rows read the bar once it settled, so none saw the frame it was
+	// first painted at the inside stop.
+	for (const [key, doc, from] of [
+		['ArrowLeft', line, 'after'],
+		['End', 'see `code`', 'see']
+	] as const) {
+		test(`${key} onto a chip's closer paints no frame at the inside stop`, async ({ page }) => {
+			const editor = await live(page, doc);
+			const point = key === 'End' ? await textRunEnd(page, from) : await textRunStart(page, from);
+			await page.mouse.click(key === 'End' ? point.x - 4 : point.x, point.y);
+			await expect.poll(async () => (await drawnBar(page))?.state).toBe('text');
+			const chip = await chipBox(page);
+			const xs = await barXsAcross(editor, key);
+			expect(xs.length, 'the bar moved').toBeGreaterThan(0);
+			expect(xs.filter((x) => Math.abs(x - chip.lastGlyph) <= 1)).toEqual([]);
+			expect(Math.abs((await chipBarX(page)) - (chip.right + 2))).toBeLessThanOrEqual(0.5);
+		});
+	}
+
+	test('End twice on a line ending in a chip stays outside', async ({ page }) => {
+		const editor = await live(page, 'see `code`');
+		const point = await textRunEnd(page, 'see');
+		await page.mouse.click(point.x - 4, point.y);
+		await press(editor, 'End');
+		await press(editor, 'End');
+		const chip = await chipBox(page);
+		expect(Math.abs((await chipBarX(page)) - (chip.right + 2))).toBeLessThanOrEqual(0.5);
+		await typed(editor, 'see `code`X');
+	});
+
+	test('End from the chip’s inside stop lands outside it', async ({ page }) => {
+		const editor = await live(page, 'see `code`');
+		const point = await textRunEnd(page, 'code');
+		await page.mouse.click(point.x, point.y);
+		const chip = await chipBox(page);
+		expect(await chipBarX(page)).toBeLessThan(chip.right - 1);
+		await press(editor, 'End');
+		expect(Math.abs((await chipBarX(page)) - (chip.right + 2))).toBeLessThanOrEqual(0.5);
+		await typed(editor, 'see `code`X');
+	});
 });

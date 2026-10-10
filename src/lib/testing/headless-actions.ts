@@ -61,6 +61,7 @@ export function stubCaretMemory(): CaretMemory {
 		noteTyping: () => {},
 		noteOutside: () => {},
 		pin: () => {},
+		pinOnArrival: () => {},
 		captureColumn: () => {},
 		forget: () => {}
 	};
