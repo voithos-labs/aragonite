@@ -93,6 +93,8 @@ export interface WidgetInteractionDeps {
 	storedAs: () => StoredAs;
 	/** Told when a click starts the caret fresh (`click-side.ts`). */
 	caretMemory: Pick<CaretMemory, 'noteOutside'>;
+	/** Puts the caret on the side of a code chip's border a click hit. */
+	pinChipSide: (side: 'inside' | 'outside') => void;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
@@ -871,9 +873,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// range, which it would collapse; `clampOutOfMarkerPrefix` already holds that rule.
 		const live = window.getSelection();
 		if (surfaceHoldsRange(el, live)) return;
-		if (clickY !== null && clickSide(el, clickX, clickY, press.moved === true) === 'fresh') {
-			deps.caretMemory.noteOutside();
-		}
+		const side = clickY === null ? null : clickSide(el, clickX, clickY, press.moved === true);
+		if (side === 'fresh') deps.caretMemory.noteOutside();
+		else if (side) deps.pinChipSide(side === 'chip-inside' ? 'inside' : 'outside');
 		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), clickX, clickY);
 		if (seat === null) return;
 		// A click beside a widget leaves a visible caret alone; a click on one cannot, since the

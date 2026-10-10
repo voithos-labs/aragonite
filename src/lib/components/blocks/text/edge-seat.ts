@@ -199,17 +199,34 @@ export function edgeStops(
 	screen: VisibilityContext,
 	reading: Reading
 ): number[] {
+	const stops = chipStops(caretOffset, inlines, raw, screen, reading);
+	return stops ? [stops.inside, stops.outside].sort((a, b) => a - b) : [];
+}
+
+/** The two stops of the painted box whose border the caret sits at, by side, or null where the
+ *  caret is at no such border or a stop doesn't take a typed letter. */
+export function chipStops(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	raw: string,
+	screen: VisibilityContext,
+	reading: Reading
+): { inside: number; outside: number } | null {
 	const runs = markerRuns(inlines, raw, screen, reading.grammar);
 	const run = runAt(caretOffset, runs);
-	if (!run) return [];
-	const boxed = screenPosition(run, runs).runs.filter(
+	if (!run) return null;
+	const boxed = screenPosition(run, runs).runs.find(
 		(each) => getInlineConstructPolicy(each.kind)?.edgeAffinity === 'boxed'
 	);
+	if (!boxed) return null;
+	const stops = boxed.leading
+		? { inside: boxed.end, outside: boxed.start }
+		: { inside: boxed.start, outside: boxed.end };
 	const typedAt = (offset: number) =>
 		typingOffset(caretOffset, inlines, { offset }, raw, screen, reading);
-	return [...new Set(boxed.flatMap((each) => [each.start, each.end]))]
-		.filter((offset) => typedAt(offset) === offset)
-		.sort((a, b) => a - b);
+	return typedAt(stops.inside) === stops.inside && typedAt(stops.outside) === stops.outside
+		? stops
+		: null;
 }
 
 /** The raw offset the next byte would be written at with `record` on the caret memory. */

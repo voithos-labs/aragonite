@@ -9,7 +9,7 @@
 import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { caretHost, hostBox, measureCaret } from './drawn-caret-measure';
+import { caretHost, chipStopBox, hostBox, measureCaret } from './drawn-caret-measure';
 import {
 	drawnCaretTarget,
 	hidesBrowserCaret,
@@ -173,6 +173,12 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 				? measureCaret(owned.el, range)
 				: null;
 		const host = gapHost ?? measured?.host ?? (edge && owned ? caretHost(owned.el) : null);
+		// The side of a chip's border is what the next letter does, so the look says which.
+		const chipLook = measured?.chipEdge && range ? owned?.look?.(range) : null;
+		const chip =
+			measured?.chipEdge && chipLook
+				? chipStopBox(measured.chipEdge, chipLook.boxed ? 'inside' : 'outside')
+				: null;
 		const { selection } = deps;
 		return {
 			source: owned,
@@ -197,7 +203,8 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 				besideWidget: measured?.besideWidget ?? false,
 				atSoftWrap: measured?.atSoftWrap ?? false,
 				clipped: measured?.clipped ?? false,
-				atCodeChipEdge: measured?.atCodeChipEdge ?? false,
+				atCodeChipEdge: !!measured?.chipEdge,
+				chip,
 				caret: measured?.caret ?? null,
 				host: measured?.hostBox ?? (edge && host ? hostBox(host) : null),
 				devicePixelRatio: window.devicePixelRatio || 1
@@ -226,8 +233,9 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		}
 		const el = (bar ??= createBar());
 		if (el.parentElement !== read.host) read.host.appendChild(el);
-		// Only a text caret has a look: beside a widget, across a gap or hidden, the bar is plain.
-		const look = target.state === 'text' && read.range ? read.source?.look?.(read.range) : null;
+		// Only a caret in text has a look: beside a widget, across a gap or hidden, the bar is plain.
+		const inText = target.state === 'text' || target.state === 'chip';
+		const look = inText && read.range ? read.source?.look?.(read.range) : null;
 		const marks = look?.marks.join(' ') ?? '';
 		// The gap bar's box is all CSS, across its whole element. The stylesheet owns `transform`.
 		const translate = rect ? `${rect.x}px ${rect.y}px` : '';

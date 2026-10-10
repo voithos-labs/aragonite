@@ -29,6 +29,16 @@ export function edgeStepDirection(
 	return e.key === 'ArrowLeft' ? 'backward' : null;
 }
 
+/** The plain key whose caret move a code chip's edge settles after the browser makes it, or
+ *  null: ArrowLeft arrives from the chip's right, and End lands past a chip ending the line. */
+export function chipArrivalKey(
+	e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey' | 'isComposing'>
+): 'ArrowLeft' | 'End' | null {
+	if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return null;
+	if (e.key === 'End') return 'End';
+	return e.key === 'ArrowLeft' ? 'ArrowLeft' : null;
+}
+
 /** What a keydown does to the record: a navigation key moves the caret, any other key that isn't
  *  typing or a modifier changes the text another way, and both end it. */
 export type CaretKeyAction = 'preserve' | 'navigate' | 'reset';

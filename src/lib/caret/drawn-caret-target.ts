@@ -53,6 +53,9 @@ export interface DrawnCaretReads {
 	clipped: boolean;
 	/** The caret sits at a code chip's edge, where the browser paints off the range's box. */
 	atCodeChipEdge: boolean;
+	/** The bar at the chip stop the next letter types at, drawn against the chip's own box; null
+	 *  off a chip's edge, or where no look says which side. */
+	chip: ClientCaretBox | null;
 	caret: ClientCaretBox | null;
 	host: HostBox | null;
 	devicePixelRatio: number;
@@ -69,6 +72,7 @@ export type DrawnCaretTarget =
 	| { state: 'hidden' }
 	| { state: 'native' }
 	| { state: 'text'; rect: DrawnCaretRect }
+	| { state: 'chip'; rect: DrawnCaretRect }
 	| { state: 'widget'; rect: (DrawnCaretRect & { width: number }) | null }
 	| { state: 'gap' };
 
@@ -87,16 +91,18 @@ export function drawnCaretTarget(reads: DrawnCaretReads): DrawnCaretTarget {
 			rect: box && { ...inHost(box.left, box, host), width: box.width / host.scale }
 		};
 	}
-	if (!caret || offTheRange(reads)) return { state: 'native' };
 	// Snapped in client pixels, where the device grid is, so a 1px bar never smears over two.
 	const dpr = reads.devicePixelRatio;
-	return { state: 'text', rect: inHost(Math.round(caret.left * dpr) / dpr, caret, host) };
+	const snap = (x: number) => Math.round(x * dpr) / dpr;
+	if (reads.chip) return { state: 'chip', rect: inHost(snap(reads.chip.left), reads.chip, host) };
+	if (!caret || offTheRange(reads)) return { state: 'native' };
+	return { state: 'text', rect: inHost(snap(caret.left), caret, host) };
 }
 
 /** Whether the paint hides the browser's caret on the editable: wherever a bar would draw, and
  *  for a pointer-down beside a widget, where the browser's caret would flash taller. */
 export function hidesBrowserCaret(target: DrawnCaretTarget): boolean {
-	return target.state === 'text' || target.state === 'widget' || target.state === 'gap';
+	return target.state !== 'hidden' && target.state !== 'native';
 }
 
 function inHost(left: number, box: ClientCaretBox, host: HostBox): DrawnCaretRect {

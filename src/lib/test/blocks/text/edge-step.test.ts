@@ -3,6 +3,7 @@
 // the caret; a mark's edge has no stop. The key wiring is `presentation-live-edge-step.spec.ts`.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+	chipStops,
 	typingOffset,
 	resolveEdgeSeat,
 	edgeStep,
@@ -34,6 +35,23 @@ function step(
 
 // `via `code` end`: the chip [4,10), `code` [5,9); its closer is [9,10), its opener [4,5).
 const CHIP = 'via `code` end';
+
+// A click or an arrival names a side, not an offset; the opener's inside is its far end.
+describe('a code chip’s stops, by side', () => {
+	it.each([
+		['the closer', 9, { inside: 9, outside: 10 }],
+		['the closer, from past it', 10, { inside: 9, outside: 10 }],
+		['the opener', 4, { inside: 5, outside: 4 }],
+		['the opener, from inside it', 5, { inside: 5, outside: 4 }]
+	])('at %s', (_name, caret, stops) => {
+		expect(chipStops(caret, tree(CHIP), CHIP, LIVE, fixtureReading())).toEqual(stops);
+	});
+
+	it('a mark has none', () => {
+		const BOLD = 'Some **bold** text';
+		expect(chipStops(11, tree(BOLD), BOLD, LIVE, fixtureReading())).toBeNull();
+	});
+});
 
 describe('a code chip’s closer', () => {
 	it('steps out past the border from inside, then lets the caret move', () => {

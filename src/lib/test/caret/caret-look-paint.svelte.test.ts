@@ -123,11 +123,11 @@ describe('a repaint that changes nothing', () => {
 describe('a frame paint that finds only a new look', () => {
 	it('counts no caret move, since the caret stayed where it was', async () => {
 		const { editor, el } = await liveAt(TEXT_HOSTS[0], 'a **bold** b', 6);
-		let look: CaretLook = { marks: ['strong'] };
+		let look: CaretLook = { marks: ['strong'], boxed: false };
 		const caret = editor.instance.__test.getDrawnCaret();
 		const unregister = caret.register({ el, drawable: () => true, look: () => look });
 		await paintCaret(editor);
-		look = { marks: [] };
+		look = { marks: [], boxed: false };
 		resetPerfInstruments();
 
 		window.dispatchEvent(new Event('focus'));

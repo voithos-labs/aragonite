@@ -288,6 +288,7 @@
 		isCrossBlock: () => selection.isCrossBlock,
 		drafts,
 		caretMemory,
+		pinChipSide: edgeStep.pinChipSide,
 		get reading() {
 			return reading;
 		}
@@ -579,6 +580,7 @@
 		const handler = () => {
 			if (composing) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
+			edgeStep.settleArrival();
 			edgeStep.sync();
 		};
 		document.addEventListener('selectionchange', handler);

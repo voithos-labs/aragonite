@@ -74,6 +74,8 @@ const POLICY_ARMS: Record<string, string> = {
 		'the destructive arm: autoUnwrapOnEmpty, and the mark column to say which unwrapped construct a chord can write again',
 	'src/lib/components/blocks/text/construct-reveal.ts': "preview-inline's reveal chain: revealable",
 	'src/lib/components/blocks/text/edge-seat.ts': 'the typing seat: edgeAffinity',
+	'src/lib/caret/caret-look.ts':
+		'the look: edgeAffinity, whether the next letter sits inside a box whose border has two stops',
 	'src/lib/components/blocks/text/edge-step.ts':
 		'the ring at a hidden edge: edgeAffinity, since a never-extend construct has no inside to show',
 	'src/lib/components/blocks/text/link-at-point.ts': 'the card entry: cardEditable',

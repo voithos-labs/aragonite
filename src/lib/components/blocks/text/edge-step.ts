@@ -9,12 +9,12 @@ import type { InlineNode } from '../../../core/nodes';
 import type { CaretMemory } from '../../../caret/caret-memory';
 import type { HeldSpaceView } from '../../../caret/held-space';
 import { constructContentRange, inlineDescendants } from '../../../core/inline';
-import { classifyCaretKey, edgeStepDirection } from '../../../caret/edge-affinity';
+import { chipArrivalKey, classifyCaretKey, edgeStepDirection } from '../../../caret/edge-affinity';
 import { revealsNoMarkers, screenVisibilityOf } from '../../../caret/widget-offset';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import type { Reading } from '../../../schema/reading';
 import type { NextByte } from '../../../caret/caret-look';
-import { edgeStep, edgeStops, seatOffsetsAt } from './edge-seat';
+import { chipStops, edgeStep, edgeStops, seatOffsetsAt } from './edge-seat';
 
 /** On a construct's content element while the caret sits at its hidden edge, inside it. */
 export const EDGE_HELD_CLASS = 'md-edge-held';
@@ -52,10 +52,17 @@ export interface EdgeStep {
 	refresh(): void;
 	/** `sync` after a key that can move the side without moving the caret, Home at a line start. */
 	afterKey(e: KeyboardEvent): void;
+	/** A click at a code chip's edge meant this side of its border. */
+	pinChipSide(side: 'inside' | 'outside'): void;
+	/** The browser moved the caret for the last key; at a chip's edge, ArrowLeft and End leave it
+	 *  on the side it came from, past the border. */
+	settleArrival(): void;
 }
 
 export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	let held: Element[] = [];
+	// The plain key whose move the browser makes, read at the selection change it causes.
+	let arrival: 'ArrowLeft' | 'End' | null = null;
 	// A key whose caret move already fired a selection change needs no second look on keyup.
 	let keySinceSync = false;
 
@@ -98,6 +105,7 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 
 	function step(e: KeyboardEvent): boolean {
 		keySinceSync = true;
+		arrival = chipArrivalKey(e);
 		const direction = edgeStepDirection(e);
 		if (direction === null) return false;
 		const at = edge();
@@ -112,6 +120,7 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 			direction
 		);
 		if (target === null) return false;
+		arrival = null;
 		deps.caretMemory.pin(target);
 		mark(heldElements(at));
 		keySinceSync = false;
@@ -187,9 +196,29 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		return found;
 	}
 
+	/** The caret's chip stops, where it sits at a chip's border in a block that hides markers. */
+	function stopsHere(): { inside: number; outside: number } | null {
+		const el = hidingEl();
+		const caret = deps.getCaret();
+		if (!el || caret === null) return null;
+		const screen = screenVisibilityOf(el);
+		return chipStops(caret, deps.getInlines(), deps.getRaw(), screen, deps.reading);
+	}
+
 	return {
 		step,
 		hiddenRunAt,
+		pinChipSide: (side) => {
+			const stops = stopsHere();
+			if (stops) deps.caretMemory.pin(stops[side]);
+		},
+		settleArrival: () => {
+			const key = arrival;
+			arrival = null;
+			const stops = key && stopsHere();
+			// ArrowLeft arrives from the right-hand side; End only ever lands at a closer.
+			if (stops) deps.caretMemory.pin(Math.max(stops.inside, stops.outside));
+		},
 		sync,
 		refresh: () => {
 			if (held.length > 0) sync();
