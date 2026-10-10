@@ -8,7 +8,7 @@ A word on the numbers. Everything before 0.10.1 was a working number: the label 
 
 ## [0.10](changelog/0.10.md)
 
-- [0.10.9](changelog/0.10.md#0109-a-caret-the-editor-draws-and-a-placeholder-for-empty-blocks): a caret the editor draws (the `caret` prop), a `placeholder` prop for empty blocks, and an inline conformance kit that warns when it can't run a check without a DOM
+- [0.10.9](changelog/0.10.md#0109-a-caret-that-shows-what-youll-type-word-processor-edges-and-links-that-follow-a-click): a caret the editor draws that shows the format you're about to type (the `caret` prop), live-mode edges that work like a word processor's, links that follow a click (`linkClick`) with an Edit link menu row, and a `placeholder` prop for empty blocks
 - [0.10.8](changelog/0.10.md#0108-edits-that-touch-only-what-you-touched-and-a-selection-that-acts-like-one-thing): `edit` once per key and note switches that drop what's in flight, edits that keep the bytes of every line and row you didn't touch, a selection that paints, indents, types and breaks like one thing, bold that keeps going past a space in live mode, and lists that keep their order
 - [0.10.7](changelog/0.10.md#0107-a-page-that-stays-put-and-a-caret-that-lands-where-you-meant): one owner for the scroll, so the page stops jumping when heights change; undo, deletes and paste put the caret where they began or pointed; range edits and live-mode paste keep what typing keeps; and a round of plugin API tightening, some of it breaking
 - [0.10.6](changelog/0.10.md#0106-one-copy-of-each-rule): CRLF kept to the last line, reading mode refused wherever bytes are written, plugins that stay out of editors that don't list them, fence lines you can edit
