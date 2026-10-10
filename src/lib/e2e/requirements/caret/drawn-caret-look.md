@@ -28,7 +28,7 @@ Each shape is read off the bar's computed style, in the light theme and the dark
 - Plain: a 1px bar
 - Bold: a 3px bar
 - Italic: the bar's transform slants it
-- Strikethrough: a tick 7px wide and 1px tall across the bar, at 55% of its height
+- Strikethrough: a tick 13px wide and 2px tall across the bar, at 55% of its height
 - Bold italic: a 3px bar, slanted
 - Inline code: the plain 1px bar
 - Every shape keeps the bar's foot, top and height where the browser's own caret stands, and the bar keeps a visible color

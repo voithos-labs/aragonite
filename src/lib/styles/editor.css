@@ -974,7 +974,7 @@
 	top: 55%;
 	left: calc(50% - var(--md-caret-strike-width) / 2);
 	width: var(--md-caret-strike-width);
-	height: 1px;
+	height: 2px;
 	background-color: var(--md-caret-color);
 }
 

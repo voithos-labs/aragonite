@@ -799,7 +799,7 @@ The caret the editor draws (the `caret` prop) is `--md-caret-color`, which follo
 - `--md-caret-width` (`1px`): the plain bar
 - `--md-caret-strong-width` (`3px`): bold, a heavier bar growing right from where the plain one is
 - `--md-caret-slant` (`-12deg`): italic, the bar leaning right like italic type, its foot staying put
-- `--md-caret-strike-width` (`7px`): strikethrough, a 1px tick across the bar, just below its middle
+- `--md-caret-strike-width` (`13px`): strikethrough, a 2px tick across the bar, just below its middle
 
 Set any of these at `.editor`. The bar the editor lays across a gap between blocks (the caret that sits between, say, a table and a code block, where there's nothing to type into) takes `--color-text-secondary` instead. A reader with reduced motion gets a caret that doesn't blink.
 

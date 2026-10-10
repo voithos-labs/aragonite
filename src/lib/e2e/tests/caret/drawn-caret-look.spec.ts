@@ -223,7 +223,7 @@ const SHAPES: [word: string, marks: string[], expectShape: (shape: Shape) => voi
 		['strikethrough'],
 		(s) => {
 			expect(s.tick, 'a tick crosses the bar').not.toBeNull();
-			expect({ width: s.tick!.width, height: s.tick!.height }).toEqual({ width: 7, height: 1 });
+			expect({ width: s.tick!.width, height: s.tick!.height }).toEqual({ width: 13, height: 2 });
 			expect(Math.abs(s.tick!.top - s.barHeight * 0.55)).toBeLessThanOrEqual(1);
 		}
 	],
