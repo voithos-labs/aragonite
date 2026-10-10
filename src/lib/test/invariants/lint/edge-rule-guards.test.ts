@@ -13,6 +13,8 @@ const RESOLVER = 'src/lib/components/blocks/text/edge-seat.ts';
 const CHIP_STEP = 'src/lib/components/blocks/text/edge-step.ts';
 const CLICK_ENTRY = 'src/lib/components/blocks/text/widget-interaction.ts';
 const CLICK_SIDE = 'src/lib/components/blocks/text/click-side.ts';
+/** The files that pass the caret memory's record on without reading it. */
+const CARRIERS = ['src/lib/caret/held-space.ts', 'src/lib/caret/next-insertion.ts'];
 /** The files that decide a hidden edge. */
 const EDGE_FILES = [
 	RESOLVER,
@@ -82,6 +84,56 @@ describeManifests(
 				'every insertion, the chord’s seat and the look already ask the resolver through the block’s placement; a second caller is a second copy of the rule',
 			hits: ['const at = typingOffset(caret, inlines, null, raw, screen, reading);'],
 			misses: ['placement.offsetFor(caret, typed);']
+		},
+		{
+			id: 'G4.150 only the record’s home, its holder, its carriers and the resolver name it',
+			matches: /\bEdgeAffinity\b/,
+			declared: {
+				'src/lib/caret/edge-affinity.ts': 'defines the record',
+				'src/lib/caret/caret-memory.ts': 'holds it and tells a change from none',
+				[CARRIERS[0]]: 'keeps the record a held space was opened with, for the letter it carries',
+				[CARRIERS[1]]: 'hands the record a write was held at to the block’s placement',
+				[RESOLVER]: 'turns it into an offset'
+			},
+			reason:
+				'the record is read in one place, the edge resolver; a new file taking it is a second reader, so it routes through `TypedPlacement` or joins this list as a carrier',
+			hits: ["import type { EdgeAffinity } from '../caret/edge-affinity';"],
+			misses: ['const affinity = edgeAffinityOf(kind);']
+		},
+		{
+			id: 'G4.150 only the code block’s language picker asks whether a key moved the caret',
+			matches: /\barrivedByKey\s*\(/,
+			declared: {
+				'src/lib/caret/caret-memory.ts': 'answers it',
+				'src/lib/components/blocks/code/CodeBlock.svelte':
+					'offers the language picker only to a caret the user didn’t arrow into the fence'
+			},
+			reason:
+				'how the caret arrived decides no hidden edge; a placement reading it brings the arrival side back',
+			hits: ['const record = deps.caretMemory.arrivedByKey() ? null : deps.caretMemory.side();'],
+			misses: ['const arrived = arrivedByKeyCount;']
+		}
+	],
+	collectEditorSources()
+);
+
+describeFileRules(
+	[
+		{
+			id: 'G4.150 a carrier of the record never branches on it',
+			population: (file) => CARRIERS.includes(file.relPath),
+			matches: /['"]outside['"]|\bside\s*[!=]==|\bside\??\.offset\b/,
+			reason:
+				'a held space and the insertion records only pass the record on; deciding by it there is a second edge rule beside `edge-seat.ts :: seatAt`',
+			reaches: CARRIERS,
+			hits: [
+				{
+					relPath: CARRIERS[1],
+					code: "const at = side === 'outside' && at0 !== null ? at0 : at0;"
+				},
+				{ relPath: CARRIERS[0], code: 'const inside = side?.offset ?? at;' }
+			],
+			misses: [{ relPath: CARRIERS[1], code: 'place(before, edit, at, side, caret)' }]
 		}
 	],
 	collectEditorSources()
