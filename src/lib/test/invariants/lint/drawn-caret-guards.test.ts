@@ -100,7 +100,11 @@ describe('G4.142 caret-color is declared only for the known surfaces', () => {
 // Spelled in parts, so this file's own probes are not a second painter.
 const OLD_NAMES = [
 	...['after', 'before', 'caret-active'].map((part) => `md-snap-${part}`),
-	['gap-caret', 'line'].join('-')
+	['gap-caret', 'line'].join('-'),
+	// The edge ring, which the caret's look replaced.
+	['md', 'edge', 'held'].join('-'),
+	['EDGE', 'HELD', 'CLASS'].join('_'),
+	['held', 'Elements'].join('')
 ];
 const OLD_PAINTER = new RegExp(`\\b(?:${OLD_NAMES.join('|')})\\b`);
 const OTHER_CARET_BLINK = /@keyframes\s+(?!md-caret-blink-[ab]\b)[\w-]*(?:caret|blink)/;
@@ -109,15 +113,19 @@ const keyframes = (name: string) => ['@keyframes', name, '{ 50% { opacity: 0; } 
 describeFileRules(
 	[
 		{
-			id: 'G4.144 the old widget and gap caret painters stay gone',
+			id: 'G4.144 the old widget and gap caret painters and the edge ring stay gone',
 			matches: (file) => OLD_PAINTER.test(file.code) || OTHER_CARET_BLINK.test(file.code),
 			reason:
-				'a second element painting a caret (a class drawing one beside a widget, a line at a gap, its own blink) is a second caret beside the drawn one; draw it as a state of the drawn caret',
+				'a second element painting a caret (a class drawing one beside a widget, a line at a gap, its own blink, a ring on the construct at an edge) is a second caret cue beside the drawn one; draw it as a state or a look of the drawn caret',
 			hits: [
 				`:where(.editor) [data-inline-widget].${OLD_NAMES[0]}::before { width: 1.5px; }`,
 				`<div class="${OLD_NAMES[3]}"></div>`,
 				`el.classList.add('${OLD_NAMES[2]}');`,
-				keyframes(['gap', 'caret', 'blink'].join('-'))
+				keyframes(['gap', 'caret', 'blink'].join('-')),
+				`content.classList.add('${OLD_NAMES[4]}');`,
+				`outline: 2px solid var(--${OLD_NAMES[4]}-ring);`,
+				`export const ${OLD_NAMES[5]} = 'x';`,
+				`mark(${OLD_NAMES[6]}(at));`
 			],
 			misses: [
 				keyframes('md-caret-blink-a'),
