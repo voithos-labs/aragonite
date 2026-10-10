@@ -83,7 +83,7 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		// each undoes itself, so the note ends as it was.
 		await g.liveToggleFormat(1, 'notes', 'strikethrough');
 		await g.liveEdgeBackspace(1, 'cell division');
-		await g.liveEdgeStep(1, 'cell division', '**');
+		await g.liveRichTextEdge(1, 'cell division', '**');
 		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
 		// The two places the editor puts the caret itself (G2.12): after a merge, and on Home in a list
 		// item.

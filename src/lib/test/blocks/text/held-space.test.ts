@@ -158,6 +158,28 @@ describe.each(EXITS)('%s ends the hold, and the next letter lands outside', (_na
 	});
 });
 
+// A closer typed whole across a held space steps past the whole closer run; the space stays put.
+// Miss-analysis: the closer exit rows typed one byte of a two-byte closer, never the whole of it.
+describe.each([
+	['**', 'bold'],
+	['~~', 'gone']
+])('a held space, then the whole %s closer', (delimiter, word) => {
+	it('types the next letter outside, past the space', async () => {
+		const at = 2 + delimiter.length + word.length;
+		const { editor, el } = mountWithCaret(
+			`a ${delimiter}${word}${delimiter} b
+`,
+			at
+		);
+		await insertBy('hardware key', el, ' ');
+
+		await insertBy('hardware key', el, `${delimiter}X`);
+
+		expect(editor.source()).toBe(`a ${delimiter}${word}${delimiter} X b
+`);
+	});
+});
+
 // The held construct's own chord leaves it; another chord pends its mark, as at any caret.
 // Miss-analysis: the exit rows pressed only Mod+B in a bold, so a chord swallowed whole stayed green.
 describe.each([
