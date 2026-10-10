@@ -27,6 +27,7 @@ function makeSeat(live: Live, pending?: PendingMarks) {
 		getDisplayText: () => live.display,
 		getInlines: () => live.inlines,
 		reading: fixtureReading(),
+		offsetFor: (caret) => caret,
 		consumePendingMarks: () => pending?.consume() ?? live.marks,
 		restorePendingMarks: (marks) => pending?.restore(marks),
 		getRawSelection: () => live.range,

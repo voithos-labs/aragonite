@@ -24,13 +24,14 @@ source.
 
 ## Edge cases
 
-- arriving at the end of a bold from outside (ArrowLeft) types the space and the word outside
+- arriving at the end of a bold by ArrowLeft from the text after it extends it too: the
+  character before the caret is bold, whichever way the caret got there
 - the format chord before the space types it outside, as it does a letter
 - the ring (`md-edge-held`) stays on the bold while a space is held, and one ArrowRight takes it
   off
 - a click away after `a **two** ` leaves those bytes as they are, and typing back at the line's
   end types plain text
-- after an arrow steps out of a bold, a paste types outside it, like a hardware key does
+- after a typed closer steps out of a bold, a paste types outside it, like a hardware key does
 
 ## Ways out (easy to leave without a new line)
 

@@ -104,28 +104,26 @@ test.describe('keyboard navigation', () => {
 	});
 });
 
-// Backspace leaves no side of its own, so the move's end arrival decides it; the top level and a
+// Backspace lands the caret on text, where the character before it decides; the top level and a
 // quote run different traversals, so each route runs.
 const CLOSER_SIDE_ROUTES = [
 	{
 		where: 'at the top level',
 		source: '**a**\n\n```\ncode\n```\n',
 		from: [1],
-		typed: '**a**x\n\n```\ncode\n```\n'
+		typed: '**ax**\n\n```\ncode\n```\n'
 	},
 	{
 		where: 'inside a quote',
 		source: '> **a**\n>\n> ```\n> code\n> ```\n',
 		from: [0, 1],
-		typed: '> **a**x\n>\n> ```\n> code\n> ```\n'
+		typed: '> **ax**\n>\n> ```\n> code\n> ```\n'
 	}
 ] as const;
 
 test.describe('keyboard navigation: leaving a code block into a hidden closer, live mode', () => {
 	for (const { where, source, from, typed } of CLOSER_SIDE_ROUTES) {
-		test(`Backspace out of a code body types after the bold closer above, ${where}`, async ({
-			page
-		}) => {
+		test(`Backspace out of a code body types into the bold above, ${where}`, async ({ page }) => {
 			const editor = new EditorPage(page);
 			await editor.goto('?presentationMode=live');
 			await editor.loadContent(source);

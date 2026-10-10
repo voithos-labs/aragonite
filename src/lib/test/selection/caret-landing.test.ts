@@ -145,11 +145,15 @@ describe('landing a caret', () => {
 		expect(placements).toEqual([]);
 	});
 
-	it('an end or start landing means the outside of a hidden closer; a byte offset does not', async () => {
+	// A merge or an arrow lands on text and follows the character before the caret; only a split's
+	// second half starts fresh.
+	it('a fresh landing means the outside of a hidden edge; an end, a start or a byte does not', async () => {
 		const { landing, caretMemory } = landingOver('**a**\n\nb\n');
 		await landing.land(at([0], CURSOR_END));
-		expect(caretMemory.side()).toBe('outside');
+		expect(caretMemory.side()).toBeNull();
 		await landing.land(at([1], CURSOR_START));
+		expect(caretMemory.side()).toBeNull();
+		await landing.land({ ...at([1], CURSOR_START), fresh: true });
 		expect(caretMemory.side()).toBe('outside');
 		await landing.land(at([0], 2));
 		expect(caretMemory.side()).toBeNull();
@@ -234,7 +238,7 @@ describe('the other entry points', () => {
 
 	it('a stale restore places nothing and keeps how the caret arrived', async () => {
 		const { landing, caretMemory } = landingOver('a\n\nb\n');
-		caretMemory.noteExtreme();
+		caretMemory.noteOutside();
 		const stamp = landing.generation();
 		landing.noteTreeSwap();
 		const point = { path: [1], offset: 0 };

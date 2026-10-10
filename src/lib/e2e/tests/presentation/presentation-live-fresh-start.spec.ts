@@ -65,13 +65,12 @@ test.describe('live mode: a fresh start is plain', () => {
 		await typed(ep, page, 'a **boldX**');
 	});
 
+	// Both ends sit past the text, so the caret collapses at the line's end, but the press travelled.
 	test('a drag that ends past the line’s end sets nothing', async ({ page }) => {
 		const point = await pastLineEnd(page, 'bold');
-		const word = await textRunEnd(page, 'bold');
 		await page.mouse.move(point.x, point.y);
 		await page.mouse.down();
-		await page.mouse.move(word.x - 20, word.y, { steps: 4 });
-		await page.mouse.move(point.x, point.y, { steps: 4 });
+		await page.mouse.move(point.x - 40, point.y, { steps: 4 });
 		await page.mouse.up();
 		await ep.waitForRenderFlush();
 		await typed(ep, page, 'a **boldX**');

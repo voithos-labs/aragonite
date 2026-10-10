@@ -157,7 +157,8 @@ function registerBuiltInInlinePolicies(): void {
 	] as const;
 	marks.forEach(({ kind, ...mark }, nestingRank) => {
 		registerInlineConstructPolicy(kind, {
-			edgeAffinity: 'symmetric-pair',
+			// A code span paints a chip, whose border gives its edge two visible caret stops.
+			edgeAffinity: kind === 'inlineCode' ? 'boxed' : 'left-sticky',
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
 			revealable: true,

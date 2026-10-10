@@ -379,8 +379,8 @@ async function pressEdgeKey(
 		getEl: () => el,
 		getNode: node,
 		reading: fixtureReading(),
-		caretMemory: { side: () => gesture.affinity },
-		heldSpace: () => ({ at: () => null, inside: () => null })
+		caretMemory: { side: () => gesture.affinity, noteOutside: () => {} },
+		heldSpace: () => ({ at: () => null, inside: () => null, passCloser: () => false })
 	});
 	// The block anchors a key's write at the caret it recorded when the key arrived.
 	const writeText = createSurfaceWrite({
@@ -417,7 +417,8 @@ async function pressEdgeKey(
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => false,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		offsetFor: placement.offsetFor
 	});
 	const event = new KeyboardEvent('keydown', { key, cancelable: true });
 	if (dispatch.handleKeydown(event, asRawOffset(offset) as RawOffset)) return true;

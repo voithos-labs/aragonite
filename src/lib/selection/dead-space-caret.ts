@@ -67,9 +67,9 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	async function landAtDocumentEnd(): Promise<void> {
 		const index = deps.lastBlockIndex();
 		if (index < 0) return;
-		// Before the landing, which then records the end it lands at as the outside of a closer.
+		// Before the landing; a click below every line is past the last one's end, a fresh start.
 		deps.resetSelectionForClick();
-		await deps.land({ path: docPathFrom([index]), offset: CURSOR_END });
+		await deps.land({ path: docPathFrom([index]), offset: CURSOR_END, fresh: true });
 	}
 
 	function placeAtPoint(root: HTMLElement, x: number, y: number): boolean {

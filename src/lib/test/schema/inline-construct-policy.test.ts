@@ -42,11 +42,16 @@ afterEach(() => {
 });
 
 describe('built-in rows', () => {
-	it.each(['emphasis', 'strong', 'strikethrough', 'inlineCode'] as const)(
-		'%s is a symmetric marker pair that closes and reopens across a split',
-		(kind) => {
+	it.each([
+		['emphasis', 'left-sticky'],
+		['strong', 'left-sticky'],
+		['strikethrough', 'left-sticky'],
+		['inlineCode', 'boxed']
+	] as const)(
+		'%s is a marker pair with a %s edge that closes and reopens across a split',
+		(kind, edgeAffinity) => {
 			expect(getInlineConstructPolicy(kind)).toMatchObject({
-				edgeAffinity: 'symmetric-pair',
+				edgeAffinity,
 				autoUnwrapOnEmpty: true,
 				splitBehavior: 'close-and-reopen',
 				revealable: true

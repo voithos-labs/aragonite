@@ -68,11 +68,10 @@ async function steppedFromWord(
 }
 
 // `Some **bold** text`: strong is [5,13), `bold` [7,11).
-test('live mode: a symmetric pair extends by arrival', async ({ page }) => {
+test('live mode: a mark takes the format of the character before the caret', async ({ page }) => {
 	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	// Rightward arrival stops on the content side, so the byte belongs to the construct, and so
-	// does the one after it.
+	// The character before the caret is bold, so the byte joins it, and so does the one after it.
 	await test.step('typing at bold’s trailing content edge extends it, and keeps extending', async () => {
 		await steppedFromWord(ep, page, 'bold', 'ArrowRight', 11);
 
@@ -83,23 +82,22 @@ test('live mode: a symmetric pair extends by arrival', async ({ page }) => {
 		await ep.bridge.waitForSourceContains('Some **boldXY** text');
 	});
 
-	// The same screen position, reached leftward across the whole closing run: the caret came
-	// from outside the construct and has not entered it, so the byte lands past the `**`.
-	await test.step('a caret that arrived at bold’s trailing edge from outside types past it', async () => {
+	// The same screen position, reached leftward across the whole closing run: the way the caret
+	// came makes no difference, the character before it is still bold.
+	await test.step('a caret that came back from the text after bold types inside it too', async () => {
 		await atLineEdge(ep, page, BOLD, 'End');
 		await stepTo(ep, page, 'ArrowLeft', 11);
 
 		await page.keyboard.type('X');
-		await ep.bridge.waitForSourceContains('Some **bold**X text');
+		await ep.bridge.waitForSourceContains('Some **boldX** text');
 	});
 
-	// Leading edge, mirrored: one leftward keypress out of `bold` reaches the shared pixel but
-	// has not left the construct, so the byte stays inside it.
-	await test.step('a caret that stepped left out of bold’s leading edge still types inside', async () => {
+	// Leading edge, mirrored: the character before the opener is the space.
+	await test.step('a caret that stepped left to bold’s leading edge types before it', async () => {
 		await steppedFromWord(ep, page, 'bold', 'ArrowLeft', 5);
 
 		await page.keyboard.type('X');
-		await ep.bridge.waitForSourceContains('Some **Xbold** text');
+		await ep.bridge.waitForSourceContains('Some X**bold** text');
 	});
 
 	await test.step('a caret that stepped right up to bold’s leading edge types before it', async () => {
@@ -111,21 +109,19 @@ test('live mode: a symmetric pair extends by arrival', async ({ page }) => {
 	});
 });
 
-test('live mode: a line edge and a click place the caret without an arrival', async ({ page }) => {
+test('live mode: a line edge and a click follow the same rule', async ({ page }) => {
 	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	// The end of a line is construct-relative, not directional: `Home` on a line that opens with
-	// a pair means before its opener, the opposite side in step order from `End` after a closer.
-	await test.step('Home on a line opening with bold types before the construct', async () => {
+	// At a line start there is no character before the caret, so the one after decides.
+	await test.step('Home on a line opening with bold types inside the construct', async () => {
 		await atLineEdge(ep, page, LEAD, 'Home');
 		expect(await focusOffset(ep)).toBe(2);
 
 		await page.keyboard.type('X');
-		await ep.bridge.waitForSourceContains('X**Lead** in');
+		await ep.bridge.waitForSourceContains('**XLead** in');
 	});
 
-	// A click clears how the caret arrived, so the click rule applies: the construct the caret
-	// touches keeps the byte (`docs/design/live-mode.md` § 4.2).
+	// A click on the text lands where the character before the caret, bold here, decides.
 	await test.step('a click at bold’s trailing content edge extends it', async () => {
 		await nextRow(ep, DOC);
 		await clickEnd(ep, page, 'bold');
@@ -138,13 +134,11 @@ test('live mode: a line edge and a click place the caret without an arrival', as
 
 // Bold's cases all run over a two-asterisk run. These two say the rule reads the kind's own row
 // and not that run's shape: `~~` is a different two bytes, and a code span's backtick is one.
-test('live mode: the other symmetric pairs extend from an arrival inside them', async ({
-	page
-}) => {
+test('live mode: the other pairs extend from their inside end', async ({ page }) => {
 	const ep = await enterPresentationMode(page, 'live', DOC);
 
 	// `A ~~struck~~ tail`: content [4,10). `A \`code\` tail`: content [3,7). Both reached by
-	// clicking the word and stepping right, the arrival that stays inside the construct.
+	// clicking the word and stepping right to the inside end.
 	for (const [name, word, contentEnd, extended] of [
 		['a strikethrough', 'struck', 10, 'A ~~struckX~~ tail'],
 		['a code span', 'code', 7, 'A `codeX` tail']
@@ -158,12 +152,12 @@ test('live mode: the other symmetric pairs extend from an arrival inside them', 
 	}
 });
 
-test('live mode: a never-extend construct ignores the arrival', async ({ page }) => {
+test('live mode: a never-extend construct never takes the byte', async ({ page }) => {
 	const ep = await enterPresentationMode(page, 'live', DOC);
 
-	// `A [link](https://example.com) tail`: the link is [2,29), `link` [3,7). Both arrivals
-	// that would extend a symmetric pair put the byte past the closing `)`.
-	await test.step('a link’s trailing content edge never extends, whichever arrival placed the caret', async () => {
+	// `A [link](https://example.com) tail`: the link is [2,29), `link` [3,7). Whichever way the
+	// caret came, the byte lands past the closing `)`.
+	await test.step('a link’s trailing content edge never extends, whichever way the caret came', async () => {
 		await steppedFromWord(ep, page, 'link', 'ArrowRight', 7);
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('A [link](https://example.com)X tail');
@@ -257,14 +251,14 @@ test('live mode: a childless construct is all delimiters', async ({ page }) => {
 		expect(await ep.bridge.getSource()).toContain('<https://example.com>Z');
 	});
 
-	// The discriminating counterpart: bold is already correct here, so a change that moved the
-	// symmetric pair too would show up in this row.
-	await test.step('the bold control is unchanged by the same gesture', async () => {
+	// The discriminating counterpart: the same gesture on a bold types inside it, from the
+	// character after the caret, so a change that moved bold too would show up in this row.
+	await test.step('the bold control types inside by the same gesture', async () => {
 		await atLineEdge(ep, page, BOLD_LEAD, 'Home', CHILDLESS_DOC);
 
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
-		expect(await ep.bridge.getSource()).toContain('Z**Bold** in');
+		expect(await ep.bridge.getSource()).toContain('**ZBold** in');
 	});
 });
 
@@ -291,16 +285,17 @@ test.describe('live mode: an IME commit takes the same caret position as a keyst
 	test('at bold’s trailing edge', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', DOC);
 
-		await test.step('a composition extends it when the arrival was from inside', async () => {
+		await test.step('a composition at its inside end extends it', async () => {
 			await steppedFromWord(ep, page, 'bold', 'ArrowRight', 11);
 
 			await compose(page);
 			await ep.bridge.waitForSourceContains('Some **boldかん** text');
 		});
 
-		await test.step('a composition commits past it when the arrival was from outside', async () => {
-			await atLineEdge(ep, page, BOLD, 'End');
-			await stepTo(ep, page, 'ArrowLeft', 11);
+		await test.step('a composition after a typed closer commits past it', async () => {
+			await steppedFromWord(ep, page, 'bold', 'ArrowRight', 11);
+			await page.keyboard.type('**');
+			await ep.waitForRenderFlush();
 
 			await compose(page);
 			await ep.bridge.waitForSourceContains('Some **bold**かん text');

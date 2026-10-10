@@ -23,6 +23,8 @@ import { asRawOffset } from '../../../caret/coordinate-spaces';
 import { rawOffsetAt, rawSelectionFocus, type CaretWriter } from '../../../caret/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../caret/reveal-source';
 import { nearestWidgetEdgeSeat, type WidgetEdgeCandidate } from '../../../caret/widget-edge-snap';
+import type { CaretMemory } from '../../../caret/caret-memory';
+import { clickSide } from './click-side';
 import {
 	traceRevealOpen,
 	traceRevealFold,
@@ -89,6 +91,8 @@ export interface WidgetInteractionDeps {
 	activationClick: ActivationClick;
 	/** Where the block's bytes are stored, read when a selected widget is replaced. */
 	storedAs: () => StoredAs;
+	/** Told when a click starts the caret fresh (`click-side.ts`). */
+	caretMemory: Pick<CaretMemory, 'noteOutside'>;
 }
 
 /** The click a widget gesture reads off: the same event the widget's own handler sees. */
@@ -867,6 +871,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		// range, which it would collapse; `clampOutOfMarkerPrefix` already holds that rule.
 		const live = window.getSelection();
 		if (surfaceHoldsRange(el, live)) return;
+		if (clickY !== null && clickSide(el, clickX, clickY, press.moved === true) === 'fresh') {
+			deps.caretMemory.noteOutside();
+		}
 		const seat = nearestWidgetEdgeSeat(measuredWidgets(el), clickX, clickY);
 		if (seat === null) return;
 		// A click beside a widget leaves a visible caret alone; a click on one cannot, since the

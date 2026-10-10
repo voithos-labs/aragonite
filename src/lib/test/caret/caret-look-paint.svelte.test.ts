@@ -69,12 +69,12 @@ describe.each(TEXT_HOSTS)('a space held at a hidden closer, in $name', (host) =>
 });
 
 describe('a key that moves no caret repaints the look in its own task', () => {
-	it('one ArrowRight at a hidden closer, from bold to plain', async () => {
+	it('the bold chord at a bold’s end, from bold to plain', async () => {
 		const { editor, el } = await liveAt(TEXT_HOSTS[0], 'a **bold** b', 8);
 		const inside = caretMarks(editor);
 		resetPerfInstruments();
 
-		await pressKey(el, { key: 'ArrowRight' });
+		await pressKey(el, { key: 'b', ctrlKey: true });
 
 		expect(perfSnapshot().caretPaints, 'paints before any frame').toBeGreaterThan(0);
 		expect(caretMarks(editor), 'outside').toEqual([]);
@@ -96,7 +96,7 @@ describe('a key that moves no caret repaints the look in its own task', () => {
 		const { editor, el } = await liveAt(TEXT_HOSTS[0], 'a **bold** b', 8);
 		const blink = bar(editor).getAttribute('data-blink');
 
-		await pressKey(el, { key: 'ArrowRight' });
+		await pressKey(el, { key: 'b', ctrlKey: true });
 
 		expect(bar(editor).getAttribute('data-blink')).not.toBe(blink);
 	});

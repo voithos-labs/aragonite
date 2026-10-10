@@ -65,7 +65,7 @@ const LEFT_NEIGHBOUR: [line: string, want: string][] = [
 	['a *a*|**b** c', 'a *aX***b** c'],
 	// Nested emphasis of the same kind has no stop at the inner closer: `bold` holds the letter.
 	['a *x _bold_| y* b', 'a *x _boldX_ y* b'],
-	['a *x |_bold_ y* b', 'a *x X_bold_ y* b'],
+	['a _x |*bold* y_ b', 'a _x X*bold* y_ b'],
 	// A code chip with no record follows the same rule; its two drawn stops are records.
 	['a `code`| b', 'a `codeX` b'],
 	['a |`code` b', 'a X`code` b']

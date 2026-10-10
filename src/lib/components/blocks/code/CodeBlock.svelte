@@ -238,8 +238,8 @@
 		if (languageOffered || readOnly || !showRail) return;
 		languageOffered = true;
 		// A caret that stepped into an existing fence is passing through, and a picker would trap
-		// it; a click or an insert command records no arrival key, and that is the user authoring.
-		const steppedIn = metadataOf(node, 'fencedCode').closed && caretMemory.side() !== null;
+		// it; a click or an insert command is the user authoring.
+		const steppedIn = metadataOf(node, 'fencedCode').closed && caretMemory.arrivedByKey();
 		const offerLanguage = infoString === '' && isBlankText(bodyText()) && !steppedIn;
 		// Deferred past the commit's own caret placement, which focuses this block a second time
 		// and would blur a picker opened on the first. A bare fence is completed before it opens.

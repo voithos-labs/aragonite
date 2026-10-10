@@ -23,18 +23,14 @@ overlay's own rects.
   rightward puts it at an offset the caret can reach in the block the focus
   reached
 
-- a collapse puts the caret outside the construct it lands against, on both axes:
-  which edge it is (opener or closer) and which way the collapse went
-  (`ArrowLeft`/`Escape` to the range's start, `ArrowRight` to its end). Those two
-  together are one decision, not two independent facts, because the positional
-  sides follow traversal order, so one key means opposite things at an opener and
-  at a closer. That is how five of the ten handlers were wrong while five were
-  right by coincidence. A collapse takes no step: it jumps to the range's own
-  edge, where the answer is relative to the construct. `ArrowUp`/`ArrowDown` are
-  the vertical spellings of the same two handlers and reach the same code
-- the cell endpoint puts the caret in the same place a prose leaf does; going
-  through the cell's own focus path instead skipped the collapse steps and typed
-  inside the construct
+- a collapse lands on text, so the next letter takes the format of the character
+  before the caret (at a line start, the one after), on both axes: which edge it
+  is (opener or closer) and which way the collapse went (`ArrowLeft`/`Escape` to
+  the range's start, `ArrowRight` to its end). Every arm is checked, since one can
+  be right by coincidence. `ArrowUp`/`ArrowDown` are the vertical spellings of the
+  same two handlers and reach the same code
+- the cell endpoint puts the caret in the same place a prose leaf does, and the
+  letter typed there joins the construct the cell opens with
 
 ## Edge cases
 

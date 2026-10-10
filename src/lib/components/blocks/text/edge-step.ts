@@ -1,15 +1,15 @@
 /**
- * A hidden construct edge is an arrow stop of its own (live-mode.md § 4.2): after `bold` in
- * `**bold**` a plain arrow first moves which offset the caret means, inside the closer or past it,
- * and only the next press moves the caret. Both offsets share a pixel, so each construct the next
- * byte would join carries `EDGE_HELD_CLASS`.
+ * A code chip's border is an arrow stop of its own (live-mode.md § 4.2): at the chip's edge a plain
+ * arrow first moves which side of the border the caret means, and only the next press moves the
+ * caret. Each construct the next byte would join at a chip's edge or a held space carries
+ * `EDGE_HELD_CLASS`.
  */
 
 import type { InlineNode } from '../../../core/nodes';
 import type { CaretMemory } from '../../../caret/caret-memory';
 import type { HeldSpaceView } from '../../../caret/held-space';
 import { constructContentRange, inlineDescendants } from '../../../core/inline';
-import { classifyArrivalKey, edgeStepDirection } from '../../../caret/edge-affinity';
+import { classifyCaretKey, edgeStepDirection } from '../../../caret/edge-affinity';
 import { revealsNoMarkers, screenVisibilityOf } from '../../../caret/widget-offset';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import type { Reading } from '../../../schema/reading';
@@ -100,14 +100,6 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		keySinceSync = true;
 		const direction = edgeStepDirection(e);
 		if (direction === null) return false;
-		// A held space is a side of its own: one press forward leaves the construct, the caret stays.
-		const caret = deps.getCaret();
-		if (direction === 'forward' && caret !== null && heldSpaceAt(caret) !== null) {
-			deps.caretMemory.pin(caret);
-			mark([]);
-			keySinceSync = false;
-			return true;
-		}
 		const at = edge();
 		if (!at) return false;
 		const target = edgeStep(
@@ -175,7 +167,8 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		const inside = new Set<string>();
 		for (const node of inlineDescendants(deps.getInlines())) {
 			// A never-extend construct takes no byte at its edge, so there is no side to show.
-			if (getInlineConstructPolicy(node.kind)?.edgeAffinity !== 'symmetric-pair') continue;
+			const edgePolicy = getInlineConstructPolicy(node.kind)?.edgeAffinity;
+			if (!edgePolicy || edgePolicy === 'never-extend') continue;
 			const content = constructContentRange(node);
 			if (!content || !(within(content.start) || within(content.end))) continue;
 			if (carried.has(`${node.kind}@${node.start}`)) inside.add(`${node.start}:${node.end}`);
@@ -202,8 +195,7 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 			if (held.length > 0) sync();
 		},
 		afterKey: (e) => {
-			// Meta only picks which side an arrow means, so the key alone says whether one moved.
-			if (keySinceSync && classifyArrivalKey(e.key) !== 'preserve') sync();
+			if (keySinceSync && classifyCaretKey(e.key) !== 'preserve') sync();
 		}
 	};
 }

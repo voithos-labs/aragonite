@@ -38,8 +38,14 @@ export interface InlineMarkPolicy {
 	command: AnyCommandId;
 }
 
+/** How a hidden edge decides where a letter typed at it goes: with the character before the caret,
+ *  at one of two drawn stops either side of a painted box, or never inside the construct. */
+export const EDGE_POLICIES = ['left-sticky', 'boxed', 'never-extend'] as const;
+
+export type EdgePolicy = (typeof EDGE_POLICIES)[number];
+
 export interface InlineConstructPolicy {
-	edgeAffinity: 'symmetric-pair' | 'never-extend';
+	edgeAffinity: EdgePolicy;
 	autoUnwrapOnEmpty: boolean;
 	splitBehavior: 'close-and-reopen' | 'plain';
 	revealable: boolean;

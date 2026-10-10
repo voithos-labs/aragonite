@@ -60,6 +60,7 @@ describe('a pending mark beside a reference link', () => {
 			getDisplayText: () => display,
 			getInlines: () => inlines,
 			reading: fixtureReading({ resolver: resolver }),
+			offsetFor: (caret) => caret,
 			consumePendingMarks: () => new Set<InlineMarkKind>(['strong']),
 			restorePendingMarks: () => {}
 		});

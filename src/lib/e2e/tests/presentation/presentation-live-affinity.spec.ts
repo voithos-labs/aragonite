@@ -55,8 +55,8 @@ test.describe('live mode: the caret never reports from inside a hidden run', () 
 		expect(await press(ep, page, 'End')).toBe(11);
 	});
 
-	// `Some **bold** text`: from raw 14 one press crosses the space and the closing `**` to 11; the
-	// next is the hidden edge's own stop (`edge-step.ts`), and only the one after enters `bold`.
+	// `Some **bold** text`: from raw 14 one press crosses the space and the closing `**` to 11, and
+	// the next enters `bold`; a hidden edge is no stop of its own.
 	test('ArrowLeft crosses a whole hidden run in one press, stopping at the content edge', async ({
 		page
 	}) => {
@@ -64,12 +64,11 @@ test.describe('live mode: the caret never reports from inside a hidden run', () 
 		await press(ep, page, 'End');
 		expect(await press(ep, page, 'ArrowLeft', 4)).toBe(14);
 		expect(await press(ep, page, 'ArrowLeft')).toBe(11);
-		expect(await press(ep, page, 'ArrowLeft')).toBe(11);
 		expect(await press(ep, page, 'ArrowLeft')).toBe(10);
 	});
 
 	// 6 and 12 sit inside the marker runs, 7 and 13 are far sides the read never picks; the walk
-	// still reaches the end, with one extra press at each hidden edge for its own stop.
+	// still reaches the end.
 	test('a rightward walk skips both marker runs whole and reaches the block end', async ({
 		page
 	}) => {

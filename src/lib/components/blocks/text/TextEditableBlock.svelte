@@ -253,6 +253,7 @@
 		getDisplayText: () => getDisplayText(),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
+		offsetFor: typedPlacement.offsetFor,
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore,
 		getRawSelection: () => cursor.getRawSelection(),
@@ -285,7 +286,7 @@
 		stepEdge: edgeStep.step,
 		readText: () => readRawText(),
 		compositionSeat,
-		placeInsertion: typedPlacement.insertion,
+		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
 		inputPrelude: () => {
 			markKeystrokeStart();
@@ -346,6 +347,7 @@
 		},
 		isCrossBlock: () => selection.isCrossBlock,
 		drafts,
+		caretMemory,
 		activationClick,
 		get reading() {
 			return reading;
@@ -427,6 +429,7 @@
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
 		pendingMarks: caretMemory.pendingMarks,
+		offsetFor: typedPlacement.offsetFor,
 		caretWriter
 	});
 
@@ -917,7 +920,8 @@
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
-			seatOutside: caretMemory.noteExtreme,
+			seatOutside: caretMemory.noteOutside,
+			passCloser: typedPlacement.passCloser,
 			hiddenRunAt: edgeStep.hiddenRunAt,
 			completesLine: (caret) =>
 				planTypedCompletion(node, caret, grammar, editableSurface.lineEnding()) !== null,

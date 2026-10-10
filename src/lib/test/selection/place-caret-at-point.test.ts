@@ -109,7 +109,9 @@ describe('placeCaretAtPoint landing walk', () => {
 
 		expect(caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000)).toBe(true);
 
-		await vi.waitFor(() => expect(land).toHaveBeenCalledWith({ path: [9], offset: CURSOR_END }));
+		await vi.waitFor(() =>
+			expect(land).toHaveBeenCalledWith({ path: [9], offset: CURSOR_END, fresh: true })
+		);
 		// The rendered slice's own last block is never touched; a caret there is the defect.
 		expect(focusByPath).not.toHaveBeenCalled();
 	});

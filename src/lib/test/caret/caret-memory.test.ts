@@ -10,7 +10,7 @@ import type { AnyCommandId } from '../../schema/command-id';
 
 const measure = (x: number | null) => () => (x === null ? null : asEditorX(x));
 
-/** A memory mid-run: column held, the near side recorded, a mark pending. */
+/** A memory mid-run: column held, arrived by a key, a mark pending. */
 function arrived(): CaretMemory {
 	const m = createCaretMemory();
 	m.noteKey({ key: 'ArrowDown' }, null, measure(240));
@@ -20,59 +20,69 @@ function arrived(): CaretMemory {
 
 function snapshot(m: CaretMemory) {
 	const marks = m.pendingMarks.get();
-	return { column: m.column(), side: m.side(), marks: marks ? [...marks].sort() : null };
+	return {
+		column: m.column(),
+		side: m.side(),
+		byKey: m.arrivedByKey(),
+		marks: marks ? [...marks].sort() : null
+	};
 }
 
 describe('caret memory lifetime', () => {
 	it('forget drops the column, the side and the marks together', () => {
 		const m = arrived();
-		expect(snapshot(m)).toEqual({ column: 240, side: 'near', marks: ['strong'] });
+		expect(snapshot(m)).toEqual({ column: 240, side: null, byKey: true, marks: ['strong'] });
 		m.forget();
-		expect(snapshot(m)).toEqual({ column: null, side: null, marks: null });
+		expect(snapshot(m)).toEqual({ column: null, side: null, byKey: false, marks: null });
 	});
 
-	it('a committed byte drops the column and the marks and means the near side', () => {
+	it('a committed byte drops the column, the record and the marks', () => {
 		const m = arrived();
+		m.noteOutside();
 		m.noteTyping();
-		expect(snapshot(m)).toEqual({ column: null, side: 'near', marks: null });
+		expect(snapshot(m)).toEqual({ column: null, side: null, byKey: false, marks: null });
 	});
 
-	// A collapse onto a range's own edge is a placement inside a vertical run, so the column
-	// survives it while the side and the marks do not.
-	it('an end placement means the outside, drops the marks and keeps the column', () => {
+	// A typed closer or a fresh start doesn't end a vertical run's column.
+	it('the outside record drops the marks and keeps the column', () => {
 		const m = arrived();
-		m.noteExtreme();
-		expect(snapshot(m)).toEqual({ column: 240, side: 'outside', marks: null });
+		m.noteOutside();
+		expect(snapshot(m)).toEqual({ column: 240, side: 'outside', byKey: false, marks: null });
 	});
 
 	it('instances are independent', () => {
 		const a = arrived();
 		const b = createCaretMemory();
-		expect(snapshot(b)).toEqual({ column: null, side: null, marks: null });
+		expect(snapshot(b)).toEqual({ column: null, side: null, byKey: false, marks: null });
 		a.forget();
 		b.pendingMarks.toggle('emphasis');
 		expect(snapshot(a).marks).toBeNull();
 	});
 });
 
-// Each row names what one key leaves of a memory that arrived with a column, a side and a mark.
-describe('noteKey across the three parts', () => {
-	const ROWS: [key: string, column: number | null, side: string | null, marks: boolean][] = [
-		['ArrowUp', 240, 'far', false],
-		['ArrowLeft', null, 'far', false],
-		['PageDown', 240, 'near', false],
-		['Home', null, 'outside', false],
+// Each row names what one key leaves of a memory that arrived with a column, the outside record
+// and a mark.
+describe('noteKey across the parts', () => {
+	const ROWS: [key: string, column: number | null, side: string | null, byKey: boolean][] = [
+		['ArrowUp', 240, null, true],
+		['ArrowLeft', null, null, true],
+		['PageDown', 240, null, true],
+		['Home', null, null, true],
+		['End', null, null, true],
 		['Enter', null, null, false],
 		['Escape', null, null, false],
-		['Shift', 240, 'near', true],
-		['b', null, 'near', true]
+		['Shift', 240, 'outside', false],
+		['b', null, 'outside', false]
 	];
 
-	for (const [key, column, side, marks] of ROWS) {
-		it(`${key} leaves column ${column}, side ${side}, marks ${marks ? 'kept' : 'dropped'}`, () => {
+	for (const [key, column, side, byKey] of ROWS) {
+		it(`${key} leaves column ${column}, record ${side}, arrived by key ${byKey}`, () => {
 			const m = arrived();
+			m.noteOutside();
+			m.pendingMarks.toggle('strong');
 			m.noteKey({ key }, null, measure(999));
-			expect(snapshot(m)).toEqual({ column, side, marks: marks ? ['strong'] : null });
+			const marks = side === null ? null : ['strong'];
+			expect(snapshot(m)).toEqual({ column, side, byKey, marks });
 		});
 	}
 
@@ -91,10 +101,12 @@ describe('noteKey across the three parts', () => {
 		expect(m.column()).toBe(240);
 	});
 
-	it('meta+ArrowRight is a line end, the outside', () => {
+	// End lands on text like any arrow, where the character before the caret decides.
+	it('a line-end key ends the outside record like any arrow', () => {
 		const m = createCaretMemory();
-		m.noteKey({ key: 'ArrowRight', metaKey: true }, null);
-		expect(m.side()).toBe('outside');
+		m.noteOutside();
+		m.noteKey({ key: 'End' }, null);
+		expect(m.side()).toBeNull();
 	});
 });
 
@@ -109,10 +121,10 @@ describe('noteKey reads the chord as the command it resolves to', () => {
 	];
 
 	for (const command of MOVES) {
-		it(`${command} keeps the column, the side and the marks`, () => {
+		it(`${command} keeps the column, the record and the marks`, () => {
 			const m = arrived();
 			m.noteKey({ key: 'ArrowUp' }, command, measure(999));
-			expect(snapshot(m)).toEqual({ column: 240, side: 'near', marks: ['strong'] });
+			expect(snapshot(m)).toEqual({ column: 240, side: null, byKey: true, marks: ['strong'] });
 		});
 	}
 
@@ -121,13 +133,13 @@ describe('noteKey reads the chord as the command it resolves to', () => {
 	it('an unbound Alt+ArrowUp is an arrow like any other', () => {
 		const m = arrived();
 		m.noteKey({ key: 'ArrowUp', altKey: true } as KeyboardEvent, null, measure(999));
-		expect(snapshot(m)).toEqual({ column: 240, side: 'far', marks: null });
+		expect(snapshot(m)).toEqual({ column: 240, side: null, byKey: true, marks: null });
 	});
 
 	it('a move bound to a letter chord keeps the memory', () => {
 		const m = arrived();
 		m.noteKey({ key: 'K' }, 'block.moveUp');
-		expect(snapshot(m)).toEqual({ column: 240, side: 'near', marks: ['strong'] });
+		expect(snapshot(m)).toEqual({ column: 240, side: null, byKey: true, marks: ['strong'] });
 	});
 
 	it('a move bound to ArrowLeft keeps the column the arrow would have dropped', () => {
@@ -139,7 +151,7 @@ describe('noteKey reads the chord as the command it resolves to', () => {
 	it('any other command is classified by its key', () => {
 		const m = arrived();
 		m.noteKey({ key: 'Enter' }, 'block.split');
-		expect(snapshot(m)).toEqual({ column: null, side: null, marks: null });
+		expect(snapshot(m)).toEqual({ column: null, side: null, byKey: false, marks: null });
 	});
 });
 
@@ -148,7 +160,7 @@ describe('noteKey reads a plugin command by its key', () => {
 		const other = registerBlockCommand('paragraph', 'caretTest.other', () => true);
 		const m = arrived();
 		m.noteKey({ key: 'ArrowUp' }, other);
-		expect(snapshot(m)).toEqual({ column: 240, side: 'far', marks: null });
+		expect(snapshot(m)).toEqual({ column: 240, side: null, byKey: true, marks: null });
 	});
 });
 

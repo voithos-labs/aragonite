@@ -213,13 +213,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'Process',
 			'Unidentified'
 		],
-		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a hidden construct edge, so the modifier reads there are a refusal.'
-	},
-	{
-		file: 'caret/caret-memory.ts',
-		chords: [],
-		keys: [],
-		note: 'Hands the meta flag to the arrival classifier: Cmd+Arrow is a line end. Consumes nothing.'
+		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a code chip’s border, so the modifier reads there are a refusal.'
 	},
 	{
 		file: 'editor-actions/container-block-component.ts',

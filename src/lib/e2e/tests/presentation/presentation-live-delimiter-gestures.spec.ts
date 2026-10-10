@@ -71,12 +71,12 @@ test('live mode: the closer typed over a hidden closer steps past it', async ({ 
 		await ep.bridge.waitForSourceContains('Some **strong**X text');
 	});
 
-	// The byte lands past the closer, and the auto-pair still writes its partner there.
-	await test.step('a delimiter typed at the trailing edge from outside lands its paired closer past the closer', async () => {
+	// The pair goes where a letter would, inside the bold, and the auto-pair writes its partner there.
+	await test.step('a delimiter typed at the trailing edge pairs where a letter would go', async () => {
 		await nextRow(ep, DOC);
 		await atEnd(ep, page, STRONG, 13);
 		await page.keyboard.type('`');
-		await ep.bridge.waitForSourceContains('Some **strong**`` text');
+		await ep.bridge.waitForSourceContains('Some **strong``** text');
 	});
 });
 
@@ -159,7 +159,7 @@ test('live mode: the pairs the destructive-edges rows never covered', async ({ p
 		await ep.bridge.waitForSourceContains('Some `cod` text');
 	});
 
-	await test.step('Enter inside a code span closes and reopens it', async () => {
+	await test.step('Enter inside a code span closes and reopens it, and starts the new block plain', async () => {
 		await nextRow(ep, DOC);
 		await clickWordSettled(ep, page, 'code');
 		await landAt(ep, page, 8);
@@ -167,7 +167,7 @@ test('live mode: the pairs the destructive-edges rows never covered', async ({ p
 		await ep.bridge.waitForSourceContains('Some `co`\n\n`de` text');
 		await expect.poll(() => focusOffset(ep)).toBe(0);
 		await page.keyboard.type('Y');
-		await ep.bridge.waitForSourceContains('`Yde`');
+		await ep.bridge.waitForSourceContains('Y`de`');
 	});
 });
 

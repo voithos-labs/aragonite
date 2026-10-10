@@ -34,7 +34,7 @@ export async function dispatchMoveFocus(
 	scope: MoveFocusScope,
 	index: number,
 	position: FocusPosition,
-	caretMemory: Pick<CaretMemory, 'column' | 'noteExtreme'>,
+	caretMemory: Pick<CaretMemory, 'column'>,
 	options?: MoveFocusOptions
 ): Promise<void> {
 	const step = traversalStep(position);

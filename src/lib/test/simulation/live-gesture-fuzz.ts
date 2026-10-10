@@ -103,7 +103,7 @@ function typedVocabulary(): string[] {
 	return [...INERT_CHARS, ...BLOCK_MINTING_CHARS, ...heads];
 }
 
-const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
+const AFFINITIES: (EdgeAffinity | null)[] = ['outside', null];
 
 /** Both toggle gestures answer to the same two checks: one block's span, or a range of blocks. */
 const isFormatToggle = (kind: GestureKind): boolean =>

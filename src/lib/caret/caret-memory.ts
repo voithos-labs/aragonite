@@ -1,14 +1,14 @@
 /**
- * What the editor remembers about how the caret arrived: the sticky column (the x a run of
- * Up/Down arrows keeps), the edge affinity (which side of a hidden marker run the caret means), the
- * pending marks (the formats a toggle promised the next typed byte), the pending break and the held
- * space. They share one lifetime: a keydown updates them through `noteKey`, and any other caret
+ * What the editor remembers about the caret beyond its offset: the sticky column (the x a run of
+ * Up/Down arrows keeps), the edge record (what overrides the character-before rule at a hidden edge),
+ * the pending marks (the formats a toggle promised the next typed byte), the pending break and the
+ * held space. They share one lifetime: a keydown updates them through `noteKey`, and any other caret
  * move calls `forget`, which drops them all at once.
  */
 
 import type { EditorX } from './coordinate-spaces';
 import { classifyStickyKey } from './sticky-column';
-import { classifyArrivalKey, type EdgeAffinity } from './edge-affinity';
+import { classifyCaretKey, type EdgeAffinity } from './edge-affinity';
 import { flipMark, type PendingMarks } from './pending-marks';
 import { createPendingBreak, type BlockPendingBreak } from './pending-break.svelte';
 import { createHeldSpace, type HeldSpaceView } from './held-space';
@@ -27,14 +27,17 @@ import {
 	traceStickyReset
 } from '../debug/interaction-trace';
 
-/** The parts of a keydown the classifiers read. */
-export type ArrivalKey = Pick<KeyboardEvent, 'key'> & Partial<Pick<KeyboardEvent, 'metaKey'>>;
+/** The part of a keydown the classifiers read. */
+export type CaretKey = Pick<KeyboardEvent, 'key'>;
 
 export interface CaretMemory {
 	/** The editor-relative x a vertical move aims for, or null outside an Up/Down run. */
 	column(): EditorX | null;
-	/** Which side of a hidden marker run the caret means; null leaves the typing path's default. */
+	/** The record the edge resolver reads at a hidden edge; null leaves the character-before rule. */
 	side(): EdgeAffinity | null;
+	/** Whether the caret's last move was a navigation key (an arrow, Page, Home, End), not a click,
+	 *  a write or a command. */
+	arrivedByKey(): boolean;
 	/** The marks a toggle at a collapsed caret promised; `forget` drops them with the rest. */
 	readonly pendingMarks: PendingMarks;
 	/** The line Shift+Enter at a block's end opened; `noteKey` leaves it, since the text block's
@@ -54,13 +57,14 @@ export interface CaretMemory {
 
 	/** Classify a keydown; `command` is the chord's meaning at the focused block, so a rebound chord
 	 *  reads as what it does. Without `measureX` (a caller holding a range) the column is kept. */
-	noteKey(e: ArrivalKey, command: AnyCommandId | null, measureX?: () => EditorX | null): void;
-	/** A committed keystroke: the byte belongs to the content, whatever arrival preceded it. */
+	noteKey(e: CaretKey, command: AnyCommandId | null, measureX?: () => EditorX | null): void;
+	/** A committed keystroke: the next byte follows the one just typed. */
 	noteTyping(): void;
-	/** The caret was placed at an end rather than stepped there, so it means the outside. */
-	noteExtreme(): void;
-	/** An arrow press moved the side, not the caret (`edge-step.ts`): the next byte lands at
-	 *  `offset`. Called instead of `noteKey`, since the key took no step to classify. */
+	/** The next letter types outside every construct at the caret's hidden edge, until the caret
+	 *  moves: a fresh start (Enter, a click past a line's end) or a typed closer. */
+	noteOutside(): void;
+	/** An arrow press moved the bar across a code chip's border, not the caret (`edge-step.ts`):
+	 *  the next byte lands at `offset`. Called instead of `noteKey`. */
 	pin(offset: number): void;
 	/** Record a column a surface measured itself on the way out (the table, which has no caret
 	 *  of its own at the moment it leaves). Keeps a column already held. */
@@ -79,6 +83,7 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 	let column: EditorX | null = null;
 	let changes = 0;
 	let side: EdgeAffinity | null = null;
+	let arrivedByKey = false;
 	let marks: ReadonlySet<InlineMarkKind> | null = null;
 	const pendingBreak = createPendingBreak();
 	const heldSpace = createHeldSpace();
@@ -114,6 +119,7 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 	return {
 		column: () => column,
 		side: () => side,
+		arrivedByKey: () => arrivedByKey,
 		pendingMarks: {
 			get: () => marks,
 			toggle: (kind) => {
@@ -152,7 +158,19 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 				};
 			}
 		},
-		heldSpace: { forBlock: heldSpace.forBlock },
+		heldSpace: {
+			forBlock: (block) => {
+				const view = heldSpace.forBlock(block);
+				return {
+					...view,
+					passCloser: (next) => {
+						const passed = view.passCloser(next);
+						if (passed) changed();
+						return passed;
+					}
+				};
+			}
+		},
 		holdInsertion: (block, place) => records.hold(block, side, place),
 		previewInsertion: (block, place) => records.preview(block, side, place),
 		changeCount: () => changes + records.holdChanges(),
@@ -167,21 +185,30 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 				if (x !== null && x !== undefined) captureColumn(x);
 			}
 
-			const sideAction = classifyArrivalKey(e.key, e.metaKey);
+			const keyAction = classifyCaretKey(e.key);
 			// A preserved key left the caret where it was: the chord that pends a mark and the
 			// character that spends it both preserve, so neither may clear the marks.
-			if (sideAction === 'preserve') return;
-			settleSide(sideAction === 'reset' ? null : sideAction);
+			if (keyAction === 'preserve') return;
+			arrivedByKey = keyAction === 'navigate';
+			settleSide(null);
 		},
 		noteTyping: () => {
 			dropColumn();
-			settleSide('near');
+			arrivedByKey = false;
+			settleSide(null);
 		},
-		noteExtreme: () => settleSide('outside'),
-		pin: (offset) => settleSide({ offset }),
+		noteOutside: () => {
+			arrivedByKey = false;
+			settleSide('outside');
+		},
+		pin: (offset) => {
+			arrivedByKey = true;
+			settleSide({ offset });
+		},
 		captureColumn,
 		forget: () => {
 			dropColumn();
+			arrivedByKey = false;
 			settleSide(null);
 			if (records.end()) changed();
 		}

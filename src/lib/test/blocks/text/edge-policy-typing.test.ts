@@ -280,18 +280,24 @@ describe('pending marks', () => {
 		});
 	});
 
-	describe('a pending mark outranks every arrival rule', () => {
-		// Offset 11 is bold's trailing content edge with the far side recorded, so the typing rules
-		// would write past the closer. The mark says otherwise, and wins (live-mode.md § 4.2).
-		it('beats the typing caret position at a construct edge', () => {
-			const h = mount('Some **bold** text\n', ['emphasis'], { affinity: 'far' });
+	describe('a pending mark applies where the next letter would land', () => {
+		// Offset 11 is bold's trailing content edge, and the letter before it is bold.
+		it('marks the letter inside the construct the caret means', () => {
+			const h = mount('Some **bold** text\n', ['emphasis']);
 			expect(h.handleKeydown(key('X'), at(11))).toBe(true);
 			expect(h.edits).toEqual([[0, 'Some **bold*X*** text\n', 11, 13]]);
 		});
 
+		// A typed closer or a fresh start put the letter outside, and the mark applies there.
+		it('marks the letter outside it with the outside record', () => {
+			const h = mount('Some **bold** text\n', ['emphasis'], { affinity: 'outside' });
+			expect(h.handleKeydown(key('X'), at(11))).toBe(true);
+			expect(h.edits).toEqual([[0, 'Some **bold***X* text\n', 11, 15]]);
+		});
+
 		// The next byte is the browser's again, placed by the write as any insertion is.
-		it('leaves the next byte to the side on record once the set is spent', () => {
-			const h = mount('Some **bold** text\n', ['emphasis'], { affinity: 'far' });
+		it('leaves the next byte to the record once the set is spent', () => {
+			const h = mount('Some **bold** text\n', ['emphasis']);
 			h.handleKeydown(key('X'), at(11));
 			h.edits.length = 0;
 

@@ -210,17 +210,18 @@ describe('handleWholeBlockKeys: the reorder chord follows a rebinding', () => {
 		seedColumn(caretMemory, 200);
 		caretMemory.pendingMarks.toggle('strong');
 		handleWholeBlockKeys(press('ArrowUp', { altKey: true }), deps);
-		expect(caretMemory.side()).toBe('far');
+		expect(caretMemory.arrivedByKey()).toBe(true);
 		expect(caretMemory.pendingMarks.get()).toBeNull();
 	});
 
-	it('the new reorder chord keeps the column, the side and the marks', () => {
+	it('the new reorder chord keeps the column, the record and the marks', () => {
 		const { deps, caretMemory } = makeDeps(() => false, REBOUND);
 		seedColumn(caretMemory, 200);
+		caretMemory.noteOutside();
 		caretMemory.pendingMarks.toggle('strong');
 		handleWholeBlockKeys(press('ArrowUp', { ctrlKey: true, shiftKey: true }), deps);
 		expect(caretMemory.column()).toBe(200);
-		expect(caretMemory.side()).toBe('near');
+		expect(caretMemory.side()).toBe('outside');
 		expect([...(caretMemory.pendingMarks.get() ?? [])]).toEqual(['strong']);
 	});
 });

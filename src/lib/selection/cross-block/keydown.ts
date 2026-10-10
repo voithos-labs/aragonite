@@ -124,7 +124,8 @@ async function handleCrossBlockActive(
 			return true;
 		case 'collapse': {
 			const toEnd = e.key === 'ArrowRight' || e.key === 'ArrowDown';
-			await collapseTo(ctx, toEnd ? 'end' : 'start', doc);
+			const to = toEnd ? 'end' : 'start';
+			await collapseCrossBlock(ctx.selection, ctx.caretWriter, to, doc, ctx.caretLanding.restore);
 			return true;
 		}
 		case 'selectAll':
@@ -354,18 +355,6 @@ export function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 		e.key === 'k' ||
 		e.key === 'K'
 	);
-}
-
-/** Corrects the side the arrow key recorded: the caret jumped to the range's edge, where the side
- *  depends on the construct there (`docs/design/live-mode.md` § 4.2 Typing at a hidden edge). */
-async function collapseTo(
-	ctx: CrossBlockDispatchContext,
-	to: 'start' | 'end',
-	doc: Document
-): Promise<void> {
-	await collapseCrossBlock(ctx.selection, ctx.caretWriter, to, doc, ctx.caretLanding.restore);
-	// After the restore, which forgets how the caret arrived.
-	ctx.caretMemory.noteExtreme();
 }
 
 /** Parks the caret at the focus endpoint, never ending the range (G2.12) and never opening a

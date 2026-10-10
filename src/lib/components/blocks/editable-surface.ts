@@ -37,7 +37,8 @@ import { deleteSnapshot } from '../../selection/primitives';
 import { asEditorX, asRawOffset, type RawOffset } from '../../caret/coordinate-spaces';
 import type { SurfaceBackend } from '../../caret/surface-backend';
 import type { DrawnCaret, WidgetEdgeSource } from '../../caret/drawn-caret.svelte';
-import type { HeldInsertion, PlaceInsertion } from '../../caret/next-insertion';
+import type { HeldInsertion } from '../../caret/next-insertion';
+import type { TypedPlacement } from './text/edge-seat';
 import { caretLook, type NextByte } from '../../caret/caret-look';
 import type { InlineNode } from '../../core/nodes';
 import { recordCaretLook } from '../../perf/instruments';
@@ -222,9 +223,9 @@ export interface EditableSurfaceDeps {
 	/** What a composition opened over (pending marks, a range), captured at its start and placing
 	 *  the run it commits; omitted where a commit writes the text as read. */
 	compositionSeat?: CompositionSeat;
-	/** Moves a typed insertion to the side of a hidden edge the caret means; omitted where the block
-	 *  draws every marker. Every insertion route writes through it (`next-insertion.ts`). */
-	placeInsertion?: PlaceInsertion;
+	/** Where text typed at a hidden edge lands; omitted where the block draws every marker. Every
+	 *  insertion route writes through its `insertion` (`next-insertion.ts`). */
+	placement?: TypedPlacement;
 	/** The block's inline tree, for a block whose text takes inline formats: the drawn caret shows
 	 *  the ones the next letter would carry. */
 	getInlines?: () => readonly InlineNode[];
@@ -487,7 +488,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// This block's identity in the caret memory, so a record left here is spent only here.
 	const block = {};
 	const holdInsertion = (): HeldInsertion =>
-		deps.caretMemory.holdInsertion(block, deps.placeInsertion);
+		deps.caretMemory.holdInsertion(block, deps.placement?.insertion);
 	const { getInlines } = deps;
 	const nextByte = getInlines
 		? createNextByte({
@@ -496,7 +497,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 				getInlines,
 				reading: deps.reading,
 				caretMemory: deps.caretMemory,
-				preview: () => deps.caretMemory.previewInsertion(block, deps.placeInsertion)
+				preview: () => deps.caretMemory.previewInsertion(block, deps.placement?.insertion),
+				offsetFor: (caret, typed) => deps.placement?.offsetFor(caret, typed) ?? caret
 			})
 		: () => ({ marks: [], holders: [] });
 

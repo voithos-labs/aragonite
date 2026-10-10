@@ -17,9 +17,9 @@ position rather than logical caret position) that decide when the boundary is re
 - ArrowDown into container block: focus enters first child of the container
 - ArrowUp out of container block: focus exits to the block before the container
 - ArrowDown on empty block moves to next block: empty blocks are a single visual line, so geometry check triggers and focus advances
-- Leaving a code body backward lands outside a hidden closer, in live mode: Backspace at the start
-  of a code block's body moves the caret to the end of the bold paragraph above, and a typed `x`
-  goes after its closing `**`. It runs at the top level and inside a quote
+- Leaving a code body backward lands on text, in live mode: Backspace at the start of a code
+  block's body moves the caret to the end of the bold paragraph above, and a typed `x` joins the
+  bold, since the character before the caret is bold. It runs at the top level and inside a quote
 
 ## Miss-analysis
 

@@ -13,6 +13,13 @@ const RESOLVER = 'src/lib/components/blocks/text/edge-seat.ts';
 const CHIP_STEP = 'src/lib/components/blocks/text/edge-step.ts';
 const CLICK_ENTRY = 'src/lib/components/blocks/text/widget-interaction.ts';
 const CLICK_SIDE = 'src/lib/components/blocks/text/click-side.ts';
+/** The files that decide a hidden edge. */
+const EDGE_FILES = [
+	RESOLVER,
+	CHIP_STEP,
+	'src/lib/components/blocks/text/next-byte.ts',
+	'src/lib/caret/held-space.ts'
+];
 const BLOCKS = [
 	'src/lib/components/blocks/text/TextEditableBlock.svelte',
 	'src/lib/components/blocks/table/TableCellBlock.svelte'
@@ -38,6 +45,16 @@ describeFileRules(
 				`const action = ${ARRIVAL}(e.key);`
 			],
 			misses: ["block: 'nearest'", `// the ${NEAR} side went with the arrival`]
+		},
+		{
+			id: 'G4.150 the edge rule reads the policy row, never a kind name',
+			population: (file) => EDGE_FILES.includes(file.relPath),
+			matches: /\bkind\s*[!=]==\s*'(?!text')\w+'/,
+			reason:
+				'a mark and the code chip differ at an edge by their `edgeAffinity` row; a branch on a kind name is a second table a plugin kind never joins',
+			reaches: EDGE_FILES,
+			hits: [{ relPath: RESOLVER, code: "if (run.kind === 'inlineCode') return run.end;" }],
+			misses: [{ relPath: RESOLVER, code: "if (node.kind === 'text') return false;" }]
 		}
 	],
 	collectEditorSources()

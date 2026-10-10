@@ -216,6 +216,7 @@
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
 		getInlines: () => resolvedInlineContent(node, reading),
 		reading,
+		offsetFor: typedPlacement.offsetFor,
 		consumePendingMarks: caretMemory.pendingMarks.consume,
 		restorePendingMarks: caretMemory.pendingMarks.restore
 	});
@@ -239,7 +240,7 @@
 		stepEdge: edgeStep.step,
 		readText: () => readCellText(),
 		compositionSeat,
-		placeInsertion: typedPlacement.insertion,
+		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
@@ -286,6 +287,7 @@
 		},
 		isCrossBlock: () => selection.isCrossBlock,
 		drafts,
+		caretMemory,
 		get reading() {
 			return reading;
 		}
@@ -342,6 +344,7 @@
 		},
 		isReading: () => readOnly,
 		pendingMarks: caretMemory.pendingMarks,
+		offsetFor: typedPlacement.offsetFor,
 		caretWriter
 	});
 
@@ -800,7 +803,8 @@
 			isRevealing: widgetInteraction.isRevealing,
 			foldReveal: () => widgetInteraction.foldRevealBeforeMutation(),
 			setCaret: (offset) => cursor.setRaw(asRawOffset(offset), { clamp: 'exact' }),
-			seatOutside: caretMemory.noteExtreme,
+			seatOutside: caretMemory.noteOutside,
+			passCloser: typedPlacement.passCloser,
 			hiddenRunAt: edgeStep.hiddenRunAt,
 			// Each auto-pair caller asks this itself until the caret-edge key table gives it one caller.
 			keepsKind: (line) => keepsKindAt(node, line, storedAs()),

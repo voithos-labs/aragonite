@@ -13,20 +13,21 @@ against, since the screen cannot show which side of a hidden run a byte took.
 - the closer typed over a construct's hidden closer writes nothing and steps past it: the next
   byte lands after the construct (`Some *em*X text`), for `*`, `**`, `` ` ``, `~~` and an
   emphasis nested inside bold
-- the same keypress arrived at from outside (End, then ArrowLeft onto the edge) steps past it
+- the same keypress with the caret walked back onto the edge (End, then ArrowLeft) steps past it
   too, and the next byte lands after the construct
 - a closer typed by hand, where no counterpart was there to step over (`text*ab` then `*`),
   completes the construct and the next byte lands outside it (`text*ab* z`, never `text*ab z*`)
 - a link typed to completion keeps typing after it: `[ab](u)` then a space gives `[ab](u) `,
   never `[ab ](u)`
-- a delimiter typed at a hidden trailing edge from outside lands its counterpart past the closer
-  (`Some **strong**`` text`), not a lone byte
+- a delimiter typed at a hidden trailing edge pairs where a letter would go, inside the bold, and
+  lands its counterpart with it (`Some **strong``** text`), not a lone byte
 - `Backspace` between a backtick pair typed at the hidden closer of `x **b** y` takes both: the pair
   is the auto-pair's own, written where the byte lands even though the browser aimed it across
   the hidden run
-- `Backspace` at a construct's trailing content edge takes the content byte, from either arrival,
+- `Backspace` at a construct's trailing content edge takes the content byte, however the caret got there,
   for the pairs the destructive-edges rows never covered: `*`, `` ` ``, `~~`
-- `Enter` inside a code span closes and reopens the span, and typing continues in the second half
+- `Enter` inside a code span closes and reopens the span, and the new block starts plain: the next
+  letter lands in front of the reopened span (``Y`de` ``)
 
 ## The modes that paint the closer
 

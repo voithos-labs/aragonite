@@ -1,7 +1,7 @@
 /**
- * The last step of a cross-block focus move, once the target block is mounted: the side of a
- * hidden closer, an edge widget, then the caret. A null sticky column is handled here, so
- * `focusAtColumn` always receives a finite x.
+ * The last step of a cross-block focus move, once the target block is mounted: an edge widget,
+ * then the caret. A null sticky column is handled here, so `focusAtColumn` always receives a
+ * finite x.
  */
 
 import {
@@ -17,12 +17,9 @@ export async function consumeStickyLanding(
 	block: BlockComponent,
 	index: number,
 	position: FocusPosition,
-	caretMemory: Pick<CaretMemory, 'column' | 'noteExtreme'>,
+	caretMemory: Pick<CaretMemory, 'column'>,
 	retryAt: (index: number) => Promise<void> | void
 ): Promise<void> {
-	// Moving to a block's end is a jump, so each construct decides which side of a hidden
-	// closer it means, or the next byte typed joins it (`docs/design/live-mode.md` § 4.2).
-	if (position === 'end') caretMemory.noteExtreme();
 	const isStickyMove = typeof position === 'object' && 'stickyColumnFrom' in position;
 
 	if (isStickyMove) {

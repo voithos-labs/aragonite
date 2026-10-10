@@ -114,14 +114,15 @@ test('live mode: typing on after an existing bold', async ({ page }) => {
 		await ep.bridge.waitForSourceContains('Some **bold more** text');
 	});
 
-	await test.step('an arrival from outside types the space and the word outside', async () => {
+	// The character before the caret is bold, whichever way the caret got there.
+	await test.step('an arrow back from the text after it, then a space and a word, extends it', async () => {
 		await nextRow(ep, DOC);
 		await clickBlockSettled(ep, 0);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowLeft', 11);
 		await page.keyboard.type(' more');
-		await ep.bridge.waitForSourceContains('Some **bold** more text');
+		await ep.bridge.waitForSourceContains('Some **bold more** text');
 	});
 
 	await test.step('the format chord before the space types outside', async () => {
@@ -178,10 +179,10 @@ test('live mode: the hold ends without touching the bytes', async ({ page }) => 
 		await ep.bridge.waitForSourceContains('a **two** w\n');
 	});
 
-	await test.step('after an arrow steps out of a bold, a paste types outside', async () => {
+	await test.step('after a typed closer steps out of a bold, a paste types outside', async () => {
 		await nextRow(ep, 'a **bold** b');
 		await clickEnd(ep, page, 'bold');
-		await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('**');
 		await ep.waitForRenderFlush();
 		await pasteText(ep, 'X');
 		await ep.bridge.waitForSourceContains('a **bold**X b');
