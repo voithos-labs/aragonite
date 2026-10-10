@@ -121,7 +121,7 @@ A key nobody claims falls through to the keymap, and a byte it types is placed i
 
 The answer is the word processor's: the byte takes the format of the visible character before the position (at a line start, the one after), whichever of the two raw offsets the browser left the caret at. Three things can change that, in order:
 
-1. **The construct's own row** in `src/lib/schema/inline-construct-policy.ts`. A link never extends, whichever side you type on, and a code chip (`boxed`) has two stops either side of its border, which a plain arrow, a click or an arrival picks between (`src/lib/components/blocks/text/edge-step.ts`).
+1. **The construct's own row** in `src/lib/schema/inline-construct-policy.ts`. A link never extends, whichever side you type on, and a code chip (`boxed`) has two stops either side of its border, which an arrow key, a click or `End` picks between (`src/lib/components/blocks/text/edge-step.ts`).
 2. **A record on the caret memory** (`src/lib/caret/caret-memory.ts`): a fresh start (Enter's new block, a click past a line's end) or a typed closer means outside, a held space means inside, a chip stop means its side. Any key that moves the caret ends the record, and so does any caret move that isn't a key. So Backspace on an empty list item under `- **a**` lands on text and types bold, same as at the top level.
 3. **The renderer.** A candidate offset is accepted only if what shows on screen afterwards is exactly what showed before, plus the typed byte.
 

@@ -145,7 +145,7 @@ Live mode hides every marker standing over content and stays editable, which tur
 - **The edge rule** says which side such a boundary means: the letter takes the format of the visible character before it, the way a word processor does, unless a record says otherwise (a fresh start after Enter or a click past a line's end, a typed closer, a held space, a code chip's stop). Every insertion reads it in the same write, so a key, a soft keyboard, an IME commit and a paste all land on the same side ([`caret-placement.md`](caret-placement.md) § 6 walks it, `live-mode.md` § 4.2 has the rules).
 - **The inline-construct policy table** is where each construct declares what its own delimiters do: which side a typed byte lands on, whether emptying it unwraps, how a split treats it, whether it reveals its source to an entering caret (§ 6). Every reader takes one row instead of testing a kind (`schema/inline-construct-policy.ts`).
 
-The records live in the **caret memory** (`caret/caret-memory.ts`), the one record of what the caret means beyond its offset. It also keeps the sticky column (§ 8), the pending marks, the pending break (next subsection) and the held space, and a caret move that isn't a key forgets them all together.
+The records live in the **caret memory** (`caret/caret-memory.ts`), the one place that keeps what the caret means beyond its offset. It also keeps the sticky column (§ 8), the pending marks, the pending break (next subsection) and the held space, and a caret move that isn't a key forgets them all together.
 
 The full editing-rule catalog is [`live-mode.md`](live-mode.md).
 

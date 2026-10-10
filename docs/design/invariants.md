@@ -1044,7 +1044,7 @@ unguarded.
 | G4.147 | Every change to the caret memory repaints the drawn caret, and a no-op asks nothing       | harness |
 | G4.148 | The caret's look adds no inline-tree walk, parse or paint to a key outside brackets       | harness |
 | G4.149 | A preview of the next insertion runs a write's own spend, and changes no record           | harness |
-| G4.150 | One placer for a hidden edge: no other file reads the caret's side or an arrival          | L       |
+| G4.150 | One placer for a hidden edge: no other file reads the caret's side or how it arrived      | L       |
 | G4.151 | One click-side check, called from the click entry both prose blocks share                 | L       |
 
 ### The entries
@@ -1947,12 +1947,8 @@ changes nothing: one that waits on returns `kept`, which the hold runs when the 
 spend.
 
 **G4.150 · One placer for a hidden edge.** Which side of a hidden edge a letter takes is decided
-in `components/blocks/text/edge-seat.ts :: seatAt` alone, from the caret memory's record. No file
-names an arrival side (`near`, `far`, `classifyArrivalKey`); only the resolver and the chip step read
-`side()`; only the resolver calls `resolveEdgeSeat` or `typingOffset`; `EdgeAffinity` is named only
-by its home, the memory, its two carriers and the resolver, and the carriers never compare it; only
-the code block's language picker asks `arrivedByKey()`; and the edge files never branch on a kind
-name, since the policy row says how an edge behaves. `lint/edge-rule-guards.test.ts`.
+in `components/blocks/text/edge-seat.ts :: seatAt` alone, from the caret memory's record, and no
+other file reads that record or how the caret arrived. `lint/edge-rule-guards.test.ts`.
 
 **G4.151 · One click-side check.** `components/blocks/text/click-side.ts :: clickSide` (a fresh
 start past a line's end, or the side of a code chip's border) is called only from
