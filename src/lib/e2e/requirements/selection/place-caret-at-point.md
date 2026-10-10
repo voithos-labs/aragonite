@@ -24,9 +24,9 @@ its release, the drag release, a live native range) is in `dead-space-click.md`.
 ## Edge cases
 
 - In live mode, a point below a long document whose last block is windowed out and ends in
-  `**a**`: the editor mounts that block and lands at its end. A point below every line is past
-  the last one's end, a fresh start, so a typed `x` gives `**a**x`, the same as a click past the
-  end of a mounted line.
+  `**a**`: the editor mounts that block, lands at its end, and then places the point as a click
+  below the mounted block. Below every line is past the last one's end, a fresh start, so a typed
+  `x` gives `**a**x`, the same answer the mounted tail gives.
   - Miss-analysis: the windowed-out tail was only unit-tested with stub blocks, and no scenario
     here ran in live mode, where the side of a hidden closer is the whole difference.
 
