@@ -48,9 +48,9 @@ source.
 A few more are covered by unit tests, in `src/lib/test/blocks/text/held-space.test.ts` and
 `insertion-route-parity.test.ts` next to it:
 
-1. One ArrowRight ends the hold without moving the caret, at a line's end and mid-line.
+1. An arrow key ends the hold mid-line, even where jsdom moves no caret for it.
 2. Mod+B ends it mid-line.
-3. After an arrow step, a soft keyboard types outside the bold.
+3. After a typed closer, every route (a soft keyboard, a paste, an IME) types outside the bold.
 4. Source mode writes the space where the caret is, inside the visible closer, however it's typed.
 
 Miss-analysis: every live typing row typed a letter at a construct's edge, never whitespace, the

@@ -29,8 +29,10 @@ On a fine pointer the editor draws the caret itself: one bar per editor, sitting
 
 - a composition, or a shown inline source;
 - beside an inline widget that no click put the caret beside (an arrow key got there, say), where the range has no box to draw at;
-- anywhere the range's box isn't where the browser paints its caret: the spaces a line soft-wraps in, a caret a scroller inside the block has clipped out of view (a code block scrolled sideways; the bar comes back when it scrolls into view), and a code chip's edge, where each engine paints its caret on its own side of the chip's padding;
+- anywhere the range's box isn't where the browser paints its caret: the spaces a line soft-wraps in, a caret a scroller inside the block has clipped out of view (a code block scrolled sideways; the bar comes back when it scrolls into view), and a code chip's edge where no look says which side of the border the next letter is on;
 - forced colors, a touch screen, or a host that set the `caret` prop to `'native'`. Beside a widget and at a gap, only forced colors do.
+
+At a code chip's edge the bar draws against the chip's own box, since there the range's box and the browser's caret disagree by a few pixels: in the chip's padding when the next letter types inside the chip, 2px past its border when it types outside (`caret/drawn-caret-measure.ts :: chipStopBox`, the `chip` state). Which side comes from the caret's look, so the bar always shows what the next letter does, wherever the browser left the caret.
 
 A click beside a widget hands the drawn caret the edge it meant (`EditorServices.drawnCaret` :: `armWidgetEdge`), keyed by an object the block makes for itself. The editor holds one such edge, and a paint only reads it back through the focused block's own key. Typing, an arrow key or a click elsewhere lets it go.
 

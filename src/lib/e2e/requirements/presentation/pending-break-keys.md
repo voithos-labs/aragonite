@@ -22,8 +22,8 @@ and live mode.
 
 ## Edge cases
 
-- live, `a **bold**`: ArrowRight leaves the block the same way (`znext`); the edge step doesn't
-  take it, since the caret isn't at the closer while the line is open.
+- live, `a **bold**`: ArrowRight leaves the block the same way (`znext`); a mark's edge has no
+  stop to take it, and the caret isn't at the closer while the line is open anyway.
 - live, `a **bold**`: ArrowLeft drops the line and stops at the end of `bold`, where a key types
   inside the bold like after a click: `a **boldz**`.
 - source, an empty paragraph after `first`: ArrowLeft drops the line and stays in the paragraph,

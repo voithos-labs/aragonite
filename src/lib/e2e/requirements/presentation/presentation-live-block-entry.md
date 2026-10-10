@@ -5,9 +5,8 @@ has to land somewhere in the next one. The one entry point for landing asks for
 `CURSOR_END` (the block's raw length) or raw 0, and in live mode both can sit past
 the offsets the caret can actually reach: after a trailing construct's hidden
 closer, or before a leading construct's hidden opener. Nothing on screen tells
-those offsets apart from the content edge, but the rule for where typed bytes go
-reads them as inside the construct, so the first byte after the arrival extends a
-construct the arrival was outside of. The contract: an arrival puts the caret
+those offsets apart from the content edge, and a caret parked between hidden
+delimiter bytes would type where nothing on screen says. The contract: an arrival puts the caret
 where stepping with an arrow could have stopped, and the byte typed there follows
 the same edge rule as every other caret: it takes the format of the character
 before it, or at a line start the one after. Driven on `/test/editor` via
