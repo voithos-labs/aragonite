@@ -433,6 +433,27 @@ const RULES: FileRule[] = [
 		misses: ['let o: ResizeObserver | null = null;', "typeof ResizeObserver !== 'function'"]
 	},
 	{
+		id: 'G4.260 a step before the render pairs with its after step through aroundRender',
+		matches: /\$effect\.pre\s*\(/,
+		allowed: {
+			'src/lib/around-render.svelte.ts':
+				'the pairing itself: each run before the render schedules its own run after it',
+			[SOURCE.listWindowing]:
+				'records the list path before the render, with no step after the render to pair'
+		},
+		reason:
+			'two effects over one value, one before the render and one after, lose the after step when an effect moves the value again inside the flush; pair them with `aroundRender`',
+		hits: [
+			'$effect.pre(() => {\n\tconst mode = effectiveMode;\n});',
+			'$effect.pre (() => hold(getWindow()));'
+		],
+		misses: [
+			'aroundRender(() => effectiveMode, flip.beforeFlip, flip.afterFlip);',
+			'$effect(() => release());',
+			'// $effect.pre(() => {})'
+		]
+	},
+	{
 		id: 'G4.245 a kind’s write rule runs through kindWriteRule',
 		matches: /\.rawWrite\b|\{[^}=]*\brawWrite\b[^}=]*\}\s*=[^=>]/,
 		allowed: {

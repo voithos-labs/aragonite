@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
+import { flushSync } from 'svelte';
+import { aroundRender } from '#lib/around-render.svelte.js';
 import { createModeFlip } from '#lib/components/editor-root/mode-flip.js';
 import { createEditorEvents } from '#lib/editor-events.js';
 import { createDraftRegistry } from '#lib/components/draft-registry.js';
@@ -9,12 +11,22 @@ import type { EditorSelection } from '#lib/selection/primitives.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { caretAt } from '#lib/test/harness/editor-selection.js';
 
+const stops: (() => void)[] = [];
 afterEach(() => {
+	for (const stop of stops.splice(0)) stop();
 	document.body.replaceChildren();
 });
 
 // Miss-analysis: every mode-change test drove a mounted editor, never which mode captured.
-function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | null } = {}) {
+function harness(
+	opts: {
+		mode?: PresentationMode;
+		selection?: EditorSelection | null;
+		/** Runs after each render, before the flip's own after-render steps; a mode it returns
+		 *  becomes the next one. */
+		moveAgain?: (mode: PresentationMode) => PresentationMode | null;
+	} = {}
+) {
 	const root = document.createElement('div');
 	const leaf = document.createElement('button');
 	const header = document.createElement('div');
@@ -24,6 +36,8 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 	document.body.append(root);
 
 	let mode: PresentationMode = opts.mode ?? 'source';
+	// The mode the view renders, which the flip's two halves run around, as in `Editor.svelte`.
+	let rendered = $state.raw(mode);
 	let snapshot = opts.selection ?? null;
 	let held: PresentationMode | null = null;
 	const calls = {
@@ -98,11 +112,19 @@ function harness(opts: { mode?: PresentationMode; selection?: EditorSelection | 
 			}
 		}
 	});
-	/** Both halves in effect order, the mode already moved as the derived would have. */
+	stops.push(
+		$effect.root(() => {
+			$effect(() => {
+				const next = opts.moveAgain?.(rendered);
+				if (next) mode = rendered = next;
+			});
+			aroundRender(() => rendered, flip.beforeFlip, flip.afterFlip);
+		})
+	);
+	flushSync();
 	const flipTo = (to: PresentationMode) => {
-		mode = to;
-		flip.beforeFlip(to);
-		flip.afterFlip(to);
+		mode = rendered = to;
+		flushSync();
 	};
 	const setMode = (next: PresentationMode) => (mode = next);
 	const setSnapshot = (next: EditorSelection | null) => (snapshot = next);
@@ -163,6 +185,15 @@ describe('editor-root mode flip: the two halves', () => {
 		h.flip.beforeFlip('live');
 		expect(document.activeElement).toBe(h.headerField);
 		expect(h.calls.selectionEmits).toBe(0);
+	});
+
+	// Miss-analysis: the halves were only ever called by hand, never run as effects while a later
+	// effect moved the mode again inside the same flush.
+	it('a mode moved again inside the flush still runs the post half for each mode', () => {
+		const h = harness({ moveAgain: (mode) => (mode === 'live' ? 'reading' : null) });
+		h.flipTo('live');
+		expect(h.calls.modeEmits).toEqual(['live', 'reading']);
+		expect(h.calls.menuCloses).toBe(2);
 	});
 
 	// Miss-analysis: the overlays’ rects were never counted among the mode’s geometry.

@@ -25,5 +25,6 @@ that resized with its bytes unchanged was never run (issue #546).
 ## Error cases
 
 - no page errors surface during the load or the click, on every engine
-  - Miss-analysis (#750): the row stayed marked fixme on Firefox after the ResizeObserver loop stopped
-    reproducing, since nothing re-ran a fixme row until the release recheck
+  - Miss-analysis (#750): the Firefox fixme came off on a green Windows run while Linux Firefox
+    still logged the loop, and the table's minimum height, left set from the load, had no unit
+    test that moved the window twice in one render

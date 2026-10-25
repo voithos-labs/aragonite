@@ -79,7 +79,8 @@ export interface ScrollOwner {
 	roundOpen(): boolean;
 	/** Runs `run` after the current flush, with every other list's. */
 	measureSoon(run: () => void): void;
-	/** Watches a child's size with the editor's one observer; the callback only records heights. */
+	/** Watches a child's size with the editor's one observer. The callback runs inside the browser's
+	 *  size report, so a height it records moves the window and the scroll inside that report. */
 	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
 	/** Take the position for a scroll into view now, before the mount's awaits; `scroll()` once
 	 *  the block is mounted. */

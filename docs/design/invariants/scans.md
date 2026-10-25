@@ -211,6 +211,7 @@ unguarded.
 | G4.255 | Every `test.fixme` reason names its issue as `#<n>: `                                            | L       |
 | G4.258 | The fix-up, the chain rebuild and the open tail are imported only by the commit                  | L       |
 | G4.259 | On the fix-up’s path a list of blocks is written only through `spliceList`                       | L       |
+| G4.260 | A step before the render and its step after are paired through `aroundRender`                    | L       |
 
 ### The entries
 
@@ -1379,3 +1380,9 @@ a write change a list of blocks only through `tree-operations/node-primitives.ts
 which calls the list's `beforeWrite` first. A keystroke saves its leaf's list there, so its rollback
 puts back what the fix-up merged; a direct write would survive a rolled-back key.
 `lint/one-list-writer.test.ts`, `keystroke-commit-frame.test.ts`.
+
+**G4.260 · A render step and its partner run as a pair.** A step that runs before the DOM updates
+for a new value, with a partner that runs once it has, goes through
+`around-render.svelte.ts :: aroundRender`. Two effects over one value lose the partner when another
+effect moves the value again inside the flush. A window floor left held that way shrinks its list
+inside a later size report, which the browser reports as a loop. `lint/file-rules.test.ts`.

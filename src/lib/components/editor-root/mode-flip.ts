@@ -51,10 +51,10 @@ export interface ModeFlipDeps {
 }
 
 export interface ModeFlip {
-	/** The `$effect.pre` half, run untracked: capture and blur while the outgoing mode still
+	/** Run before the render (`aroundRender`): capture and blur while the outgoing mode still
 	 *  owns the DOM. */
 	beforeFlip(to: PresentationMode): void;
-	/** The `$effect` half: reset mode-bound geometry, then restore the caret after the flush. */
+	/** Run after the render: reset mode-bound geometry, then restore the caret after the flush. */
 	afterFlip(to: PresentationMode): void;
 }
 

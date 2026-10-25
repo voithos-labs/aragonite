@@ -89,6 +89,7 @@
 	import { createEditorRootKeydown } from './editor-root/keydown';
 	import { createEditorRootClipboard } from './editor-root/clipboard';
 	import { createModeFlip } from './editor-root/mode-flip';
+	import { aroundRender } from '../around-render.svelte';
 	import { createFocusAttribution } from './editor-root/focus';
 	import { createRootGestures } from './editor-root/gestures';
 	import { createRootMenus, type BlockMenuModel } from './editor-root/menus';
@@ -904,13 +905,7 @@
 		},
 		textMoves
 	});
-	$effect.pre(() => {
-		const mode = effectiveMode;
-		untrack(() => modeFlip.beforeFlip(mode));
-	});
-	$effect(() => {
-		modeFlip.afterFlip(effectiveMode);
-	});
+	aroundRender(() => effectiveMode, modeFlip.beforeFlip, modeFlip.afterFlip);
 	rootEffect((root) => readingFocus.install(root));
 
 	// ── Root gestures ───────────────────────────────────────────────────

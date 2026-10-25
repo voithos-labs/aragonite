@@ -82,4 +82,9 @@ describe('insertable plugin kinds', () => {
 		);
 		expect(stale, 'a listed kind that is gone or now has an entry').toEqual([]);
 	});
+
+	it('registers the details entry with the list-collapse icon', () => {
+		const entry = insertCatalogue(everyInstalledPlugin).find((e) => e.id === 'details');
+		expect(entry?.icon).toBe('list-collapse');
+	});
 });

@@ -16,7 +16,7 @@ export function detailsPlugin(): EditorPlugin {
 			registerInsertEntry({
 				id: 'details',
 				label: 'Details',
-				icon: 'chevron-right',
+				icon: 'list-collapse',
 				keywords: ['toggle', 'collapsible', 'disclosure', 'summary', 'expand'],
 				markdown: '<details>\n<summary></summary>\n\n</details>\n'
 			});
