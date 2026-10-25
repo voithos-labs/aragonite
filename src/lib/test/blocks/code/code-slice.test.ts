@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { sliceFencedCode } from '#lib/components/blocks/code/code-renderer.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { fencedCode } from './fenced-code-fixture';
 
 describe('sliceFencedCode', () => {
@@ -68,5 +69,11 @@ describe('sliceFencedCode', () => {
 		expect(result.openerLine).toBe('```\n');
 		expect(result.body).toBe('');
 		expect(result.closerLine).toBe('');
+	});
+
+	it('trims trailing line ending for code block copy', () => {
+		const node = fencedCode('```js\nlet a = 1\n```\n', 'js');
+		const result = sliceFencedCode(node);
+		expect(trimTrailingLineEnding(result.body)).toBe('let a = 1');
 	});
 });
