@@ -1077,9 +1077,9 @@ and compares that with the same run on the commit your branch started from. One 
 What it runs, in four files under `src/lib/test/behavior/`:
 
 - every key (a few printable markers, Enter, Shift+Enter, Backspace, Delete, Tab) at every offset of
-  about thirty small documents, one per block kind, container and inline construct, plus pairs of
-  blocks that touch with no blank line between (the only place a merge of two blocks shows up), in
-  source and live mode
+  about thirty small documents, one per block kind, container and inline construct, in source and
+  live mode, plus pairs of blocks that touch with no blank line between, each block also moved up
+  and down (the only rows where two blocks merge or a moved block meets new neighbours)
 - seeded runs of keys into one document, with the simulation's seeds, then undo everything and redo
   it all (how a typing run groups into undo steps only shows up here)
 - how the CommonMark spec examples parse, and the documents the showcase and changelog pages mount,

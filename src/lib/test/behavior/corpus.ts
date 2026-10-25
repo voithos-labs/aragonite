@@ -111,6 +111,12 @@ export const KEYS: readonly Key[] = [
 	press('Tab')
 ];
 
+/** A moved block meets new neighbours, which keys typed inside a block never give it. */
+export const MOVE_KEYS: readonly Key[] = [
+	press('ArrowUp', { altKey: true }, 'Alt+ArrowUp'),
+	press('ArrowDown', { altKey: true }, 'Alt+ArrowDown')
+];
+
 /** The simulation's own seeds lead, then a fixed run, so the sequences replay byte for byte. */
 export const SEQUENCE_SEEDS: readonly number[] = [...MULTI_SEEDS, ...range(100, 115)];
 export const SEQUENCE_STEPS = 25;
