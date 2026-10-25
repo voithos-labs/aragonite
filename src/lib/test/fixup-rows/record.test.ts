@@ -104,6 +104,14 @@ const atJoin: Offsets = (end, path, paths) => {
 	if (path === paths.filter((p) => p[0] === 0).at(-1)) return [end];
 	return path === paths.find((p) => p[0] === 1) ? [0] : [];
 };
+/** A document's text with every letter an `x`, so its shapes ship and its words (about this
+ *  editor's own code) don't; a lowercase HTML tag keeps its name, which decides how it reads. */
+const neutralText = (text: string): string =>
+	text.replace(
+		/(<\/?[a-z][a-z0-9-]*)|[A-Za-z]/g,
+		(match, tag?: string) => tag ?? (match === match.toUpperCase() ? 'X' : 'x')
+	);
+
 /** A long document's pair past this many bytes repeats shapes the shorter pairs already have. */
 const PAIR_BYTES = 1500;
 /** Generated documents differ mostly in their text, so a few rows of each shape cover them. */
@@ -128,7 +136,8 @@ it('records the fix-up rows', async () => {
 		await movesOver(source);
 	}
 	progress('small documents');
-	for (const pair of LONG_DOCUMENTS.flatMap(blockPairs)) {
+	const neutral = LONG_DOCUMENTS.map((doc) => ({ ...doc, source: neutralText(doc.source) }));
+	for (const pair of neutral.flatMap(blockPairs)) {
 		if (pair.source.length > PAIR_BYTES) continue;
 		await editsOver(pair.source, atJoin);
 		await movesOver(pair.source, false);
