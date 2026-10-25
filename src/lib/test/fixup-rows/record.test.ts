@@ -20,7 +20,8 @@ import {
 	leafAt,
 	leafPaths,
 	opened,
-	reloadDivergence
+	reloadDivergence,
+	type Edit
 } from '../exhaustive/edit-driver';
 import {
 	FLUSH_JOIN_DOCUMENTS,
@@ -246,4 +247,27 @@ it('records the named example rows', async () => {
 		);
 		endEdit(true);
 	}
+	// A re-read the editor's cheap ask skips here does not read back, so the rows pin the outcome.
+	const nested = opened(EMPTIED_NESTED);
+	for (const path of leafPaths(nested.children)) {
+		beginEdit(`empty each block of a nested list: [${path}]`);
+		endEdit((await judge(EMPTIED_NESTED, path, 0, EMPTY)) === null);
+	}
 });
+
+const EMPTIED_NESTED =
+	'- [ ] ```\n      ```\n      - # word\n        \n        \n        > # foo@bar.com\n\n> > | H0 |\n> > | --- |\n';
+
+/** A block's bytes written as its line ending alone. */
+const EMPTY: Edit = {
+	name: 'empty',
+	apply: (blockEdit, index, node) =>
+		blockEdit.updateBlockContent(
+			index,
+			/\r?\n$/.exec(node.raw)?.[0] ?? '',
+			'authored',
+			'join-typing',
+			0,
+			0
+		)
+};
