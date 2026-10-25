@@ -95,6 +95,7 @@ export const MENU_GLYPHS = {
 		'M3 6v4c0 1.1.9 2 2 2h3',
 		'M3 10v6c0 1.1.9 2 2 2h3'
 	],
+	'list-collapse': ['M10 5h11', 'M10 12h11', 'M10 19h11', 'm3 10 3-3-3-3', 'm3 20 3-3-3-3'],
 	'chevron-right': ['m9 18 6-6-6-6'],
 	'chevron-down': ['m6 9 6 6 6-6'],
 	'case-sensitive': [
