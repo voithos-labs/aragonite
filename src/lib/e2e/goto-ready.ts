@@ -84,21 +84,25 @@ async function navigateReady(
 	const loadSteps = watchLoadSteps(page);
 	// The navigation, the mount and the global share one budget: a full ceiling each would sum
 	// past the runner's timeout, and a wait killed by the runner reports none of this.
-	const deadline = Date.now() + READY_TIMEOUT;
+	const started = Date.now();
+	const deadline = started + READY_TIMEOUT;
 	// Playwright reads 0 as "no timeout", so an exhausted budget asks for the smallest wait.
 	const budgetLeft = () => Math.max(1, deadline - Date.now());
 	const diagnose = async (what: string, cause: unknown): Promise<never> => {
+		const elapsed = Date.now() - started;
 		const reported = failures.seen();
+		// The probe first, so a document that loads while it runs is in the list below.
+		const server = await probeAppServer(page);
 		// Playwright's own message is what separates a timeout from a context destroyed by a
 		// reload, which is the other way the global goes missing.
 		throw new Error(
 			[
-				`${url}: ${what} in ${READY_TIMEOUT} ms (${firstLine(cause)}).`,
+				`${url}: ${what} after ${elapsed} of ${READY_TIMEOUT} ms (${firstLine(cause)}).`,
 				'The page reported:',
 				...(reported.length > 0 ? reported : ['nothing captured']),
 				'Its loads and dev-client lines:',
 				...loadSteps.seen(),
-				await probeAppServer(page)
+				server
 			].join('\n')
 		);
 	};
