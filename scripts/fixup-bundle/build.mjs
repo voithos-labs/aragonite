@@ -64,6 +64,37 @@ console.log(
 
 // ── Today's fix-up behind the package's entry points ─────────────────────────
 
+// Today's fix-up parses with its own copy of the parser, so its reads and declaration tests
+// report to the host a check hands in, and the work bound counts them like a package's.
+const WORK_REPORTS = {
+	'core/parser.ts': ['readBlocks'],
+	'schema/block-openers.ts': [
+		'blockReadingNotFinal',
+		'readingNotFinalIn',
+		'readsOnIn',
+		'lineMayFinishReading',
+		'lineMayFinishReadingAbove'
+	]
+};
+const reportWork = {
+	name: 'report-work',
+	setup(builder) {
+		builder.onLoad({ filter: /(core[\\/]parser|schema[\\/]block-openers)\.ts$/ }, (args) => {
+			const key = Object.keys(WORK_REPORTS).find((file) =>
+				args.path.replaceAll('\\', '/').endsWith(file)
+			);
+			let contents = fs.readFileSync(args.path, 'utf8');
+			for (const name of WORK_REPORTS[key]) {
+				contents +=
+					`\n{ const real = ${name}; ${name} = ((...args) => { const out = real(...args);` +
+					` return typeof out === 'function' ? (text) => (globalThis.__fixupWork?.(text), out(text))` +
+					` : (globalThis.__fixupWork?.(String(args[0])), out); }) as typeof real; }\n`;
+			}
+			return { contents, loader: 'ts' };
+		});
+	}
+};
+
 await build({
 	entryPoints: [path.join(lib, 'test', 'fixup-rows', 'today-package.ts')],
 	bundle: true,
@@ -71,9 +102,12 @@ await build({
 	platform: 'neutral',
 	logLevel: 'error',
 	alias: stripped,
+	plugins: [reportWork],
 	outfile: path.join(dirty, 'today.mjs')
 });
 console.log(`today: ${path.join(dirty, 'today.mjs')}`);
+// `--today-only` rebuilds today's fix-up alone, for a mutation probe over a scratch copy.
+if (args.includes('--today-only')) process.exit(0);
 
 // ── The published names, for the contamination lint ──────────────────────────
 
@@ -155,6 +189,7 @@ for (const label of [
 	if (!culprit) throw new Error(`${label}: no row of today's calls is wrong`);
 	mustFix.push(culprit);
 }
+mustFix.push(...(await placedAfterOpenFence()));
 fs.writeFileSync(
 	path.join(bundle, 'data', 'must-fix.jsonl'),
 	mustFix.map((row) => JSON.stringify(shipped(row))).join('\n') + '\n'
@@ -185,4 +220,43 @@ function asMustFix(row) {
 		...row,
 		expect: { bytes: projection.listBytes(state), readsBack: true, today: differs }
 	};
+}
+
+/** Must-fix 7, blocks placed after a fence left open, from the bundle's own edit driver (no
+ *  recorded gesture places them there); each must be one today's fix-up gets wrong. */
+async function placedAfterOpenFence() {
+	const { inserted } = await import(
+		pathToFileURL(path.join(bundle, 'checks', 'support', 'edits.ts')).href
+	);
+	const today = await import(pathToFileURL(path.join(dirty, 'today.mjs')).href);
+	const candidates = [
+		['a paragraph placed after a fence left open', '```\nx\n', 'y\n'],
+		['a quote placed after a fence left open', '```\nx\n', '> q\n'],
+		['two lines placed after a fence left open, CRLF', '```\r\nx\r\n', 'y\r\nz\r\n']
+	];
+	return candidates.map(([name, source, text]) => {
+		const made = inserted(host, source, 1, text);
+		const state = projection.applyResult(made.list, today.fixUpList(made.list, made.edit, host));
+		if (!projection.listDifference(state, projection.reloadOf(state, host), undefined, host)) {
+			throw new Error(`must-fix 7, ${name}: today gets it right`);
+		}
+		const pool = [];
+		const ref = new Map();
+		const at = (node) => {
+			if (!ref.has(node)) ref.set(node, pool.push(node) - 1);
+			return ref.get(node);
+		};
+		const children = made.list.children.map(at);
+		const before = made.edit.before.map(at);
+		return {
+			name: `must-fix 7: ${name}`,
+			entry: 'fixUpList',
+			pool,
+			args: {
+				list: { children, suffix: made.list.suffix, lineEnding: made.list.lineEnding },
+				edit: { before, span: made.edit.span }
+			},
+			expect: { bytes: projection.listBytes(state), readsBack: true }
+		};
+	});
 }

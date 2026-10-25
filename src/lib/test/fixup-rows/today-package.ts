@@ -214,12 +214,34 @@ function result(
 
 // ── Entry points ─────────────────────────────────────────────────────────────
 
+/** The host a check hands in, as far as today's work reports reach it. */
+interface WorkHost {
+	readingsThatMayChange?: () => readonly { mayClose(line: string): boolean }[];
+}
+
+/** Runs `call` with today's reads reported to `host` as tests of one declaration, so a check
+ *  that counts what a package asks of its host counts today's own reads too. */
+function reportingTo<T>(host: unknown, call: () => T): T {
+	const probe = (host as WorkHost | undefined)?.readingsThatMayChange?.()[0];
+	const work = globalThis as { __fixupWork?: (text: string) => void };
+	work.__fixupWork = probe ? (text) => void probe.mayClose(text) : undefined;
+	try {
+		return call();
+	} finally {
+		work.__fixupWork = undefined;
+	}
+}
+
 export function fixUpList(
 	list: BlockList,
 	edit: ListEdit,
-	_host: unknown,
+	host: unknown,
 	caret?: Caret
 ): ListResult {
+	return reportingTo(host, () => fixUpListToday(list, edit, caret));
+}
+
+function fixUpListToday(list: BlockList, edit: ListEdit, caret?: Caret): ListResult {
 	const copy = copier();
 	const body = bodyOf(list, copy);
 	const copies = [...body.children];
@@ -274,9 +296,13 @@ export function mergeJoins(
 	list: BlockList,
 	at: number,
 	added: number,
-	_host: unknown,
+	host: unknown,
 	caret?: Caret
 ): ListResult {
+	return reportingTo(host, () => mergeJoinsToday(list, at, added, caret));
+}
+
+function mergeJoinsToday(list: BlockList, at: number, added: number, caret?: Caret): ListResult {
 	const copy = copier();
 	const body = bodyOf(list, copy);
 	const copies = [...body.children];
