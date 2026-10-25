@@ -60,6 +60,28 @@ export const SMALL_DOCUMENTS: Readonly<Record<string, string>> = {
 	footnote: 'a[^1]\n\n[^1]: b\n'
 };
 
+/** Blocks touching with no blank line between, both orders where both read as two blocks: the
+ *  long documents keep a blank line between blocks, so no row of theirs reaches a merge rule. */
+export const FLUSH_JOIN_DOCUMENTS: Readonly<Record<string, string>> = {
+	'flush paragraph-heading': 'a\n# h\n',
+	'flush paragraph-list': 'a\n- b\n',
+	'flush heading-list': '# h\n- a\n',
+	'flush paragraph-quote': 'a\n> b\n',
+	'flush heading-quote': '# h\n> q\n',
+	'flush quote-heading': '> q\n# h\n',
+	'flush list-quote': '- a\n> q\n',
+	'flush quote-list': '> q\n- a\n',
+	'flush paragraph-fence': 'a\n```\nx\n```\n',
+	'flush fence-paragraph': '```\nx\n```\nb\n',
+	'flush list-fence': '- a\n```\nx\n```\n',
+	'flush heading-table': '# h\n| A |\n| - |\n',
+	'flush table-heading': '| A |\n| - |\n# h\n',
+	'flush prose-heading-prose': 'a\n# h\nb\n',
+	'flush quote-heading-prose': '> q\n# h\np\n',
+	'flush prose-heading-rule': 'a\n# h\n---\n',
+	'flush prose-heading-table': 'x\n# h\n| A | B |\n| - | - |\n'
+};
+
 export interface Key {
 	/** The key's name in a row. */
 	name: string;

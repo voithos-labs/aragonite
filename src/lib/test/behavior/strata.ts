@@ -9,6 +9,7 @@ import { getContentRange, parseInline } from '#lib/core/inline/index.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { loadDefinitionExamples, loadSpecExamples } from '../gfm-conformance/corpus';
 import {
+	FLUSH_JOIN_DOCUMENTS,
 	KEYS,
 	SEQUENCE_SEEDS,
 	SEQUENCE_STEPS,
@@ -21,10 +22,11 @@ import {
 import { keyRows, sequenceRows, sitesOf } from './key-driver';
 import { textField, type Row } from './rows';
 
-/** Every key at every offset of every site of the small documents. */
+/** Every key at every offset of every site of the small documents and the flush joins. */
 export async function keystrokeRows(mode: PresentationMode): Promise<Row[]> {
 	const rows: Row[] = [];
-	for (const [id, source] of Object.entries(SMALL_DOCUMENTS)) {
+	const documents = { ...SMALL_DOCUMENTS, ...FLUSH_JOIN_DOCUMENTS };
+	for (const [id, source] of Object.entries(documents)) {
 		for (const site of await sitesOf(source, mode)) {
 			for (let offset = 0; offset <= site.end; offset++) {
 				rows.push(...(await keyRows(`keys ${mode} ${id}`, source, mode, site, offset)));
