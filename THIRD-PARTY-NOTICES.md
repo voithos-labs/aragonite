@@ -73,7 +73,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 ## gemoji (MIT)
 
-`src/lib/plugins/emoji/emoji-table.ts` is generated from gemoji's `db/emoji.json` (<https://github.com/github/gemoji>), pinned to commit `0eca75db9301421efc8710baf7a7576793ae452a` by `scripts/generate-emoji-table.mjs`.
+`src/lib/plugins/emoji/emoji-table.ts` is generated from gemoji's `db/emoji.json` (<https://github.com/github/gemoji>), pinned to commit `0eca75db9301421efc8710baf7a7576793ae452a` by `scripts/vendor/generate-emoji-table.mjs`.
 
 ```
 The MIT License (MIT)

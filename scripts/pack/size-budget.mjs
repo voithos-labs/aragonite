@@ -1,13 +1,13 @@
-// The size budgets: each gated number's blessed baseline and how far it may move either way, in
-// `measure-baseline.json`. A number past its tolerance fails, grown or shrunk; blessing records
-// the new value on purpose, so a shrink is locked in and a growth is a decision.
+// The first-load size budget: each minimal-app number's blessed baseline and how far it may move
+// either way, in `size-budget.json`. A number past its tolerance fails, grown or shrunk; blessing
+// records the new value on purpose, so a shrink is locked in and a growth is a decision.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const BASELINE_FILE = path.join(
 	path.dirname(fileURLToPath(import.meta.url)),
-	'measure-baseline.json'
+	'size-budget.json'
 );
 
 /** @typedef {{ baseline: number, tolerance: number, unit: string }} BudgetRow */

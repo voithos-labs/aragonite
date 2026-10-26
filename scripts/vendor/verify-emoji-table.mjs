@@ -34,7 +34,7 @@ function reportDrift(generated, committed) {
 			`    committed: ${show(committedLines[at ?? 0])}\n` +
 			`    generated: ${show(generatedLines[at ?? 0])}\n` +
 			`  line counts: committed ${committedLines.length}, generated ${generatedLines.length}\n` +
-			`  regenerate with: node scripts/generate-emoji-table.mjs`
+			`  regenerate with: node scripts/vendor/generate-emoji-table.mjs`
 	);
 }
 

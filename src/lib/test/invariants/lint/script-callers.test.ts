@@ -94,7 +94,7 @@ const CALLERS = callerFiles();
 const HAND_RUN: Record<string, string> = {
 	'scripts/issues/audit-issues.mjs': 'a maintainer runs it before a release; rules.md names it',
 	'scripts/ci/ci-time.mjs': 'a report of the last dev push, run by hand; testing.md names it',
-	'scripts/extract-spec-examples.mjs': 'regenerates the CommonMark examples on a spec bump',
+	'scripts/vendor/extract-spec-examples.mjs': 'regenerates the CommonMark examples on a spec bump',
 	'scripts/ci/refresh-shard-timings.mjs': 'release prep rewrites the shard table; its test says so',
 	'scripts/docs/render-perf-chart.mjs': 'redraws the README charts after a perf re-bless',
 	'scripts/release/apply-branch-protection.mjs': 'an admin runs it; a test only reads its text'
@@ -113,7 +113,7 @@ const RULE: FileRule = {
 	hits: [{ relPath: 'scripts/new.mjs', code: 'export const x = 1;\n' }],
 	misses: [
 		{ relPath: 'scripts/lib-alias.mjs', code: '' },
-		{ relPath: 'scripts/measure/measure-baseline.json', code: '{}' }
+		{ relPath: 'scripts/pack/size-budget.json', code: '{}' }
 	]
 };
 

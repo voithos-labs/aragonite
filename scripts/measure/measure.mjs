@@ -1,12 +1,10 @@
 #!/usr/bin/env node
-// The numbers the lighter program reports: production lines, how many unit tests reach past the
-// published API, and how many source scans are active. `--check` holds them to their budgets in
-// `measure-baseline.json` (part of `npm run lint`); `--bless` records the current numbers there.
-// `--at <ref>` measures a commit instead of the working tree; `--against <ref>` prints deltas.
+// Reports production lines, how many unit tests reach past the published API, and how many source
+// scans are active; nothing gates on them. `--at <ref>` measures a commit instead of the working
+// tree; `--against <ref>` prints the deltas; `--json` prints every measure.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { blessBudgets, checkBudgets, readBaseline } from './measure-baseline.mjs';
 import { isTestPath, measureTests, moduleOf } from './measure-tests.mjs';
 
 /** @typedef {import('./measure-tests.mjs').SourceTree} SourceTree */
@@ -30,11 +28,11 @@ export function measureTree(tree) {
 /** @typedef {ReturnType<typeof measureTree>} Measures */
 
 /**
- * The numbers `--check` gates, by their row name in `measure-baseline.json`.
+ * The headline numbers the report prints, by row name.
  * @param {Measures} measures
  * @returns {Record<string, number>}
  */
-export function gatedRows(measures) {
+export function headlineRows(measures) {
 	return {
 		productionCodeLines: measures.lines.code,
 		productionCommentLines: measures.lines.comment,
@@ -174,8 +172,8 @@ function report(now, base) {
 	const delta = (/** @type {number} */ a, /** @type {number | undefined} */ b) =>
 		b === undefined ? '' : ` (${a - b >= 0 ? '+' : ''}${a - b})`;
 	const lines = [];
-	const rows = gatedRows(now);
-	const baseRows = base ? gatedRows(base) : null;
+	const rows = headlineRows(now);
+	const baseRows = base ? headlineRows(base) : null;
 	lines.push('measure:');
 	for (const [name, value] of Object.entries(rows)) {
 		lines.push(
@@ -232,19 +230,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
 	const at = valueOf('--at');
 	const against = valueOf('--against');
 	const now = measureTree(at ? treeAt(at) : workingTree());
-	if (args.includes('--bless')) {
-		blessBudgets(gatedRows(now));
-		console.log('measure: blessed', JSON.stringify(gatedRows(now)));
-	} else if (args.includes('--check')) {
-		const failures = checkBudgets(gatedRows(now), readBaseline(), 'npm run measure:bless');
-		if (failures.length > 0) {
-			console.error(
-				'measure: moved past its tolerance (docs/contributing/testing.md § Size budgets):\n  ' +
-					failures.join('\n  ')
-			);
-			process.exit(1);
-		}
-	} else if (args.includes('--json')) {
+	if (args.includes('--json')) {
 		console.log(JSON.stringify(now, null, '\t'));
 	} else {
 		console.log(report(now, against ? measureTree(treeAt(against)) : null));

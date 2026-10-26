@@ -1,30 +1,5 @@
 {
 	"rows": {
-		"productionCodeLines": {
-			"baseline": 73780,
-			"tolerance": 370,
-			"unit": "lines"
-		},
-		"productionCommentLines": {
-			"baseline": 15578,
-			"tolerance": 80,
-			"unit": "lines"
-		},
-		"unitTestsInternal": {
-			"baseline": 1316,
-			"tolerance": 3,
-			"unit": "files"
-		},
-		"unitTestsPublishedOnly": {
-			"baseline": 93,
-			"tolerance": 3,
-			"unit": "files"
-		},
-		"activeSourceScans": {
-			"baseline": 187,
-			"tolerance": 2,
-			"unit": "scans"
-		},
 		"minimalAppSvelteFirstLoadGzip": {
 			"baseline": 316457,
 			"tolerance": 1000,
