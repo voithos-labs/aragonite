@@ -360,9 +360,8 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 					if (el && placement === mine) recordLanding(mine, el);
 					await settle(token, p);
 					const landed = !token.superseded && landedInView(p);
-					// `'center'` places without holding, as `rects.scrollTo` promises, and a target that
-					// didn't land has no position to keep.
-					if ((!hold || block === 'center' || !landed) && placement === mine) drop();
+					// A target that didn't land has no position to keep.
+					if ((!hold || !landed) && placement === mine) drop();
 					return landed;
 				}
 			};

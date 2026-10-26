@@ -216,6 +216,7 @@ unguarded.
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
 | G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
 | G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
+| G4.271 | A windowed list hands each child the index and id from its own slice entry                       | L       |
 
 ### The entries
 
@@ -1417,3 +1418,8 @@ every request a test's pages make to another host and fails the spec at teardown
 so the suites run without a network. A spec's own route for a made-up host runs before the block.
 `route.continue()` would send a request straight past it, so a route passes requests on with
 `route.fallback()`. `e2e/lint/e2e-drivers.test.ts`.
+
+**G4.271 · A windowed list indexes its children from its slice entries.** A list renders `windowSlicer`'s
+entries and passes each child `entry.index` and `entry.id`. An index added up from the live window start
+runs ahead of the loop's own index as soon as a height write moves the window, so a size report read
+before the next render lands on the wrong block. `lint/window-slice-entries.test.ts`.

@@ -14,7 +14,7 @@
 	import { isProseKind } from '../core/inline';
 	import { gapEligibleAmong } from '../selection/gap-caret';
 	import { pathsEqual } from '../selection/path-math';
-	import { sliceWindow } from '../windowing/window-slice';
+	import { windowSlicer } from '../windowing/window-slice';
 	import { useWindowFloor } from '../windowing/use-window-floor.svelte';
 	import BlockHost from './BlockHost.svelte';
 	import GapCaret from './GapCaret.svelte';
@@ -40,10 +40,10 @@
 	} = $props();
 
 	let active = $derived(win?.active ?? false);
-	let bounds = $derived(sliceWindow(children.length, win));
-	let start = $derived(bounds.start);
-	let end = $derived(bounds.end);
-	let slice = $derived(children.slice(start, end));
+	const sliceWindow = windowSlicer<NodeView>();
+	let slice = $derived(sliceWindow(children, blockIds, win));
+	let start = $derived(slice.start);
+	let end = $derived(slice.end);
 
 	let listEl: HTMLElement | undefined = $state();
 	useWindowFloor(
@@ -81,18 +81,16 @@
 	{#if active}
 		<div class="vr-spacer" style="height: {win!.topSpacerPx}px"></div>
 	{/if}
-	{#each slice as node, localIndex (blockIds[start + localIndex])}
-		{@const absoluteIndex = start + localIndex}
-		<!-- Paths and structural edits key off the absolute index, never the loop index. -->
-		{#if gapIndex === absoluteIndex}
-			<GapCaret index={absoluteIndex} {focusActions} {blockEdit} />
+	{#each slice.entries as entry (entry.id)}
+		{#if gapIndex === entry.index}
+			<GapCaret index={entry.index} {focusActions} {blockEdit} />
 		{/if}
 		<BlockHost
-			{node}
-			index={absoluteIndex}
-			id={blockIds[absoluteIndex]}
+			node={entry.node}
+			index={entry.index}
+			id={entry.id}
 			{parentPath}
-			ambientPrefix={absoluteIndex === 0 ? ambientFor(node) : ''}
+			ambientPrefix={entry.index === 0 ? ambientFor(entry.node) : ''}
 			{slots}
 			{reorderable}
 		/>
