@@ -15,9 +15,13 @@ import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { isUnmountedBlockListState } from '../../block-lists/state-registry';
 import { documentBody, nodeAt } from '../../tree-operations/node-primitives';
-import { settleEdit, type EditKind, type SettledEdit } from '../../tree-operations/settle';
-import { keepOpenTail } from '../../tree-operations/open-tail';
-import { keepOneBlock } from '../../tree-operations/keep-one-block';
+import {
+	keepOneBlock,
+	keepOpenTail,
+	settleEdit,
+	type EditKind,
+	type SettledEdit
+} from '../../tree-operations/fix-up/apply';
 import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations/unshare';
 import type { SharingState } from '../../tree-operations/sharing';
 import {

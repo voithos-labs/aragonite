@@ -19,7 +19,7 @@ import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
 import type { CommitScope, ScopeCommitArgs } from '#lib/editor-actions/block-edit-scope.js';
 import { asDocPath } from '#lib/selection/path-math.js';
-import { settleEdit, type EditKind, type SettledEdit } from '#lib/tree-operations/settle.js';
+import { settleEdit, type EditKind, type SettledEdit } from '#lib/tree-operations/fix-up/apply.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import type { ContainerBlockComponentDeps } from '#lib/editor-actions/container-block-component.js';
 import { refSlotsOver } from '#lib/block-lists/child-refs.js';

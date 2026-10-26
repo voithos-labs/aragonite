@@ -50,8 +50,12 @@ import {
 	spliceList
 } from './node-primitives';
 import { ensureEditableContainers } from '../schema/opened-reading';
-import { settleContentWrite, type SettledContent, type WrittenSlot } from './settle';
-import { focusTargetInReplacement } from './neighbour-merge';
+import {
+	caretInBlocks,
+	settleContentWrite,
+	type SettledContent,
+	type WrittenSlot
+} from './fix-up/apply';
 
 export type { SettledContent, WrittenSlot };
 
@@ -435,6 +439,6 @@ export function settledCaretPosition(
 	const shifted = offset + textStart;
 	if (change.newCount <= 1) return { index: change.at, offset: shifted };
 	const blocks = children.slice(change.at, change.at + change.newCount);
-	const target = focusTargetInReplacement(blocks, shifted);
+	const target = caretInBlocks(blocks, shifted);
 	return { index: change.at + target.index, offset: target.offset };
 }

@@ -22,8 +22,7 @@ import {
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { documentBody, type BodyParent } from '../../tree-operations/node-primitives';
 import { rawOffsetOfLeaf } from '../../tree-operations/container-offsets';
-import { keepOpenTail } from '../../tree-operations/open-tail';
-import { keepOneBlock } from '../../tree-operations/keep-one-block';
+import { keepOneBlock, keepOpenTail } from '../../tree-operations/fix-up/apply';
 import { spliceMany } from '../../tree-operations/splice-many';
 import {
 	rebuildUnsharedChain,

@@ -11,7 +11,7 @@ import type { ContainerScope } from '../../action-contracts';
 import type { BodyParent } from '../../tree-operations/node-primitives';
 import type { SharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
-import { spliceChildrenSettled } from '../../tree-operations/settle';
+import { spliceChildrenSettled } from '../../tree-operations/fix-up/apply';
 import { updateNodeContent } from '../../tree-operations/content-write';
 import { recordChildIdsChange } from '../../tree-operations/structural-change';
 import {

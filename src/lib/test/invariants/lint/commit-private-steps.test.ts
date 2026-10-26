@@ -9,15 +9,13 @@ import { describe, it, expect } from 'vitest';
 import { collectEditorSources, importSpecifiers, resolveSpecifier } from './scan-source';
 
 const PRIVATE = [
-	'src/lib/tree-operations/settle.ts',
-	'src/lib/tree-operations/neighbour-merge.ts',
-	'src/lib/tree-operations/blank-runs.ts',
-	'src/lib/tree-operations/unfinished-readings.ts',
+	'src/lib/tree-operations/fix-up/apply.ts',
 	'src/lib/tree-operations/chain-rebuild.ts',
-	'src/lib/tree-operations/open-tail.ts',
-	'src/lib/tree-operations/keep-one-block.ts',
 	'src/lib/editor-actions/ancestry-folds.ts'
 ];
+/** The fix-up's own files, which only its writer (`fix-up/apply.ts`) imports. */
+const FIX_UP = 'src/lib/tree-operations/fix-up/';
+const isPrivate = (path: string): boolean => PRIVATE.includes(path) || path.startsWith(FIX_UP);
 
 const COMMIT_HOMES = ['src/lib/editor-actions/commit/', 'src/lib/invariants/'];
 
@@ -25,13 +23,13 @@ const COMMIT_HOMES = ['src/lib/editor-actions/commit/', 'src/lib/invariants/'];
  *  to land before the import can go. */
 const OUTSIDE: Record<string, { imports: string[]; why: string; until: string }> = {
 	'src/lib/tree-operations/content-write.ts': {
-		imports: ['src/lib/tree-operations/settle.ts', 'src/lib/tree-operations/neighbour-merge.ts'],
+		imports: ['src/lib/tree-operations/fix-up/apply.ts'],
 		why: 'the content write runs its own slot’s fix-up inside the task-marker reconcile, and only the commit names that entry, `updateNodeContent` (G4.75)',
 		until:
 			'the keystroke drops its trial write and a paste writes its residue through the commit scope, so `updateNodeContent` moves into the commit'
 	},
 	'src/lib/tree-operations/node-ops.ts': {
-		imports: ['src/lib/tree-operations/neighbour-merge.ts'],
+		imports: ['src/lib/tree-operations/fix-up/apply.ts'],
 		why: 'a split re-reads its second half’s seam where the caret cut it, a position only the split knows',
 		until:
 			'the commit’s fix-up can follow the seam into the new list item a split moves its second half to'
@@ -42,7 +40,10 @@ const OUTSIDE: Record<string, { imports: string[]; why: string; until: string }>
 		until: 'replace-all writes each matched leaf through one commit’s `writeLeaf`'
 	},
 	'src/lib/testing/container-conformance.ts': {
-		imports: ['src/lib/tree-operations/chain-rebuild.ts', 'src/lib/tree-operations/open-tail.ts'],
+		imports: [
+			'src/lib/tree-operations/chain-rebuild.ts',
+			'src/lib/tree-operations/fix-up/apply.ts'
+		],
 		why: 'the published kit checks a plugin’s `rebuildRaw` alone, driving the rebuild and the last-line walk outside any commit',
 		until: 'never: the kit tests a plugin’s rebuild with no editor around it'
 	}
@@ -55,12 +56,12 @@ const RULE =
 function privateImports(): string[] {
 	const found: string[] = [];
 	for (const file of collectEditorSources()) {
-		if (PRIVATE.includes(file.relPath)) continue;
+		if (isPrivate(file.relPath)) continue;
 		if (COMMIT_HOMES.some((home) => file.relPath.startsWith(home))) continue;
 		for (const { specifier, typeOnly } of importSpecifiers(file.code)) {
 			if (typeOnly) continue;
 			const target = resolveSpecifier(file.relPath, specifier);
-			if (target && PRIVATE.includes(target)) found.push(`${file.relPath} -> ${target}`);
+			if (target && isPrivate(target)) found.push(`${file.relPath} -> ${target}`);
 		}
 	}
 	return [...new Set(found)];
@@ -86,7 +87,7 @@ describe('G4.258 the commit’s own steps are imported only by the commit', () =
 	// A step nothing in the commit reaches, even through another step, is dead or misfiled.
 	const reached = new Set(
 		collectEditorSources()
-			.filter((file) => file.relPath.startsWith(COMMIT_HOMES[0]) || PRIVATE.includes(file.relPath))
+			.filter((file) => file.relPath.startsWith(COMMIT_HOMES[0]) || isPrivate(file.relPath))
 			.flatMap((file) =>
 				importSpecifiers(file.code).map((s) => resolveSpecifier(file.relPath, s.specifier))
 			)

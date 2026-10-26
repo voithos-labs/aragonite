@@ -303,6 +303,8 @@ const PLAIN_READS: Record<string, string> = {
 		'installs after backfill: re-reads a body-rule container’s escaped child; no list item declares a body rule',
 	'src/lib/tree-operations/paste/dispatch.ts':
 		'hands on: reads the clipboard’s own blocks to pick the paste strategy, which a childless container steers; the routes that land them fill in at the splice',
+	'src/lib/tree-operations/fix-up/editor-host.ts':
+		'installs after backfill: the list fix-up reads a body’s blocks at their slot, and its writer gives each block it installs a paragraph to type in (`fix-up/apply.ts :: adopt`)',
 	'src/lib/tree-operations/blank-runs.ts':
 		'probe: asks whether a leaf’s own reading leaves its trailing blank line out, and installs nothing',
 	'src/lib/tree-operations/neighbour-merge.ts':

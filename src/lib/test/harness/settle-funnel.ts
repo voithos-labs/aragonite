@@ -20,19 +20,20 @@ import {
 	type ScopeWriter
 } from '#lib/editor-actions/commit/scope-writes.js';
 import {
+	endsOpen,
+	keepOpenTail,
 	settleEdit,
 	type BodyEdit,
 	type EditKind,
-	type SettledEdit
-} from '#lib/tree-operations/settle.js';
+	type SettledEdit,
+	type TrackedPosition
+} from '#lib/tree-operations/fix-up/apply.js';
 import {
 	mergeIntoPrevDeepLeaf,
 	type JoinLanding,
 	type MergeIntoPrevResult
 } from '#lib/tree-operations/node-ops.js';
 import { reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
-import { endsOpen, keepOpenTail } from '#lib/tree-operations/open-tail.js';
-import type { TrackedPosition } from '#lib/tree-operations/neighbour-merge.js';
 import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import type { Reading } from '#lib/schema/reading.js';

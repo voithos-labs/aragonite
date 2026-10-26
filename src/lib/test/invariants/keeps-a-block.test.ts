@@ -47,18 +47,19 @@ describe('G1.44 checkKeepsABlock', () => {
 
 describe('G1.44 at the commit', () => {
 	it('a container commit that empties its quote reports it', async () => {
-		const h = makeTopHarness('> a\n\nb\n');
-		const quote = h.deps.doc.children[0];
+		// The quote stands last: a block below would read the emptied `>` line as a quote again.
+		const h = makeTopHarness('b\n\n> a\n');
+		const quote = h.deps.doc.children[1];
 		await h.controller.commitContainerStructural({
 			containerNode: quote,
-			path: [0],
-			state: makeBlockListState(() => h.deps.doc.children[0]),
-			snapshot: { path: asDocPath([0, 0]), offset: 0 },
+			path: [1],
+			state: makeBlockListState(() => h.deps.doc.children[1]),
+			snapshot: { path: asDocPath([1, 0]), offset: 0 },
 			mutate: (scope) => {
 				scope.children.splice(0, 1);
 				return { op: 'delete', at: 0, count: 1 };
 			},
-			op: { kind: 'delete', eventPath: asDocPath([0, 0]) }
+			op: { kind: 'delete', eventPath: asDocPath([1, 0]) }
 		});
 		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:keeps-a-block');
 	});

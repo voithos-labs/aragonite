@@ -176,7 +176,7 @@ export function lineMayFinishReadingAbove(lineText: string, grammar: GrammarView
 // Kept against the grammar's opener list, which a walk up a long body reads once per block.
 const readingsByOpeners = new WeakMap<readonly BlockOpener[], UnfinishedReading[]>();
 
-function unfinishedReadings(grammar: GrammarView): readonly UnfinishedReading[] {
+export function unfinishedReadings(grammar: GrammarView): readonly UnfinishedReading[] {
 	const openers = grammar.orderedOpeners();
 	let readings = readingsByOpeners.get(openers);
 	if (!readings) {

@@ -7,7 +7,7 @@
 import { CURSOR_START } from '../block-component';
 import { movedBlockToPosition } from '../a11y-strings';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
-import type { SettledEdit } from '../tree-operations/settle';
+import type { SettledEdit } from '../tree-operations/fix-up/apply';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, documentBody, nodeAt } from '../tree-operations/node-primitives';
 import { orderedBaseOf, renumberOrderedListFrom } from '../tree-operations/list/ordered-markers';

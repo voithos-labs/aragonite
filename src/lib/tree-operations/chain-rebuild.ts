@@ -17,7 +17,7 @@ import { firstLine, followBytes, lastLine } from '../schema/container-raw';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
-import { absorbWindowSeams, type TrackedPosition } from './neighbour-merge';
+import { mergeJoinsAt, type TrackedPosition } from './fix-up/apply';
 import { installReading } from './content-write';
 import { settleSublistSeparator } from './list/sublist-separator';
 
@@ -270,26 +270,23 @@ function settleSlotSeams(
 	// O(children) reactive reads on every keystroke inside a large container.
 	let before: CstNode[] | null = null;
 	const landing: TrackedPosition = { index, offset: 0 };
-	const settled = absorbWindowSeams(
+	const change = mergeJoinsAt(
 		body,
 		openerMoved ? index : index + 1,
 		openerMoved && closerMoved ? 1 : 0,
-		index,
-		{ op: 'noop' },
 		grammar,
 		sharing,
 		landing,
-		index,
 		() => {
 			before ??= siblings.slice();
 		}
 	);
-	if (settled.change.op === 'noop') return;
+	if (change.op === 'noop') return;
 	folds.push({
 		depth: slot.depth,
 		siblings,
 		owner: slot.owner,
-		change: settled.change,
+		change,
 		// A non-noop change means a splice ran, so the capture ran first.
 		before: before!,
 		landing

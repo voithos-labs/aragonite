@@ -8,7 +8,7 @@ import { CURSOR_END } from '../../block-component';
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { trimTrailingLineEnding } from '../../core/lines';
-import type { TrackedPosition } from '../neighbour-merge';
+import type { TrackedPosition } from '../fix-up/apply';
 import { leafAtRawOffset, type LeafPosition } from '../container-offsets';
 
 /**

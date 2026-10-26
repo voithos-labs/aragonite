@@ -7,7 +7,7 @@
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import { keepOpenTail } from '../tree-operations/open-tail';
+import { keepOpenTail } from '../tree-operations/fix-up/apply';
 import {
 	documentLineEnding,
 	ownTrailingLineEnding,

@@ -38,7 +38,7 @@ import {
 	type StructuralChange
 } from '../tree-operations/structural-change';
 import { spliceMany } from '../tree-operations/splice-many';
-import type { TrackedPosition } from '../tree-operations/neighbour-merge';
+import type { TrackedPosition } from '../tree-operations/fix-up/apply';
 import type { TaskStartLanding } from '../tree-operations/list/reconcile-task';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
