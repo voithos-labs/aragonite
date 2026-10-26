@@ -1,20 +1,23 @@
 /**
  * G4.270: what the browser holds for editing is read and written only under `browser/` (the
  * selection, `Selection.modify`, the caret at a point), so an engine quirk in any of them is
- * fixed in one module (`docs/design/editor.md` § Browser engines). Inside it, only the caret
- * writer writes the selection.
+ * fixed in one module (`docs/design/editor.md` § Browser engines). Inside it, the selection is
+ * read only in `selection-read.ts` and the caret writer, written only by the writer, and the
+ * point asked only in `point.ts`.
  */
 
-import { describeFileRules, notUnder, under, type FileRule, type Probe } from './file-rule';
+import { describeFileRules, except, notUnder, under, type FileRule, type Probe } from './file-rule';
 import { collectEditorSources, type SourceFile } from './scan-source';
 import { NATIVE_SELECTION_WRITE } from './native-selection-write';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const RECEIVER = String.raw`\b(?:window|document|globalThis|self|defaultView|ownerDocument)\s*[?!]?`;
-// A call, a bare reference (`.bind`, a stored method), a bracket key, or a destructure off a global.
+// A call, a bare reference (`.bind`, a stored method), a bracket key, or a destructure off a global,
+// or the method taken off its prototype.
 const NATIVE_SELECTION_READ = new RegExp(
 	[
 		String.raw`${RECEIVER}\.\s*getSelection\b`,
+		String.raw`\b(?:Window|Document)\s*\.\s*prototype\s*\.\s*getSelection\b`,
 		String.raw`${RECEIVER}(?:\?\.)?\s*\[\s*['"\x60]getSelection['"\x60]\s*\]`,
 		String.raw`\{[^{}]*\bgetSelection\b[^{}]*\}\s*=\s*${RECEIVER}`
 	].join('|')
@@ -24,19 +27,22 @@ const at = (relPath: string, code: string): Probe => ({ relPath, code });
 const inLibrary = (code: string): Probe => at(`${SOURCE_DIR.library}probe.ts`, code);
 const inBrowser = (code: string): Probe => at(`${SOURCE_DIR.browser}probe.ts`, code);
 
-const outsideBrowser = (file: SourceFile): boolean =>
-	under(SOURCE_DIR.library)(file) && notUnder(SOURCE_DIR.browser)(file);
+// The input recorder in debug/ reads what it records, and ships in no editor path; the writer
+// reads the live selection it writes.
+const bindsSelectionRead = (file: SourceFile): boolean =>
+	under(SOURCE_DIR.library)(file) &&
+	notUnder(SOURCE_DIR.debug)(file) &&
+	except(SOURCE.selectionRead, SOURCE.caretWriter)(file);
 
 const RULES: FileRule[] = [
 	{
-		id: 'G4.270 the browser selection is read only under browser/',
-		// The input recorder in debug/ reads what it records, and ships in no editor path.
-		population: (file) => outsideBrowser(file) && notUnder(SOURCE_DIR.debug)(file),
+		id: 'G4.270 the browser selection is read only by its readers in browser/',
+		population: bindsSelectionRead,
 		matches: NATIVE_SELECTION_READ,
-		reaches: [SOURCE.nativeBridge, SOURCE.commands],
+		reaches: [SOURCE.nativeBridge, SOURCE.commands, SOURCE.pointLookup],
 		mustMatch: [SOURCE.selectionRead],
 		reason:
-			'engines differ in what the selection reports (a caret inside a widget, an anchor inside a CRLF pair), so the editor reads it in one place: call a reader in browser/selection-read.ts (`readNativeSelection`, `rawSelectionIn`, `rawSelectionFocus`, `nativeRangeIn`, `holdsNativeRange`), or take one as a parameter where your directory cannot import browser/',
+			'engines differ in what the selection reports (a caret inside a widget, an anchor inside a CRLF pair), so the editor reads it in one place, browser/ included: call a reader in browser/selection-read.ts (`readNativeSelection`, `rawSelectionIn`, `rawSelectionFocus`, `nativeRangeIn`, `holdsNativeRange`), or take one as a parameter where your directory cannot import browser/',
 		hits: [
 			'const sel = window.getSelection();',
 			'if (window.getSelection()?.isCollapsed) return;',
@@ -48,8 +54,11 @@ const RULES: FileRule[] = [
 			'const { getSelection } = window;',
 			'const { getSelection: read } = document;',
 			'const read = window.getSelection.bind(window);',
-			"const sel = window['getSelection']();"
-		].map(inLibrary),
+			"const sel = window['getSelection']();",
+			'const sel = Document.prototype.getSelection.call(document);'
+		]
+			.map(inLibrary)
+			.concat(inBrowser('const sel = window.getSelection();')),
 		misses: [
 			...[
 				'const focus = deps.getSelection()?.focus;',
@@ -58,7 +67,8 @@ const RULES: FileRule[] = [
 				'const sel = readNativeSelection();',
 				'const { getSelection } = deps;'
 			].map(inLibrary),
-			inBrowser('const sel = window.getSelection();'),
+			at(SOURCE.selectionRead, 'const sel = window.getSelection();'),
+			at(SOURCE.caretWriter, 'const sel = window.getSelection();'),
 			at(`${SOURCE_DIR.debug}probe.ts`, 'const sel = window.getSelection();')
 		]
 	},
@@ -85,6 +95,8 @@ const RULES: FileRule[] = [
 			'sel.collapseToStart();',
 			"sel.modify('move', 'forward', 'character');",
 			"window.getSelection()!.modify ('extend', 'left', 'lineboundary');",
+			"sel['addRange'](range);",
+			"Selection.prototype.modify.call(sel, 'move', 'forward', 'line');",
 			'sel.collapse(node);',
 			'window.getSelection()?.collapse(node);',
 			'window.getSelection()!.collapse(node);',
@@ -102,21 +114,22 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.270 the browser is asked for a caret at a point only under browser/',
-		population: (file) => !file.relPath.startsWith(SOURCE_DIR.browser),
+		id: 'G4.270 the browser is asked for a caret at a point only in browser/point.ts',
+		population: except(SOURCE.pointLookup),
 		matches: /\bcaret(Range|Position)FromPoint\b/,
 		mustMatch: [SOURCE.pointLookup],
 		reason:
 			'Mac and Linux Chromium answer a point in an element’s top or bottom padding with the line’s start or end: resolve a point through offsetFromViewportPoint or caretOffsetAtPoint (browser/point.ts)',
 		hits: [
 			'const r = document.caretRangeFromPoint(x, y);',
-			'const p = (doc as any).caretPositionFromPoint?.(x, y);'
+			'const p = (doc as any).caretPositionFromPoint?.(x, y);',
+			inBrowser('const r = document.caretRangeFromPoint(x, y);')
 		],
 		misses: [
 			'const offset = offsetFromViewportPoint(el, x, y);',
 			'const seat = caretSeatFromPoint(document, x, y);',
 			'// never call caretRangeFromPoint here\nconst a = 1;',
-			inBrowser('const r = document.caretRangeFromPoint(x, y);')
+			at(SOURCE.pointLookup, 'const r = document.caretRangeFromPoint(x, y);')
 		]
 	}
 ];

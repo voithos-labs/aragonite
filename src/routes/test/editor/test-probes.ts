@@ -57,7 +57,7 @@ import {
 import type { ClosureBlock } from '#lib/schema/closure.js';
 import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
 import { TABLE_CELL_SELECTOR } from '#lib/caret/block-content-selector.js';
-import { domDescendants } from '#lib/browser/dom-walk.js';
+import { domDescendants } from '#lib/browser/dom-descendants.js';
 import { isHiddenMarkerText } from '#lib/browser/painted.js';
 import { childIdDrifts } from '#lib/invariants/child-id-parity.js';
 import { isProseLeaf } from '#lib/schema/page-role.js';

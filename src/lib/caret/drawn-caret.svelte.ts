@@ -167,8 +167,9 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	// Where the browser really put the caret decides, and a caret that later moves into text on its
 	// own (a press whose click landed outside the editor) shows again.
 	function notePressSeat(): void {
+		if (!press) return;
 		const live = readNativeSelection();
-		if (!press || !live?.collapsed) return;
+		if (!live?.collapsed) return;
 		const { startContainer: node, startOffset: offset } = live.range;
 		if (press.el.contains(node)) press.moves = clickMovesSeat(press.el, { node, offset });
 	}

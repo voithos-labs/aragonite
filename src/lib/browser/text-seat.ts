@@ -5,13 +5,13 @@
 
 import { isHiddenMarkerText, isInsideAtomicWidget } from './painted';
 import { isInMarkerPrefix } from './offsets';
+import { readNativeSelection } from './selection-read';
 
 /** Whether the live caret sits in a text node the user can see, where the browser draws a caret,
  *  so the editor's own indicator is not needed. Hidden marker text renders nothing. */
 export function caretIsInTextContent(el: HTMLElement): boolean {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return false;
-	return seatIsInTextContent(el, sel.getRangeAt(0).startContainer);
+	const live = readNativeSelection();
+	return !!live && seatIsInTextContent(el, live.range.startContainer);
 }
 
 /** The same read for a caret position given as a node: the one a press is about to make. A

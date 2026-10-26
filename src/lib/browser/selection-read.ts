@@ -86,6 +86,13 @@ export function rawSelectionFocus(el: HTMLElement): RawOffset | null {
 	return rawOffsetAt(el, sel.focusNode, sel.focusOffset);
 }
 
+/** The caret as a raw offset while `el` owns focus, read before an imperative rebuild (a
+ *  decoration's) so the caret can be written back after it; null when `el` does not own focus. */
+export function captureFocusedCaret(el: HTMLElement): RawOffset | null {
+	if (!document.activeElement || !el.contains(document.activeElement)) return null;
+	return rawSelectionFocus(el);
+}
+
 /** Whether the collapsed caret in `el` is on a line a pending hard break opened: right after one
  *  of its anchors, where the caret on the text's own line never sits. */
 export function caretOnPendingBreakLine(el: HTMLElement): boolean {

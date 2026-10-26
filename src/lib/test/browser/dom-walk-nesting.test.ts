@@ -2,7 +2,7 @@
 // Miss-analysis: depth tests covered only the renderer, never the traversals reading its DOM back.
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { domDescendants } from '../../browser/dom-walk';
+import { domDescendants } from '../../browser/dom-descendants';
 import { asDomTextOffset } from '../../core/coordinate-spaces';
 import { findFirstTextNode, findLastTextNode } from '../../browser/lines';
 import {

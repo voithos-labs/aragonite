@@ -4,10 +4,10 @@
  * knows which it shows, so every line decision there asks it through a `LineRead`.
  */
 
-import { domDescendants } from './dom-walk';
+import { domDescendants } from './dom-descendants';
 import { caretAnchorAfter, isBlockLineText } from './painted';
 import { rawRangeToDomRange } from './offsets';
-import { rawSelectionFocus } from './selection-read';
+import { rawSelectionFocus, readNativeSelection } from './selection-read';
 import type { CaretWriter } from './caret-writer';
 import { offsetFromViewportPoint } from './point';
 
@@ -59,11 +59,10 @@ export function charRect(text: Text, at: number): DOMRect | null {
 /** Where the caret is for a vertical move: the caret itself, or a selection's focus, the end a
  *  Shift+Arrow moves and a plain arrow moves from. Collapsed; null with no selection. */
 export function movingEnd(): Range | null {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return null;
-	if (sel.isCollapsed || !sel.focusNode) return sel.getRangeAt(0);
+	const live = readNativeSelection();
+	if (!live || live.collapsed) return live?.range ?? null;
 	const range = document.createRange();
-	range.setStart(sel.focusNode, sel.focusOffset);
+	range.setStart(live.focus.node, live.focus.offset);
 	return range;
 }
 
@@ -317,9 +316,9 @@ function focusOnWrapLine(
 /** The box of a caret at raw `raw` in `el`; where it is the live focus at a soft wrap, on the line
  *  the browser shows it on. */
 function caretLineBox(el: HTMLElement, raw: number, lineRead: LineRead): CaretRect | null {
-	const sel = window.getSelection();
-	if (sel?.focusNode && rawSelectionFocus(el) === raw) {
-		const focus = { startContainer: sel.focusNode, startOffset: sel.focusOffset };
+	const live = readNativeSelection();
+	if (live && rawSelectionFocus(el) === raw) {
+		const focus = { startContainer: live.focus.node, startOffset: live.focus.offset };
 		const atWrap = focusCaretAtWrap(el, focus, lineRead);
 		if (atWrap) return atWrap;
 	}

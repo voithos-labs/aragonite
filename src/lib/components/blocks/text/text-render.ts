@@ -37,7 +37,7 @@ import type { CaretWriter } from '../../../browser/caret-writer';
 import type { RawRange } from '../../../browser/offsets';
 import { washShownSource } from './source-wash';
 import { widgetsAmong } from './widget-adjacency';
-import { captureFocusedCaret } from '../../../browser/focused-caret';
+import { captureFocusedCaret } from '../../../browser/selection-read';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import {
 	applyIslandDecorations,

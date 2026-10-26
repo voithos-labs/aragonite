@@ -11,7 +11,7 @@ import {
 	isAtomicInlineWidget
 } from './painted';
 import { isBlankText, displayLength } from '../core/lines';
-import { domDescendants } from './dom-walk';
+import { domDescendants } from './dom-descendants';
 import { widgetSourceRange } from '../core/inline/widget-shell';
 
 /** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text.

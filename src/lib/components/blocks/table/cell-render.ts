@@ -12,7 +12,7 @@ import type { ResolveLinkUrl } from '../../../host-hooks';
 import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
-import { captureFocusedCaret } from '../../../browser/focused-caret';
+import { captureFocusedCaret } from '../../../browser/selection-read';
 import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../browser/painted';
 import type { CaretWriter } from '../../../browser/caret-writer';
 import type { RawRange } from '../../../browser/offsets';

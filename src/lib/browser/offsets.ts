@@ -30,7 +30,7 @@ import {
 	asDomTextOffset
 } from '../core/coordinate-spaces';
 import { placeholderBreakOf } from './placeholder-break';
-import { domDescendants } from './dom-walk';
+import { domDescendants } from './dom-descendants';
 import { isLineEndingPair } from '../core/line-ending-pairs';
 import type { PresentationMode } from '../presentation-mode';
 import { recordCanonicalCaretCheck } from '../perf/instruments';

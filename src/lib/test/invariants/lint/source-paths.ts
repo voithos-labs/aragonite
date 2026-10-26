@@ -83,7 +83,7 @@ export const SOURCE = {
 	// ── Caret geometry and windowing ────────────────────────────────────────
 	coordinateBrands: 'src/lib/core/coordinate-spaces.ts',
 	deleteExtent: 'src/lib/caret/delete-extent.ts',
-	domWalk: 'src/lib/browser/dom-walk.ts',
+	domWalk: 'src/lib/browser/dom-descendants.ts',
 	blockContentSelector: 'src/lib/caret/block-content-selector.ts',
 	blockElLookup: 'src/lib/caret/block-el-lookup.ts',
 	scrollOwner: 'src/lib/windowing/scroll-owner.ts',

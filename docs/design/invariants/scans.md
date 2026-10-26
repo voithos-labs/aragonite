@@ -1411,9 +1411,8 @@ so the suites run without a network. A spec's own route for a made-up host runs 
 `route.continue()` would send a request straight past it, so a route passes requests on with
 `route.fallback()`. `e2e/lint/e2e-drivers.test.ts`.
 
-**G4.270 · The browser is touched in one module.** Outside `browser/`, `src/lib` reads no native
-selection, writes none and asks no `caretRangeFromPoint` or `caretPositionFromPoint`, with no
-allowlist (`debug/`'s recorder may read what it records). Inside it only `caret-writer.ts` writes,
-`Selection.modify` included; the shapes are in `lint/native-selection-write.ts`, which G4.143 reads
-too. A directory that can't import `browser/` takes the read as a parameter.
-`lint/browser-module.test.ts`.
+**G4.270 · The browser is touched in one module.** Only `browser/selection-read.ts` and the caret
+writer read the native selection (`debug/`'s recorder may read what it records), only
+`caret-writer.ts` writes it, `Selection.modify` included, and only `point.ts` asks for a caret at a
+point. The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads too. A directory
+that can't import `browser/` takes the read as a parameter. `lint/browser-module.test.ts`.
