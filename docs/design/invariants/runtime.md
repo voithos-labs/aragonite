@@ -643,4 +643,4 @@ wrote; the whole-entry digest still runs at the next commit. `checkWrittenUnshar
 reports a replaced window, that window holds the written block, since the caret is placed by
 reading that window's blocks. A fix-up that moved no block reports no window at all.
 `checkWriteInWindow` · `content-write.ts :: settledCaretPosition` ·
-`replacement-focus-target.test.ts`, the simulation.
+`structural-descriptor.test.ts`, `replacement-focus-target.test.ts`, the simulation.
