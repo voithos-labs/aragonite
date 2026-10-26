@@ -10,7 +10,7 @@ import type { StructuralChange } from './tree-operations/structural-change';
 import type { TrackedPosition } from './tree-operations/fix-up/apply';
 import type { SharingState } from './tree-operations/sharing';
 import type { BodyParent } from './tree-operations/node-primitives';
-import type { EditKind, SettledContent, SettledEdit } from './tree-operations/fix-up/apply';
+import type { EditKind, FixedUpWrite, FixedUpEdit } from './tree-operations/fix-up/apply';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { OperationDetailMap, OperationKind, ScopedOpDescriptor } from './schema/operations';
 import type { WriteMode } from './schema/block-kind-descriptor';
@@ -191,12 +191,12 @@ export interface ContainerScope {
 	rebuild(node: CstNode): void;
 	/** Tells the commit's fix-up what the mutation did beyond its splice (a content write, a move, a
 	 *  removal); the reader returns the fix-up's result for this list once the commit has run. */
-	describeEdit(edit: EditKind): () => SettledEdit | null;
+	describeEdit(edit: EditKind): () => FixedUpEdit | null;
 	/** Copies the path `rel` below `node` and returns its nodes, `node`'s child first; the commit
 	 *  rebuilds every container on it once the mutation returns. */
 	own(rel: readonly number[]): CstNode[];
 	/** Writes the leaf at `rel` below `node` and fixes up the list holding it; owns its path. */
-	writeLeaf(rel: readonly number[], write: string | LegalWrite): SettledContent;
+	writeLeaf(rel: readonly number[], write: string | LegalWrite): FixedUpWrite;
 	/** Splices the list at `rel` below `node` and fixes up its blank lines, copying the path but
 	 *  rebuilding nothing; a caller that needs the containers above rebuilt owns them. */
 	splice(rel: readonly number[], at: number, count: number, add: CstNode[]): void;

@@ -62,10 +62,6 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 3,
 		why: 'the split re-attaches the blank line that parse stripped (GH #97); both branches of `joinIntoLeaf` land bytes that already crossed `legalizeWrite` and a fragment reparse (GH #54)'
 	},
-	'src/lib/tree-operations/neighbour-merge.ts': {
-		count: 1,
-		why: 'the join absorb re-attaches the blank run its own reparse stripped (GH #61)'
-	},
 	'src/lib/schema/container-rebuilders.ts': {
 		count: 2,
 		why: 'the table grid re-emits its own bytes from its rows (G4.20 branch 3 reads the same writes)'
@@ -127,10 +123,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 1,
 		why: 'gives the spaces a list item’s marker line takes back to the freshly parsed first block that held them, before any write installs it'
 	},
-	'src/lib/tree-operations/open-tail.ts': {
-		count: 1,
-		why: "adds or drops the ending of a block's last line in each node down to the one that owns it: the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits, and an opaque container re-reads its metadata after the write; an ending terminates a line rather than restructuring one"
-	},
+
 	'src/lib/testing/container-conformance.ts': {
 		count: 7,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"

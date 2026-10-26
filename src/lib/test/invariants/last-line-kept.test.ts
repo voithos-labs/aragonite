@@ -1,4 +1,4 @@
-// G1.41: the check fails each shape the commit's open-tail steps exist to prevent, and passes the
+// G1.41: the check fails each shape the commit's last-line steps exist to prevent, and passes the
 // documents they leave.
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';

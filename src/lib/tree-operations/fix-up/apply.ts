@@ -16,7 +16,6 @@ import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { recordSettlePass } from '../../perf/instruments';
 import { checkStructuralDescriptor } from '../../invariants/structural-descriptor';
 import { noteBodySettled } from '../../invariants/settle-once';
-import { checkBlankRunsLaidOut } from '../../invariants/blank-runs';
 import { checkSettledWindowReadsBack } from '../../invariants/settled-window-reads-back';
 import type { SharingState } from '../sharing';
 import { cloneMetadata } from '../clone';
@@ -59,9 +58,9 @@ export type EditKind = Pick<BodyEdit, 'written' | 'moved' | 'removed'>;
 
 /** The edit's change widened by the fix-up, the write's own result, and where a moved block
  *  stands after it. */
-export interface SettledEdit {
+export interface FixedUpEdit {
 	change: StructuralChange;
-	written: SettledContent | null;
+	written: FixedUpWrite | null;
 	moved: number | null;
 }
 
@@ -74,7 +73,7 @@ export interface WrittenSlot {
 
 /** A content write once fixed up: its change widened by every merge, and where the written text
  *  starts inside that change's window (past the window head's own blank lines). */
-export interface SettledContent {
+export interface FixedUpWrite {
 	change: StructuralChange;
 	textStart: number;
 }
@@ -82,13 +81,13 @@ export interface SettledContent {
 // ── Entry points ─────────────────────────────────────────────────────────────
 
 /** The fix-up a commit runs over each body it wrote. */
-export function settleEdit(
+export function fixUpEdit(
 	body: BodyParent,
 	edit: BodyEdit,
 	grammar: GrammarView,
 	sharing: SharingState,
 	tracked?: TrackedPosition
-): SettledEdit {
+): FixedUpEdit {
 	recordSettlePass();
 	const { change, before } = edit;
 	assertInvariant('structural-descriptor', () => checkStructuralDescriptor(change, before.length));
@@ -103,7 +102,7 @@ export function settleEdit(
 	const result = fixUpList(listOf(body), listEdit, editorHost(grammar), tracked);
 	const settled = writePatch(body, result, change, sharing, (i) => before[i]);
 	if (tracked && result.caret) Object.assign(tracked, result.caret);
-	checkRunsLaidOut(body, settled, written?.index, grammar);
+	checkReadsBack(body, settled, grammar);
 	const start = written && (result.writtenStart ?? { index: written.index, offset: 0 });
 	return {
 		change: settled,
@@ -116,13 +115,13 @@ export function settleEdit(
 
 /** A content write's fix-up, for a write no commit fixes up: the keystroke written in place, the
  *  trial before it, and a write into a body below the commit's scope. */
-export function settleContentWrite(
+export function fixUpWrite(
 	body: BodyParent,
 	slot: WrittenSlot,
 	change: StructuralChange,
 	grammar: GrammarView,
 	sharing: SharingState
-): SettledContent {
+): FixedUpWrite {
 	recordSettlePass();
 	noteBodySettled(body.children);
 	// Read before the patch lands, so the list as the write left it.
@@ -134,14 +133,14 @@ export function settleContentWrite(
 	const before = (i: number) =>
 		i === slot.index ? written.previous : given[i < slot.index ? i : i + shift];
 	const settled = writePatch(body, result, change, sharing, before);
-	checkRunsLaidOut(body, settled, slot.index, grammar);
+	checkReadsBack(body, settled, grammar);
 	const start = result.writtenStart ?? { index: slot.index, offset: 0 };
 	return { change: settled, textStart: offsetInWindow(body.children, settled, start) };
 }
 
 /** A splice into a container found by walking the live tree, outside a commit's own list, and its
  *  fix-up; the owner's `childIds` stay in step. */
-export function spliceChildrenSettled(
+export function spliceFixedUp(
 	parent: CstNode | Document,
 	at: number,
 	removeCount: number,
@@ -415,20 +414,13 @@ function offsetInWindow(
 	return pos + (start.index > at ? children[start.index].leadingTrivia.length : 0) + start.offset;
 }
 
-/** The dev checks over the window a fix-up reports, or the written block when it reports none. */
-function checkRunsLaidOut(
-	body: BodyParent,
-	change: StructuralChange,
-	written: number | undefined,
-	grammar: GrammarView
-): void {
+/** G1.145 over the window a fix-up reports; a write that kept its block in place reports none,
+ *  and a keystroke never pays for reading its neighbours again. */
+function checkReadsBack(body: BodyParent, change: StructuralChange, grammar: GrammarView): void {
 	const window = spanOf(change);
-	if (!window && written === undefined) return;
-	const lo = window?.at ?? written!;
-	const hi = window ? window.at + window.added - 1 : written!;
-	assertInvariant('blank-runs-laid-out', () => checkBlankRunsLaidOut(body, lo, hi, grammar));
 	if (!window) return;
+	const hi = window.at + window.added - 1;
 	assertInvariant('settled-window-reads-back', () =>
-		checkSettledWindowReadsBack(body, lo, hi, grammar)
+		checkSettledWindowReadsBack(body, window.at, hi, grammar)
 	);
 }

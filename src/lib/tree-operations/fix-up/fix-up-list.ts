@@ -87,8 +87,7 @@ function placed(edit: ListEdit): [number, number] {
  *  span as placed but the pair it uncovered; a removal asks both joins of the block above it. */
 function askedJoins(edit: ListEdit, from: number, count: number): [number, Role][] {
 	const { span, moved } = edit;
-	const role: Role =
-		moved || span?.removed === 0 ? 'placed' : edit.before ? 'rewritten' : 'written';
+	const role: Role = moved ? 'placed' : edit.before ? 'rewritten' : 'written';
 	const joins: [number, Role][] = [];
 	if (moved?.uncovered != null) joins.push([moved.uncovered, 'rewritten']);
 	if (edit.removed) joins.push([from - 1, 'rewritten']);

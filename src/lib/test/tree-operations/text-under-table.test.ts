@@ -3,7 +3,7 @@ import { createRegistryView } from '#lib/schema/registry-view.js';
 import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { spliceChildrenSettled } from '#lib/tree-operations/settle.js';
+import { spliceFixedUp } from '#lib/tree-operations/fix-up/apply.js';
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { plainQuote } from '#lib/tree-operations/blockquote.js';
 import { liftFirstChild } from '#lib/tree-operations/container-lift.js';
@@ -21,7 +21,7 @@ import { testView } from '#lib/test/support/test-view.js';
 const T = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
 function unwrapQuote(parent: CstNode | Document, at: number): void {
-	spliceChildrenSettled(
+	spliceFixedUp(
 		parent,
 		at,
 		1,

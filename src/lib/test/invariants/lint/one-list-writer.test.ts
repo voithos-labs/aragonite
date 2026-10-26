@@ -8,13 +8,10 @@ import { collectEditorSources } from './scan-source';
 import { describeFileRules } from './file-rule';
 import { SOURCE } from './source-paths';
 
-/** The files a fix-up runs through, the leaf's own write and the copies before a write included. */
+/** The files a fix-up runs through, the leaf's own write and the copies before a write included;
+ *  the fix-up's package writes its own working copy, never a list it was handed. */
 const FIX_UP_PATH = [
-	SOURCE.settle,
-	SOURCE.neighbourMerge,
-	'src/lib/tree-operations/blank-runs.ts',
-	'src/lib/tree-operations/unfinished-readings.ts',
-	'src/lib/tree-operations/keep-one-block.ts',
+	SOURCE.fixUpApply,
 	SOURCE.contentWrite,
 	SOURCE.separatorWrites,
 	SOURCE.unshare,
@@ -24,7 +21,7 @@ const FIX_UP_PATH = [
 ];
 
 /** A snippet scanned as the fix-up's own file, which the rule binds. */
-const inFixUp = (code: string) => ({ relPath: SOURCE.settle, code });
+const inFixUp = (code: string) => ({ relPath: SOURCE.fixUpApply, code });
 
 /** A splice, a push, an index store, or a `spliceMany` into a `children` array. */
 const LIST_WRITE =

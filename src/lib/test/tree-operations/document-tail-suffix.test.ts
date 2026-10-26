@@ -5,7 +5,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { documentBody, emptyParagraph } from '../../tree-operations/node-primitives';
-import { normalizeBlankRuns } from '../../tree-operations/blank-runs';
+import { fixUpWrite } from '#lib/tree-operations/fix-up/apply.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { settled } from '#lib/test/harness/settle-funnel.js';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -112,14 +112,14 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 
 	// The whole-content range delete's path: `rangeDelete`'s same-block branch writes the blank
 	// and goes through this fix-up, so the rule must live in the fix-up for it to inherit.
-	it('the settle itself materializes on a document parent', () => {
+	it('the fix-up itself materializes on a document parent', () => {
 		const doc = parse('foo bar\n\n');
-		doc.children[0].raw = '\n';
+		const previous = doc.children[0];
+		doc.children[0] = { ...previous, raw: '\n' };
 
-		normalizeBlankRuns(
+		fixUpWrite(
 			documentBody(doc),
-			0,
-			0,
+			{ index: 0, previous, text: '\n' },
 			{ op: 'noop' },
 			defaultGrammarView,
 			createSharingState()

@@ -57,7 +57,7 @@ import {
 	legalizeWrite,
 	settledCaretPosition,
 	type LegalWrite,
-	type SettledContent
+	type FixedUpWrite
 } from '../tree-operations/content-write';
 import { createPathScope, type CommitScope } from './block-edit-scope';
 import type { EditorRoot } from './deps';
@@ -160,7 +160,7 @@ export async function commitLeafText(
 		history?: UndoGrouping;
 	}
 ): Promise<LeafWriteResult> {
-	let readSettled = (): SettledContent | null => null;
+	let readSettled = (): FixedUpWrite | null => null;
 	let landed: LeafWriteLanded | null = null;
 	// Read after the commit: the list's fix-up can move the written block.
 	const readLanded = (): LeafWriteLanded => {

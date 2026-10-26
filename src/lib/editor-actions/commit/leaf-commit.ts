@@ -17,7 +17,7 @@ import {
 	settledCaretPosition,
 	updateNodeContent,
 	type LegalWrite,
-	type SettledContent
+	type FixedUpWrite
 } from '../../tree-operations/content-write';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import { documentBody, type BodyParent } from '../../tree-operations/node-primitives';
@@ -51,7 +51,7 @@ export function createLeafCommit(
 		const index = leafPath[depth - 1];
 		let chain: CstNode[] = [];
 		let body: BodyParent = documentBody(deps.doc);
-		let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
+		let settled: FixedUpWrite = { change: { op: 'noop' }, textStart: 0 };
 		const folds: AncestrySeamFold[] = [];
 		let reclassified: ContainerReclassification[] = [];
 		let leafPreviousRaw = '';
@@ -196,7 +196,7 @@ interface InPlaceWritten {
 	chain: CstNode[];
 	body: BodyParent;
 	caret: number;
-	settled: SettledContent;
+	settled: FixedUpWrite;
 	folds: AncestrySeamFold[];
 	reclassified: ContainerReclassification[];
 }

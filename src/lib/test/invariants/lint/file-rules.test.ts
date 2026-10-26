@@ -1201,7 +1201,7 @@ const RULES: FileRule[] = [
 			),
 		reason:
 			're-emitting a link’s fields as GFM replaces an author’s own syntax: call the byte writer',
-		hits: [at(SOURCE.openTail, 'buildLinkSourceBytes(fields);')],
+		hits: [at(SOURCE.fixUpApply, 'buildLinkSourceBytes(fields);')],
 		misses: [at(SOURCE.linkSourceBytes, 'return buildLinkSourceBytes(fields);')]
 	},
 	{

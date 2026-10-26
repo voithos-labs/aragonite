@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { displayLength, documentLineEnding } from '#lib/core/lines.js';
-import { holdsBlankLastLine } from '#lib/tree-operations/open-tail.js';
+import { holdsBlankLastLine } from '#lib/invariants/open-tail.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createFocusActions } from '#lib/editor-actions/focus/focus.js';

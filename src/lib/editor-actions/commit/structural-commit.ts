@@ -18,9 +18,9 @@ import { documentBody, nodeAt } from '../../tree-operations/node-primitives';
 import {
 	keepOneBlock,
 	keepOpenTail,
-	settleEdit,
+	fixUpEdit,
 	type EditKind,
-	type SettledEdit
+	type FixedUpEdit
 } from '../../tree-operations/fix-up/apply';
 import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations/unshare';
 import type { SharingState } from '../../tree-operations/sharing';
@@ -175,7 +175,7 @@ export function createStructuralCommit(
 		restoreBytes: () => void;
 		/** What the mutation said it did beyond its splice, and the fix-up's result once it ran. */
 		edit: EditKind;
-		settled: SettledEdit | null;
+		settled: FixedUpEdit | null;
 		writer: ScopeWriter;
 	}
 
@@ -411,7 +411,7 @@ export function createStructuralCommit(
 					);
 					// `savedChildren` is the scope's array from before the mutation, so the blank-line
 					// fix-up reads which blocks were blank off it.
-					p.settled = settleEdit(
+					p.settled = fixUpEdit(
 						p.view.body,
 						{ change: changeList[i], before: p.savedChildren ?? [], ...p.edit },
 						deps.reading.grammar,

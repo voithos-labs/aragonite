@@ -9,7 +9,7 @@ import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { spliceChildrenSettled } from '#lib/tree-operations/settle.js';
+import { spliceFixedUp } from '#lib/tree-operations/fix-up/apply.js';
 
 // A write that keeps its block's kind still asks whether a reload reads it and a neighbour as one:
 // the block above when no blank line parts them, the block below whatever parts them.
@@ -113,7 +113,7 @@ describe('a same-kind write next to a block that reads the lines below it', () =
 	it('a paragraph spliced under a definition becomes its two-line title', () => {
 		const doc = parse('[a]: /u\n');
 		const [title] = parse('"x\nmore"\n').children;
-		spliceChildrenSettled(doc, 1, 0, [title], defaultGrammarView, createSharingState(), '\n');
+		spliceFixedUp(doc, 1, 0, [title], defaultGrammarView, createSharingState(), '\n');
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['linkReferenceDefinition']);
 		expectParseConverged(doc);

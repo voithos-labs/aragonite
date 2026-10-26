@@ -11,7 +11,7 @@ import type { ContainerScope } from '../../action-contracts';
 import type { BodyParent } from '../../tree-operations/node-primitives';
 import type { SharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
-import { spliceChildrenSettled } from '../../tree-operations/fix-up/apply';
+import { spliceFixedUp } from '../../tree-operations/fix-up/apply';
 import { updateNodeContent } from '../../tree-operations/content-write';
 import { recordChildIdsChange } from '../../tree-operations/structural-change';
 import {
@@ -79,7 +79,7 @@ export function createScopeWriter(
 		splice(rel, at, count, add) {
 			const chain = below(rel);
 			const parent = chain.length > 0 ? chain[chain.length - 1] : root;
-			spliceChildrenSettled(parent, at, count, add, grammar, sharing, lineEnding);
+			spliceFixedUp(parent, at, count, add, grammar, sharing, lineEnding);
 		}
 	};
 }

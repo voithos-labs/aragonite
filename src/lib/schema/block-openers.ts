@@ -143,39 +143,10 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 	return false;
 }
 
-/** Whether an opener in `grammar` says a block with these bytes may still read differently once
- *  more lines follow it, which a one-line read of the block below can't settle. */
-export function blockReadingNotFinal(raw: string, grammar: GrammarView): boolean {
-	return readingNotFinalIn(grammar)(raw);
-}
-
-/** {@link blockReadingNotFinal} with the grammar's openers read once, for a walk over many blocks. */
-export function readingNotFinalIn(grammar: GrammarView): (raw: string) => boolean {
-	const readings = unfinishedReadings(grammar);
-	return (raw) => readings.some((reading) => reading.notFinal(raw));
-}
-
-/** Whether a block with these bytes waits on a closer and takes in every line below until then. */
-export function readsOnIn(grammar: GrammarView): (raw: string) => boolean {
-	const readings = unfinishedReadings(grammar).filter((reading) => reading.readsOn);
-	return (raw) => readings.some((reading) => reading.notFinal(raw));
-}
-
-/** Whether an opener in `grammar` says this line could finish a reading it left unfinished. */
-export function lineMayFinishReading(lineText: string, grammar: GrammarView): boolean {
-	return unfinishedReadings(grammar).some((reading) => reading.mayClose(lineText));
-}
-
-/** {@link lineMayFinishReading} for a block above the line, which a reading that reads on never is. */
-export function lineMayFinishReadingAbove(lineText: string, grammar: GrammarView): boolean {
-	return unfinishedReadings(grammar).some(
-		(reading) => !reading.readsOn && reading.mayClose(lineText)
-	);
-}
-
 // Kept against the grammar's opener list, which a walk up a long body reads once per block.
 const readingsByOpeners = new WeakMap<readonly BlockOpener[], UnfinishedReading[]>();
 
+/** Every opener's declaration of a reading a line below can still change, each listed once. */
 export function unfinishedReadings(grammar: GrammarView): readonly UnfinishedReading[] {
 	const openers = grammar.orderedOpeners();
 	let readings = readingsByOpeners.get(openers);

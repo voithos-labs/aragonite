@@ -33,7 +33,7 @@ function bytesEndOpen(doc: DocumentView): boolean {
 
 /** Whether the line `node` ends on is blank, down the children holding it; a quote's own trailing
  *  `>` line has a marker, so it is not. */
-function holdsBlankLastLine(node: NodeView): boolean {
+export function holdsBlankLastLine(node: NodeView): boolean {
 	const holder = childHoldingLastLine(node);
 	return holder < 0 ? endsInBlankLine(node.raw) : holdsBlankLastLine(node.children![holder]);
 }

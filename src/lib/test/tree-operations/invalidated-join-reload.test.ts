@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { absorbWindowSeams } from '#lib/tree-operations/neighbour-merge.js';
+import { mergeJoinsAt, type TrackedPosition } from '#lib/tree-operations/fix-up/apply.js';
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
@@ -173,30 +173,31 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 
 // No single reorder reaches two disjoint merges, so the union of their windows is tested at the
 // helper's own contract.
-describe('absorbWindowSeams reports disjoint folds as one window', () => {
+describe('mergeJoinsAt reports disjoint folds as one window', () => {
 	it('unions them and carries the tracked index through both', () => {
 		const block = (source: string): CstNode => parse(source, { scope: 'fragment' }).children[0];
 		const children = ['a\n', 'b\n', '# h\n', 'c\n', 'd\n'].map(block);
+		const tracked: TrackedPosition = { index: 4, offset: 0 };
 
-		const settled = absorbWindowSeams(
+		const change = mergeJoinsAt(
 			{ children, owner: undefined, lineEnding: '\n' },
 			0,
 			5,
-			4,
-			{ op: 'noop' },
 			defaultGrammarView,
-			createSharingState()
+			createSharingState(),
+			tracked
 		);
 
 		expect(children.map((c) => c.raw)).toEqual(['a\nb\n', '# h\n', 'c\nd\n']);
-		expect(settled.change).toEqual({
+		// Each merged block keeps the id of its topmost block, and the heading between keeps its own.
+		expect(change).toEqual({
 			op: 'replace',
 			at: 0,
 			count: 5,
 			newCount: 3,
-			idMap: { 0: 0 }
+			idMap: { 0: 0, 1: 2, 2: 3 }
 		});
-		expect(settled.landing).toBe(2);
+		expect(tracked.index).toBe(2);
 	});
 });
 

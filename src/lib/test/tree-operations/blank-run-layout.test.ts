@@ -3,26 +3,21 @@
 // Miss-analysis: the shape check compared kinds and child counts, so a separator on the wrong
 // block of a run (the same bytes, the same blocks) passed every suite.
 import { describe, it, expect } from 'vitest';
-import {
-	isBlankParagraph,
-	layoutBlankRun,
-	parse,
-	parseContainerBody,
-	type RunEdge
-} from '#lib/core/parser.js';
+import { isBlankParagraph, parse, parseContainerBody } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence, describeRunDivergence } from '#lib/test/harness/parse-converged.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
-import { checkBlankRunsLaidOut } from '#lib/invariants/blank-runs.js';
+import { checkSettledWindowReadsBack } from '#lib/invariants/settled-window-reads-back.js';
+import { readRun, type Edge } from '#lib/tree-operations/fix-up/runs.js';
 
-const EDGES: RunEdge[] = ['content', 'fence', 'none'];
+const EDGES: Edge[] = ['content', 'fence', 'none'];
 
 /** How the parser reads a body of `lines` blank lines between `above` and `below`: the lines its
  *  fence lines take, its blank blocks, and the lines left after its last block. */
-function parsedRun(lines: number, above: RunEdge, below: RunEdge) {
+function parsedRun(lines: number, above: Edge, below: Edge) {
 	// A heading interrupts the paragraph above, so a flush pair stays two blocks.
 	const text =
 		(above === 'content' ? 'a\n' : '') + '\n'.repeat(lines) + (below === 'content' ? '# b\n' : '');
@@ -36,13 +31,13 @@ function parsedRun(lines: number, above: RunEdge, below: RunEdge) {
 }
 
 /** The same three counts, from the layout. */
-function laidOutRun(lines: number, above: RunEdge, below: RunEdge) {
-	const layout = layoutBlankRun(lines, above, below);
+function laidOutRun(lines: number, above: Edge, below: Edge) {
+	const layout = readRun(lines, above, below);
 	const separatorAtEnd = layout.separator && layout.blocks === 0 && below !== 'content';
 	return {
-		prefix: Number(layout.fencePrefix),
+		prefix: Number(layout.prefix),
 		blocks: layout.blocks,
-		suffix: Number(layout.fenceSuffix) + Number(separatorAtEnd)
+		suffix: Number(layout.suffix) + Number(separatorAtEnd)
 	};
 }
 
@@ -67,11 +62,11 @@ describe('a run an edit leaves carries its lines where a reload puts them', () =
 	});
 });
 
-describe('G1.139 reads a run a fix-up left as a reload would lay it out', () => {
+describe('G1.145 reads a run a fix-up left as a reload would lay it out', () => {
 	const body = (source: string) => documentBody(parse(source));
 
 	it('passes the runs a load lays out', () => {
-		expect(checkBlankRunsLaidOut(body('a\n\n\n\nb\n'), 0, 3, defaultGrammarView)).toBeNull();
+		expect(checkSettledWindowReadsBack(body('a\n\n\n\nb\n'), 0, 3, defaultGrammarView)).toBeNull();
 	});
 
 	it.each([
@@ -81,7 +76,9 @@ describe('G1.139 reads a run a fix-up left as a reload would lay it out', () => 
 	])('fails %s', (_label, source, at, trivia) => {
 		const laid = body(source);
 		at.forEach((index, i) => (laid.children[index].leadingTrivia = trivia[i]));
-		expect(checkBlankRunsLaidOut(laid, 0, 2, defaultGrammarView)?.code).toBe('blank-run-unlaid');
+		expect(checkSettledWindowReadsBack(laid, 0, 2, defaultGrammarView)?.code).toBe(
+			'settled-window-reads-back'
+		);
 	});
 });
 

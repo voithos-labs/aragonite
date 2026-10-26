@@ -6,7 +6,7 @@ import type { Host, ListEdit } from './types';
 import { bodyStart, isBlankBlock, ownsBlankLine, readAt } from './reading';
 import type { Work } from './work';
 
-type Edge = 'content' | 'fence' | 'none';
+export type Edge = 'content' | 'fence' | 'none';
 
 /** Lays out the blank lines at join `j` (above block `j`) as a reload reads them, dropping extra
  *  hidden lines and writing missing ones; with `atLeast`, holding that many where none are needed. */
@@ -73,7 +73,7 @@ export function layOutRun(
 
 /** How a reload reads `total` blank lines between two edges: the line each fence line takes while
  *  the body keeps another, the separator under a block above, and the blank blocks the rest are. */
-function readRun(total: number, above: Edge, below: Edge) {
+export function readRun(total: number, above: Edge, below: Edge) {
 	const bodyLines = above === 'content' || below === 'content' ? Infinity : total;
 	let rest = total;
 	const prefix = above === 'fence' && rest > 0 && bodyLines >= 2;

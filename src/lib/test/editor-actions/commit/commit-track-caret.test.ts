@@ -6,7 +6,7 @@ import { parse } from '#lib/core/parser.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { asDocPath } from '#lib/selection/path-math.js';
 import { replacePreservingFirst } from '#lib/tree-operations/structural-change.js';
-import type { TrackedPosition } from '#lib/tree-operations/neighbour-merge.js';
+import type { TrackedPosition } from '#lib/tree-operations/fix-up/apply.js';
 import { makeContainerHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 /** A paragraph flush under the block above, which the fix-up merges into that block. */

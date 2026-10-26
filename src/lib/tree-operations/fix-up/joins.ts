@@ -25,7 +25,10 @@ export function partJoin(work: Work, j: number, role: Role, host: Host, typed: b
 		return;
 	if (isBlankBlock(upper) || isBlankBlock(lower)) return;
 	if ([upper, lower].some((node) => host.kindTraits(node.kind).contextDependent)) return;
-	const tableRow = host.kindTraits(upper.kind).grid && host.continuesTableAbove(lower.raw);
+	const grid = host.kindTraits(upper.kind).grid;
+	const tableRow = grid && host.continuesTableAbove(lower.raw);
+	// A table takes nothing below it but rows, so a block whose first line it leaves stands.
+	if (grid && !tableRow) return;
 	// A list that can't interrupt the paragraph above (its first item is empty) keeps a line under
 	// it; a typed write wrote that line itself.
 	const emptyItem =

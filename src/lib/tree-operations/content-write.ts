@@ -50,14 +50,9 @@ import {
 	spliceList
 } from './node-primitives';
 import { ensureEditableContainers } from '../schema/opened-reading';
-import {
-	caretInBlocks,
-	settleContentWrite,
-	type SettledContent,
-	type WrittenSlot
-} from './fix-up/apply';
+import { caretInBlocks, fixUpWrite, type FixedUpWrite, type WrittenSlot } from './fix-up/apply';
 
-export type { SettledContent, WrittenSlot };
+export type { FixedUpWrite, WrittenSlot };
 
 // ── Making written bytes legal ──
 
@@ -166,12 +161,12 @@ export function updateNodeContent(
 	text: string | LegalWrite,
 	grammar: GrammarView,
 	sharing: SharingState
-): SettledContent {
+): FixedUpWrite {
 	const body = asBody(parent);
 	const legal = legalText(body, blockIndex, text);
 	return writeKeepingTaskMarker(body.owner, body.children, blockIndex, sharing, () => {
 		const { change, written } = writeLegal(body, blockIndex, legal, grammar);
-		return settleContentWrite(body, written, change, grammar, sharing);
+		return fixUpWrite(body, written, change, grammar, sharing);
 	});
 }
 
@@ -429,7 +424,7 @@ function installReplacement(
 /** Where a caret at `offset` in the written text ends up after the write's merges:
  *  the block holding it and its offset there, counting what a merge above put in front. */
 export function settledCaretPosition(
-	settled: SettledContent,
+	settled: FixedUpWrite,
 	at: number,
 	offset: number,
 	children: readonly NodeView[]
