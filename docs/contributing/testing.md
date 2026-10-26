@@ -582,7 +582,9 @@ hydrated, since the server-rendered markup shows up well before any click handle
 `reloadReady(page)` is the reload version, and `editor.goto()` already calls `gotoReady` for you.
 To check what a page shows before it hydrates, `gotoUnhydrated(page, url)` loads it with every
 script request held back.
-A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/e2e-drivers.test.ts`.
+A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/e2e-drivers.test.ts`. All three also
+wait for the page they're leaving to finish loading, images included, so a spec that holds an image
+request open and then navigates again fails, naming that image.
 
 One navigation per test, though. If a test wants a different URL than its `beforeEach` gave it
 (another mode, a flag in the query), it gets its own `describe` with its own `beforeEach`, instead
