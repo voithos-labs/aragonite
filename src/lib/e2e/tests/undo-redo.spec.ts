@@ -185,3 +185,96 @@ test.describe('undo shows the caret’s line in a block taller than the screen',
 		expect(caret.bottom).toBeLessThanOrEqual(caret.band + 1);
 	});
 });
+
+test.describe('an undo step changes the document', () => {
+	let editor: EditorPage;
+
+	const canRun = (command: string) =>
+		editor.page.evaluate((id) => (window as any).__test.canRunCommand(id) as boolean, command);
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+	});
+
+	test('typing a character and deleting it is no step: one Ctrl+Z undoes the Enter before it', async () => {
+		await editor.loadContent('ab\n');
+		await editor.clickBlock(0);
+		await editor.page.keyboard.press(edgeKey('lineEnd'));
+		await editor.page.keyboard.press('ArrowLeft');
+		await editor.page.keyboard.press('Enter');
+		await editor.typeSlowly('a');
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceEquals('a\n\nb\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('ab\n');
+		expect(await canRun('history.undo')).toBe(false);
+	});
+
+	test('the history commands read idle with nothing to undo or redo', async () => {
+		await editor.loadContent('ab\n');
+		expect(await canRun('history.undo'), 'a fresh document').toBe(false);
+		expect(await canRun('history.redo'), 'a fresh document').toBe(false);
+
+		await editor.clickBlock(0);
+		await editor.page.keyboard.press(edgeKey('lineEnd'));
+		await editor.typeSlowly('c');
+		await editor.bridge.waitForSourceEquals('abc\n');
+		expect(await canRun('history.undo'), 'after typing').toBe(true);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('ab\n');
+		expect(await canRun('history.undo'), 'after undoing it all').toBe(false);
+		expect(await canRun('history.redo'), 'after undoing it all').toBe(true);
+	});
+
+	test('an undo whose caret leaves an empty heading keeps it, and redo gets back to the end', async () => {
+		await editor.loadContent('#\n\nb\n');
+		await editor.clickBlock(1);
+		await editor.page.keyboard.press(edgeKey('lineEnd'));
+		await editor.typeSlowly('c');
+		await editor.endTypingBatch();
+		await editor.clickBlock(0);
+		await editor.page.keyboard.press(edgeKey('lineEnd'));
+		await editor.typeSlowly('x');
+		await editor.bridge.waitForSourceEquals('#x\n\nbc\n');
+		await editor.endTypingBatch();
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('#\n\nbc\n');
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals('#\n\nb\n');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('#\n\nb\n');
+		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
+		const focused = await editor.page.evaluate(() =>
+			document.activeElement?.closest('[data-block-path]')?.getAttribute('data-block-path')
+		);
+		expect(focused, 'the caret is back in the second block').toBe('[1]');
+
+		await editor.redo();
+		await editor.bridge.waitForSourceEquals('#\n\nbc\n');
+		await editor.redo();
+		await editor.bridge.waitForSourceEquals('#x\n\nbc\n');
+	});
+
+	// The redo's render moves the focused heading in the DOM, which blurs it before the caret lands.
+	test('a redo that moves the focused empty heading keeps it a heading', async () => {
+		const SOURCE = '#\n\nb\n\nc\n';
+		await editor.loadContent(SOURCE);
+		await editor.clickBlock(0);
+		await editor.page.keyboard.press(edgeKey('lineEnd'));
+		await editor.page.keyboard.press('Alt+ArrowDown');
+		await editor.waitForNoSourceMutation();
+		for (let i = 0; i < 3 && (await editor.bridge.getSource()) !== SOURCE; i++) {
+			await editor.undo();
+			await editor.waitForNoSourceMutation();
+		}
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+
+		await editor.redo();
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('b\n\n#\n\nc\n');
+	});
+});

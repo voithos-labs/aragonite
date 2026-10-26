@@ -189,6 +189,8 @@ export interface CommandGates {
 	crossBlockCommands: CrossBlockCommandRouter;
 	/** The interactive mark at the caret, which `decorations.activateAtCaret` runs. */
 	markActivation: MarkActivation;
+	/** Whether an undo or a redo would change the document, which the history commands answer. */
+	undoStack: { readonly canUndo: boolean; readonly canRedo: boolean };
 }
 
 /** Moves the block at a path one step among its siblings: the editor's reorder action. Resolves to

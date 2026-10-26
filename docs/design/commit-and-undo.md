@@ -24,6 +24,8 @@ Collapsed, single-block, and cross-block selections all use that one `selection`
 
 **Triggers.** An entry is pushed before every structural operation and before every cut or paste (a copy writes nothing, so it pushes nothing). Text input is batched: consecutive keystrokes in one block group into a single entry, broken by pauses, focus changes, structural ops, and any cut or paste.
 
+**An entry is only a step if it changes the document.** Type a letter and Backspace it, or paste the selected text over itself, and the entry still gets pushed, but the stack passes over it: Ctrl+Z goes straight to the step below, and `canRunCommand('history.undo')` (and redo) says no while nothing left on the stack would change a byte. Typing still clears the redo stack, even a run that changed nothing, same as every other editor. The check is cheap: an entry's top-level blocks are compared with the live ones by identity, bytes only where they differ, once per content version (`src/lib/undo/manager.ts`).
+
 Every write to a block's text says which of those it is, as its `history`. Typing is `'join-typing'` (a Tab, and a key typed over a selection, count as typing). A command is `'entry'`: a format chord, a heading cycle, the code fence's language, a plugin source's commit. An `'entry'` write ends the burst before and after itself, so one Ctrl+Z takes back the command and leaves the typing on both sides. It's a required argument of `updateBlockContent` and a required field of `writeText`'s write, so a new write can't forget to pick.
 
 **Where undo puts the caret.** The snapshot's selection path is read live from the focused leaf, so undo lands the caret on the exact leaf that was being typed in, including deep inside nested containers. The offset on that leaf is the one the caller supplies rather than the live (post-edit) one, so the caret goes back to where the edit began:
@@ -93,13 +95,15 @@ The landing is a value, not a callback that places anything: a position (a docum
 
 Callers pick a scope; they never assemble the steps, and **this is the canonical entry for any new structural mutation** (the op-log isn't a commit step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit sequence is single-sourced and the factories differ only in scope wiring and container-only concerns.
 
-**Reading mode is refused where the bytes are written.** Every entry point that writes the document asks `src/lib/editor-actions/commit/reading-write-gate.ts` :: `admitsWrite` first: every commit and every keystroke written in place (both run the commit frame), and undo/redo. In reading mode each one declines, pushing no snapshot and emitting no event.
+**Reading mode is refused where the bytes are written.** Every entry point that writes the document asks `src/lib/editor-actions/commit/reading-write-gate.ts` :: `admitsWrite` first: every commit and every keystroke written in place (both run the commit frame). Undo and redo ask its sibling `admitsHistoryRequest`. In reading mode each one declines, pushing no snapshot and emitting no event.
 
 - A keystroke asks once, before it picks between a commit and the in-place write, and comes back with `admitted: false` and no caret. A dev build also warns `[aragonite:reading-write]`, since whatever got there offered a write it shouldn't have.
 - The reading-mode checks still left on gestures hide an affordance, or keep a promise the refusal can't keep by itself (a `runCommand` that answers `false`, a key the editor still consumes).
 - A mode switch commits whatever an open block is holding before the new mode takes effect, so that edit lands in the mode it was typed in.
 
 The same check quietly refuses a write made for a document a `source` swap has replaced (a paste that waited on a slow clipboard read, say). Each write handle a block holds is stamped with the document it was made for (`src/lib/editor-actions/commit/document-stamp.ts`) as the block mounts.
+
+**Nothing writes while an undo or redo puts its entry back.** From the document swap until the caret has landed, the gate declines every write, quietly. Otherwise a block that tidies itself up when the caret leaves it (an empty `#` heading turning back into a paragraph, say) would sneak a new edit into the middle of the undo and wipe the redo stack. The install awaits nothing but `tick()`, so no key or click can arrive inside it and get dropped. An open draft (an edit held outside the document, like a shown math source) commits just before the swap, as a step of its own the undo then takes back, so redo brings it back too. A shown source stays shown and fills with what the undo put back. In dev, G1.156 checks that the document ends up at the entry's exact bytes.
 
 Two snapshots still come from outside the primitive. The typing batch's, pushed at a burst's first keystroke before its write, because a keystroke written in place pushes nothing of its own; and undo and redo's own, the current state they push onto the opposite stack before they swap (`captureCurrentState`).
 

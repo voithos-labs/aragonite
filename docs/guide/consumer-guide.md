@@ -519,6 +519,7 @@ Tells you whether `runCommand(id)` would reach the command right now, which is w
 - a text command on a block that can't run one (a divider, a diagram, a formula)
 - a plugin command whose plugin this editor didn't list
 - the link editor or a heading level while the selection spans blocks (a link lives inside one block, and a heading level is one block's)
+- `history.undo` or `history.redo` with nothing to undo or redo (typing a letter and deleting it again counts as nothing). `runCommand` still answers `true` for those two, since the editor always takes Mod+Z for itself rather than let the browser's own undo loose on the document
 
 `true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
 

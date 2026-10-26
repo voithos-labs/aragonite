@@ -121,6 +121,34 @@ export const MOVE_KEYS: readonly Key[] = [
 export const SEQUENCE_SEEDS: readonly number[] = [...MULTI_SEEDS, ...range(100, 115)];
 export const SEQUENCE_STEPS = 25;
 
+/** A key pressed at a leaf's offset, the leaf named by its CST path. */
+export interface ScriptedKey {
+	path: number[];
+	offset: number;
+	key: string;
+}
+
+/** The shortest key runs an undo defect was found with, kept by name so no seed or corpus change
+ *  drops them. */
+export const SCRIPTED_SEQUENCES: Readonly<Record<string, { source: string; keys: ScriptedKey[] }>> =
+	{
+		'type-then-delete': {
+			source: 'ab\n',
+			keys: [
+				{ path: [0], offset: 1, key: 'Enter' },
+				{ path: [1], offset: 0, key: 'a' },
+				{ path: [1], offset: 1, key: 'Backspace' }
+			]
+		},
+		'empty-heading-undo': {
+			source: '#\n\nb\n',
+			keys: [
+				{ path: [1], offset: 1, key: 'c' },
+				{ path: [0], offset: 1, key: 'x' }
+			]
+		}
+	};
+
 // ── Long documents ───────────────────────────────────────────────────────────
 
 export interface LongDocument {

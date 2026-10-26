@@ -110,6 +110,7 @@ These checks run in three kinds of place:
 | G1.152 | _Retired_: its premise was wrong; a fold that keeps its index can still move the leaf's bytes | A       |
 | G1.154 | A content write's fixed-up window holds the block it wrote                                    | A·N     |
 | G1.155 | A block's write puts its caret inside the text it writes                                      | A·N     |
+| G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs    | A·N     |
 
 ### The entries
 
@@ -652,3 +653,9 @@ counting through the written block and on into the next. An input read that drop
 browser left (a hidden `#` marker) moves the caret with them. `checkCaretInWrittenText` ·
 `block-edit-core.ts :: contentUpdate` · `write-caret.test.ts`, `editable-surface-caret.test.ts`,
 `atx-closing-run.spec.ts` on Firefox.
+
+**G1.156 · An undo puts back its entry, nothing more** (`history-install`). Once an undo or redo
+has installed its entry and placed the caret, the document's bytes are the entry's. A write in
+between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and
+would clear the redo stack, so the write gate declines every write while the install runs.
+`checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, the behavior rows.

@@ -30,6 +30,12 @@ export interface UndoEntry {
 	integrity?: number;
 }
 
+/** The document an undo or redo would replace; `version` changes whenever its bytes do. */
+export interface LiveDocument {
+	doc(): Document;
+	version(): number;
+}
+
 export interface UndoManager {
 	push(entry: UndoEntry): void;
 	/** Top undo entry without the per-call stack copies of getStacks. */
@@ -42,6 +48,7 @@ export interface UndoManager {
 	/** Restore both stacks from a `getStacks()` snapshot. Wholesale, not a pop, because
 	 *  `push` may have evicted the oldest entry at MAX_UNDO. */
 	restoreStacks(stacks: { undo: UndoEntry[]; redo: UndoEntry[] }): void;
+	/** Whether an undo would change the document: an entry that wouldn't is no step. */
 	readonly canUndo: boolean;
 	readonly canRedo: boolean;
 }

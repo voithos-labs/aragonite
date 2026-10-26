@@ -293,13 +293,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		showSource: () => {
 			traceRevealOpen('leaf');
 			draft?.end();
-			draft = drafts.open({
-				seed: sourceText(),
-				current: sourceText,
-				close: (cause) => {
-					if (cause === 'mode-change') void commitReveal(true);
-				}
-			});
+			draft = openDraft();
 			clearSourceHistory();
 			setRevealed(true);
 		},
@@ -337,6 +331,24 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	// ── Commit ─────────────────────────────────────────────────────────────────
+
+	function openDraft(): Draft {
+		return drafts.open({
+			seed: sourceText(),
+			current: sourceText,
+			close: (cause) => {
+				if (cause === 'undo') saveBeforeUndo();
+				else if (cause === 'mode-change') void commitReveal(true);
+			}
+		});
+	}
+
+	// The source stays shown through an undo: its edit lands as a step the undo then takes back.
+	function saveBeforeUndo(): void {
+		const edited = deps.getEl()?.textContent ?? sourceText();
+		if (draft?.canWrite() && edited !== sourceText()) void commitSource(edited);
+		draft = openDraft();
+	}
 
 	// Returns the commit's own promise, so a caller that has to act on the committed bytes
 	// (a single-line Enter's split) can wait for the write to land.
@@ -490,6 +502,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if ((el.textContent ?? '') !== text) {
 			const heard = reported;
 			paintSource(el, text);
+			// The shown source now holds the document's bytes, so an edit from here on is an edit of them.
+			if (draft) {
+				draft.end();
+				draft = openDraft();
+			}
 			// An undo over text the view has heard is a change to it; a fresh element's fill is not.
 			if (heard !== null && heard !== text) reportSourceEdit(text);
 			// The local entries were taken against bytes an external rewrite just replaced.

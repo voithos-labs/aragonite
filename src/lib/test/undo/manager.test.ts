@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { assignIds } from '../../block-id';
-import { createUndoManager } from '../../undo/manager';
+import { createUndoManager as createManager } from '../../undo/manager';
 import { rangeSelectionOf } from '../support/undo-entry';
 import type { UndoEntry } from '../../undo/types';
+import type { Document } from '../../core/nodes';
 
 function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
 	const snapshot = parse(source);
@@ -17,6 +18,29 @@ function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
 }
 
 const CURRENT = makeEntry('current\n');
+
+/** The document an undo would replace, moved by hand here, its version bumped with each move. */
+function liveDocument(source = 'live\n') {
+	let doc = parse(source);
+	let version = 0;
+	const reads = { count: 0 };
+	return {
+		reads,
+		live: {
+			doc: () => {
+				reads.count++;
+				return doc;
+			},
+			version: () => version
+		},
+		set(next: Document) {
+			doc = next;
+			version++;
+		}
+	};
+}
+
+const createUndoManager = (live = liveDocument().live) => createManager(live);
 
 describe('UndoManager', () => {
 	it('starts with canUndo and canRedo as false', () => {
@@ -163,6 +187,48 @@ describe('UndoManager', () => {
 			current = last!;
 		}
 		expect(serialize(last!.snapshot)).toBe('e0\n');
+		expect(manager.canUndo).toBe(false);
+	});
+});
+
+// Miss-analysis: every suite pushed entries that each changed the document, never one that left it
+// as it was, so a typing run that deleted what it typed still read as a step.
+describe('an entry that would leave the document as it is', () => {
+	it('is no step to undo, so a stack holding only those has nothing to undo', () => {
+		const manager = createUndoManager(liveDocument('same\n').live);
+		manager.push(makeEntry('same\n'));
+		expect(manager.canUndo).toBe(false);
+		expect(manager.undo(CURRENT)).toBeNull();
+	});
+
+	it('is passed over, so one undo reaches the step below it', () => {
+		const manager = createUndoManager(liveDocument('same\n').live);
+		manager.push(makeEntry('before\n'));
+		manager.push(makeEntry('same\n'));
+		expect(manager.canUndo).toBe(true);
+		expect(serialize(manager.undo(CURRENT)!.snapshot)).toBe('before\n');
+		expect(manager.canUndo).toBe(false);
+	});
+
+	it('is no step to redo either', () => {
+		const holder = liveDocument('a\n');
+		const manager = createUndoManager(holder.live);
+		manager.push(makeEntry('before\n'));
+		manager.undo(makeEntry('a\n'));
+		holder.set(parse('a\n'));
+		expect(manager.canRedo).toBe(false);
+		expect(manager.redo(CURRENT)).toBeNull();
+	});
+
+	it('reads the document once per content version, however often a toolbar asks', () => {
+		const holder = liveDocument('x\n');
+		const manager = createUndoManager(holder.live);
+		manager.push(makeEntry('before\n'));
+		expect(manager.canUndo).toBe(true);
+		const reads = holder.reads.count;
+		for (let i = 0; i < 5; i++) expect(manager.canUndo).toBe(true);
+		expect(holder.reads.count).toBe(reads);
+		holder.set(parse('before\n'));
 		expect(manager.canUndo).toBe(false);
 	});
 });

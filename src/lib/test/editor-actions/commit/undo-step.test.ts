@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { asDocPath } from '#lib/selection/path-math.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -13,7 +14,12 @@ import { serialize } from '#lib/core/serializer.js';
 function makeEditor(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
 	const controller = createUndoController(deps);
-	return { deps, controller, blockEdit: createBlockEditActions(deps, controller) };
+	return {
+		deps,
+		controller,
+		blockEdit: createBlockEditActions(deps, controller),
+		history: createHistoryActions(deps, controller)
+	};
 }
 
 const SEED = { path: asDocPath([0]), offset: 1 };
@@ -24,9 +30,9 @@ const undoDepth = (deps: ReturnType<typeof makeEditor>['deps']) =>
 // Miss-analysis (GH #30): grouping was tested only on runs that wrote, never a declined gesture.
 describe('undoStep: a step that writes nothing', () => {
 	it('leaves no entry and keeps the redo stack', async () => {
-		const { deps, controller, blockEdit } = makeEditor('a\n');
+		const { deps, controller, blockEdit, history } = makeEditor('a\n');
 		await blockEdit.insertParagraph(1, 'b');
-		deps.undoManager.undo(controller.captureCurrentState());
+		await history.requestUndo();
 
 		await controller.undoStep(SEED, async () => {});
 
@@ -147,10 +153,9 @@ describe('undoStep', () => {
 	});
 
 	it('clears the redo stack once, on the first write of the run', async () => {
-		const { deps, controller, blockEdit } = makeEditor('a\n');
+		const { deps, controller, blockEdit, history } = makeEditor('a\n');
 		await blockEdit.insertParagraph(1, 'b');
-		const undone = deps.undoManager.undo(controller.captureCurrentState());
-		expect(undone).not.toBeNull();
+		await history.requestUndo();
 		expect(deps.undoManager.canRedo).toBe(true);
 
 		await controller.undoStep(SEED, async () => {

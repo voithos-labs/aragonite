@@ -12,6 +12,7 @@ import type { Reading } from '../schema/reading';
 import type { RefSlots } from '../block-lists/child-refs';
 import type { CaretLanding } from '../selection/caret-landing';
 import type { DocumentStamps } from './commit/document-stamp';
+import type { DraftCloseCause } from '../schema/drafts';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
@@ -43,6 +44,8 @@ export interface EditorActionsDeps {
 	/** Which document each write was made for: the write gate refuses one made for a document a
 	 *  `source` swap replaced. */
 	stamps: DocumentStamps;
+	/** The edits held outside the document, which an undo or redo commits before it swaps. */
+	drafts: { closeAll(cause: DraftCloseCause): void };
 }
 
 /**

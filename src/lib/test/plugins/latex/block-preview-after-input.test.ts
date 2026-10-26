@@ -77,6 +77,7 @@ describe('block math’s preview while its source is shown', () => {
 	});
 
 	// Miss-analysis: every row edited inside the source, and none let the document's undo refill it.
+	// The edit the source still held lands as a step of its own first, which the undo takes back.
 	it('draws the restored formula when the document’s undo fills the shown source', async () => {
 		const { editor, el } = await openSource();
 		edit(el, 'xy');
@@ -88,7 +89,7 @@ describe('block math’s preview while its source is shown', () => {
 		reopened.dispatchEvent(input('insertFromDrop'));
 		await pressKey(reopened, { key: 'z', ctrlKey: true });
 
-		expect(reopened.textContent).toBe('$$\nx\n$$');
-		expect(preview(editor)).toBe('x');
+		expect(reopened.textContent).toBe('$$\nxy\n$$');
+		expect(preview(editor)).toBe('xy');
 	});
 });

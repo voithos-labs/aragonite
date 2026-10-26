@@ -30,6 +30,7 @@ export function commandContext(over: Partial<CommandDispatchContext> = {}): Comm
 		isCrossBlockRange: () => false,
 		crossBlockCommands: INERT_RANGE_ROUTER,
 		markActivation: INERT_MARK_ACTIVATION,
+		undoStack: { canUndo: true, canRedo: true },
 		keybindingOverrides: () => undefined,
 		onCommandError: () => {},
 		reorder: { nudgeReorderUnit: async () => false },
