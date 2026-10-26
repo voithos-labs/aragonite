@@ -21,14 +21,8 @@ on:
       - 'vite.config.js'
       - 'vite.prebuilt.config.js'
       - 'THIRD-PARTY-NOTICES.md'
-      - 'scripts/smoke/consumer-smoke.mjs'
-      - 'scripts/lib-alias.mjs'
-      - 'scripts/pack/pack-manifest.mjs'
-      - 'scripts/smoke/private-install.mjs'
-      - 'scripts/pack/prune-dist.mjs'
-      - 'scripts/smoke/sync-consumer-plugins.mjs'
-      - 'scripts/pack/verify-pack.mjs'
-      - 'scripts/pack/verify-prebuilt.mjs'
+      # The job runs scripts that import each other, so a hand-copied file list drifts.
+      - 'scripts/**'
       - '.github/workflows/consumer-smoke.yml'
   workflow_dispatch:
 
