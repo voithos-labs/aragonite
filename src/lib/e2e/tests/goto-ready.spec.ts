@@ -19,16 +19,13 @@ for (const [name, navigate] of NAVIGATIONS) {
 		const order: string[] = [];
 		let answer!: () => void;
 		const answered = new Promise<void>((resolve) => (answer = resolve));
-		let held = 0;
 		await page.route('**/*', async (route) => {
-			if (route.request().resourceType() === 'image') {
-				held++;
-				await answered;
-			}
+			if (route.request().resourceType() === 'image') await answered;
 			await route.fallback();
 		});
 		await gotoReady(page, '/test/editor');
-		expect(held, 'the first page holds an image still loading').toBeGreaterThan(0);
+		const loading = await page.evaluate(() => [...document.images].some((img) => !img.complete));
+		expect(loading, 'the first page holds an image still loading').toBe(true);
 
 		page.on('request', (request) => {
 			if (request.isNavigationRequest()) order.push('next page requested');
