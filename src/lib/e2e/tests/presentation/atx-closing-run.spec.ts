@@ -109,15 +109,21 @@ test('live mode: emptying the text', async ({ page }) => {
 		await ep.bridge.waitForSourceEquals('#   \n\nnext\n');
 	});
 
-	await test.step('selecting the text and typing a space leaves a paragraph holding the space', async () => {
-		await nextRow(ep, DOC);
-		await ep.focusBlockAtPath([0], 3);
-		await page.keyboard.press(edgeKey('lineEnd'));
-		await page.keyboard.press(extendKey('lineStart'));
-		await ep.typeSlowly(' ');
-		await ep.typeSlowly('x');
-		await ep.bridge.waitForSourceEquals(' x\n\nnext\n');
-	});
+	for (const [where, lead, path] of [
+		['', '', [0]],
+		[' inside a list item', '- ', [0, 0, 0]],
+		[' inside a quote', '> ', [0, 0]]
+	] as const) {
+		await test.step(`selecting the text and typing a space leaves a paragraph holding the space${where}`, async () => {
+			await nextRow(ep, `${lead}${DOC}`);
+			await ep.focusBlockAtPath([...path], 3);
+			await page.keyboard.press(edgeKey('lineEnd'));
+			await page.keyboard.press(extendKey('lineStart'));
+			await ep.typeSlowly(' ');
+			await ep.typeSlowly('x');
+			await ep.bridge.waitForSourceEquals(`${lead} x\n\nnext\n`);
+		});
+	}
 
 	for (const source of ['# H\n\nnext\n', '# H #\n\nnext\n', 'H\n===\n\nnext\n']) {
 		await test.step(`Backspace over the last character of ${JSON.stringify(source)} leaves an empty paragraph`, async () => {

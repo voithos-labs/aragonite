@@ -1,6 +1,6 @@
 /**
- * G1.155: a block's write puts its caret inside the text it writes, since the fix-up places that
- * caret by counting through the written block and past it into the next.
+ * G1.155: every write of a block's text puts its caret inside that text, since the fix-up places
+ * the caret by counting through the written block and past it into the next.
  */
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';

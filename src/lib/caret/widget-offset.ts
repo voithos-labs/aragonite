@@ -104,6 +104,12 @@ export function rawTextOfContent(el: HTMLElement, raw: string, suffix: string): 
 	return readContent(el, raw, suffix, 0).text;
 }
 
+/** A block's text read back from its element, and a caret moved onto that text. */
+export interface InputRead {
+	text: string;
+	caret: number;
+}
+
 /** `rawTextOfContent` with a caret at `caret` in the bytes `el` shows moved onto the text read, so
  *  a read that drops a hidden marker drops it from the caret's offset too. */
 export function readContent(
@@ -111,7 +117,7 @@ export function readContent(
 	raw: string,
 	suffix: string,
 	caret: number
-): { text: string; caret: number } {
+): InputRead {
 	const prefix = markerPrefixOf(el);
 	let out = '';
 	let content = '';

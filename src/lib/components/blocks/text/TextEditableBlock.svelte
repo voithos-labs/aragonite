@@ -232,7 +232,6 @@
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readText: () => readInput(0).text,
 		readInput,
 		repaint: () => textRender.render({ forceRebuild: true }),
 		compositionSeat,

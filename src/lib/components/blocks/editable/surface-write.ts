@@ -14,8 +14,6 @@ import type { HeldInsertion, TextEdit } from '../../../caret/next-insertion';
 import { shownKind } from '../../../core/parsers/heading';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
 import { withStoredCaret } from '../../../editor-actions/stored-caret';
-import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { checkCaretInWrittenText } from '../../../invariants/write-caret';
 
 /** `typed` is a keystroke's own edit, which can name a new block kind and complete its line;
  *  `command` is a chord, a menu row, a clipboard edit or a shown source's commit, and `repair`
@@ -68,9 +66,6 @@ export interface SurfaceWriteDeps {
 
 export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) => ContentWrite {
 	return function writeText(write) {
-		assertInvariant('caret-in-written-text', () =>
-			checkCaretInWrittenText(write.text, write.caretAfter)
-		);
 		const node = deps.getNode();
 		const index = deps.getIndex();
 		const typed = write.intent === 'typed';

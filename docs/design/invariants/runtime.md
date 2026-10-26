@@ -646,8 +646,9 @@ reading that window's blocks. A fix-up that moved no block reports no window at 
 `checkWriteInWindow` · `content-write.ts :: settledCaretPosition` ·
 `structural-descriptor.test.ts`, `replacement-focus-target.test.ts`, the simulation.
 
-**G1.155 · A write's caret sits in its text** (`caret-in-written-text`). The caret a block's write
-hands over is counted in the text it writes, from its start to its end, since the fix-up places it
-by counting through the written block and on into the next. An input read that drops bytes the
+**G1.155 · A write's caret sits in its text** (`caret-in-written-text`). Every write of a block's
+text puts its caret between the text's start and its end, since the fix-up places that caret by
+counting through the written block and on into the next. An input read that drops bytes the
 browser left (a hidden `#` marker) moves the caret with them. `checkCaretInWrittenText` ·
-`surface-write.ts` · `write-caret.test.ts`, `atx-closing-run.spec.ts` on Firefox.
+`block-edit-core.ts :: contentUpdate` · `write-caret.test.ts`, `editable-surface-caret.test.ts`,
+`atx-closing-run.spec.ts` on Firefox.

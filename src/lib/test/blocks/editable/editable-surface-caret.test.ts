@@ -124,6 +124,24 @@ describe('pre-edit caret', () => {
 	});
 });
 
+describe('the input read', () => {
+	// Miss-analysis: only Firefox keeps the hidden `#` the read drops, and the merge gate ran Chromium.
+	afterEach(() => {
+		document.body.innerHTML = '';
+	});
+
+	it('writes the caret the block read moved along with its text', () => {
+		const { surface, commits, el, setCaret } = makeSurface({
+			overrides: { readInput: (caret) => ({ text: ' ', caret: caret - 2 }) }
+		});
+		el.textContent = '#  ';
+		setCaret(3);
+		surface.onInput(new InputEvent('input'));
+
+		expect(commits.map((c) => c.saved)).toEqual([1]);
+	});
+});
+
 describe('park caret', () => {
 	// `parkCaret` clamps every offset into the reachable range; `CURSOR_EXACT_START` alone is exempt.
 	// Miss-analysis: e2e covered the marker values per gesture, and no test tried a numeric offset.

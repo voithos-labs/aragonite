@@ -89,6 +89,7 @@ import {
 	walkOffsetOfRaw,
 	type CaretClamp,
 	type CaretWriter,
+	type InputRead,
 	type RawRange
 } from '../../../caret/widget-offset';
 import {
@@ -267,11 +268,9 @@ export interface EditableSurfaceDeps {
 	inlineUnits?: () => CaretUnitSource;
 
 	// ── Input handling (per block) ────────────────────────────────────────────
-	/** Read the current DOM content as the block's displayed text, for the input commit. */
-	readText: () => string;
-	/** The same read with a caret in the shown bytes moved onto it; absent where the read is the
-	 *  shown bytes as they are. */
-	readInput?: (caret: number) => { text: string; caret: number };
+	/** Read the element back as the block's displayed text, with `caret`, counted in the bytes the
+	 *  element shows, moved onto it: a read that drops bytes moves the caret with them. */
+	readInput: (caret: number) => InputRead;
 	/** Rebuild the element from the block's bytes, for an input the tree took back after the
 	 *  browser had already drawn it. */
 	repaint: () => void;
@@ -392,6 +391,7 @@ export interface EditableSurfaceMethods {
 }
 
 export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurface {
+	const readText = () => deps.readInput(0).text;
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
@@ -420,7 +420,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			deps.inlineUnits?.().beside(offset, direction, extending) ??
 			// Most blocks hold no `\r`, so the DOM read stays off their arrows.
 			(deps.getNode().raw.includes('\r')
-				? lineEndingPairBeside(deps.readText(), offset, direction)
+				? lineEndingPairBeside(readText(), offset, direction)
 				: null),
 		crossed: () => deps.inlineUnits?.().crossed()
 	};
@@ -635,7 +635,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		composing: deps.getComposing,
 		caret: () => deps.backend.getRaw(),
 		hasRange: () => deps.backend.getRawSelection() !== null,
-		text: deps.readText,
+		text: readText,
 		targetRange: (e) => {
 			const target = typeof e.getTargetRanges === 'function' ? e.getTargetRanges()[0] : undefined;
 			return target ? deps.backend.rawRangeOf(target) : null;
@@ -748,8 +748,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
 		if (deps.getComposing() || !el) return unwritten();
-		const shownCaret = deps.backend.getRaw() ?? 0;
-		const read = deps.readInput?.(shownCaret) ?? { text: deps.readText(), caret: shownCaret };
+		const read = deps.readInput(deps.backend.getRaw() ?? 0);
 		const { text, caret: savedOffset } = keepLineEndingPairs(
 			trimTrailingLineEnding(deps.getNode().raw),
 			read.text,
@@ -787,7 +786,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function repaintFromTree(): void {
 		deps.repaint();
 		assertInvariant('repaint-reads-tree', () =>
-			checkRepaintReadsTree(deps.readText(), trimTrailingLineEnding(deps.getNode().raw))
+			checkRepaintReadsTree(readText(), trimTrailingLineEnding(deps.getNode().raw))
 		);
 	}
 

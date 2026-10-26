@@ -56,7 +56,8 @@ typed with the caret inside a run the page shows.
   paints both markers, so the key goes past the run (`#  #k`), as in source mode
 - live mode: selecting the whole text and typing a space leaves a paragraph holding the space,
   the way a heading with no run does; the run goes with the `#` (` x` after the next key), and
-  the caret stays after the space whether or not the browser kept the hidden `#`
+  the caret stays after the space whether or not the browser kept the hidden `#`, inside a list
+  item and a quote too (`-  x`, `>  x`)
 
 Miss-analysis for the last three: the emptying scenarios ran at the top level only, where the
 browser drops the `#` span, so no scenario kept the markers of an empty heading or replaced the
