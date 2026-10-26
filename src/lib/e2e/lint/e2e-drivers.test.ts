@@ -396,6 +396,8 @@ describeManifests(
 			declared: {
 				[IMAGE_WAIT]: 'waitForImagesDecoded, which decodes each picture',
 				'src/lib/e2e/carets-showing.ts': 'decodes its own screenshot before reading the pixels',
+				[NAVIGATION_HELPER]:
+					'waits for a page to stop downloading, decoded or not, before leaving it',
 				'src/lib/e2e/tests/blocks/image/image-load-scroll-stability.spec.ts':
 					'asserts the picture has not loaded yet',
 				'src/lib/e2e/tests/perf/vr-nested-growth.spec.ts':

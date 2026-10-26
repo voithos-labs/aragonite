@@ -1315,10 +1315,11 @@ first. And an element that writes itself a tabindex of 0 fails unless it's a con
 reading-mode stop, so a new block can't add a stop of its own.
 `lint/reading-keyboard-sites.test.ts`; every engine in `plugins/reading-keyboard.spec.ts`.
 
-**G4.237 · One navigation per test.** A test navigating a page its `beforeEach` already loaded
-has had that second navigation interrupted in CI's Firefox, and it's never needed: a test wanting
-another URL gets its own describe. The scan walks each describe chain, outer hooks included, and
-fails a test reaching `gotoReady` or `reloadReady` (through any e2e helper) at its `path:line`.
+**G4.237 · One navigation per test.** A test gets its page from its describe's `beforeEach`, and
+every navigation's readiness rules live in `e2e/goto-ready.ts` (the page it leaves has finished
+loading, the route it reaches has hydrated), so a fix to how specs navigate lands in one place. The
+scan walks each describe chain, outer hooks included, and fails a test reaching `gotoReady` or
+`reloadReady` (through any e2e helper) at its `path:line`.
 `e2e/lint/one-navigation-per-test.test.ts`.
 
 **G4.239 · A delete at a block's edge runs the plain key.** A Backspace or Delete of any unit
