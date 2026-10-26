@@ -68,9 +68,7 @@ export default defineConfig({
 						DEEP_STACK,
 						...NODE_REALM,
 						// The behavior suites only record rows, for `npm run behavior`.
-						...(process.env.BEHAVIOR_RECORD ? [] : ['src/lib/test/behavior/**']),
-						// The fix-up rows are written for the rebuild's bundle, with `FIXUP_ROWS=<file>`.
-						...(process.env.FIXUP_ROWS ? [] : ['src/lib/test/fixup-rows/**'])
+						...(process.env.BEHAVIOR_RECORD ? [] : ['src/lib/test/behavior/**'])
 					]
 				}
 			},
