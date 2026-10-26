@@ -74,7 +74,7 @@ draft.canWrite(); // true; false once a `source` swap or a write to those bytes 
 draft.end(); // your box closed, so the editor stops tracking it
 ```
 
-`openDraft` is on `EditorContext`, and the container factory passes it through. Ask `canWrite()` before every commit, and `end()` the draft when the box closes or your block unmounts with it still open (otherwise a later mode switch calls `close` on a component that's gone). Re-seeding is an `end()` and a fresh `openDraft`. The editor calls `close` only on a draft you haven't ended: a mode switch or an undo may still save it, a document swap never.
+`openDraft` is on `EditorContext`, and the container factory passes it through. Ask `canWrite()` before every commit, and `end()` the draft when the box closes or your block unmounts with it still open (otherwise a later mode switch calls `close` on a component that's gone). Re-seeding is an `end()` and a fresh `openDraft`. The editor calls `close` only on a draft you haven't ended: a mode switch or an undo may still save it, a document swap never. A `close` ends the draft too, so if your box stays open after one (an undo, say), open a fresh draft for it.
 
 The editable leaf does all of this for you (both modes mirror outside changes into the source, and its reveal holds a draft of its own). A plugin-owned surface has to do it itself, and the bundled mermaid block is the worked example.
 

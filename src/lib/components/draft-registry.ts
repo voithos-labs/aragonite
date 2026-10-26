@@ -10,7 +10,7 @@ import type { Draft, DraftCloseCause, DraftSpec } from '../schema/drafts';
 
 export interface DraftRegistry {
 	open(spec: DraftSpec): Draft;
-	/** A document swap and a mode change call it. */
+	/** A document swap, a mode change, and an undo or redo call it; each draft it closes is ended. */
 	closeAll(cause: DraftCloseCause): void;
 }
 

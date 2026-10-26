@@ -52,7 +52,11 @@ describe('an undo whose caret move leaves an empty heading', () => {
 describe('an undo with a draft open', () => {
 	const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
-	it('commits the draft as a step of its own, which the undo takes back and redo returns', async () => {
+	const shownSource = (editor: MountedEditor) =>
+		editor.target.querySelector<HTMLElement>('.math-block-source');
+
+	/** A formula whose shown source holds an edit to `new` that nothing has committed yet. */
+	async function editedSource(): Promise<MountedEditor> {
 		const editor = mountEditor<{
 			getBlockComponent(path: number[]): { parkCaret?(offset: number): void } | null;
 		}>({
@@ -64,15 +68,34 @@ describe('an undo with a draft open', () => {
 		await type(editor, [0], 1, 'b');
 		editor.instance.__test.getBlockComponent([1])!.parkCaret!(0);
 		await editor.settle();
-		const source = editor.target.querySelector<HTMLElement>('.math-block-source');
+		const source = shownSource(editor);
 		expect(source, 'the block opened no source view').not.toBeNull();
 		source!.textContent = '$$\nnew\n$$';
 		source!.focus();
+		return editor;
+	}
+
+	it('commits the draft as a step of its own, which the undo takes back and redo returns', async () => {
+		const editor = await editedSource();
 
 		expect(await run(editor, 'history.undo')).toBe('ab\n\n$$\nold\n$$\n');
 		expect(await run(editor, 'history.redo')).toBe('ab\n\n$$\nnew\n$$\n');
 		await run(editor, 'history.undo');
 		expect(await run(editor, 'history.undo')).toBe('a\n\n$$\nold\n$$\n');
+	});
+
+	// Miss-analysis: the row above stopped at the redo, and no row edited the source it refilled.
+	it('saves an edit made after the redo refills the shown source', async () => {
+		const editor = await editedSource();
+		await run(editor, 'history.undo');
+		await run(editor, 'history.redo');
+		const source = shownSource(editor);
+		expect(source?.textContent, 'the redo refilled the shown source').toBe('$$\nnew\n$$');
+		source!.textContent = '$$\nnewer\n$$';
+		source!.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+		await editor.settle();
+
+		expect(editor.source()).toBe('ab\n\n$$\nnewer\n$$\n');
 	});
 });
 

@@ -502,6 +502,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if ((el.textContent ?? '') !== text) {
 			const heard = reported;
 			paintSource(el, text);
+			// The shown source now holds the document's bytes, so an edit from here on is an edit of them.
+			if (draft) {
+				draft.end();
+				draft = openDraft();
+			}
 			// An undo over text the view has heard is a change to it; a fresh element's fill is not.
 			if (heard !== null && heard !== text) reportSourceEdit(text);
 			// The local entries were taken against bytes an external rewrite just replaced.
