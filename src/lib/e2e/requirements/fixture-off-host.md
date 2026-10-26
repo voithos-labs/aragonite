@@ -22,3 +22,6 @@ with its own route, which runs before the fixture's. The harness's own images ar
 - The harness document and three specs loaded photos from picsum.photos and two link specs opened
   example.com, so a run without network failed: nothing watched where a page's requests went, and
   every machine that ran the suite was online.
+- The image probe waited for the image's load or error event, which WebKit never fires for an
+  aborted request, so the row timed out in CI's WebKit shard: the lane ran its gate on Chromium
+  and Firefox only. It now waits for the blocked request itself, like the new-tab probe.

@@ -29,7 +29,12 @@ test.describe('the e2e fixture blocks requests to other hosts', () => {
 
 	test('an image from another host fails the spec', async ({ page }) => {
 		test.fail();
-		expect(await loadImage(page, `${OFF_HOST}/probe.svg`), 'the request is blocked').toBe('error');
+		// Not every engine fires load or error on an aborted image, so the wait is for the block itself.
+		const blocked = page.waitForEvent('requestfailed', (request) =>
+			request.url().startsWith(OFF_HOST)
+		);
+		await page.evaluate((url) => void (new Image().src = url), `${OFF_HOST}/probe.svg`);
+		await blocked;
 	});
 
 	test('a fetch to another host fails the spec', async ({ page }) => {
