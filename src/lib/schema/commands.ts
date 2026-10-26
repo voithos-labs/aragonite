@@ -279,14 +279,23 @@ enrollTestReset(__resetCommandWarningsForTests);
 
 // The editor's own, so they belong to no plugin and a dev server's re-evaluation replaces them.
 registerAsCore(() => {
-	registerCommand('history.undo', (ctx) => {
-		void ctx.history.requestUndo();
-		return true;
-	});
-	registerCommand('history.redo', (ctx) => {
-		void ctx.history.requestRedo();
-		return true;
-	});
+	// Taken even with nothing to undo, so the chord never falls through to the browser's own undo.
+	registerCommand(
+		'history.undo',
+		(ctx) => {
+			void ctx.history.requestUndo();
+			return true;
+		},
+		(gates) => gates.undoStack.canUndo
+	);
+	registerCommand(
+		'history.redo',
+		(ctx) => {
+			void ctx.history.requestRedo();
+			return true;
+		},
+		(gates) => gates.undoStack.canRedo
+	);
 	registerCommand(
 		'decorations.activateAtCaret',
 		(ctx) => ctx.markActivation.activate(),

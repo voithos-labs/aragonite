@@ -41,6 +41,8 @@ describe('the admissibility read on the instance surface', () => {
 
 	it('declines the block-local half with focus outside, undo still admitted', () => {
 		const editor = editorWithSelection();
+		expect(editor.canRunCommand('history.undo'), 'nothing to undo yet').toBe(false);
+		editor.runCommand(TOOLBAR_COMMANDS.toggleStrong);
 		(document.activeElement as HTMLElement | null)?.blur();
 
 		for (const id of TOOLBAR_IDS) expect(editor.canRunCommand(id), id).toBe(false);

@@ -257,6 +257,8 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		// Inert too: a bare mount activates no decoration.
 		markActivation: { canActivate: () => false, activate: () => false },
+		// Answers yes, as a mounted editor does once something has been edited.
+		undoStack: { canUndo: true, canRedo: true },
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		onCommandError: (report) => emitCommandError(services.events, report),
 		reorder: services.reorder,

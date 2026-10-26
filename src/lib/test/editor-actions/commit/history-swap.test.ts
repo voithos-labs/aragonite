@@ -10,6 +10,17 @@ function makeSetup() {
 	return { deps, events, controller, history: createHistoryActions(deps, controller) };
 }
 
+type Deps = ReturnType<typeof makeSetup>['deps'];
+
+/** The live document with its first block's text changed: an entry the undo stack takes as a step,
+ *  where one equal to the live bytes would be passed over. */
+function differentDoc(deps: Deps) {
+	return {
+		...deps.doc,
+		children: [makeNode('paragraph', 'pushed\n'), ...deps.doc.children.slice(1)]
+	};
+}
+
 // captureCurrentState marks the whole tree as shared with a snapshot, forcing the next
 // edit to copy its path first, for an undo that never happens.
 describe('history swap: no-op guard', () => {
@@ -34,7 +45,7 @@ describe('history swap: a snapshot whose selection no longer resolves', () => {
 		const { deps, history } = makeSetup();
 		const pastEnd = deps.doc.children.length;
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: {
 				anchor: { path: [pastEnd], offset: 0 },
@@ -55,7 +66,7 @@ describe('history swap: the outgoing selection never meets the incoming tree', (
 	it('drops the standing range before the document swaps', async () => {
 		const { deps, history } = makeSetup();
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 1 } }
 		});
@@ -88,7 +99,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		};
 		const history = createHistoryActions(deps, createUndoController(deps));
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
 		});
@@ -112,7 +123,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		};
 		const history = createHistoryActions(deps, createUndoController(deps));
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
 		});
@@ -131,7 +142,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		});
 		const history = createHistoryActions(deps, createUndoController(deps));
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: { anchor: { path: [5], offset: 0 }, focus: { path: [5], offset: 0 } }
 		});
@@ -160,10 +171,13 @@ describe('history swap: the typing batch ends', () => {
 				'join-typing',
 				async () => undefined
 			);
+			// Stands in for the keystroke's own write, so the entry is a step to undo.
+			deps.doc.children[0] = makeNode('paragraph', 'aaab\n');
+			deps.bumpContentVersion();
 			await history.requestUndo();
 			vi.advanceTimersByTime(1000);
 			expect(ops).toEqual(['undo']);
-			expect(deps.undoManager.canUndo).toBe(false);
+			expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 
 			void controller.typingKeystroke(
 				docPathFrom([0]),
@@ -172,7 +186,7 @@ describe('history swap: the typing batch ends', () => {
 				'join-typing',
 				async () => undefined
 			);
-			expect(deps.undoManager.canUndo).toBe(true);
+			expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 		} finally {
 			vi.useRealTimers();
 		}

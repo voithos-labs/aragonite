@@ -292,7 +292,7 @@
 	let findBarEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
 	let widthProbeEl: HTMLDivElement | undefined = $state();
-	const undoManager = createUndoManager();
+	const undoManager = createUndoManager({ doc: () => doc, version: contentVersion.read });
 	const sharing = createSharingState();
 	// Each change to what the memory answers repaints the drawn caret's look; it's built below.
 	const caretMemory = createCaretMemory({ onChange: () => drawnCaret.request() });
@@ -816,6 +816,7 @@
 		isCrossBlockRange: () => selectionState.isCrossBlock,
 		crossBlockCommands,
 		markActivation,
+		undoStack: undoManager,
 		keybindingOverrides: () => overridesMap,
 		onCommandError: commandErrorSink,
 		reorder

@@ -15,6 +15,16 @@ function makeHarness(source: string) {
 	return { deps, controller, history };
 }
 
+type Harness = ReturnType<typeof makeHarness>;
+
+/** Pushes the document as it stands, then appends a block, so the entry is a step that changes the
+ *  bytes rather than one the undo stack passes over. */
+function pushThenAppend(deps: Harness['deps'], controller: Harness['controller']): void {
+	deps.undoManager.push(controller.captureCurrentState());
+	deps.doc.children.push(parse('appended\n').children[0]);
+	deps.bumpContentVersion();
+}
+
 describe('structural-sharing snapshots', () => {
 	it('a snapshot push shares nodes instead of cloning them', () => {
 		const { deps, controller } = makeHarness('hello\n\nworld\n');
@@ -34,7 +44,7 @@ describe('structural-sharing snapshots', () => {
 
 	it('undo restore bumps the epoch beyond the swap capture', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
-		deps.undoManager.push(controller.captureCurrentState());
+		pushThenAppend(deps, controller);
 		const beforeUndo: { ownerEpoch?: number } = {};
 		deps.sharing.stamp(beforeUndo);
 		await history.requestUndo();
@@ -46,7 +56,7 @@ describe('structural-sharing snapshots', () => {
 
 	it('restore re-copies the children array so the stack entry never aliases the live array', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
-		deps.undoManager.push(controller.captureCurrentState());
+		pushThenAppend(deps, controller);
 		const entry = deps.undoManager.getStacks().undo[0];
 		await history.requestUndo();
 		expect(deps.doc.children).not.toBe(entry.snapshot.children);
@@ -55,7 +65,7 @@ describe('structural-sharing snapshots', () => {
 
 	it('DEV integrity digest is stored at push and passes at unmutated restore', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
-		deps.undoManager.push(controller.captureCurrentState());
+		pushThenAppend(deps, controller);
 		expect(deps.undoManager.getStacks().undo[0].integrity).toBeDefined();
 		await history.requestUndo();
 		expect(takeDevWarns()).toEqual([]);
@@ -77,7 +87,7 @@ describe('structural-sharing snapshots', () => {
 
 	it('mutating a shared node between push and restore trips the integrity check', async () => {
 		const { deps, controller, history } = makeHarness('hello\n');
-		deps.undoManager.push(controller.captureCurrentState());
+		pushThenAppend(deps, controller);
 		// Stands in for a missed copy-before-write: a raw write through a node the entry shares.
 		deps.doc.children[0].raw = 'corrupted\n';
 		await history.requestUndo();

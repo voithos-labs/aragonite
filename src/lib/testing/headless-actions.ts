@@ -159,6 +159,7 @@ export function createHeadlessActions(
 	);
 	const events = createEditorEvents();
 	const landings: RecordedLanding[] = [];
+	let contentVersion = 0;
 	const deps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -180,8 +181,11 @@ export function createHeadlessActions(
 		setBlockRefs: (next: (BlockComponent | undefined)[]) => {
 			replaceRefs(blockRefs, next);
 		},
-		bumpContentVersion: options.bumpContentVersion ?? (() => {}),
-		undoManager: createUndoManager(),
+		bumpContentVersion: () => {
+			contentVersion++;
+			options.bumpContentVersion?.();
+		},
+		undoManager: createUndoManager({ doc: () => doc, version: () => contentVersion }),
 		sharing: createSharingState(),
 		caretMemory: spy(stubCaretMemory()),
 		// Document-aware, as the editor's own is: without the document a deep table endpoint is
