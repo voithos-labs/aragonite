@@ -205,7 +205,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	treeOperationsBarrel: 'export { reclassifyContainer }',
 	nodePrimitives: 'export type BodyParent',
 	unshare: 'export function walkUnsharing',
-	separatorWrites: 'export function writeSeparator',
+	separatorWrites: 'export function restoreSeparatorOnFill(',
 	fixUpApply: 'export function fixUpEdit',
 	contentWrite: 'export interface LegalWrite',
 	nodeOps: 'export interface SplitResult',
