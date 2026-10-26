@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
 	checkIdsChildrenLockstep,
-	checkStructuralDescriptor
+	checkStructuralDescriptor,
+	checkWriteInWindow
 } from '#lib/invariants/structural-descriptor.js';
 
 // A structural descriptor's window must fit the array it syncs, since the one consumer clamps a
@@ -41,5 +42,20 @@ describe('checkIdsChildrenLockstep', () => {
 		expect(checkIdsChildrenLockstep('seam', 2, 2)).toBeNull();
 		expect(checkIdsChildrenLockstep('seam', 2, 1)?.code).toBe('ids-children-lockstep');
 		expect(checkIdsChildrenLockstep('seam', 1, 2)?.code).toBe('ids-children-lockstep');
+	});
+});
+
+describe('checkWriteInWindow', () => {
+	const window = { op: 'replace', at: 1, count: 2, newCount: 1 } as const;
+
+	it('passes a write inside the replaced window, and any change that replaces none', () => {
+		expect(checkWriteInWindow(window, 1)).toBeNull();
+		expect(checkWriteInWindow(window, 2)).toBeNull();
+		expect(checkWriteInWindow({ op: 'noop' }, 0)).toBeNull();
+	});
+
+	it('fires on a write on either side of the window', () => {
+		expect(checkWriteInWindow(window, 0)?.code).toBe('write-in-window');
+		expect(checkWriteInWindow(window, 3)?.code).toBe('write-in-window');
 	});
 });

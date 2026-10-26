@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { spliceChildrenSettled } from '#lib/tree-operations/settle.js';
+import { spliceFixedUp } from '#lib/tree-operations/fix-up/apply.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
@@ -37,7 +37,7 @@ describe('a document-scaled splice', () => {
 			innerSuffix: ''
 		};
 		const sharing = createSharingState();
-		spliceChildrenSettled(container, 0, 1, clipboard(), defaultGrammarView, sharing, '\n');
+		spliceFixedUp(container, 0, 1, clipboard(), defaultGrammarView, sharing, '\n');
 		expect(container.children).toHaveLength(OVER_LIMIT);
 		expect(container.childIds).toHaveLength(OVER_LIMIT);
 	});

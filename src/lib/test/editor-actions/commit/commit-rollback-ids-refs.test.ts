@@ -15,9 +15,10 @@ const makeContainer = (childRaws: string[]): CstNode =>
 // ancestor rebuild, so a later throw leaves them reflecting a rolled-back mutation.
 describe('commitMultiScope: ids/refs rollback on a post-publish throw', () => {
 	it('restores top-level blockIds/refs when a later scope throws after the doc scope published', async () => {
+		// A blank line between, so the two lists stand apart the way a reload reads them.
 		const { deps, getBlockIds, getBlockRefs } = makeEditorActionsDeps([
 			makeContainer(['- a\n']),
-			makeContainer(['- b\n'])
+			{ ...makeContainer(['- b\n']), leadingTrivia: '\n' }
 		]);
 		const controller = createUndoController(deps);
 

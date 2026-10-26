@@ -7,7 +7,7 @@
 import { CURSOR_START } from '../block-component';
 import { movedBlockToPosition } from '../a11y-strings';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
-import type { SettledEdit } from '../tree-operations/settle';
+import type { FixedUpEdit } from '../tree-operations/fix-up/apply';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, documentBody, nodeAt } from '../tree-operations/node-primitives';
 import { orderedBaseOf, renumberOrderedListFrom } from '../tree-operations/list/ordered-markers';
@@ -38,7 +38,7 @@ export function createReorderAction(
 		focusAfter: boolean
 	): Promise<boolean> {
 		let landedAt = to;
-		let settled = (): SettledEdit | null => null;
+		let settled = (): FixedUpEdit | null => null;
 		// Where the moved block stands once the commit's fix-up merged anything around it.
 		const movedTo = () => settled()?.moved ?? landedAt;
 		// The caret moves with the block, so a block moved off screen scrolls back into view.

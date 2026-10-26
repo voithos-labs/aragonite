@@ -1,22 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { documentBody, type BodyParent } from '#lib/tree-operations/node-primitives.js';
-import { normalizeBlankRuns } from '#lib/tree-operations/blank-runs.js';
+import { fixUpEdit } from '#lib/tree-operations/fix-up/apply.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
-// A body names its container once, as `owner`, and the document root names none. The separator
-// fix-ups read the owner's fence lines and title off it, so a body is the only thing they take.
+// A body names its container once, as `owner`, and the document root names none. The fix-up
+// reads the owner's fence lines and title off it, so a body is the only thing it takes.
 
-describe('the separator fix-ups take a body', () => {
+describe('the fix-up takes a body', () => {
 	it('refuses a bare children array, which names no owner', () => {
 		const { children } = parse('> a\n>\n>\n> b\n').children[0];
-		normalizeBlankRuns(
+		fixUpEdit(
 			// @ts-expect-error a bare array can't say whose body it is, so the fix-up can't read the wrap
 			{ children: children!, lineEnding: '\n' },
-			1,
-			1,
-			{ op: 'noop' },
+			{ change: { op: 'noop' }, before: children! },
 			defaultGrammarView,
 			createSharingState()
 		);

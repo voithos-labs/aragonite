@@ -43,7 +43,7 @@ import {
 import { ensureEditableContainers } from '../schema/opened-reading';
 import { retireChildSpans } from './separator-writes';
 import { holdOrderedNumbering } from './list/ordered-markers';
-import { absorbSeamReading, type TrackedPosition } from './neighbour-merge';
+import { mergeJoinsAt, type TrackedPosition } from './fix-up/apply';
 import { cutKeepingStructure } from './structural-suffix';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
@@ -166,9 +166,10 @@ export function splitNode(
 	// second half into a new item; at the tail the trailing blank line is the commit's.
 	const seamLeft = blockIndex + nodes.length - 1;
 	if (!splitTail) recordSettlePass();
-	const eaten = splitTail
-		? 0
-		: absorbSeamReading(asBody(parent), seamLeft, seamLeft, grammar, sharing).eaten;
+	const merged = splitTail
+		? { op: 'noop' as const }
+		: mergeJoinsAt(asBody(parent), seamLeft + 1, 0, grammar, sharing);
+	const eaten = merged.op === 'replace' ? merged.count - merged.newCount : 0;
 	return {
 		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length),
 		secondHalfIndex: blockIndex + first.nodes.length,

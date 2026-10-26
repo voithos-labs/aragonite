@@ -18,7 +18,7 @@ import {
 	legalizeWrite,
 	settledCaretPosition,
 	updateNodeContent,
-	type SettledContent
+	type FixedUpWrite
 } from '../content-write';
 import { leafAtRawOffset } from '../container-offsets';
 import { containerPasteFor } from './container-paste';
@@ -177,7 +177,7 @@ export async function applyContainerMatchingPaste(
 
 /** The merged leaf's write: where the write put its bytes. */
 interface MergedLeaf {
-	settled: SettledContent;
+	settled: FixedUpWrite;
 	storedOffset: (offset: number) => number;
 }
 
@@ -268,7 +268,7 @@ async function applyContainerMatchingMerge(
 	const lastItem = remainingItems[remainingItems.length - 1];
 	const lastLineEnding = trailingLineEnding(lastLeaf.raw, lineEnding);
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
-	let residue: SettledContent = { change: { op: 'noop' }, textStart: 0 };
+	let residue: FixedUpWrite = { change: { op: 'noop' }, textStart: 0 };
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],

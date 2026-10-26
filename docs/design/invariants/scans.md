@@ -212,6 +212,7 @@ unguarded.
 | G4.258 | The fix-up, the chain rebuild and the open tail are imported only by the commit                  | L       |
 | G4.259 | On the fix-up’s path a list of blocks is written only through `spliceList`                       | L       |
 | G4.260 | A step before the render and its step after are paired through `aroundRender`                    | L       |
+| G4.262 | The fix-up package loads nothing that parses or writes the tree                                  | L       |
 
 ### The entries
 
@@ -451,8 +452,9 @@ The one file whose subject is `devWarn`'s console output is allowlisted.
 
 **G4.42 · Separator-write sites.** No module writes a sibling's `leadingTrivia` by hand; a splice
 gets its separators from the commit's fix-up (G4.258), and the allowlist gives each exemption a
-reason. Every blank-line write the fix-ups make goes through `tree-operations/separator-writes.ts`
-(`writeSeparator`, `writeWrapSlot`), which drops the owner's child spans first.
+reason. The fix-up hands its separators back in the blocks it returns, which its writer splices
+in; the hand writes left go through `tree-operations/separator-writes.ts :: writeSeparator`, which
+drops the owner's child spans first.
 `lint/separator-write-doors.test.ts`.
 
 **G4.43 · Split-landing parity.** Every file naming `splitNode` reads `secondHalfIndex` at least
@@ -564,8 +566,8 @@ library code, or an npm package. A deep `#lib` import names something the testin
 missing; each allowlist entry names it, and a dead entry fails. `lint/bundled-plugin-test-boundary.test.ts`.
 
 **G4.64 · The tree-ops layering.** `node-primitives.ts`, `unshare.ts`, `separator-writes.ts`,
-`neighbour-merge.ts`, `settle.ts`, `content-write.ts`, `stored-as.ts`, `leaf-range.ts`,
-`node-ops.ts` and `chain-rebuild.ts` import only downward, in that order. An import cycle passes every behavior test and `svelte-check`, so only a
+`content-write.ts`, `stored-as.ts`, `leaf-range.ts`, `node-ops.ts` and `chain-rebuild.ts` import
+only downward, in that order. An import cycle passes every behavior test and `svelte-check`, so only a
 source scan holds it. `lint/tree-op-ladder.test.ts`.
 
 **G4.65 · Delimiter auto-pair parity.** Every editable prose surface (G4.44's set) routes its
@@ -1369,14 +1371,15 @@ a grep, and it guards nothing inside a listed file. `lint/file-rules.test.ts`.
 carries a reason starting `#<issue>: `, so when `npm run release:fixme-recheck` lists a row that
 passes again, it also says which issue to look at. `e2e/lint/fixme-names-issue.test.ts`.
 
-**G4.258 · The commit's own steps.** The fix-up (`settle.ts` and the files it calls), the chain
-rebuild, the open last line, keep-a-block and the fold publish are imported at runtime only by
+**G4.258 · The commit's own steps.** The fix-up (`tree-operations/fix-up/`, entered through
+`fix-up/apply.ts`), the chain rebuild, the open last line, keep-a-block and the fold publish are imported at runtime only by
 `editor-actions/commit/` and `invariants/`. A mutation writes below its scope through `own`,
 `writeLeaf` and `splice`, and the commit rebuilds what it owned once. The few files that still call a
 step say why, and what has to land before they stop. `lint/commit-private-steps.test.ts`.
 
-**G4.259 · One write to a list of blocks.** The fix-up's files, the content write and the copy before
-a write change a list of blocks only through `tree-operations/node-primitives.ts :: spliceList`,
+**G4.259 · One write to a list of blocks.** The fix-up's writer (`fix-up/apply.ts`), the content
+write and the copy before a write change a list of blocks only through
+`tree-operations/node-primitives.ts :: spliceList`,
 which calls the list's `beforeWrite` first. A keystroke saves its leaf's list there, so its rollback
 puts back what the fix-up merged; a direct write would survive a rolled-back key.
 `lint/one-list-writer.test.ts`, `keystroke-commit-frame.test.ts`.
@@ -1386,3 +1389,9 @@ for a new value, with a partner that runs once it has, goes through
 `around-render.svelte.ts :: aroundRender`. Two effects over one value lose the partner when another
 effect moves the value again inside the flush. A window floor left held that way shrinks its list
 inside a later size report, which the browser reports as a loop. `lint/file-rules.test.ts`.
+
+**G4.262 · The fix-up package is pure.** Every file in `tree-operations/fix-up/` but its writer
+(`apply.ts`) and the host over the editor's grammar (`editor-host.ts`) loads at runtime only its
+own files, `core/lines.ts` and `tree-operations/splice-many.ts`. The package reads Markdown only
+through the host it's handed and returns a patch, so it can't parse on its own or write a list
+it was handed; the writer is the one place a patch lands. `lint/fix-up-package-pure.test.ts`.

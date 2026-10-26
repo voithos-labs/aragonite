@@ -159,13 +159,14 @@ describe('measure: lines and scans', () => {
 		expect(countScans(catalog)).toEqual({ active: 1, retired: 2 });
 	});
 
+	// Reading every file off the disk takes seconds under a full parallel run, past the default limit.
 	it('reads the working tree: lines, every unit test file and the catalog', () => {
 		const { lines, tests, scans } = measureTree(workingTree());
 		expect(lines.code).toBeGreaterThan(10_000);
 		expect(tests.files).toBeGreaterThan(1_000);
 		expect(tests.publishedOnly).toBeGreaterThan(0);
 		expect(scans.active).toBeGreaterThan(100);
-	});
+	}, 30_000);
 });
 
 describe('measure: budgets', () => {

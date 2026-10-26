@@ -19,7 +19,7 @@ import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
 import type { CommitScope, ScopeCommitArgs } from '#lib/editor-actions/block-edit-scope.js';
 import { asDocPath } from '#lib/selection/path-math.js';
-import { settleEdit, type EditKind, type SettledEdit } from '#lib/tree-operations/settle.js';
+import { fixUpEdit, type EditKind, type FixedUpEdit } from '#lib/tree-operations/fix-up/apply.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import type { ContainerBlockComponentDeps } from '#lib/editor-actions/container-block-component.js';
 import { refSlotsOver } from '#lib/block-lists/child-refs.js';
@@ -191,7 +191,7 @@ export function makeCommitScopeStub(
 			const writer = createScopeWriter(body, sharing, fixtureReading().grammar, body.lineEnding);
 			const before = [...children];
 			let kind: EditKind = {};
-			let settled: SettledEdit | null = null;
+			let settled: FixedUpEdit | null = null;
 			const change = args.mutate({
 				body,
 				sharing,
@@ -208,7 +208,7 @@ export function makeCommitScopeStub(
 			if (opts.settle) {
 				const edit = { change, before, ...kind };
 				const grammar = fixtureReading().grammar;
-				settled = settleEdit(body, edit, grammar, sharing, args.trackCaret);
+				settled = fixUpEdit(body, edit, grammar, sharing, args.trackCaret);
 			}
 			const landing = args.landing?.();
 			if (landing && 'path' in landing) await scope.land(landing);

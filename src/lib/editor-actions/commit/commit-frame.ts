@@ -12,7 +12,7 @@ import type { CstNode } from '../../core/nodes';
 import { asDocPath } from '../../selection/path-math';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import { endsOpen } from '../../tree-operations/open-tail';
+import { endsOpen } from '../../tree-operations/fix-up/apply';
 import { emitCommitError, toEditEvent } from '../../editor-events';
 import {
 	assertCommitPaths,

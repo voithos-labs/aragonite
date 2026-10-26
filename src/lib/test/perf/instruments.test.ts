@@ -76,9 +76,7 @@ const EMPTY: PerfSnapshot = {
 	deleteWindowUnits: 0,
 	heightTableBuilds: [],
 	neighbourPasses: 0,
-	settlePasses: 0,
-	unfinishedWalks: 0,
-	unfinishedBlocksAsked: 0
+	settlePasses: 0
 };
 
 function recordOneOfEach(): void {

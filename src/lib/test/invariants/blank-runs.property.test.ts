@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A write that blanks a block, fills one, or erases its last line leaves the blank lines around
-// it where a reload puts them, inside bodies between fence lines too (G2.13, G1.139).
+// it where a reload puts them, inside bodies between fence lines too (G2.13, G1.145).
 // Miss-analysis: the shape property drew top-level blocks only and compared block counts, so a
 // body under a fence line and a separator on the wrong block of a run went unread.
 import { describe, it, beforeEach } from 'vitest';

@@ -5,7 +5,7 @@ import { serialize } from '../../core/serializer';
 import { mergeWithNext, splitNode } from '../../tree-operations';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { settled, deleteSettled } from '#lib/test/harness/settle-funnel.js';
-import type { SettledContent } from '#lib/tree-operations/content-write.js';
+import type { FixedUpWrite } from '#lib/tree-operations/content-write.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
@@ -263,7 +263,7 @@ describe('a splice absorbs a join whose fold promotes the head (GH #255)', () =>
 	it('typing the underline into the tight block below a paragraph folds the pair', () => {
 		const doc = parse('p\n# h\n');
 
-		let written: SettledContent | undefined;
+		let written: FixedUpWrite | undefined;
 		const change = settled(
 			doc,
 			() =>

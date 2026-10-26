@@ -16,8 +16,6 @@ import { SOURCE } from './source-paths';
  */
 const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/separator-writes.ts': 'the one separator write lives here',
-	'src/lib/tree-operations/neighbour-merge.ts':
-		'a merge gives the block it builds from the joined bytes the line the window’s head had',
 	'src/lib/tree-operations/node-ops.ts':
 		'the merge-installed leaf and the reparsed halves carry the slot’s own line',
 	'src/lib/tree-operations/content-write.ts':
@@ -45,11 +43,9 @@ const TRIVIA_WRITERS: Record<string, string> = {
 
 /** Files that may name one of those functions directly rather than the shared one. */
 const HAND_SETTLE_CALLERS: Record<string, string> = {
-	'src/lib/tree-operations/settle.ts': 'defines them, and `settleEdit`, the one fix-up beside them',
-	'src/lib/tree-operations/blank-runs.ts': 'defines the run layout every fix-up ends with',
 	'src/lib/tree-operations/index.ts': 're-exports the one the gap-caret mint still needs',
 	'src/lib/tree-operations/separator-writes.ts':
-		'defines the fill step beside the separator write it makes, for the fix-up and the gap-caret mint',
+		'defines the fill step beside the separator write it makes, for the gap-caret mint',
 	'src/lib/tree-operations/list/sublist-separator.ts': 'defines the empty-marker sublist door',
 	'src/lib/tree-operations/chain-rebuild.ts':
 		'the chain rebuild is where a list rebuilt down to an empty marker becomes visible',
@@ -75,8 +71,7 @@ const KIND_REPORTING_CALLERS: Record<string, string> = {
 
 const writesTrivia = /\.leadingTrivia\s*\+?=(?!=)/;
 
-const namesHandSettle =
-	/(?<![\w'"])(normalizeBlankRuns|restoreSeparatorOnFill|restoreSeparatorAfterBlank|settleSublistSeparator|joinListsMadeBeside)\b/;
+const namesHandSettle = /(?<![\w'"])(restoreSeparatorOnFill|settleSublistSeparator)\b/;
 
 describeManifests(
 	[
@@ -101,9 +96,9 @@ describeManifests(
 				'a file names a settle function directly: use the shared one, or declare why it cannot',
 			hits: [
 				'restoreSeparatorOnFill(parent, i + 1, sharing);',
-				"import { normalizeBlankRuns } from '../tree-operations/blank-runs';"
+				"import { settleSublistSeparator } from './list/sublist-separator';"
 			],
-			misses: ['// normalizeBlankRuns lays out the run']
+			misses: ['// restoreSeparatorOnFill gives the line back']
 		},
 		{
 			id: 'G4.208 an op whose fix-up runs a step of its own is called where its kind is reported',
@@ -131,8 +126,6 @@ const DOORS_FILE = SOURCE.separatorWrites;
 
 /** The other files writing separators, held to the same rule. */
 const CARRY_FILES = [
-	SOURCE.settle,
-	SOURCE.neighbourMerge,
 	SOURCE.nodeOps,
 	SOURCE.contentWrite,
 	SOURCE.nodePrimitives,
@@ -160,9 +153,9 @@ describe('every separator entry point retires the child spans it invalidates', (
 		.flatMap((file) => functionBodies(readSource(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
-	/** The two writers in the shared file, each of which drops the spans first, since a drop below
-	 *  an early return is skipped on the paths that take it. */
-	const DOORS = ['writeSeparator', 'writeWrapSlot'];
+	/** The writer in the shared file, which drops the spans first, since a drop below an early
+	 *  return is skipped on the paths that take it. */
+	const DOORS = ['writeSeparator'];
 
 	it('every named entry point retires the spans first, one red per entry point', () => {
 		const bodies = new Map(
@@ -186,7 +179,6 @@ describe('every separator entry point retires the child spans it invalidates', (
 	 *  or a splice changes the child count, refusing a region rewrite. */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
 		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
-		installReading: 'writes a fresh block’s line, then splices; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
 		installReplacement: 'carries the line onto the replacement, byte for byte',
 		spliceSpill: 'carries the line onto the first block of a splice; the count moves',
@@ -194,8 +186,8 @@ describe('every separator entry point retires the child spans it invalidates', (
 	};
 
 	// A second writer in the shared file could write a shared node or skip the span drop, which the
-	// one writer does for every fix-up.
-	it('the shared file writes an existing node’s separator through its two writers alone', () => {
+	// one writer does for every write.
+	it('the shared file writes an existing node’s separator through its one writer alone', () => {
 		const writers = functionBodies(readSource(DOORS_FILE).code)
 			.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body))
 			.map((fn) => fn.name)

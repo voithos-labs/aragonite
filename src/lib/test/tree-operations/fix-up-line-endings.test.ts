@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
-import { endsOpen, endWindowLines, keepOpenTail } from '#lib/tree-operations/open-tail.js';
+import { endsOpen, keepOpenTail, fixUpEdit } from '#lib/tree-operations/fix-up/apply.js';
+import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
 import { documentBody, type BodyParent } from '#lib/tree-operations/node-primitives.js';
 import { createSharingState, type SharingState } from '#lib/tree-operations/sharing.js';
 import { rebuildListRaw } from '#lib/schema/container-rebuilders.js';
@@ -19,14 +20,22 @@ function listBody(source: string): BodyParent {
 	return { children: list.children!, owner: list, lineEnding: '\n' };
 }
 
+/** The commit's fix-up over `body` once `edit` changed it, as a commit runs it. */
+function fixedUp(
+	body: BodyParent,
+	edit: (children: CstNode[]) => StructuralChange,
+	sharing = createSharingState()
+): void {
+	const before = [...body.children];
+	fixUpEdit(body, { change: edit(body.children), before }, defaultGrammarView, sharing);
+}
+
 /** A block placed at the end of `body`, as a commit's change reports it. */
 function placeLast(body: BodyParent, node: CstNode, sharing = createSharingState()): void {
-	body.children.push(node);
-	endWindowLines(
+	fixedUp(
 		body,
-		{ op: 'insert', at: body.children.length - 1, count: 1 },
-		sharing,
-		defaultGrammarView
+		(children) => (children.push(node), { op: 'insert', at: children.length - 1, count: 1 }),
+		sharing
 	);
 }
 
@@ -43,17 +52,14 @@ describe('endsOpen', () => {
 	});
 });
 
-describe('endWindowLines', () => {
+describe('the lines a placed block ends', () => {
 	it('ends the block above a placed block and the placed block, and nothing past the window', () => {
 		const doc = parse('a\n\nb\n\nc');
 		const body = documentBody(doc);
-		body.children.splice(1, 0, { kind: 'paragraph', leadingTrivia: '\n', raw: 'x' });
-		endWindowLines(
-			body,
-			{ op: 'insert', at: 1, count: 1 },
-			createSharingState(),
-			defaultGrammarView
-		);
+		fixedUp(body, (children) => {
+			children.splice(1, 0, { kind: 'paragraph', leadingTrivia: '\n', raw: 'x' });
+			return { op: 'insert', at: 1, count: 1 };
+		});
 		expect(body.children.map((c) => c.raw)).toEqual(['a\n', 'x\n', 'b\n', 'c']);
 	});
 
@@ -61,13 +67,10 @@ describe('endWindowLines', () => {
 		const doc = parse('a\n\nb');
 		const body = documentBody(doc);
 		body.children[0] = { ...body.children[0], raw: 'a' };
-		body.children.splice(1, 1);
-		endWindowLines(
-			body,
-			{ op: 'delete', at: 1, count: 1 },
-			createSharingState(),
-			defaultGrammarView
-		);
+		fixedUp(body, (children) => {
+			children.splice(1, 1);
+			return { op: 'delete', at: 1, count: 1 };
+		});
 		expect(body.children[0].raw).toBe('a\n');
 	});
 
@@ -134,16 +137,29 @@ describe('endWindowLines', () => {
 	it('keeps pasted items on their own lines once the list rebuilds', () => {
 		const list = parse('1. one\n2. two\n').children[0];
 		const pasted = parse('6. Ordered\n7. third').children[0].children!;
-		list.children!.splice(1, 1, ...pasted);
 		const body: BodyParent = { children: list.children!, owner: list, lineEnding: '\n' };
-		endWindowLines(
-			body,
-			{ op: 'replace', at: 1, count: 1, newCount: 2 },
-			createSharingState(),
-			defaultGrammarView
-		);
+		fixedUp(body, (children) => {
+			children.splice(1, 1, ...pasted);
+			return { op: 'replace', at: 1, count: 1, newCount: 2 };
+		});
 		rebuildListRaw(list);
 		expect(list.raw).toBe('1. one\n6. Ordered\n7. third\n');
+	});
+
+	// Miss-analysis: no merged container carried child spans, so spans left on its old bytes went unseen.
+	it('a list that merges the placed block in place keeps no spans of its old bytes', () => {
+		const doc = parse('- a\n- b');
+		const list = doc.children[0];
+		rebuildListRaw(list);
+		placeLast(documentBody(doc), { kind: 'paragraph', leadingTrivia: '', raw: '  c' });
+		expect(doc.children).toEqual([list]);
+		expect(list.raw).toBe('- a\n- b\n  c\n');
+		const spans = list.childSpans;
+		const regions =
+			spans && list.children!.map((_, i) => list.raw.slice(spans[2 * i], spans[2 * i + 1]));
+		expect(regions ?? null).toEqual(
+			spans ? list.children!.map((c) => c.leadingTrivia + c.raw) : null
+		);
 	});
 
 	it('leaves a row’s cells alone: they sit inside the row’s line', () => {
@@ -151,31 +167,14 @@ describe('endWindowLines', () => {
 		const row = table.children!.at(-1)!;
 		const cells = row.children!.map((c) => c.raw);
 		const body: BodyParent = { children: row.children!, owner: row, lineEnding: '\n' };
-		endWindowLines(
-			body,
-			{ op: 'replace', at: 0, count: 2, newCount: 2 },
-			createSharingState(),
-			defaultGrammarView
-		);
+		fixedUp(body, () => ({ op: 'replace', at: 0, count: 2, newCount: 2 }));
 		expect(row.children!.map((c) => c.raw)).toEqual(cells);
 	});
 });
 
 describe('keepOpenTail', () => {
-	/** The document after a commit that ended every line, as `endWindowLines` leaves it. */
-	function ended(source: string): Document {
-		const doc = parse(source);
-		const body = documentBody(doc);
-		body.children.push({ kind: 'paragraph', leadingTrivia: '', raw: '' });
-		endWindowLines(
-			body,
-			{ op: 'insert', at: body.children.length - 1, count: 1 },
-			createSharingState(),
-			defaultGrammarView
-		);
-		body.children.pop();
-		return doc;
-	}
+	/** The document after a commit that ended every line of `source`. */
+	const ended = (source: string): Document => parse(source + '\n');
 
 	it('gives the ending up down the last line, container levels included', () => {
 		const doc = ended('a\n\n> q\n>\n> r');
