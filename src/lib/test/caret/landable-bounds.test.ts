@@ -9,7 +9,7 @@ import {
 	findDomTextOffsetTarget,
 	landableDomTextBounds
 } from '../../caret/widget-offset';
-import { asDomTextOffset } from '../../caret/coordinate-spaces';
+import { asDomTextOffset } from '../../core/coordinate-spaces';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 

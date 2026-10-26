@@ -21,7 +21,7 @@ import {
 	type CellIndex,
 	type DomTextOffset,
 	type RawOffset
-} from '../../caret/coordinate-spaces';
+} from '../../core/coordinate-spaces';
 import type { EditableSurfaceDeps } from '../../components/blocks/editable/editable-surface';
 import type { CursorBackend } from '../../components/blocks/editable/surface-backend';
 

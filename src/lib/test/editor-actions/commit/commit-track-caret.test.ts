@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { parse } from '#lib/core/parser.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { replacePreservingFirst } from '#lib/tree-operations/structural-change.js';
 import type { TrackedPosition } from '#lib/tree-operations/fix-up/apply.js';
 import { makeContainerHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';

@@ -10,7 +10,7 @@ import {
 	type CellSelectionPoint,
 	type SelectionEndpoint
 } from '../../../selection/primitives';
-import { rowMajorCellIndex } from '../../../caret/coordinate-spaces';
+import { rowMajorCellIndex } from '../../../core/coordinate-spaces';
 import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';

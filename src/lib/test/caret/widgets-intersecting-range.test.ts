@@ -4,7 +4,7 @@
 // actually paint.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { asDomTextOffset } from '../../caret/coordinate-spaces';
+import { asDomTextOffset } from '../../core/coordinate-spaces';
 import { widgetsIntersectingRange } from '../../caret/widget-offset';
 
 describe('widgetsIntersectingRange', () => {

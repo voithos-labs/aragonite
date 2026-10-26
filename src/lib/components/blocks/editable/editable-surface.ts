@@ -42,7 +42,7 @@ import type { CaretMemory } from '../../../caret/caret-memory';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { placeCaret, selectInBlock } from '../../../selection/place-caret';
 import { deleteSnapshot } from '../../../selection/primitives';
-import { asEditorX, asRawOffset, type RawOffset } from '../../../caret/coordinate-spaces';
+import { asEditorX, asRawOffset, type RawOffset } from '../../../core/coordinate-spaces';
 import type { SurfaceBackend } from './surface-backend';
 import type { DrawnCaret, WidgetEdgeSource } from '../../../caret/drawn-caret.svelte';
 import type { HeldInsertion } from '../../../caret/next-insertion';

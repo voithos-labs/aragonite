@@ -25,7 +25,7 @@
 	import { createCaretWriter } from '../caret/widget-offset';
 	import { createDrawnCaret } from '../caret/drawn-caret.svelte';
 	import { caretRectAt } from '../caret/visual-lines';
-	import { docPathFrom } from '../caret/coordinate-spaces';
+	import { docPathFrom } from '../core/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createScrollOwner } from '../windowing/scroll-owner';
 	import { createScrollHostResolution } from './editor-root/scroll-host';

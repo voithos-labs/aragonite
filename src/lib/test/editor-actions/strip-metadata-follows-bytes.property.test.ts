@@ -7,7 +7,7 @@ import fc from 'fast-check';
 import { serialize } from '#lib';
 import type { Document } from '#lib/core/nodes.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { contentUpdate } from '#lib/editor-actions/block-edit-core.js';
 import { createPathScope } from '#lib/editor-actions/block-edit-scope.js';

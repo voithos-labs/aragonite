@@ -3,7 +3,7 @@
 	import { type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import type { CodeRunRequest } from '../../../host-hooks';
-	import { asRawOffset } from '../../../caret/coordinate-spaces';
+	import { asRawOffset } from '../../../core/coordinate-spaces';
 	import {
 		decidedDelete,
 		deleteExtent,

@@ -10,7 +10,7 @@ import { createUndoController } from '../../editor-actions/commit/undo-controlle
 import { digestDoc } from '../../invariants/snapshot-integrity';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import { generateFixture, type FixtureShape } from './fixtures/generate';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 
 const SHAPES: FixtureShape[] = ['nested-containers', 'flat-prose'];
 

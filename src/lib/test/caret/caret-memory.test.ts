@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { registerBlockCommand } from '../../schema/block-commands';
 import { createCaretMemory, type CaretMemory } from '../../caret/caret-memory';
-import { asEditorX } from '../../caret/coordinate-spaces';
+import { asEditorX } from '../../core/coordinate-spaces';
 import type { AnyCommandId } from '../../schema/command-id';
 import { marksPending, pendMark } from '../harness/pending-marks';
 

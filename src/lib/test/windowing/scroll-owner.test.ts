@@ -9,7 +9,7 @@ import { flushSync, tick } from 'svelte';
 import { installHeaderSlotCompensation } from '../../components/editor-root/geometry';
 import { parse } from '../../core/parser';
 import { createCaretMemory } from '../../caret/caret-memory';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import { createEditorRects } from '../../editor-rects';
 import type { EditorDoc, EditorServices } from '../../editor-keys';
 import type { ScrollOwner } from '../../windowing/scroll-owner';

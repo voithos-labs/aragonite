@@ -6,7 +6,7 @@ import {
 } from '#lib/components/blocks/editable/editable-surface.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { asRawOffset, type RawOffset } from '#lib/caret/coordinate-spaces.js';
+import { asRawOffset, type RawOffset } from '#lib/core/coordinate-spaces.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
 import { rawOffsetAt, type CaretClamp } from '#lib/caret/widget-offset.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';

@@ -30,7 +30,7 @@ import { findSurfaceForElement } from './path-lookup';
 import { readNativeSelection } from './native-bridge';
 import { charOffsetOf } from './primitives';
 import { storedAsAt } from '../tree-operations/stored-as';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 
 export interface SelectionDropDeps {
 	editorRoot: HTMLElement;

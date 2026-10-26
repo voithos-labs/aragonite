@@ -2,7 +2,7 @@
  * Today's import edges between `src/lib`'s top-level directories (a root file is its own node).
  * `directory-layering.test.ts` fails on an edge not listed and on a listed edge that's gone; a new
  * line needs a reviewer's yes, and a move may only rename nodes along its move map. Two cycles are
- * left to break: {core, schema, caret, windowing, invariants, tree-operations, debug} and
+ * left to break: {core, schema, caret, windowing, invariants, debug} and
  * {selection, editor-actions}.
  */
 
@@ -81,7 +81,6 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'editor-actions -> block-component.ts',
 	'editor-actions -> block-id.ts',
 	'editor-actions -> block-lists',
-	'editor-actions -> caret',
 	'editor-actions -> commit-scope.ts',
 	'editor-actions -> core',
 	'editor-actions -> dev-checks.ts',
@@ -176,7 +175,6 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'testing.ts -> tree-operations',
 	'tree-operations -> block-component.ts',
 	'tree-operations -> block-id.ts',
-	'tree-operations -> caret',
 	'tree-operations -> core',
 	'tree-operations -> dev-checks.ts',
 	'tree-operations -> invariants',
@@ -218,6 +216,7 @@ export const TYPE_EDGES: readonly string[] = [
 	'decorations -> editor-events.ts',
 	'dev-checks-stripped.ts -> dev-checks.ts',
 	'editor-actions -> action-contracts.ts',
+	'editor-actions -> caret',
 	'editor-actions -> components',
 	'editor-actions -> undo',
 	'editor-events.ts -> core',
@@ -290,7 +289,6 @@ export const TYPE_EDGES: readonly string[] = [
 	'schema -> editor-props.ts',
 	'schema -> editor-rects.ts',
 	'schema -> inline-menu',
-	'schema -> selection',
 	'search -> core',
 	'selection -> action-contracts.ts',
 	'selection -> components',
@@ -300,6 +298,7 @@ export const TYPE_EDGES: readonly string[] = [
 	'testing -> action-contracts.ts',
 	'testing -> block-component.ts',
 	'tree-operations -> action-contracts.ts',
+	'tree-operations -> caret',
 	'undo -> core',
 	'undo -> selection',
 	'windowing -> caret',

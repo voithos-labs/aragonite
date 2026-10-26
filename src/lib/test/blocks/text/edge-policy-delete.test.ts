@@ -3,7 +3,7 @@
 // the step-over deferral.
 import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { asRawOffset } from '#lib/caret/coordinate-spaces.js';
+import { asRawOffset } from '#lib/core/coordinate-spaces.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import {
 	BACKSPACE,

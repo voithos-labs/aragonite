@@ -5,7 +5,7 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import type { GrammarView } from '../schema/block-openers';
-import type { DocPath } from '../selection/path-math';
+import type { DocPath } from '../core/coordinate-spaces';
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommitPathAddressable } from './commit-paths';
 import {

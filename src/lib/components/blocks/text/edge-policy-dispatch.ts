@@ -14,7 +14,7 @@ import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { getContentRange, structuralSuffix } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
-import { type RawOffset } from '../../../caret/coordinate-spaces';
+import { type RawOffset } from '../../../core/coordinate-spaces';
 import type { BlockPendingMarks } from '../../../caret/pending-marks';
 import type { InsideCloserView } from '../../../caret/inside-closer';
 import {

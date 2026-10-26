@@ -26,7 +26,7 @@ import {
 	holdsOnlyMarkerChrome,
 	isHiddenMarkerText
 } from '#lib/caret/widget-offset.js';
-import { asRawOffset, type RawOffset } from '#lib/caret/coordinate-spaces.js';
+import { asRawOffset, type RawOffset } from '#lib/core/coordinate-spaces.js';
 import { createEdgePolicyDispatch } from '#lib/components/blocks/text/edge-policy-dispatch.js';
 import { createSurfaceWrite } from '#lib/components/blocks/editable/surface-write.js';
 import { keepsKindAt } from '#lib/core/inline/live-edit/read-back.js';

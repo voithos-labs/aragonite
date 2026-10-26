@@ -3,7 +3,7 @@ import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 

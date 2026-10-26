@@ -7,7 +7,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { MultiScopeTarget } from '#lib/action-contracts.js';
 import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';

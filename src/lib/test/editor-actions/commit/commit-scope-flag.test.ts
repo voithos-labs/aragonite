@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
 import { beginCommit, endCommit, isCommitInProgress } from '#lib/commit-scope.js';
 import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';

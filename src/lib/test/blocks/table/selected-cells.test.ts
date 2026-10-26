@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { SELECTION_END } from '#lib/block-component.js';
 import { selectedCells } from '#lib/components/blocks/table/selected-cells.js';
 import type { GridCoverage } from '#lib/selection/range-coverage.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 
 // A 3×3 grid; cell indices are row-major.
 const GRID = { rowCount: 3, columnCount: 3 };

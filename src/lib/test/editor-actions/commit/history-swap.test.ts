@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 
 function makeSetup() {
 	const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'aaa\n')]);

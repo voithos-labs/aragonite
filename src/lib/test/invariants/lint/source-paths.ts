@@ -72,7 +72,6 @@ export const SOURCE = {
 	pluginContainer: 'src/lib/editor-actions/plugin/container.ts',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
-	docPathBrand: 'src/lib/selection/path-math.ts',
 	sharedKeydown: 'src/lib/selection/shared-keydown.ts',
 	nativeBridge: 'src/lib/selection/native-bridge.ts',
 	rangeDelete: 'src/lib/selection/range-delete.ts',
@@ -82,7 +81,7 @@ export const SOURCE = {
 	rangeReplace: 'src/lib/selection/cross-block/range-replace.ts',
 
 	// ── Caret geometry and windowing ────────────────────────────────────────
-	coordinateBrands: 'src/lib/caret/coordinate-spaces.ts',
+	coordinateBrands: 'src/lib/core/coordinate-spaces.ts',
 	deleteExtent: 'src/lib/caret/delete-extent.ts',
 	domWalk: 'src/lib/caret/dom-walk.ts',
 	blockContentSelector: 'src/lib/caret/block-content-selector.ts',
@@ -222,7 +221,6 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	pluginContainer: 'export interface ContainerBlockDeps',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
-	docPathBrand: 'export type DocPath',
 	sharedKeydown: 'export interface SharedKeydownContext',
 	nativeBridge: 'export function readNativeCaretInBlock',
 	rangeDelete: 'export interface TableRowSplice',

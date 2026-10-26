@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import type { UndoController } from '../../editor-actions/deps';
-import { asDocPath } from '../../selection/path-math';
+import { asDocPath } from '../../core/coordinate-spaces';
 import type { CstNode } from '../../core/nodes';
 import {
 	disablePerfInstruments,
@@ -11,7 +11,7 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '../../perf/instruments';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };

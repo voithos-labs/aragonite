@@ -31,7 +31,7 @@ import {
 	toDomTextOffset,
 	type DomTextOffset,
 	type RawOffset
-} from './coordinate-spaces';
+} from '../core/coordinate-spaces';
 import { domDescendants } from './dom-walk';
 import { placeholderBreakOf } from './placeholder-break';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';

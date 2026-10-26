@@ -4,7 +4,7 @@
  * offset before the rebuild and writes it back after (`placeCaretAtRaw`, exact).
  */
 
-import type { RawOffset } from './coordinate-spaces';
+import type { RawOffset } from '../core/coordinate-spaces';
 import { rawOffsetAt } from './widget-offset';
 
 /** The live caret as a raw offset, or null when `el` does not own focus. */

@@ -4,7 +4,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import type { CellSelectionPoint } from '../../selection/primitives';
 import type { Document } from '../../core/nodes';
 import { coverRange, rangeCoverage, type GridCoverage } from '../../selection/range-coverage';
-import { asDocPath } from '../../selection/path-math';
+import { asDocPath } from '../../core/coordinate-spaces';
 
 // A document whose block at [0] is a table, so a cross-block selection with the same path on
 // both ends reads as custom-rendered. `cells` is a row-major grid of cell raws.

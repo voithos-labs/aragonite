@@ -9,7 +9,7 @@ import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks
 import { CURSOR_START, type BlockComponent } from '../block-component';
 import type { DocumentView } from '../core/node-views';
 import type { CaretMemory } from '../caret/caret-memory';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';

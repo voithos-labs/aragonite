@@ -25,7 +25,7 @@ import {
 	renderInlineNodes,
 	type ImageLoadPolicy
 } from '../../../core/inline-render';
-import type { RawOffset } from '../../../caret/coordinate-spaces';
+import type { RawOffset } from '../../../core/coordinate-spaces';
 import {
 	BLOCK_PREFIX_ATTR,
 	BLOCK_SUFFIX_ATTR,

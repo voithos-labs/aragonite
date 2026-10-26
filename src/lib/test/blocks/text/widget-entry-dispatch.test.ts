@@ -10,7 +10,7 @@ import { createWidgetInteraction } from '#lib/components/blocks/text/widget-inte
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { augmentInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
 import { domTextOffsetAtNode } from '#lib/caret/widget-offset.js';
-import { asRawOffset } from '#lib/caret/coordinate-spaces.js';
+import { asRawOffset } from '#lib/core/coordinate-spaces.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { AnyInlineKind } from '#lib/core/nodes.js';
 import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';

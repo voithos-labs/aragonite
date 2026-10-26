@@ -5,7 +5,7 @@
  * platform, it walks into non-editable widgets, and a marker here never joins a word.
  */
 
-import { asDomTextOffset } from '../caret/coordinate-spaces';
+import { asDomTextOffset } from '../core/coordinate-spaces';
 import { wordSegmenter } from '../core/text-units';
 import { caretOffsetAtPoint } from '../caret/point-offset';
 import type { UserScrollport } from '../windowing/scroll-ancestors';

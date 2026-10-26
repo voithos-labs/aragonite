@@ -14,7 +14,7 @@ import { orderedBaseOf, renumberOrderedListFrom } from '../tree-operations/list/
 import { getStateForNode } from '../block-lists/state-registry';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { readCurrentSelection } from '../selection/native-bridge';
-import { extendDocPath, docPathFrom } from '../caret/coordinate-spaces';
+import { extendDocPath, docPathFrom } from '../core/coordinate-spaces';
 import type { EditorActionsDeps, UndoController } from './deps';
 
 /** Each move resolves to whether it landed. */

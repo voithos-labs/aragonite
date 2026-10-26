@@ -5,7 +5,7 @@
 // own candidate scan, line lookup and nearest-X choice all run for real against that geometry.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset, asEditorX } from '../../caret/coordinate-spaces';
+import { asDomTextOffset, asEditorX } from '../../core/coordinate-spaces';
 import {
 	getCurrentCursorEditorRelativeX,
 	caretBoxAt,

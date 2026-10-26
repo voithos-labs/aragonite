@@ -3,7 +3,7 @@
 // only checks the boundary handling; e2e covers real pixel measurement.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset } from '../../caret/coordinate-spaces';
+import { asDomTextOffset } from '../../core/coordinate-spaces';
 import {
 	measurePartialRectsInContentEditable,
 	reachLineEdges,

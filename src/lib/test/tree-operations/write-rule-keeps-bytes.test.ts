@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { parse } from '#lib/core/parser.js';
 import type { Document } from '#lib/core/nodes.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';

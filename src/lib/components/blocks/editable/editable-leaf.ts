@@ -9,7 +9,7 @@ import { onDestroy, tick, untrack } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { EditableLeafBlockApi, StickyColumnDirection } from '../../../block-component';
 import type { NodeView } from '../../../core/node-views';
-import { asRawOffset } from '../../../caret/coordinate-spaces';
+import { asRawOffset } from '../../../core/coordinate-spaces';
 import { createSurfaceBackend } from './surface-backend';
 import { handleSharedKeydown } from '../../../selection/shared-keydown';
 import {

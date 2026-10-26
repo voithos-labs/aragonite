@@ -12,7 +12,7 @@ import type { StoredAs } from '../../schema/stored-as';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import { replaceRangeInLeaf } from '../leaf-range';
 import {
 	documentLineEnding,

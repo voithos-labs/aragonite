@@ -3,7 +3,7 @@
 // text in the traversal, which reads have to move out of and writes must never put a range inside.
 // Miss-analysis: every offset suite built bare containers with no `data-presentation` root.
 import { describe, it, expect, afterEach } from 'vitest';
-import { asDomTextOffset, asRawOffset } from '../../caret/coordinate-spaces';
+import { asDomTextOffset, asRawOffset } from '../../core/coordinate-spaces';
 import {
 	domTextOffsetAtNode,
 	findDomTextLanding,

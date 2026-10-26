@@ -31,7 +31,7 @@ import { parseReplacement } from '../../tree-operations/paste/replacement-parse'
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { countsCells } from '../../schema/block-kind-descriptor';
 import { dispatchKeyCommand } from '../../schema/block-commands';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import { scopeStateFor } from '../../block-lists/state-registry';
 import { emitClipboardError } from '../../editor-events';
 import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';

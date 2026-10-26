@@ -11,7 +11,7 @@ import type { BlockComponent } from '../block-component';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkPlacementEndsWidget } from '../invariants/placement-ends-widget';
 import { rawOffsetAt, type CaretWriter, type DomPosition } from '../caret/widget-offset';
-import type { RawOffset } from '../caret/coordinate-spaces';
+import type { RawOffset } from '../core/coordinate-spaces';
 import { blockContentElAt } from '../caret/block-el-lookup';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 

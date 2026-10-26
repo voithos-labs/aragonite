@@ -7,7 +7,7 @@ import type { CstNode, Document } from '#lib/core/nodes.js';
 import { installPlugins } from '#lib';
 import { OPENER_PRIORITIES, type BlockOpener, type BlockOpenerResult } from '#lib/plugin.js';
 import { parse } from '#lib/core/parser.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
 import {

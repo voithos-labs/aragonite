@@ -17,7 +17,7 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { asEditorX, docPathFrom } from '../../../caret/coordinate-spaces';
+	import { asEditorX, docPathFrom } from '../../../core/coordinate-spaces';
 	import { observeResize } from '../../../windowing/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/place-caret';

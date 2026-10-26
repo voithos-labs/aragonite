@@ -3,7 +3,7 @@
 // prose: a widget counts its source bytes, and adjacent hidden spans are one run.
 // Miss-analysis: the plain-text walk was tested without widgets or adjacent spans (#498, #572).
 import { describe, it, expect, afterEach } from 'vitest';
-import { asRawOffset } from '../../../caret/coordinate-spaces';
+import { asRawOffset } from '../../../core/coordinate-spaces';
 import { createSurfaceBackend } from '../../../components/blocks/editable/surface-backend';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 

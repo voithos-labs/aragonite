@@ -38,18 +38,16 @@ const at = (relPath: string, code: string): Probe => ({ relPath, code });
 // ── G4.15 coordinate brands ──────────────────────────────────────────────────
 
 const COORDINATE_HOME = SOURCE.coordinateBrands;
-const DOCPATH_HOME = SOURCE.docPathBrand;
 const BRANDS = ['RawOffset', 'DomTextOffset', 'EditorX', 'ViewportX', 'CellIndex', 'DocPath'];
 
-/** Where each brand's bare `as <Brand>` cast may live. `DocPath` composes in the neutral
- *  coordinate module too, which `tree-operations` can reach without importing `selection/`. */
+/** Where each brand's bare `as <Brand>` cast may live. */
 const BRAND_CAST_HOME: Record<string, string[]> = {
 	RawOffset: [COORDINATE_HOME],
 	DomTextOffset: [COORDINATE_HOME],
 	EditorX: [COORDINATE_HOME],
 	ViewportX: [COORDINATE_HOME],
 	CellIndex: [COORDINATE_HOME],
-	DocPath: [DOCPATH_HOME, COORDINATE_HOME]
+	DocPath: [COORDINATE_HOME]
 };
 
 const BRAND_CAST_RE = /\bas\s+(RawOffset|DomTextOffset|EditorX|ViewportX|CellIndex|DocPath)\b/g;
@@ -814,8 +812,7 @@ const RULES: FileRule[] = [
 		id: 'G4.15 every `as<Brand>()` conversion lives in a declared home or boundary file',
 		matches: MINT_CALL_RE,
 		allowed: {
-			[COORDINATE_HOME]: 'the numeric-space conversions themselves',
-			[DOCPATH_HOME]: 'the DocPath brand and its base conversion (asDocPath)',
+			[COORDINATE_HOME]: 'the conversions themselves, asDocPath included',
 			// Modules that own a coordinate space.
 			'src/lib/caret/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
 			'src/lib/caret/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
@@ -1384,7 +1381,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/range-coverage.ts':
 				'decides once what a range covers: the blocks between, the units, the edges, the cells, the rectangle',
 			'src/lib/selection/path-math.ts': 'defines the two path predicates',
-			'src/lib/caret/coordinate-spaces.ts': 'defines the rectangle two cells span',
+			'src/lib/core/coordinate-spaces.ts': 'defines the rectangle two cells span',
 			'src/lib/selection/primitives.ts': 'defines the cell index read of a table endpoint',
 			'src/lib/schema/block-kind-descriptor.ts':
 				"defines a table's cell count and the clamp every cell index takes",

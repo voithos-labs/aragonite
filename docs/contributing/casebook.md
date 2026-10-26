@@ -146,7 +146,7 @@ const crossed: RawOffset = dom;
 // error TS2322: Type 'DomTextOffset' is not assignable to type 'RawOffset'.
 ```
 
-The allowed conversions are named functions in `src/lib/caret/coordinate-spaces.ts`
+The allowed conversions are named functions in `src/lib/core/coordinate-spaces.ts`
 (`toRawOffset`, `toDomTextOffset`, and friends). A source scan also fails any native selection
 write outside `widget-offset.ts`.
 

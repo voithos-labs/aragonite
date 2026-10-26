@@ -5,7 +5,7 @@ import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 
 // An open undo step ends at the author's next input, so a pick whose onCommit awaits something
 // slow cannot fold the author's typing into its entry.

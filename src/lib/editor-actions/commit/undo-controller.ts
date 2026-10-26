@@ -27,7 +27,7 @@ import type {
 	CommitSnapshotArg,
 	UndoGrouping
 } from '../../action-contracts';
-import type { DocPath } from '../../selection/path-math';
+import type { DocPath } from '../../core/coordinate-spaces';
 import {
 	assertLineEndingPairsKept,
 	documentLineEndings,

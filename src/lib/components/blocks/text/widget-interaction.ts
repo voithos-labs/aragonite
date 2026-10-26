@@ -20,7 +20,7 @@ import {
 	widgetElByStart
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
-import { asRawOffset } from '../../../caret/coordinate-spaces';
+import { asRawOffset } from '../../../core/coordinate-spaces';
 import {
 	rawRangeToDomRange,
 	rawSelectionFocus,

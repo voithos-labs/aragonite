@@ -11,7 +11,7 @@ import {
 	toViewportX,
 	type DomTextOffset,
 	type EditorX
-} from './coordinate-spaces';
+} from '../core/coordinate-spaces';
 import {
 	containerDomTextLength,
 	domTextOffsetAtNode,

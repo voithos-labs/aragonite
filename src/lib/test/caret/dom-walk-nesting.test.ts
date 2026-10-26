@@ -3,7 +3,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { domDescendants } from '../../caret/dom-walk';
-import { asDomTextOffset } from '../../caret/coordinate-spaces';
+import { asDomTextOffset } from '../../core/coordinate-spaces';
 import { findFirstTextNode, findLastTextNode } from '../../caret/visual-lines';
 import {
 	containerDomTextLength,

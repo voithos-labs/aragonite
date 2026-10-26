@@ -5,7 +5,7 @@
  * removal cleans its join as a cut does (`docs/design/live-mode.md` § 4.5).
  */
 
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import { legalizeWrite, type LegalWrite } from '../tree-operations/content-write';
 import { replaceRangeInLeaf } from '../tree-operations/leaf-range';
 import { storedAsIn } from '../tree-operations/stored-as';

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset } from '../../caret/coordinate-spaces';
+import { asDomTextOffset } from '../../core/coordinate-spaces';
 import { createSourceReveal } from '../../caret/reveal-source';
 import {
 	createRangeAtDomTextOffsets,

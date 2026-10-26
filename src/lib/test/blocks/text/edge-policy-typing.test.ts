@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
-import { asRawOffset, asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { asRawOffset, asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import {
 	BACKSPACE,
 	installEdgeDispatchCleanup,

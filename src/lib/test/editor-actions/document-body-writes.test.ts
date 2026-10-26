@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { displayLength, documentLineEnding } from '#lib/core/lines.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { writeNodeContent } from '#lib/tree-operations/content-write.js';
 import { ensureUnsharedChild } from '#lib/tree-operations/unshare.js';
 import { stampStructuralChange } from '#lib/tree-operations/structural-change.js';

@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { checkTopLevelUntouched } from '#lib/invariants/top-level-untouched.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 

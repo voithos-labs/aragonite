@@ -4,7 +4,7 @@
  * Reads answer only while the element holds focus.
  */
 
-import { asRawOffset, type RawOffset } from '../../../caret/coordinate-spaces';
+import { asRawOffset, type RawOffset } from '../../../core/coordinate-spaces';
 import {
 	isInMarkerPrefix,
 	markerPrefixOf,

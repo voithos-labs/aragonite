@@ -295,7 +295,7 @@ owned view. `lint/file-rules.test.ts`; type pins in `test/core/node-views.test.t
 Only `Editor.svelte` holds a mutable `Document`. `lint/file-rules.test.ts`.
 
 **G4.15 · Coordinate-brand creation.** `as <Brand>` casts and the `as*` boundary constructors appear
-only in `caret/coordinate-spaces.ts` and the allowlisted public-entry files; everything else gets a
+only in `core/coordinate-spaces.ts` and the allowlisted public-entry files; everything else gets a
 brand through those or a named conversion. G3.7's runtime-source complement.
 `lint/file-rules.test.ts`.
 

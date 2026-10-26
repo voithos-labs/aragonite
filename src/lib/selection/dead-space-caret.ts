@@ -22,7 +22,7 @@ import { canGapStop, type GapStopScope } from './gap-caret';
 import { caretOffsetAtPoint } from '../caret/point-offset';
 import type { CaretPosition, SelectionEndpoint } from './primitives';
 import type { LandingOutcome } from './caret-landing';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
