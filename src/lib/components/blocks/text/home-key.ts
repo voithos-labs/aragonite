@@ -5,9 +5,10 @@
  * editor place that start itself.
  */
 
-import { isAtFirstVisualLine, type CaretBounds } from '../../../caret/visual-lines';
+import { isAtFirstVisualLine, type CaretBounds } from '../../../browser/lines';
 import { caretEdgeKey } from '../../../schema/keybindings';
-import { landableStartAbutsIsland, markerPrefixOf } from '../../../caret/widget-offset';
+import { landableStartAbutsIsland } from '../../../browser/offsets';
+import { markerPrefixOf } from '../../../browser/painted';
 import { extendWithinBlock, type KeyboardExtendContext } from '../../../selection/keyboard-extend';
 
 export interface HomeKeyDeps {

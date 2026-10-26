@@ -13,7 +13,7 @@ import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js
 import type { CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 import KeyedListState from './fixtures/KeyedListState.svelte';

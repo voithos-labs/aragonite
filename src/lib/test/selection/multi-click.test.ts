@@ -6,7 +6,7 @@ import {
 	wordSpanAt
 } from '#lib/selection/multi-click.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
-import { maskedWalkText } from '#lib/caret/widget-offset.js';
+import { maskedWalkText } from '#lib/browser/offsets.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const span = (text: string, offset: number) => {

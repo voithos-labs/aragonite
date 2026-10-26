@@ -5,9 +5,9 @@
 // range around a node answers with the widget's box.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset, asEditorX } from '../../caret/coordinate-spaces';
+import { asDomTextOffset, asEditorX } from '../../core/coordinate-spaces';
 import { findOffsetNearestX, getCurrentCursorEditorRelativeX } from '../../caret/sticky-measure';
-import type { LineRead } from '../../caret/visual-lines';
+import type { LineRead } from '../../browser/lines';
 
 /** One line of text, so no caret here sits at a soft wrap and the browser is never asked. */
 const OFF_A_WRAP: LineRead = {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import type { MultiScopeTarget } from '#lib/action-contracts.js';
 import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { refSlotsOver } from '#lib/block-lists/child-refs.js';

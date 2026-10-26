@@ -14,7 +14,7 @@
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
 	import type { MenuCloseCause, MenuPresence } from '../menu/menu-presence.svelte';
-	import type { CaretWriter } from '../../caret/widget-offset';
+	import type { CaretWriter } from '../../browser/caret-writer';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
 	import { eventToChord } from '../../schema/keybindings';

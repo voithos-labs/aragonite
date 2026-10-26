@@ -3,7 +3,7 @@
 // Miss-analysis: every case here handed the backend a live element, never a dead one.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createSurfaceBackend } from '../../../components/blocks/editable/surface-backend';
-import { asRawOffset } from '../../../caret/coordinate-spaces';
+import { asRawOffset } from '../../../core/coordinate-spaces';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Fixture: a list item's prose element: the marker span "- " (traversal offsets [0,2)) then

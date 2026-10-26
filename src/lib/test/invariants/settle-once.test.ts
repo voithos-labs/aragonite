@@ -1,7 +1,7 @@
 // G1.112: a commit fixes up each body it wrote once, so a mutation that settles its own scope body
 // and also reports the write there fires the check, and the route that reports it alone doesn't.
 import { describe, it, expect } from 'vitest';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { updateNodeContent, writeNodeContent } from '#lib/tree-operations/content-write.js';
 import { ensureUnsharedChild } from '#lib/tree-operations/unshare.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';

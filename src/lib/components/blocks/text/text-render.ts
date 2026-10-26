@@ -25,19 +25,19 @@ import {
 	renderInlineNodes,
 	type ImageLoadPolicy
 } from '../../../core/inline-render';
-import type { RawOffset } from '../../../caret/coordinate-spaces';
+import type { RawOffset } from '../../../core/coordinate-spaces';
 import {
 	BLOCK_PREFIX_ATTR,
 	BLOCK_SUFFIX_ATTR,
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
-	holdsOnlyMarkerChrome,
-	type CaretWriter,
-	type RawRange
-} from '../../../caret/widget-offset';
+	holdsOnlyMarkerChrome
+} from '../../../browser/painted';
+import type { CaretWriter } from '../../../browser/caret-writer';
+import type { RawRange } from '../../../browser/offsets';
 import { washShownSource } from './source-wash';
 import { widgetsAmong } from './widget-adjacency';
-import { captureFocusedCaret } from '../../../caret/focused-caret';
+import { captureFocusedCaret } from '../../../browser/selection-read';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import {
 	applyIslandDecorations,

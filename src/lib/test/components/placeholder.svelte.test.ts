@@ -16,8 +16,8 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchBeforeInput } from '#lib/test/harness/insertion-routes.js';
 import { makeSurface } from '#lib/test/harness/editable-surface.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
-import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
+import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import type { EditorOptions, PlaceholderBlock } from '#lib/editor-props.js';
 import { latexPlugin } from '#lib/plugins/latex/index.js';
 import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';

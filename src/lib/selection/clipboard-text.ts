@@ -9,7 +9,7 @@ import { charOffsetOf } from './primitives';
 import type { RangeCoverage } from './range-coverage';
 import { gridClipboard } from './grid-selection';
 import { pathHasPrefix, pathsEqual } from './path-math';
-import { cellRowCol } from '../caret/coordinate-spaces';
+import { cellRowCol } from '../core/coordinate-spaces';
 import {
 	displayLength,
 	documentLineEnding,

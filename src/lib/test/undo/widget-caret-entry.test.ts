@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';

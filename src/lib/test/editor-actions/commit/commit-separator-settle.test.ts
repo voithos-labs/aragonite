@@ -13,7 +13,7 @@ import {
 } from '#lib/test/harness/editor-actions.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 

@@ -10,7 +10,7 @@ import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import type { CaretMemory } from '../caret/caret-memory';
 import { createInsertionRecords } from '../caret/next-insertion';
-import { createCaretWriter } from '../caret/widget-offset';
+import { createCaretWriter } from '../browser/caret-writer';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';

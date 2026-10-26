@@ -11,14 +11,14 @@ import {
 	toViewportX,
 	type DomTextOffset,
 	type EditorX
-} from './coordinate-spaces';
+} from '../core/coordinate-spaces';
 import {
 	containerDomTextLength,
 	domTextOffsetAtNode,
 	findDomTextLanding,
 	holdsTextPast,
 	widgetSpanContainingOffset
-} from './widget-offset';
+} from '../browser/offsets';
 import {
 	caretRectAt,
 	focusCaretAtWrap,
@@ -27,15 +27,14 @@ import {
 	sameLineTolerance,
 	type CaretRect,
 	type LineRead
-} from './visual-lines';
+} from '../browser/lines';
 
 export function getCurrentCursorEditorRelativeX(
 	el: HTMLElement,
 	lineRead: LineRead
 ): EditorX | null {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return null;
-	const range = movingEnd(sel);
+	const range = movingEnd();
+	if (!range) return null;
 
 	const rect =
 		focusCaretAtWrap(el, range, lineRead) ??

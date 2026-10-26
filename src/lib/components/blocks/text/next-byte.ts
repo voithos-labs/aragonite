@@ -10,7 +10,7 @@ import type { NodeView } from '../../../core/node-views';
 import type { NextByte } from '../../../caret/caret-look';
 import type { CaretMemory } from '../../../caret/caret-memory';
 import type { PreviewInsertion, TextEdit } from '../../../caret/next-insertion';
-import { revealsNoMarkers } from '../../../caret/widget-offset';
+import { revealsNoMarkers } from '../../../browser/painted';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import { listInlineMarks, type InlineMarkKind } from '../../../schema/inline-construct-policy';

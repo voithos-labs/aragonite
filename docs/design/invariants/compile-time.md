@@ -52,7 +52,7 @@ container-only fields register as one unit with `contract` and `rebuildRaw` requ
 `isContainer` derived; a leaf augment carrying a `container` group throws. Retired: G1.3, the
 runtime pairing guard.
 
-**G3.7 · Branded coordinate spaces.** `caret/coordinate-spaces.ts`: `RawOffset`, `DomTextOffset`,
+**G3.7 · Branded coordinate spaces.** `core/coordinate-spaces.ts`: `RawOffset`, `DomTextOffset`,
 `EditorX`, `ViewportX`, `CellIndex`, `DocPath`, each created only at its home module with named
 conversions per direction. Public entries keep `number` and brand once at the boundary. Cross-space
 arithmetic is a type error. Retired: offset-space mixing; `charOffsetOf`'s read-space check narrows

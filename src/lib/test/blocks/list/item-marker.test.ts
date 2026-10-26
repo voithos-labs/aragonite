@@ -4,7 +4,7 @@
 // Miss-analysis: every row asked a text child for the marker, so none saw an item that opens
 // with a code block, quote, table or nested list draw no marker and hide its bytes.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { markerPrefixOf } from '#lib/caret/widget-offset.js';
+import { markerPrefixOf } from '#lib/browser/painted.js';
 import {
 	installLayoutStubs,
 	mountEditor,

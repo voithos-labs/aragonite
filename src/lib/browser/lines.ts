@@ -4,16 +4,15 @@
  * knows which it shows, so every line decision there asks it through a `LineRead`.
  */
 
-import { domDescendants } from './dom-walk';
-import { FALLBACK_LINE_HEIGHT } from '../windowing/typography-estimates';
-import {
-	caretAnchorAfter,
-	isBlockLineText,
-	rawRangeToDomRange,
-	rawSelectionFocus,
-	type CaretWriter
-} from './widget-offset';
-import { offsetFromViewportPoint } from './point-offset';
+import { domDescendants } from './dom-descendants';
+import { caretAnchorAfter, isBlockLineText } from './painted';
+import { rawRangeToDomRange } from './offsets';
+import { rawSelectionFocus, readNativeSelection } from './selection-read';
+import type { CaretWriter } from './caret-writer';
+import { offsetFromViewportPoint } from './point';
+
+// A generic line box for a `normal` computed `lineHeight`, which parses to NaN.
+const FALLBACK_LINE_HEIGHT = 20;
 
 // Fraction of a line height within which the cursor Y counts as the boundary line; under one
 // line, so sub/superscript or inline-image jitter doesn't read as a different line.
@@ -58,11 +57,12 @@ export function charRect(text: Text, at: number): DOMRect | null {
 }
 
 /** Where the caret is for a vertical move: the caret itself, or a selection's focus, the end a
- *  Shift+Arrow moves and a plain arrow moves from. Collapsed. */
-export function movingEnd(sel: Selection): Range {
-	if (sel.isCollapsed || !sel.focusNode) return sel.getRangeAt(0);
+ *  Shift+Arrow moves and a plain arrow moves from. Collapsed; null with no selection. */
+export function movingEnd(): Range | null {
+	const live = readNativeSelection();
+	if (!live || live.collapsed) return live?.range ?? null;
 	const range = document.createRange();
-	range.setStart(sel.focusNode, sel.focusOffset);
+	range.setStart(live.focus.node, live.focus.offset);
 	return range;
 }
 
@@ -316,9 +316,9 @@ function focusOnWrapLine(
 /** The box of a caret at raw `raw` in `el`; where it is the live focus at a soft wrap, on the line
  *  the browser shows it on. */
 function caretLineBox(el: HTMLElement, raw: number, lineRead: LineRead): CaretRect | null {
-	const sel = window.getSelection();
-	if (sel?.focusNode && rawSelectionFocus(el) === raw) {
-		const focus = { startContainer: sel.focusNode, startOffset: sel.focusOffset };
+	const live = readNativeSelection();
+	if (live && rawSelectionFocus(el) === raw) {
+		const focus = { startContainer: live.focus.node, startOffset: live.focus.offset };
 		const atWrap = focusCaretAtWrap(el, focus, lineRead);
 		if (atWrap) return atWrap;
 	}
@@ -361,11 +361,10 @@ function isAtEdgeVisualLine(
 	lineRead: LineRead,
 	edge: { isEmpty: boolean; toStart: boolean; boundaryTop: () => number | null }
 ): boolean {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return fallback();
+	const cursorRange = movingEnd();
+	if (!cursorRange) return fallback();
 	if (edge.isEmpty) return true;
 
-	const cursorRange = movingEnd(sel);
 	const tolerance = sameLineTolerance(el);
 
 	const wrap = softWrapAt(cursorRange, el);

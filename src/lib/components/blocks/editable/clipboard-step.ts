@@ -4,8 +4,7 @@
  * copy's payload before anything awaits, then deletes what that copy read.
  */
 
-import { placeholderBreakOf } from '../../../caret/placeholder-break';
-import { normalizeLineEndings } from '../../../core/lines';
+import { shownSelectionText } from '../../../browser/selection-read';
 
 /**
  * One kind of selection a surface can copy: its copy writes the payload and reads what its
@@ -52,27 +51,4 @@ export async function runClipboardCut(
  *  the raw bytes. */
 export function writeShownSelection(e: ClipboardEvent): void {
 	e.clipboardData?.setData('text/plain', shownSelectionText());
-}
-
-/** The browser's selection string, which leaves out what CSS hides, with LF line breaks (Firefox on
- *  Windows writes CRLF), and empty for an empty block's placeholder `<br>` selected alone. */
-export function shownSelectionText(): string {
-	const selection = window.getSelection();
-	if (!selection || selection.rangeCount === 0) return '';
-	const text = normalizeLineEndings(selection.toString());
-	const last = selection.getRangeAt(selection.rangeCount - 1);
-	return selectsOnlyPlaceholderBreak(last) && text.endsWith('\n') ? text.slice(0, -1) : text;
-}
-
-// A range from an earlier block keeps its last break: Chromium writes the block boundary there
-// and nothing for the `<br>`, so the two can't be told apart.
-function selectsOnlyPlaceholderBreak(range: Range): boolean {
-	const before = range.endContainer.childNodes[range.endOffset - 1];
-	const parent = before?.parentNode;
-	return (
-		before instanceof HTMLBRElement &&
-		!!parent &&
-		parent.contains(range.startContainer) &&
-		placeholderBreakOf(parent) === before
-	);
 }

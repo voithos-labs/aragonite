@@ -45,7 +45,7 @@ import {
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { legalizeWrite } from '../tree-operations/content-write';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import { assertParseConverged } from './parse-convergence';
 import { mountBlockListState } from './headless-block-list.svelte';
 import {

@@ -5,7 +5,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import type { BlockComponent } from '#lib/block-component.js';
 import type { EditorError } from '#lib/editor-events.js';
 import {

@@ -2,15 +2,15 @@
 // Miss-analysis: depth tests covered only the renderer, never the traversals reading its DOM back.
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { domDescendants } from '../../caret/dom-walk';
-import { asDomTextOffset } from '../../caret/coordinate-spaces';
-import { findFirstTextNode, findLastTextNode } from '../../caret/visual-lines';
+import { domDescendants } from '../../browser/dom-descendants';
+import { asDomTextOffset } from '../../core/coordinate-spaces';
+import { findFirstTextNode, findLastTextNode } from '../../browser/lines';
 import {
 	containerDomTextLength,
 	createRangeAtDomTextOffsets,
-	domTextOffsetAtNode,
-	rawTextOfNode
-} from '../../caret/widget-offset';
+	domTextOffsetAtNode
+} from '../../browser/offsets';
+import { rawTextOfNode } from '../../browser/block-text';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // The rendered DOM is as deep as the source asks. The cap is jsdom's O(depth²) selector cost and

@@ -25,6 +25,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { commandContextWith } from '../../support/command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { holdsNativeRange } from '#lib/browser/selection-read.js';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -101,6 +102,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 			history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 			getPresentationMode: () => opts.presentationMode ?? 'source',
 			isCrossBlockRange: () => selection.isCrossBlock,
+			holdsNativeRange,
 			crossBlockCommands,
 			onCommandError
 		}),

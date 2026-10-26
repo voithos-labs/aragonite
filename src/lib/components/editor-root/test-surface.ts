@@ -15,7 +15,7 @@ import type { GapCaretPosition } from '../../selection/gap-caret';
 import type { GrammarView } from '../../schema/block-openers';
 import type { UndoManager } from '../../undo/types';
 import type { DrawnCaret } from '../../caret/drawn-caret.svelte';
-import type { CaretWriter } from '../../caret/widget-offset';
+import type { CaretWriter } from '../../browser/caret-writer';
 
 export interface EditorTestSurface {
 	/** The live CST; read-only by contract, since a write bypasses the undo pipeline. */

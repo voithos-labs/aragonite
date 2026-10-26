@@ -34,7 +34,7 @@ import { spliceMany } from '../splice-many';
 import type { PasteDispatchContext } from './dispatch';
 import type { CommitSnapshotArg, ContainerScope } from '../../action-contracts';
 import type { MultiScopeTarget } from './paste-deps';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 
 interface ContainerUnwrap {
 	outerPath: number[];

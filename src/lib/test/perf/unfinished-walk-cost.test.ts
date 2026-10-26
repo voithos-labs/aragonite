@@ -3,7 +3,7 @@
 // Miss-analysis: the closer two blocks below (#684) needed a walk up the body, and no row said
 // which keystrokes pay for it.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { unfinishedReadings, type UnfinishedReading } from '#lib/schema/block-openers.js';

@@ -11,11 +11,9 @@ import type { NodeView } from '../../../core/node-views';
 import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
-import {
-	CONSTRUCT_REVEAL_CLASS,
-	rawSelectionFocus,
-	type CaretWriter
-} from '../../../caret/widget-offset';
+import { CONSTRUCT_REVEAL_CLASS } from '../../../browser/painted';
+import { rawSelectionFocus } from '../../../browser/selection-read';
+import type { CaretWriter } from '../../../browser/caret-writer';
 import { caretShownSelector } from '../../../core/inline/visibility';
 import {
 	isInteractionTraceEnabled,

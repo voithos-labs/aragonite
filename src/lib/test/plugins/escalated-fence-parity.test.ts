@@ -14,7 +14,7 @@ import {
 	setPluginMetadata,
 	type CstNode
 } from '#lib/plugin.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';

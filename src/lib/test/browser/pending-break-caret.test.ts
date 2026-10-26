@@ -10,7 +10,7 @@ import {
 	pressKeyAt,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { rawSelectionFocus } from '#lib/caret/widget-offset.js';
+import { rawSelectionFocus } from '#lib/browser/selection-read.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 beforeAll(installLayoutStubs);

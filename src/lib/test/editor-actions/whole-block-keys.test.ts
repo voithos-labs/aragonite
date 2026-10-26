@@ -5,7 +5,7 @@ import {
 } from '#lib/editor-actions/container-block-component.js';
 import { displayLength } from '#lib/core/lines.js';
 import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
-import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { asEditorX } from '#lib/core/coordinate-spaces.js';
 import { commandForKey } from '#lib/schema/commands.js';
 import {
 	normalizeKeybindingOverrides,

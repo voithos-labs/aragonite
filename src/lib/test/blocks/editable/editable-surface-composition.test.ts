@@ -15,7 +15,7 @@ import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
-import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { asEditorX } from '#lib/core/coordinate-spaces.js';
 import type { EditableSurfaceDeps } from '#lib/components/blocks/editable/editable-surface.js';
 import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';

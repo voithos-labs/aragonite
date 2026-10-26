@@ -38,18 +38,16 @@ const at = (relPath: string, code: string): Probe => ({ relPath, code });
 // ── G4.15 coordinate brands ──────────────────────────────────────────────────
 
 const COORDINATE_HOME = SOURCE.coordinateBrands;
-const DOCPATH_HOME = SOURCE.docPathBrand;
 const BRANDS = ['RawOffset', 'DomTextOffset', 'EditorX', 'ViewportX', 'CellIndex', 'DocPath'];
 
-/** Where each brand's bare `as <Brand>` cast may live. `DocPath` composes in the neutral
- *  coordinate module too, which `tree-operations` can reach without importing `selection/`. */
+/** Where each brand's bare `as <Brand>` cast may live. */
 const BRAND_CAST_HOME: Record<string, string[]> = {
 	RawOffset: [COORDINATE_HOME],
 	DomTextOffset: [COORDINATE_HOME],
 	EditorX: [COORDINATE_HOME],
 	ViewportX: [COORDINATE_HOME],
 	CellIndex: [COORDINATE_HOME],
-	DocPath: [DOCPATH_HOME, COORDINATE_HOME]
+	DocPath: [COORDINATE_HOME]
 };
 
 const BRAND_CAST_RE = /\bas\s+(RawOffset|DomTextOffset|EditorX|ViewportX|CellIndex|DocPath)\b/g;
@@ -532,7 +530,7 @@ const RULES: FileRule[] = [
 		matches:
 			/(?:\b\w*[rR]ange\??|\bgetRangeAt\([^)]*\))\.get(?:ClientRects|BoundingClientRect)\s*\(/,
 		allowed: {
-			'src/lib/caret/visual-lines.ts':
+			'src/lib/browser/lines.ts':
 				'`caretRectAt`, the one measure of a caret, and the character and line boxes it reads',
 			'src/lib/components/overlays/rects.ts': 'the boxes of a span between two offsets',
 			'src/lib/components/blocks/text/widget-interaction.ts':
@@ -551,25 +549,10 @@ const RULES: FileRule[] = [
 		misses: ['const box = el.getBoundingClientRect();', 'const rects = block.getClientRects();']
 	},
 	{
-		id: 'G4.243 the browser moves a selection in one place, the caret writer',
-		matches: /\.modify\s*\(/,
-		allowed: {
-			'src/lib/caret/widget-offset.ts':
-				'the caret writer: its line-edge moves, and the read of which line a caret at a soft wrap shows on'
-		},
-		reason:
-			'a `Selection.modify` moves the caret where the writer never recorded it, so the drawn caret and `canonicalizeCaret` misread it: move through `moveCaretToLineEdge` or `extendToLineEdge`, or ask `focusEndsLine`',
-		hits: [
-			"sel.modify('move', 'forward', 'line');",
-			"window.getSelection()!.modify ('extend', 'left', 'lineboundary');"
-		],
-		misses: ['const modified = view.modifiedAt;', 'modify(node);']
-	},
-	{
 		id: 'G4.243 the caret’s line is decided through the soft-wrap read',
 		matches: /\bcaretRectAt(?:Raw)?\s*\(/,
 		allowed: {
-			'src/lib/caret/visual-lines.ts':
+			'src/lib/browser/lines.ts':
 				'`caretRectAt` itself, and the line decisions, which ask the browser at a soft wrap first',
 			'src/lib/caret/sticky-measure.ts':
 				'the column: the caret’s own x after the soft-wrap read, and the column search over offsets that are no caret',
@@ -591,7 +574,7 @@ const RULES: FileRule[] = [
 			'const box = caretRectAtRaw(el, raw);',
 			'deps.caretRectAt(root, n, o)'
 		],
-		misses: ['import { caretRectAt } from "./visual-lines";', 'caretRectAt,']
+		misses: ['import { caretRectAt } from "./lines";', 'caretRectAt,']
 	},
 	{
 		id: 'G4.221 a paste with no paste event calls the paste step, never a constructed event',
@@ -610,10 +593,10 @@ const RULES: FileRule[] = [
 		id: 'G4.221 the shown text of a selection is read in one place',
 		matches: readsSelectionString,
 		allowed: {
-			[SOURCE.clipboardStep]:
+			[SOURCE.selectionRead]:
 				'`shownSelectionText`: LF line breaks, and nothing for an empty block’s placeholder `<br>`'
 		},
-		reaches: [SOURCE.clipboardStep],
+		reaches: [SOURCE.selectionRead],
 		reason:
 			'Firefox on Windows writes a selection’s line breaks as CRLF and an empty block’s placeholder `<br>` as one, so the text read straight off the selection differs by engine: call `shownSelectionText`',
 		hits: [
@@ -814,10 +797,9 @@ const RULES: FileRule[] = [
 		id: 'G4.15 every `as<Brand>()` conversion lives in a declared home or boundary file',
 		matches: MINT_CALL_RE,
 		allowed: {
-			[COORDINATE_HOME]: 'the numeric-space conversions themselves',
-			[DOCPATH_HOME]: 'the DocPath brand and its base conversion (asDocPath)',
+			[COORDINATE_HOME]: 'the conversions themselves, asDocPath included',
 			// Modules that own a coordinate space.
-			'src/lib/caret/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
+			'src/lib/browser/offsets.ts': 'DomTextOffset home: the walk brands its returns',
 			'src/lib/caret/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
 			'src/lib/components/blocks/editable/surface-backend.ts':
 				'RawOffset home for the caret intent a block records as a plain number (the snap target)',
@@ -868,25 +850,6 @@ const RULES: FileRule[] = [
 		misses: [
 			"const host = el.closest('[data-block-path]');\nreadBlockPath(host);",
 			'const parsed = JSON.parse(payload);'
-		]
-	},
-	{
-		id: 'the browser is asked for a caret at a point in one module',
-		matches: /\bcaret(Range|Position)FromPoint\b/,
-		allowed: {
-			'src/lib/caret/point-offset.ts':
-				'caretSeatFromPoint, behind the offset lookups that move a padding point level with a line'
-		},
-		reason:
-			'Mac and Linux Chromium answer a point in an element’s top or bottom padding with the line’s start or end: resolve a point through offsetFromViewportPoint or caretOffsetAtPoint',
-		hits: [
-			'const r = document.caretRangeFromPoint(x, y);',
-			'const p = (doc as any).caretPositionFromPoint?.(x, y);'
-		],
-		misses: [
-			'const offset = offsetFromViewportPoint(el, x, y);',
-			'const seat = caretSeatFromPoint(document, x, y);',
-			'// never call caretRangeFromPoint here\nconst a = 1;'
 		]
 	},
 	{
@@ -1210,7 +1173,7 @@ const RULES: FileRule[] = [
 			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`
 		),
 		allowed: {
-			'src/lib/caret/widget-offset.ts':
+			'src/lib/browser/painted.ts':
 				'the mode a mounted block wears in the DOM, where no hiding attribute means source'
 		},
 		reason:
@@ -1384,7 +1347,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/range-coverage.ts':
 				'decides once what a range covers: the blocks between, the units, the edges, the cells, the rectangle',
 			'src/lib/selection/path-math.ts': 'defines the two path predicates',
-			'src/lib/caret/coordinate-spaces.ts': 'defines the rectangle two cells span',
+			'src/lib/core/coordinate-spaces.ts': 'defines the rectangle two cells span',
 			'src/lib/selection/primitives.ts': 'defines the cell index read of a table endpoint',
 			'src/lib/schema/block-kind-descriptor.ts':
 				"defines a table's cell count and the clamp every cell index takes",
@@ -2335,7 +2298,12 @@ const ROGUE_WRITER = `${SOURCE_DIR.blocks}x/rogue-writer.ts`;
 const TYPED_WRITE_ASKS: ManifestRule[] = [
 	{
 		id: 'G4.101 only the surface write names a typed kind change or completes a typed line',
-		population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.selection),
+		population: under(
+			SOURCE_DIR.components,
+			SOURCE_DIR.browser,
+			SOURCE_DIR.caret,
+			SOURCE_DIR.selection
+		),
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/editable/surface-write.ts':
@@ -2789,7 +2757,12 @@ const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
 
 const WIDGET_LIST: FileRule = {
 	id: 'G4.125 a component asks which inlines are widgets only in `widget-adjacency.ts`',
-	population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.plugins),
+	population: under(
+		SOURCE_DIR.components,
+		SOURCE_DIR.browser,
+		SOURCE_DIR.caret,
+		SOURCE_DIR.plugins
+	),
 	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
 	allowed: {
 		[WIDGET_LIST_HOME]:
@@ -2837,10 +2810,6 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		branches: 1,
 		reason:
 			'with no document there is no focus or selection a landing could move, so nothing to compare'
-	},
-	'src/lib/schema/commands.ts :: warnSelectionKept': {
-		branches: 1,
-		reason: 'with no DOM a block holds no selection, so no command runs beside one'
 	},
 	'src/lib/editor-actions/replacement-focus.ts :: focusMovedOutsideReplacement': {
 		branches: 1,

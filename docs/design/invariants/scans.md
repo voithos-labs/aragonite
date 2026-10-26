@@ -52,7 +52,7 @@ unguarded.
 | G4.33  | Live-mode byte candidates verify against what actually paints                                    | L       |
 | G4.34  | Link bytes are written only through the one link byte module                                     | L       |
 | G4.35  | A construct stamps its markers exactly when its policy row says revealable                       | L       |
-| G4.36  | The native selection is written only by the editor's caret writer in `widget-offset.ts`          | L       |
+| G4.36  | A DOM position from walk offsets, a raw range and a public focus are built only in listed files  | L       |
 | G4.37  | Every surface rendering into a caret-walk container stamps content-empty                         | L       |
 | G4.38  | Every editable surface publishes each of `EDITABLE_SURFACE_MEMBERS`                              | L       |
 | G4.39  | Every text-surface component publishes `runCommand`                                              | L       |
@@ -184,7 +184,7 @@ unguarded.
 | G4.219 | No popover closes on focus leaving; every focus-loss listener serves a listed need               | L       |
 | G4.220 | A clipboard read or write outside a clipboard event goes through `system-clipboard.ts`           | L       |
 | G4.221 | No constructed `ClipboardEvent`; a selection's shown text is read in one place                   | L       |
-| G4.222 | The browser's selection is read through the bridge readers                                       | L       |
+| G4.222 | _Retired upward_: the selection is read only under `browser/` (G4.270)                           | L       |
 | G4.223 | The library names no browser engine in code                                                      | L       |
 | G4.224 | A press on editor chrome takes no focus, unless its file is listed as owning focus               | L       |
 | G4.225 | The drag session is the first listener to hear a release                                         | L       |
@@ -201,7 +201,7 @@ unguarded.
 | G4.239 | No block runs a merge by its id; a delete at an edge runs the plain key's binding                | L       |
 | G4.240 | Every `ResizeObserver` is made in `windowing/observe-resize.ts`                                  | L       |
 | G4.241 | _Retired upward_: the run layout and the joins are the commit’s own steps (G4.258)               | L       |
-| G4.243 | Only the caret writer calls `Selection.modify`; a caret's line is read through one step          | L       |
+| G4.243 | A caret's line is read through one step; `Selection.modify` is the caret writer's (G4.270)       | L       |
 | G4.245 | A kind's write rule is run through `kindWriteRule`                                               | L       |
 | G4.247 | A production build of the published package carries no dev check                                 | harness |
 | G4.248 | Dev-only code reads one switch, in `dev-checks.ts`, imported by its package name                 | L       |
@@ -216,6 +216,7 @@ unguarded.
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
 | G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
 | G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
+| G4.270 | The selection, `Selection.modify` and the caret at a point are touched only under `browser/`     | L       |
 | G4.271 | A windowed list hands each child the index and id from its own slice entry                       | L       |
 
 ### The entries
@@ -296,7 +297,7 @@ owned view. `lint/file-rules.test.ts`; type pins in `test/core/node-views.test.t
 Only `Editor.svelte` holds a mutable `Document`. `lint/file-rules.test.ts`.
 
 **G4.15 · Coordinate-brand creation.** `as <Brand>` casts and the `as*` boundary constructors appear
-only in `caret/coordinate-spaces.ts` and the allowlisted public-entry files; everything else gets a
+only in `core/coordinate-spaces.ts` and the allowlisted public-entry files; everything else gets a
 brand through those or a named conversion. G3.7's runtime-source complement.
 `lint/file-rules.test.ts`.
 
@@ -375,7 +376,7 @@ is structural, so a shared helper fails it until the scan learns that helper.
 `lint/reserved-chord-manifest.test.ts`.
 
 **G4.30 · Hidden-run classification.** `core/inline/visibility.ts` states the marker families and
-the hiding rule, and `caret/widget-offset.ts` applies it where there's a caret; a third copy would
+the hiding rule, and `browser/painted.ts` applies it where there's a caret; a third copy would
 disagree the day a mode moves, and a caret placed in unpainted text corrupts silently. A property
 test holds the two answers together. The scans allowlist resolving hiding state to those homes and
 readers asking another question, and manifest every file naming a marker class. Dev backstop:
@@ -407,16 +408,15 @@ nothing, and a row without a stamp addresses nothing. An absent row reads as `re
 `lint/stamp-revealable-parity.test.ts`.
 
 **G4.36 · Caret-write sites.** Every native selection write goes through the editor's caret writer,
-`caret/widget-offset.ts :: createCaretWriter` (`EditorServices.caretWriter`), which asks the drawn
-caret to repaint after it (G4.143). A caret goes through `placeCaretAtRaw`, which skips the marker
-prefix, never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or
-`exact`); a range through `selectRawRange`, `extendSelectionToRaw`, `selectSurfaceContent`, or
-`selectDomRange` for nodes in hand. The scan pins four file lists, each with per-file reasons:
+`browser/caret-writer.ts :: createCaretWriter` (`EditorServices.caretWriter`), which asks the drawn
+caret to repaint after it (G4.143), and G4.270 fails a write anywhere else. A caret goes through
+`placeCaretAtRaw`, which skips the marker prefix, never lands behind a hidden marker run, and takes
+a required `clamp` (`reachable` or `exact`); a range through `selectRawRange`,
+`extendSelectionToRaw`, `selectSurfaceContent`, or `selectDomRange` for nodes in hand. The scan
+pins three file lists, each with per-file reasons:
 
-- the files calling a native selection writer, which is `widget-offset.ts` alone (the shapes are
-  in `lint/native-selection-write.ts`, which G4.143 reads too);
-- the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
-  that measure with it);
+- the files building a DOM position from a DOM-walk offset (`browser/offsets.ts` and the readers
+  that measure with it), so no hand-built range reaches `selectDomRange`;
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
 - the surfaces building `focus` from `placeCaret` (`selection/place-caret.ts`).
 
@@ -945,7 +945,7 @@ attribute and the bar change in one paint and there's one bar per editor.
 caret's proxy, each with its reason, and nothing else: another rule would hide or recolor the
 browser's caret behind the drawn caret's back. `lint/drawn-caret-guards.test.ts`.
 
-**G4.143 · Every caret write asks for a paint.** `caret/widget-offset.ts` writes the native selection
+**G4.143 · Every caret write asks for a paint.** `browser/caret-writer.ts` writes the native selection
 only inside `createCaretWriter`, whose writes and clears call `drawnCaret.request`;
 `test/caret/caret-writer-request.test.ts` calls every writer method and counts one request each (its
 table typed over the writer's keys). The frame callback in `caret/drawn-caret.svelte.ts` calls
@@ -1143,7 +1143,7 @@ registers them on the first grammar read, through `registerBuiltInDescriptors` u
 
 **G4.200 · One read of a block's hidden screen.** The rules for a construct's hidden edge only
 apply where the block hides markers at the caret, and they need the screen it hides them on.
-`caret/widget-offset.ts :: hidingScreenOf` answers both at once. `lint/edge-rule-guards.test.ts`
+`browser/painted.ts :: hidingScreenOf` answers both at once. `lint/edge-rule-guards.test.ts`
 fails any other file that calls `screenVisibilityOf`, except the dev check that compares it with
 the stylesheet.
 
@@ -1189,7 +1189,7 @@ diagnostic-only. `e2e/lint/recordings.test.ts`.
 
 **G4.214 · One measure of a caret.** WebKit and Firefox measure a collapsed range right after a `\n`
 on the line it ends, putting each line start on the line above. `caretRectAt`
-(`caret/visual-lines.ts`) measures the next character instead, and every caret box goes through it
+(`browser/lines.ts`) measures the next character instead, and every caret box goes through it
 (the column search, sticky x, drawn caret, drop caret, `rects.caretRect()` and the rest); the scan
 fails a Range measured elsewhere, bar a few never-collapsed spans. A caret written at a line start
 lands in the next line's text likewise (`findDomTextLanding`). `lint/file-rules.test.ts`.
@@ -1230,15 +1230,8 @@ same text. `lint/system-clipboard-calls.test.ts`.
 **G4.221 · Clipboard text the engines agree on.** A paste with no paste event of its own (the
 menus' Paste rows) hands its text to the focused block's `insertMarkdown` or `insertPlainText`,
 since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The selection's shown text is read only through
-`shownSelectionText` (`clipboard-step.ts`), which reads LF where Firefox on Windows writes CRLF,
+`shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF,
 and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
-
-**G4.222 · The selection is read in one place.** Engines differ in what the selection reports (a
-caret inside a widget, an anchor inside a CRLF pair), so every file reads it through
-`selection/native-bridge.ts` (`readNativeSelection`, `rawSelectionIn`, `nativeRangeIn`,
-`holdsNativeRange`) or `rawSelectionFocus`. The raw readers left (`caret/`, which the bridge
-imports, two files the selection layer imports, and G4.221's `shownSelectionText`) are listed with
-their reason, and the list only shrinks. `lint/native-selection-reads.test.ts`.
 
 **G4.223 · No engine sniffing.** `src/lib` outside `debug/` names no engine in script (`isFirefox`,
 a user-agent read, `Edg/`): an engine bug is fixed where the editor reads or decides, the same way
@@ -1337,8 +1330,8 @@ points say when observing starts. `file-rules.test.ts`.
 
 **G4.243 · One read of the caret's line.** At a soft wrap a caret's one DOM position is on two
 lines, and `caretRectAt` reads one of them whatever the browser shows. So at a wrap the line
-checks in `caret/visual-lines.ts` ask the browser, through the caret writer, the one file allowed
-to call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
+checks in `browser/lines.ts` ask the browser through the caret writer, the one file G4.270 lets
+call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
 wrong at a wrap is harmless or a known gap. `lint/file-rules.test.ts`.
 
 **G4.245 · One way to run a write rule.** A kind's `rawWrite` is read only by
@@ -1418,6 +1411,12 @@ every request a test's pages make to another host and fails the spec at teardown
 so the suites run without a network. A spec's own route for a made-up host runs before the block.
 `route.continue()` would send a request straight past it, so a route passes requests on with
 `route.fallback()`. `e2e/lint/e2e-drivers.test.ts`.
+
+**G4.270 · The browser is touched in one module.** Only `browser/selection-read.ts` and the caret
+writer read the native selection (`debug/`'s recorder may read what it records), only
+`caret-writer.ts` writes it, `Selection.modify` included, and only `point.ts` asks for a caret at a
+point. The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads too. A directory
+that can't import `browser/` takes the read as a parameter. `lint/browser-module.test.ts`.
 
 **G4.271 · A windowed list indexes its children from its slice entries.** A list renders `windowSlicer`'s
 entries and passes each child `entry.index` and `entry.id`. An index added up from the live window start

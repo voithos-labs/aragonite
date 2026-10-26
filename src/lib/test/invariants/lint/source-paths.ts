@@ -72,7 +72,6 @@ export const SOURCE = {
 	pluginContainer: 'src/lib/editor-actions/plugin/container.ts',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
-	docPathBrand: 'src/lib/selection/path-math.ts',
 	sharedKeydown: 'src/lib/selection/shared-keydown.ts',
 	nativeBridge: 'src/lib/selection/native-bridge.ts',
 	rangeDelete: 'src/lib/selection/range-delete.ts',
@@ -82,9 +81,9 @@ export const SOURCE = {
 	rangeReplace: 'src/lib/selection/cross-block/range-replace.ts',
 
 	// ── Caret geometry and windowing ────────────────────────────────────────
-	coordinateBrands: 'src/lib/caret/coordinate-spaces.ts',
+	coordinateBrands: 'src/lib/core/coordinate-spaces.ts',
 	deleteExtent: 'src/lib/caret/delete-extent.ts',
-	domWalk: 'src/lib/caret/dom-walk.ts',
+	domWalk: 'src/lib/browser/dom-descendants.ts',
 	blockContentSelector: 'src/lib/caret/block-content-selector.ts',
 	blockElLookup: 'src/lib/caret/block-el-lookup.ts',
 	scrollOwner: 'src/lib/windowing/scroll-owner.ts',
@@ -106,6 +105,9 @@ export const SOURCE = {
 	editableLeaf: 'src/lib/components/blocks/editable/editable-leaf.ts',
 	surfaceWrite: 'src/lib/components/blocks/editable/surface-write.ts',
 	clipboardStep: 'src/lib/components/blocks/editable/clipboard-step.ts',
+	selectionRead: 'src/lib/browser/selection-read.ts',
+	caretWriter: 'src/lib/browser/caret-writer.ts',
+	pointLookup: 'src/lib/browser/point.ts',
 	textBlockComponent: 'src/lib/components/blocks/text/TextEditableBlock.svelte',
 	textClipboard: 'src/lib/components/blocks/text/text-clipboard.ts',
 	edgePolicyDispatch: 'src/lib/components/blocks/text/edge-policy-dispatch.ts',
@@ -222,7 +224,6 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	pluginContainer: 'export interface ContainerBlockDeps',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
-	docPathBrand: 'export type DocPath',
 	sharedKeydown: 'export interface SharedKeydownContext',
 	nativeBridge: 'export function readNativeCaretInBlock',
 	rangeDelete: 'export interface TableRowSplice',
@@ -255,7 +256,10 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	selectionOverlay: 'function textLineHeight(',
 	editableLeaf: 'export type EditableLeafMode',
 	surfaceWrite: 'export type WriteIntent',
-	clipboardStep: 'export function shownSelectionText(',
+	clipboardStep: 'export function writeShownSelection(',
+	selectionRead: 'export function shownSelectionText(',
+	caretWriter: 'export function createCaretWriter(',
+	pointLookup: 'export function caretOffsetAtPoint(',
 	textBlockComponent: 'const widgetEdgeOwner = {};',
 	textClipboard: 'export interface TextClipboardDeps',
 	edgePolicyDispatch: 'export type EdgePolicy',
@@ -318,6 +322,7 @@ export const SOURCE_DIR = {
 	editorActions: 'src/lib/editor-actions/',
 	selection: 'src/lib/selection/',
 	crossBlock: 'src/lib/selection/cross-block/',
+	browser: 'src/lib/browser/',
 	caret: 'src/lib/caret/',
 	windowing: 'src/lib/windowing/',
 	ambient: 'src/lib/ambient/',
@@ -366,7 +371,8 @@ export const SOURCE_DIR_ANCHORS: Record<keyof typeof SOURCE_DIR, string> = {
 	editorActions: 'block-edit-core.ts',
 	selection: 'path-math.ts',
 	crossBlock: 'range-replace.ts',
-	caret: 'dom-walk.ts',
+	browser: 'caret-writer.ts',
+	caret: 'caret-memory.ts',
 	windowing: 'list-windowing.svelte.ts',
 	ambient: 'ambient-dom.ts',
 	decorations: 'buckets.ts',

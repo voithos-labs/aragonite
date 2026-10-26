@@ -1,9 +1,7 @@
 /**
  * The one iterative pre-order traversal of rendered inline DOM, the DOM counterpart of
- * `core/inline/walk.ts`. It lives here rather than beside it because `caret/` is what a DOM walk
- * may import from (`ambient/` reads this direction too, `core/` never does). Nesting depth comes
- * from the input, so recursion would overflow the stack and leave the block stuck in the
- * failed-block fallback.
+ * `core/inline/walk.ts`. Nesting depth comes from the input, so recursion would overflow the stack
+ * and leave the block stuck in the failed-block fallback.
  */
 
 /** `root`, then its descendants in document order, or mirrored by `fromEnd` (a parent still ahead

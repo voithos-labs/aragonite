@@ -59,7 +59,7 @@ export interface OperationDetailMap {
 	tableSetAlignment: { colIdx: number };
 }
 
-import type { DocPath } from '../selection/path-math';
+import type { DocPath } from '../core/coordinate-spaces';
 
 export type OperationKind = keyof OperationDetailMap;
 

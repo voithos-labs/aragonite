@@ -9,11 +9,11 @@ import type { DocumentGetter } from '../editor-keys';
 import type { CaretMemory } from '../caret/caret-memory';
 import type { CaretLanding } from './caret-landing';
 import type { SelectionState } from './selection-state.svelte';
-import type { CaretWriter } from '../caret/widget-offset';
+import type { CaretWriter } from '../browser/caret-writer';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import type { CommandDispatchContext } from '../schema/block-commands';
 import { commandAtBlock, isArrowKey } from './cross-block/keydown';
-import { holdsNativeRange, rawSelectionIn } from './native-bridge';
+import { holdsNativeRange, rawSelectionIn } from '../browser/selection-read';
 import type { Reading } from '../schema/reading';
 import {
 	extendFocusToNextBlock,
@@ -24,10 +24,10 @@ import { getCurrentCursorEditorRelativeX } from '../caret/sticky-measure';
 import {
 	landableEndAbutsIsland,
 	landableRawBounds,
-	landableStartAbutsIsland,
-	markerPrefixOf
-} from '../caret/widget-offset';
-import { isAtFirstVisualLine, isAtLastVisualLine, lineHeightOf } from '../caret/visual-lines';
+	landableStartAbutsIsland
+} from '../browser/offsets';
+import { markerPrefixOf } from '../browser/painted';
+import { isAtFirstVisualLine, isAtLastVisualLine, lineHeightOf } from '../browser/lines';
 import {
 	caretEdgeKey,
 	endsSelectAllRun,

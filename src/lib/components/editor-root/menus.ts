@@ -28,7 +28,7 @@ import { isProseLeaf } from '../../schema/page-role';
 import type { Reading } from '../../schema/reading';
 import { readBlockPath } from '../../selection/path-lookup';
 import { rangeCoversPoint } from '../../selection/cross-block/pointer';
-import { holdsNativeRange, nativeRangeIn } from '../../selection/native-bridge';
+import { holdsNativeRange, nativeRangeIn } from '../../browser/selection-read';
 import { documentLineEnding } from '../../core/lines';
 import { stampWrites, type DocumentStamps } from '../../editor-actions/commit/document-stamp';
 

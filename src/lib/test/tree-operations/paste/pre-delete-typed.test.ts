@@ -7,8 +7,8 @@ import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.sve
 import { parse } from '#lib/core/parser.js';
 import { trimTrailingLineEnding, ownTrailingLineEnding } from '#lib/core/lines.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
 import { makeStubBlockEdit, runPasteDispatch, makePasteCommit } from '../../harness/editor-actions';

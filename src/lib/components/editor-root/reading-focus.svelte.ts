@@ -9,11 +9,11 @@ import { tick, untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkReadingTabStops } from '../../invariants/reading-tab-stops';
-import { rawOffsetAt } from '../../caret/widget-offset';
+import { rawOffsetAt } from '../../browser/offsets';
 import type { BlockElLookup } from '../../caret/block-el-lookup';
 import { surfaceHolding } from '../../selection/path-lookup';
 import { comparePaths } from '../../selection/path-math';
-import { readNativeSelection } from '../../selection/native-bridge';
+import { readNativeSelection } from '../../browser/selection-read';
 import { onRoot, removeAll } from './listeners';
 
 export interface ReadingFocus {

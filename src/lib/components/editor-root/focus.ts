@@ -8,7 +8,7 @@ import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkLandableCaret } from '../../invariants/landable-caret';
 import { isPreviewMode, type PresentationMode } from '../../presentation-mode';
 import { readBlockPath } from '../../selection/path-lookup';
-import { CONTENT_EMPTY_ATTR } from '../../caret/widget-offset';
+import { CONTENT_EMPTY_ATTR } from '../../browser/painted';
 import { onRoot, removeAll } from './listeners';
 import type { TextMoves } from '../overlays/text-moves';
 

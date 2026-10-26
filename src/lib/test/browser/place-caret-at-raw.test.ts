@@ -4,7 +4,8 @@
 // prefix length, taken from the DOM.
 import { describe, it, expect, afterEach } from 'vitest';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { rawOffsetAt, rawSelectionFocus } from '../../caret/widget-offset';
+import { rawOffsetAt } from '../../browser/offsets';
+import { rawSelectionFocus } from '../../browser/selection-read';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 afterEach(() => {

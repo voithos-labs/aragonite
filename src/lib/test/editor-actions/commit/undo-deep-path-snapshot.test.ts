@@ -6,7 +6,7 @@ import {
 	stubBlockComponent,
 	makeNode
 } from '#lib/test/harness/editor-actions.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 
 describe('debounced undo snapshot: deep path capture', () => {
 	it('records the live deep path when a ref provides getCursorPosition', () => {

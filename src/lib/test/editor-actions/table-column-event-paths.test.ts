@@ -10,7 +10,7 @@ import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/edi
 import { makeTableMutations } from './table-mutations-harness';
 import type { EditEvent } from '#lib/editor-events.js';
 import type { GridLineCoverage } from '#lib/selection/range-delete-table-coverage.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 
 // A column is not a child node, so column edits address the table and carry the column
 // index in the event detail. Two sites share the contract: the alignment edits

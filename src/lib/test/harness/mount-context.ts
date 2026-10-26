@@ -52,6 +52,7 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { createWidgetEdgeHolder, type DrawnCaret } from '#lib/caret/drawn-caret.svelte.js';
 import { bindActivationClick, createPressTracker } from '#lib/activation-click.js';
 import { createTextMoves } from '#lib/components/overlays/text-moves.js';
+import { holdsNativeRange } from '#lib/browser/selection-read.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -253,6 +254,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		activation: services.activePlugins,
 		getPresentationMode: () => doc.reading.mode(),
 		isCrossBlockRange: () => services.selection.isCrossBlock,
+		holdsNativeRange,
 		// Inert: a bare mount has no cross-block range, so every member answers no.
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		// Inert too: a bare mount activates no decoration.

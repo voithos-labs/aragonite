@@ -14,7 +14,7 @@ import type { EditKind, FixedUpWrite, FixedUpEdit } from './tree-operations/fix-
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { OperationDetailMap, OperationKind, ScopedOpDescriptor } from './schema/operations';
 import type { WriteMode } from './schema/block-kind-descriptor';
-import type { DocPath } from './selection/path-math';
+import type { DocPath } from './core/coordinate-spaces';
 import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
 import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';

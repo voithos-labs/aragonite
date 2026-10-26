@@ -6,7 +6,7 @@ import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { commitLeafTextAt } from '#lib/editor-actions/block-edit-core.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';

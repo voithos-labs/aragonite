@@ -3,7 +3,7 @@
 	import { type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import type { CodeRunRequest } from '../../../host-hooks';
-	import { asRawOffset } from '../../../caret/coordinate-spaces';
+	import { asRawOffset } from '../../../core/coordinate-spaces';
 	import {
 		decidedDelete,
 		deleteExtent,
@@ -12,12 +12,9 @@
 		type DeleteAnswer,
 		type DeleteIntent
 	} from '../../../caret/delete-extent';
-	import { lineEdgeOffset } from '../../../caret/visual-lines';
-	import {
-		CONTENT_EMPTY_ATTR,
-		holdsOnlyMarkerChrome,
-		type RawRange
-	} from '../../../caret/widget-offset';
+	import { lineEdgeOffset } from '../../../browser/lines';
+	import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../browser/painted';
+	import type { RawRange } from '../../../browser/offsets';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { handleSharedKeydown } from '../../../selection/shared-keydown';
 	import { createEditableSurface, consumePendingRestore } from '../editable/editable-surface';

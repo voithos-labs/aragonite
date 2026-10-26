@@ -6,7 +6,7 @@
  */
 
 import type { NodeView } from '../../../core/node-views';
-import type { RawRange } from '../../../caret/widget-offset';
+import type { RawRange } from '../../../browser/offsets';
 
 interface OpenSource {
 	path: string;

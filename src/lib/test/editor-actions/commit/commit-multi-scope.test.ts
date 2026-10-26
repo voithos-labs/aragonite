@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import type { CommitMultiScopeArgs, MultiScopeTarget } from '#lib/action-contracts.js';
 import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { allowDevWarns } from '#lib/test/support/warn-gate.js';

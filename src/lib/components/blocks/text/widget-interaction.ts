@@ -11,7 +11,7 @@ import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { SurfaceBackend } from '../editable/surface-backend';
 import { selectWidgetWhole } from '../../../selection/place-caret';
-import { rawSelectionIn } from '../../../selection/native-bridge';
+import { rawSelectionIn, rawSelectionFocus } from '../../../browser/selection-read';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,
@@ -20,14 +20,9 @@ import {
 	widgetElByStart
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
-import { asRawOffset } from '../../../caret/coordinate-spaces';
-import {
-	rawRangeToDomRange,
-	rawSelectionFocus,
-	type CaretClamp,
-	type CaretWriter,
-	type RawRange
-} from '../../../caret/widget-offset';
+import { asRawOffset } from '../../../core/coordinate-spaces';
+import { rawRangeToDomRange, type RawRange } from '../../../browser/offsets';
+import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
 import { createSourceReveal, type SourceReveal } from '../../../caret/reveal-source';
 import {
 	nearestWidgetEdgeSeat,
@@ -48,7 +43,7 @@ import { checkMotionLeftWidget } from '../../../invariants/selected-widget-motio
 import type { RevealFold } from '../editable/surface-clipboard';
 import { hasModifier, isPlainTypingKey, surfaceHoldsRange } from './click-snap-guard';
 import { caretEdgeKey, pageKey } from '../../../schema/keybindings';
-import { caretIsInTextContent } from '../../../caret/text-seat';
+import { caretIsInTextContent } from '../../../browser/text-seat';
 import {
 	findFirstEdgeWidget,
 	findLastEdgeWidget,

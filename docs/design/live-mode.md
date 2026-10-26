@@ -35,7 +35,7 @@ Take `Some **bold** text` in live mode. Each `**` (a marker run, from here on: t
 
 A live rewrite never trusts its own reading of the bytes. It builds a candidate byte string and asks the render path what that candidate would show, through `renderedText` (`core/inline/visibility.ts`). I'll call that check the painter. The rule it enforces: the screen after the write shows exactly what the gesture claimed, and live only drops or writes bytes the user never sees.
 
-The painter's idea of the screen comes from one rule, `familyHidesText` in the same file, which says which spans a mode leaves on screen. The caret walk (the traversal in `caret/widget-offset.ts` that maps DOM positions to raw offsets) reads the same rule, and a lint fails any third place that works out what's hidden on its own.
+The painter's idea of the screen comes from one rule, `familyHidesText` in the same file, which says which spans a mode leaves on screen. The caret walk (the traversal in `browser/` that maps DOM positions to raw offsets, its segments in `browser/painted.ts`) reads the same rule, and a lint fails any third place that works out what's hidden on its own.
 
 The mode read and the painter, on one block (`reading` is the editor's `Reading`, from `schema/reading.ts`: its grammar, link resolver and mode in one object):
 
@@ -117,7 +117,7 @@ The painted state decides three things: where a caret can land, which side an in
 
 The wiring, for the curious:
 
-- Each block surface marks its walk container (the contenteditable element the caret geometry reads) with the content-empty condition on every render, and the two consumers of the hiding rule, the stylesheet and `caret/widget-offset.ts`, read that mark under the same modes and over the same marker families.
+- Each block surface marks its walk container (the contenteditable element the caret geometry reads) with the content-empty condition on every render, and the two consumers of the hiding rule, the stylesheet and `browser/painted.ts`, read that mark under the same modes and over the same marker families.
 - The preview modes take the same rule; reading mode doesn't, since it takes no keystrokes.
 - Without the rule such a block would have no position a caret can sit at, and the focus entry every caret route crosses refuses a block like that in dev.
 
@@ -388,7 +388,7 @@ Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-hard-break.m
 
 - Copy yields the source bytes, with one live tweak: a format run the selection cuts through comes along closed at its edges, the bytes a cut there would take (`tree-operations/leaf-range.ts` :: `bytesLeavingLeaf`). So `ld an` out of `**bold** and` copies as `**ld** an`, and pasting it back gives you the bold back. Reading mode is the real exception: there a copy writes what the browser's selection shows, hidden markers left out.
 - Search matches the source bytes, so a query crossing a construct boundary misses what the screen appears to show.
-- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are the offsets a caret can reach, not its raw ends, and the position after a body's final newline, on a hidden closer's line, is outside them too unless a caret anchor paints that line (`caret/widget-offset.ts`).
+- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are the offsets a caret can reach, not its raw ends, and the position after a body's final newline, on a hidden closer's line, is outside them too unless a caret anchor paints that line (`browser/offsets.ts`).
 - Bytes change only where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, except at § 4.1's painted content-empty chrome, where a block's own structural gate follows the mode and the two modes diverge.
 - Undo granularity is the document's wherever a rendered block reveals its source for editing (block math, a painted code source): a burst of typing there comes back in one press, batched on the same pause the document batches on, and the whole reveal still commits as one document entry on blur.
 - Keystroke latency is a gated perf axis, with live rows beside their source twins (`performance.md`).

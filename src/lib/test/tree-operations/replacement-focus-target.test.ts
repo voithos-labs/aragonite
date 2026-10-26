@@ -6,7 +6,7 @@ import { settledCaretPosition, updateNodeContent } from '../../tree-operations/c
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { caretTargetFor } from '../../selection/caret-target';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import { CURSOR_END } from '../../block-component';
 
 describe('caretInBlocks', () => {

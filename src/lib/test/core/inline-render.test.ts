@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
-import { rawTextOfNode } from '../../caret/widget-offset';
+import { rawTextOfNode } from '../../browser/block-text';
 import type { InlineNode } from '../../core/nodes';
 import { renderOptions } from '../harness/fixture-grammar';
 

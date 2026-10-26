@@ -6,7 +6,7 @@ import type { InlineNode } from '../../core/nodes';
 import { contentLengthOf, parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
-import { rawTextOfNode } from '../../caret/widget-offset';
+import { rawTextOfNode } from '../../browser/block-text';
 import type { IndexedDecoration } from '../../decorations/buckets';
 import { applyIslandDecorations, type ApplyIslandsOpts } from '../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/types';

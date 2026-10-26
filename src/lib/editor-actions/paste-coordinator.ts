@@ -6,7 +6,7 @@ import type { EditorActionsDeps, UndoController } from './deps';
 import { getStateForNode } from '../block-lists/state-registry';
 import { commitLeafTextAt, createBlockEditCore } from './block-edit-core';
 import { createPathScope } from './block-edit-scope';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 
 export function createPasteCoordinator(
 	deps: EditorActionsDeps,

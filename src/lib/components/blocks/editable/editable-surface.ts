@@ -42,7 +42,7 @@ import type { CaretMemory } from '../../../caret/caret-memory';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { placeCaret, selectInBlock } from '../../../selection/place-caret';
 import { deleteSnapshot } from '../../../selection/primitives';
-import { asEditorX, asRawOffset, type RawOffset } from '../../../caret/coordinate-spaces';
+import { asEditorX, asRawOffset, type RawOffset } from '../../../core/coordinate-spaces';
 import type { SurfaceBackend } from './surface-backend';
 import type { DrawnCaret, WidgetEdgeSource } from '../../../caret/drawn-caret.svelte';
 import type { HeldInsertion } from '../../../caret/next-insertion';
@@ -81,17 +81,16 @@ import {
 	type InlinePaste,
 	pasteIntoBlock
 } from './surface-clipboard';
-import { shownSelectionText } from './clipboard-step';
+import { shownSelectionText } from '../../../browser/selection-read';
 import {
 	rawOfWalkOffset,
-	revealsNoMarkers,
 	rawOffsetAt,
 	walkOffsetOfRaw,
-	type CaretClamp,
-	type CaretWriter,
-	type InputRead,
 	type RawRange
-} from '../../../caret/widget-offset';
+} from '../../../browser/offsets';
+import { revealsNoMarkers } from '../../../browser/painted';
+import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
+import type { InputRead } from '../../../browser/block-text';
 import {
 	caretLandableBounds,
 	type CaretUnitSource,

@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeNestedHarness, makeTopHarness } from '../../harness/editor-actions';

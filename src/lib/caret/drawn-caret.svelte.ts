@@ -10,8 +10,9 @@ import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { caretHost, chipStopBox, codeChipEdge, hostBox, measureCaret } from './drawn-caret-measure';
-import { caretSeatInElement } from './point-offset';
-import { clickMovesSeat } from './text-seat';
+import { caretSeatInElement } from '../browser/point';
+import { clickMovesSeat } from '../browser/text-seat';
+import { readNativeSelection } from '../browser/selection-read';
 import {
 	drawnCaretTarget,
 	hidesBrowserCaret,
@@ -166,9 +167,10 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	// Where the browser really put the caret decides, and a caret that later moves into text on its
 	// own (a press whose click landed outside the editor) shows again.
 	function notePressSeat(): void {
-		const sel = window.getSelection();
-		if (!press || !sel?.isCollapsed || sel.rangeCount === 0) return;
-		const { startContainer: node, startOffset: offset } = sel.getRangeAt(0);
+		if (!press) return;
+		const live = readNativeSelection();
+		if (!live?.collapsed) return;
+		const { startContainer: node, startOffset: offset } = live.range;
 		if (press.el.contains(node)) press.moves = clickMovesSeat(press.el, { node, offset });
 	}
 
@@ -201,10 +203,9 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	}
 
 	function readCaret(root: HTMLElement): CaretRead {
-		const sel = window.getSelection();
 		const active = document.activeElement;
 		const source = active instanceof HTMLElement ? (sources.get(active) ?? null) : null;
-		const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+		const range = readNativeSelection()?.range ?? null;
 		// A widget edge holds even where the browser dropped its range.
 		const owned = source && (!range || source.el.contains(range.startContainer)) ? source : null;
 		const draws = drawsCaret(deps.caretMode(), media);

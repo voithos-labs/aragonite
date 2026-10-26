@@ -12,8 +12,8 @@ import { commandContext } from '#lib/test/support/command-context.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // jsdom lays nothing out, so the block reads as one line and every vertical arrow is at its edge.
-vi.mock('../../caret/visual-lines', async (original) => ({
-	...(await original<typeof import('../../caret/visual-lines')>()),
+vi.mock('../../browser/lines', async (original) => ({
+	...(await original<typeof import('../../browser/lines')>()),
 	isAtFirstVisualLine: () => true,
 	isAtLastVisualLine: () => true
 }));

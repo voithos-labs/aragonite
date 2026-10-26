@@ -6,7 +6,7 @@
  * move calls `forget`, which drops them all at once.
  */
 
-import type { EditorX } from './coordinate-spaces';
+import type { EditorX } from '../core/coordinate-spaces';
 import { classifyStickyKey } from './sticky-column';
 import { classifyCaretKey, type EdgeAffinity } from './edge-affinity';
 import { createPendingMarks, type BlockPendingMarks } from './pending-marks';

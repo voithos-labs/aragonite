@@ -15,7 +15,7 @@ import {
 } from '#lib/test/harness/editor-actions.js';
 import { makeTableMutations } from '../table-mutations-harness';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { coverRange } from '#lib/selection/range-coverage.js';

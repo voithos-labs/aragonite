@@ -12,7 +12,7 @@ import type { ScopeWrites } from '../action-contracts';
 import { charOffsetOf } from './primitives';
 import { comparePaths } from './path-math';
 import { caretPointFor, type RemovalGesture } from './caret-target';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import {
 	blockNodeAt,
 	normalizeBodyWrite,

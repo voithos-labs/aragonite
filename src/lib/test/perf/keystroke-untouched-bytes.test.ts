@@ -4,7 +4,7 @@
 // the last-line check joining the last block's blank lines to its bytes passed them all.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';

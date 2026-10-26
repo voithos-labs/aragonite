@@ -1,8 +1,8 @@
-/** The marker DOM the widget-offset suites mount: marker spans, widgets the caret cannot
+/** The marker DOM the browser suites mount: marker spans, widgets the caret cannot
  *  enter, and a block under one presentation mode. A fixture whose difference from these is a
  *  suite's own subject stays in that suite's file. */
 
-import { CONTENT_EMPTY_ATTR } from '../../caret/widget-offset';
+import { CONTENT_EMPTY_ATTR } from '../../browser/painted';
 
 export interface MountOptions {
 	/** Leave a marked block unfocused: its markers then hide like any other block's. */

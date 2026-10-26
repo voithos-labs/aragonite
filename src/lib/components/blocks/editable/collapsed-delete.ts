@@ -14,7 +14,7 @@ import {
 	type DeleteIntent,
 	type DeleteVerdict
 } from '../../../caret/delete-extent';
-import type { RawRange } from '../../../caret/widget-offset';
+import type { RawRange } from '../../../browser/offsets';
 import { isBareKey } from '../text/click-snap-guard';
 
 export interface CollapsedDeleteReads {

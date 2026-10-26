@@ -30,7 +30,7 @@ import type { RangeCoverage } from './selection/range-coverage';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { CaretMemory } from './caret/caret-memory';
-import type { CaretWriter } from './caret/widget-offset';
+import type { CaretWriter } from './browser/caret-writer';
 import type { DrawnCaret } from './caret/drawn-caret.svelte';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
 import type { ScrollOwner } from './windowing/scroll-owner';

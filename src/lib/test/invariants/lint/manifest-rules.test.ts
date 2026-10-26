@@ -17,7 +17,6 @@ import {
 	type Probe
 } from './file-rule';
 import { SOURCE, SOURCE_DIR } from './source-paths';
-import { NATIVE_SELECTION_WRITE } from './native-selection-write';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 const keys = (...groups: Record<string, string>[]) => groups.flatMap((g) => Object.keys(g));
@@ -140,7 +139,7 @@ const STAMP_WRITE = /\.(?:toggle|set)Attribute\(\s*CONTENT_EMPTY_ATTR\b/;
 
 const CLASSIFICATION_HOMES: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts': 'the families and the hiding rule',
-	'src/lib/caret/widget-offset.ts': 'applies them to a live DOM, and owns the reveal branches'
+	'src/lib/browser/painted.ts': 'applies them to a live DOM, and owns the reveal branches'
 };
 
 /** Resolving marker-hiding state either way: a DOM read of the mode root, the block-focus, construct
@@ -175,7 +174,7 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal', 'directive-marker'];
 
 const MARKER_CLASS_FILES: Record<string, string> = {
-	'src/lib/caret/widget-offset.ts': 'the classification home',
+	'src/lib/browser/painted.ts': 'the classification home',
 	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
 		'creates the directive container chrome: contenteditable="false" and outside every walk container, so the hiding classification excludes it twice over',
 	'src/lib/ambient/ambient-dom.ts': 'creates and identifies the marker-prefix span',
@@ -366,48 +365,13 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['buildImageEditBytes(image, raw, fields)']
 	},
 	{
-		id: 'G4.36 the one file writing the native selection is the caret writer',
-		// A one-argument collapse counts on a selection only: Range.collapse(toStart) and the
-		// selection store's own collapse() write no caret.
-		matches: NATIVE_SELECTION_WRITE,
-		declared: {
-			'src/lib/caret/widget-offset.ts':
-				'createCaretWriter, one per editor: its writes check every endpoint against an empty block’s <br> (G1.75) and ask the drawn caret to repaint'
-		},
-		reason:
-			'every write or clear of the native selection goes through the editor’s caret writer (EditorServices.caretWriter), which skips the marker prefix, clamps, and asks the drawn caret to repaint',
-		hits: [
-			'sel?.addRange(range);',
-			'window.getSelection()?.removeAllRanges();',
-			'sel.empty();',
-			'sel.setBaseAndExtent(n, 0, n, 0);',
-			'sel.extend(node, 2);',
-			'window.getSelection()?.collapse(node, 2);',
-			'sel.setPosition(node, 2);',
-			'sel.selectAllChildren(node);',
-			'sel.collapseToEnd();',
-			'sel.collapseToStart();',
-			"sel.modify('move', 'forward', 'character');",
-			'sel.collapse(node);',
-			'window.getSelection()?.collapse(node);',
-			'window.getSelection()!.collapse(node);',
-			'sel.setPosition(node);'
-		],
-		misses: [
-			'sel.getRangeAt(0);',
-			'selectionState.collapse();',
-			'ctx.selection.collapse();',
-			'range.collapse(true);',
-			'range.collapse(toStart);'
-		]
-	},
-	{
 		id: 'G4.36 a DOM position is built from a walk offset only in the walk module and its measuring readers',
 		matches: namesToken(
 			'(?:createRangeAtDomTextOffsets|findDomTextOffsetTarget|findDomTextLanding)'
 		),
 		declared: {
-			'src/lib/caret/widget-offset.ts': 'defines the walk and the one caret writer over it',
+			'src/lib/browser/offsets.ts':
+				'defines the walk, and where a caret at a raw offset goes in the DOM',
 			'src/lib/components/overlays/rects.ts':
 				"measures a range's client rects, and writes no caret",
 			'src/lib/caret/sticky-measure.ts':
@@ -425,11 +389,11 @@ const MANIFESTS: ManifestRule[] = [
 		id: 'G4.36 the files naming rawRangeToDomRange measure or decorate, never place a caret',
 		matches: namesToken('rawRangeToDomRange'),
 		declared: {
-			'src/lib/caret/widget-offset.ts': 'defines it',
+			'src/lib/browser/offsets.ts': 'defines it',
 			'src/lib/decorations/island-dom.ts':
 				'inserts and replaces decoration widgets in a built fragment',
 			'src/lib/selection/selection-drop.ts': "measures the drop caret's rect",
-			'src/lib/caret/visual-lines.ts': 'measures the caret at a raw offset',
+			'src/lib/browser/lines.ts': 'measures the caret at a raw offset',
 			'src/lib/components/blocks/text/source-wash.ts': 'tints a shown widget source',
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'measures a shown source for the double-click that selects it'

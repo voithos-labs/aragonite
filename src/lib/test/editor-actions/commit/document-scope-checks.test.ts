@@ -9,7 +9,7 @@ import type { ContainerScope } from '#lib/action-contracts.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
 import { ensureUnsharedChild, ensureUnsharedSubtree } from '#lib/tree-operations/unshare.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { makeKeydownEnv, press } from '../../selection/cross-block/keydown-env';

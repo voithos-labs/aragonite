@@ -10,7 +10,7 @@ import type { ContentRange } from '../../../core/inline';
 import type { StoredAs } from '../../../schema/stored-as';
 import type { Reading } from '../../../schema/reading';
 import type { CaretMemory } from '../../../caret/caret-memory';
-import { asRawOffset } from '../../../caret/coordinate-spaces';
+import { asRawOffset } from '../../../core/coordinate-spaces';
 import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 import type { SurfaceBackend } from '../editable/surface-backend';
 import { rangeWrite, type TextWrite } from '../editable/surface-write';

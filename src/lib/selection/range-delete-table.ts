@@ -18,7 +18,7 @@ import {
 } from './range-coverage';
 import type { ScopeWrites } from '../action-contracts';
 import { displayLength } from '../core/lines';
-import { cellRowCol } from '../caret/coordinate-spaces';
+import { cellRowCol } from '../core/coordinate-spaces';
 import { cellIndexOf } from './primitives';
 import {
 	planCrossBlockDeletion,

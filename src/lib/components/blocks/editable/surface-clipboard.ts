@@ -11,7 +11,7 @@ import type { PasteImageHook } from '../../../host-hooks';
 import { emitClipboardError, type EditorEvents } from '../../../editor-events';
 import type { CaretMemory } from '../../../caret/caret-memory';
 import type { HeldInsertion } from '../../../caret/next-insertion';
-import type { RawRange } from '../../../caret/widget-offset';
+import type { RawRange } from '../../../browser/offsets';
 import { normalizeLineEndings } from '../../../core/lines';
 import { escapeMarkdownLiteral } from '../../../tree-operations/paste/markdown-literal';
 import type { SelectionState } from '../../../selection/selection-state.svelte';

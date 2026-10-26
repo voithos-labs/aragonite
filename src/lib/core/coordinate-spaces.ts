@@ -6,8 +6,6 @@
  * function per direction. Public API entry points take `number` and brand it once.
  */
 
-import type { DocPath } from '../selection/path-math';
-
 // ── Brands ───────────────────────────────────────────────────────────────────
 
 declare const rawOffsetBrand: unique symbol;
@@ -17,7 +15,7 @@ export type RawOffset = number & { readonly [rawOffsetBrand]: true };
 declare const domTextOffsetBrand: unique symbol;
 /**
  * Offset as the DOM walk counts it: the raw offset plus the leading marker prefix's text length.
- * Produced only by `caret/widget-offset.ts`.
+ * Produced only by `browser/offsets.ts`.
  */
 export type DomTextOffset = number & { readonly [domTextOffsetBrand]: true };
 
@@ -124,10 +122,19 @@ export function cellRectBounds(cornerA: number, cornerB: number, colCount: numbe
 	};
 }
 
-// ── DocPath composition (document-absolute path helpers, in a dependency-free module) ──
-//
-// Here so `tree-operations/` can compose paths without importing `selection/`; the casts are
-// bare because importing `selection/path-math.ts` at runtime would close an import cycle.
+// ── DocPath (document-absolute paths) ────────────────────────────────────────
+
+declare const docPathBrand: unique symbol;
+
+/**
+ * A path resolved from the document root, which a commit requires of `op.eventPath` and
+ * `snapshot.path`, checked at runtime for callers the types don't bind (G1.16).
+ */
+export type DocPath = number[] & { readonly [docPathBrand]: true };
+
+export function asDocPath(indices: number[]): DocPath {
+	return indices as DocPath;
+}
 
 /** Append a child index to a parent path, yielding a document-absolute path. */
 export function extendDocPath(parent: readonly number[], index: number): DocPath {

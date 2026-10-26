@@ -7,7 +7,7 @@
  */
 
 import { hidesMarkers, type PresentationMode } from '../presentation-mode';
-import { paintsNoLandableContent } from '../caret/widget-offset';
+import { paintsNoLandableContent } from '../browser/painted';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 
 export function checkLandableCaret(

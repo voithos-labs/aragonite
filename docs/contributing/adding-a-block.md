@@ -44,7 +44,7 @@ Pick the closest reference and read it fully before you start. It'll answer more
 - `schema/`: the registries you'll touch.
 - `editor-actions/`, `block-lists/` and `windowing/`: the primitives a container builds on.
 - `ambient/`: the DOM for a container's dimmed marker, lent to its first child (a footnote definition's `[^label]: `) or drawn in a list item's own cell.
-- `caret/`: caret geometry, offsets across that marker included (`caret/widget-offset.ts`).
+- `browser/`: offsets across that marker included (`browser/offsets.ts`).
 
 ## Registration
 

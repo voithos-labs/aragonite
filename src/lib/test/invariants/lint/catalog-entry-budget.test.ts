@@ -16,7 +16,7 @@ const MAX_CHARS = 600;
 
 /** Entries allowed past the budget, keyed `file:G-number`, each with why it needs the room. */
 const BASELINE: Record<string, string> = {
-	'docs/design/invariants/scans.md:G4.36': 'four file lists, each a case a caret writer must know',
+	'docs/design/invariants/scans.md:G4.36': 'three file lists, each a case a caret writer must know',
 	'docs/design/invariants/scans.md:G4.75': 'seven write steps, each with its own allowed files',
 	'docs/design/invariants/scans.md:G4.131': 'three syntax modules, each with its own row and tests'
 };

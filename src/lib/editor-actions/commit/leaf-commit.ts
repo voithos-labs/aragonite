@@ -9,10 +9,10 @@ import type { CstNode } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { assertLeafLineEndingPairsKept, assertWrittenUnshared } from '../../invariants/install';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import { caretTargetFor } from '../../selection/caret-target';
 import type { CaretPosition } from '../../selection/primitives';
-import type { DocPath } from '../../selection/path-math';
+import type { DocPath } from '../../core/coordinate-spaces';
 import {
 	settledCaretPosition,
 	updateNodeContent,

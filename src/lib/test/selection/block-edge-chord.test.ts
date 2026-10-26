@@ -13,7 +13,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt, installTableLayoutStubs } from '../blocks/table/mount-table';
-import { rawSelectionFocus } from '#lib/caret/widget-offset.js';
+import { rawSelectionFocus } from '#lib/browser/selection-read.js';
 
 let restoreTableLayout: () => void;
 beforeAll(() => {

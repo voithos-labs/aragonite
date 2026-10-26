@@ -10,7 +10,7 @@ import type { CrossBlockHandlers } from '../../selection/cross-block/dispatch';
 import type { CommandDispatchContext } from '../../schema/block-commands';
 import { isReservedUiChord, runGlobalChord } from '../../schema/commands';
 import { eventToChord, isCharacterKey } from '../../schema/keybindings';
-import { shownSelectionText } from '../blocks/editable/clipboard-step';
+import { shownSelectionText } from '../../browser/selection-read';
 
 export interface EditorRootKeydownDeps {
 	/** Getters, never values: capturing them would freeze the flags at construction time. */

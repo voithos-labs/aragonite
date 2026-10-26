@@ -9,7 +9,7 @@ import { flushSync, tick } from 'svelte';
 import { installHeaderSlotCompensation } from '../../components/editor-root/geometry';
 import { parse } from '../../core/parser';
 import { createCaretMemory } from '../../caret/caret-memory';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import { createEditorRects } from '../../editor-rects';
 import type { EditorDoc, EditorServices } from '../../editor-keys';
 import type { ScrollOwner } from '../../windowing/scroll-owner';
@@ -26,8 +26,8 @@ import {
 } from '../harness/list-windowing.svelte';
 import { stubScrollOwner, stubScrollport } from '../harness/stub-scrollport';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { caretRectAt } from '../../caret/visual-lines';
-import { readNativeSelection } from '../../selection/native-bridge';
+import { caretRectAt } from '../../browser/lines';
+import { readNativeSelection } from '../../browser/selection-read';
 
 const COLUMNS = ['host anchoring holds', 'a held placement is live', 'free'] as const;
 type Column = (typeof COLUMNS)[number];

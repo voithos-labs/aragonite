@@ -22,7 +22,7 @@ import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
-export { asRawOffset as at } from '#lib/caret/coordinate-spaces.js';
+export { asRawOffset as at } from '#lib/core/coordinate-spaces.js';
 
 /** A one-character Backspace and Delete, as `deleteAtCaret` takes them. */
 export const BACKSPACE: DeleteIntent = { unit: 'character', direction: 'backward' };

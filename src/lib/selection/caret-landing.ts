@@ -9,7 +9,7 @@ import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks
 import { CURSOR_START, type BlockComponent } from '../block-component';
 import type { DocumentView } from '../core/node-views';
 import type { CaretMemory } from '../caret/caret-memory';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import { checkLandingFocusScrollsNothing } from '../invariants/landing-focus-scroll';
@@ -18,9 +18,10 @@ import { widgetTabStopEndingAt } from '../core/inline/inline-widgets';
 import { componentAt, descendTo, type ChildList } from '../block-lists/child-list';
 import { landsRestoredCaret } from './restored-caret';
 import { caretTargetFor } from './caret-target';
-import { applySelectionToDom, readNativeSelection } from './native-bridge';
-import type { CaretWriter } from '../caret/widget-offset';
-import { caretRectAt, caretRectAtRaw, lineHeightOf } from '../caret/visual-lines';
+import { applySelectionToDom } from './native-bridge';
+import { readNativeSelection } from '../browser/selection-read';
+import type { CaretWriter } from '../browser/caret-writer';
+import { caretRectAt, caretRectAtRaw, lineHeightOf } from '../browser/lines';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
 import {

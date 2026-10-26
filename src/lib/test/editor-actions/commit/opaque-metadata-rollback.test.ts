@@ -6,7 +6,7 @@ import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { testContainer } from '#lib/test/harness/test-kinds.js';

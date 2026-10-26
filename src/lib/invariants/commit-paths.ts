@@ -6,7 +6,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
-import type { DocPath } from '../selection/path-math';
+import type { DocPath } from '../core/coordinate-spaces';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 
 export function checkCommitPathAddressable(

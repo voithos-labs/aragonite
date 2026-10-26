@@ -1,6 +1,6 @@
 /**
  * Builds the marker prefix span (the "ambient" prefix): the read-only prefix a container block
- * draws in front of its first prose child's text. Reading it back is `caret/widget-offset.ts`.
+ * draws in front of its first prose child's text. Reading it back is `browser/offsets.ts`.
  */
 
 import type { AmbientPrefix } from '../block-component';

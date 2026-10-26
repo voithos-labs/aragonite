@@ -13,7 +13,7 @@ import {
 	isAtLastVisualLine,
 	softWrapAt,
 	type LineRead
-} from '../../caret/visual-lines';
+} from '../../browser/lines';
 
 /** Every row here but the wrap's measures a caret off a soft wrap, where the browser is never asked. */
 const OFF_A_WRAP: LineRead = {

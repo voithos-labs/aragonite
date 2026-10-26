@@ -12,7 +12,7 @@ import {
 	createConstructReveal,
 	type ConstructReveal
 } from '#lib/components/blocks/text/construct-reveal.js';
-import { CONSTRUCT_REVEAL_CLASS } from '#lib/caret/widget-offset.js';
+import { CONSTRUCT_REVEAL_CLASS } from '#lib/browser/painted.js';
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,

@@ -3,7 +3,7 @@
 
 import { expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';

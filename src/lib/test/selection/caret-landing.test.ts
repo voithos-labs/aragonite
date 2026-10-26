@@ -6,7 +6,7 @@ import { parse } from '../../core/parser';
 import type { Document } from '../../core/nodes';
 import { CURSOR_END, CURSOR_START, type BlockComponent } from '../../block-component';
 import { createCaretMemory } from '../../caret/caret-memory';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import type { ScrollOwner } from '../../windowing/scroll-owner';
 import { refSlotsOver } from '../../block-lists/child-refs';
 import { nodeAt } from '../../tree-operations/node-primitives';

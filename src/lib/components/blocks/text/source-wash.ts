@@ -3,7 +3,7 @@
  * plain text the offset walk reads. Without the API (jsdom, an old browser) it shows untinted.
  */
 
-import { rawRangeToDomRange, type RawRange } from '../../../caret/widget-offset';
+import { rawRangeToDomRange, type RawRange } from '../../../browser/offsets';
 
 const SOURCE_HIGHLIGHT = 'md-inline-reveal';
 const washes = new WeakMap<HTMLElement, Range>();
