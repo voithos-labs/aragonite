@@ -113,12 +113,23 @@ describe('scroll owner: placing', () => {
 	});
 
 	it.each([
-		['an unheld placement', { block: 'nearest', hold: false }],
-		['a centred one', { block: 'center', hold: true }]
-	] as const)('%s gives the slot back once it resolves', async (_label, opts) => {
+		['a nearest', 'nearest'],
+		['a centred', 'center']
+	] as const)(
+		'%s placement gives the slot back once it resolves, unheld',
+		async (_label, block) => {
+			const h = makeOwner();
+			expect(await h.owner.place([4], { block, hold: false }).scroll()).toBe(true);
+			expect(await h.heldPath()).toBeNull();
+		}
+	);
+
+	// Miss-analysis: a centred placement dropped its hold at resolve, and the only image test of it
+	// held the photos undecoded forever, so nothing grew above it after the scroll.
+	it('a centred placement keeps the slot once it resolves, as a nearest one does', async () => {
 		const h = makeOwner();
-		expect(await h.owner.place([4], opts).scroll()).toBe(true);
-		expect(await h.heldPath()).toBeNull();
+		expect(await h.owner.place([4], { block: 'center', hold: true }).scroll()).toBe(true);
+		expect(await h.heldPath()).toEqual([4]);
 	});
 });
 
