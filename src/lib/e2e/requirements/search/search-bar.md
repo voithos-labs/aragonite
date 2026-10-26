@@ -38,4 +38,8 @@ whole-word, regex) that narrow or reinterpret the query.
 ## Error cases
 
 - An invalid regex (e.g. `(`) shows an error readout instead of a count, paints no highlights, and does not crash.
+- A valid regex finds its matches while the page's requests go through a route (the e2e fixture's
+  off-host guard). Miss: the regex worker's blob URL was revoked right after `new Worker`, and
+  WebKit fetches a routed worker script later, so every regex scan failed; nothing ran a regex
+  search under a route on WebKit until the guard put one on every spec.
 - Esc closes the bar, removes all highlights, and returns focus to the document.

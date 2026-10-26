@@ -67,6 +67,15 @@ self.onmessage = (event) => {
 };
 `;
 
+let scriptUrl: string | null = null;
+
+/** One blob URL for the page's life, never revoked: a browser may fetch a worker's script after
+ *  its constructor returns, so a URL revoked there fails the worker. */
+function workerScriptUrl(): string {
+	scriptUrl ??= URL.createObjectURL(new Blob([regexScanWorkerSource], { type: 'text/javascript' }));
+	return scriptUrl;
+}
+
 interface WorkerReply {
 	epoch: number;
 	ok: boolean;
@@ -124,11 +133,7 @@ export function createRegexExecutor(options: RegexExecutorOptions = {}): RegexEx
 			return null;
 		}
 		try {
-			const url = URL.createObjectURL(
-				new Blob([regexScanWorkerSource], { type: 'text/javascript' })
-			);
-			worker = new Worker(url);
-			URL.revokeObjectURL(url); // the worker holds its own reference past revocation
+			worker = new Worker(workerScriptUrl());
 			return worker;
 		} catch {
 			// A CSP without `worker-src blob:` throws here. Latch, or every later scan pays
