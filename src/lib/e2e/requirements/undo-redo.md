@@ -20,6 +20,14 @@ An undo puts the caret back where it was, and if that's off screen the editor sc
 - type at the end of a paragraph taller than the viewport, scroll so its top sits 100px into the view, Ctrl+Z: the caret's line is on screen. Miss-analysis: every undo row used a short block, where showing the block shows the caret, so a caret deep in a tall block whose top was already on screen stayed below the edge
 - a gap caret between a table and a fence, a paragraph typed there, the page wheeled away until the table leaves the window, Ctrl+Z: the gap caret is back and on screen. Miss-analysis: a pin; the gap's undo ran beside the caret landing rather than through it, so no scroll rule reached it and nothing checked it came back into view. Miss-analysis: the restore then showed the block below the gap rather than the gap, which left it a few pixels over the top edge, and only Firefox ran the row without the browser's own focus scroll covering for it
 
+## An undo step changes the document
+
+A gesture that leaves the bytes as they were is no undo step, and nothing writes while an undo or redo puts its entry back.
+
+- in `ab` with the caret after `a`: Enter, type `a`, Backspace, Ctrl+Z: one press gets back to `ab`, and `canRunCommand('history.undo')` then answers false. Miss-analysis: every undo row checked a gesture that changed the bytes, so a typing run that deleted what it typed still read as a step
+- a freshly loaded document answers false to `canRunCommand` for undo and redo; after typing, undo answers true; after undoing it, undo answers false and redo true. Miss-analysis: `canRunCommand` was only ever asked of block commands, and the history commands registered no check of their own
+- an empty `#` heading above a paragraph `b`: type `c` after `b`, then `x` after `#`, Ctrl+Z twice: the empty heading is back, still a heading, with the caret in the paragraph; Ctrl+Shift+Z twice gets back to `#x` above `bc`. Miss-analysis: no undo row moved the caret off an empty heading, which turns itself into a paragraph on blur, so that write landed inside the undo and cleared the redo stack unseen
+
 ## Cross-block (covered in selection/undo.md)
 
 - Undo after cross-block cut restores document and cross-block selection

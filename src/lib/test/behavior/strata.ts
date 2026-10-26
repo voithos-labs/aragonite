@@ -12,6 +12,7 @@ import {
 	FLUSH_JOIN_DOCUMENTS,
 	KEYS,
 	MOVE_KEYS,
+	SCRIPTED_SEQUENCES,
 	SEQUENCE_SEEDS,
 	SEQUENCE_STEPS,
 	SMALL_DOCUMENTS,
@@ -20,7 +21,7 @@ import {
 	LONG_DOCUMENTS,
 	type Key
 } from './corpus';
-import { keyRows, sequenceRows, sitesOf } from './key-driver';
+import { keyRows, scriptedRows, sequenceRows, sitesOf } from './key-driver';
 import { textField, type Row } from './rows';
 
 /** Every key at every offset of every site of the small documents and the flush joins, and each
@@ -42,7 +43,8 @@ export async function keystrokeRows(mode: PresentationMode): Promise<Row[]> {
 	return rows;
 }
 
-/** Each seed's keys in both modes, over the small document the seed names. */
+/** Each seed's keys in both modes, over the small document the seed names, then each scripted run
+ *  in both modes. */
 export async function sequenceStratum(): Promise<Row[]> {
 	const ids = Object.keys(SMALL_DOCUMENTS);
 	const rows: Row[] = [];
@@ -51,6 +53,11 @@ export async function sequenceStratum(): Promise<Row[]> {
 		for (const mode of ['source', 'live'] as const) {
 			const label = `seq ${mode} ${seed} ${id}`;
 			rows.push(...(await sequenceRows(label, seed, SMALL_DOCUMENTS[id], mode, SEQUENCE_STEPS)));
+		}
+	}
+	for (const [id, { source, keys }] of Object.entries(SCRIPTED_SEQUENCES)) {
+		for (const mode of ['source', 'live'] as const) {
+			rows.push(...(await scriptedRows(`seq ${mode} scripted ${id}`, source, keys, mode)));
 		}
 	}
 	return rows;

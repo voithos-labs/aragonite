@@ -16,8 +16,12 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import {
+	holdTypingPausesForTests,
+	releaseTypingPausesForTests
+} from '#lib/editor-actions/commit/text-batch.js';
 import { makeRng } from '#lib/e2e/simulation/rng.js';
-import { KEYS, SYNTAX_PLUGINS, type Key } from './corpus';
+import { KEYS, SYNTAX_PLUGINS, type Key, type ScriptedKey } from './corpus';
 import { caretField, textField, undoField, warnsField, type Row } from './rows';
 
 /** Where a caret goes: a leaf block by its CST path, or one cell of the table at that path. */
@@ -195,29 +199,74 @@ export async function sequenceRows(
 	placeAt(editor, { path: leaves(parse(edited).children, [])[0].path, start: 0, end: 0 }, 0);
 	// A key makes one undo entry at most, so a count past `steps` shows a key that made more.
 	const runs = steps + 5;
-	const undo = await repeat(editor, 'history.undo', runs);
+	const undo = await repeatWhileRunnable(editor, 'history.undo', runs);
 	const undone = editor.source();
-	const redo = await repeat(editor, 'history.redo', runs);
+	const redo = await repeatWhileRunnable(editor, 'history.redo', runs);
 	const redone = editor.source();
 	await editor.destroy();
 	rows.push({
 		in: `${label} unwind`,
-		do: `undo changed the bytes ${undo} times, redo ${redo}`,
+		do: `undo changed the bytes ${undo.changed} times, redo ${redo.changed}`,
 		undo: undoField(source, edited, undone, redone),
 		warns: warnsField(tagsTaken())
 	});
 	return rows;
 }
 
-/** How many of `runs` runs of `command` changed the bytes. A fixed count, since the command stays
- *  enabled on an empty stack and an undo step may leave the bytes alone. */
-async function repeat(editor: MountedEditor, command: string, runs: number): Promise<number> {
+/** `keys` pressed in order into one mount of `source`, a row per key, then a row for undoing and
+ *  redoing for as long as each command says it can run. */
+export async function scriptedRows(
+	label: string,
+	source: string,
+	keys: readonly ScriptedKey[],
+	mode: PresentationMode
+): Promise<Row[]> {
+	const editor = mount(source, mode);
+	await editor.settle();
+	const rows: Row[] = [];
+	// Keys in one leaf share a typing run however slow the machine; one in another leaf starts its own.
+	holdTypingPausesForTests();
+	for (const [step, { path, offset, key }] of keys.entries()) {
+		const before = editor.source();
+		const el = placeAt(editor, { path, start: 0, end: offset }, offset);
+		const took = el ? await pressHardwareKey(el, { key }) : 'no caret';
+		rows.push({
+			in: `${label} step ${String(step).padStart(2, '0')}`,
+			do: `[${path.join(',')}]@${offset} ${key}`,
+			took,
+			bytes: textField(before, editor.source()),
+			caret: caretField(editor.instance.getSelection()),
+			warns: warnsField(tagsTaken())
+		});
+	}
+	releaseTypingPausesForTests();
+	const edited = editor.source();
+	const runs = keys.length + 5;
+	const undo = await repeatWhileRunnable(editor, 'history.undo', runs);
+	const undone = editor.source();
+	const redo = await repeatWhileRunnable(editor, 'history.redo', runs);
+	const redone = editor.source();
+	await editor.destroy();
+	rows.push({
+		in: `${label} unwind`,
+		do: `undo ran ${undo.runs} times and changed the bytes ${undo.changed}, redo ${redo.runs} and ${redo.changed}`,
+		undo: undoField(source, edited, undone, redone),
+		warns: warnsField(tagsTaken())
+	});
+	return rows;
+}
+
+/** Runs `command` while `canRunCommand` admits it, up to `cap` times, and counts the runs that
+ *  changed the bytes. */
+async function repeatWhileRunnable(editor: MountedEditor, command: string, cap: number) {
+	let runs = 0;
 	let changed = 0;
-	for (let run = 0; run < runs; run++) {
+	while (runs < cap && editor.instance.canRunCommand(command)) {
 		const before = editor.source();
 		editor.instance.runCommand(command);
 		await editor.settle();
+		runs++;
 		if (editor.source() !== before) changed++;
 	}
-	return changed;
+	return { runs, changed };
 }
