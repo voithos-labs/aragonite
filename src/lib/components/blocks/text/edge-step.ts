@@ -7,9 +7,9 @@
 
 import type { InlineNode } from '../../../core/nodes';
 import type { CaretMemory } from '../../../caret/caret-memory';
-import type { CaretWriter } from '../../../caret/widget-offset';
+import type { CaretWriter } from '../../../browser/caret-writer';
 import { chipArrivalKey, edgeStepDirection } from '../../../caret/edge-affinity';
-import { hidingScreenOf } from '../../../caret/widget-offset';
+import { hidingScreenOf } from '../../../browser/painted';
 import { caretEdgeKey } from '../../../schema/keybindings';
 import type { Reading } from '../../../schema/reading';
 import { hiddenEdges, type HiddenEdges } from './edge-seat';

@@ -81,17 +81,16 @@ import {
 	type InlinePaste,
 	pasteIntoBlock
 } from './surface-clipboard';
-import { shownSelectionText } from './clipboard-step';
+import { shownSelectionText } from '../../../browser/selection-read';
 import {
 	rawOfWalkOffset,
-	revealsNoMarkers,
 	rawOffsetAt,
 	walkOffsetOfRaw,
-	type CaretClamp,
-	type CaretWriter,
-	type InputRead,
 	type RawRange
-} from '../../../caret/widget-offset';
+} from '../../../browser/offsets';
+import { revealsNoMarkers } from '../../../browser/painted';
+import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
+import type { InputRead } from '../../../browser/block-text';
 import {
 	caretLandableBounds,
 	type CaretUnitSource,

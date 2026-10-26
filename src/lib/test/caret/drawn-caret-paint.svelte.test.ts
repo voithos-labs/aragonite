@@ -19,7 +19,7 @@ import {
 	resetPerfInstruments
 } from '#lib/perf/instruments.js';
 import type { DrawnCaret } from '#lib/caret/drawn-caret.svelte.js';
-import type { CaretWriter } from '#lib/caret/widget-offset.js';
+import type { CaretWriter } from '#lib/browser/caret-writer.js';
 
 /** A collapsed caret in a connected text node sits 8px per character from x 100. */
 const caretX = (offset: number) => 100 + offset * 8;

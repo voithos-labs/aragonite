@@ -7,14 +7,14 @@ import { asDomTextOffset, asRawOffset } from '../../core/coordinate-spaces';
 import {
 	domTextOffsetAtNode,
 	findDomTextLanding,
-	findDomTextOffsetTarget,
-	isHiddenMarkerText
-} from '../../caret/widget-offset';
-import { findFirstTextNode, findLastTextNode } from '../../caret/visual-lines';
+	findDomTextOffsetTarget
+} from '../../browser/offsets';
+import { isHiddenMarkerText } from '../../browser/painted';
+import { findFirstTextNode, findLastTextNode } from '../../browser/lines';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { createSurfaceBackend } from '../../components/blocks/editable/surface-backend';
 import { applyCollapsedCaret } from '../../selection/native-bridge';
-import { caretIsInTextContent } from '../../caret/text-seat';
+import { caretIsInTextContent } from '../../browser/text-seat';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface Fixture {

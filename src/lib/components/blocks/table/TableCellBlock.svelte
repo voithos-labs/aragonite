@@ -14,13 +14,13 @@
 	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
+	import { rawTextOfNode } from '../../../browser/block-text';
 	import {
-		rawTextOfNode,
 		containerDomTextLength,
 		landableDomTextBounds,
-		rawSelectionFocus,
 		type RawRange
-	} from '../../../caret/widget-offset';
+	} from '../../../browser/offsets';
+	import { rawSelectionFocus } from '../../../browser/selection-read';
 	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../core/coordinate-spaces';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../caret/sticky-measure';
@@ -35,7 +35,7 @@
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
 	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
 	import { selectWholeDocument, extendFromCell } from '../../../selection/keyboard-extend';
-	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../caret/visual-lines';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../browser/lines';
 	import {
 		cellCommandPlan,
 		cellKeydownPlan,

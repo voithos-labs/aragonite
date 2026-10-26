@@ -1,13 +1,9 @@
 // @vitest-environment jsdom
 // Miss-analysis: every read-back test kept some text, never only the trailing structure.
 import { describe, it, expect } from 'vitest';
-import {
-	BLOCK_PREFIX_ATTR,
-	BLOCK_SUFFIX_ATTR,
-	landableRawBounds,
-	rawTextOfContent,
-	readContent
-} from '#lib/caret/widget-offset.js';
+import { BLOCK_PREFIX_ATTR, BLOCK_SUFFIX_ATTR } from '#lib/browser/painted.js';
+import { landableRawBounds } from '#lib/browser/offsets.js';
+import { rawTextOfContent, readContent } from '#lib/browser/block-text.js';
 
 /** A prose block's element from HTML, the way the browser leaves it after an edit. */
 function block(html: string): HTMLElement {

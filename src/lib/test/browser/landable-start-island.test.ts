@@ -3,7 +3,7 @@
 // caret cannot enter, no text node holds it and the browser's Home lands past the widget.
 // Miss-analysis: GH #115; bounds tests found that position but never whether text can express it.
 import { describe, it, expect, afterEach } from 'vitest';
-import { landableStartAbutsIsland } from '../../caret/widget-offset';
+import { landableStartAbutsIsland } from '../../browser/offsets';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 

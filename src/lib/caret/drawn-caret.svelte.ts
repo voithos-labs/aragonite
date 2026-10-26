@@ -10,8 +10,8 @@ import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { caretHost, chipStopBox, codeChipEdge, hostBox, measureCaret } from './drawn-caret-measure';
-import { caretSeatInElement } from './point-offset';
-import { clickMovesSeat } from './text-seat';
+import { caretSeatInElement } from '../browser/point';
+import { clickMovesSeat } from '../browser/text-seat';
 import {
 	drawnCaretTarget,
 	hidesBrowserCaret,

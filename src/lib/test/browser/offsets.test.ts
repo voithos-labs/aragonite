@@ -4,9 +4,9 @@ import { asDomTextOffset } from '../../core/coordinate-spaces';
 import {
 	containerDomTextLength,
 	findDomTextOffsetTarget,
-	domTextOffsetAtNode,
-	rawTextOfNode
-} from '../../caret/widget-offset';
+	domTextOffsetAtNode
+} from '../../browser/offsets';
+import { rawTextOfNode } from '../../browser/block-text';
 
 describe('findDomTextOffsetTarget: widget boundary placement', () => {
 	let el: HTMLElement;

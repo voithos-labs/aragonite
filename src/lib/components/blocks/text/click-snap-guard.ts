@@ -1,7 +1,7 @@
 /** Shared checks about the selection and the key, used across a text block's editable element. */
 
 import { isCharacterKey } from '../../../schema/keybindings';
-import { readNativeSelection } from '../../../selection/native-bridge';
+import { readNativeSelection } from '../../../browser/selection-read';
 
 /** Whether this element holds a selected range: a double or triple click, a shift-click, a
  *  drag-select. The gesture drew that range, so click-time caret placement leaves it alone. */

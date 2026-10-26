@@ -6,9 +6,9 @@
 import { tick } from 'svelte';
 import { isModifiedClick, type PressTracker } from '../../activation-click';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
-import { readNativeSelection } from '../../selection/native-bridge';
+import { readNativeSelection } from '../../browser/selection-read';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import type { CaretWriter } from '../../caret/widget-offset';
+import type { CaretWriter } from '../../browser/caret-writer';
 import { TEXT_SURFACE_SELECTOR } from '../../caret/block-content-selector';
 import { BARE_MODIFIER_KEYS } from '../../schema/keybindings';
 

@@ -13,7 +13,7 @@ import type { ClipboardCopy } from '../editable/clipboard-step';
 import { bytesLeavingLeaf, replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { replaceSelectedWidget } from './widget-interaction';
 import { widgetSpanIn, type WidgetRange } from './widget-adjacency';
-import type { RawRange } from '../../../caret/widget-offset';
+import type { RawRange } from '../../../browser/offsets';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 

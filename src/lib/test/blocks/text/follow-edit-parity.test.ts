@@ -11,7 +11,7 @@ import { resolvedInlineContent } from '#lib/core/inline/inline-cache.js';
 import type { InlineNodeKind } from '#lib/core/nodes.js';
 import { createTextRender } from '#lib/components/blocks/text/text-render.js';
 import { followTargetAt, followedConstructAt } from '#lib/components/blocks/text/link-at-point.js';
-import { rawOffsetAt } from '#lib/caret/widget-offset.js';
+import { rawOffsetAt } from '#lib/browser/offsets.js';
 import { makeRenderHarness } from '#lib/test/harness/text-render.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 

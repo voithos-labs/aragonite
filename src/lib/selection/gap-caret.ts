@@ -10,7 +10,7 @@ import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 import { placeGapCaret } from './place-caret';
-import type { CaretWriter } from '../caret/widget-offset';
+import type { CaretWriter } from '../browser/caret-writer';
 import type { SelectionState } from './selection-state.svelte';
 
 /** The boundary before child `index` of the container at `parentPath`; root is `[]`. */

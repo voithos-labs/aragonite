@@ -17,9 +17,9 @@ import {
 	type ProbedHit
 } from './nearest-block';
 import { placeGapCaret } from './place-caret';
-import { holdsNativeRange } from './native-bridge';
+import { holdsNativeRange } from '../browser/selection-read';
 import { canGapStop, type GapStopScope } from './gap-caret';
-import { caretOffsetAtPoint } from '../caret/point-offset';
+import { caretOffsetAtPoint } from '../browser/point';
 import type { CaretPosition, SelectionEndpoint } from './primitives';
 import type { LandingOutcome } from './caret-landing';
 import { docPathFrom } from '../core/coordinate-spaces';

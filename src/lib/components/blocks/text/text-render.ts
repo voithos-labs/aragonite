@@ -31,13 +31,13 @@ import {
 	BLOCK_SUFFIX_ATTR,
 	CONTENT_EMPTY_ATTR,
 	createCaretAnchor,
-	holdsOnlyMarkerChrome,
-	type CaretWriter,
-	type RawRange
-} from '../../../caret/widget-offset';
+	holdsOnlyMarkerChrome
+} from '../../../browser/painted';
+import type { CaretWriter } from '../../../browser/caret-writer';
+import type { RawRange } from '../../../browser/offsets';
 import { washShownSource } from './source-wash';
 import { widgetsAmong } from './widget-adjacency';
-import { captureFocusedCaret } from '../../../caret/focused-caret';
+import { captureFocusedCaret } from '../../../browser/focused-caret';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import {
 	applyIslandDecorations,

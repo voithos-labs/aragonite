@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: only a pre-clamped hit test reached the exact lookup, so no test named the clamp.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-	caretOffsetAtPoint,
-	isInPaddingRow,
-	offsetFromViewportPoint
-} from '../../caret/point-offset';
+import { caretOffsetAtPoint, isInPaddingRow, offsetFromViewportPoint } from '../../browser/point';
 
 // One character per pixel across the box, so an expected offset reads off the x directly.
 const BOX = { left: 100, right: 200, top: 50, bottom: 70 };

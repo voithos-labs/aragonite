@@ -2,7 +2,7 @@
 // Every caret write the editor makes asks the drawn caret to repaint (G4.143): each method of the
 // one caret writer, called once, requests exactly one paint, a refused write none, and a read none.
 import { describe, expect, it } from 'vitest';
-import { createCaretWriter, type CaretWriter } from '#lib/caret/widget-offset.js';
+import { createCaretWriter, type CaretWriter } from '#lib/browser/caret-writer.js';
 
 function paragraph(text: string): HTMLElement {
 	const el = document.createElement('div');

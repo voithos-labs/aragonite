@@ -15,9 +15,9 @@ import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';
 import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
-import { caretOffsetAtPoint } from '../../../caret/point-offset';
+import { caretOffsetAtPoint } from '../../../browser/point';
 import { applySingleBlockRange } from '../../../selection/native-bridge';
-import type { CaretWriter } from '../../../caret/widget-offset';
+import type { CaretWriter } from '../../../browser/caret-writer';
 import type { PaddingPress } from '../../../selection/cross-block/pointer';
 
 // ── Types ──────────────────────────────────────────────────────────────────

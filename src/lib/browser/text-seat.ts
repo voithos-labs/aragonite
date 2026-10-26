@@ -3,7 +3,8 @@
  * moves it away from (beside a widget, in hidden marker text, inside a container's marker prefix).
  */
 
-import { isHiddenMarkerText, isInMarkerPrefix, isInsideAtomicWidget } from './widget-offset';
+import { isHiddenMarkerText, isInsideAtomicWidget } from './painted';
+import { isInMarkerPrefix } from './offsets';
 
 /** Whether the live caret sits in a text node the user can see, where the browser draws a caret,
  *  so the editor's own indicator is not needed. Hidden marker text renders nothing. */

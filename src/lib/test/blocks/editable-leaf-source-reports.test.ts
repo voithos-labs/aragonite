@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { unmount } from 'svelte';
 import { installLayoutStubs, placeCaret } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import {
 	REVEAL_LEAF_FORMS,

@@ -7,19 +7,19 @@
 
 import { asDomTextOffset } from '../core/coordinate-spaces';
 import { wordSegmenter } from '../core/text-units';
-import { caretOffsetAtPoint } from '../caret/point-offset';
+import { caretOffsetAtPoint } from '../browser/point';
 import type { UserScrollport } from '../windowing/scroll-ancestors';
 import {
 	containerDomTextLength,
 	maskedWalkText,
 	rawOfWalkOffset,
 	walkOffsetOfRaw
-} from '../caret/widget-offset';
+} from '../browser/offsets';
 import { isWholeBlockInputProxy } from '../editor-actions/whole-block-focus-surface';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import { installDragListener, type DragGranularity } from './drag-pointer';
 import { applySingleBlockRange, applySurfaceContentRange } from './native-bridge';
-import type { CaretWriter } from '../caret/widget-offset';
+import type { CaretWriter } from '../browser/caret-writer';
 import { blockNearPoint } from './nearest-block';
 import { readBlockPath } from './path-lookup';
 import type { SelectionEndpoint, SelectionPoint } from './primitives';

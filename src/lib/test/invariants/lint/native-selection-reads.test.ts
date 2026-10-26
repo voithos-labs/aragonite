@@ -27,21 +27,21 @@ const NATIVE_SELECTION_READS: FileRule = {
 	population: (file) => under(SOURCE_DIR.library)(file) && notUnder(SOURCE_DIR.debug)(file),
 	matches: NATIVE_SELECTION_READ,
 	allowed: {
-		[SOURCE.nativeBridge]: 'the readers every other file calls',
-		'src/lib/caret/widget-offset.ts': `${BELOW_BRIDGE}: the caret writer, and \`rawSelectionFocus\``,
-		'src/lib/caret/text-seat.ts': `${BELOW_BRIDGE}: whether the live caret sits in visible text`,
-		'src/lib/caret/focused-caret.ts': `${BELOW_BRIDGE}: the caret a decoration rebuild keeps`,
+		[SOURCE.nativeBridge]: 'the caret read as a point, until it calls the readers',
+		[SOURCE.selectionRead]: 'the readers every other file calls',
+		'src/lib/browser/caret-writer.ts': 'the caret writer',
+		'src/lib/browser/text-seat.ts': 'whether the live caret sits in visible text',
+		'src/lib/browser/focused-caret.ts': 'the caret a decoration rebuild keeps',
+		'src/lib/browser/lines.ts': "the moving end's line",
 		'src/lib/caret/drawn-caret.svelte.ts': `${BELOW_BRIDGE}: where the browser holds a caret`,
 		'src/lib/caret/sticky-measure.ts': `${BELOW_BRIDGE}: the moving end's column`,
-		'src/lib/caret/visual-lines.ts': `${BELOW_BRIDGE}: the moving end's line`,
 		'src/lib/schema/commands.ts':
 			'a dev warning about a live range; selection imports the schema, so it cannot import back',
 		'src/lib/invariants/landing-value.ts':
-			"a dev check of the browser's own anchor around a landing; selection imports the invariants",
-		[SOURCE.clipboardStep]: '`shownSelectionText`, the selection string G4.221 reads in one place'
+			"a dev check of the browser's own anchor around a landing; selection imports the invariants"
 	},
-	reaches: [SOURCE.nativeBridge, SOURCE.clipboardStep],
-	mustMatch: [SOURCE.nativeBridge],
+	reaches: [SOURCE.nativeBridge, SOURCE.selectionRead],
+	mustMatch: [SOURCE.selectionRead],
 	reason:
 		'engines differ in what the selection reports (a caret inside a widget, an anchor inside a CRLF pair), so the editor reads it in one place: call `readNativeSelection`, `rawSelectionIn`, `nativeRangeIn` or `holdsNativeRange` from selection/native-bridge.ts, or `rawSelectionFocus` (`docs/design/editor.md` § Browser engines)',
 	hits: [

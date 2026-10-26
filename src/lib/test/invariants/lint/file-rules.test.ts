@@ -530,7 +530,7 @@ const RULES: FileRule[] = [
 		matches:
 			/(?:\b\w*[rR]ange\??|\bgetRangeAt\([^)]*\))\.get(?:ClientRects|BoundingClientRect)\s*\(/,
 		allowed: {
-			'src/lib/caret/visual-lines.ts':
+			'src/lib/browser/lines.ts':
 				'`caretRectAt`, the one measure of a caret, and the character and line boxes it reads',
 			'src/lib/components/overlays/rects.ts': 'the boxes of a span between two offsets',
 			'src/lib/components/blocks/text/widget-interaction.ts':
@@ -552,7 +552,7 @@ const RULES: FileRule[] = [
 		id: 'G4.243 the browser moves a selection in one place, the caret writer',
 		matches: /\.modify\s*\(/,
 		allowed: {
-			'src/lib/caret/widget-offset.ts':
+			'src/lib/browser/caret-writer.ts':
 				'the caret writer: its line-edge moves, and the read of which line a caret at a soft wrap shows on'
 		},
 		reason:
@@ -567,7 +567,7 @@ const RULES: FileRule[] = [
 		id: 'G4.243 the caret’s line is decided through the soft-wrap read',
 		matches: /\bcaretRectAt(?:Raw)?\s*\(/,
 		allowed: {
-			'src/lib/caret/visual-lines.ts':
+			'src/lib/browser/lines.ts':
 				'`caretRectAt` itself, and the line decisions, which ask the browser at a soft wrap first',
 			'src/lib/caret/sticky-measure.ts':
 				'the column: the caret’s own x after the soft-wrap read, and the column search over offsets that are no caret',
@@ -589,7 +589,7 @@ const RULES: FileRule[] = [
 			'const box = caretRectAtRaw(el, raw);',
 			'deps.caretRectAt(root, n, o)'
 		],
-		misses: ['import { caretRectAt } from "./visual-lines";', 'caretRectAt,']
+		misses: ['import { caretRectAt } from "./lines";', 'caretRectAt,']
 	},
 	{
 		id: 'G4.221 a paste with no paste event calls the paste step, never a constructed event',
@@ -608,10 +608,10 @@ const RULES: FileRule[] = [
 		id: 'G4.221 the shown text of a selection is read in one place',
 		matches: readsSelectionString,
 		allowed: {
-			[SOURCE.clipboardStep]:
+			[SOURCE.selectionRead]:
 				'`shownSelectionText`: LF line breaks, and nothing for an empty block’s placeholder `<br>`'
 		},
-		reaches: [SOURCE.clipboardStep],
+		reaches: [SOURCE.selectionRead],
 		reason:
 			'Firefox on Windows writes a selection’s line breaks as CRLF and an empty block’s placeholder `<br>` as one, so the text read straight off the selection differs by engine: call `shownSelectionText`',
 		hits: [
@@ -814,7 +814,7 @@ const RULES: FileRule[] = [
 		allowed: {
 			[COORDINATE_HOME]: 'the conversions themselves, asDocPath included',
 			// Modules that own a coordinate space.
-			'src/lib/caret/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
+			'src/lib/browser/offsets.ts': 'DomTextOffset home: the walk brands its returns',
 			'src/lib/caret/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
 			'src/lib/components/blocks/editable/surface-backend.ts':
 				'RawOffset home for the caret intent a block records as a plain number (the snap target)',
@@ -871,7 +871,7 @@ const RULES: FileRule[] = [
 		id: 'the browser is asked for a caret at a point in one module',
 		matches: /\bcaret(Range|Position)FromPoint\b/,
 		allowed: {
-			'src/lib/caret/point-offset.ts':
+			'src/lib/browser/point.ts':
 				'caretSeatFromPoint, behind the offset lookups that move a padding point level with a line'
 		},
 		reason:
@@ -1207,7 +1207,7 @@ const RULES: FileRule[] = [
 			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`
 		),
 		allowed: {
-			'src/lib/caret/widget-offset.ts':
+			'src/lib/browser/painted.ts':
 				'the mode a mounted block wears in the DOM, where no hiding attribute means source'
 		},
 		reason:
@@ -2332,7 +2332,12 @@ const ROGUE_WRITER = `${SOURCE_DIR.blocks}x/rogue-writer.ts`;
 const TYPED_WRITE_ASKS: ManifestRule[] = [
 	{
 		id: 'G4.101 only the surface write names a typed kind change or completes a typed line',
-		population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.selection),
+		population: under(
+			SOURCE_DIR.components,
+			SOURCE_DIR.browser,
+			SOURCE_DIR.caret,
+			SOURCE_DIR.selection
+		),
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/editable/surface-write.ts':
@@ -2786,7 +2791,12 @@ const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
 
 const WIDGET_LIST: FileRule = {
 	id: 'G4.125 a component asks which inlines are widgets only in `widget-adjacency.ts`',
-	population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.plugins),
+	population: under(
+		SOURCE_DIR.components,
+		SOURCE_DIR.browser,
+		SOURCE_DIR.caret,
+		SOURCE_DIR.plugins
+	),
 	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
 	allowed: {
 		[WIDGET_LIST_HOME]:

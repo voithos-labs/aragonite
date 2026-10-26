@@ -9,7 +9,7 @@ import {
 	installSelectionChangeBridge
 } from '#lib/components/editor-root/listeners.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { createCaretWriter } from '#lib/caret/widget-offset.js';
+import { createCaretWriter } from '#lib/browser/caret-writer.js';
 import { createPressTracker } from '#lib/activation-click.js';
 
 // Teardowns collect here so no test leaks a document-level listener into the next.

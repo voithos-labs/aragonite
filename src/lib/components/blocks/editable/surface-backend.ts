@@ -1,19 +1,14 @@
 /**
  * Caret reads and writes for an editable block element, in raw offsets, over the one offset walk
- * in `widget-offset.ts`. Every editable surface (prose, code, table cell, plugin leaf) builds one.
+ * in `browser/offsets.ts`. Every editable surface (prose, code, table cell, plugin leaf) builds one.
  * Reads answer only while the element holds focus.
  */
 
 import { asRawOffset, type RawOffset } from '../../../core/coordinate-spaces';
-import {
-	isInMarkerPrefix,
-	markerPrefixOf,
-	rawOffsetAt,
-	rawSelectionFocus,
-	type CaretClamp,
-	type CaretWriter
-} from '../../../caret/widget-offset';
-import { readNativeSelection } from '../../../selection/native-bridge';
+import { isInMarkerPrefix, rawOffsetAt } from '../../../browser/offsets';
+import { markerPrefixOf } from '../../../browser/painted';
+import { rawSelectionFocus, readNativeSelection } from '../../../browser/selection-read';
+import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
 
 export interface SurfaceBackendDeps {
 	getEl: () => HTMLElement | null;

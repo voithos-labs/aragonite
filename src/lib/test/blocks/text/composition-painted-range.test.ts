@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { mountBlock } from '../../harness/mount-block';
 import { settleEditor } from '../../harness/settle';
 import { noIslands } from '../table/mount-cell';

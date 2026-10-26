@@ -7,7 +7,7 @@ import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
 } from '#lib/schema/keybinding-overrides.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';

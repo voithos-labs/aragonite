@@ -24,11 +24,9 @@ import { anchorTrailingNewline, plainTextOf } from './plain-text-backend';
 import {
 	CONTENT_EMPTY_ATTR,
 	chromeFreeText,
-	clampToLandableRaw,
-	holdsOnlyMarkerChrome,
-	landableRawBounds,
-	type RawRange
-} from '../../../caret/widget-offset';
+	holdsOnlyMarkerChrome
+} from '../../../browser/painted';
+import { clampToLandableRaw, landableRawBounds, type RawRange } from '../../../browser/offsets';
 import {
 	decidedDelete,
 	deleteExtent,
@@ -37,9 +35,10 @@ import {
 	type DeleteAnswer,
 	type DeleteIntent
 } from '../../../caret/delete-extent';
-import { lineEdgeOffset } from '../../../caret/visual-lines';
+import { lineEdgeOffset } from '../../../browser/lines';
 import { isAtMostOneCharacter } from '../../../core/text-units';
-import { nativeRangeIn, parkFocusOnEditorRoot } from '../../../selection/native-bridge';
+import { nativeRangeIn } from '../../../browser/selection-read';
+import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import { resetForPointerDown } from '../../../selection/cross-block/pointer';

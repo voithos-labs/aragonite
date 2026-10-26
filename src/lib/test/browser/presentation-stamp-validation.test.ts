@@ -5,7 +5,7 @@
 // Miss-analysis: every traversal suite wrote a real mode, so nothing exercised the fallback.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asPresentationMode } from '#lib/presentation-mode.js';
-import { revealsNoMarkers, screenVisibilityOf } from '#lib/caret/widget-offset.js';
+import { revealsNoMarkers, screenVisibilityOf } from '#lib/browser/painted.js';
 
 function stamp(value: string): HTMLElement {
 	const root = document.createElement('div');

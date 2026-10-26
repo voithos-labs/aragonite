@@ -417,7 +417,7 @@ export type { EditorRects } from './editor-rects';
 // ── Caret geometry (pre-freeze) ──────────────────────────────────────────────
 // What a kind answers `caretTargetAtPoint` with, the helper that turns a point in your element
 // into the nearest offset, and the value for wherever the leaf ends.
-export { caretOffsetAtPoint } from './caret/point-offset';
+export { caretOffsetAtPoint } from './browser/point';
 export type { CaretTarget } from './schema/block-kind-descriptor';
 export { CURSOR_END } from './block-component';
 export type { CursorEnd } from './block-component';

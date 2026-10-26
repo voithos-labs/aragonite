@@ -5,7 +5,7 @@
 // commands over body-only selections, where the caret after a clamped delete equals the one before.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import {
 	destroyMountedEditors,

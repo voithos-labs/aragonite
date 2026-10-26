@@ -8,7 +8,7 @@
 import type { NodeView } from '../../../core/node-views';
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
-import { readNativeSelection } from '../../../selection/native-bridge';
+import { readNativeSelection } from '../../../browser/selection-read';
 import { decidedDelete, isDeleteInput } from '../../../caret/delete-extent';
 
 /** The raw-offset lookups a browser range edit needs from the block. */

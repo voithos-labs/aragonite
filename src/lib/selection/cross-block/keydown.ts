@@ -28,7 +28,8 @@ import {
 	selectWholeDocument
 } from '../keyboard-extend';
 import type { ArrowKey } from '../table-rect-extend';
-import { applySurfaceContentRange, readNativeSelection } from '../native-bridge';
+import { applySurfaceContentRange } from '../native-bridge';
+import { readNativeSelection } from '../../browser/selection-read';
 import { selectInBlock } from '../place-caret';
 
 // ── Public API ─────────────────────────────────────────────────────────────

@@ -18,7 +18,7 @@ import {
 	findDomTextLanding,
 	holdsTextPast,
 	widgetSpanContainingOffset
-} from './widget-offset';
+} from '../browser/offsets';
 import {
 	caretRectAt,
 	focusCaretAtWrap,
@@ -27,7 +27,7 @@ import {
 	sameLineTolerance,
 	type CaretRect,
 	type LineRead
-} from './visual-lines';
+} from '../browser/lines';
 
 export function getCurrentCursorEditorRelativeX(
 	el: HTMLElement,

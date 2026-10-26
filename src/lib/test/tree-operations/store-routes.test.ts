@@ -13,7 +13,7 @@ import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { Reading } from '#lib/schema/reading.js';
 import { asDomTextOffset, asRawOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';

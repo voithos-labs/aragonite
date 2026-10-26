@@ -9,7 +9,7 @@ import { beforeEach, describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { augmentInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
-import { domTextOffsetAtNode } from '#lib/caret/widget-offset.js';
+import { domTextOffsetAtNode } from '#lib/browser/offsets.js';
 import { asRawOffset } from '#lib/core/coordinate-spaces.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { AnyInlineKind } from '#lib/core/nodes.js';

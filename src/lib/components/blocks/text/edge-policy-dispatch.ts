@@ -17,26 +17,20 @@ import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../core/coordinate-spaces';
 import type { BlockPendingMarks } from '../../../caret/pending-marks';
 import type { InsideCloserView } from '../../../caret/inside-closer';
-import {
-	keptBlockText,
-	landableRawBounds,
-	markerPrefixOf,
-	hidingScreenOf,
-	hidesBlockPrefix,
-	visibleWalkText,
-	type CaretWriter,
-	type EditedBlock
-} from '../../../caret/widget-offset';
+import { keptBlockText, hidesBlockPrefix, type EditedBlock } from '../../../browser/block-text';
+import { landableRawBounds, visibleWalkText } from '../../../browser/offsets';
+import { markerPrefixOf, hidingScreenOf } from '../../../browser/painted';
+import type { CaretWriter } from '../../../browser/caret-writer';
 import {
 	deleteExtent,
 	type DeleteAnswer,
 	type DeleteIntent,
 	type DeleteSpan
 } from '../../../caret/delete-extent';
-import { lineEdgeOffset } from '../../../caret/visual-lines';
+import { lineEdgeOffset } from '../../../browser/lines';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { hasModifier, isBareKey, isPlainTypingKey } from './click-snap-guard';
-import { caretIsInTextContent } from '../../../caret/text-seat';
+import { caretIsInTextContent } from '../../../browser/text-seat';
 import { createMarkerCompletion } from './marker-completion';
 import {
 	resolveEdgeDeletion,
@@ -46,7 +40,7 @@ import {
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { widgetAtCursor, widgetsIn, type WidgetAtCursor } from './widget-adjacency';
 import type { CaretUnitSource } from '../../../selection/shared-keydown';
-import { readNativeSelection } from '../../../selection/native-bridge';
+import { readNativeSelection } from '../../../browser/selection-read';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../editable/surface-write';

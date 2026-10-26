@@ -374,7 +374,7 @@ is structural, so a shared helper fails it until the scan learns that helper.
 `lint/reserved-chord-manifest.test.ts`.
 
 **G4.30 · Hidden-run classification.** `core/inline/visibility.ts` states the marker families and
-the hiding rule, and `caret/widget-offset.ts` applies it where there's a caret; a third copy would
+the hiding rule, and `browser/painted.ts` applies it where there's a caret; a third copy would
 disagree the day a mode moves, and a caret placed in unpainted text corrupts silently. A property
 test holds the two answers together. The scans allowlist resolving hiding state to those homes and
 readers asking another question, and manifest every file naming a marker class. Dev backstop:
@@ -944,7 +944,7 @@ attribute and the bar change in one paint and there's one bar per editor.
 caret's proxy, each with its reason, and nothing else: another rule would hide or recolor the
 browser's caret behind the drawn caret's back. `lint/drawn-caret-guards.test.ts`.
 
-**G4.143 · Every caret write asks for a paint.** `caret/widget-offset.ts` writes the native selection
+**G4.143 · Every caret write asks for a paint.** `browser/caret-writer.ts` writes the native selection
 only inside `createCaretWriter`, whose writes and clears call `drawnCaret.request`;
 `test/caret/caret-writer-request.test.ts` calls every writer method and counts one request each (its
 table typed over the writer's keys). The frame callback in `caret/drawn-caret.svelte.ts` calls
@@ -1142,7 +1142,7 @@ registers them on the first grammar read, through `registerBuiltInDescriptors` u
 
 **G4.200 · One read of a block's hidden screen.** The rules for a construct's hidden edge only
 apply where the block hides markers at the caret, and they need the screen it hides them on.
-`caret/widget-offset.ts :: hidingScreenOf` answers both at once. `lint/edge-rule-guards.test.ts`
+`browser/painted.ts :: hidingScreenOf` answers both at once. `lint/edge-rule-guards.test.ts`
 fails any other file that calls `screenVisibilityOf`, except the dev check that compares it with
 the stylesheet.
 
@@ -1188,7 +1188,7 @@ diagnostic-only. `e2e/lint/recordings.test.ts`.
 
 **G4.214 · One measure of a caret.** WebKit and Firefox measure a collapsed range right after a `\n`
 on the line it ends, putting each line start on the line above. `caretRectAt`
-(`caret/visual-lines.ts`) measures the next character instead, and every caret box goes through it
+(`browser/lines.ts`) measures the next character instead, and every caret box goes through it
 (the column search, sticky x, drawn caret, drop caret, `rects.caretRect()` and the rest); the scan
 fails a Range measured elsewhere, bar a few never-collapsed spans. A caret written at a line start
 lands in the next line's text likewise (`findDomTextLanding`). `lint/file-rules.test.ts`.
@@ -1229,7 +1229,7 @@ same text. `lint/system-clipboard-calls.test.ts`.
 **G4.221 · Clipboard text the engines agree on.** A paste with no paste event of its own (the
 menus' Paste rows) hands its text to the focused block's `insertMarkdown` or `insertPlainText`,
 since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The selection's shown text is read only through
-`shownSelectionText` (`clipboard-step.ts`), which reads LF where Firefox on Windows writes CRLF,
+`shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF,
 and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
 
 **G4.222 · The selection is read in one place.** Engines differ in what the selection reports (a
@@ -1336,7 +1336,7 @@ points say when observing starts. `file-rules.test.ts`.
 
 **G4.243 · One read of the caret's line.** At a soft wrap a caret's one DOM position is on two
 lines, and `caretRectAt` reads one of them whatever the browser shows. So at a wrap the line
-checks in `caret/visual-lines.ts` ask the browser, through the caret writer, the one file allowed
+checks in `browser/lines.ts` ask the browser, through the caret writer, the one file allowed
 to call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
 wrong at a wrap is harmless or a known gap. `lint/file-rules.test.ts`.
 

@@ -5,7 +5,7 @@
 // a range is in `code-fence-edit-span.test.ts`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
 import { mountCode, type MountedCode } from './mount-code';
 import { settleEditor } from '#lib/test/harness/settle.js';

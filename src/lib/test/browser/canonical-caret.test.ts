@@ -4,7 +4,8 @@
 // Miss-analysis: every caret read was tested at the positions Chromium leaves, and Firefox leaves
 // a caret on a hidden run's far side and inside a widget, which no suite ever built.
 import { describe, it, expect, afterEach } from 'vitest';
-import { createCaretWriter, rawSelectionFocus } from '#lib/caret/widget-offset.js';
+import { createCaretWriter } from '#lib/browser/caret-writer.js';
+import { rawSelectionFocus } from '#lib/browser/selection-read.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

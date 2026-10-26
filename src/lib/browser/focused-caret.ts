@@ -5,7 +5,7 @@
  */
 
 import type { RawOffset } from '../core/coordinate-spaces';
-import { rawOffsetAt } from './widget-offset';
+import { rawOffsetAt } from './offsets';
 
 /** The live caret as a raw offset, or null when `el` does not own focus. */
 export function captureFocusedCaret(el: HTMLElement): RawOffset | null {

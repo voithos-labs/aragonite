@@ -6,7 +6,7 @@
  */
 import type { BlockComponent } from './block-component';
 import type { ScrollOwner } from './windowing/scroll-owner';
-import type { NativeSelectionRead } from './selection/native-bridge';
+import type { NativeSelectionRead } from './browser/selection-read';
 
 export interface EditorRects {
 	/** The block's outermost box, or null when it isn't mounted. */

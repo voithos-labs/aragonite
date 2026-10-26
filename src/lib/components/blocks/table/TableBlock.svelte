@@ -575,7 +575,7 @@
 	onkeydown={onTableKeyDown}
 >
 	<!-- No whitespace between the blocks: a stray text node joins the raw-offset traversal
-	     and shifts a remembered caret (caret/widget-offset.ts). -->
+	     and shifts a remembered caret (browser/offsets.ts). -->
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}

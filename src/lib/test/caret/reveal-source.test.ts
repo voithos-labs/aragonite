@@ -5,9 +5,9 @@ import { createSourceReveal } from '../../caret/reveal-source';
 import {
 	createRangeAtDomTextOffsets,
 	findDomTextOffsetTarget,
-	domTextOffsetAtNode,
-	rawTextOfNode
-} from '../../caret/widget-offset';
+	domTextOffsetAtNode
+} from '../../browser/offsets';
+import { rawTextOfNode } from '../../browser/block-text';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // The paragraph "a $x^2$ b", whose math renders as one widget the caret cannot enter. Source

@@ -18,7 +18,7 @@ import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { UndoController } from '../../../editor-actions/deps';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { asRawOffset } from '../../../core/coordinate-spaces';
-import type { RawRange } from '../../../caret/widget-offset';
+import type { RawRange } from '../../../browser/offsets';
 import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 import type { LinkCardState } from '../../link-card/link-card-state.svelte';
 import type { EditableSurface } from '../editable/editable-surface';

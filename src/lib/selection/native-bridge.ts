@@ -1,8 +1,7 @@
 /**
- * Bridges the browser's Selection API and `SelectionPoint`, and holds the readers every file
- * outside the caret and selection modules reads the live selection through (G4.222). Callers
- * provide the elements and paths; nothing here walks the tree. A `SelectionPoint` offset counts
- * raw bytes, and every conversion goes through `caret/widget-offset.ts`.
+ * Bridges the browser's selection and `SelectionPoint`: the caret read as a raw-offset point, and
+ * an `EditorSelection` restored through the caret writer. Callers provide the elements and paths;
+ * nothing here walks the tree, and every offset conversion goes through `browser/offsets.ts`.
  */
 
 import { cellPoint, type SelectionPoint, type EditorSelection } from './primitives';
@@ -10,57 +9,10 @@ import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkPlacementEndsWidget } from '../invariants/placement-ends-widget';
-import { rawOffsetAt, type CaretWriter, type DomPosition } from '../caret/widget-offset';
-import type { RawOffset } from '../core/coordinate-spaces';
+import { rawOffsetAt } from '../browser/offsets';
+import type { CaretWriter } from '../browser/caret-writer';
 import { blockContentElAt } from '../caret/block-el-lookup';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
-
-// ── Read the live selection ─────────────────────────────────────────────────
-
-/** One read of the browser's selection; `range` is its first range, still live. */
-export interface NativeSelectionRead {
-	anchor: DomPosition;
-	focus: DomPosition;
-	collapsed: boolean;
-	range: Range;
-}
-
-/** The live selection, or null when the browser holds no range. */
-export function readNativeSelection(): NativeSelectionRead | null {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0 || !sel.anchorNode || !sel.focusNode) return null;
-	return {
-		anchor: { node: sel.anchorNode, offset: sel.anchorOffset },
-		focus: { node: sel.focusNode, offset: sel.focusOffset },
-		collapsed: sel.isCollapsed,
-		range: sel.getRangeAt(0)
-	};
-}
-
-/** The live selection's range ends in raw offsets inside `el`, in document order, each null where
- *  that end sits outside `el`; null only when the browser holds no range. */
-export function rawSelectionIn(
-	el: HTMLElement
-): { start: RawOffset | null; end: RawOffset | null; collapsed: boolean } | null {
-	const live = readNativeSelection();
-	if (!live) return null;
-	const { range, collapsed } = live;
-	const rawAt = (node: Node, offset: number) =>
-		el.contains(node) ? rawOffsetAt(el, node, offset) : null;
-	const start = rawAt(range.startContainer, range.startOffset);
-	return { start, end: collapsed ? start : rawAt(range.endContainer, range.endOffset), collapsed };
-}
-
-/** Whether the browser holds a selected range anywhere in the document. */
-export function holdsNativeRange(): boolean {
-	return window.getSelection()?.isCollapsed === false;
-}
-
-/** Whether the browser holds a selected range that starts inside `root`. */
-export function nativeRangeIn(root: HTMLElement): boolean {
-	const live = readNativeSelection();
-	return !!live && !live.collapsed && root.contains(live.anchor.node);
-}
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
 

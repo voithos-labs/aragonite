@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { asDomTextOffset } from '../../core/coordinate-spaces';
-import { widgetsIntersectingRange } from '../../caret/widget-offset';
+import { widgetsIntersectingRange } from '../../browser/offsets';
 
 describe('widgetsIntersectingRange', () => {
 	let el: HTMLElement;

@@ -5,7 +5,7 @@
  * it. Only mounted blocks are measured; a caller handling an unmounted tail does so itself.
  */
 
-import { clampPointIntoBox } from '../caret/point-offset';
+import { clampPointIntoBox } from '../browser/point';
 import { blockAtPoint, endpointAtPoint, holdsOwnText, type BlockHit } from './block-hit-test';
 import type { SelectionEndpoint } from './primitives';
 import { readBlockPath } from './path-lookup';

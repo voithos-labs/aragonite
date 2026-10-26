@@ -1,10 +1,10 @@
 /**
  * Viewport point to caret offset inside one element. The browser finds the DOM position, and
- * `widget-offset.ts`'s walk does the arithmetic: this module computes no offset of its own, so
+ * `offsets.ts`'s walk does the arithmetic: this module computes no offset of its own, so
  * an atomic widget and a leading marker prefix count here exactly as they do for a live caret read.
  */
 
-import { rawOffsetAt } from './widget-offset';
+import { rawOffsetAt } from './offsets';
 
 /** The caret offset in `el` nearest a viewport point, clamped into `el`'s box first so a click on
  *  the frame still names one. Null where `el` holds no text. */

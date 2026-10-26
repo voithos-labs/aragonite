@@ -126,7 +126,8 @@ Test files take turns in a shared Node process, which bites in three ways:
 | `test:editor:editor-actions` | Editor action bundles and commit primitives                                                                 |
 | `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules                          |
 | `test:editor:ambient`        | A container's marker prefix in the DOM, and offset translation across it                                    |
-| `test:editor:caret`          | Caret memory, offset translation, sticky column, overlay rect measurement                                   |
+| `test:editor:browser`        | Offset translation, the caret writer, the selection readers, line and point reads                           |
+| `test:editor:caret`          | Caret memory, sticky column, drawn caret, delete extents                                                    |
 | `test:editor:windowing`      | Virtual rendering: height model, scroll owner, per-list windowing                                           |
 | `test:editor:block-lists`    | Block-list state and state registry                                                                         |
 | `test:editor:selection`      | Selection-state logic                                                                                       |

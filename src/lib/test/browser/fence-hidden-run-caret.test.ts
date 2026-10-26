@@ -3,7 +3,8 @@
 // range from raw offsets never starts or ends in one, and a caret write never lands in one.
 // Miss-analysis: the walk's suite had no `data-presentation` root, so hidden runs had no fixture.
 import { describe, it, expect, afterEach } from 'vitest';
-import { isHiddenMarkerText, rawRangeToDomRange } from '../../caret/widget-offset';
+import { isHiddenMarkerText } from '../../browser/painted';
+import { rawRangeToDomRange } from '../../browser/offsets';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface Fixture {

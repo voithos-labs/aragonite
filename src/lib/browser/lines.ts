@@ -5,15 +5,14 @@
  */
 
 import { domDescendants } from './dom-walk';
-import { FALLBACK_LINE_HEIGHT } from '../windowing/typography-estimates';
-import {
-	caretAnchorAfter,
-	isBlockLineText,
-	rawRangeToDomRange,
-	rawSelectionFocus,
-	type CaretWriter
-} from './widget-offset';
-import { offsetFromViewportPoint } from './point-offset';
+import { caretAnchorAfter, isBlockLineText } from './painted';
+import { rawRangeToDomRange } from './offsets';
+import { rawSelectionFocus } from './selection-read';
+import type { CaretWriter } from './caret-writer';
+import { offsetFromViewportPoint } from './point';
+
+// A generic line box for a `normal` computed `lineHeight`, which parses to NaN.
+const FALLBACK_LINE_HEIGHT = 20;
 
 // Fraction of a line height within which the cursor Y counts as the boundary line; under one
 // line, so sub/superscript or inline-image jitter doesn't read as a different line.

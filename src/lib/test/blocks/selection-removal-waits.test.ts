@@ -12,7 +12,7 @@ import { TABLE_CONTEXT_KEY } from '#lib/editor-keys.js';
 import type { SelectionRemoval } from '#lib/components/blocks/editable/editable-surface.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import {
 	mountBlock,
 	type MountBlockOptions,

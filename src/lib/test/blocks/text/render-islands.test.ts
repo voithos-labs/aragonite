@@ -10,7 +10,7 @@ import {
 	resetInteractionTrace
 } from '#lib/debug/interaction-trace.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { domTextOffsetAtNode } from '#lib/caret/widget-offset.js';
+import { domTextOffsetAtNode } from '#lib/browser/offsets.js';
 import { placeCaretAt } from './math-widget-fixture';
 import { blockNode, makeRenderHarness, type Island } from '#lib/test/harness/text-render.js';
 

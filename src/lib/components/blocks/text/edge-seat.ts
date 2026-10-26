@@ -34,7 +34,7 @@ import type { InsideCloserView } from '../../../caret/inside-closer';
 import type { NodeView } from '../../../core/node-views';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { withOwnEnding } from '../editable/surface-write';
-import { hidingScreenOf } from '../../../caret/widget-offset';
+import { hidingScreenOf } from '../../../browser/painted';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { recordMarkerRunRead } from '../../../perf/instruments';
 

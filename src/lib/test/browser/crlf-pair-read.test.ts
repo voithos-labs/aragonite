@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: every caret-read test ran on LF text, and Chromium never stops between `\r` and `\n`.
 import { describe, it, expect, afterEach } from 'vitest';
-import { domTextOffsetAtNode, rawOffsetAt } from '../../caret/widget-offset';
+import { domTextOffsetAtNode, rawOffsetAt } from '../../browser/offsets';
 
 const LINE = 'abc\r\nAfter\r\n';
 

@@ -8,7 +8,7 @@
 import { graphemeSegmenter, wordSegmenter } from '../core/text-units';
 import { recordDeleteWindow } from '../perf/instruments';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
-import type { VisibleText } from './widget-offset';
+import type { VisibleText } from '../browser/offsets';
 
 export type DeleteDirection = 'backward' | 'forward';
 

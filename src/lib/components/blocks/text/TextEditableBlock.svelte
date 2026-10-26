@@ -54,17 +54,17 @@
 	import { widgetsIn } from './widget-adjacency';
 	import { widgetElByStart } from '../../../core/inline/inline-widgets';
 	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
-	import { rawSelectionIn } from '../../../selection/native-bridge';
+	import {
+		rawSelectionIn,
+		rawSelectionFocus,
+		caretOnPendingBreakLine
+	} from '../../../browser/selection-read';
 	import { createEditableSurface, consumePendingRestore } from '../editable/editable-surface';
 	import { rangeWrite } from '../editable/surface-write';
 	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
-	import {
-		readContent,
-		revealsNoMarkers,
-		rawSelectionFocus,
-		caretOnPendingBreakLine
-	} from '../../../caret/widget-offset';
+	import { readContent } from '../../../browser/block-text';
+	import { revealsNoMarkers } from '../../../browser/painted';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
 	import type { CommandRun } from '../../../schema/block-commands';

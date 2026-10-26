@@ -5,7 +5,7 @@
 // ran a no-op command, so the line break Enter writes after a declined removal went unseen.
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';

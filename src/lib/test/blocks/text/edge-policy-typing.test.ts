@@ -21,7 +21,7 @@ import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.sve
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { applyLiveRangeEdit } from '#lib/components/blocks/text/live-selection-edit.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { mountBlock } from '../../harness/mount-block';
 import { settleEditor } from '../../harness/settle';
 import { noIslands } from '../table/mount-cell';

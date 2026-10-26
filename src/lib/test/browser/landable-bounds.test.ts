@@ -4,11 +4,8 @@
 // every other widget the caret cannot enter keeps both of its boundaries.
 // Miss-analysis: block exits read the declared content range, blind to unreachable content bytes.
 import { describe, it, expect, afterEach } from 'vitest';
-import {
-	createCaretAnchor,
-	findDomTextOffsetTarget,
-	landableDomTextBounds
-} from '../../caret/widget-offset';
+import { createCaretAnchor } from '../../browser/painted';
+import { findDomTextOffsetTarget, landableDomTextBounds } from '../../browser/offsets';
 import { asDomTextOffset } from '../../core/coordinate-spaces';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { mountBlock, span, text, widget } from './chrome-fixtures';

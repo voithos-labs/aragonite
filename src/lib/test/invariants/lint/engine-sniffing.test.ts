@@ -36,7 +36,7 @@ const ENGINE_SNIFFING: FileRule = {
 	matches: namesAnEngine,
 	allowed: {},
 	reason:
-		'a branch for one engine fixes that engine and hides the rule the others break later: canonicalize at the home that reads or decides (selection/native-bridge.ts, caret/widget-offset.ts, the keydown), the same way on every engine, and pin it with a row that runs on all three (`docs/design/editor.md` § Browser engines)',
+		'a branch for one engine fixes that engine and hides the rule the others break later: canonicalize at the home that reads or decides (browser/, the keydown), the same way on every engine, and pin it with a row that runs on all three (`docs/design/editor.md` § Browser engines)',
 	hits: [
 		...[
 			'const isFirefox = /firefox/i.test(ua);',

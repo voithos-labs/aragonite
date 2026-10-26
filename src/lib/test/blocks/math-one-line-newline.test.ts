@@ -8,7 +8,7 @@ import { parse } from '#lib';
 import { latexPlugin } from '#lib/plugins/latex/index.js';
 import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import {

@@ -7,10 +7,10 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
 	holdsOnlyMarkerChrome,
 	isHiddenMarkerRoot,
-	landableDomTextBounds,
 	paintsNoLandableContent,
 	screenVisibilityOf
-} from '../../caret/widget-offset';
+} from '../../browser/painted';
+import { landableDomTextBounds } from '../../browser/offsets';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 

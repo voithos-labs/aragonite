@@ -10,7 +10,7 @@ import type { UserScrollport } from '../../windowing/scroll-ancestors';
 import type { ScrollOwner } from '../../windowing/scroll-owner';
 import type { SelectionState } from '../selection-state.svelte';
 import type { CaretMemory } from '../../caret/caret-memory';
-import type { CaretWriter } from '../../caret/widget-offset';
+import type { CaretWriter } from '../../browser/caret-writer';
 import type { SelectionPoint } from '../primitives';
 import type { CaretLanding } from '../caret-landing';
 import type { CommitController } from '../../action-contracts';

@@ -5,7 +5,7 @@
 // into a plugin leaf's source, the one surface that spliced a bare LF.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
 import { latexPlugin } from '#lib/plugins/latex/index.js';
 import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';

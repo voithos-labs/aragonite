@@ -10,7 +10,8 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt, installTableLayoutStubs } from './mount-table';
-import { domTextOffsetAtNode, type CaretWriter } from '#lib/caret/widget-offset.js';
+import { domTextOffsetAtNode } from '#lib/browser/offsets.js';
+import type { CaretWriter } from '#lib/browser/caret-writer.js';
 import type { UndoEntry } from '#lib/undo/types.js';
 import { rangeSelectionOf } from '../../support/undo-entry';
 

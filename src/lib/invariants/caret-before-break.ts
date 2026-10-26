@@ -5,7 +5,7 @@
  */
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
-import { placeholderBreakOf } from '../caret/placeholder-break';
+import { placeholderBreakOf } from '../browser/placeholder-break';
 
 export function checkCaretBeforeBreak(position: {
 	node: Node;

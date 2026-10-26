@@ -4,7 +4,7 @@
 // Miss-analysis: the pair rule got the fence flag handed in; only e2e derived it from metadata.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { mountCode, type MountedCode } from './mount-code';
 import { settleEditor } from '#lib/test/harness/settle.js';
 

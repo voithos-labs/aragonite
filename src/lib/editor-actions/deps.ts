@@ -1,7 +1,7 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
 import type { CaretMemory } from '../caret/caret-memory';
-import type { CaretWriter } from '../caret/widget-offset';
+import type { CaretWriter } from '../browser/caret-writer';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';

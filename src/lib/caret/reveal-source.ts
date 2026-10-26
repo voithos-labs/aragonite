@@ -5,7 +5,7 @@
  */
 
 import { tick } from 'svelte';
-import type { CaretWriter } from './widget-offset';
+import type { CaretWriter } from '../browser/caret-writer';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkRevealSourceLength } from '../invariants/inline-transitions';
 

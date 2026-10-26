@@ -4,7 +4,7 @@
 // Miss-analysis: the dark-until-the-click rule asked only whether the press sat beside a widget, so
 // a press inside a container's marker prefix (a task checkbox) painted its spot for every frame.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { caretIsInTextContent, clickMovesSeat } from '#lib/caret/text-seat.js';
+import { caretIsInTextContent, clickMovesSeat } from '#lib/browser/text-seat.js';
 import { buildAmbientSpan } from '#lib/ambient/ambient-dom.js';
 import { placeCaretAt } from '../blocks/text/math-widget-fixture';
 

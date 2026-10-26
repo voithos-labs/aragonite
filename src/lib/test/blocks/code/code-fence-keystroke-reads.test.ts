@@ -3,7 +3,7 @@
 // once for the edit check, once more for a bracket's wrap, which reads its own selection.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { mountCode, type MountedCode } from './mount-code';
 
 const regionReads = vi.hoisted(() => ({ count: 0 }));

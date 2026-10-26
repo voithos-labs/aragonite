@@ -89,7 +89,7 @@ describeManifests(
 			id: 'G4.200 only the hidden-screen read pairs a block’s mode with its screen',
 			matches: /\bscreenVisibilityOf\s*\(/,
 			declared: {
-				'src/lib/caret/widget-offset.ts':
+				'src/lib/browser/painted.ts':
 					'defines it, and `hidingScreenOf`, which every edge rule asks',
 				'src/lib/invariants/marker-css-parity.ts':
 					'the dev check compares the screen against the stylesheet in every mode'

@@ -5,7 +5,7 @@
  * (`widget-interaction.ts :: snapClickToWidgetEdge`).
  */
 
-import { lineEndNearest } from '../../../caret/visual-lines';
+import { lineEndNearest } from '../../../browser/lines';
 import { CODE_CHIP } from '../../../caret/drawn-caret-measure';
 
 export type ClickSide = 'fresh' | 'chip-inside' | 'chip-outside' | null;

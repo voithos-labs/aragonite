@@ -18,7 +18,7 @@ import { SOURCE } from './source-paths';
 import { NATIVE_SELECTION_WRITE } from './native-selection-write';
 
 const DRAWN_CARET = 'src/lib/caret/drawn-caret.svelte.ts';
-const CARET_WRITER = 'src/lib/caret/widget-offset.ts';
+const CARET_WRITER = 'src/lib/browser/caret-writer.ts';
 
 // ── G4.141 one writer for the element and the mark ──────────────────────────
 
