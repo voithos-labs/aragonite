@@ -214,6 +214,7 @@ unguarded.
 | G4.260 | A step before the render and its step after are paired through `aroundRender`                    | L       |
 | G4.262 | The fix-up package loads nothing that parses or writes the tree                                  | L       |
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
+| G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
 
 ### The entries
 
@@ -1402,3 +1403,9 @@ the Svelte page for production with source maps and fails on any byte owned by a
 `invariants/` or by `debug/dump-tree.ts`. A predicate is reached only inside `assertInvariant` or
 behind `devChecksOn`; code production runs (the commit scope, a list move's wrapper) lives elsewhere.
 The prebuilt page's maps name its chunks, not the modules, so only the Svelte page is read.
+
+**G4.268 · Every script has a caller.** A file under `scripts/` is run by an npm script, a workflow step,
+a git hook, or another script (an import, or a spawned path), or it is imported by a root config or by
+`src/`. A doc mention, a test that only reads the file and an error message naming it don't count: a
+script reached only that way is hand-run, and is listed with its reason in the test. A listed script
+that gains a caller, or goes away, fails too, so the list can't rot. `lint/script-callers.test.ts`.
