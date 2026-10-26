@@ -75,10 +75,10 @@ describe('pre-edit caret', () => {
 		it('is the caret at keydown, for a key the block writes itself', async () => {
 			const harness = makeSurface({
 				handleKeydown: async () => {
-					harness.setCaret(9);
+					harness.setCaret(7);
 					void harness.surface.writeText({
 						text: 'written',
-						caretAfter: 9,
+						caretAfter: 7,
 						intent: 'typed',
 						history: 'join-typing',
 						mode: 'authored',
@@ -116,7 +116,7 @@ describe('pre-edit caret', () => {
 			setCaret(5);
 			surface.onBeforeInput(insertText('x'));
 			surface.notePreEditOffset(2);
-			el.textContent = 'ab';
+			el.textContent = 'abcdef';
 			surface.onInput(new InputEvent('input'));
 
 			expect(commits.map((c) => c.preEdit)).toEqual([2]);

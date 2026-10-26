@@ -269,6 +269,9 @@ export interface EditableSurfaceDeps {
 	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the current DOM content as the block's displayed text, for the input commit. */
 	readText: () => string;
+	/** The same read with a caret in the shown bytes moved onto it; absent where the read is the
+	 *  shown bytes as they are. */
+	readInput?: (caret: number) => { text: string; caret: number };
 	/** Rebuild the element from the block's bytes, for an input the tree took back after the
 	 *  browser had already drawn it. */
 	repaint: () => void;
@@ -745,10 +748,12 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
 		if (deps.getComposing() || !el) return unwritten();
+		const shownCaret = deps.backend.getRaw() ?? 0;
+		const read = deps.readInput?.(shownCaret) ?? { text: deps.readText(), caret: shownCaret };
 		const { text, caret: savedOffset } = keepLineEndingPairs(
 			trimTrailingLineEnding(deps.getNode().raw),
-			deps.readText(),
-			deps.backend.getRaw() ?? 0
+			read.text,
+			read.caret
 		);
 		// A block that draws its delimiters keeps the reading verbatim, and so does a run composed
 		// where a record waits, which is that record's insertion.

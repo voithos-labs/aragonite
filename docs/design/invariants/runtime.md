@@ -109,6 +109,7 @@ These checks run in three kinds of place:
 | G1.151 | A keystroke written in place leaves no node it wrote shared with an undo entry                | A·N     |
 | G1.152 | _Retired_: its premise was wrong; a fold that keeps its index can still move the leaf's bytes | A       |
 | G1.154 | A content write's fixed-up window holds the block it wrote                                    | A·N     |
+| G1.155 | A block's write puts its caret inside the text it writes                                      | A·N     |
 
 ### The entries
 
@@ -644,3 +645,9 @@ reports a replaced window, that window holds the written block, since the caret 
 reading that window's blocks. A fix-up that moved no block reports no window at all.
 `checkWriteInWindow` · `content-write.ts :: settledCaretPosition` ·
 `structural-descriptor.test.ts`, `replacement-focus-target.test.ts`, the simulation.
+
+**G1.155 · A write's caret sits in its text** (`caret-in-written-text`). The caret a block's write
+hands over is counted in the text it writes, from its start to its end, since the fix-up places it
+by counting through the written block and on into the next. An input read that drops bytes the
+browser left (a hidden `#` marker) moves the caret with them. `checkCaretInWrittenText` ·
+`surface-write.ts` · `write-caret.test.ts`, `atx-closing-run.spec.ts` on Firefox.
