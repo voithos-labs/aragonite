@@ -50,7 +50,7 @@ describe('windowSlicer', () => {
 	});
 
 	// A fresh entry for every mounted child on every recompute re-runs each child's prop reads.
-	it('hands back the last entry for a child whose node and index held, and a new one otherwise', () => {
+	it('hands back the last entry for a child whose node and index held, and a new one for an edited node', () => {
 		const slice = windowSlicer<string>();
 		const before = slice(children(10), ids(10), active(2, 5)).entries;
 		const nodes = children(10);
@@ -59,7 +59,15 @@ describe('windowSlicer', () => {
 		expect(after[0]).toBe(before[0]);
 		expect(after[1]).not.toBe(before[1]);
 		expect(after[1]).toEqual({ node: 'edited', index: 3, id: 'id3' });
-		const shifted = slice(nodes, ['new', ...ids(10)], active(2, 5)).entries;
-		expect(shifted[0]).toEqual({ node: 'node2', index: 2, id: 'id1' });
+	});
+
+	// Miss-analysis: no test shifted a child while its node and id held, so a reuse check that
+	// skipped the index passed every row here while an insert above left stale paths on screen.
+	it('gives a child an insert above shifted a new entry at its new index', () => {
+		const slice = windowSlicer<string>();
+		const before = slice(children(10), ids(10), active(2, 5)).entries;
+		const after = slice(['new', ...children(10)], ['idNew', ...ids(10)], active(2, 5)).entries;
+		expect(after[1]).not.toBe(before[0]);
+		expect(after[1]).toEqual({ node: 'node2', index: 3, id: 'id2' });
 	});
 });

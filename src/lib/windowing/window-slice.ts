@@ -1,8 +1,6 @@
 /**
- * The one place a block list's mounted range is computed. A list loops over `entries` keyed by `id`
- * and passes each child the entry's own fields, never a `{@const}` of them (a child tearing down
- * reads its props after its loop item is gone). An index added up from the live window start runs
- * ahead of the loop when a height write moves the window, and lands a size report on the wrong block.
+ * Which of a block list's children are mounted, each as an entry carrying the child's absolute
+ * index and id. A list loops over `entries` keyed by `id` and hands each child its entry's fields.
  */
 import type { WindowResult } from './block-window.svelte';
 
