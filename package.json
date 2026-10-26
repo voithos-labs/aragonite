@@ -1,6 +1,6 @@
 {
 	"name": "@voithos-labs/aragonite",
-	"version": "0.12.0",
+	"version": "0.11.3",
 	"description": "cute svelte-based markdown editor lib with actual rich markdown editing",
 	"keywords": [
 		"markdown-editor",

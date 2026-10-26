@@ -1,6 +1,6 @@
 {
 	"name": "@voithos-labs/aragonite-react",
-	"version": "0.12.0",
+	"version": "0.11.3",
 	"description": "react component for aragonite, the cute markdown editor lib",
 	"keywords": [
 		"markdown-editor",
@@ -41,7 +41,7 @@
 		"prepack": "npm run build"
 	},
 	"peerDependencies": {
-		"@voithos-labs/aragonite": "0.12.0",
+		"@voithos-labs/aragonite": "0.11.3",
 		"react": "^18.0.0 || ^19.0.0",
 		"react-dom": "^18.0.0 || ^19.0.0"
 	},
