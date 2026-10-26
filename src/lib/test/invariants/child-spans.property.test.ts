@@ -236,6 +236,7 @@ describe('container child spans', () => {
 					seedAt,
 					container().children![seedAt].raw,
 					'authored',
+					'join-typing',
 					0
 				);
 				expect(container().raw, 'after the seeding write').toBe(fullRebuildOf(container()).raw);
@@ -248,9 +249,16 @@ describe('container child spans', () => {
 				const at = targets[c.at % targets.length];
 				if (at >= (container().children?.length ?? 0)) return;
 				const text = c.prose ? 'edited\n' : c.text;
-				await h.bundle.blockEdit.updateBlockContent(at, text, 'authored', 0, text.length);
+				await h.bundle.blockEdit.updateBlockContent(
+					at,
+					text,
+					'authored',
+					'join-typing',
+					0,
+					text.length
+				);
 				// Bytes with no line ending, written into a quote's first block, join the line below.
-				if (text === '') allowDevWarns(['invariant:reads-back']);
+				if (text === '') allowDevWarns(['invariant:reads-back', 'invariant:last-line-kept']);
 				if (seeded !== undefined) {
 					if (container().childSpans === seeded) spliced++;
 					else retired++;

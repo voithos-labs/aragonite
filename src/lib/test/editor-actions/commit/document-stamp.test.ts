@@ -35,7 +35,7 @@ describe('a write made for a swapped-out document', () => {
 		const h = stampedTop('a\n');
 		h.stamps.retire();
 
-		const write = h.stamped.updateBlockContent(0, 'ab\n', 'authored', 1);
+		const write = h.stamped.updateBlockContent(0, 'ab\n', 'authored', 'join-typing', 1);
 		await write;
 
 		expect(write.admitted).toBe(false);
@@ -56,9 +56,9 @@ describe('a write made for a swapped-out document', () => {
 
 	it('lands when made for the document in place, stamped or not', async () => {
 		const h = stampedTop('a\n');
-		await h.stamped.updateBlockContent(0, 'ab\n', 'authored', 1);
+		await h.stamped.updateBlockContent(0, 'ab\n', 'authored', 'join-typing', 1);
 		h.stamps.retire();
-		await h.actions.updateBlockContent(0, 'abc\n', 'authored', 2);
+		await h.actions.updateBlockContent(0, 'abc\n', 'authored', 'join-typing', 2);
 
 		expect(serialize(h.deps.doc)).toBe('abc\n');
 		expect(takeDevWarns()).toEqual([]);
@@ -70,7 +70,7 @@ describe('a write made after the editor unmounted', () => {
 		const h = stampedTop('a\n');
 		h.stamps.end();
 
-		const stamped = h.stamped.updateBlockContent(0, 'ab\n', 'authored', 1);
+		const stamped = h.stamped.updateBlockContent(0, 'ab\n', 'authored', 'join-typing', 1);
 		await stamped;
 		expect(await h.actions.splitBlock(0, 1)).toBe(false);
 
@@ -79,5 +79,31 @@ describe('a write made after the editor unmounted', () => {
 		expect(h.edits).toEqual([]);
 		expect(h.deps.undoManager.canUndo).toBe(false);
 		expect(takeDevWarns()).toEqual([]);
+	});
+});
+
+// Miss-analysis: the gate's rows covered swapped-out and unmounted documents, never a write made
+// while an undo was putting its entry back.
+describe('a write made while an undo or redo installs its entry', () => {
+	it('is refused on the keystroke and commit routes, pushing nothing, with no warning', async () => {
+		const h = stampedTop('ab\n');
+		let keystroke: ReturnType<typeof h.actions.updateBlockContent> | undefined;
+		let split: Promise<boolean> | undefined;
+		await h.stamps.duringHistorySwap(async () => {
+			keystroke = h.actions.updateBlockContent(0, 'abc\n', 'authored', 'join-typing', 2);
+			split = h.actions.splitBlock(0, 1);
+		});
+
+		expect(keystroke!.admitted).toBe(false);
+		expect(await split!).toBe(false);
+		expect(serialize(h.deps.doc)).toBe('ab\n');
+		expect(h.deps.undoManager.getStacks().undo).toEqual([]);
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	it('lands once the install has ended', async () => {
+		const h = stampedTop('ab\n');
+		await h.stamps.duringHistorySwap(async () => {});
+		expect(await h.actions.splitBlock(0, 1)).toBe(true);
 	});
 });

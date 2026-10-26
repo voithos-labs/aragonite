@@ -48,7 +48,7 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 	{
 		spec: 'selection/gap-caret-arrival-scopes.spec.ts',
 		reason:
-			'three of the six bullets are v1 narrowings (the click route, container entry, and the measured-unreachable windowed join), and a fourth is the interaction note, none of them scenarios the two gestures could drive'
+			'three of the six bullets are limits (the click route, container entry, and the measured-unreachable windowed join), and a fourth is the interaction note, none of them scenarios the two gestures could drive'
 	},
 	{
 		spec: 'blocks/code/fence-content-validity.spec.ts',

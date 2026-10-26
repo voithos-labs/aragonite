@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, serialize } from '#lib';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
@@ -25,8 +24,8 @@ const typeInBody =
 		const owner = h.deps.doc.children[0];
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(h.deps.doc) };
 		const write = legalizeWrite(body, 0, raw, 'authored');
-		const typing = createLeafTyping(h.deps, h.controller);
-		expect(typing.writeLeafInPlace(docPathFrom([0, 0]), write, 0).wrote).toBe(true);
+		const typing = h.controller;
+		expect(typing.typeLeaf(docPathFrom([0, 0]), write, 0).wrote).toBe(true);
 	};
 
 /** The document's last block goes, so the container above gives its line ending up. */

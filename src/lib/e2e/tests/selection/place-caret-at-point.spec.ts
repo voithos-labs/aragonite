@@ -102,6 +102,26 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 		expect(source.slice(source.lastIndexOf('\n\n'))).toBe('\n\n**a**x\n');
 	});
 
+	// The gap caret is real but outside the public selection shape, so the call answers `true`
+	// while `getSelection()` reads null, and typing still lands.
+	test('a point above a leading table parks a gap caret that getSelection reports as null', async () => {
+		const table = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+		await editor.loadContent(table);
+		const point = await editor.page.evaluate(() => {
+			const root = document.querySelector('.editor')!.getBoundingClientRect();
+			const first = document.querySelector("[data-block-path='[0]']")!.getBoundingClientRect();
+			return { x: first.left + 8, y: (root.top + first.top) / 2 };
+		});
+
+		expect(await placeAt(point.x, point.y)).toBe(true);
+		expect(await editor.bridge.getGapCaret()).not.toBeNull();
+		expect(await editor.bridge.getSelection()).toBeNull();
+
+		await editor.typeText('x');
+		await editor.bridge.waitForSourceContains('x');
+		expect(await editor.bridge.getSource()).toBe(`x\n\n${table}`);
+	});
+
 	// A false answer is what lets the shell do something else with the click.
 	test('a point resolving nothing focusable returns false and focuses no block', async () => {
 		await editor.loadContent('lead\n\n---\n');

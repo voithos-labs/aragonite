@@ -62,10 +62,6 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 3,
 		why: 'the split re-attaches the blank line that parse stripped (GH #97); both branches of `joinIntoLeaf` land bytes that already crossed `legalizeWrite` and a fragment reparse (GH #54)'
 	},
-	'src/lib/tree-operations/neighbour-merge.ts': {
-		count: 1,
-		why: 'the join absorb re-attaches the blank run its own reparse stripped (GH #61)'
-	},
 	'src/lib/schema/container-rebuilders.ts': {
 		count: 2,
 		why: 'the table grid re-emits its own bytes from its rows (G4.20 branch 3 reads the same writes)'
@@ -75,8 +71,8 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the concat container shape re-emitting its own bytes from its children: its span-seeding rebuild and the one-region splice; and a marker gaining its space in its own line'
 	},
 	'src/lib/schema/strip-rebuild.ts': {
-		count: 2,
-		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild and the whole-body fallback'
+		count: 4,
+		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild, the whole-body fallback, and the opener line set aside and put back around them'
 	},
 	'src/lib/core/directive/kinds.ts': { count: 1, why: "the directive container's own rebuildRaw" },
 	'src/lib/editor-actions/plugin/directive-container.ts': {
@@ -84,16 +80,12 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the titled-directive rebuildRaw factory'
 	},
 	'src/lib/plugins/admonitions/github-alert-kind.ts': {
-		count: 2,
-		why: "the alert's own rebuildRaw, empty-body and filled branches"
+		count: 1,
+		why: "the alert's own rebuildRaw for an empty body; a filled one rebuilds through `rebuildStripRaw`"
 	},
 	'src/lib/plugins/details/details-kind.ts': {
 		count: 1,
 		why: "the details container's rebuildRaw"
-	},
-	'src/lib/plugins/footnotes/footnote-definition.ts': {
-		count: 1,
-		why: "the definition's own rebuildRaw"
 	},
 	'src/lib/plugins/mermaid/mermaid-kind.ts': {
 		count: 1,
@@ -107,9 +99,9 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 1,
 		why: 'find and replace installs the bytes `legalizeWrite` returned into a private copy, which it then reparses whole'
 	},
-	'src/lib/editor-actions/commit/structural-commit.ts': {
+	'src/lib/editor-actions/commit/saved-bytes.ts': {
 		count: 1,
-		why: 'the rollback restores raws the tree already held; nothing new is created'
+		why: 'a rollback restores raws the tree already held; nothing new is created'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
 		count: 4,
@@ -131,10 +123,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 1,
 		why: 'gives the spaces a list item’s marker line takes back to the freshly parsed first block that held them, before any write installs it'
 	},
-	'src/lib/tree-operations/open-tail.ts': {
-		count: 1,
-		why: "adds or drops the ending of a block's last line in each node down to the one that owns it: the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits, and an opaque container re-reads its metadata after the write; an ending terminates a line rather than restructuring one"
-	},
+
 	'src/lib/testing/container-conformance.ts': {
 		count: 7,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"

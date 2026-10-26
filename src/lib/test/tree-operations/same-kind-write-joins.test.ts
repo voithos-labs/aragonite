@@ -3,14 +3,13 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { spliceChildrenSettled } from '#lib/tree-operations/settle.js';
+import { spliceFixedUp } from '#lib/tree-operations/fix-up/apply.js';
 
 // A write that keeps its block's kind still asks whether a reload reads it and a neighbour as one:
 // the block above when no blank line parts them, the block below whatever parts them.
@@ -28,12 +27,12 @@ const kinds = (source: string, index: number, text: string): string[] => {
 /** The document after `text` is written over the leaf at `leaf` through the keystroke route. */
 function typedInPlace(source: string, leaf: number[], text: string) {
 	const { deps } = makeEditorActionsDeps(source);
-	const typing = createLeafTyping(deps, createUndoController(deps));
+	const typing = createUndoController(deps);
 	const owner = leaf.length > 1 ? (blockNodeAt(deps.doc, leaf.slice(0, -1)) as CstNode) : null;
 	const target = owner ? { children: owner.children!, owner, lineEnding: '\n' as const } : deps.doc;
 	const write = legalizeWrite(target, leaf[leaf.length - 1], text, 'authored');
 
-	expect(typing.writeLeafInPlace(docPathFrom(leaf), write, 0).wrote).toBe(true);
+	expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);
 	expectParseConverged(deps.doc);
 	return deps.doc;
 }
@@ -114,7 +113,7 @@ describe('a same-kind write next to a block that reads the lines below it', () =
 	it('a paragraph spliced under a definition becomes its two-line title', () => {
 		const doc = parse('[a]: /u\n');
 		const [title] = parse('"x\nmore"\n').children;
-		spliceChildrenSettled(doc, 1, 0, [title], defaultGrammarView, createSharingState(), '\n');
+		spliceFixedUp(doc, 1, 0, [title], defaultGrammarView, createSharingState(), '\n');
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['linkReferenceDefinition']);
 		expectParseConverged(doc);

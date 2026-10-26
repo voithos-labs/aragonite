@@ -170,6 +170,20 @@ describe('path and symbol references: still enforced', () => {
 		).toEqual([]);
 	});
 
+	// Miss-analysis: resolution asked only whether the file was on disk, so a doc naming a local
+	// record passed on the machine that had one and redded in CI.
+	it('reds on a gitignored file that sits on disk', () => {
+		const planted = 'scripts/zz-map-probe.d.mts';
+		writeFileSync(planted, '');
+		try {
+			expect(referenceFailures([{ file: 'x.md', path: planted }])).toEqual([
+				`x.md: ${planted} — gitignored, so it exists only on this machine`
+			]);
+		} finally {
+			rmSync(planted);
+		}
+	});
+
 	it('blanks a fence, so an illustrative snippet claims nothing', () => {
 		const blanked = stripFencedBlocks('Prose `src/a.ts`.\n```\n`src/nope.ts`\n```\nAfter.');
 		expect(blanked).toContain('src/a.ts');

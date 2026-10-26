@@ -20,7 +20,7 @@ function writerFor() {
 	const completeLineOnType = vi.fn(async () => false);
 	const blockEdit: BlockEditActions = {
 		...stubBlockEdit(),
-		updateBlockContent: (_index, _text, _mode, _before, after = 0) =>
+		updateBlockContent: (_index, _text, _mode, _history, _before, after = 0) =>
 			withStoredCaret(Promise.resolve(true), after),
 		completeLineOnType
 	};
@@ -44,14 +44,28 @@ describe.each<[WriteIntent, boolean]>([
 ])('a %s write', (intent, asks) => {
 	it(`${asks ? 'asks' : 'does not ask'} the kind cue to name the block's kind`, async () => {
 		const { writeText, afterTypedWrite } = writerFor();
-		await writeText({ text: 'abc', caretAfter: 3, intent, mode: 'authored', source: intent });
+		await writeText({
+			text: 'abc',
+			caretAfter: 3,
+			intent,
+			history: 'join-typing',
+			mode: 'authored',
+			source: intent
+		});
 		await settleEditor();
 		expect(afterTypedWrite).toHaveBeenCalledTimes(asks ? 1 : 0);
 	});
 
 	it(`${asks ? 'asks' : 'does not ask'} the on-type completer to finish the line`, async () => {
 		const { writeText, completeLineOnType } = writerFor();
-		await writeText({ text: 'abc', caretAfter: 3, intent, mode: 'authored', source: intent });
+		await writeText({
+			text: 'abc',
+			caretAfter: 3,
+			intent,
+			history: 'join-typing',
+			mode: 'authored',
+			source: intent
+		});
 		await settleEditor();
 		expect(completeLineOnType).toHaveBeenCalledTimes(asks ? 1 : 0);
 	});

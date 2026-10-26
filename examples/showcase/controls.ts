@@ -21,7 +21,7 @@ export interface ShowcaseToggle {
 }
 
 export const TOGGLES = {
-	// Pressed means dark; the page opens light.
+	// Pressed means dark.
 	theme: { testId: 'theme-toggle', label: 'dark mode' },
 	dragHandles: {
 		testId: 'drag-handles-toggle',

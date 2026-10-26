@@ -24,7 +24,7 @@ function readingWrites(): number {
 describe('a keystroke refused in reading mode', () => {
 	it('at the document root: not admitted, no caret, resolves false', async () => {
 		const h = makeTopHarness('one\n', { reading: fixtureReading({}, 'reading') });
-		const write = h.actions.updateBlockContent(0, 'onex\n', 'authored', 3, 4);
+		const write = h.actions.updateBlockContent(0, 'onex\n', 'authored', 'join-typing', 3, 4);
 		expect(write.admitted).toBe(false);
 		expect('caret' in write).toBe(false);
 		expect(await write).toBe(false);
@@ -34,7 +34,14 @@ describe('a keystroke refused in reading mode', () => {
 
 	it('inside a container: not admitted, no caret, resolves false', async () => {
 		const h = makeNestedHarness('> quoted\n', { index: 0, presentationMode: 'reading' });
-		const write = h.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 'authored', 6, 7);
+		const write = h.bundle.blockEdit.updateBlockContent(
+			0,
+			'quotedx\n',
+			'authored',
+			'join-typing',
+			6,
+			7
+		);
 		expect(write.admitted).toBe(false);
 		expect('caret' in write).toBe(false);
 		expect(await write).toBe(false);
@@ -56,7 +63,7 @@ describe('whether an admitted keystroke keeps the block’s caret', () => {
 	it('keeps it for a same-kind write in place, which resolves true', async () => {
 		const h = makeTopHarness('one\n');
 		const commit = vi.spyOn(h.controller, 'commitStructural');
-		const write = h.actions.updateBlockContent(0, 'onex\n', 'authored', 3, 4);
+		const write = h.actions.updateBlockContent(0, 'onex\n', 'authored', 'join-typing', 3, 4);
 		expect(write.admitted && write.keepsCaret).toBe(true);
 		expect(await write).toBe(true);
 		expect(commit).not.toHaveBeenCalled();
@@ -65,7 +72,7 @@ describe('whether an admitted keystroke keeps the block’s caret', () => {
 	it('gives it up for a keystroke that changes the kind, which commits', async () => {
 		const h = makeTopHarness('one\n');
 		const commit = vi.spyOn(h.controller, 'commitStructural');
-		const write = h.actions.updateBlockContent(0, '# one\n', 'authored', 0, 2);
+		const write = h.actions.updateBlockContent(0, '# one\n', 'authored', 'join-typing', 0, 2);
 		expect(write.admitted && !write.keepsCaret).toBe(true);
 		expect(await write).toBe(true);
 		expect(commit).toHaveBeenCalledOnce();
@@ -75,7 +82,7 @@ describe('whether an admitted keystroke keeps the block’s caret', () => {
 	it('gives it up for a write in place that merges the block into the list above', async () => {
 		const h = makeTopHarness('- a\n\nb\n');
 		const commit = vi.spyOn(h.controller, 'commitStructural');
-		const write = h.actions.updateBlockContent(1, '  b\n', 'authored', 0, 2);
+		const write = h.actions.updateBlockContent(1, '  b\n', 'authored', 'join-typing', 0, 2);
 		expect(write.admitted && !write.keepsCaret).toBe(true);
 		expect(await write).toBe(true);
 		expect(commit).not.toHaveBeenCalled();
@@ -85,7 +92,14 @@ describe('whether an admitted keystroke keeps the block’s caret', () => {
 	it('gives it up for a write in place that changes its container’s kind', async () => {
 		const h = makeNestedHarness('> quoted\n', { index: 0 });
 		const commit = vi.spyOn(h.controller, 'commitContainerStructural');
-		const write = h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\n', 'authored', 0, 6);
+		const write = h.bundle.blockEdit.updateBlockContent(
+			0,
+			'[!TIP]\n',
+			'authored',
+			'join-typing',
+			0,
+			6
+		);
 		expect(write.admitted && !write.keepsCaret).toBe(true);
 		expect(await write).toBe(true);
 		expect(commit).not.toHaveBeenCalled();

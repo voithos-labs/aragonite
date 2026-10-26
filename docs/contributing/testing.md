@@ -26,6 +26,12 @@ Where to jump:
   what CI checks with it, and how to run it yourself.
 - [The adapter suite](#the-adapter-suite): the same idea for the framework wrappers, one suite
   over React, Next, Vue and Nuxt apps.
+- [Size budgets](#size-budgets): the numbers that say how heavy the repo is, what reds when one
+  moves, and how to accept a move on purpose.
+- [The behavior differential](#the-behavior-differential): every key at every offset of a set of
+  documents, compared before and after your change, so a refactor can show it changed nothing.
+- [Every short input](#every-short-input): every string up to a few characters long, parsed,
+  round-tripped and edited at every offset.
 - The performance harness (fixtures, instruments, threshold policy) lives in
   `docs/design/performance.md` § The numbers and the gate.
 - The debug panel, its console helpers, and dumping editor state inside a test are in
@@ -135,6 +141,7 @@ Test files take turns in a shared Node process, which bites in three ways:
 | `test:editor:invariants`     | Invariant catalog: property/fuzz tests + source-scan guards                                                 |
 | `test:editor:debug`          | Debug engine helpers and operations log                                                                     |
 | `test:editor:perf`           | Perf commit gate: counter ceilings, amplification report, fixture goldens                                   |
+| `test:editor:exhaustive`     | Every short input, at the lengths `npm test` runs                                                           |
 
 The inline-scanner suite (`test/core/inline/scan/`) and the directive suite
 (`test/core/directive/`) fold under `test:editor:core`. Anything without a script of its own
@@ -470,6 +477,13 @@ Either way, leave the requirement bullet as it is (the claim still holds on the 
 add an indented line under it saying where the skip is, so the two files stay paired (G4.23). When
 the issue closes, the `fixme` goes with it.
 
+A `fixme` reason has to start with `#<issue>: `, or `src/lib/e2e/lint/fixme-names-issue.test.ts`
+fails. That's what makes the release step useful: `npm run release:fixme-recheck` runs every
+`fixme` row written the way above (inside the test, with a condition) on all three engines as if it
+weren't marked, and lists the ones that pass now next to the issue each one names. A
+`test.fixme('title', ...)` or `test.describe.fixme` stays skipped, so the recheck never sees it. It
+never edits a spec either, so un-fixme'ing a row is still your call.
+
 **Helpers that branch on the engine.** The clipboard and IME helpers keep one signature across
 engines, so a spec never needs to know which one it got. Every clipboard touch goes through them:
 `editor.seedClipboard`, `editor.paste()` and `editor.readClipboard` (or `createClipboardArm(page)`
@@ -566,6 +580,8 @@ await gotoReady(page, '/test/syntax'); // waits for window.__syntax, then the fo
 It lives in `src/lib/e2e/goto-ready.ts` and waits for the global the route sets once it's
 hydrated, since the server-rendered markup shows up well before any click handler does.
 `reloadReady(page)` is the reload version, and `editor.goto()` already calls `gotoReady` for you.
+To check what a page shows before it hydrates, `gotoUnhydrated(page, url)` loads it with every
+script request held back.
 A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/e2e-drivers.test.ts`.
 
 One navigation per test, though. If a test wants a different URL than its `beforeEach` gave it
@@ -580,8 +596,8 @@ usual value. If the specs read a global the route sets for them (`__syntax`, say
 instead.
 
 To switch the presentation mode, call `editor.setPresentationMode(mode)`, or click the header
-toggle with `clickModeToggle(page, mode)` from `src/lib/e2e/mode-switch.ts` (the showcase's and
-the changelog's buttons take `clickModeButton`). Each one waits until the editor shows the mode.
+toggle with `clickModeToggle(page, mode)` from `src/lib/e2e/mode-switch.ts` (the showcase's
+buttons take `clickModeButton`). Each one waits until the editor shows the mode.
 A mode that never applied leaves you in source mode, where most live-mode assertions pass anyway,
 so a raw bridge call or toggle click fails `src/lib/e2e/lint/e2e-drivers.test.ts`.
 
@@ -997,3 +1013,143 @@ $env:ADAPTER_PROJECTS = 'react'; npx playwright test -c examples/adapter-suite/p
 ```
 
 Heads up if you're mutating a wrapper to see what reds: outside CI the config reuses any server already on an app's port, so one left over from an earlier run keeps serving the old build. Stop it first, or set `CI=1` for the run.
+
+## Size budgets
+
+A handful of numbers say how heavy the repo is, and each one has a budget, so it can't creep up
+without anybody deciding it should. They live in `scripts/measure-baseline.json`, each with a
+baseline and a tolerance (how far it may move before anything complains, sized to about one normal
+change).
+
+| Number                                       | What it counts                                                                                                                                                                                                                                                                                                                                                                                                                 | Checked by                                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Production code and comment lines            | Non-blank lines of `.ts`, `.svelte` and `.js` under `src/lib`, tests aside. A line that opens a comment or sits inside one is a comment line                                                                                                                                                                                                                                                                                   | `npm run lint`                                                                                                     |
+| Unit test files, internal and published-only | A unit test file is internal when it, or a helper under `test/` it imports, imports, names a type from or mocks anything the package doesn't publish (published means reachable from an entry point in `package.json` `exports`). A published-only test keeps passing through any rewrite behind the entry points, which is the kind we want more of                                                                           | `npm run lint`                                                                                                     |
+| Active source scans                          | Rows in `docs/design/invariants/scans.md` that aren't marked retired                                                                                                                                                                                                                                                                                                                                                           | `npm run lint`                                                                                                     |
+| The minimal app: first load, total, chunks   | A page that imports `createEditor`, built minified for production, once through the Svelte build and once through the prebuilt one. Three numbers each: the gzipped JS the page loads before it runs (the entry plus what it imports up front), all the JS it could ever load, and how many chunks that is. It's one chunk today, so the first two match; a lazy split shows up as a new chunk, which fails until you bless it | `scripts/verify-dev-strip.mjs`, which runs inside `verify-pack.mjs` (before a publish, and in CI's consumer smoke) |
+
+A number fails when it moves past its tolerance in either direction. Growing past it means more
+than one change's worth landed. Shrinking past it means the baseline is stale: bless it, so the
+next change can't quietly spend what you saved. Blessing writes the current numbers in as the new
+baselines, and the tolerances stay put.
+
+```bash
+npm run measure                                          # every number, per directory, plus the test helpers that import internals
+npm run measure -- --against $(git merge-base HEAD dev)  # how far each one moved since your branch left dev
+npm run measure:bless                                    # accept the lines, tests and scans as they are now
+node scripts/verify-dev-strip.mjs --bless                # accept the app sizes (after `npm run package`)
+```
+
+Same commands in PowerShell. When a branch reports what it did to the numbers, it reports the
+`--against` deltas. Those measure the old commit directly, so a bless along the way doesn't hide
+anything.
+
+The test split is a cheap stand-in for "this test guards behavior". The real check is whether a
+module's behavior suites (the e2e specs and property tests that judge it) stay green while its
+insides change shape, and nobody has scripted that one yet.
+
+Each prebuilt entry point also has a gzipped budget of its own, in `scripts/verify-prebuilt.mjs`,
+edited by hand. And for how long CI takes, `node scripts/ci-time.mjs` prints the latest dev push's
+wall time and runner minutes, against the median of the last five. That one's report-only, since
+CI time is too noisy to gate on.
+
+## The behavior differential
+
+A refactor is supposed to change nothing anyone can see, and "the tests are green" only says the
+inputs somebody wrote down still pass. The differential asks the wider question: it presses keys in
+the mounted editor (jsdom, the same mount the unit suites use), writes down what every key did,
+and compares that with the same run on the commit your branch started from. One line per input:
+
+```
+{"in":"keys live bullets [0,1,0]@0 Backspace","took":"keydown","bytes":"- ab\n","caret":"0.0.0:1"}
+```
+
+| Field           | What it holds                                                                                                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `in`            | The input: which family, the mode, the document, where the caret was (the leaf's CST path, then `@` and the offset) and the key                                                                  |
+| `took`          | Who acted on the key: the editor at `keydown` or at `beforeinput`, the browser's insert of a typed character (`inserted`), or a default action jsdom has no engine for (`browser`, a delete say) |
+| `bytes`         | `getSource()` after the key. Past 100 characters it's a hash, where it first differs from the input, and the text around there                                                                   |
+| `caret`         | `getSelection()` after the key, as `path:offset`                                                                                                                                                 |
+| `undo`          | Only there when undo, then redo, doesn't give back the input and then the edit                                                                                                                   |
+| `warns`         | The dev checks that fired                                                                                                                                                                        |
+| `do`, `outline` | A seeded run's key, drawn from its seed; a document's block and inline kinds as parsed                                                                                                           |
+
+What it runs, in four files under `src/lib/test/behavior/`:
+
+- every key (a few printable markers, Enter, Shift+Enter, Backspace, Delete, Tab) at every offset of
+  about thirty small documents, one per block kind, container and inline construct, in source and
+  live mode, plus pairs of blocks that touch with no blank line between, each block also moved up
+  and down (the only rows where two blocks merge or a moved block meets new neighbours)
+- seeded runs of keys into one document, with the simulation's seeds, then undo everything and redo
+  it all (how a typing run groups into undo steps only shows up here)
+- how the CommonMark spec examples parse, and the documents the showcase and changelog pages mount,
+  plus a few keys at the join of every pair of adjacent blocks in those. Whole, they'd mount only a
+  window in jsdom, which is great for a real editor and useless here. The newest changelog family
+  sits out, since every landing adds to it; editing the showcase or an older family moves the rows
+  of the pairs you touched, so expect those in your list
+
+The documents mount with the bundled plugins that add syntax (math with a stub renderer,
+admonitions, details, the table of contents, footnotes, emoji), so `$x$` and `:::note` mean what the
+showcase means by them.
+
+It doesn't run inside `npm run test:editor`, since it needs two checkouts. One command does both:
+
+```bash
+npm run behavior                                          # against where your branch left dev
+npm run behavior -- --against <ref>                       # against any commit
+```
+
+Same commands in PowerShell. It checks the base out into a temporary worktree under
+`behavior-results/` (gitignored), records its rows with that commit's own suites, records yours,
+and diffs the two. The worktree goes away when the run ends, fails or gets a Ctrl+C. The base's
+rows are cached by commit, Node version and installed dependencies, so a second run against the
+same base only records your side, which takes about half as long.
+
+A change that means to change behavior lists exactly the inputs it meant to change. A refactor's
+list is empty. The command exits 1 whenever the list isn't. A branch reports which base it picked,
+then the counts and the changed inputs under them:
+
+```
+behavior: base merge-base HEAD dev (…)
+behavior against merge-base HEAD dev (…): … rows compared, 1 changed (bytes 1, caret 1), 0 added, 0 removed
+  changed keys live bullets [0,1,0]@0 Backspace
+    bytes: "- ab\n" -> "- a\nb\n"
+    caret: "0.0.0:1" -> "1:0"
+```
+
+It prints the first 20, and writes the full list to `behavior-results/diff.txt`. To compare with
+another machine, `--record <file>` writes this checkout's rows there and `--against <file>` diffs
+against such a file. Expect a few rows to move that aren't yours, though, since a different Node
+or dependency install can move a row.
+
+Two limits. It's jsdom, so where the editor hands a key back to the browser nothing happens and the
+row says `browser`: the editor's own handling is real, Chromium's isn't. And the note-taking
+simulation's browser sessions aren't in it yet; a trace mode for those is a later job.
+
+## Every short input
+
+Random generators keep missing the tiny inputs, a `>` and a newline and nothing else. So
+`src/lib/test/exhaustive/` doesn't sample. It takes every string up to a length over 15 characters
+that change how Markdown reads (`#`, `>`, `-`, `*`, `_`, `[`, `]`, `|`, a backtick, `$`, `:`, `!`, a
+letter, a space and a newline) and checks each one.
+
+| Suite          | Checks                                                                                                                                                                                                                                                   | `npm test` | `npm run test:exhaustive`                |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------------------------- |
+| `round-trip`   | Parsing never throws, and serializing gives back the input, with the built-in syntax and with the bundled plugins                                                                                                                                        | length 5   | 7 with plugins (183M strings), 6 without |
+| `inline-parse` | Reading inline never throws, and each leaf's inline nodes cover its content with no gap or overlap                                                                                                                                                       | length 5   | 6 (12M strings)                          |
+| `block-edits`  | Every edit at every offset (type each character, delete on either side, which merges at a leaf's edge and out of a container, split) changes the bytes, leaves the tree the editor would build reopening them, fires no dev check, and undoes and redoes | length 2   | 3                                        |
+
+In `npm test` the three take a few seconds. `npm run test:exhaustive` takes several minutes, nearly
+all of it the length-7 round trip. A branch that touches the parser or the commit runs it once and
+says so in its report. Before a release, raise the edits to length 4 (about five more minutes):
+
+```bash
+node scripts/run-with-env.mjs EXHAUSTIVE_FULL=1 EXHAUSTIVE_EDIT_LENGTH=4 -- vitest run src/lib/test/exhaustive
+```
+
+Some inputs already fail, and `KNOWN_DEFECTS` in `src/lib/test/exhaustive/known-failures.ts` names
+the defects behind them, one entry each: what's broken, the shortest input length that reaches it,
+and a pattern over its failure lines. A suite fails on a failure no entry matches, and on an entry
+nothing matched in a run long enough to reach it. So a fix deletes one entry however many inputs it
+covered, and a longer run reaching a known defect from more inputs passes as is. A failure no entry
+matches is a new defect: name it in a new entry (or fix it).

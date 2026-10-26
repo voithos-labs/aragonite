@@ -1,3 +1,4 @@
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
@@ -5,7 +6,6 @@ import { serialize } from '../../core/serializer';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import type { CstNode } from '../../core/nodes';
 import { assignIds } from '../../block-id';
-import { updateNodeContent } from '../../tree-operations';
 import { replacePreservingFirst } from '../../tree-operations/structural-change';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { deleteSettled } from '#lib/test/harness/settle-funnel.js';

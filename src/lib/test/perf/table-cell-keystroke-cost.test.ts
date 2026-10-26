@@ -5,7 +5,6 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 
@@ -17,7 +16,7 @@ const SOURCE =
 describe('a keystroke in one cell of a large table', () => {
 	it('copies and writes the edited row alone, every other row keeping its object', () => {
 		const { deps } = makeEditorActionsDeps(SOURCE);
-		const typing = createLeafTyping(deps, createUndoController(deps));
+		const typing = createUndoController(deps);
 		// The typing burst's snapshot, which makes every row one an undo entry holds.
 		deps.sharing.markSnapshotTaken();
 		const before = [...deps.doc.children[0].children!];
@@ -25,7 +24,7 @@ describe('a keystroke in one cell of a large table', () => {
 		const body = { children: row.children!, owner: row, lineEnding: documentLineEnding(deps.doc) };
 		const write = legalizeWrite(body, 1, 'xQ', 'authored');
 
-		expect(typing.writeLeafInPlace(docPathFrom([0, TARGET, 1]), write, 0).wrote).toBe(true);
+		expect(typing.typeLeaf(docPathFrom([0, TARGET, 1]), write, 0).wrote).toBe(true);
 
 		const after = deps.doc.children[0].children as CstNode[];
 		const moved = after.flatMap((node, i) => (node === before[i] ? [] : [i]));

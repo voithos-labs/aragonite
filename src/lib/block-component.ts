@@ -162,9 +162,8 @@ export interface BlockComponent {
 	/**
 	 * Place the caret at `offset`, focus the element, and end whatever the editor had selected (a
 	 * cross-block range, a gap caret, an image selected whole): the safe default over
-	 * {@link parkCaret}, since ending it batches with placing the caret. Also
-	 * takes the four special caret values above, which stay internal (none is on
-	 * `@voithos-labs/aragonite/plugin`). Clamping is required; never throw.
+	 * {@link parkCaret}, since ending it batches with placing the caret. Also takes `CURSOR_END`,
+	 * and two internal start values the editor passes; clamping is required, never throw.
 	 */
 	focus(offset: number): void;
 	/**

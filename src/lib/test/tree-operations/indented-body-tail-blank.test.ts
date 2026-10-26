@@ -1,3 +1,4 @@
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
 import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
@@ -5,7 +6,6 @@ import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { documentLineEnding, trailingLineEnding } from '#lib/core/lines.js';
-import { updateNodeContent } from '#lib/tree-operations/index.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { settled } from '#lib/test/harness/settle-funnel.js';

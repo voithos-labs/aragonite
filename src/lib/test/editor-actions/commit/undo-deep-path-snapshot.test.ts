@@ -6,6 +6,7 @@ import {
 	stubBlockComponent,
 	makeNode
 } from '#lib/test/harness/editor-actions.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 
 describe('debounced undo snapshot: deep path capture', () => {
 	it('records the live deep path when a ref provides getCursorPosition', () => {
@@ -16,7 +17,13 @@ describe('debounced undo snapshot: deep path capture', () => {
 		});
 
 		const controller = createUndoController(deps);
-		controller.pushUndoSnapshotDebounced([0], 3);
+		void controller.typingKeystroke(
+			docPathFrom([0]),
+			3,
+			'leaf',
+			'join-typing',
+			async () => undefined
+		);
 
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo).toHaveLength(1);
@@ -29,7 +36,13 @@ describe('debounced undo snapshot: deep path capture', () => {
 	it('falls back to the passed leaf path when no ref reports a cursor', () => {
 		const { deps } = makeEditorActionsDeps([makeNode('paragraph', 'hi\n')]);
 		const controller = createUndoController(deps);
-		controller.pushUndoSnapshotDebounced([0], 2);
+		void controller.typingKeystroke(
+			docPathFrom([0]),
+			2,
+			'leaf',
+			'join-typing',
+			async () => undefined
+		);
 
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo).toHaveLength(1);
@@ -42,7 +55,13 @@ describe('debounced undo snapshot: deep path capture', () => {
 		deps.blockRefs[0] = stubBlockComponent({ getCursorOffset: () => 4 });
 
 		const controller = createUndoController(deps);
-		controller.pushUndoSnapshotDebounced([0], 1);
+		void controller.typingKeystroke(
+			docPathFrom([0]),
+			1,
+			'leaf',
+			'join-typing',
+			async () => undefined
+		);
 
 		const { undo } = deps.undoManager.getStacks();
 		expect(rangeSelectionOf(undo[0]).anchor.path).toEqual([0]);

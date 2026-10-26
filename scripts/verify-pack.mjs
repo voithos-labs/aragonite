@@ -6,7 +6,8 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { nodeImportFailures } from './node-import.mjs';
 import { collectLeafStrings, requiredPackPaths } from './pack-manifest.mjs';
-import { verifyDevStrip } from './verify-dev-strip.mjs';
+import { BLESS_COMMAND, verifyDevStrip } from './verify-dev-strip.mjs';
+import { checkBudgets, readBaseline } from './measure-baseline.mjs';
 import { verifyPrebuilt } from './verify-prebuilt.mjs';
 import { verifyTypes } from './verify-types.mjs';
 
@@ -73,10 +74,18 @@ if (prebuiltFailures.length) {
 	process.exit(1);
 }
 
-const stripFailures = await verifyDevStrip();
-if (stripFailures.length) {
+const strip = await verifyDevStrip();
+if (strip.failures.length) {
 	console.error(
-		'verify-pack: a production build keeps the dev checks:\n  ' + stripFailures.join('\n  ')
+		'verify-pack: a production build keeps the dev checks:\n  ' + strip.failures.join('\n  ')
+	);
+	process.exit(1);
+}
+const sizeFailures = checkBudgets(strip.sizes, readBaseline(), BLESS_COMMAND);
+if (sizeFailures.length) {
+	console.error(
+		'verify-pack: a minimal app moved past its size budget (docs/contributing/testing.md § Size budgets):\n  ' +
+			sizeFailures.join('\n  ')
 	);
 	process.exit(1);
 }

@@ -36,7 +36,7 @@ export interface InlineCommandsDeps {
 	selection: Pick<SelectionState, 'isCrossBlock'>;
 	widgets: Pick<WidgetInteraction, 'isRevealing' | 'foldRevealBeforeMutation' | 'enterWidget'>;
 	surface: Pick<EditableSurface, 'blockEdit' | 'pendingMarks' | 'insideCloser'>;
-	controller: Pick<UndoController, 'isolateUndoEntry' | 'flushDebouncedCheckpoint'>;
+	controller: Pick<UndoController, 'flushDebouncedCheckpoint'>;
 	linkCard: LinkCardState;
 	/** The text a format toggle rewrites, and the part of it that is the block's content. */
 	formatText: () => { display: string; content: ContentRange };
@@ -107,6 +107,7 @@ export function createInlineCommands(deps: InlineCommandsDeps): InlineCommands {
 			deps.index,
 			withOwnEnding(deps.node, toggled.newDisplay),
 			'literal',
+			'entry',
 			range.start,
 			toggled.newSelStart
 		);
@@ -144,8 +145,7 @@ export function createInlineCommands(deps: InlineCommandsDeps): InlineCommands {
 					? { code: 'command-during-reveal', message: `${id} mutated the block with a reveal open` }
 					: null
 			);
-			// A command is not typing, so one Ctrl+Z undoes the command alone.
-			deps.controller.isolateUndoEntry(write);
+			write();
 		}, offset);
 	}
 

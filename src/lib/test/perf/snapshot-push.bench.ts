@@ -10,6 +10,7 @@ import { createUndoController } from '../../editor-actions/commit/undo-controlle
 import { digestDoc } from '../../invariants/snapshot-integrity';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import { generateFixture, type FixtureShape } from './fixtures/generate';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 
 const SHAPES: FixtureShape[] = ['nested-containers', 'flat-prose'];
 
@@ -31,7 +32,13 @@ for (const shape of SHAPES) {
 			test(label, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
 				await bench(label, () => {
 					// The typing push, flushed so the next keystroke pushes again.
-					controller.pushUndoSnapshotDebounced([0], 0);
+					void controller.typingKeystroke(
+						docPathFrom([0]),
+						0,
+						'leaf',
+						'join-typing',
+						async () => undefined
+					);
 					controller.flushDebouncedCheckpoint();
 				}).run({ warmupIterations: 1, ...opts });
 			});

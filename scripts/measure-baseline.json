@@ -1,0 +1,59 @@
+{
+	"rows": {
+		"productionCodeLines": {
+			"baseline": 73608,
+			"tolerance": 370,
+			"unit": "lines"
+		},
+		"productionCommentLines": {
+			"baseline": 15527,
+			"tolerance": 80,
+			"unit": "lines"
+		},
+		"unitTestsInternal": {
+			"baseline": 1312,
+			"tolerance": 3,
+			"unit": "files"
+		},
+		"unitTestsPublishedOnly": {
+			"baseline": 93,
+			"tolerance": 3,
+			"unit": "files"
+		},
+		"activeSourceScans": {
+			"baseline": 186,
+			"tolerance": 2,
+			"unit": "scans"
+		},
+		"minimalAppSvelteFirstLoadGzip": {
+			"baseline": 316457,
+			"tolerance": 1000,
+			"unit": "B"
+		},
+		"minimalAppSvelteTotalGzip": {
+			"baseline": 316457,
+			"tolerance": 1000,
+			"unit": "B"
+		},
+		"minimalAppSvelteChunks": {
+			"baseline": 1,
+			"tolerance": 0,
+			"unit": "chunks"
+		},
+		"minimalAppPrebuiltFirstLoadGzip": {
+			"baseline": 316266,
+			"tolerance": 1000,
+			"unit": "B"
+		},
+		"minimalAppPrebuiltTotalGzip": {
+			"baseline": 316266,
+			"tolerance": 1000,
+			"unit": "B"
+		},
+		"minimalAppPrebuiltChunks": {
+			"baseline": 1,
+			"tolerance": 0,
+			"unit": "chunks"
+		}
+	}
+}

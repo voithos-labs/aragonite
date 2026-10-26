@@ -19,7 +19,6 @@ import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
@@ -107,12 +106,12 @@ function typeInto(source: string, leafPath: number[], count: number): void {
  *  in-place route, which names the changed child to the rebuild. */
 function typeInPlace(source: string, index: number, raws: string[]): Document {
 	const { deps } = makeEditorActionsDeps(source);
-	const typing = createLeafTyping(deps, createUndoController(deps));
+	const typing = createUndoController(deps);
 	for (const raw of raws) {
 		const owner = deps.doc.children[0];
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
 		const write = legalizeWrite(body, index, raw, 'authored');
-		expect(typing.writeLeafInPlace(docPathFrom([0, index]), write, 0).wrote).toBe(true);
+		expect(typing.typeLeaf(docPathFrom([0, index]), write, 0).wrote).toBe(true);
 	}
 	return deps.doc;
 }

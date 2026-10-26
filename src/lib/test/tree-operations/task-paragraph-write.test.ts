@@ -1,9 +1,9 @@
 // Miss-analysis: no test typed a heading marker into a task paragraph, only outside a list.
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect } from 'vitest';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { updateNodeContent } from '#lib/tree-operations/index.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';

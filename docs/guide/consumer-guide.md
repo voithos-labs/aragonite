@@ -451,7 +451,7 @@ A few things about where a point lands:
 
 - **A point resolves against the blocks on screen**, with one exception: a point below the whole document lands at the real end, even when virtual rendering has the tail unmounted. That landing has to mount its target first, so the call returns `true` and the caret shows up a frame or two later.
 - **In reading mode there's no caret,** so the block the point picks takes focus instead (and becomes the editor's tab stop), and the call still returns `true`.
-- **A point can land between two blocks.** Above a document that opens with a table, say, the caret parks at the document-start boundary rather than clamping into the table. That caret is real (typing there inserts a paragraph) but it isn't part of the public selection shape in this version, so the call returns `true` while `getSelection()` reports `null`.
+- **A point can land between two blocks.** Above a document that opens with a table, say, the caret parks at the document-start boundary rather than clamping into the table. That caret is real (typing there inserts a paragraph) but it isn't part of the public selection shape, so the call returns `true` while `getSelection()` reports `null`.
 
 ### Inserting Markdown at the caret
 
@@ -501,7 +501,7 @@ The ids you can pass:
 
 What the boolean means:
 
-- **`true` means the editor took the command, not that the edit has landed.** In a preview mode (see [Presentation modes](#presentation-modes)), a toggle inside a construct whose markers are showing can land a moment later, so read the outcome on the `edit` channel rather than polling `getSource()`.
+- **`true` means the editor took the command, not that the edit has landed.** When the caret's block has a source open for editing (inline math's `$…$`, say, or a math or diagram block), in any editable mode, the editor saves that source first and the command lands a moment later, as its own undo entry. So read the outcome on the `edit` channel rather than polling `getSource()`.
 - **`false` means nothing changed**, either for one of the reasons `canRunCommand` lists just below, or because the command ran and found nothing it could write.
 
 Two more things before you wire buttons:
@@ -519,6 +519,7 @@ Tells you whether `runCommand(id)` would reach the command right now, which is w
 - a text command on a block that can't run one (a divider, a diagram, a formula)
 - a plugin command whose plugin this editor didn't list
 - the link editor or a heading level while the selection spans blocks (a link lives inside one block, and a heading level is one block's)
+- `history.undo` or `history.redo` with nothing to undo or redo (typing a letter and deleting it again counts as nothing). `runCommand` still answers `true` for those two, since the editor always takes Mod+Z for itself rather than let the browser's own undo loose on the document
 
 `true` means reachable, not that it'll write (across blocks it may find no block that can hold the mark), so keep reading `runCommand`'s boolean too.
 
@@ -613,7 +614,7 @@ events.on('error', (err) => err);
 | Origin       | `context`                                                                                                                           |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `render`     | `path` of the block                                                                                                                 |
-| `commit`     | `op` and `path`                                                                                                                     |
+| `commit`     | `op` and `path`; `op: 'input'` for a keystroke the editor rolled back, whose typed character it took off the screen too             |
 | `command`    | `kind`, `command`, and `plugin` when a plugin owns the command                                                                      |
 | `decoration` | `source`, the decoration source's name; `path` instead when one of a mark's own handlers (`onClick`, `onHover`, `onActivate`) threw |
 | `clipboard`  | `path` the paste was aimed at, when it was aimed at a range                                                                         |

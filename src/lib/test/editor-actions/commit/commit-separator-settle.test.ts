@@ -24,7 +24,7 @@ describe('the commit sequence settle over a window its mutate already settled', 
 	it('leaves an emptied block alone rather than settling its run twice', async () => {
 		const h = makeTopHarness('alpha\n\nx\n\ndelta\n');
 
-		await h.actions.updateBlockContent(1, '\n', 'authored', 0);
+		await h.actions.updateBlockContent(1, '\n', 'authored', 'join-typing', 0);
 
 		expect(serialize(h.deps.doc)).toBe('alpha\n\n\ndelta\n');
 		expectParseConverged(h.deps.doc);
@@ -35,7 +35,7 @@ describe('the commit sequence settle over a window its mutate already settled', 
 	it('leaves a multi-block fill of a blank slot alone', async () => {
 		const h = makeTopHarness('alpha\n\n\ndelta\n');
 
-		await h.actions.updateBlockContent(1, 'p\n\nq\n', 'authored', 0);
+		await h.actions.updateBlockContent(1, 'p\n\nq\n', 'authored', 'join-typing', 0);
 
 		expect(serialize(h.deps.doc)).toBe('alpha\n\np\n\nq\n\ndelta\n');
 		expectParseConverged(h.deps.doc);

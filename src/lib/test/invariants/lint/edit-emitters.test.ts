@@ -17,13 +17,12 @@ import {
 /** The writes, one site each: a commit, a keystroke written in place, undo and redo, and a whole
  *  replace-all. Keyed by function, so a second emit in one of these files still fails. */
 const EDIT_EMITTERS = [
-	'src/lib/editor-actions/commit/history.ts :: restore',
-	'src/lib/editor-actions/commit/undo-controller.ts :: runCommitCeremony',
-	'src/lib/editor-actions/leaf-write.ts :: writeLeafInPlace',
+	'src/lib/editor-actions/commit/commit-frame.ts :: run',
+	'src/lib/editor-actions/commit/history.ts :: install',
 	'src/lib/editor-actions/search-replace.ts :: replaceSubtrees'
 ];
 
-const INPUT_EMITTER = 'src/lib/editor-actions/leaf-write.ts :: writeLeafInPlace';
+const INPUT_EMITTER = 'src/lib/editor-actions/commit/leaf-commit.ts :: typeLeaf';
 
 const EMITS_EDIT = /\bemit\(\s*['"]edit['"]/g;
 

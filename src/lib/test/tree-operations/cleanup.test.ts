@@ -7,6 +7,8 @@ import { createSharingState, type SharingState } from '../../tree-operations/sha
 import type { CstNode, Document } from '../../core/nodes';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { testView } from '#lib/test/support/test-view.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { createScopeWriter } from '#lib/editor-actions/commit/scope-writes.js';
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -33,7 +35,13 @@ function cleanUp(
 	deletedPath: number[],
 	sharing: SharingState = createSharingState()
 ): void {
-	cascadeCleanupEmptyAncestors(root, deletedPath, sharing, defaultGrammarView, '\n');
+	const writer = createScopeWriter(
+		'raw' in root ? root : documentBody(root),
+		sharing,
+		defaultGrammarView,
+		'\n'
+	);
+	cascadeCleanupEmptyAncestors(root, writer, deletedPath);
 }
 
 describe('cascadeCleanupEmptyAncestors', () => {

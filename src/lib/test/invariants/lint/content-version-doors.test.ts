@@ -19,9 +19,8 @@ import { describeManifests } from './file-rule';
 /** Every file naming the announcement, and the write it owns. */
 const ANNOUNCERS: Record<string, string> = {
 	'src/lib/editor-actions/deps.ts': 'the declaration',
-	'src/lib/editor-actions/commit/undo-controller.ts':
-		'the ceremony, covering both publish arms and every structural writer under them',
-	'src/lib/editor-actions/leaf-write.ts': 'the keystroke written in place, at every depth',
+	'src/lib/editor-actions/commit/commit-frame.ts':
+		'the commit frame, under every structural commit and every keystroke written in place',
 	'src/lib/editor-actions/commit/history.ts': 'the undo/redo tree swap',
 	'src/lib/components/Editor.svelte': 'the wiring',
 	'src/lib/components/editor-root/document-swap.ts': 'the `source` prop swap',
@@ -33,27 +32,30 @@ const ANNOUNCERS: Record<string, string> = {
 const ROOT_UNSHARERS: Record<string, string> = {
 	'src/lib/editor-actions/commit/structural-commit.ts':
 		'the commit’s own copy of each block list’s chain',
-	'src/lib/editor-actions/leaf-write.ts': 'announces'
+	'src/lib/editor-actions/commit/leaf-commit.ts': 'the keystroke’s copy of the leaf’s chain'
 };
 
 /** Root unsharers that write only inside the mutate `__commit` runs, which announces and asks the
  *  reading-mode check for them. */
 const INSIDE_THE_COMMIT: Record<string, string> = {
 	'src/lib/editor-actions/commit/structural-commit.ts':
-		'copies each block list’s chain in the mutate the undo controller’s `__commit` runs'
+		'copies each block list’s chain in the mutate the commit frame runs',
+	'src/lib/editor-actions/commit/leaf-commit.ts':
+		'copies the leaf’s chain in the step the commit frame runs after its reading-mode check'
 };
 
-type ReadingCheck = 'admitsWrite' | 'admitsSnapshot';
+type ReadingCheck = 'admitsWrite' | 'admitsSnapshot' | 'admitsHistoryRequest';
 
 /** Writers that must refuse reading mode, and the functions in each that must ask the check. The
  *  `source` prop swap is absent: reading mode allows the host to replace the document. */
 const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> = {
+	'src/lib/editor-actions/commit/commit-frame.ts': { admitsWrite: ['runFrame'] },
 	'src/lib/editor-actions/commit/undo-controller.ts': {
-		admitsWrite: ['__commit'],
-		admitsSnapshot: ['pushCommitSnapshot', 'pushUndoSnapshotDebounced']
+		admitsSnapshot: ['pushCommitSnapshot', 'typingKeystroke']
 	},
-	'src/lib/editor-actions/leaf-write.ts': { admitsWrite: ['writeLeafInPlace'] },
-	'src/lib/editor-actions/commit/history.ts': { admitsWrite: ['requestUndo', 'requestRedo'] }
+	'src/lib/editor-actions/commit/history.ts': {
+		admitsHistoryRequest: ['requestUndo', 'requestRedo']
+	}
 };
 
 /** `check:function` for each named function in `file` that never calls its check. */

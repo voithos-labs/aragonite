@@ -33,6 +33,9 @@ its release, the drag release, a live native range) is in `dead-space-click.md`.
 - A point below a document ending in a thematic break returns `false` and focuses no
   block: a rule holds no character position, and a false answer leaves the shell free
   to do something else with the click.
+- A point in the padding above a document that opens with a table parks a gap caret at
+  the document's start and returns `true`, while `getSelection()` reads `null` (the gap
+  isn't part of the public selection shape). Typing there still inserts a paragraph.
 - A live cross-block range ends when the method lands a caret: the same range-ending
   a click carries, so the next printable key types at the caret instead of replacing
   the whole document.

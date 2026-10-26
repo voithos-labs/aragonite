@@ -41,7 +41,14 @@ describe('a bare fence taking the caret', () => {
 	it('completes and offers a language when the caret was placed, not stepped', async () => {
 		await focusFence('seat');
 
-		expect(completions()).toHaveBeenCalledWith(0, '```\n\n```\n', 'authored', expect.anything(), 4);
+		expect(completions()).toHaveBeenCalledWith(
+			0,
+			'```\n\n```\n',
+			'authored',
+			'join-typing',
+			expect.anything(),
+			4
+		);
 		expect(picker()).not.toBeNull();
 	});
 
@@ -73,7 +80,14 @@ describe('a bare fence taking the caret', () => {
 	it('completes but keeps the caret when the caret stepped in from a neighbour', async () => {
 		await focusFence('step');
 
-		expect(completions()).toHaveBeenCalledWith(0, '```\n\n```\n', 'authored', expect.anything(), 4);
+		expect(completions()).toHaveBeenCalledWith(
+			0,
+			'```\n\n```\n',
+			'authored',
+			'join-typing',
+			expect.anything(),
+			4
+		);
 		expect(picker()).toBeNull();
 	});
 });

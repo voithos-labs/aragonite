@@ -14,7 +14,7 @@ import {
 } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { anchorsOf } from './check-codebase-map.mjs';
-import { corpusFiles } from './doc-corpus.mjs';
+import { citationProblem, corpusFiles, ignoredPaths } from './doc-corpus.mjs';
 
 const SOURCE_DIR = 'docs/guide';
 
@@ -146,6 +146,7 @@ const LINK_ROOTS = ['README.md', 'CONTRIBUTING.md', 'docs'];
 const LINK_ALLOWLIST = new Set();
 
 const corpus = corpusFiles(LINK_ROOTS, ['.md']);
+const ignored = ignoredPaths(['.']);
 
 const deadLinks = [];
 for (const file of corpus) {
@@ -160,7 +161,8 @@ for (const file of corpus) {
 		const link = normalizeTarget(raw);
 		if (link === '' || isExternal(link)) continue;
 		if (LINK_ALLOWLIST.has(`${rel} → ${link}`)) continue;
-		if (!existsSync(join(dirname(file), link))) deadLinks.push(`${rel} → ${raw.trim()}`);
+		if (citationProblem(join(dirname(file), link), ignored))
+			deadLinks.push(`${rel} → ${raw.trim()}`);
 	}
 }
 if (deadLinks.length > 0) {

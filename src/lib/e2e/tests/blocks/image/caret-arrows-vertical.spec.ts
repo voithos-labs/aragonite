@@ -94,9 +94,12 @@ const WRAPPED_IMAGES_DOC =
 	'before paragraph.\n\n![a|500x60](/test-fixtures/sample.png)![b|500x60](/test-fixtures/sample.png)\n\nafter paragraph.\n';
 
 test.describe('vertical arrows inside a wrapped image-only paragraph', () => {
-	test('ArrowUp from beside the second-line image stays in the paragraph', async ({ page }) => {
+	test('ArrowUp from beside the second-line image stays in the paragraph', async ({
+		page,
+		browserName
+	}) => {
 		test.fixme(
-			true,
+			browserName === 'chromium',
 			'#574: Chromium drops the caret beside the trailing image; ArrowUp reads it as raw 0'
 		);
 		const editor = new EditorPage(page);
@@ -127,10 +130,6 @@ test.describe('live mode: vertical arrows onto a picture inside a link', () => {
 		['ArrowUp', 2]
 	] as const) {
 		test(`${key} selects the picture, and a key typed then replaces it`, async ({ page }) => {
-			test.fixme(
-				true,
-				'a vertical arrival asks the block whether it is widget-only, which reads its top-level inlines'
-			);
 			const editor = await enterPresentationMode(page, 'live', LINKED_IMAGE_DOC);
 			await waitForAllImagesLoaded(page);
 			await editor.focusBlockAtPath([from], from === 0 ? 4 : 0);

@@ -13,12 +13,7 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '../../perf/instruments';
-import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-
-// The measurement edits a node an undo snapshot shares by writing raw directly rather than
-// through a commit, which is what the shared-node check reports.
-afterEach(() => allowDevWarns(['invariant:snapshot-integrity']));
 
 // Only `computeInlineContent` bumps `inlineComputeCount`, so an eager inline parse reintroduced
 // anywhere shows up where these checks expect zero.
@@ -80,7 +75,9 @@ describe('lazy inline: undo restore does no inline work', () => {
 		const history = createHistoryActions(deps, controller);
 
 		deps.undoManager.push(controller.captureCurrentState());
-		deps.doc.children[0].raw = 'edited\n';
+		// A new node, as a commit would write, so the entry is a step that changes the bytes.
+		deps.doc.children[0] = para('edited\n');
+		deps.bumpContentVersion();
 
 		resetPerfInstruments();
 		await history.requestUndo();

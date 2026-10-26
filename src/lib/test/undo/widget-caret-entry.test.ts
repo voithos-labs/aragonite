@@ -35,8 +35,7 @@ function harness(imageSelected: boolean) {
 function commitAt(h: ReturnType<typeof harness>, offset: number): Promise<boolean> {
 	return h.controller.commitStructural({
 		snapshot: { path: asDocPath([1]), offset },
-		mutate: () => ({ op: 'noop' }),
-		touchedNodes: []
+		mutate: () => ({ op: 'noop' })
 	});
 }
 

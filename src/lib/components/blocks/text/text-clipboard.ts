@@ -79,6 +79,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 				deps.index,
 				edit.raw,
 				'literal',
+				'join-typing',
 				preSelectOffset,
 				edit.caret
 			);
@@ -104,6 +105,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			deps.index,
 			edit.raw,
 			'literal',
+			'join-typing',
 			deps.surface.caret.getPreEditOffset(),
 			edit.caret
 		);

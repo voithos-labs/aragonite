@@ -318,8 +318,7 @@ function liftItem(ctx: RangeIndentContext, itemPath: number[]): Promise<boolean>
 		target,
 		nestedPath[nestedPath.length - 2],
 		nested,
-		itemPath[itemPath.length - 1],
-		ctx.reading.grammar
+		itemPath[itemPath.length - 1]
 	);
 }
 

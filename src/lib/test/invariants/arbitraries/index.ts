@@ -4,6 +4,7 @@ export {
 	arbIndentedGfmDoc,
 	arbBlankSeparatedGfmDoc,
 	arbRespelledContainerDoc,
+	arbRespelledPluginContainerDoc,
 	arbRespelledTableDoc
 } from './gfm';
 export { arbLargeDoc } from './large';

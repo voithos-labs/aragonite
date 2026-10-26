@@ -11,6 +11,7 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '../../perf/instruments';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 
 function para(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
@@ -20,8 +21,7 @@ function para(raw: string): CstNode {
 function commitNothing(controller: UndoController, index: number): Promise<boolean> {
 	return controller.commitStructural({
 		snapshot: { path: asDocPath([index]), offset: 0 },
-		mutate: () => ({ op: 'noop' }),
-		touchedNodes: []
+		mutate: () => ({ op: 'noop' })
 	});
 }
 
@@ -62,7 +62,13 @@ describe('undo snapshot instrumentation', () => {
 		const { deps, doc } = makeEditorActionsDeps([para('hi\n')]);
 		const controller = createUndoController(deps);
 
-		controller.pushUndoSnapshotDebounced([0], 1);
+		void controller.typingKeystroke(
+			docPathFrom([0]),
+			1,
+			'leaf',
+			'join-typing',
+			async () => undefined
+		);
 		controller.flushDebouncedCheckpoint();
 
 		const snap = perfSnapshot();

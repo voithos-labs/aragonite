@@ -57,7 +57,7 @@ function mountDetails(source: string) {
 describe('details terminator collision through the real commit path', () => {
 	it('escapes a body child that becomes the close tag, leaving the container intact', async () => {
 		const h = mountDetails(OPEN_DETAILS);
-		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 'join-typing', 0);
 
 		const details = h.deps.doc.children[0];
 		expect(details.children?.[1].raw).toBe('&lt;/details>\n');
@@ -68,7 +68,7 @@ describe('details terminator collision through the real commit path', () => {
 
 	it('converges with a fresh parse of its own bytes after the escape', async () => {
 		const h = mountDetails(OPEN_DETAILS);
-		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 'join-typing', 0);
 
 		expect(parse(serialize(h.deps.doc)).children.map((c) => c.kind)).toEqual(['details']);
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
@@ -78,7 +78,7 @@ describe('details terminator collision through the real commit path', () => {
 	// depth count, so the scan finds no close and the details kind vanishes on reload.
 	it('escapes a body child that becomes the open tag', async () => {
 		const h = mountDetails(OPEN_DETAILS);
-		await h.bundle.blockEdit.updateBlockContent(1, '<details>\n', 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, '<details>\n', 'authored', 'join-typing', 0);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;details>\n');
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
@@ -88,7 +88,7 @@ describe('details terminator collision through the real commit path', () => {
 	// at the escape, not the serializer.
 	it('keeps the byte round-trip intact throughout', async () => {
 		const h = mountDetails(OPEN_DETAILS);
-		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 'join-typing', 0);
 
 		const bytes = serialize(h.deps.doc);
 		expect(serialize(parse(bytes))).toBe(bytes);
@@ -98,7 +98,13 @@ describe('details terminator collision through the real commit path', () => {
 	// entities do not decode inside a fence, so escaping it would corrupt the code's text.
 	it('declines to escape a close tag inside a fenced code body', async () => {
 		const h = mountDetails(OPEN_DETAILS);
-		await h.bundle.blockEdit.updateBlockContent(1, '```\n</details>\n```\n', 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(
+			1,
+			'```\n</details>\n```\n',
+			'authored',
+			'join-typing',
+			0
+		);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe('```\n</details>\n```\n');
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
@@ -117,7 +123,7 @@ describe('details terminator collision through the real commit path', () => {
 
 	it.each(passthroughVariants)('escapes the passthrough variant %j', async (typed, escaped) => {
 		const h = mountDetails(OPEN_DETAILS);
-		await h.bundle.blockEdit.updateBlockContent(1, `${typed}\n`, 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, `${typed}\n`, 'authored', 'join-typing', 0);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe(`${escaped}\n`);
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0], fixtureGrammar)).toBeNull();
@@ -129,7 +135,7 @@ describe('details terminator collision through the real commit path', () => {
 	it('declines to escape a balanced nested pair inside an html child', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		const nested = '<div>\n<details>\n<summary>x</summary>\n</details>\n</div>\n';
-		await h.bundle.blockEdit.updateBlockContent(1, nested, 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, nested, 'authored', 'join-typing', 0);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe(nested);
 	});
@@ -141,7 +147,14 @@ describe('details terminator escape caret image', () => {
 
 		// Caret after the typed `>` (offset 10) lands after the escaped `>` (13):
 		// the `<` ahead of it grew to `&lt;`.
-		const write = h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 0, 10);
+		const write = h.bundle.blockEdit.updateBlockContent(
+			1,
+			'</details>\n',
+			'authored',
+			'join-typing',
+			0,
+			10
+		);
 		await write;
 		expect(admittedCaret(write)).toBe(13);
 	});
@@ -149,7 +162,14 @@ describe('details terminator escape caret image', () => {
 	it('leaves a caret in an untouched line where it was', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 
-		const write = h.bundle.blockEdit.updateBlockContent(1, 'plain body\n', 'authored', 0, 5);
+		const write = h.bundle.blockEdit.updateBlockContent(
+			1,
+			'plain body\n',
+			'authored',
+			'join-typing',
+			0,
+			5
+		);
 		await write;
 		expect(admittedCaret(write)).toBe(5);
 	});
@@ -157,7 +177,14 @@ describe('details terminator escape caret image', () => {
 	it('is a no-op over already-escaped bytes, so a re-commit cannot double-escape', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 
-		const write = h.bundle.blockEdit.updateBlockContent(1, '&lt;/details>\n', 'authored', 0, 13);
+		const write = h.bundle.blockEdit.updateBlockContent(
+			1,
+			'&lt;/details>\n',
+			'authored',
+			'join-typing',
+			0,
+			13
+		);
 		await write;
 		expect(admittedCaret(write)).toBe(13);
 	});
@@ -211,6 +238,7 @@ describe('details terminator escape caret image', () => {
 				1,
 				`${typed.slice(0, i)}\n`,
 				'authored',
+				'join-typing',
 				i - 1,
 				i
 			);
@@ -228,7 +256,14 @@ describe('details terminator escape caret image', () => {
 		const h = mountDetails('<details>\n<summary>T</summary>\n\n```\nx\n```\n\n</details>\n');
 		expect(h.deps.doc.children[0].children?.[1].kind).toBe('fencedCode');
 
-		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 'authored', 0, 10);
+		await h.bundle.blockEdit.updateBlockContent(
+			1,
+			'</details>\n',
+			'authored',
+			'join-typing',
+			0,
+			10
+		);
 
 		expect(h.deps.doc.children[0].children?.[1].raw).toBe('&lt;/details>\n');
 		expect(h.deps.doc.children[0].children?.[1].kind).toBe('paragraph');

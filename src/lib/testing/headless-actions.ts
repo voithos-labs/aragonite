@@ -28,6 +28,7 @@ import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
+import { createDraftRegistry } from '../components/draft-registry';
 
 // ── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ export function stubBlockEdit(): BlockEditActions {
 		mergeWithPrevious: wroteNothing,
 		mergeWithNext: wroteNothing,
 		deleteBlock: wroteNothing,
-		updateBlockContent: (_index, _text, _mode, preEditOffset, postEditFocusOffset) =>
+		updateBlockContent: (_index, _text, _mode, _history, preEditOffset, postEditFocusOffset) =>
 			withStoredCaret(Promise.resolve(false), postEditFocusOffset ?? preEditOffset),
 		completeLineOnType: wroteNothing,
 		completeMarker: wroteNothing,
@@ -159,6 +160,8 @@ export function createHeadlessActions(
 	);
 	const events = createEditorEvents();
 	const landings: RecordedLanding[] = [];
+	let contentVersion = 0;
+	const stamps = createDocumentStamps();
 	const deps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -180,8 +183,11 @@ export function createHeadlessActions(
 		setBlockRefs: (next: (BlockComponent | undefined)[]) => {
 			replaceRefs(blockRefs, next);
 		},
-		bumpContentVersion: options.bumpContentVersion ?? (() => {}),
-		undoManager: createUndoManager(),
+		bumpContentVersion: () => {
+			contentVersion++;
+			options.bumpContentVersion?.();
+		},
+		undoManager: createUndoManager({ doc: () => doc, version: () => contentVersion }),
 		sharing: createSharingState(),
 		caretMemory: spy(stubCaretMemory()),
 		// Document-aware, as the editor's own is: without the document a deep table endpoint is
@@ -202,7 +208,8 @@ export function createHeadlessActions(
 		events,
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
 		reading: options.reading ?? kitReading(),
-		stamps: createDocumentStamps()
+		stamps,
+		drafts: createDraftRegistry(stamps)
 	};
 	// No render window: nothing mounts later, so an empty entry counts as out of range.
 	const rootList: ChildList = {

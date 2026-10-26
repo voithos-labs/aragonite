@@ -100,7 +100,14 @@ describe('a typing burst that ends in a kind change is one undo entry', () => {
 				const typed = mount(source);
 
 				for (const [text, pre, post] of keys) {
-					await typed.actions.updateBlockContent(leafPath.at(-1)!, text, 'authored', pre, post);
+					await typed.actions.updateBlockContent(
+						leafPath.at(-1)!,
+						text,
+						'authored',
+						'join-typing',
+						pre,
+						post
+					);
 				}
 
 				expect(nodeAt(typed.doc, leafPath)?.kind).toBe(kind);
@@ -120,10 +127,17 @@ describe('the kind-changing keystroke pushes and commits before it first yields'
 	for (const { level, wrap, leafPath, mount } of LEVELS) {
 		it(level, async () => {
 			const typed = mount(wrap('#x\n'));
-			const push = vi.spyOn(typed.controller, 'pushUndoSnapshotDebounced');
+			const push = vi.spyOn(typed.controller, 'typingKeystroke');
 			const commit = vi.spyOn(typed.controller, typed.commitName);
 
-			const write = typed.actions.updateBlockContent(leafPath.at(-1)!, '# x\n', 'authored', 1, 2);
+			const write = typed.actions.updateBlockContent(
+				leafPath.at(-1)!,
+				'# x\n',
+				'authored',
+				'join-typing',
+				1,
+				2
+			);
 
 			expect(push).toHaveBeenCalledTimes(1);
 			expect(commit).toHaveBeenCalledTimes(1);

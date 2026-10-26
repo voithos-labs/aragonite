@@ -55,10 +55,10 @@ import {
 } from '#lib/test/harness/editor-actions.js';
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
-import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { deleteRange } from '../harness/range-delete';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 export type GestureKind =
 	| 'type'
@@ -294,13 +294,26 @@ async function writeInsideContainer(
 	const body = trimTrailingLineEnding(seeded.raw);
 	// No delimiters, so the only run the screen checks count is the drawn character's.
 	const withSibling = body + ending + ending + 'seed' + ending;
-	await h.bundle.blockEdit.updateBlockContent(seed.path[1], withSibling, 'authored', 0);
+	await h.bundle.blockEdit.updateBlockContent(
+		seed.path[1],
+		withSibling,
+		'authored',
+		'join-typing',
+		0
+	);
 
 	const node = children()[target.path[1]];
 	if (!node) return null;
 	if (gesture.kind === 'blank-in-container') {
 		const ending = trailingLineEnding(node.raw, '\n');
-		await h.bundle.blockEdit.updateBlockContent(target.path[1], ending, 'authored', 1, 0);
+		await h.bundle.blockEdit.updateBlockContent(
+			target.path[1],
+			ending,
+			'authored',
+			'join-typing',
+			1,
+			0
+		);
 	} else {
 		const at = drawnOffset(node, gesture, gesture.endOffset);
 		const text = node.raw.slice(0, at) + gesture.char + node.raw.slice(at);
@@ -308,6 +321,7 @@ async function writeInsideContainer(
 			target.path[1],
 			text,
 			'authored',
+			'join-typing',
 			at,
 			at + gesture.char.length
 		);
@@ -447,7 +461,12 @@ async function nativeType(
 ): Promise<void> {
 	const { node } = leaf;
 	const display = trimTrailingLineEnding(node.raw);
-	const typed = { intent: 'typed', mode: 'authored', source: 'simulation' } as const;
+	const typed = {
+		intent: 'typed',
+		history: 'join-typing',
+		mode: 'authored',
+		source: 'simulation'
+	} as const;
 	// Every typed byte goes through the delimiter auto-pair handler in every mode (G4.65); a drawn
 	// document holds no pair that handler wrote.
 	const paired = resolveDelimiterAutoPair(
@@ -516,6 +535,7 @@ function toggleFormat(
 		index,
 		toggled.newDisplay + trailingLineEnding(node.raw, '\n'),
 		'authored',
+		'join-typing',
 		range.start,
 		toggled.newSelStart
 	);
@@ -549,13 +569,21 @@ function wordDelete(
 			index,
 			splice(node.raw, range.start, range.end, ''),
 			'authored',
+			'join-typing',
 			range.start,
 			range.start
 		);
 		return false;
 	}
 	if (edit.kind === 'rewrite') {
-		void blockEdit.updateBlockContent(index, edit.raw, 'authored', edit.range.start, edit.caret);
+		void blockEdit.updateBlockContent(
+			index,
+			edit.raw,
+			'authored',
+			'join-typing',
+			edit.range.start,
+			edit.caret
+		);
 	}
 	return true;
 }
@@ -573,7 +601,14 @@ function replaceSelection(
 	if (range === null) return false;
 	const edit = replaceRangeInLeaf(node, range, gesture.char, storeOf(h, leaf, mode));
 	if (!edit.matchesBrowserEdit) {
-		void blockEdit.updateBlockContent(index, edit.raw, 'authored', range.start, edit.caret);
+		void blockEdit.updateBlockContent(
+			index,
+			edit.raw,
+			'authored',
+			'join-typing',
+			range.start,
+			edit.caret
+		);
 		return true;
 	}
 	const raw = splice(node.raw, range.start, range.end, gesture.char);
@@ -581,6 +616,7 @@ function replaceSelection(
 		index,
 		raw,
 		'authored',
+		'join-typing',
 		range.start,
 		range.start + gesture.char.length
 	);
@@ -615,7 +651,13 @@ function acrossLeaves(
 	);
 	// A toggle the planner turns down writes nothing, which is that code's own answer rather than
 	// a gesture the fuzzer failed to apply.
-	if (plan) applyCrossBlockFormat(documentBody(h.doc), plan, h.sharing, defaultGrammarView);
+	if (plan)
+		writtenBelow(
+			h.doc,
+			(scope) => applyCrossBlockFormat(scope, plan),
+			defaultGrammarView,
+			h.sharing
+		);
 	return true;
 }
 

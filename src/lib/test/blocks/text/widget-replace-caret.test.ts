@@ -42,6 +42,7 @@ function keyWrite(
 		writeText({
 			...rangeWrite(getNode(), edit),
 			intent: 'typed',
+			history: 'join-typing',
 			mode: 'authored',
 			source: 'widget',
 			sessionAnchor: anchor
@@ -77,6 +78,7 @@ function fixture() {
 				_: number,
 				raw: string,
 				_mode: string,
+				_history: string,
 				before: number,
 				after: number
 			) => {

@@ -51,6 +51,7 @@ describe('paste into a reserved-chrome leaf', () => {
 			0,
 			'Titleone two\n',
 			'literal',
+			'join-typing',
 			5,
 			12
 		);
@@ -93,6 +94,7 @@ describe('paste into a reserved-chrome leaf', () => {
 			0,
 			'Title- a - b\n',
 			'literal',
+			'join-typing',
 			5,
 			12
 		);

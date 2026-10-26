@@ -9,7 +9,6 @@ import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { commitLeafTextAt } from '#lib/editor-actions/block-edit-core.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
@@ -108,8 +107,8 @@ const ROUTES: [string, Route][] = [
 			const lineEnding = documentLineEnding(h.deps.doc);
 			const body = { children: owner.children!, owner, lineEnding };
 			const write = legalizeWrite(body, leaf[leaf.length - 1], text, 'authored');
-			const typing = createLeafTyping(h.deps, h.controller);
-			expect(typing.writeLeafInPlace(docPathFrom(leaf), write, 0).wrote).toBe(true);
+			const typing = h.controller;
+			expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);
 		}
 	],
 	[

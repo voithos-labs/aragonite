@@ -1,13 +1,14 @@
 /**
  * G4.237: a test never navigates a page its `beforeEach` already navigated. A test that needs
  * another URL gets its own describe with its own navigating `beforeEach`. A navigation is a call to
- * `gotoReady` or `reloadReady`, or to any e2e helper that reaches one, found by name.
+ * `gotoReady`, `reloadReady` or `gotoUnhydrated`, or to any e2e helper that reaches one, found by
+ * name.
  */
 import { describe, it, expect } from 'vitest';
 import ts from 'typescript';
 import { collectFiles, readSource } from '../../test/invariants/lint/scan-source';
 
-const NAVIGATIONS = ['gotoReady', 'reloadReady'];
+const NAVIGATIONS = ['gotoReady', 'reloadReady', 'gotoUnhydrated'];
 
 // Each a test that navigates again on purpose, by path and title.
 const ALLOWED: Record<string, string> = {

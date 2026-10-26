@@ -6,10 +6,10 @@ import { serialize } from '#lib/core/serializer.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { removeHeldWhole } from '#lib/selection/range-delete.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { deleteRange } from '../harness/range-delete';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { expectParseConverged } from '../harness/parse-converged';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 const cell = (path: number[], offset: number): SelectionPoint => ({
@@ -92,7 +92,11 @@ describe('a range removal keeps each ordered list’s numbers consecutive from i
 	it.each(ROWS)('Backspace over $shape, every covered block taken whole', (row) => {
 		const doc = parse(row.source);
 		const coverage = rangeCoverage(doc, coverRange(doc, row.start, row.end));
-		removeHeldWhole(doc, coverage, createSharingState(), fixtureReading(), 'Backspace');
+		writtenBelow(
+			doc,
+			(scope) => removeHeldWhole(doc, coverage, scope, fixtureReading(), 'Backspace'),
+			fixtureReading().grammar
+		);
 		expect(serialize(doc)).toBe(row.whole);
 		expectParseConverged(doc);
 	});

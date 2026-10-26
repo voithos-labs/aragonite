@@ -4,8 +4,9 @@
  * a write to the bytes it was seeded from drops it.
  */
 
-/** Why the editor closes its drafts: a swap drops them, a mode change can still save them. */
-export type DraftCloseCause = 'mode-change' | 'document-swap';
+/** Why the editor closes its drafts: a `source` swap drops them; a mode change, or an undo or redo
+ *  about to replace the document, can still save them. */
+export type DraftCloseCause = 'mode-change' | 'undo' | 'document-swap';
 
 export interface DraftSpec {
 	/** The bytes the draft was opened on. */

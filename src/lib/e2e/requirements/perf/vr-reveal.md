@@ -9,8 +9,8 @@ revert cleanly and restore focus.
 ## User interactions
 
 - Ctrl+Shift+End from block 0 selects to the document end, collapsing the caret into the originally off-window last block; typing a character there lands it at the end of the source (exercises the cross-block scroll-and-await branch).
-- After scrolling block 0 off-window, undo of an edit made in block 0 reverts cleanly: the typed character is removed from the source, no page error fires, and a subsequent type re-appears in block 0 (scrolling it back restored focus there). Undo's keydown is handled by a block, so a still-mounted block is focused first to route the keypress; undo itself belongs to the editor and still targets block 0, so block 0 must be scrolled back. Known windowing limitation: scrolling the caret's block past the limit on how far it is kept mounted drops the browser's focus, so Ctrl+Z does nothing until a mounted block holds focus.
-- Undo fires after the caret's block is windowed out (F2): after an edit whose block scrolls out of the window, a mounted block is focused to route the Ctrl+Z keydown, and undo still reverts the off-window edit and scrolls the block back into view. Reverting the listener that focuses a mounted block leaves the keypress doing nothing and the typed character in place.
+- After scrolling block 0 off-window, undo of an edit made in block 0 reverts cleanly: the typed character is removed from the source, no page error fires, and a subsequent type re-appears in block 0 (scrolling it back restored focus there). The caret goes to a still-mounted block far from block 0 before the Ctrl+Z, and undo belongs to the editor rather than that block, so it still targets block 0 and has to scroll it back.
+- Undo fires after the caret's block is windowed out (F2): scrolling the caret's block past the limit on how far it's kept mounted drops focus to the page body, and Ctrl+Z still reaches the editor last interacted with, reverts the off-window edit and scrolls the block back. Removing the editor's page-level keydown listener leaves the keypress doing nothing and the typed character in place.
 
 ## Nested reveal (Phase 3)
 

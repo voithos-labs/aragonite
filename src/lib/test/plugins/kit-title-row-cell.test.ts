@@ -21,6 +21,7 @@ import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { testClosure } from '#lib/test/support/closure.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { testView } from '#lib/test/support/test-view.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 interface TitledMetadata {
 	title: string;
@@ -95,6 +96,8 @@ describe('the container kit writes the title row (#640)', () => {
 		await expect(
 			runContainerConformance(kind, profileFor(':::titled T\nbody\n:::\n'))
 		).rejects.toThrow(/titleRow: .*titled\.title: live "T" != reparsed/);
+		// The keystroke's own dev checks see the stale title first.
+		allowDevWarns(['invariant:opaque-stale-raw', 'invariant:reads-back']);
 	});
 
 	it.each([

@@ -111,7 +111,7 @@ if (write.admitted && write.keepsCaret) requestCaret(write.caret); // 6, unless 
 await write; // true once the bytes are in
 ```
 
-A block's own editable element doesn't call it by hand for typing, though. The input read-back, the keys a surface types for you (an auto-pair's partner, a Tab) and a plugin source's commit all go through one call, `src/lib/components/blocks/editable/surface-write.ts` :: `writeText`. You hand it the new text and where the caret goes, and it picks where undo will put the caret, keeps the block's line ending, and puts the caret back.
+A block's own editable element doesn't call it by hand for typing, though. The input read-back, the keys a surface types for you (an auto-pair's partner, a Tab) and a plugin source's commit all go through one call, `src/lib/components/blocks/editable/surface-write.ts` :: `writeText`. You hand it the new text, where the caret goes and whether it's typing or a command (`history`, `commit-and-undo.md` § Undo / redo), and it picks where undo will put the caret, keeps the block's line ending, and puts the caret back.
 
 If you add a new place that reads the browser's own edits back, pass them through `src/lib/core/line-ending-pairs.ts` :: `keepLineEndingPairs` first, since WebKit and Firefox will happily put a typed letter between a CRLF's `\r` and `\n` (G1.117 warns when a pair gets split anyway).
 

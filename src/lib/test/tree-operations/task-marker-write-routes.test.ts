@@ -60,7 +60,14 @@ describe('every write that can replace a to-do’s first block drops the marker 
 	it('the keystroke inside the to-do, where typing a delimiter row makes a table', async () => {
 		const h = makeContainerHarness('- [ ] | a |\n', [0, 0]);
 
-		await h.bundle.blockEdit.updateBlockContent(0, '| a |\n| - |\n', 'authored', 5, 11);
+		await h.bundle.blockEdit.updateBlockContent(
+			0,
+			'| a |\n| - |\n',
+			'authored',
+			'join-typing',
+			5,
+			11
+		);
 
 		expect(serialize(h.deps.doc)).toBe('- | a |\n  | - |\n');
 		expect(h.getNode().children![0].kind).toBe('table');

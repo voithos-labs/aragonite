@@ -115,7 +115,7 @@ function rebuildItemReadingEveryLine(item: CstNode): boolean {
 	};
 	const lines = listItemLines(shape);
 	const previous = readEveryLine(before ? listItemLines(before) : lines);
-	return rebuildStripRaw(item, lines, undefined, previous).rereads;
+	return rebuildStripRaw(item, lines, { previous }).rereads;
 }
 
 /** Every container rebuilt innermost first, as shipped or reading every line, and what each
@@ -127,7 +127,7 @@ function rebuildAll(nodes: readonly CstNode[], readingEveryLine: boolean): unkno
 		let rereads: boolean | undefined;
 		if (!readingEveryLine) rereads = rebuildContainerRawIfContainer(node)?.rereads;
 		else if (node.kind === 'blockquote') {
-			rereads = rebuildStripRaw(node, quoteLines, undefined, readEveryLine(quoteLines)).rereads;
+			rereads = rebuildStripRaw(node, quoteLines, { previous: readEveryLine(quoteLines) }).rereads;
 		} else if (node.kind === 'listItem') rereads = rebuildItemReadingEveryLine(node);
 		else if (node.kind === 'list') rebuildConcatRaw(node);
 		else rereads = rebuildContainerRawIfContainer(node)?.rereads;

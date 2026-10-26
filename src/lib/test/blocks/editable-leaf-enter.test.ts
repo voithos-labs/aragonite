@@ -93,6 +93,7 @@ describe('Enter in an editable leaf', () => {
 			0,
 			'@@ two\n',
 			'authored',
+			'entry',
 			6,
 			6
 		);

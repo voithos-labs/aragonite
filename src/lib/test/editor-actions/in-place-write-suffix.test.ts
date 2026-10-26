@@ -34,7 +34,7 @@ describe('typing in place at the end of a document', () => {
 		const suffix = h.deps.doc.suffix;
 		const commit = vi.spyOn(h.controller, 'commitStructural');
 
-		await h.actions.updateBlockContent(index, text, 'authored', 0, 1);
+		await h.actions.updateBlockContent(index, text, 'authored', 'join-typing', 0, 1);
 
 		expect(serialize(h.deps.doc)).toBe(result);
 		expect(h.deps.doc.suffix).toBe(suffix);

@@ -1,18 +1,40 @@
 import { test, expect } from '../fixtures';
 import { gotoReady } from '../goto-ready';
 import { skipUnlessSupported } from '../browser-engine';
+import type { Locator, Page } from '@playwright/test';
 
-// The `/changelog` route at phone width, where a header row that could not wrap would push the
-// older release groups, both mode chips and the link past the right edge. Everything else about the
-// route is in plugins/changelog-route.spec.ts. Requirements: e2e/requirements/mobile-changelog.md.
+// The `/changelog` route at phone width, where the release families fold into one chip and its
+// list, and a bar that could not fit would push the way back or the theme switch past the right
+// edge. Everything else about the route is in plugins/changelog-route.spec.ts. Requirements:
+// e2e/requirements/mobile-changelog.md.
 
 const PHONE = { width: 320, height: 640 };
 
-// The first release group, so no later one can take its place at the end of the picker.
+// The first release family, so no later one can take its place at the end of the list.
 const OLDEST = '0.1';
-// Anchored, since the newest group's title starts with this one's; `toHaveText` keeps the space
+// Anchored, since the newest family's title starts with this one's; `toHaveText` keeps the space
 // after the heading's marker, hence the `\s*`.
 const OLDEST_TITLE = /Changelog 0\.1\s*$/;
+
+/** Every link and button the header shows, an open family list's options included. */
+function controls(page: Page): Locator {
+	return page.locator('.changelog-header :is(a, button):visible');
+}
+
+/** The labels of the controls in `targets` that are not wholly on screen. */
+function offscreen(targets: Locator): Promise<string[]> {
+	return targets.evaluateAll(
+		(els, { width, height }) =>
+			els
+				.map((el) => ({
+					label: el.getAttribute('aria-label') ?? el.textContent?.trim() ?? '',
+					box: el.getBoundingClientRect()
+				}))
+				.filter(({ box }) => box.left < 0 || box.right > width || box.bottom > height)
+				.map(({ label }) => label),
+		PHONE
+	);
+}
 
 test.use({ viewport: PHONE, hasTouch: true });
 
@@ -38,46 +60,54 @@ test.describe('/changelog on a phone', () => {
 			.toEqual({ pagePan: 0, headerPan: 0 });
 	});
 
-	test('every chip and the showcase link lies inside the viewport', async ({ page }) => {
-		const targets = page.locator('.changelog-chip, .changelog-link');
-		// A lower bound, not an exact count: release groups only ever get added.
-		expect(await targets.count(), 'the header census matched nothing').toBeGreaterThanOrEqual(13);
-
-		const offscreen = await targets.evaluateAll(
-			(els, width) =>
-				els
-					.map((el) => ({ label: el.textContent?.trim() ?? '', box: el.getBoundingClientRect() }))
-					.filter(({ box }) => box.left < 0 || box.right > width)
-					.map(({ label }) => label),
-			PHONE.width
-		);
-		expect(offscreen).toEqual([]);
+	test('the wordmark, the family chip, the showcase link and the theme switch lie on screen', async ({
+		page
+	}) => {
+		await expect(page.locator('.changelog-family-trigger')).toBeVisible();
+		await expect(page.locator('.changelog-link')).toBeVisible();
+		await expect(page.getByTestId('theme-toggle')).toBeVisible();
+		expect(
+			await controls(page).count(),
+			'the header census matched nothing'
+		).toBeGreaterThanOrEqual(4);
+		expect(await offscreen(controls(page))).toEqual([]);
 	});
 
-	test('a tap on the oldest family chip swaps the document', async ({ page }) => {
+	test('the family chip lists every family on screen and a tap swaps the document', async ({
+		page
+	}) => {
 		skipUnlessSupported(page, 'touch');
 		const heading = page.locator('[data-block-kind="heading"]').first();
-		const active = page.locator('.changelog-family.active');
-		await expect(active).not.toHaveAttribute('data-family', OLDEST);
+		const trigger = page.locator('.changelog-family-trigger');
+		await expect(trigger).not.toHaveAccessibleName(`Release family: ${OLDEST}`);
 		await expect(heading).not.toHaveText(OLDEST_TITLE);
 
-		await page.locator(`.changelog-family[data-family="${OLDEST}"]`).tap();
+		await trigger.tap();
+		const options = page.locator('.changelog-family-option');
+		// A floor, since families only get added; counted first, so the on-screen check below
+		// cannot pass on a list that never opened.
+		await expect.poll(() => options.count()).toBeGreaterThanOrEqual(11);
+		expect(await offscreen(options)).toEqual([]);
 
-		await expect(active).toHaveAttribute('data-family', OLDEST);
+		await page.locator(`.changelog-family-option[data-family="${OLDEST}"]`).tap();
+		await expect(options).toHaveCount(0);
+		await expect(trigger).toHaveAccessibleName(`Release family: ${OLDEST}`);
 		await expect(heading).toHaveText(OLDEST_TITLE);
 	});
 
-	test('every chip and the link clears the thumb minimum', async ({ page }) => {
+	test('every header control and family option clears the thumb minimum', async ({ page }) => {
 		skipUnlessSupported(page, 'touch');
-		// WCAG 2.2 AA (2.5.8), not Apple's 44px: the header carries a chip per release group,
-		// and 44 each would cost the document more rows than the condensed header saves.
-		const sides = await page.locator('.changelog-chip, .changelog-link').evaluateAll((els) =>
+		// WCAG 2.2 AA (2.5.8), the 24px minimum the rest of the demo's phone layout holds to.
+		await page.locator('.changelog-family-trigger').tap();
+		await expect(page.locator('.changelog-family-option').first()).toBeVisible();
+
+		const sides = await controls(page).evaluateAll((els) =>
 			els.map((el) => {
 				const box = el.getBoundingClientRect();
 				return Math.min(box.width, box.height);
 			})
 		);
-		expect(sides.length).toBeGreaterThanOrEqual(13);
+		expect(sides.length).toBeGreaterThanOrEqual(15);
 		expect(Math.min(...sides)).toBeGreaterThanOrEqual(24);
 	});
 

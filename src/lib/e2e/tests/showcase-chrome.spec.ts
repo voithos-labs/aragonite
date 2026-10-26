@@ -179,6 +179,6 @@ test.describe('/ showcase chrome', () => {
 		// still looks plausible, so what the destination page shows is the real check.
 		await clickInPlace(page.getByRole('link', { name: 'changelog' }));
 		await expect(page).toHaveURL(/\/changelog\/?$/);
-		await expect(page.locator('.changelog-tag')).toBeVisible();
+		await expect(page.locator('.changelog-label')).toBeVisible();
 	});
 });

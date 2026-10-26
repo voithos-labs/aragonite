@@ -1,10 +1,10 @@
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
 import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { updateNodeContent } from '#lib/tree-operations/index.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
@@ -72,11 +72,11 @@ describe('typing into a body that ends in an empty paragraph after a bare separa
 	});
 });
 
-// A list item rebuild keeps the indented separator's bytes; the footnote still writes it bare.
+// A list item's or a footnote's rebuild keeps the indented separator's bytes.
 describe('typing into a body whose separator line was indented', () => {
 	it.each([
 		['a list item', '- a\n  \n  \n- c\n', [0, 0, 0], '- ax\n  \n  \n- c\n'],
-		['a footnote', '[^1]: a\n    \n    \nnext\n', [0, 0], '[^1]: ax\n\n    \nnext\n'],
+		['a footnote', '[^1]: a\n    \n    \nnext\n', [0, 0], '[^1]: ax\n    \n    \nnext\n'],
 		[
 			'a nested item',
 			'- a\n  - b\n    \n    \n- c\n',

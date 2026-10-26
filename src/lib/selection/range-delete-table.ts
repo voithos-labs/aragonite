@@ -16,19 +16,18 @@ import {
 	type GridCoverage,
 	type RangeCoverage
 } from './range-coverage';
-import type { SharingState } from '../tree-operations/sharing';
+import type { ScopeWrites } from '../action-contracts';
 import { displayLength } from '../core/lines';
 import { cellRowCol } from '../caret/coordinate-spaces';
 import { cellIndexOf } from './primitives';
 import {
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
-	rebuildAfterDeletion,
+	renumberAfterDeletion,
 	truncateEndInPlace,
 	truncateStartInPlace
 } from './range-delete-ceremony';
-import { ensureUnsharedPath, ensureUnsharedSubtree } from '../tree-operations/unshare';
-import { attachedChainPrefix, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { ensureUnsharedSubtree } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { caretWhereRangeResumes } from './range-delete-chrome';
 import type { RemovalLanding } from './removal-landing';
@@ -46,19 +45,17 @@ export function clearGridCells(
 	doc: Document,
 	coverage: RangeCoverage,
 	grid: GridCoverage,
-	sharing: SharingState,
-	reading: Reading
+	scope: ScopeWrites
 ): RangeDeleteResult {
-	const chain = ensureUnsharedPath(doc, grid.path, sharing);
+	const chain = scope.own(grid.path);
 	const table = chain[chain.length - 1];
-	ensureUnsharedSubtree(table, sharing);
+	ensureUnsharedSubtree(table, scope.sharing);
 	const { top, left, rows, cols } = grid.rect;
 	for (let r = top; r < top + rows; r++) {
 		const row = table.children![r];
 		for (let c = left; c < left + cols; c++) row.children![c].raw = '';
 		rebuildTableRowRaw(row);
 	}
-	rebuildUnsharedChain(doc, chain, sharing, null, reading.grammar);
 
 	const columnCount = metadataOf(table, 'table').columnCount;
 	const { row, col } = cellRowCol(
@@ -74,30 +71,29 @@ export function clearGridCells(
 export function tableAwareRangeDelete(
 	doc: Document,
 	coverage: RangeCoverage,
-	sharing: SharingState,
+	scope: ScopeWrites,
 	reading: Reading,
 	landing: RemovalLanding
 ): RangeDeleteResult {
-	const { grammar } = reading;
 	const { start, end } = coverage.range;
 	const { startEdge, endEdge } = coverage;
 
 	// Copy both kept endpoint chains, and a kept table's whole subtree (cell raws, row splices and
 	// the header promotion all write at depth), before any capture or mutation.
-	const startChain = startEdge ? ensureUnsharedPath(doc, start.path, sharing) : null;
-	const endChain = endEdge ? ensureUnsharedPath(doc, end.path, sharing) : null;
+	const startChain = startEdge ? scope.own(start.path) : null;
+	const endChain = endEdge ? scope.own(end.path) : null;
 	const startBlock = startChain?.[startChain.length - 1] ?? null;
 	const endBlock = endChain?.[endChain.length - 1] ?? null;
 	const { startCells, endCells } = coverage;
 	const startTable = startCells ? startBlock : null;
 	const endTable = endCells ? endBlock : null;
-	if (startTable) ensureUnsharedSubtree(startTable, sharing);
-	if (endTable) ensureUnsharedSubtree(endTable, sharing);
+	if (startTable) ensureUnsharedSubtree(startTable, scope.sharing);
+	if (endTable) ensureUnsharedSubtree(endTable, scope.sharing);
 
 	const startSplice = startTable && startCells ? deleteCoveredRows(startTable, startCells) : null;
 	const endSplice = endTable && endCells ? deleteCoveredRows(endTable, endCells) : null;
 
-	const plan = planCrossBlockDeletion(doc, coverage, [], sharing);
+	const plan = planCrossBlockDeletion(doc, coverage, [], scope);
 	// A kept text end truncates first, while its path is still valid, and never merges.
 	if (endBlock && !endTable) {
 		const endC = nearestChromeContainer(doc, end.path);
@@ -107,11 +103,11 @@ export function tableAwareRangeDelete(
 			endBlock,
 			endC !== null && isChromeChild(endC, end.path),
 			reading,
-			sharing,
+			scope,
 			'tableAwareRangeDelete:end'
 		);
 	}
-	applyPlannedDeletion(doc, plan, grammar);
+	applyPlannedDeletion(doc, plan);
 	// Every deletion sits after the start in document order, so its path is still live.
 	let seam: number | null = null;
 	if (startBlock && !startTable) {
@@ -122,16 +118,11 @@ export function tableAwareRangeDelete(
 			startBlock,
 			startC !== null && isChromeChild(startC, start.path),
 			reading,
-			sharing,
+			scope,
 			'tableAwareRangeDelete:start'
 		);
 	}
-
-	for (const chain of [startChain, endChain]) {
-		const attached = chain ? attachedChainPrefix(doc, chain) : [];
-		if (attached.length > 0) rebuildUnsharedChain(doc, attached, sharing, null, grammar);
-	}
-	rebuildAfterDeletion(doc, plan, sharing, grammar);
+	renumberAfterDeletion(doc, plan);
 
 	const tableRowSplices = [
 		...(startTable && startSplice ? [{ table: startTable, ...startSplice }] : []),

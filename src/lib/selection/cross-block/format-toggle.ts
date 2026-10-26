@@ -113,7 +113,7 @@ async function toggleFormatOverRange(
 			// One body for the ledger and the writes, so the writes splice the ids it tracks.
 			const body = docScope.body;
 			const ledgers = views.map((v, i) => trackChildIds(i === 0 ? body : v.node));
-			applyCrossBlockFormat(body, plan, docScope.sharing, deps.reading.grammar);
+			applyCrossBlockFormat(docScope, plan);
 			return ledgers.map((ledger) => {
 				const change = ledger.read();
 				ledger.release();
@@ -125,8 +125,7 @@ async function toggleFormatOverRange(
 			detail: { length: startBlockLength(doc, start, plan), crossBlock: true },
 			eventPath: docPathFrom(start.path)
 		},
-		landing: () => restored,
-		fixesUpOwnWrites: true
+		landing: () => restored
 	});
 }
 

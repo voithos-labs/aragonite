@@ -36,7 +36,7 @@ Arrival is in `gap-caret-arrival.md`; creating a paragraph and undoing it are in
 - Shift+Arrow, shift-click, focus moves, and the demo harness's presentation toggle. No
   programmatic state writes.
 
-## Known v1 narrowings
+## Limits
 
 - **Shift+Arrow is the plain arrow.** Selecting the neighbouring block whole was cut: a
   single block selected whole is not a representable cross-block state, and the per-kind

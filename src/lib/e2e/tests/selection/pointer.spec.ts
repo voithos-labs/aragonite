@@ -19,8 +19,7 @@ test.describe('selection: pointer: happy paths', () => {
 		expect(sel?.focus.path).toEqual([1]);
 	});
 
-	test('drag across three paragraphs renders middle overlay', async ({ browserName }) => {
-		test.fixme(browserName === 'webkit', '#353: middle overlay intermittently absent on WebKit');
+	test('drag across three paragraphs renders middle overlay', async () => {
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
 		await editor.dragFromTo([0], 0, [2], 3);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);

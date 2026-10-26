@@ -5,7 +5,6 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
@@ -25,14 +24,14 @@ const UNDER_ITEM = lines.join('\n  ') + '\n';
 /** The bytes one keystroke deep in the leaf at `leaf` makes the parser read. */
 function parsedBytesForKeystroke(source: string, leaf: number[]): number {
 	const { deps } = makeEditorActionsDeps(source);
-	const typing = createLeafTyping(deps, createUndoController(deps));
+	const typing = createUndoController(deps);
 	const owner = blockNodeAt(deps.doc, leaf.slice(0, -1)) as CstNode;
 	const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
 	const raw = TEXT.replace(`line ${LINES - 2}`, `line ${LINES - 2}x`);
 	const write = legalizeWrite(body, leaf[leaf.length - 1], raw, 'authored');
 	resetPerfInstruments();
 	enablePerfInstruments();
-	expect(typing.writeLeafInPlace(docPathFrom(leaf), write, 0).wrote).toBe(true);
+	expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);
 	return perfSnapshot().parseBytes;
 }
 

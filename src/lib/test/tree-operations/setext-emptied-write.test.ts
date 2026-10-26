@@ -1,10 +1,10 @@
 // A content write that leaves a setext title's last line blank drops the underline, whichever
 // gesture computed the bytes: the text read from the screen, a cut, or a paste over the title.
 // Miss-analysis: every erase test typed the title away, never cut or pasted over it.
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '../harness/parse-converged';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { documentLineEnding } from '#lib/core/lines.js';

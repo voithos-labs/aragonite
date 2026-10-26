@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { isBlankParagraph, parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { mergeWithNext, splitNode, updateNodeContent } from '#lib/tree-operations/index.js';
+import { mergeWithNext, splitNode } from '#lib/tree-operations/index.js';
 import { isMergeEligible } from '#lib/schema/merge-rules.js';
 import { describeConvergence, describeRunDivergence } from '#lib/test/harness/parse-converged.js';
 import { settled, mergePrevSettled, deleteSettled } from '#lib/test/harness/settle-funnel.js';
@@ -13,8 +14,12 @@ import {
 	arbBlankSeparatedGfmDoc,
 	arbInlineSource,
 	arbRespelledContainerDoc,
+	arbRespelledPluginContainerDoc,
 	freshOrFixedSeed
 } from './arbitraries';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 import {
 	displayLength,
 	documentLineEnding,
@@ -28,7 +33,6 @@ import {
 } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt, documentBody } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
@@ -219,7 +223,7 @@ function keystrokeMovesOneLine(source: string, pick: number, offset: number): vo
 		'authored'
 	);
 	const before = splitLines(serialize(deps.doc)).map((line) => line.raw);
-	createLeafTyping(deps, createUndoController(deps)).writeLeafInPlace(docPathFrom(leaf), write, at);
+	createUndoController(deps).typeLeaf(docPathFrom(leaf), write, at);
 
 	const after = splitLines(serialize(deps.doc)).map((line) => line.raw);
 	const moved = after.flatMap((line, i) => (line === before[i] ? [] : [i]));
@@ -399,6 +403,16 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 				fc.nat(),
 				keystrokeMovesOneLine
 			),
+			PARAMS
+		);
+	});
+
+	// G2.16. Miss-analysis: the property drew core kinds only, so the bundled alert and footnote
+	// respelled every body line per edit with no row to see it.
+	it('a keystroke in a bundled strip container changes only the line it types on', () => {
+		installPlugins([admonitionsPlugin(), footnotesPlugin()]);
+		fc.assert(
+			fc.property(arbRespelledPluginContainerDoc, fc.nat(), fc.nat(), keystrokeMovesOneLine),
 			PARAMS
 		);
 	});

@@ -79,6 +79,21 @@ test.describe('a cut or paste is its own undo entry', () => {
 			await editor.undo();
 			await expect.poll(source).toBe(surface.typed);
 		});
+
+		test(`typing right after Ctrl+X in ${surface.name} undoes apart from it`, async ({ page }) => {
+			await openAt(surface.doc, surface.path, surface.end);
+			await page.keyboard.press('Shift+ArrowLeft');
+			await page.keyboard.press('ControlOrMeta+x');
+			await expect.poll(source).not.toBe(surface.doc);
+			const cut = await source();
+			await editor.typeSlowly('z');
+			await expect.poll(source).not.toBe(cut);
+
+			await editor.undo();
+			await expect.poll(source).toBe(cut);
+			await editor.undo();
+			await expect.poll(source).toBe(surface.doc);
+		});
 	}
 
 	// The menus reach the same paste step through `insertMarkdown`, the cell menu through its own.

@@ -225,7 +225,6 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				parentItemIdx,
 				nestedListNode,
 				nestedItemIdx,
-				deps.reading.grammar,
 				(promotedAt) => itemAt(promotedAt, CURSOR_START)
 			);
 		},

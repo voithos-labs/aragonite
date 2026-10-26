@@ -16,12 +16,12 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { makeBlockListState } from '#lib/test/harness/editor-actions.js';
 import { makeKeydownEnv, press } from './keydown-env';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -66,7 +66,12 @@ describe('un-bolding across blocks takes the kind the bytes read as', () => {
 			fixtureReading()
 		);
 
-		applyCrossBlockFormat(documentBody(doc), plan!, createSharingState(), defaultGrammarView);
+		writtenBelow(
+			doc,
+			(scope) => applyCrossBlockFormat(scope, plan!),
+			defaultGrammarView,
+			createSharingState()
+		);
 
 		expect(serialize(doc)).toBe(source.replaceAll('**', ''));
 		expect(describeConvergence(doc)).toBeNull();

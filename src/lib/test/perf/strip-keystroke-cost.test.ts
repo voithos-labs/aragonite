@@ -7,7 +7,6 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
@@ -32,7 +31,7 @@ function longQuote(lazy: boolean): string {
  *  only the second is counted, since the first after a load writes every line's region down. */
 function typeTwice(source: string): CstNode {
 	const { deps } = makeEditorActionsDeps(source);
-	const typing = createLeafTyping(deps, createUndoController(deps));
+	const typing = createUndoController(deps);
 	const leaf = [0, TARGET];
 	for (let n = 0; n < 2; n++) {
 		if (n === 1) {
@@ -44,7 +43,7 @@ function typeTwice(source: string): CstNode {
 		const at = raw.indexOf('\n');
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
 		const write = legalizeWrite(body, TARGET, raw.slice(0, at) + 'Q' + raw.slice(at), 'authored');
-		expect(typing.writeLeafInPlace(docPathFrom(leaf), write, at + 1).wrote).toBe(true);
+		expect(typing.typeLeaf(docPathFrom(leaf), write, at + 1).wrote).toBe(true);
 	}
 	return blockNodeAt(deps.doc, leaf) as CstNode;
 }

@@ -69,6 +69,7 @@ describe('Backspace at content start in live mode', () => {
 			0,
 			'Title\n',
 			'literal',
+			'entry',
 			3,
 			0
 		);
@@ -85,6 +86,7 @@ describe('Backspace at content start in live mode', () => {
 			0,
 			'Title\n',
 			'literal',
+			'entry',
 			0,
 			0
 		);
@@ -101,6 +103,7 @@ describe('Backspace at content start in live mode', () => {
 			0,
 			'Title\n',
 			'literal',
+			'entry',
 			0,
 			0
 		);
@@ -117,6 +120,7 @@ describe('Backspace at content start in live mode', () => {
 			0,
 			'**B** head\n',
 			'literal',
+			'entry',
 			5,
 			2
 		);
@@ -132,6 +136,7 @@ describe('Backspace at content start in live mode', () => {
 			0,
 			'[B][r] head\n',
 			'literal',
+			'entry',
 			4,
 			1
 		);

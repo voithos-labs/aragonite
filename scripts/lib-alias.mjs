@@ -117,6 +117,27 @@ export function aliasSpecifier(relPath) {
 }
 
 /**
+ * The repo file an import names: a relative path, or what `bare` maps any other specifier to (a
+ * `#` alias or a self-import, by default). Tried as written, as the `.ts` behind a `.js`, with
+ * `.ts` or `.svelte` added, and as a directory's `index.ts`; null when none of those is a file.
+ * @param {string} importer The importing file's repo path.
+ * @param {string} specifier
+ * @param {(candidate: string) => boolean} isFile
+ * @param {(specifier: string) => string | null} [bare]
+ * @returns {string | null}
+ */
+export function importedFile(importer, specifier, isFile, bare = aliasPath) {
+	const written = specifier.replace(/\?.*$/, '');
+	const base = written.startsWith('.')
+		? path.posix.join(path.posix.dirname(importer), written)
+		: bare(written);
+	if (base === null) return null;
+	const sourceOfJs = base.endsWith('.js') ? [`${base.slice(0, -'.js'.length)}.ts`] : [];
+	const candidates = [base, ...sourceOfJs, `${base}.ts`, `${base}.svelte`, `${base}/index.ts`];
+	return candidates.find(isFile) ?? null;
+}
+
+/**
  * @typedef {object} EntryPoint
  * @property {string} subpath The `exports` key, e.g. `./plugin`.
  * @property {string} source The library file it is built from, e.g. `src/lib/plugin.ts`.
@@ -126,14 +147,15 @@ export function aliasSpecifier(relPath) {
 
 /**
  * Each published JavaScript entry point in package.json `exports`, with both of its builds (a
- * self-import subpath is not one). Throws on
- * an entry whose `default` is not its `svelte` path moved under `dist/prebuilt/` (G4.174).
+ * self-import subpath is not one). Throws on an entry whose `default` is not its `svelte` path
+ * moved under `dist/prebuilt/` (G4.174).
+ * @param {{ exports?: Record<string, any> }} [pkg] The manifest to read, this repo's by default.
  * @returns {EntryPoint[]}
  */
-export function publishedEntryPoints() {
+export function publishedEntryPoints(pkg = PACKAGE) {
 	/** @type {EntryPoint[]} */
 	const out = [];
-	for (const [subpath, target] of Object.entries(PACKAGE.exports ?? {})) {
+	for (const [subpath, target] of Object.entries(pkg.exports ?? {})) {
 		if (typeof target !== 'object' || SOURCE_CONDITION in target) continue;
 		const svelte = repoPath(target.svelte ?? '');
 		const prebuilt = repoPath(target.default ?? '');

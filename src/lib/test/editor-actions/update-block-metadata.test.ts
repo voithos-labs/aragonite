@@ -91,19 +91,6 @@ describe('updateBlockMetadata', () => {
 		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 
-	// A `noop` commit leaves the dev-mode stale-raw check unable to infer the touched node, so
-	// the top-level scope must name it or the write goes unchecked (G1.1, G1.12, G1.13).
-	it('names the resynced node for the dev check (parity with the container scope)', async () => {
-		const { deps, controller, actions } = makeTopHarness(parse(ALERT).children);
-		const spy = vi.spyOn(controller, 'commitStructural');
-
-		await actions.updateBlockMetadata(0, TIP);
-
-		const args = spy.mock.calls[0][0];
-		expect(args.touchedNodes).toBeDefined();
-		expect(args.touchedNodes).toContain(deps.doc.children[0]);
-	});
-
 	it('lands no caret when the patch is empty (no commit runs)', async () => {
 		const { deps, actions, landings } = makeTopHarness(parse(ALERT).children);
 		mountEveryBlock(deps);

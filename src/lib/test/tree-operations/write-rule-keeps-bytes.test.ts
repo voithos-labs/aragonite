@@ -8,7 +8,6 @@ import { parse } from '#lib/core/parser.js';
 import type { Document } from '#lib/core/nodes.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
@@ -43,9 +42,9 @@ const ROUTES: Array<[string, Route, (raw: string, cut: number) => string]> = [
 		'a typed key',
 		(source, { raw, cut }) => {
 			const { deps } = makeEditorActionsDeps(source);
-			const typing = createLeafTyping(deps, createUndoController(deps));
+			const typing = createUndoController(deps);
 			const write = legalizeWrite(deps.doc, 1, raw.slice(cut), 'authored');
-			typing.writeLeafInPlace(docPathFrom([1]), write, 0);
+			typing.typeLeaf(docPathFrom([1]), write, 0);
 			return deps.doc;
 		},
 		(raw, cut) => sourceOf(raw.slice(cut))

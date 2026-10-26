@@ -16,7 +16,7 @@ import {
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
-import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -40,7 +40,12 @@ function toggle(
 	const doc = parse(source);
 	const plan = planCrossBlockFormat(doc, coverRange(doc, start, end), format, fixtureReading());
 	if (!plan) return null;
-	applyCrossBlockFormat(documentBody(doc), plan, createSharingState(), defaultGrammarView);
+	writtenBelow(
+		doc,
+		(scope) => applyCrossBlockFormat(scope, plan),
+		defaultGrammarView,
+		createSharingState()
+	);
 	return serialize(doc);
 }
 

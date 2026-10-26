@@ -8,7 +8,6 @@ import { documentLineEnding } from '#lib/core/lines.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
@@ -24,13 +23,13 @@ function writeCell(
 	...texts: Array<(raw: string) => string>
 ) {
 	const { deps } = makeEditorActionsDeps(source);
-	const typing = createLeafTyping(deps, createUndoController(deps));
+	const typing = createUndoController(deps);
 	const leaf = [0, row, column];
 	for (const text of texts) {
 		const owner = blockNodeAt(deps.doc, [0, row]) as CstNode;
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
 		const write = legalizeWrite(body, column, text(owner.children![column].raw), 'authored');
-		expect(typing.writeLeafInPlace(docPathFrom(leaf), write, 0).wrote).toBe(true);
+		expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);
 	}
 	return deps.doc;
 }

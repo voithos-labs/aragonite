@@ -5,7 +5,8 @@ import {
 	BLOCK_PREFIX_ATTR,
 	BLOCK_SUFFIX_ATTR,
 	landableRawBounds,
-	rawTextOfContent
+	rawTextOfContent,
+	readContent
 } from '#lib/caret/widget-offset.js';
 
 /** A prose block's element from HTML, the way the browser leaves it after an edit. */
@@ -79,6 +80,19 @@ describe('reading back a heading whose text went and whose hidden `#` stayed', (
 
 	it('reads blank text as the blank, which an ATX heading cannot hold', () => {
 		expect(rawTextOfContent(live(`${HASH} ${RUN}`), '# Hi #\n', ' #')).toBe(' ');
+	});
+
+	// Miss-analysis: the blank row read the text alone, so no test saw the caret keep the `# ` bytes.
+	it('moves the caret with the dropped marker, onto the blank it reads', () => {
+		expect(readContent(live(`${HASH} ${RUN}`), '# Hi #\n', ' #', 3)).toEqual({
+			text: ' ',
+			caret: 1
+		});
+		expect(readContent(live(`${HASH}${RUN}`), '# H #\n', ' #', 2)).toEqual({ text: '', caret: 0 });
+		expect(readContent(live(`${HASH}x${RUN}`), '# Hi #\n', ' #', 3)).toEqual({
+			text: '# x #',
+			caret: 3
+		});
 	});
 
 	// Miss-analysis: the blank row replaced text; none typed a space into a heading already empty.

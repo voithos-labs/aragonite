@@ -3,6 +3,7 @@
 // reads it.
 import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
+import { posix } from 'node:path';
 
 /** Build output and installed packages: never shipped, and slow to walk. */
 const SKIPPED_DIRS = new Set(['node_modules', 'build', 'dist', '.svelte-kit']);
@@ -58,6 +59,22 @@ export function corpusFiles(roots, extensions) {
 		return statSync(root).isDirectory() ? walk(root, extensions, []) : [root];
 	});
 	return found.filter((file) => !isIgnoredBy(ignored, file)).sort();
+}
+
+/**
+ * Why a shipped doc can't cite `target` (a path from the working directory), or null when it can:
+ * a CI checkout holds only what git tracks, so the target must exist and not be gitignored.
+ * @param {string} target
+ * @param {readonly string[]} ignored From {@link ignoredPaths} over the repository root.
+ * @returns {string | null}
+ */
+export function citationProblem(target, ignored) {
+	if (!existsSync(target)) return 'no such file or directory';
+	const file = posix.normalize(target.split('\\').join('/'));
+	if (isIgnoredBy(ignored, file) || isIgnoredBy(ignored, `${file}/`)) {
+		return 'gitignored, so it exists only on this machine';
+	}
+	return null;
 }
 
 /**

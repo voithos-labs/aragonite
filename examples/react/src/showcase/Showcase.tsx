@@ -12,13 +12,14 @@ import {
 	type ToggleKey
 } from '../../../showcase/top-bar';
 import { showcasePlugins } from '../../../showcase/plugins';
+import { readTheme, toggleTheme } from '../../../showcase/theme';
 import { demoPasteImage, resolveDemoImageUrl } from '../../../showcase/image-store';
 
 const CHANGELOG_URL = 'https://github.com/voithos-labs/aragonite/blob/main/docs/changelog.md';
 
 export function Showcase() {
 	const [source, setSource] = useState(SHOWCASE_DOCUMENT);
-	const [theme, setTheme] = useState(INITIAL_STATE.theme);
+	const [theme, setTheme] = useState(readTheme);
 	const [presentationMode, setPresentationMode] = useState(INITIAL_STATE.presentationMode);
 	const [dragHandles, setDragHandles] = useState(INITIAL_STATE.dragHandles);
 	const [selectionMenu, setSelectionMenu] = useState(INITIAL_STATE.selectionMenu);
@@ -41,7 +42,7 @@ export function Showcase() {
 
 	useEffect(() => {
 		const flips: Partial<Record<ToggleKey, () => void>> = {
-			theme: () => setTheme((t) => (t === 'dark' ? 'light' : 'dark')),
+			theme: () => setTheme(toggleTheme),
 			dragHandles: () => setDragHandles((on) => !on),
 			selectionMenu: () => setSelectionMenu((on) => !on),
 			occurrences: () => setOccurrences((on) => !on),

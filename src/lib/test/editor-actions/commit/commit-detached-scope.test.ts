@@ -105,10 +105,10 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			scopes,
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
-				// Through the document's view, as every commit's mutation writes.
+				// Through the document's view, as the editor's range delete writes.
 				const top = documentBody(deps.doc, views[0].children);
-				const ledgers = views.map((v, i) => trackChildIds(i === 0 ? top : v.node));
-				deleteRange(top, start, end, { sharing: views[0].sharing });
+				const ledgers = views.map((v, i) => trackChildIds(i === 0 ? views[0].body : v.node));
+				deleteRange(top, start, end, { scope: views[0] });
 				return ledgers.map((ledger) => {
 					const change = ledger.read();
 					ledger.release();

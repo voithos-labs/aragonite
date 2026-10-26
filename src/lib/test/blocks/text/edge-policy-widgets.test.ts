@@ -413,7 +413,7 @@ describe('pending cursor', () => {
 		const { dispatch } = makeEdgeDispatch(node, el, {
 			hasIslands: () => hasIslands,
 			blockEdit: {
-				updateBlockContent: (_index, _text, _mode, before = 0, after = before) =>
+				updateBlockContent: (_index, _text, _mode, _history, before = 0, after = before) =>
 					withStoredCaret(Promise.resolve(true), after + SHIFT)
 			} as Pick<BlockEditActions, 'updateBlockContent'> as BlockEditActions,
 			requestCaret: (offset, { source }) => void parks.push({ offset, source })

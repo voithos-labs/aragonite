@@ -152,7 +152,7 @@ function select([start, end]: Span): void {
 /** The first write's displayed text and caret, without the trailing line ending reattached. */
 function firstWrite(): { text: string; caret: number } | null {
 	const [call] = vi.mocked(mounted.blockEdit.updateBlockContent).mock.calls;
-	return call ? { text: (call[1] as string).replace(/\n$/, ''), caret: call[4] as number } : null;
+	return call ? { text: (call[1] as string).replace(/\n$/, ''), caret: call[5] as number } : null;
 }
 
 beforeAll(() => ensurePasteSurface(codePasteSurface));

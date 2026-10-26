@@ -36,8 +36,22 @@ describe('github alert: per-keystroke marker formation', () => {
 	])('lands the caret at the alert body start $where', async ({ source, quote }) => {
 		const h = makeContainerHarness(source, quote);
 
-		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP\nbody\n', 'authored', 4, 5);
-		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\nbody\n', 'authored', 5, 6);
+		await h.bundle.blockEdit.updateBlockContent(
+			0,
+			'[!TIP\nbody\n',
+			'authored',
+			'join-typing',
+			4,
+			5
+		);
+		await h.bundle.blockEdit.updateBlockContent(
+			0,
+			'[!TIP]\nbody\n',
+			'authored',
+			'join-typing',
+			5,
+			6
+		);
 
 		expect(h.getNode().kind).toBe('githubAlert');
 		expect(h.getNode().children!.map((c) => c.raw)).toEqual(['body\n']);
@@ -103,7 +117,7 @@ describe('github alert: per-keystroke marker formation', () => {
 
 		const atomic = makeEditorActionsDeps(parse('x\n').children);
 		const atomicActions = createBlockEditActions(atomic.deps, createUndoController(atomic.deps));
-		await atomicActions.updateBlockContent(0, '> [!TIP]\n', 'authored', 1, 9);
+		await atomicActions.updateBlockContent(0, '> [!TIP]\n', 'authored', 'join-typing', 1, 9);
 
 		expect(serialize(typed.deps.doc)).toBe(serialize(atomic.deps.doc));
 		expect(typed.getNode().kind).toBe(atomic.deps.doc.children[0].kind);

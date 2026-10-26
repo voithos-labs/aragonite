@@ -35,7 +35,7 @@ describe('G1.117 a write keeps every CRLF pair whole', () => {
 	it('fires from a keystroke write that splits a pair', async () => {
 		const h = makeTopHarness(BEFORE);
 		takeDevWarns();
-		await h.actions.updateBlockContent(0, 'abc\rZ\nAfter', 'authored', 4, 5);
+		await h.actions.updateBlockContent(0, 'abc\rZ\nAfter', 'authored', 'join-typing', 4, 5);
 		expect(serialize(h.deps.doc)).toContain('\rZ\n');
 		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:line-ending-pairs');
 	});

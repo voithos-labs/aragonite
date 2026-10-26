@@ -45,7 +45,7 @@ const WRITES: Record<
 	mergeWithPrevious: (a) => a.mergeWithPrevious(1),
 	mergeWithNext: (a) => a.mergeWithNext(0),
 	deleteBlock: (a) => a.deleteBlock(1, 'keyless'),
-	updateBlockContent: (a) => a.updateBlockContent(1, 'twox\n', 'authored', 3, 4),
+	updateBlockContent: (a) => a.updateBlockContent(1, 'twox\n', 'authored', 'join-typing', 3, 4),
 	completeLineOnType: (a) => a.completeLineOnType(1, 3),
 	replaceRaw: (a) => a.replaceRaw(1, 'twox\n'),
 	replaceBlock: (a) =>

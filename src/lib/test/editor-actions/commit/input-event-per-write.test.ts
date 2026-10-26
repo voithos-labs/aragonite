@@ -9,11 +9,11 @@ describe('typing fires one input edit per write', () => {
 	it('each keystroke fires before the next one is typed, with its leaf', async () => {
 		const { actions, edits } = makeTopHarness('aaa\n\nbbb\n');
 
-		await actions.updateBlockContent(0, 'aaax\n', 'authored', 3);
+		await actions.updateBlockContent(0, 'aaax\n', 'authored', 'join-typing', 3);
 		expect(ops(edits)).toEqual([['input', [0]]]);
 
-		await actions.updateBlockContent(0, 'aaaxy\n', 'authored', 4);
-		await actions.updateBlockContent(1, 'bbbz\n', 'authored', 3);
+		await actions.updateBlockContent(0, 'aaaxy\n', 'authored', 'join-typing', 4);
+		await actions.updateBlockContent(1, 'bbbz\n', 'authored', 'join-typing', 3);
 		expect(ops(edits)).toEqual([
 			['input', [0]],
 			['input', [0]],
@@ -24,7 +24,7 @@ describe('typing fires one input edit per write', () => {
 	it('a structural commit mid-burst comes after the keystrokes typed before it', async () => {
 		const { actions, edits } = makeTopHarness('hello\n');
 
-		await actions.updateBlockContent(0, 'hellox\n', 'authored', 5);
+		await actions.updateBlockContent(0, 'hellox\n', 'authored', 'join-typing', 5);
 		await actions.splitBlock(0, 6);
 
 		expect(edits.map((e) => e.op)).toEqual(['input', 'split']);

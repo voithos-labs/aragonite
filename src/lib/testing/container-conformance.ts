@@ -7,8 +7,13 @@
 
 import type { ContainerEditActions, FocusActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import { keepOpenTail } from '../tree-operations/open-tail';
-import { documentLineEnding, splitLines, trailingLineEnding } from '../core/lines';
+import { keepOpenTail } from '../tree-operations/fix-up/apply';
+import {
+	documentLineEnding,
+	ownTrailingLineEnding,
+	splitLines,
+	trailingLineEnding
+} from '../core/lines';
 import { parse } from '../core/parser';
 import { ancestorsOf } from '../core/paths';
 import { createContainerEditActions } from '../editor-actions/container-edit';
@@ -38,8 +43,9 @@ import {
 	rebuildContainerRawIfContainer
 } from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
-import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
-import { walkUnsharing } from '../tree-operations/unshare';
+import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
+import { legalizeWrite } from '../tree-operations/content-write';
+import { docPathFrom } from '../caret/coordinate-spaces';
 import { assertParseConverged } from './parse-convergence';
 import { mountBlockListState } from './headless-block-list.svelte';
 import {
@@ -491,7 +497,7 @@ function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
 	if (fixture === undefined) {
 		fail(`${kind} declares a title row but carries no conformanceFixture to write it in`);
 	}
-	const doc = parse(fixture);
+	const { deps, doc } = createHeadlessActions(fixture);
 	const leafPath = [...subjectPath(doc, kind, 'first', `${kind} conformanceFixture`), 0];
 	const title = nodeAtPath(doc, leafPath);
 	assertIs(
@@ -500,14 +506,13 @@ function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
 		`${kind} conformanceFixture opens a "${kind}" with its title row`
 	);
 
-	const leafPreviousRaw = title.raw;
-	title.raw = TITLE_PROBE + trailingLineEnding(title.raw, documentLineEnding(doc));
-	const sharing = createSharingState();
-	const chain = walkUnsharing(doc, leafPath, sharing, false);
-	rebuildUnsharedChain(doc, chain, sharing, null, defaultGrammarView, {
-		path: leafPath,
-		leafPreviousRaw
-	});
+	const owner = nodeAtPath(doc, leafPath.slice(0, -1));
+	const lineEnding = documentLineEnding(doc);
+	const body = { children: owner.children!, owner, lineEnding };
+	const text = TITLE_PROBE + trailingLineEnding(title.raw, lineEnding);
+	const write = legalizeWrite(body, 0, text, 'authored');
+	const typed = createUndoController(deps).typeLeaf(docPathFrom(leafPath), write, 0);
+	assert(typed.wrote, `${kind} takes a keystroke in its title row`);
 	assertParseConverged(doc, `${kind} after a keystroke in its title row`);
 }
 
@@ -555,6 +560,7 @@ export function checkDeclarationSanity(
 	assertLastLineChildHoldsIt(kind, node);
 	assertOwnLastLineHoldsIt(kind, descriptor, profile.deepNesting.source);
 	assertRebuildKeepsParsedBytes(descriptor, node, kind);
+	assertUntouchedLinesKept(kind, descriptor, profile.deepNesting.source);
 	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
 	assertContentStartSpaceIsRebuilt(kind, descriptor);
@@ -591,6 +597,45 @@ function assertOwnLastLineHoldsIt(
 		released,
 		`${kind} answers that its own bytes hold its last line, but a rebuild after that line ` +
 			`gives its ending up writes the ending back`
+	);
+}
+
+/** Text no fixture holds, which the untouched-lines check writes on the edited child's new line. */
+const EDIT_MARK = '§edited';
+
+/** An edit to one child rewrites that child's lines alone: every other line of the container keeps
+ *  its bytes, however `deepNesting.source` spells them. */
+function assertUntouchedLinesKept(
+	kind: AnyBlockKind,
+	descriptor: BlockKindDescriptor,
+	source: string
+): void {
+	// A grid writes each row from its cells, so a row's own bytes carry no edit to find.
+	if (isGridDescriptor(descriptor)) return;
+	const node = subjectNode(parse(source), kind, 'first', 'deepNesting');
+	const children = node.children;
+	if (!children?.length) return;
+	const before = splitLines(node.raw).map((line) => line.raw);
+	const index = children.length - 1;
+	const previousRaw = children[index].raw;
+	// The edit adds a marked line, so the lines after the mark are the ones below the child.
+	children[index].raw = previousRaw + EDIT_MARK + ownTrailingLineEnding(previousRaw);
+	descriptor.rebuildRaw!(node, { index, previousRaw });
+	const after = splitLines(node.raw).map((line) => line.raw);
+	let mark = after.length - 1;
+	while (mark >= 0 && !after[mark].includes(EDIT_MARK)) mark--;
+	const below = after.length - 1 - mark;
+	const above =
+		before.length - below - splitLines(children[index].leadingTrivia + previousRaw).length;
+	const at = (i: number) => (i < above ? i : i + after.length - before.length);
+	const moved = before.findIndex(
+		(line, i) => (i < above || i >= before.length - below) && line !== after[at(i)]
+	);
+	assert(mark >= 0, `${kind} rebuildRaw dropped the line the edit added to its last child`);
+	assert(
+		moved < 0,
+		`${kind} rebuildRaw rewrote lines outside the child it was told changed: line ${moved + 1} ` +
+			`"${before[moved]}" became "${after[at(moved)]}"`
 	);
 }
 

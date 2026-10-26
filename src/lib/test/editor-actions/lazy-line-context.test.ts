@@ -8,7 +8,6 @@ import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { commitLeafTextAt } from '#lib/editor-actions/block-edit-core.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
@@ -24,8 +23,8 @@ const ROUTES: [string, Route][] = [
 			const owner = blockNodeAt(h.deps.doc, leaf.slice(0, -1)) as CstNode;
 			const body = { children: owner.children!, owner, lineEnding: documentLineEnding(h.deps.doc) };
 			const write = legalizeWrite(body, leaf[leaf.length - 1], text, 'authored');
-			const typing = createLeafTyping(h.deps, h.controller);
-			expect(typing.writeLeafInPlace(docPathFrom(leaf), write, 2).wrote).toBe(true);
+			const typing = h.controller;
+			expect(typing.typeLeaf(docPathFrom(leaf), write, 2).wrote).toBe(true);
 		}
 	],
 	[

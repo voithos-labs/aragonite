@@ -45,7 +45,7 @@ are in `gap-caret-surface.md`.
 - With a live cross-block range, a gap-landing click ends the range and puts the caret at
   the boundary in one gesture (G2.12).
 
-## Known v1 narrowings
+## Limits
 
 - The click route lands root-level gaps only. The walk over the strips is a flat query over
   `[data-block-path]`, and a nested block's strip sits inside its container's; arrows and

@@ -9,7 +9,6 @@ import { OPENER_PRIORITIES, type BlockOpener, type BlockOpenerResult } from '#li
 import { parse } from '#lib/core/parser.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
 import {
 	makeEditorActionsDeps,
@@ -29,9 +28,9 @@ import { detailsPlugin } from '#lib/plugins/details/index.js';
 /** The top-level kinds after `text` is written over block `index` through the keystroke route. */
 function typedOverSecond(source: string, text: string, index = 1): string[] {
 	const { deps } = makeEditorActionsDeps(source);
-	const typing = createLeafTyping(deps, createUndoController(deps));
+	const typing = createUndoController(deps);
 	const write = legalizeWrite(deps.doc, index, text, 'authored');
-	expect(typing.writeLeafInPlace(docPathFrom([index]), write, 0).wrote).toBe(true);
+	expect(typing.typeLeaf(docPathFrom([index]), write, 0).wrote).toBe(true);
 	expectParseConverged(deps.doc);
 	return deps.doc.children.map((c) => c.kind);
 }
@@ -151,11 +150,11 @@ const ROUTES: [string, Route][] = [
 		'written in place',
 		(source) => {
 			const h = makeTopHarness(source);
-			const typing = createLeafTyping(h.deps, h.controller);
+			const typing = h.controller;
 			return {
 				doc: h.deps.doc,
 				write: async (index, text) =>
-					typing.writeLeafInPlace(
+					typing.typeLeaf(
 						docPathFrom([index]),
 						legalizeWrite(h.deps.doc, index, text, 'authored'),
 						0
@@ -251,7 +250,7 @@ describe('an opener made by a write inside a quote', () => {
 	])('reads down %s', async (_l, source, count) => {
 		const h = makeNestedHarness(source, { index: 0 });
 		const raw = h.deps.doc.children[0].children![0].raw;
-		await h.bundle.blockEdit.updateBlockContent(0, raw.slice(1), 'authored', 1, 0);
+		await h.bundle.blockEdit.updateBlockContent(0, raw.slice(1), 'authored', 'join-typing', 1, 0);
 		expect(h.deps.doc.children[0].children).toHaveLength(count);
 		expectParseConverged(h.deps.doc);
 	});

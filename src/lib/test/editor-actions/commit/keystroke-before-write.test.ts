@@ -41,7 +41,7 @@ const LEVELS: {
 			const actions = createBlockEditActions(h.deps, controller);
 			return {
 				controller,
-				key: () => actions.updateBlockContent(0, 'onex\n', 'authored', 3, 4)
+				key: () => actions.updateBlockContent(0, 'onex\n', 'authored', 'join-typing', 3, 4)
 			};
 		}
 	},
@@ -55,7 +55,8 @@ const LEVELS: {
 			});
 			return {
 				controller: h.controller,
-				key: () => h.bundle.blockEdit.updateBlockContent(0, 'onex\n', 'authored', 3, 4)
+				key: () =>
+					h.bundle.blockEdit.updateBlockContent(0, 'onex\n', 'authored', 'join-typing', 3, 4)
 			};
 		}
 	}
@@ -99,13 +100,11 @@ describe('a keystroke joins its typing batch and runs its trial reparse only pas
 			const runs = mode === 'source' ? 1 : 0;
 			it(`${level}, in ${mode} mode`, async () => {
 				const keyed = mount(mode, createCaretMemory());
-				const push = vi.spyOn(keyed.controller, 'pushUndoSnapshotDebounced');
-				const join = vi.spyOn(keyed.controller, 'joinTypingBatch');
+				const push = vi.spyOn(keyed.controller, 'typingKeystroke');
 
 				await keyed.key();
 
 				expect(push).toHaveBeenCalledTimes(runs);
-				expect(join).toHaveBeenCalledTimes(runs);
 				expect(previewContentReparse).toHaveBeenCalledTimes(runs);
 				expect(refusedKeys()).toBe(1 - runs);
 			});

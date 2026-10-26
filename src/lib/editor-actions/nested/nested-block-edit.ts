@@ -101,9 +101,9 @@ export function createNestedBlockEdit(
 			return (await core.replaceBlock(innerIndex, replacement, focus, options)) !== null;
 		},
 
-		updateBlockContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset) {
+		updateBlockContent(innerIndex, text, mode, history, preEditOffset, postEditFocusOffset) {
 			if (!deps.node.children) return refusedWrite();
-			return writeContent(innerIndex, text, mode, preEditOffset, postEditFocusOffset);
+			return writeContent(innerIndex, text, mode, history, preEditOffset, postEditFocusOffset);
 		},
 
 		async completeMarker(innerIndex) {

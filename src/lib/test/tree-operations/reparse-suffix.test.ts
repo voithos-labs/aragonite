@@ -1,7 +1,8 @@
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { splitNode, updateNodeContent } from '../../tree-operations';
+import { splitNode } from '../../tree-operations';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';

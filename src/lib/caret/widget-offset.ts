@@ -101,6 +101,23 @@ export function rawOfWalkOffset(container: ParentNode, walk: DomTextOffset): Raw
 /** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text.
  *  `suffix` is the block's structural suffix as rendered; empty when only hidden markers are left. */
 export function rawTextOfContent(el: HTMLElement, raw: string, suffix: string): string {
+	return readContent(el, raw, suffix, 0).text;
+}
+
+/** A block's text read back from its element, and a caret moved onto that text. */
+export interface InputRead {
+	text: string;
+	caret: number;
+}
+
+/** `rawTextOfContent` with a caret at `caret` in the bytes `el` shows moved onto the text read, so
+ *  a read that drops a hidden marker drops it from the caret's offset too. */
+export function readContent(
+	el: HTMLElement,
+	raw: string,
+	suffix: string,
+	caret: number
+): InputRead {
 	const prefix = markerPrefixOf(el);
 	let out = '';
 	let content = '';
@@ -126,7 +143,9 @@ export function rawTextOfContent(el: HTMLElement, raw: string, suffix: string): 
 		content += text;
 	}
 	const wasBlank = isBlankText(raw.slice(hiddenPrefix ?? 0, displayLength(raw) - suffix.length));
-	return keptBlockText({ text: out, content, hidesPrefix: hiddenPrefix !== null, wasBlank });
+	const text = keptBlockText({ text: out, content, hidesPrefix: hiddenPrefix !== null, wasBlank });
+	if (text === out) return { text, caret };
+	return { text, caret: Math.min(Math.max(caret - (hiddenPrefix ?? 0), 0), text.length) };
 }
 
 /** What a prose block keeps once an edit leaves `content` between its markers (a hidden `#` marker

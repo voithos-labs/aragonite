@@ -15,18 +15,22 @@ import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { isUnmountedBlockListState } from '../../block-lists/state-registry';
 import { documentBody, nodeAt } from '../../tree-operations/node-primitives';
-import { settleEdit, type EditKind, type SettledEdit } from '../../tree-operations/settle';
-import { keepOpenTail } from '../../tree-operations/open-tail';
-import { keepOneBlock } from '../../tree-operations/keep-one-block';
+import {
+	keepOneBlock,
+	keepOpenTail,
+	fixUpEdit,
+	type EditKind,
+	type FixedUpEdit
+} from '../../tree-operations/fix-up/apply';
 import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations/unshare';
 import type { SharingState } from '../../tree-operations/sharing';
 import {
-	attachedChainPrefix,
 	rebuildUnsharedChain,
 	sharedChainLevels,
 	type AncestrySeamFold,
 	type ContainerReclassification
 } from '../../tree-operations/chain-rebuild';
+import { attachedChainPrefix } from '../../tree-operations/node-primitives';
 import { foldLandingFor, publishAncestryFolds, type FoldLanding } from '../ancestry-folds';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
@@ -34,12 +38,11 @@ import type {
 	CommitLanding,
 	CommitContainerStructuralArgs,
 	CommitMultiScopeArgs,
-	CommitSnapshotArg,
 	CommitStructuralArgs,
 	ContainerScope,
-	MultiScopeTarget
+	MultiScopeTarget,
+	UndoGrouping
 } from '../../action-contracts';
-import type { ScopedOpDescriptor } from '../../schema/operations';
 import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange
@@ -47,17 +50,12 @@ import {
 import type { BlockListState } from '../../block-lists/block-list-state.svelte';
 import { assertIdsInLockstep, assertTopLevelUntouched } from '../../invariants/install';
 import { checkSettledOnce, startCommitSettles } from '../../invariants/settle-once';
-import { dropChildSpans } from '../../schema/child-spans';
+import { saveBytes } from './saved-bytes';
 import { perfEnabled } from '../../perf/instruments';
+import type { FrameWrite } from './commit-frame';
+import { createScopeWriter, rebuildOwnedChains, type ScopeWriter } from './scope-writes';
 
 // ── Dev invariant scoping (dev-only paths) ────────────────────────────────────
-
-/** What a commit wrote, for the dev checks: `tops` are the top-level blocks holding it, so the
- *  read-back check never searches the document for them. */
-export interface WrittenNodes {
-	nodes: CstNode[];
-	tops: CstNode[];
-}
 
 /** Direct children go along: a container's rebuild concatenates them into its raw. */
 function withDirectChildren(containers: readonly CstNode[]): CstNode[] {
@@ -68,6 +66,19 @@ function withDirectChildren(containers: readonly CstNode[]): CstNode[] {
 		for (const child of c.children ?? []) out.push(child);
 	}
 	return out;
+}
+
+/** The nodes down `path` below `root`, as far as it still resolves. */
+function nodesOn(root: { children?: CstNode[] }, path: readonly number[]): CstNode[] {
+	const nodes: CstNode[] = [];
+	let list = root.children;
+	for (const index of path) {
+		const node = list?.[index];
+		if (!node) break;
+		nodes.push(node);
+		list = node.children;
+	}
+	return nodes;
 }
 
 /** Every top-level block a commit could have written: placed by its change, new to the array, or
@@ -90,23 +101,14 @@ function writtenTopLevel(
 	return [...written];
 }
 
-/** What the commit sequence runs; `commitScopes` builds it for every entry point. */
-export interface CommitArgs {
-	/** Names the write in a reading-mode refusal when there is no `op`. */
+/** The frame's write plus where the caret lands after it; `commitScopes` builds it for every
+ *  entry point. */
+export interface CommitArgs extends Omit<FrameWrite, 'prepare' | 'check'> {
 	entry: 'commitStructural' | 'commitMultiScope';
-	snapshot: CommitSnapshotArg;
-	/** False when every scope changed nothing; `wasOpen` is whether the document ended with no
-	 *  final line break before it. */
-	mutate: (wasOpen: boolean) => boolean;
-	op?: ScopedOpDescriptor;
+	history: UndoGrouping;
 	landing?: CommitLanding;
 	reveal?: RevealPolicy;
 	announce?: CommitAnnouncement;
-	/** A function, since the copied nodes only exist once `mutate` has made them. */
-	written: () => WrittenNodes;
-	/** Restores what `mutate` wrote, the top-level array included. */
-	rollback: () => void;
-	discardIfNoop?: boolean;
 }
 
 export function createStructuralCommit(
@@ -130,8 +132,8 @@ export function createStructuralCommit(
 			reveal: args.reveal,
 			announce: args.announce,
 			discardIfNoop: args.discardIfNoop,
-			trackCaret: [args.trackCaret],
-			touchedNodes: args.touchedNodes
+			history: args.history,
+			trackCaret: [args.trackCaret]
 		});
 	}
 
@@ -146,6 +148,7 @@ export function createStructuralCommit(
 			reveal: args.reveal,
 			announce: args.announce,
 			discardIfNoop,
+			history: args.history,
 			trackCaret: [args.trackCaret]
 		});
 	}
@@ -167,31 +170,13 @@ export function createStructuralCommit(
 		/** publishScopeView writes the mutated ids and refs before the ancestor rebuild can throw. */
 		savedStateIds: string[];
 		savedStateRefs: (BlockComponent | undefined)[];
-		/** The bytes before mutate; without them `serialize()` emits a half-applied document. None at
-		 *  the document, whose rollback is its saved array, so a commit there costs no per-block copy. */
-		savedRaws: SavedRaw[];
+		/** Puts back the bytes before mutate; without it `serialize()` emits a half-applied document.
+		 *  Nothing at the document, whose rollback is its saved array, so it costs no per-block copy. */
+		restoreBytes: () => void;
 		/** What the mutation said it did beyond its splice, and the fix-up's result once it ran. */
 		edit: EditKind;
-		settled: SettledEdit | null;
-	}
-
-	interface SavedRaw {
-		node: CstNode;
-		raw: string;
-		metadata: CstNode['metadata'];
-		markerWidths: CstNode['markerWidths'];
-	}
-
-	/** The bytes at risk, with the metadata and marker counts a rebuild re-reads from them: the
-	 *  copied ancestors plus direct children, matching `savedChildren`. */
-	function captureScopeRaws(chain: CstNode[], owned: CstNode): SavedRaw[] {
-		const save = (node: CstNode): SavedRaw => ({
-			node,
-			raw: node.raw,
-			metadata: node.metadata,
-			markerWidths: node.markerWidths
-		});
-		return [...chain.map(save), ...(owned.children ?? []).map(save)];
+		settled: FixedUpEdit | null;
+		writer: ScopeWriter;
 	}
 
 	/**
@@ -258,11 +243,18 @@ export function createStructuralCommit(
 		const savedStateRefs = [...s.state.innerBlockRefs];
 		const savedChildren = isDoc ? topLevelBefore : owned.children;
 		const savedChildIds = owned.childIds;
-		const savedRaws = isDoc ? [] : captureScopeRaws(chain, owned);
+		// The copied ancestors plus direct children, matching `savedChildren`.
+		const restoreBytes = isDoc ? () => {} : saveBytes([...chain, ...(owned.children ?? [])]);
 		if (!isDoc) owned.children = [...(owned.children ?? [])];
 		// Off the tree's `$state` proxy, where every index a splice shifts is a tracked write.
 		const children = isDoc ? [...topLevelBefore] : owned.children!;
 		const lineEnding = documentLineEnding(deps.doc);
+		const writer = createScopeWriter(
+			isDoc ? documentBody(deps.doc, children) : owned,
+			deps.sharing,
+			deps.reading.grammar,
+			lineEnding
+		);
 		const prepared: PreparedScope = {
 			target: s,
 			isDoc,
@@ -273,7 +265,7 @@ export function createStructuralCommit(
 				children,
 				sharing: deps.sharing,
 				lineEnding,
-				body: isDoc ? documentBody(deps.doc, children) : { children, owner: owned, lineEnding },
+				body: writer.body,
 				rebuild: (node) => {
 					// The commit rebuilds the scope's own chain, and a shared node is an undo entry's.
 					assertInvariant('scope-rebuild-off-chain', () =>
@@ -289,7 +281,10 @@ export function createStructuralCommit(
 				describeEdit: (edit) => {
 					prepared.edit = { ...prepared.edit, ...edit };
 					return () => prepared.settled;
-				}
+				},
+				own: writer.own,
+				writeLeaf: writer.writeLeaf,
+				splice: writer.splice
 			},
 			ids,
 			refs,
@@ -297,9 +292,10 @@ export function createStructuralCommit(
 			savedChildIds,
 			savedStateIds,
 			savedStateRefs,
-			savedRaws,
+			restoreBytes,
 			edit: {},
-			settled: null
+			settled: null,
+			writer
 		};
 		return prepared;
 	}
@@ -338,8 +334,6 @@ export function createStructuralCommit(
 		S extends readonly MultiScopeTarget[]
 	> extends CommitMultiScopeArgs<S> {
 		entry: CommitArgs['entry'];
-		/** In-place writes a `noop` change names no position for, read once `mutate` returns. */
-		touchedNodes?: readonly CstNode[];
 	}
 
 	/** One structural commit across one or more block lists: one undo snapshot, one edit event.
@@ -347,7 +341,7 @@ export function createStructuralCommit(
 	async function commitScopes<const S extends readonly MultiScopeTarget[]>(
 		args: ScopedCommitArgs<S>
 	): Promise<boolean> {
-		const { scopes, snapshot, mutate, op, discardIfNoop, trackCaret, fixesUpOwnWrites } = args;
+		const { scopes, snapshot, mutate, op, discardIfNoop, trackCaret } = args;
 		const prepared: PreparedScope[] = [];
 		// Top-level blocks a container scope copied into the tree's own array, with what stood there.
 		const replacedSlots: [index: number, node: CstNode][] = [];
@@ -364,7 +358,7 @@ export function createStructuralCommit(
 		return __commit({
 			entry: args.entry,
 			snapshot,
-			mutate: (wasOpen) => {
+			apply: (wasOpen) => {
 				startCommitSettles();
 				for (const s of scopes) {
 					assertScopeStateMounted(s);
@@ -397,15 +391,27 @@ export function createStructuralCommit(
 						`commitMultiScope: mutate returned ${changeList.length} changes for ${scopes.length} scopes`
 					);
 				}
+				const deepestFirst = [...prepared].sort((a, b) => b.chain.length - a.chain.length);
+				reclassified.push(
+					...rebuildOwnedChains(
+						deepestFirst.map((p) => p.writer),
+						deps.sharing,
+						deps.reading.grammar
+					)
+				);
 				for (let i = 0; i < prepared.length; i++) {
 					const p = prepared[i];
 					const reportsEdit = () => changeList[i].op !== 'noop' || Object.keys(p.edit).length > 0;
+					// A leaf written into the scope's own list ran the write's part of the fix-up there, so
+					// the pass below finishes that one fix-up rather than repeating it.
+					const list = p.view.body.children;
+					const written = prepared.some((q) => q.writer.settledLists.has(list));
 					assertInvariant('settle-once', () =>
-						fixesUpOwnWrites ? null : checkSettledOnce(p.view.body.children, reportsEdit())
+						written ? null : checkSettledOnce(list, reportsEdit())
 					);
 					// `savedChildren` is the scope's array from before the mutation, so the blank-line
 					// fix-up reads which blocks were blank off it.
-					p.settled = settleEdit(
+					p.settled = fixUpEdit(
 						p.view.body,
 						{ change: changeList[i], before: p.savedChildren ?? [], ...p.edit },
 						deps.reading.grammar,
@@ -455,6 +461,7 @@ export function createStructuralCommit(
 			reveal: args.reveal,
 			announce: args.announce,
 			discardIfNoop,
+			history: args.history ?? 'entry',
 			written: () => {
 				const nodes: CstNode[] = [];
 				// A set: a doc scope's caller can name a block the scope's change already placed.
@@ -471,8 +478,6 @@ export function createStructuralCommit(
 							settled[i],
 							deps.sharing
 						);
-						// The caller's list names nodes from before any merge, so it holds only for `noop`.
-						if (settled[i].op === 'noop') add(placed, args.touchedNodes ?? []);
 						add(nodes, placed);
 						placed.forEach((node) => tops.add(node));
 						return;
@@ -483,6 +488,12 @@ export function createStructuralCommit(
 					if (attached.length === p.chain.length) add(nodes, withDirectChildren([p.owned]));
 					if (attached.length > 0) tops.add(p.chain[0]);
 				});
+				// Re-read by path through the tree, whose proxies are the nodes from here on.
+				for (const p of prepared) {
+					const root: { children?: CstNode[] } = p.isDoc ? deps.doc : p.owned;
+					for (const { path } of p.writer.owned)
+						add(nodes, withDirectChildren(nodesOn(root, path)));
+				}
 				add(nodes, withDirectChildren(reclassified.map((r) => r.replacement)));
 				// A chain's top whose kind the rebuild changed sits in the document as its replacement.
 				for (const r of reclassified) {
@@ -505,12 +516,7 @@ export function createStructuralCommit(
 					p.owned.childIds = p.savedChildIds;
 					// The chain rebuild rewrote these bytes and what it read from them, and all of it has to
 					// match the children restored above.
-					for (const { node, raw, metadata, markerWidths } of p.savedRaws) {
-						node.raw = raw;
-						node.metadata = metadata;
-						if (node.markerWidths !== markerWidths) node.markerWidths = markerWidths;
-						dropChildSpans(node);
-					}
+					p.restoreBytes();
 					// Without this, the ids and refs written before the throw keep reflecting it.
 					if (p.isDoc) p.target.state.innerBlockIds = p.savedStateIds;
 					replaceRefs(p.target.state.innerBlockRefs, p.savedStateRefs);

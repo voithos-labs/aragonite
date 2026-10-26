@@ -7,7 +7,6 @@ import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
@@ -20,9 +19,9 @@ const SOURCE = '- a\n';
 
 function typeAt(path: number[]) {
 	const { deps } = makeEditorActionsDeps(SOURCE);
-	const typing = createLeafTyping(deps, createUndoController(deps));
+	const typing = createUndoController(deps);
 	const write = legalizeWrite(documentBody(deps.doc), 0, '- ab\n', 'authored');
-	return { deps, result: typing.writeLeafInPlace(docPathFrom(path), write, 1) };
+	return { deps, result: typing.typeLeaf(docPathFrom(path), write, 1) };
 }
 
 describe('G1.20 unshared ancestor-chain depth', () => {

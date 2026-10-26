@@ -138,8 +138,8 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		const snap = leaf?.readSnapAtPoint?.(probeX, probeY);
 
 		return () => {
-			// The reset waits for a known caret target, so a declined point leaves a live range
-			// painted and the next printable key replaces the whole of it.
+			// The reset waits for a known caret target, so a declined point ends no range here; a
+			// click's press ends one wherever a block is near (`editor-root/gestures.ts`).
 			deps.resetSelectionForClick();
 			// Both calls end a live range (`selection/place-caret.ts`); `focusByPath` reaches the
 			// leaf's own `focus`.

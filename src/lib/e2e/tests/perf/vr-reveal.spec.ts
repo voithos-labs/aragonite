@@ -62,8 +62,8 @@ test('undo of an off-window block edit reverts cleanly and restores focus', asyn
 	await editor.scrollEditorTo(scrollHeight);
 	expect(await topLevelHostPresent(page, 0)).toBe(false);
 
-	// The undo keydown handler belongs to a block, so the keypress needs a mounted focused one; undo
-	// itself covers the whole editor, so block 0 must still be scrolled back.
+	// Focus on another mounted block, far from block 0: undo covers the whole editor, so it must
+	// still scroll block 0 back. The F2 row below covers focus dropped to the page body.
 	const mounted = await mountedTopLevelIndices(page);
 	const focusTarget = mounted[Math.floor(mounted.length / 2)];
 	expect(focusTarget).toBeGreaterThan(100);

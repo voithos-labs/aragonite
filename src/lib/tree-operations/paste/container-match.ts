@@ -18,13 +18,11 @@ import {
 	legalizeWrite,
 	settledCaretPosition,
 	updateNodeContent,
-	type SettledContent
+	type FixedUpWrite
 } from '../content-write';
 import { leafAtRawOffset } from '../container-offsets';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRaw } from '../../schema/container-raw';
-import { ensureUnsharedPath } from '../unshare';
-import { rebuildUnsharedChain } from '../chain-rebuild';
 import { containerScopeState } from './parent-scope';
 import {
 	applyStructuralChangeToIdsRefs,
@@ -34,9 +32,8 @@ import {
 import { renumberOrderedList, templatePastedItemMarkers } from '../list/ordered-markers';
 import { spliceMany } from '../splice-many';
 import type { PasteDispatchContext } from './dispatch';
-import type { CommitSnapshotArg } from '../../action-contracts';
+import type { CommitSnapshotArg, ContainerScope } from '../../action-contracts';
 import type { MultiScopeTarget } from './paste-deps';
-import type { SharingState } from '../sharing';
 import { docPathFrom } from '../../caret/coordinate-spaces';
 
 interface ContainerUnwrap {
@@ -178,10 +175,9 @@ export async function applyContainerMatchingPaste(
 	});
 }
 
-/** The merged leaf's write: the chain down to its holder, and where the write put its bytes. */
+/** The merged leaf's write: where the write put its bytes. */
 interface MergedLeaf {
-	chain: CstNode[];
-	settled: SettledContent;
+	settled: FixedUpWrite;
 	storedOffset: (offset: number) => number;
 }
 
@@ -223,24 +219,13 @@ async function applyContainerMatchingMerge(
 	templatePastedItemMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
 	const leafIndex = merge.targetLeafPath[merge.targetLeafPath.length - 1];
-	/**
-	 * The merged leaf's new text through the content write against its holder, whose ids follow
-	 * any kind change; the holder sits below the scope node, so its whole chain is copied first.
-	 */
-	const writeMergedLeaf = (text: string, sharing: SharingState): MergedLeaf => {
-		const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing).slice(0, -1);
-		const holder = chain[chain.length - 1];
+	/** The merged leaf's new text, written below the scope node through its holder's write rule. */
+	const writeMergedLeaf = (scope: ContainerScope, text: string): MergedLeaf => {
+		const rel = merge.targetLeafPath.slice(unwrap.outerPath.length);
+		const holder = rel.slice(0, -1).reduce((node, i) => node.children![i], scope.node);
 		const body = { children: holder.children!, owner: holder, lineEnding };
 		const write = legalizeWrite(body, leafIndex, text, 'literal');
-		const settled = updateNodeContent(body, leafIndex, write, ctx.reading.grammar, sharing);
-		if (holder.childIds) {
-			applyStructuralChangeToIdsRefs(
-				settled.change,
-				holder.childIds,
-				new Array(holder.childIds.length)
-			);
-		}
-		return { chain, settled, storedOffset: write.storedOffset };
+		return { settled: scope.writeLeaf(rel, write), storedOffset: write.storedOffset };
 	};
 	let merged: MergedLeaf | null = null;
 
@@ -249,12 +234,10 @@ async function applyContainerMatchingMerge(
 			scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
 			snapshot,
 			mutate: ([scopeView]) => {
-				const sharing = scopeView.sharing;
 				merged = writeMergedLeaf(
-					displayBefore + firstItemText + displayAfter + targetLineEnding,
-					sharing
+					scopeView,
+					displayBefore + firstItemText + displayAfter + targetLineEnding
 				);
-				rebuildUnsharedChain(ctx.doc, merged.chain, sharing, null, ctx.reading.grammar);
 				return [{ op: 'noop' }];
 			},
 			op: {
@@ -285,14 +268,14 @@ async function applyContainerMatchingMerge(
 	const lastItem = remainingItems[remainingItems.length - 1];
 	const lastLineEnding = trailingLineEnding(lastLeaf.raw, lineEnding);
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
-	let residue: SettledContent = { change: { op: 'noop' }, textStart: 0 };
+	let residue: FixedUpWrite = { change: { op: 'noop' }, textStart: 0 };
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
 		snapshot,
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			const { chain } = writeMergedLeaf(displayBefore + firstItemText + targetLineEnding, sharing);
+			writeMergedLeaf(scopeView, displayBefore + firstItemText + targetLineEnding);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse path, never a bare write.
 			residue = updateNodeContent(
@@ -311,9 +294,6 @@ async function applyContainerMatchingMerge(
 					new Array(lastItem.childIds.length)
 				);
 			}
-			// Both rebuilds run before the splice, so the children written to state carry correct
-			// raws in one reactive flush.
-			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.reading.grammar);
 			rebuildContainerRaw(remainingItems[remainingItems.length - 1], ctx.reading.grammar);
 
 			// The siblings land after the merged target, which keeps its own slot.

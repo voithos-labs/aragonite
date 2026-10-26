@@ -207,36 +207,63 @@ const itemMarker = fc.constantFrom(
 const spelledLines = (lines: fc.Arbitrary<string>[]): fc.Arbitrary<string[]> =>
 	lines.length === 0 ? fc.constant([]) : fc.tuple(...lines);
 
-const { container } = fc.letrec<{ body: DrawnLine[]; container: DrawnLine[] }>((tie) => ({
-	// Blocks a blank line apart.
-	body: fc
-		.array(fc.oneof({ arbitrary: drawnParagraph, weight: 3 }, tie('container')), {
-			minLength: 1,
-			maxLength: 3
-		})
-		.map((blocks) =>
-			blocks.flatMap((block, i) => (i === 0 ? block : [{ text: '', lazy: false }, ...block]))
+const { body: containerBody, container } = fc.letrec<{ body: DrawnLine[]; container: DrawnLine[] }>(
+	(tie) => ({
+		// Blocks a blank line apart.
+		body: fc
+			.array(fc.oneof({ arbitrary: drawnParagraph, weight: 3 }, tie('container')), {
+				minLength: 1,
+				maxLength: 3
+			})
+			.map((blocks) =>
+				blocks.flatMap((block, i) => (i === 0 ? block : [{ text: '', lazy: false }, ...block]))
+			),
+		container: fc.oneof(
+			{ depthSize: 'small', maxDepth: 2 },
+			tie('body').chain((body) =>
+				spelledLines(body.map(quoteSpelling)).map((lines): DrawnLine[] =>
+					lines.map((text, i) => ({ text, lazy: body[i].lazy }))
+				)
+			),
+			fc
+				.tuple(fc.constantFrom('', ' ', '   '), itemMarker, tie('body'))
+				.chain(([indent, marker, body]) =>
+					spelledLines(
+						body.map((line, i) =>
+							i === 0
+								? fc.constant(indent + marker + line.text)
+								: itemSpelling(line, indent.length + marker.length)
+						)
+					).map((lines): DrawnLine[] => lines.map((text, i) => ({ text, lazy: body[i].lazy })))
+				)
+		)
+	})
+);
+
+/** The bundled strip containers, a GitHub alert and a footnote definition, around a body of quotes,
+ *  lists and paragraphs spelled every way GFM reads the same. */
+const pluginContainer = fc.oneof(
+	fc
+		.tuple(fc.constantFrom('> [!NOTE]', '> [!TIP]', '> [!Warning]'), containerBody)
+		.chain(([marker, body]) =>
+			spelledLines(body.map(quoteSpelling)).map((lines) => [marker, ...lines])
 		),
-	container: fc.oneof(
-		{ depthSize: 'small', maxDepth: 2 },
-		tie('body').chain((body) =>
-			spelledLines(body.map(quoteSpelling)).map((lines): DrawnLine[] =>
-				lines.map((text, i) => ({ text, lazy: body[i].lazy }))
+	fc
+		.tuple(fc.constantFrom('[^1]: ', '[^1]:', '  [^n]: '), containerBody)
+		.chain(([marker, body]) =>
+			spelledLines(
+				body.map((line, i) => (i === 0 ? fc.constant(marker + line.text) : itemSpelling(line, 4)))
 			)
-		),
-		fc
-			.tuple(fc.constantFrom('', ' ', '   '), itemMarker, tie('body'))
-			.chain(([indent, marker, body]) =>
-				spelledLines(
-					body.map((line, i) =>
-						i === 0
-							? fc.constant(indent + marker + line.text)
-							: itemSpelling(line, indent.length + marker.length)
-					)
-				).map((lines): DrawnLine[] => lines.map((text, i) => ({ text, lazy: body[i].lazy })))
-			)
-	)
-}));
+		)
+);
+
+/** The bundled strip containers spelled every way their parsers read the same, a blank line apart;
+ *  install the admonitions and footnotes plugins before drawing. */
+export const arbRespelledPluginContainerDoc = withDrawnLineEnding(
+	fc
+		.array(pluginContainer, { minLength: 1, maxLength: 2 })
+		.map((blocks) => blocks.map((lines) => lines.map((line) => line + '\n').join('')).join('\n'))
+);
 
 /** Quotes and lists spelled every way GFM reads the same, a blank line apart. */
 export const arbRespelledContainerDoc = withDrawnLineEnding(

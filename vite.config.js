@@ -104,8 +104,8 @@ export default defineConfig({
 			? { fs: { allow: [searchForWorkspaceRoot(process.cwd()), nodeModulesTarget] } }
 			: {}),
 		watch: {
-			// A nested worktree under `.claude/` is not this app; a write there reloaded every open
-			// e2e page mid-battery. The rest are inert bulk that polling must never walk.
+			// Nested worktrees (`.claude/`, `behavior-results/`) aren't this app; a write there reloaded
+			// every open e2e page mid-battery. The rest are inert bulk polling must never walk.
 			ignored: [
 				'**/.claude/**',
 				'**/node_modules/**',
@@ -113,7 +113,8 @@ export default defineConfig({
 				'**/.svelte-kit/**',
 				'**/build/**',
 				'**/dist/**',
-				'**/test-results/**'
+				'**/test-results/**',
+				'**/behavior-results/**'
 			],
 			...(usePolling ? { usePolling: true, interval: 600, binaryInterval: 2000 } : {})
 		}

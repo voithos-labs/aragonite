@@ -29,8 +29,8 @@ export async function clickModeToggle(page: Page, mode: ToggledMode): Promise<Pr
 	return applied;
 }
 
-/** Clicks the showcase's or the changelog's button for `mode`, which sets that mode outright. */
+/** Clicks the showcase's button for `mode`, which sets that mode outright. */
 export async function clickModeButton(page: Page, mode: PresentationMode): Promise<void> {
-	await clickInPlace(page.locator(`:is(.showcase-mode, .changelog-mode)[data-mode="${mode}"]`));
+	await clickInPlace(page.locator(`.showcase-mode[data-mode="${mode}"]`));
 	await expectPresentationMode(page.locator('.editor'), mode);
 }

@@ -5,10 +5,11 @@
 
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { parse } from '#lib/core/parser.js';
+import { endsInBlankLine } from '#lib/core/lines.js';
+import { isBlankParagraph, parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
-import { holdsTrailingBlankLine } from '#lib/tree-operations/blank-runs.js';
+import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
 
 export {
 	assertParseConverged as expectParseConverged,
@@ -69,9 +70,13 @@ function gapLines(body: NodeView | Document, grammar: GrammarView): number[] {
 	return gaps;
 }
 
+/** 1 when the leaf at `index` ends in a blank line its reading there leaves out, which counts
+ *  toward the gap below it. */
 const leafLine = (body: NodeView | Document, index: number, grammar: GrammarView): number => {
 	const owner = body.kind === 'document' ? undefined : (body as NodeView);
-	return holdsTrailingBlankLine(body.children?.[index], owner, index, grammar) ? 1 : 0;
+	const node = body.children?.[index];
+	if (!node || node.children || isBlankParagraph(node) || !endsInBlankLine(node.raw)) return 0;
+	return fragmentReaderAt(owner, index, grammar)(node.raw).suffix !== '' ? 1 : 0;
 };
 
 const linesIn = (text: string): number => (text.match(/\n/g) ?? []).length;

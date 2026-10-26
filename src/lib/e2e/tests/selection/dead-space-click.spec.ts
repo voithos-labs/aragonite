@@ -190,6 +190,26 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(focusedKind).not.toBe('table');
 	});
 
+	// The press ends the range before the click declines, so the key has nothing to replace.
+	test('a click beside a table ends a live range and the next key changes nothing', async () => {
+		const source = 'lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
+		await editor.loadContent(source);
+		await editor.focusBlockStart(0);
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.waitForCrossBlock(true);
+		const cell = await editor.page.locator('.table-cell').nth(2).boundingBox();
+		if (!cell) throw new Error('no box for the first body cell');
+		const margin = await rightMargin(editor, 1, cell.y + cell.height / 2);
+
+		await editor.page.mouse.click(margin.x, margin.y);
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		await editor.page.keyboard.type('!');
+		await editor.waitForNoSourceMutation();
+
+		expect(await editor.bridge.getSource()).toBe(source);
+	});
+
 	// Chromium paints no caret against a widget the caret cannot enter, so the editor's own bar is
 	// the only sign the landing is visible.
 	test('a click beside a widget-only line lands the caret on the widget’s edge', async () => {

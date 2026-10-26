@@ -8,10 +8,10 @@ import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 describe('a leading space typed into an empty quoted child reaches the source', () => {
 	it('keeps the marker space and the content space apart, one keystroke at a time', async () => {
 		const h = makeNestedHarness('>\n', { index: 0 });
-		await h.bundle.blockEdit.updateBlockContent(0, ' \n', 'authored', 0, 1);
+		await h.bundle.blockEdit.updateBlockContent(0, ' \n', 'authored', 'join-typing', 0, 1);
 		expect(serialize(h.deps.doc)).toBe('>  \n');
 
-		await h.bundle.blockEdit.updateBlockContent(0, ' x\n', 'authored', 1, 2);
+		await h.bundle.blockEdit.updateBlockContent(0, ' x\n', 'authored', 'join-typing', 1, 2);
 		expect(serialize(h.deps.doc)).toBe('>  x\n');
 	});
 
@@ -22,6 +22,7 @@ describe('a leading space typed into an empty quoted child reaches the source', 
 				0,
 				`${' '.repeat(typed)}\n`,
 				'authored',
+				'join-typing',
 				typed - 1,
 				typed
 			);

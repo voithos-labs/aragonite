@@ -31,13 +31,22 @@ export function publishAncestryFolds(
 	deps: EditorActionsDeps,
 	folds: readonly AncestrySeamFold[]
 ): () => void {
-	const restores: (() => void)[] = [];
-	for (const fold of folds) {
-		restores.push(fold.owner ? publishContainerFold(deps, fold) : publishDocFold(deps, fold));
-	}
+	const unpublish = folds.map((fold) =>
+		publishScopeChange(deps, fold.owner ?? undefined, fold.change)
+	);
 	return () => {
-		for (let i = restores.length - 1; i >= 0; i--) restores[i]();
+		for (let i = unpublish.length - 1; i >= 0; i--) unpublish[i]();
+		restoreFoldedChildren(folds);
 	};
+}
+
+/** Puts back every array the collapses spliced, newest first; alone, for a rollback that runs
+ *  before their publish. A collapse recreates several nodes, so nothing narrower restores them. */
+export function restoreFoldedChildren(folds: readonly AncestrySeamFold[]): void {
+	for (let i = folds.length - 1; i >= 0; i--) {
+		const fold = folds[i];
+		spliceMany(fold.siblings, 0, fold.siblings.length, fold.before);
+	}
 }
 
 /** Where the caret goes after a collapse recreated the blocks in its range. The last collapse is
@@ -54,18 +63,31 @@ export function foldLandingFor(
 	};
 }
 
-/**
- * A splice made outside a commit, written to state the way a commit writes the change its
- * mutate returns. `owner` is the container whose children moved, or undefined for the document.
- */
-export function publishScopeFold(
+/** A splice made outside a structural commit, written to ids and refs as a commit writes its
+ *  change; returns their undo. `owner` is the container whose children moved, or none. */
+export function publishScopeChange(
 	deps: EditorActionsDeps,
 	owner: CstNode | undefined,
 	change: StructuralChange
-): void {
-	if (change.op === 'noop') return;
-	if (owner) publishContainerScope(owner, change);
-	else publishDocScope(deps, change);
+): () => void {
+	if (change.op === 'noop') return () => {};
+	if (!owner) {
+		const savedIds = [...deps.blockIds];
+		const savedRefs = [...deps.blockRefs];
+		publishDocScope(deps, change);
+		return () => {
+			deps.setBlockIds(savedIds);
+			deps.setBlockRefs(savedRefs);
+		};
+	}
+	const state = getStateForNode(owner);
+	const savedIds = owner.childIds;
+	const savedRefs: (BlockComponent | undefined)[] = state ? [...state.innerBlockRefs] : [];
+	publishContainerScope(owner, change);
+	return () => {
+		owner.childIds = savedIds;
+		if (state) replaceRefs(state.innerBlockRefs, savedRefs);
+	};
 }
 
 function publishDocScope(deps: EditorActionsDeps, change: StructuralChange): void {
@@ -93,34 +115,4 @@ function publishContainerScope(owner: CstNode, change: StructuralChange): void {
 	applyStructuralChangeToIdsRefs(change, ids, refs);
 	owner.childIds = ids;
 	if (state) replaceRefs(state.innerBlockRefs, refs);
-}
-
-function publishDocFold(deps: EditorActionsDeps, fold: AncestrySeamFold): () => void {
-	const savedIds = [...deps.blockIds];
-	const savedRefs = [...deps.blockRefs];
-	publishScopeFold(deps, undefined, fold.change);
-	return () => {
-		deps.setBlockIds(savedIds);
-		deps.setBlockRefs(savedRefs);
-		restoreChildren(fold);
-	};
-}
-
-function publishContainerFold(deps: EditorActionsDeps, fold: AncestrySeamFold): () => void {
-	const owner = fold.owner!;
-	const state = getStateForNode(owner);
-	const savedIds = owner.childIds;
-	const savedRefs: (BlockComponent | undefined)[] = state ? [...state.innerBlockRefs] : [];
-	publishScopeFold(deps, owner, fold.change);
-	return () => {
-		owner.childIds = savedIds;
-		if (state) replaceRefs(state.innerBlockRefs, savedRefs);
-		restoreChildren(fold);
-	};
-}
-
-/** The whole pre-splice array: a collapse recreates several nodes, so nothing narrower
- *  restores them. */
-function restoreChildren(fold: AncestrySeamFold): void {
-	spliceMany(fold.siblings, 0, fold.siblings.length, fold.before);
 }

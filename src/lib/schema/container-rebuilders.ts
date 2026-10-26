@@ -54,7 +54,7 @@ export function rebuildBlockquoteRaw(
 	changed?: ChildRawChange
 ): StripRebuild | undefined {
 	if (!node.children) return;
-	return rebuildStripRaw(node, quoteLines, changed);
+	return rebuildStripRaw(node, quoteLines, { changed });
 }
 
 // ── List ─────────────────────────────────────────────────────────────────────
@@ -76,7 +76,8 @@ export function rebuildListItemRaw(
 	const lines = listItemLines(shape);
 	const unchanged =
 		!previous || (previous.marker === shape.marker && previous.taskMarker === shape.taskMarker);
-	return rebuildStripRaw(node, lines, changed, unchanged ? lines : listItemLines(previous));
+	const was = unchanged ? lines : listItemLines(previous);
+	return rebuildStripRaw(node, lines, { changed, previous: was });
 }
 
 export function rebuildListRaw(node: CstNode, changed?: ChildRawChange): void {

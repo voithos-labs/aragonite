@@ -56,6 +56,14 @@ describe('the toolbar scenario', () => {
 		expect(canRunCommandById('history.undo', null, context())).toBe(true);
 	});
 
+	// Run still takes the id, so its chord never falls through to the browser's own undo.
+	it('the history ids read idle with nothing to undo or redo, and are still taken', () => {
+		const empty = context({ undoStack: { canUndo: false, canRedo: true } });
+		expect(canRunCommandById('history.undo', null, empty)).toBe(false);
+		expect(canRunCommandById('history.redo', null, empty)).toBe(true);
+		expect(runCommandById('history.undo', undefined, null, empty)).toBe(true);
+	});
+
 	it('an id the entry point cannot reach is never admitted: unknown, or created with no context', () => {
 		const minted = registerBlockCommand('paragraph', 'demo.minted', () => true);
 		expect(canRunCommandById(minted, surface(), context())).toBe(false);

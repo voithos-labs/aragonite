@@ -12,17 +12,15 @@ import type { CaretPosition, SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { RemovalLanding } from './removal-landing';
 import { isChromeChild, nearestChromeContainer, type RangeCoverage } from './range-coverage';
-import type { SharingState } from '../tree-operations/sharing';
+import type { ScopeWrites } from '../action-contracts';
 import { comparePaths, pathsEqual } from './path-math';
 import {
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
-	rebuildAfterDeletion,
+	renumberAfterDeletion,
 	truncateEndInPlace,
 	truncateStartInPlace
 } from './range-delete-ceremony';
-import { ensureUnsharedPath } from '../tree-operations/unshare';
-import { rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import {
 	caretPointFor,
 	survivorAfterRemoval,
@@ -54,20 +52,19 @@ export function involvesReservedChrome(
 export function unjoinedRangeDelete(
 	doc: Document,
 	coverage: RangeCoverage,
-	sharing: SharingState,
+	scope: ScopeWrites,
 	reading: Reading,
 	gesture: RemovalGesture,
 	landing: RemovalLanding
 ): RangeDeleteResult {
-	const { grammar } = reading;
 	const { start, end } = coverage.range;
 	const { startEdge, endEdge } = coverage;
 
 	// Copy every chain that will be written before node identities are captured: chains stay
 	// valid across splices, paths do not (G1.9).
-	const startChain = startEdge ? ensureUnsharedPath(doc, start.path, sharing) : null;
-	const endChain = endEdge ? ensureUnsharedPath(doc, end.path, sharing) : null;
-	const plan = planCrossBlockDeletion(doc, coverage, [], sharing);
+	const startChain = startEdge ? scope.own(start.path) : null;
+	const endChain = endEdge ? scope.own(end.path) : null;
+	const plan = planCrossBlockDeletion(doc, coverage, [], scope);
 
 	// The end truncates first, while its path is still valid.
 	if (endChain) {
@@ -78,12 +75,12 @@ export function unjoinedRangeDelete(
 			endChain[endChain.length - 1],
 			endC !== null && isChromeChild(endC, end.path),
 			reading,
-			sharing,
+			scope,
 			'unjoinedRangeDelete:end'
 		);
 	}
 
-	applyPlannedDeletion(doc, plan, grammar);
+	applyPlannedDeletion(doc, plan);
 
 	// Every deletion sits after the start in document order, so its path is still live.
 	const startC = nearestChromeContainer(doc, start.path);
@@ -94,16 +91,11 @@ export function unjoinedRangeDelete(
 				startChain[startChain.length - 1],
 				startC !== null && isChromeChild(startC, start.path),
 				reading,
-				sharing,
+				scope,
 				'unjoinedRangeDelete:start'
 			)
 		: null;
-
-	// Chain-based rebuilds: node references survive the splices above where paths may not, and
-	// every touched container re-emits raw (G1.12).
-	if (startChain) rebuildUnsharedChain(doc, startChain, sharing, null, grammar);
-	if (endChain) rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
-	rebuildAfterDeletion(doc, plan, sharing, grammar);
+	renumberAfterDeletion(doc, plan);
 
 	switch (landing.at) {
 		case 'resume':

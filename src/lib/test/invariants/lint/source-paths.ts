@@ -52,11 +52,9 @@ export const SOURCE = {
 	// ── Tree operations ─────────────────────────────────────────────────────
 	treeOperationsBarrel: 'src/lib/tree-operations/index.ts',
 	nodePrimitives: 'src/lib/tree-operations/node-primitives.ts',
-	openTail: 'src/lib/tree-operations/open-tail.ts',
 	unshare: 'src/lib/tree-operations/unshare.ts',
 	separatorWrites: 'src/lib/tree-operations/separator-writes.ts',
-	neighbourMerge: 'src/lib/tree-operations/neighbour-merge.ts',
-	settle: 'src/lib/tree-operations/settle.ts',
+	fixUpApply: 'src/lib/tree-operations/fix-up/apply.ts',
 	contentWrite: 'src/lib/tree-operations/content-write.ts',
 	nodeOps: 'src/lib/tree-operations/node-ops.ts',
 	chainRebuild: 'src/lib/tree-operations/chain-rebuild.ts',
@@ -67,12 +65,11 @@ export const SOURCE = {
 	undoController: 'src/lib/editor-actions/commit/undo-controller.ts',
 	structuralCommit: 'src/lib/editor-actions/commit/structural-commit.ts',
 	blockEditCore: 'src/lib/editor-actions/block-edit-core.ts',
-	leafWrite: 'src/lib/editor-actions/leaf-write.ts',
+	leafCommit: 'src/lib/editor-actions/commit/leaf-commit.ts',
+	commitFrame: 'src/lib/editor-actions/commit/commit-frame.ts',
+	commitScope: 'src/lib/commit-scope.ts',
 	containerBlockComponent: 'src/lib/editor-actions/container-block-component.ts',
 	pluginContainer: 'src/lib/editor-actions/plugin/container.ts',
-
-	// ── Dev checks ──────────────────────────────────────────────────────────
-	commitScope: 'src/lib/invariants/commit-scope.ts',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
 	docPathBrand: 'src/lib/selection/path-math.ts',
@@ -203,16 +200,14 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	containerRebuilders: 'export function rebuildTableRaw(',
 
 	// ── Tree operations ─────────────────────────────────────────────────────
-	treeOperationsBarrel: 'export { updateNodeContent, reclassifyContainer }',
+	treeOperationsBarrel: 'export { reclassifyContainer }',
 	nodePrimitives: 'export type BodyParent',
-	openTail: 'export function keepOpenTail',
 	unshare: 'export function walkUnsharing',
-	separatorWrites: 'export function writeSeparator',
-	neighbourMerge: 'export function absorbWindowSeams',
-	settle: 'export function settleEdit',
+	separatorWrites: 'export function restoreSeparatorOnFill(',
+	fixUpApply: 'export function fixUpEdit',
 	contentWrite: 'export interface LegalWrite',
 	nodeOps: 'export interface SplitResult',
-	chainRebuild: 'export function attachedChainPrefix',
+	chainRebuild: 'export function rebuildUnsharedChain',
 	blockquoteOps: 'export function plainQuote',
 	listItemMoves: 'export type ItemMoveCommits',
 
@@ -220,12 +215,11 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	undoController: 'export function createUndoController',
 	structuralCommit: 'export function createStructuralCommit',
 	blockEditCore: 'export function contentUpdate',
-	leafWrite: 'export type LeafTyping',
+	leafCommit: 'export function createLeafCommit',
+	commitFrame: 'export function createCommitFrame',
+	commitScope: 'export function isCommitInProgress',
 	containerBlockComponent: 'export function dispatchWholeBlockGlobalChord',
 	pluginContainer: 'export interface ContainerBlockDeps',
-
-	// ── Dev checks ──────────────────────────────────────────────────────────
-	commitScope: 'export function isCommitInProgress',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
 	docPathBrand: 'export type DocPath',

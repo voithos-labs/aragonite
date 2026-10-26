@@ -409,6 +409,7 @@ async function typedOpener(
 	await inLiveMode(ctx, async () => {
 		const { page, editor, tracker } = ctx;
 		const depth = await ctx.editor.bridge.getUndoDepth();
+		const before = await editor.bridge.getSource();
 		await editor.clickBlock(blockIndex);
 		await page.keyboard.press(edgeKey('lineEnd'));
 		await editor.waitForRenderFlush();
@@ -419,7 +420,9 @@ async function typedOpener(
 
 		await run();
 
-		for (let spent = (await ctx.editor.bridge.getUndoDepth()) - depth; spent > 0; spent--) {
+		// An entry the typing left with no net change is no undo step, so the bytes can come back early.
+		let spent = (await ctx.editor.bridge.getUndoDepth()) - depth;
+		for (; spent > 0 && (await editor.bridge.getSource()) !== before; spent--) {
 			await editor.undo();
 			await editor.waitForRenderFlush();
 		}

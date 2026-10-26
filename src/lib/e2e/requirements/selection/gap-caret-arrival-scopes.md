@@ -19,7 +19,7 @@ are in `gap-caret-arrival.md`.
 - Real Delete keystrokes and real scrolls; block addressing goes through the test bridge
   because the chained locator costs minutes on a 200-block fixture.
 
-## Known v1 narrowings
+## Limits
 
 - Entering a container from outside lands on its deepest leaf and does not visit a gap at
   the end of the nested child list; only a move that starts inside that child list sees it.

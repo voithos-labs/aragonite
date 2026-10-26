@@ -139,7 +139,7 @@ describe('G4.122 the directory graph reads each import shape', () => {
 	const graphOf = (code: string) => layerGraph([sourceFile(from, code)]);
 
 	it('names a top-level directory, or a root file as its own node', () => {
-		expect(layerOf(SOURCE.settle)).toBe('tree-operations');
+		expect(layerOf(SOURCE.fixUpApply)).toBe('tree-operations');
 		expect(layerOf(SOURCE.devChecks)).toBe('dev-checks.ts');
 		expect(layerOf(SOURCE.showcaseRoute)).toBeNull();
 	});

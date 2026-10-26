@@ -29,7 +29,14 @@ describe('format command branches on a table cell', () => {
 
 		expect(mounted.instance.runCommand(id)).toBe(true);
 
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, expected, 'literal', 0, 0);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			expected,
+			'literal',
+			'entry',
+			0,
+			0
+		);
 	});
 });
 

@@ -3,7 +3,7 @@
  * the in-place write, and putting the caret back after a write that moved it.
  */
 
-import { updateNodeContent } from '../tree-operations';
+import { updateNodeContent } from '../tree-operations/content-write';
 import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import { makeBlockNode, metadataOf } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';

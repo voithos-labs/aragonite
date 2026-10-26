@@ -4,7 +4,7 @@
  * caret goes; the write picks the undo caret, adds the block's line ending and puts the caret back.
  */
 
-import type { BlockEditActions, ContentWrite } from '../../../action-contracts';
+import type { BlockEditActions, ContentWrite, UndoGrouping } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
 import type { WriteMode } from '../../../schema/block-kind-descriptor';
 import type { LeafRangeEdit } from '../../../tree-operations/leaf-range';
@@ -26,6 +26,9 @@ export interface TextWrite {
 	/** Where the caret goes, counted in `text`. */
 	caretAfter: number;
 	intent: WriteIntent;
+	/** `entry` for a command that is its own undo step; `join-typing` for typing, and for the
+	 *  removal a key typed over a selection makes, which the key then joins. */
+	history: UndoGrouping;
 	mode: WriteMode;
 	/** The gesture, for the interaction trace. */
 	source: string;
@@ -83,6 +86,7 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 			// The block's own ending only: a last line saved without one stays that way.
 			withOwnEnding(node, edit.text),
 			write.mode,
+			write.history,
 			began,
 			edit.caretAfter
 		);

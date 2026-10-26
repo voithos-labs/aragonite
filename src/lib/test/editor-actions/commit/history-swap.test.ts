@@ -2,11 +2,23 @@ import { describe, it, expect, vi } from 'vitest';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 
 function makeSetup() {
 	const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'aaa\n')]);
 	const controller = createUndoController(deps);
 	return { deps, events, controller, history: createHistoryActions(deps, controller) };
+}
+
+type Deps = ReturnType<typeof makeSetup>['deps'];
+
+/** The live document with its first block's text changed: an entry the undo stack takes as a step,
+ *  where one equal to the live bytes would be passed over. */
+function differentDoc(deps: Deps) {
+	return {
+		...deps.doc,
+		children: [makeNode('paragraph', 'pushed\n'), ...deps.doc.children.slice(1)]
+	};
 }
 
 // captureCurrentState marks the whole tree as shared with a snapshot, forcing the next
@@ -33,7 +45,7 @@ describe('history swap: a snapshot whose selection no longer resolves', () => {
 		const { deps, history } = makeSetup();
 		const pastEnd = deps.doc.children.length;
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: {
 				anchor: { path: [pastEnd], offset: 0 },
@@ -54,7 +66,7 @@ describe('history swap: the outgoing selection never meets the incoming tree', (
 	it('drops the standing range before the document swaps', async () => {
 		const { deps, history } = makeSetup();
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 1 } }
 		});
@@ -87,7 +99,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		};
 		const history = createHistoryActions(deps, createUndoController(deps));
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
 		});
@@ -111,7 +123,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		};
 		const history = createHistoryActions(deps, createUndoController(deps));
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
 		});
@@ -130,7 +142,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		});
 		const history = createHistoryActions(deps, createUndoController(deps));
 		deps.undoManager.push({
-			snapshot: { ...deps.doc, children: [...deps.doc.children] },
+			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
 			selection: { anchor: { path: [5], offset: 0 }, focus: { path: [5], offset: 0 } }
 		});
@@ -152,15 +164,29 @@ describe('history swap: the typing batch ends', () => {
 			const ops: string[] = [];
 			events.on('edit', (e) => ops.push(e.op));
 
-			controller.pushUndoSnapshotDebounced([0], 1);
-			controller.armUndoPause();
+			void controller.typingKeystroke(
+				docPathFrom([0]),
+				1,
+				'leaf',
+				'join-typing',
+				async () => undefined
+			);
+			// Stands in for the keystroke's own write, so the entry is a step to undo.
+			deps.doc.children[0] = makeNode('paragraph', 'aaab\n');
+			deps.bumpContentVersion();
 			await history.requestUndo();
 			vi.advanceTimersByTime(1000);
 			expect(ops).toEqual(['undo']);
-			expect(deps.undoManager.canUndo).toBe(false);
+			expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 
-			controller.pushUndoSnapshotDebounced([0], 1);
-			expect(deps.undoManager.canUndo).toBe(true);
+			void controller.typingKeystroke(
+				docPathFrom([0]),
+				1,
+				'leaf',
+				'join-typing',
+				async () => undefined
+			);
+			expect(deps.undoManager.getStacks().undo).toHaveLength(1);
 		} finally {
 			vi.useRealTimers();
 		}

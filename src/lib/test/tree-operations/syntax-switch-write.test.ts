@@ -1,21 +1,17 @@
 // Miss-analysis: every write test ran in the global grammar, never with a syntax switched off.
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import {
-	cascadeCleanupEmptyAncestors,
-	splitNode,
-	updateNodeContent
-} from '#lib/tree-operations/index.js';
-import { deleteAtPath, replaceAtPath } from '#lib/tree-operations/path-mutate.js';
+import { cascadeCleanupEmptyAncestors, splitNode } from '#lib/tree-operations/index.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { createRegistryView } from '#lib/schema/registry-view.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { mergePrevSettled } from '#lib/test/harness/settle-funnel.js';
+import { mergePrevSettled, writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // A write reads its neighbours in the editor's grammar, so a paragraph that comes to sit over
 // `---` in an editor without setext headings stays a paragraph over a divider.
@@ -68,13 +64,7 @@ describe('a split, join or delete beside a switched-off syntax', () => {
 		{
 			name: 'a range delete taking the block between a paragraph and `---`',
 			source: 'a\n# h\n---\n',
-			run: (doc) => deleteAtPath(doc, [1], createSharingState(), off),
-			kinds: ['paragraph', 'thematicBreak']
-		},
-		{
-			name: 'a range delete replacing that block with nothing',
-			source: 'a\n# h\n---\n',
-			run: (doc) => replaceAtPath(doc, [1], [], createSharingState(), off),
+			run: (doc) => writtenBelow(doc, (scope) => scope.splice([], 1, 1, []), off),
 			kinds: ['paragraph', 'thematicBreak']
 		},
 		{
@@ -82,7 +72,7 @@ describe('a split, join or delete beside a switched-off syntax', () => {
 			source: 'a\n- x\n---\n',
 			run: (doc) => {
 				doc.children[1].children![0].children = [];
-				cascadeCleanupEmptyAncestors(doc, [1, 0, 0], createSharingState(), off, '\n');
+				writtenBelow(doc, (scope) => cascadeCleanupEmptyAncestors(doc, scope, [1, 0, 0]), off);
 			},
 			kinds: ['paragraph', 'thematicBreak']
 		}

@@ -15,8 +15,16 @@ import {
 import type { CstNode } from '../../../core/nodes';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createScopeWriter } from '#lib/editor-actions/commit/scope-writes.js';
 
 // ── Container-matching merge runs its raw mutation inside commitMultiScope ────
+
+/** A commit scope's view of `node`, writing in place. */
+function scopeView(node: CstNode) {
+	const sharing = createSharingState();
+	const writer = createScopeWriter(node, sharing, fixtureReading().grammar, '\n');
+	return { ...writer, node, children: node.children!, sharing };
+}
 
 function makeMergeFixture() {
 	const doc = parse('1. one\n2. two\n');
@@ -40,8 +48,7 @@ describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invar
 			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommitInvocation = targetLeaf.raw;
 				captured.mutate = mutate;
-				const sharing = createSharingState();
-				mutate(scopes.map((s: { node: CstNode }) => ({ children: [], node: s.node, sharing })));
+				mutate(scopes.map((s: { node: CstNode }) => scopeView(s.node)));
 			})
 		} as unknown as PasteCommitCoordinator;
 
@@ -72,13 +79,7 @@ describe('paste-dispatch: applyContainerMatchingMerge mutate-inside-commit invar
 			...makeStubController(),
 			commitMultiScope: vi.fn(async ({ scopes, mutate }) => {
 				rawAtCommit = targetLeaf.raw;
-				const sharing = createSharingState();
-				const scopeViews = scopes.map((s: { node: CstNode }) => ({
-					children: [...(s.node.children ?? [])],
-					node: s.node,
-					sharing
-				}));
-				mutate(scopeViews);
+				mutate(scopes.map((s: { node: CstNode }) => scopeView(s.node)));
 			})
 		} as unknown as PasteCommitCoordinator;
 
@@ -149,8 +150,8 @@ describe('pasteDispatch: strategy routing end-to-end', () => {
 		expect(call[0]).toBe(0);
 		expect(call[1]).toBe('hello XYZworld\n');
 		expect(call[2]).toBe('literal');
-		expect(call[3]).toBe(6);
-		expect(call[4]).toBe(9);
+		expect(call[4]).toBe(6);
+		expect(call[5]).toBe(9);
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
 	});
 

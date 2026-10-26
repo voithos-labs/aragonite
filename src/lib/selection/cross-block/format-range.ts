@@ -17,18 +17,12 @@ import {
 } from '../../core/inline/format-toggle';
 import { getContentRange, type ContentRange } from '../../core/inline';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { Reading } from '../../schema/reading';
-import type { GrammarView } from '../../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { blockNodeAt, type BodyParent } from '../../tree-operations/node-primitives';
-import type { SharingState } from '../../tree-operations/sharing';
-import { updateNodeContent } from '../../tree-operations/content-write';
-import { ensureUnsharedPath } from '../../tree-operations/unshare';
-import { recordChildIdsChange } from '../../tree-operations/structural-change';
-import { rebuildUnsharedChain, sharedChainLevels } from '../../tree-operations/chain-rebuild';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
+import type { ContainerScope } from '../../action-contracts';
 import { pathsEqual } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
 import {
@@ -119,35 +113,23 @@ export function crossBlockActiveFormats(
 	return active;
 }
 
-/** Writes a plan into the document body, each block taking whatever its new bytes read as there.
- *  The caller owns the commit. */
+/** Writes a plan below the document's commit scope, each block taking whatever its new bytes
+ *  read as there. */
 export function applyCrossBlockFormat(
-	body: BodyParent,
-	plan: CrossBlockFormatPlan,
-	sharing: SharingState,
-	grammar: GrammarView
+	scope: Pick<ContainerScope, 'body' | 'writeLeaf'>,
+	plan: CrossBlockFormatPlan
 ): void {
-	const chains: CstNode[][] = [];
 	// Last first, so a write that reads as several blocks moves no path still to be written.
 	for (let w = plan.writes.length - 1; w >= 0; w--) {
 		const write = plan.writes[w];
-		const chain = ensureUnsharedPath(body, write.path, sharing);
-		const owned = chain[chain.length - 1];
-		if (!owned) continue;
-		const owner: CstNode | undefined = chain[chain.length - 2];
-		const holder = owner ? { children: owner.children!, owner, lineEnding: body.lineEnding } : body;
+		const leaf = write.path.reduce<NodeView | undefined>(
+			(node, index, depth) => (depth === 0 ? scope.body.children : node?.children)?.[index],
+			undefined
+		);
+		if (!leaf) continue;
 		// A line ending reaching a cell's raw would be turned into a space by the cell's write rule.
-		const raw = write.newDisplay + ownTrailingLineEnding(owned.raw);
-		const { change } = updateNodeContent(holder, write.path.at(-1)!, raw, grammar, sharing);
-		recordChildIdsChange(owner ?? body, change);
-		chains.unshift(chain);
+		scope.writeLeaf(write.path, write.newDisplay + ownTrailingLineEnding(leaf.raw));
 	}
-	// Every write lands before any rebuild, and an ancestor the chains share is rebuilt once, by the
-	// last chain holding it, after every chain below it.
-	const levels = sharedChainLevels(chains);
-	chains.forEach((chain, i) => {
-		rebuildUnsharedChain(body, chain, sharing, null, grammar, undefined, levels[i]);
-	});
 }
 
 // ── Range decomposition ────────────────────────────────────────────────────

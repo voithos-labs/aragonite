@@ -212,7 +212,12 @@ describe('writeText and a record the write extends', () => {
 			requestCaret: () => {},
 			holdInsertion: () => records.hold(BLOCK, null)
 		});
-		const typed = { intent: 'typed', mode: 'authored', source: 'test' } as const;
+		const typed = {
+			intent: 'typed',
+			history: 'join-typing',
+			mode: 'authored',
+			source: 'test'
+		} as const;
 
 		void writeText({ ...typed, text: 'ab ', caretAfter: 3 });
 		void writeText({ ...typed, text: 'ab  ', caretAfter: 4 });

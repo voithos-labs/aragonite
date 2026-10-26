@@ -519,6 +519,8 @@ The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw 
 - Keep those offsets in `node.childSpans` (a start and an end offset per child). It's the one cache the editor clears for you when its own edits move a sibling's bytes, and a span that no longer matches falls back to the full rebuild. Offsets you cache anywhere else are yours to invalidate.
 - The conformance kit compares the two paths for your kind, so a fast path that drifts from the full rebuild fails your tests.
 
+One rule holds either way: an edit to one child rewrites that child's lines and nobody else's. If your author wrote `>b` with no space, it stays `>b` when they type somewhere else in the container (people have strong feelings about their spacing, and they're allowed to). The kit holds you to it with your profile's `deepNesting` source, so spell that one the way your rebuild wouldn't. For a container that puts a prefix on every line, `rebuildStripRaw` handles all of it, the changed-child shortcut included: hand it `quoteLines` for `>`, or `hangingIndentLines` for a marker and an indent, the way the bundled alert and footnote do ([the API table](plugin-api.md#container-authoring)).
+
 ## What a plugin may and may not do
 
 **An editor plugin isn't an app plugin.** If you're extending an app that embeds aragonite, that app almost certainly has a plugin layer of its own, and the two own different halves:
@@ -545,11 +547,12 @@ Most of that is enforced by **shape**: the factories never hand you a way to mak
 
 What each mistake does in each build:
 
-| Misuse                                    | Dev build                                                           | Production build                                    |
-| ----------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------- |
-| `rebuildRaw` writes the wrong bytes       | Warns at edit time, naming the kind                                 | Silent until the bytes surface in a round-trip      |
-| A component throws while rendering        | Contained as a failed-block fallback plus an `error` event, by path | Same containment (the boundary ships in production) |
-| An opener claims no line (`consumed < 1`) | Warns, naming the kind, and declines the opener                     | Declines the same way, silently; no hang            |
-| An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                        | Silent round-trip break                             |
-| An opener throws                          | Propagates uncaught (parse runs at init and on every edit)          | Same; uncaught                                      |
-| A register call outside a plugin's setup  | Throws, naming `definePlugin`                                       | Runs, unchecked and unsupported                     |
+| Misuse                                    | Dev build                                                                                                               | Production build                                    |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `rebuildRaw` writes the wrong bytes       | Warns at edit time, naming the kind                                                                                     | Silent until the bytes surface in a round-trip      |
+| A component throws while rendering        | Contained as a failed-block fallback plus an `error` event, by path                                                     | Same containment (the boundary ships in production) |
+| `rebuildRaw` throws                       | The edit rolls back, a typed key included (its character goes away), fires an `error` of origin `commit`, then rethrows | Same rollback and `error`; nothing rethrown         |
+| An opener claims no line (`consumed < 1`) | Warns, naming the kind, and declines the opener                                                                         | Declines the same way, silently; no hang            |
+| An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                                                                            | Silent round-trip break                             |
+| An opener throws                          | Propagates uncaught (parse runs at init and on every edit)                                                              | Same; uncaught                                      |
+| A register call outside a plugin's setup  | Throws, naming `definePlugin`                                                                                           | Runs, unchecked and unsupported                     |

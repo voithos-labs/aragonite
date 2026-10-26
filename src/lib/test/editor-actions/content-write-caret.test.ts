@@ -9,7 +9,7 @@ const TABLE = '| a | b |\n| - | - |\n| x | y |\n';
 describe('a table cell write', () => {
 	it('stores a typed pipe escaped and puts the caret after it', async () => {
 		const row = mountBodyRow(TABLE);
-		const write = row.blockEdit.updateBlockContent(0, 'x|', 'authored', 1, 2);
+		const write = row.blockEdit.updateBlockContent(0, 'x|', 'authored', 'join-typing', 1, 2);
 		await write;
 
 		expect(row.deps.doc.children[0].children![1].children![0].raw).toBe('x\\|');
@@ -20,7 +20,7 @@ describe('a table cell write', () => {
 describe('a fenced code write', () => {
 	it('puts back a closer a truncating write dropped, the caret where the writer left it', async () => {
 		const h = makeTopHarness('```js\nbody\n```\n');
-		const write = h.actions.updateBlockContent(0, '```js\nbo\n', 'literal', 8, 8);
+		const write = h.actions.updateBlockContent(0, '```js\nbo\n', 'literal', 'join-typing', 8, 8);
 		await write;
 
 		expect(h.deps.doc.children[0].raw).toBe('```js\nbo\n```\n');
@@ -30,7 +30,14 @@ describe('a fenced code write', () => {
 	it('moves the caret by the bytes a grown opener run gained', async () => {
 		const h = makeTopHarness('```js\nbody\n```\n');
 		// A body line reading as the closer: both runs grow by one, the opener ahead of the caret.
-		const write = h.actions.updateBlockContent(0, '```js\n```\n```\n', 'literal', 9, 9);
+		const write = h.actions.updateBlockContent(
+			0,
+			'```js\n```\n```\n',
+			'literal',
+			'join-typing',
+			9,
+			9
+		);
 		await write;
 
 		expect(h.deps.doc.children[0].raw).toBe('````js\n```\n````\n');
@@ -41,7 +48,13 @@ describe('a fenced code write', () => {
 	it('stores a closer typed into an open fence one backtick at a time as typed', async () => {
 		const h = makeTopHarness('```js\ncode\n');
 		for (const typed of ['```js\ncode\n`', '```js\ncode\n``', '```js\ncode\n```']) {
-			const write = h.actions.updateBlockContent(0, `${typed}\n`, 'authored', typed.length);
+			const write = h.actions.updateBlockContent(
+				0,
+				`${typed}\n`,
+				'authored',
+				'join-typing',
+				typed.length
+			);
 			await write;
 			expect(h.deps.doc.children[0].raw).toBe(`${typed}\n`);
 			expect(admittedCaret(write)).toBe(typed.length);

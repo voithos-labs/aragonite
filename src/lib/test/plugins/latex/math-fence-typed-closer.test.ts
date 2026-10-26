@@ -22,7 +22,14 @@ describe('typing a closer-shaped line into a math fence', () => {
 		const h = makeTopHarness('```math\nx\n```\n\npara\n');
 		expect(h.deps.doc.children[0].kind).toBe(MATH_FENCE);
 
-		await h.actions.updateBlockContent(0, '```math\nx\n```\ny\n```\n', 'authored', 10, 14);
+		await h.actions.updateBlockContent(
+			0,
+			'```math\nx\n```\ny\n```\n',
+			'authored',
+			'join-typing',
+			10,
+			14
+		);
 
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual([MATH_FENCE, 'paragraph']);
 		expect(serialize(h.deps.doc)).toBe('````math\nx\n```\ny\n````\n\npara\n');
@@ -33,7 +40,14 @@ describe('typing a closer-shaped line into a math fence', () => {
 		const h = makeContainerHarness('> ```math\n> x\n> ```\n>\n> para\n', [0]);
 		expect(h.getNode().children![0].kind).toBe(MATH_FENCE);
 
-		await h.bundle.blockEdit.updateBlockContent(0, '```math\nx\n```\ny\n```\n', 'authored', 10, 14);
+		await h.bundle.blockEdit.updateBlockContent(
+			0,
+			'```math\nx\n```\ny\n```\n',
+			'authored',
+			'join-typing',
+			10,
+			14
+		);
 
 		expect(h.getNode().children!.map((c) => c.kind)).toEqual([MATH_FENCE, 'paragraph']);
 		expect(serialize(h.deps.doc)).toBe('> ````math\n> x\n> ```\n> y\n> ````\n>\n> para\n');
@@ -48,7 +62,7 @@ describe('a $$ source committed without its closer', () => {
 		const h = makeTopHarness('$$\nx\n$$\n');
 		expect(h.deps.doc.children[0].kind).toBe(MATH_BLOCK);
 
-		await h.actions.updateBlockContent(0, '$$\nx\n', 'authored', 5, 5);
+		await h.actions.updateBlockContent(0, '$$\nx\n', 'authored', 'join-typing', 5, 5);
 
 		expect(serialize(h.deps.doc)).toBe('$$\nx\n$$\n');
 		expect(h.deps.doc.children[0].kind).toBe(MATH_BLOCK);

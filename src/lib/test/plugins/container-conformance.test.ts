@@ -17,7 +17,10 @@ import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callo
 import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
 import { registerGithubAlert } from '#lib/plugins/admonitions/github-alert-kind.js';
 import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
+import { FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/constants.js';
 import { parse } from '#lib/core/parser.js';
+import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { childHoldingLastLine } from '#lib/schema/container-raw.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { testView } from '#lib/test/support/test-view.js';
@@ -275,5 +278,60 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 				multiScope: { mode: 'exempt', reason: 'n/a' }
 			})
 		).rejects.toThrow(/multiScope: callout multiScope exempt reason is documented/);
+	});
+});
+
+// Miss-analysis: every profile spelled its fixture the way the kind's rebuild writes it, so a
+// rebuild respelling every line of the container on each edit passed the kit.
+describe('the kit holds an edit to the lines it changed', () => {
+	beforeEach(() => {
+		registerGithubAlert(testView());
+		registerFootnoteDefinition(testView());
+	});
+
+	it.each([
+		{ kind: GITHUB_ALERT, source: '> [!NOTE]\n>a\n>\n>  b\n' },
+		{ kind: FOOTNOTE_DEF_KIND, source: '[^1]:a\n\n     b\n' }
+	])('passes the bundled $kind spelled as its author wrote it', ({ kind, source }) => {
+		expect(() =>
+			checkDeclarationSanity(declaredPluginKind(kind), {
+				...calloutProfile,
+				deepNesting: { source, leafPath: [0, 0] }
+			})
+		).not.toThrow();
+	});
+
+	// Miss-analysis: the edit doubled the last child, so a tail compared against the copy hid one
+	// respelled line above it.
+	it.each([
+		{
+			name: 'every line',
+			respell: (raw: string) => raw.replace(/^>(?! |\[)/gm, '> '),
+			source: '> [!NOTE]\n>a\n>\n>b\n'
+		},
+		{
+			name: 'one line above the edited child',
+			respell: (raw: string) => raw.replace('>a\n', '> a\n'),
+			source: '> [!NOTE]\n>a\n>\n>  b\n'
+		}
+	])('fails a rebuild that respells $name an edit left alone', ({ respell, source }) => {
+		const alert = declaredPluginKind(GITHUB_ALERT);
+		const keeps = getBlockKindDescriptor(alert).rebuildRaw!;
+		augmentBlockKind(alert, {
+			container: {
+				// Keeps the bytes it parsed, so only the edit row can see the respell.
+				rebuildRaw: (node, changed) => {
+					keeps(node, changed);
+					if (changed) node.raw = respell(node.raw);
+				}
+			}
+		});
+
+		expect(() =>
+			checkDeclarationSanity(alert, {
+				...calloutProfile,
+				deepNesting: { source, leafPath: [0, 0] }
+			})
+		).toThrow(/rewrote lines outside the child it was told changed/);
 	});
 });

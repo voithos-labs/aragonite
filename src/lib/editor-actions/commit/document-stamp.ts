@@ -2,7 +2,8 @@
  * Which document a write was made for. A block's write handles are stamped with the document it
  * mounted on, a menu's with the one it opened over, and the write gate refuses a write whose
  * document a `source` swap replaced or the editor's unmount ended: a paste waiting on a slow
- * clipboard read, or any other write that outlives its document, lands nowhere.
+ * clipboard read, or any other write that outlives its document, lands nowhere. While an undo or
+ * redo installs its entry, no write is made for any document.
  */
 
 export interface DocumentStamp {
@@ -21,11 +22,18 @@ export interface DocumentStamps {
 	during<T>(stamp: DocumentStamp, write: () => T): T;
 	/** The stamp of the write being made; null for one made for the document in place. */
 	active(): DocumentStamp | null;
+	/** Run an undo or redo's install, from its document swap until its caret lands. It must
+	 *  await nothing but `tick()`, so no input event lands inside it. */
+	duringHistorySwap<T>(install: () => Promise<T>): Promise<T>;
+	/** True while one runs. */
+	historySwapping(): boolean;
 }
 
 export function createDocumentStamps(): DocumentStamps {
 	let current = { live: true };
 	let active: DocumentStamp | null = null;
+	// A depth, since an undo pressed twice in one task starts its install inside the first's.
+	let swaps = 0;
 	return {
 		current: () => current,
 		retire() {
@@ -44,7 +52,16 @@ export function createDocumentStamps(): DocumentStamps {
 				active = outer;
 			}
 		},
-		active: () => active
+		active: () => active,
+		async duringHistorySwap(install) {
+			swaps++;
+			try {
+				return await install();
+			} finally {
+				swaps--;
+			}
+		},
+		historySwapping: () => swaps > 0
 	};
 }
 

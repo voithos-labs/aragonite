@@ -35,5 +35,6 @@ empty block and let ArrowUp leave from anywhere.
   before it: the surrounding paragraph has text positions, so nothing here applies.
 - Two adjacent images wrapped onto two lines, caret at the paragraph's end beside the second:
   ArrowUp stays in the paragraph, since the first line is still above it.
-- Live mode, a block holding only a picture inside a link (`[![cat](…)](https://x)`): ArrowDown from the block above, or ArrowUp from the block below, selects the picture, the same as a bare one, and a key typed then replaces it inside the link. The link's markers are hidden there, so the picture is the first and last thing the block draws. Not there yet (the rows are marked fixme): a vertical arrival first asks whether the block holds only widgets, and that question still reads the block's top level, where the link isn't one
-  - Miss-analysis: every stop here was a bare picture, so nothing asked the edge reading about a picture a link wraps, which it read as no picture at all, dropping the caret and the next key
+  - Chromium marks the row `fixme` against #574: it drops the caret placed after the trailing image
+- Live mode, a block holding only a picture inside a link (`[![cat](…)](https://x)`): ArrowDown from the block above, or ArrowUp from the block below, selects the picture, the same as a bare one, and a key typed then replaces it inside the link. The link's markers are hidden there, so the picture is the first and last thing the block draws.
+  - Miss-analysis (#771): every stop here was a bare picture, so nothing asked the edge reading about a picture a link wraps, which it read as no picture at all, dropping the caret and the next key. The fix left these rows marked fixme, since nothing re-ran a fixme row until the release recheck

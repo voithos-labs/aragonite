@@ -25,7 +25,6 @@ import {
 	mergeIntoPrevDeepLeaf,
 	deleteNode as performDelete,
 	normalizeReplacementTrivia,
-	rebuildUnsharedChain,
 	restoreSeparatorOnFill,
 	emptyParagraph,
 	paragraphNode,
@@ -39,7 +38,7 @@ import {
 	type StructuralChange
 } from '../tree-operations/structural-change';
 import { spliceMany } from '../tree-operations/splice-many';
-import type { TrackedPosition } from '../tree-operations/neighbour-merge';
+import type { TrackedPosition } from '../tree-operations/fix-up/apply';
 import type { TaskStartLanding } from '../tree-operations/list/reconcile-task';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -51,14 +50,14 @@ import type {
 	LeafWriteResult,
 	ReplaceFocus,
 	ReplaceOptions,
-	ReplaceSource
+	ReplaceSource,
+	UndoGrouping
 } from '../action-contracts';
 import {
 	legalizeWrite,
 	settledCaretPosition,
-	writeNodeContent,
 	type LegalWrite,
-	type SettledContent
+	type FixedUpWrite
 } from '../tree-operations/content-write';
 import { createPathScope, type CommitScope } from './block-edit-scope';
 import type { EditorRoot } from './deps';
@@ -71,6 +70,7 @@ import type { RemovalGesture } from '../selection/caret-target';
 import { admitsWrite } from './commit/reading-write-gate';
 import { refusedWrite, withStoredCaret } from './stored-caret';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkCaretInWrittenText } from '../invariants/write-caret';
 
 /** What both merge directions do when the neighbour cannot merge; `dir` names its side. */
 async function handleIneligibleNeighbor(
@@ -106,30 +106,32 @@ async function handleIneligibleNeighbor(
 
 // ── The keystroke ────────────────────────────────────────────────────────────
 
-/**
- * Every level's `updateBlockContent`: a commit when the trial reparse sees the block change, an
- * in-place write otherwise. Awaiting between the typing burst's undo entry and the commit splits it.
- */
+/** Every level's `updateBlockContent`: a commit when the trial reparse sees the block change, an
+ *  in-place write otherwise, both in the entry `typeIn` pushed before the work's first await. */
 export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlockContent'] {
-	return (index, text, mode, preEditOffset, postEditFocusOffset) => {
+	return (index, text, mode, history, preEditOffset, postEditFocusOffset) => {
 		scope.caretMemory.forget();
+		assertInvariant('caret-in-written-text', () =>
+			checkCaretInWrittenText(text, postEditFocusOffset ?? preEditOffset)
+		);
 		const kind = () => scope.children()[index]?.kind;
 		if (!admitsWrite(scope, 'updateContent', kind)) return refusedWrite();
 		const write = legalizeWrite(scope.target(), index, text, mode);
 		const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset);
 		// Decided before `work` first yields, which `typeIn` runs up to before it returns.
 		let keepsCaret = false;
-		const done = scope.typeIn(index, preEditOffset, async () => {
+		const done = scope.typeIn(index, preEditOffset, history, async () => {
 			const trial = previewContentReparse(scope.target(), index, write, scope.reading.grammar);
 			if (trial.op !== 'noop') {
 				const landed = await commitLeafText(scope, index, write, {
 					snapshotOffset: preEditOffset,
 					caret,
-					landing: unlessFocusMoved
+					landing: unlessFocusMoved,
+					history: 'join-typing'
 				});
 				return landed.wrote;
 			}
-			const written = scope.writeInPlace(index, write, caret);
+			const written = scope.typeLeaf(index, write, caret);
 			if (!written.wrote) return false;
 			keepsCaret = !written.relanding;
 			if (!written.relanding) return true;
@@ -158,9 +160,11 @@ export async function commitLeafText(
 		/** Where the caret goes, from where the write left it; a collapsed ancestor overrides it. */
 		landing?: (landed: LeafWriteLanded) => Landing | null;
 		reveal?: RevealPolicy;
+		/** `join-typing` for a keystroke, whose typing push already made the entry. */
+		history?: UndoGrouping;
 	}
 ): Promise<LeafWriteResult> {
-	let readSettled = (): SettledContent | null => null;
+	let readSettled = (): FixedUpWrite | null => null;
 	let landed: LeafWriteLanded | null = null;
 	// Read after the commit: the list's fix-up can move the written block.
 	const readLanded = (): LeafWriteLanded => {
@@ -179,33 +183,22 @@ export async function commitLeafText(
 			replaced: change.op !== 'noop'
 		};
 	};
-	// A same-kind write reports `noop`, so the stale-raw check needs the leaf named.
-	const touchedNodes: CstNode[] = [];
 	const wrote = await scope.commit({
 		snapshot: { index, offset: opts.snapshotOffset },
 		eventTarget: index,
 		op: { kind: 'updateContent', detail: { length: write.text.length } },
-		touchedNodes,
 		mutate: (view) => {
-			view.unshareChild(index);
-			const { change, written } = writeNodeContent(
-				view.body,
-				index,
-				write,
-				view.reading.grammar,
-				view.sharing
-			);
-			const settled = view.describeEdit({ written });
-			readSettled = () => settled()?.written ?? null;
-			touchedNodes.push(view.body.children[index]);
-			stampStructuralChange(view.body.children, change, view.sharing);
-			return change;
+			const settled = view.writeLeaf([index], write);
+			readSettled = () => settled;
+			stampStructuralChange(view.body.children, settled.change, view.sharing);
+			return settled.change;
 		},
 		landing: () => {
 			landed ??= readLanded();
 			return opts.landing?.(landed) ?? null;
 		},
-		reveal: opts.reveal
+		reveal: opts.reveal,
+		history: opts.history
 	});
 	// The result comes from the commit, not the landing: a collapsed ancestor's landing replaces
 	// this one without calling it.
@@ -474,27 +467,15 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				refuseLeafMetadata(scope, i, children[i].kind);
 				return false;
 			}
-			// `mutate` returns noop, so the stale-raw check needs the changed node named; the copy
-			// exists only after unshareChild, so the commit reads this array after mutate.
-			const touchedNodes: CstNode[] = [];
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'metadataUpdate', detail: { fields } },
-				touchedNodes,
 				mutate: (view) => {
-					const node = view.unshareChild(i);
+					// Owned, so the commit rebuilds it and re-derives its kind: metadata can rewrite the
+					// opener line (an alert's type).
+					const [node] = view.own([i]);
 					node.metadata = { ...(node.metadata ?? {}), ...metadata } as typeof node.metadata;
-					// The chain rebuild re-derives the kind, since metadata can rewrite the opener
-					// line (an alert's type). No collapses: this mutate reports `noop` for the list.
-					const [reclassified] = rebuildUnsharedChain(
-						{ children: view.body.children },
-						[node],
-						view.sharing,
-						null,
-						view.reading.grammar
-					);
-					touchedNodes.push(reclassified?.replacement ?? node);
 					return { op: 'noop' };
 				},
 				landing: () => {

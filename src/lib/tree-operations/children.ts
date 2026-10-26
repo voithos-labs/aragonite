@@ -8,6 +8,7 @@ import type { CstNode } from '../core/nodes';
 import { generateBlockId } from '../block-id';
 import { dropChildSpans } from '../schema/child-spans';
 import { spliceMany } from './splice-many';
+import { spliceList } from './node-primitives';
 
 /**
  * Bring `childIds` back to `children`'s length after an in-place swap. The surviving prefix keeps
@@ -32,7 +33,6 @@ export function spliceChildren(
 	removeCount: number,
 	items: readonly CstNode[]
 ): void {
-	if (!container.children) container.children = [];
 	// No lazy-init here: containers without childIds get them from the mounting BlockList anyway.
 	if (container.childIds) {
 		// A replacement's head continues the position it lands in, so it keeps that position's
@@ -43,6 +43,6 @@ export function spliceChildren(
 		);
 		spliceMany(container.childIds, at, removeCount, ids);
 	}
-	spliceMany(container.children, at, removeCount, items);
+	spliceList(container, at, removeCount, items);
 	dropChildSpans(container);
 }

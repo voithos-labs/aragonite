@@ -12,6 +12,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { makeNestedHarness, makeTopHarness } from '../../harness/editor-actions';
 import { takeDevWarns } from '../../support/warn-gate';
+import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 
 interface Writer {
 	deps: EditorActionsDeps;
@@ -61,7 +62,7 @@ const WRITERS: WriterRow[] = [
 			return {
 				deps: h.deps,
 				edits: h.edits,
-				write: () => h.actions.updateBlockContent(0, 'onex\n', 'authored', 3, 4)
+				write: () => h.actions.updateBlockContent(0, 'onex\n', 'authored', 'join-typing', 3, 4)
 			};
 		}
 	},
@@ -73,7 +74,8 @@ const WRITERS: WriterRow[] = [
 			return {
 				deps: h.deps,
 				edits: recordEdits(h.deps),
-				write: () => h.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 'authored', 6, 7)
+				write: () =>
+					h.bundle.blockEdit.updateBlockContent(0, 'quotedx\n', 'authored', 'join-typing', 6, 7)
 			};
 		}
 	},
@@ -143,7 +145,13 @@ describe('the reading-mode check at every byte-writing entry point', () => {
 describe('an undo snapshot pushed ahead of a write in reading mode', () => {
 	it('the typing push leaves the undo stack empty', () => {
 		const h = makeTopHarness('one\n', { reading: fixtureReading({}, 'reading') });
-		h.controller.pushUndoSnapshotDebounced([0], 0);
+		void h.controller.typingKeystroke(
+			docPathFrom([0]),
+			0,
+			'leaf',
+			'join-typing',
+			async () => undefined
+		);
 		expect(h.deps.undoManager.canUndo).toBe(false);
 	});
 });

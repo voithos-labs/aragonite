@@ -36,7 +36,6 @@ import {
 } from '../schema/block-kind-descriptor';
 import type { SharingState } from './sharing';
 import { resyncChildIds } from './children';
-import { spliceMany } from './splice-many';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { taskMarkerCaretShift, writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
@@ -47,13 +46,15 @@ import {
 	kindWriteRule,
 	type BodyParent,
 	type BodyParentArg,
-	type NodeParent
+	type NodeParent,
+	spliceList
 } from './node-primitives';
 import { ensureEditableContainers } from '../schema/opened-reading';
-import { settleContentWrite, type SettledContent, type WrittenSlot } from './settle';
-import { focusTargetInReplacement } from './neighbour-merge';
+import { caretInBlocks, fixUpWrite, type FixedUpWrite, type WrittenSlot } from './fix-up/apply';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkWriteInWindow } from '../invariants/structural-descriptor';
 
-export type { SettledContent, WrittenSlot };
+export type { FixedUpWrite, WrittenSlot };
 
 // ── Making written bytes legal ──
 
@@ -162,12 +163,12 @@ export function updateNodeContent(
 	text: string | LegalWrite,
 	grammar: GrammarView,
 	sharing: SharingState
-): SettledContent {
+): FixedUpWrite {
 	const body = asBody(parent);
 	const legal = legalText(body, blockIndex, text);
 	return writeKeepingTaskMarker(body.owner, body.children, blockIndex, sharing, () => {
 		const { change, written } = writeLegal(body, blockIndex, legal, grammar);
-		return settleContentWrite(body, written, change, grammar, sharing);
+		return fixUpWrite(body, written, change, grammar, sharing);
 	});
 }
 
@@ -300,7 +301,7 @@ function writeParsedContent(
 		// The trailing blank line the parse split off has no follower inside the splice, so it
 		// stays in raw.
 		rest[rest.length - 1].raw += reparsed.suffix;
-		spliceMany(parent.children, blockIndex, 1, parsed);
+		spliceList(parent, blockIndex, 1, parsed);
 		return replacePreservingFirst(blockIndex, 1, parsed.length);
 	}
 
@@ -319,7 +320,7 @@ function writeParsedContent(
 	replacement.raw = newText;
 	replacement.leadingTrivia = node.leadingTrivia;
 	if (firstBackfilled) rebuildContainerRaw(replacement, grammar);
-	parent.children.splice(blockIndex, 1, replacement);
+	spliceList(parent, blockIndex, 1, [replacement]);
 	return replacePreservingFirst(blockIndex, 1, 1);
 }
 
@@ -417,7 +418,7 @@ function installReplacement(
 	// A freshly parsed node carries no `childIds`, and the swap reuses the position's component,
 	// so undefined keys would reach its nested keyed `{#each}`.
 	assignChildIdsDeep(replacement);
-	parent.children[index] = replacement;
+	spliceList(parent, index, 1, [replacement]);
 	// Write, then re-read through the tree (`unshare.ts` header).
 	return parent.children[index];
 }
@@ -425,16 +426,17 @@ function installReplacement(
 /** Where a caret at `offset` in the written text ends up after the write's merges:
  *  the block holding it and its offset there, counting what a merge above put in front. */
 export function settledCaretPosition(
-	settled: SettledContent,
+	settled: FixedUpWrite,
 	at: number,
 	offset: number,
 	children: readonly NodeView[]
 ): { index: number; offset: number } {
 	const { change, textStart } = settled;
 	if (change.op !== 'replace') return { index: at, offset };
+	assertInvariant('write-in-window', () => checkWriteInWindow(change, at));
 	const shifted = offset + textStart;
 	if (change.newCount <= 1) return { index: change.at, offset: shifted };
 	const blocks = children.slice(change.at, change.at + change.newCount);
-	const target = focusTargetInReplacement(blocks, shifted);
+	const target = caretInBlocks(blocks, shifted);
 	return { index: change.at + target.index, offset: target.offset };
 }

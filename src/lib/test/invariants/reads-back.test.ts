@@ -8,7 +8,6 @@ import { parse } from '#lib/core/parser.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
@@ -36,15 +35,16 @@ function typeInto(h: ReturnType<typeof makeTopHarness>, leaf: number[], text: st
 		raw.slice(0, at) + text + raw.slice(at),
 		'authored'
 	);
-	createLeafTyping(h.deps, h.controller).writeLeafInPlace(docPathFrom(leaf), write, at + 1);
+	h.controller.typeLeaf(docPathFrom(leaf), write, at + 1);
 }
 
-/** Counts every read of a top-level container's children, except the one at `skip`. The undo
- *  digest (G1.9) walks every node of a commit's snapshot by design, so its reads don't count. */
+/** Counts every read of a top-level container's children, except the one at `skip`, and except
+ *  the undo digest's (G1.9) and the last-line check's (G1.41), which read past the edit by design. */
 function countChildReads(doc: Document, skip: number): () => number {
 	let reads = 0;
 	const count = () => {
-		if (!new Error().stack?.includes('digestDoc')) reads++;
+		const stack = new Error().stack ?? '';
+		if (!stack.includes('digestDoc') && !stack.includes('checkLastLineKept')) reads++;
 	};
 	doc.children.forEach((top, i) => {
 		if (i === skip || top.children === undefined) return;
@@ -131,7 +131,7 @@ describe('G1.55 runs on the keystroke and the commit, bounded by size', () => {
 	it('reads the top-level leaf a commit wrote', async () => {
 		const h = makeTopHarness('intro\n\nnext\n');
 
-		await h.actions.updateBlockContent(0, '# intro\n', 'authored', 0, 2);
+		await h.actions.updateBlockContent(0, '# intro\n', 'authored', 'join-typing', 0, 2);
 
 		expect(h.deps.doc.children[0].kind).toBe('heading');
 		expect(takeReadBackBytes()).toBe(h.deps.doc.children[0].raw.length);
@@ -141,7 +141,14 @@ describe('G1.55 runs on the keystroke and the commit, bounded by size', () => {
 		installPlugins([admonitionsPlugin()]);
 		const h = makeContainerHarness('> x\n', [0]);
 
-		await h.bundle.blockEdit.updateBlockContent(0, '[!TIP]\n\nbody\n', 'authored', 1, 13);
+		await h.bundle.blockEdit.updateBlockContent(
+			0,
+			'[!TIP]\n\nbody\n',
+			'authored',
+			'join-typing',
+			1,
+			13
+		);
 
 		expect(h.deps.doc.children[0].kind).toBe('githubAlert');
 		expect(takeReadBackBytes()).toBe(h.deps.doc.children[0].raw.length);

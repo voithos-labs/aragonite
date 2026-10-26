@@ -32,7 +32,7 @@ const ALLOWLIST: Record<string, Declaration> = {
 		mode: 'bounded',
 		reason: 'the tokens of one decoration’s own class attribute; no document axis scales it'
 	},
-	'src/lib/editor-actions/commit/structural-commit.ts :: mutate': {
+	'src/lib/editor-actions/commit/structural-commit.ts :: apply': {
 		mode: 'bounded',
 		reason:
 			'one reclassification per ancestor container, and the parser folds nesting past MAX_NESTING_DEPTH into paragraph content'

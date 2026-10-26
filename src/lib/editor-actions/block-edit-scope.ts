@@ -11,14 +11,15 @@ import type {
 	ContainerEditActions,
 	ContainerScope,
 	InPlaceResult,
-	MultiScopeTarget
+	MultiScopeTarget,
+	UndoGrouping
 } from '../action-contracts';
-import { blockNodeAt, documentBody, type BodyParent } from '../tree-operations/node-primitives';
+import { blockNodeAt, type BodyParent } from '../tree-operations/node-primitives';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
-import type { TrackedPosition } from '../tree-operations/neighbour-merge';
+import type { TrackedPosition } from '../tree-operations/fix-up/apply';
 import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import type { Reading } from '../schema/reading';
 import type { DocumentStamps } from './commit/document-stamp';
@@ -34,7 +35,6 @@ import { getStateForNode } from '../block-lists/state-registry';
 import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import type { BlockListState } from '../block-lists/block-list-state.svelte';
-import { createLeafTyping } from './leaf-write';
 import { createContainerEditActions } from './container-edit';
 
 /** The copied children the core's `mutate` writes through, the same shape at both levels. */
@@ -48,6 +48,8 @@ export interface MutationView {
 	unshareChild(i: number): CstNode;
 	/** Tells the commit's fix-up what the mutation did beyond its splice; see `ContainerScope`. */
 	describeEdit: ContainerScope['describeEdit'];
+	own: ContainerScope['own'];
+	writeLeaf: ContainerScope['writeLeaf'];
 }
 
 export interface ScopeCommitArgs {
@@ -61,12 +63,11 @@ export interface ScopeCommitArgs {
 	landing?: CommitLanding;
 	/** How far the landing moves the viewport; `'into-view'` when absent. */
 	reveal?: RevealPolicy;
-	/** Filled by `mutate` for the dev-mode stale-raw check when it returns `noop`; only the root
-	 *  reads them, since a container's commit checks its whole copied container. */
-	touchedNodes?: CstNode[];
 	/** A structural edit that can change nothing, so the commit discards its snapshot. Never on
 	 *  content or metadata commits, whose `noop` still carries a byte change (`DiscardIfNoop`). */
 	discardIfNoop?: boolean;
+	/** `join-typing` for a keystroke's own commit, which joins the entry its `typeIn` pushed. */
+	history?: UndoGrouping;
 	/** A local position the list's fix-up updates in place, read back by the landing. */
 	trackCaret?: TrackedPosition;
 }
@@ -93,11 +94,16 @@ export interface CommitScope {
 	collapseEmptyReplaceToDelete: boolean;
 	/** Resolves to whether bytes landed. */
 	commit(args: ScopeCommitArgs): Promise<boolean>;
-	/** One keystroke into child `i`, grouped with its typing burst: the burst's undo entry is on
-	 *  the stack before `work` starts, and whatever `work` commits before it first yields joins it. */
-	typeIn<T>(i: number, preEditOffset: number, work: () => Promise<T>): Promise<T>;
+	/** One keystroke into child `i`: its undo entry (`history` says whose) is pushed before `work`
+	 *  starts, and what `work` commits before its first await joins it. */
+	typeIn<T>(
+		i: number,
+		preEditOffset: number,
+		history: UndoGrouping,
+		work: () => Promise<T>
+	): Promise<T>;
 	/** The keystroke's in-place write, for a write the trial reparse keeps in its block. */
-	writeInPlace(i: number, write: LegalWrite, caret: number): InPlaceResult;
+	typeLeaf(i: number, write: LegalWrite, caret: number): InPlaceResult;
 	/** A position below child `i`. */
 	at(i: number, subPath: readonly number[], offset: number): CaretPosition;
 	/** Put the caret at `pos` through the editor's caret landing, for an edit with no commit. */
@@ -112,7 +118,6 @@ export function createTopLevelScope(
 	deps: EditorActionsDeps,
 	controller: UndoController
 ): CommitScope {
-	const typing = createLeafTyping(deps, controller);
 	return {
 		path: asDocPath([]),
 		get reading() {
@@ -132,31 +137,33 @@ export function createTopLevelScope(
 			mutate,
 			landing,
 			reveal,
-			touchedNodes,
 			discardIfNoop,
+			history,
 			trackCaret
 		}): Promise<boolean> {
 			return controller.commitStructural({
 				snapshot: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
 				mutate: (children, docScope) =>
 					mutate({
-						body: documentBody(deps.doc, children),
+						body: docScope.body,
 						sharing: deps.sharing,
 						reading: deps.reading,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0],
-						describeEdit: docScope.describeEdit
+						describeEdit: docScope.describeEdit,
+						own: docScope.own,
+						writeLeaf: docScope.writeLeaf
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
 				landing,
 				reveal,
-				touchedNodes,
 				discardIfNoop,
+				history,
 				trackCaret
 			});
 		},
-		typeIn: (i, preEditOffset, work) =>
-			typing.typeInLeaf(docPathFrom([i]), preEditOffset, deps.blockIds[i], work),
-		writeInPlace: (i, write, caret) => typing.writeLeafInPlace(docPathFrom([i]), write, caret),
+		typeIn: (i, preEditOffset, history, work) =>
+			controller.typingKeystroke(docPathFrom([i]), preEditOffset, deps.blockIds[i], history, work),
+		typeLeaf: (i, write, caret) => controller.typeLeaf(docPathFrom([i]), write, caret),
 		at: (i, subPath, offset) => ({ path: docPathFrom([i, ...subPath]), offset }),
 		land: (pos) => deps.caretLanding.land(pos),
 		reportCommitError: (error, op, i) => emitCommitError(deps.events, { error, op, path: [i] })
@@ -237,6 +244,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 			landing,
 			reveal,
 			discardIfNoop,
+			history,
 			trackCaret
 		}): Promise<boolean> {
 			return parts.containerEdit.commitContainer({
@@ -250,24 +258,28 @@ function containerScope(parts: ContainerParts): CommitScope {
 						sharing: view.sharing,
 						reading: parts.reading(),
 						unshareChild: (i) => ensureUnsharedChild(view.node, i, view.sharing),
-						describeEdit: view.describeEdit
+						describeEdit: view.describeEdit,
+						own: view.own,
+						writeLeaf: view.writeLeaf
 					}),
 				op: { ...op, eventPath: extendDocPath(parts.path(), eventTarget) },
 				landing,
 				reveal,
 				discardIfNoop,
+				history,
 				trackCaret
 			});
 		},
-		typeIn: (i, preEditOffset, work) =>
-			parts.containerEdit.typeInLeaf(
+		typeIn: (i, preEditOffset, history, work) =>
+			parts.containerEdit.typingKeystroke(
 				extendDocPath(parts.path(), i),
 				preEditOffset,
 				parts.state.innerBlockIds[i],
+				history,
 				work
 			),
-		writeInPlace: (i, write, caret) =>
-			parts.containerEdit.writeLeafInPlace(extendDocPath(parts.path(), i), write, caret),
+		typeLeaf: (i, write, caret) =>
+			parts.containerEdit.typeLeaf(extendDocPath(parts.path(), i), write, caret),
 		at: (i, subPath, offset) => ({ path: docPathFrom([...parts.path(), i, ...subPath]), offset }),
 		// Through the editor root rather than this list's refs: a write that changed this
 		// container's kind replaced its component, and its refs with it.

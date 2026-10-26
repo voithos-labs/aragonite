@@ -17,6 +17,7 @@ import { createInsertionRecords } from '#lib/caret/next-insertion.js';
 
 const TYPED: Omit<TextWrite, 'text' | 'caretAfter'> = {
 	intent: 'typed',
+	history: 'join-typing',
 	mode: 'authored',
 	source: 'input'
 };
@@ -27,7 +28,7 @@ function writerOver(raw: string, keepsCaret: boolean) {
 	const requestCaret = vi.fn();
 	const blockEdit: BlockEditActions = {
 		...stubBlockEdit(),
-		updateBlockContent: (_index, _text, _mode, _before, after = 0) =>
+		updateBlockContent: (_index, _text, _mode, _history, _before, after = 0) =>
 			withStoredCaret(Promise.resolve(true), after, undefined, keepsCaret)
 	};
 	const writeText = createSurfaceWrite({

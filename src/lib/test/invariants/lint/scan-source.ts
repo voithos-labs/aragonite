@@ -8,7 +8,11 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { aliasPath, isAliasSpelling, publishedEntries } from '../../../../../scripts/lib-alias.mjs';
+import {
+	importedFile,
+	isAliasSpelling,
+	publishedEntries
+} from '../../../../../scripts/lib-alias.mjs';
 import { ignoredPaths, isIgnoredBy } from '../../../../../scripts/doc-corpus.mjs';
 export { aliasPath, aliasSpecifier, isAliasSpelling } from '../../../../../scripts/lib-alias.mjs';
 import { SOURCE, SOURCE_DIR } from './source-paths';
@@ -898,24 +902,10 @@ export function isLibrarySpecifier(specifier: string): boolean {
 /** The file a library import names (through `#lib`, a relative path, an index file or a
  *  `.svelte.ts` module), or null for a package import or a path with no file behind it. */
 export function resolveSpecifier(fromRelPath: string, specifier: string): string | null {
-	const bare = specifier.replace(/\?.*$/, '');
-	const base = bare.startsWith('.')
-		? path.posix.normalize(path.posix.join(path.posix.dirname(fromRelPath), bare))
-		: aliasPath(bare);
-	if (base === null) return null;
-
-	const sourceOfJs = base.endsWith('.js') ? [`${base.slice(0, -'.js'.length)}.ts`] : [];
-	for (const candidate of [
-		base,
-		...sourceOfJs,
-		`${base}.ts`,
-		`${base}.svelte`,
-		`${base}/index.ts`
-	]) {
+	return importedFile(fromRelPath, specifier, (candidate) => {
 		const full = path.resolve(candidate);
-		if (existsSync(full) && statSync(full).isFile()) return candidate;
-	}
-	return null;
+		return existsSync(full) && statSync(full).isFile();
+	});
 }
 
 /** Regex source for a quoted import specifier whose last path segments are `modulePath`, written

@@ -42,6 +42,7 @@ describe('a clipboard pasted into a table cell', () => {
 			0,
 			'hello world1',
 			'literal',
+			'join-typing',
 			expect.any(Number),
 			expect.any(Number)
 		);

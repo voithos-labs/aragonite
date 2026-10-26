@@ -36,7 +36,7 @@ describe('the content write drops the open lines', () => {
 	it('through a commit, at the top level', async () => {
 		const h = makeHarness('abc def\n\nnext\n');
 
-		await h.blockEdit.updateBlockContent(0, 'abc def\\\n\n', 'literal', 0, 9);
+		await h.blockEdit.updateBlockContent(0, 'abc def\\\n\n', 'literal', 'join-typing', 0, 9);
 
 		expect(serialize(h.deps.doc)).toBe('abc def\n\nnext\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();

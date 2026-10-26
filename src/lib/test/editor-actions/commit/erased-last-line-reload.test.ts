@@ -9,7 +9,6 @@ import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createTopLevelScope } from '#lib/editor-actions/block-edit-scope.js';
 import { commitLeafText } from '#lib/editor-actions/block-edit-core.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
@@ -44,9 +43,9 @@ const ROUTES: [string, (source: string) => { doc: Document; write: Write }][] = 
 		'written in place',
 		(source) => {
 			const { deps } = makeEditorActionsDeps(source);
-			const typing = createLeafTyping(deps, createUndoController(deps));
+			const typing = createUndoController(deps);
 			const write: Write = async (index, text, caret) => {
-				typing.writeLeafInPlace(
+				typing.typeLeaf(
 					docPathFrom([index]),
 					legalizeWrite(deps.doc, index, text, 'authored'),
 					caret
@@ -152,7 +151,14 @@ describe('erasing a setext underline inside a container', () => {
 					for (let left = underline.length - 1; left >= 0; left--) {
 						const caret = 5 + left;
 						const text = `Plan\n${underline.slice(0, left)}\n`;
-						await h.bundle.blockEdit.updateBlockContent(0, text, 'authored', caret + 1, caret);
+						await h.bundle.blockEdit.updateBlockContent(
+							0,
+							text,
+							'authored',
+							'join-typing',
+							caret + 1,
+							caret
+						);
 					}
 
 					expect(nodeAt(h.deps.doc, [...path, 0])?.kind).toBe('paragraph');

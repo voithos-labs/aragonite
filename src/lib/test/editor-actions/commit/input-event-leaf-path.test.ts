@@ -19,7 +19,7 @@ describe('the input event carries the leaf path', () => {
 		const h = makeNestedTyping('> [a]: /url\n');
 		expect(h.deps.doc.children[0].children![0].kind).toBe('linkReferenceDefinition');
 
-		await h.bundle.blockEdit.updateBlockContent(0, '[a]: /url2\n', 'authored', 9);
+		await h.bundle.blockEdit.updateBlockContent(0, '[a]: /url2\n', 'authored', 'join-typing', 9);
 
 		const input = h.edits.find((e) => e.op === 'input');
 		expect(input).toBeDefined();
@@ -31,7 +31,7 @@ describe('the input event carries the leaf path', () => {
 	it('typing in a container-nested paragraph still skips the LRD rebuild', async () => {
 		const h = makeNestedTyping('> see [d][d]\n');
 
-		await h.bundle.blockEdit.updateBlockContent(0, 'see [d][d]!\n', 'authored', 10);
+		await h.bundle.blockEdit.updateBlockContent(0, 'see [d][d]!\n', 'authored', 'join-typing', 10);
 
 		const input = h.edits.find((e) => e.op === 'input');
 		expect(input).toBeDefined();
@@ -49,8 +49,8 @@ describe('a keystroke that changes the kind reports through its commit alone', (
 		const h = path.length === 1 ? makeTopHarness(source) : makeNestedTyping(source);
 		const actions = 'actions' in h ? h.actions : h.bundle.blockEdit;
 
-		await actions.updateBlockContent(0, '#x\n', 'authored', 0, 1);
-		await actions.updateBlockContent(0, '# x\n', 'authored', 1, 2);
+		await actions.updateBlockContent(0, '#x\n', 'authored', 'join-typing', 0, 1);
+		await actions.updateBlockContent(0, '# x\n', 'authored', 'join-typing', 1, 2);
 
 		expect(nodeAt(h.deps.doc, path)?.kind).toBe('heading');
 		expect(h.edits.map((e) => [e.op, e.path])).toEqual([

@@ -66,7 +66,7 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 		await settleEditor();
 
 		// The composed text arrives as the block's own typing write.
-		await env.blockEdit.updateBlockContent(0, 'alかんma\n', 'authored', 2, 4);
+		await env.blockEdit.updateBlockContent(0, 'alかんma\n', 'authored', 'join-typing', 2, 4);
 
 		expect(serialize(env.doc)).toBe('alかんma\n');
 		expectStateBefore(onlyEntry(env.deps.undoManager.getStacks().undo), ANCHOR, FOCUS);
@@ -128,7 +128,14 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 				env.selectionState.enterCrossBlock(ANCHOR, FOCUS);
 				await compose(env);
 
-				await env.blockEdit.updateBlockContent(index, text, 'authored', before, after);
+				await env.blockEdit.updateBlockContent(
+					index,
+					text,
+					'authored',
+					'join-typing',
+					before,
+					after
+				);
 
 				expect(env.deps.undoManager.getStacks().undo).toHaveLength(2);
 			});

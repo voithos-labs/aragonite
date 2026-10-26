@@ -1,4 +1,4 @@
-/* The showcase's top bar, one stylesheet for the Svelte, React and Vue showcases. It reads the
+/* The demo site's top bars, one stylesheet for the three showcases and the changelog. It reads the
    editor theme's host tokens from the `.aragonite-editor-theme` wrapper, so it follows light and
    dark with the document. */
 
@@ -80,9 +80,9 @@
 	gap: 4px;
 }
 
-/* ── The mode switcher ── */
+/* ── The segmented picker: the mode switcher, and the changelog's release families ── */
 
-.showcase-modes {
+.showcase-segments {
 	display: inline-flex;
 	gap: 2px;
 	height: var(--bar-height);
@@ -93,7 +93,7 @@
 	background: var(--color-bg-secondary);
 }
 
-.showcase-mode {
+.showcase-segment {
 	padding: 0 12px;
 	border: none;
 	border-radius: 6px;
@@ -107,19 +107,19 @@
 		color 120ms ease;
 }
 
-.showcase-mode:hover {
+.showcase-segment:hover {
 	color: var(--color-text-secondary);
 }
 
-.showcase-mode[aria-pressed='true'] {
+.showcase-segment[aria-pressed='true'] {
 	background: var(--bar-seg-active);
 	color: var(--color-text-primary);
 	font-weight: 500;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-/* Below the width the five segments need, one chip names the mode and opens the list. */
-.showcase-mode-picker {
+/* Below the width the segments need, one chip names the current value and opens the list. */
+.showcase-picker {
 	position: relative;
 	display: none;
 }
@@ -129,7 +129,7 @@
 .showcase-link,
 .showcase-action,
 .showcase-icon-btn,
-.showcase-mode-trigger {
+.showcase-picker-trigger {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -157,14 +157,14 @@
 
 /* An action, not a setting: a filled chip with a glyph, unlike the bare links and segments. */
 .showcase-action,
-.showcase-mode-trigger {
+.showcase-picker-trigger {
 	background: var(--menu-chip-bg);
 	color: var(--color-text-secondary);
 	font-weight: 500;
 }
 
 .showcase-action:hover,
-.showcase-mode-trigger:hover {
+.showcase-picker-trigger:hover {
 	background: var(--menu-chip-bg-hover);
 	color: var(--color-text-primary);
 }
@@ -176,7 +176,7 @@
 }
 
 .showcase-icon-btn[aria-expanded='true'],
-.showcase-mode-trigger[aria-expanded='true'] {
+.showcase-picker-trigger[aria-expanded='true'] {
 	background: var(--menu-chip-bg-hover);
 	color: var(--color-text-primary);
 }
@@ -186,7 +186,7 @@
 }
 
 .showcase-action svg,
-.showcase-mode-trigger svg {
+.showcase-picker-trigger svg {
 	color: var(--color-ui-muted);
 }
 
@@ -414,17 +414,17 @@
 	display: none;
 }
 
-.showcase-mode-list {
+.showcase-picker-list {
 	left: 50%;
 	right: auto;
 	transform: translateX(-50%);
 }
 
-.showcase-mode-option {
+.showcase-picker-option {
 	justify-content: space-between;
 }
 
-.showcase-mode-option svg {
+.showcase-picker-option svg {
 	color: var(--color-accent);
 }
 

@@ -4,8 +4,6 @@
 
 - Click-drag from block A into block B: enters cross-block mode with anchor at click point
 - Click-drag across three paragraphs: middle block shows full-block overlay, endpoint blocks show partial overlays
-  (under WebKit the spec marks this one `fixme` against #353, so it skips there until that issue
-  closes)
 - Shift+click from one block into another: enters cross-block mode
 
 ## Edge cases

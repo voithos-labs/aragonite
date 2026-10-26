@@ -9,6 +9,8 @@ closing, widths) is covered on the Svelte showcase, in `src/lib/e2e/requirements
 
 - A settings switch (dark mode, show source) flips the host's state, the page follows, and the
   switch reads pressed.
+- The theme picked in the settings is the one the showcase opens in after a reload, since the
+  demo site keeps it in one shared module (`examples/showcase/theme.ts`).
 - A mode segment switches the editor's presentation mode and moves the pressed segment.
 - The wordmark names the framework ("in React", "in Vue") and links to the repository.
 

@@ -89,6 +89,7 @@
 	import { createEditorRootKeydown } from './editor-root/keydown';
 	import { createEditorRootClipboard } from './editor-root/clipboard';
 	import { createModeFlip } from './editor-root/mode-flip';
+	import { aroundRender } from '../around-render.svelte';
 	import { createFocusAttribution } from './editor-root/focus';
 	import { createRootGestures } from './editor-root/gestures';
 	import { createRootMenus, type BlockMenuModel } from './editor-root/menus';
@@ -183,8 +184,11 @@
 		scrollMode = 'self',
 		plugins,
 		syntax,
-		__registryEnablement
+		__registryEnablement,
+		..._unlisted
 	}: EditorProps & { __registryEnablement?: KindEnablement } = $props();
+	// Every option is named above: an option missing from that list fails to compile here.
+	void ({} satisfies { [K in keyof typeof _unlisted]-?: never });
 
 	// Read once: `scrollMode` is fixed at mount, and a live read would join windowing's hottest path.
 	// svelte-ignore state_referenced_locally
@@ -288,7 +292,7 @@
 	let findBarEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
 	let widthProbeEl: HTMLDivElement | undefined = $state();
-	const undoManager = createUndoManager();
+	const undoManager = createUndoManager({ doc: () => doc, version: contentVersion.read });
 	const sharing = createSharingState();
 	// Each change to what the memory answers repaints the drawn caret's look; it's built below.
 	const caretMemory = createCaretMemory({ onChange: () => drawnCaret.request() });
@@ -613,7 +617,8 @@
 		caretLanding,
 		events,
 		reading,
-		stamps
+		stamps,
+		drafts
 	};
 	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions(
 		editorActionsDeps,
@@ -812,6 +817,7 @@
 		isCrossBlockRange: () => selectionState.isCrossBlock,
 		crossBlockCommands,
 		markActivation,
+		undoStack: undoManager,
 		keybindingOverrides: () => overridesMap,
 		onCommandError: commandErrorSink,
 		reorder
@@ -901,13 +907,7 @@
 		},
 		textMoves
 	});
-	$effect.pre(() => {
-		const mode = effectiveMode;
-		untrack(() => modeFlip.beforeFlip(mode));
-	});
-	$effect(() => {
-		modeFlip.afterFlip(effectiveMode);
-	});
+	aroundRender(() => effectiveMode, modeFlip.beforeFlip, modeFlip.afterFlip);
 	rootEffect((root) => readingFocus.install(root));
 
 	// ── Root gestures ───────────────────────────────────────────────────

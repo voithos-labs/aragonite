@@ -1,8 +1,8 @@
 /**
  * The `[^label]: content` definition block, a strip container shaped like a list item. The
- * marker is syntax living only in the container's own raw, so
- * `strip(raw) === serialize(children)`. Loading is byte-exact off the stored raw; a rebuild
- * after an edit normalizes marker spacing and indent, exactly as a list item does.
+ * marker is syntax living only in the container's own raw, so `strip(raw) === serialize(children)`,
+ * and the parser strips each line the way the rebuild reads it back, so an edit keeps the lines it
+ * didn't touch.
  */
 
 import {
@@ -11,17 +11,19 @@ import {
 	declarePluginKind,
 	declaredPluginKind,
 	getPluginMetadata,
+	hangingIndentLines,
 	isBlankLine,
-	isBlankText,
 	isWhitespaceChar,
 	lineStartsOuterBlock,
 	parseContainerBody,
+	rebuildStripRaw,
 	registerBlockKind,
 	setPluginMetadata,
-	splitLines,
 	type BlockOpenerResult,
 	type BlockView,
+	type ChildRawChange,
 	type CstNode,
+	type LineCodec,
 	type OpenContext
 } from '#lib/plugin.js';
 import { FOOTNOTE_DEF_KIND } from './constants';
@@ -34,7 +36,7 @@ const OPENER = /^ {0,3}\[\^([^\]]+)\]:/;
 const MARKER_STRIP = /^ {0,3}\[\^[^\]]+\]: ?/;
 // Four columns, a tab counting to the next multiple of four, so no tab reaches past the body.
 const CONTINUATION_INDENT = /^(?: {0,3}\t| {4})/;
-const CONTINUATION_MARKER = '    ';
+const CONTINUATION_COLUMN = 4;
 
 /** The `[^label]:` a line opens with, where the label holds no Markdown whitespace. */
 function matchOpener(text: string): RegExpExecArray | null {
@@ -96,8 +98,13 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const defLines = ctx.lines.slice(ctx.index, next);
 
 	const raw = defLines.map((line) => line.raw).join('');
+	// Read through the rebuild's own line syntax, so a rebuild keeps every line it didn't change.
+	const lines = definitionLines(match[1]);
 	const stripped = defLines
-		.map((line, i) => line.raw.replace(i === 0 ? MARKER_STRIP : CONTINUATION_INDENT, ''))
+		.map((line, i) => {
+			const place = { first: i === 0, trailingBlank: false };
+			return (lines.read(line.text, place)?.text ?? line.text) + line.lineEnding;
+		})
 		.join('');
 	// A fresh parse entry, so the body's own line 0 must not read as the document top. The body has
 	// no fence lines of its own, so no blank line is set aside from it.
@@ -115,35 +122,27 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	return { node, consumed: next - ctx.index };
 }
 
-/**
- * A separator line stays unindented, as the parser reads it. The blank lines that end the body,
- * a leaf's own or the body's trailing line, take the indent that keeps them in the definition.
- */
-export function rebuildFootnoteDefRaw(node: CstNode): void {
-	const meta = getPluginMetadata<FootnoteDefMetadata>(node);
-	const marker = `[^${meta?.label ?? ''}]: `;
-	const lines: { text: string; lineEnding: string; separator: boolean }[] = [];
-	const add = (bytes: string, separator: boolean) => {
-		for (const line of splitLines(bytes)) lines.push({ ...line, separator });
-	};
-	add(node.innerPrefix ?? '', true);
-	for (const child of node.children ?? []) {
-		add(child.leadingTrivia, true);
-		// A nested container's rebuild already indented the blank lines it keeps.
-		add(child.raw, child.children !== undefined);
-	}
-	add(node.innerSuffix ?? '', false);
-	let lastContent = lines.length - 1;
-	while (lastContent >= 0 && isBlankText(lines[lastContent].text)) lastContent--;
+/** The `[^label]:` line with the body's first line on it, the rest indented four columns, each
+ *  line kept as it stood unless the edit changed it. */
+export function rebuildFootnoteDefRaw(node: CstNode, changed?: ChildRawChange) {
+	const label = getPluginMetadata<FootnoteDefMetadata>(node)?.label ?? '';
+	return rebuildStripRaw(node, definitionLines(label), { changed });
+}
 
-	let raw = '';
-	lines.forEach(({ text, lineEnding, separator }, i) => {
-		if (raw === '') raw += marker + text + lineEnding;
-		else if (text === '' && (separator || i < lastContent)) raw += lineEnding;
-		else raw += CONTINUATION_MARKER + text + lineEnding;
+/** A definition's line syntax: its marker read back only with the same label, as the parser
+ *  spells it (up to three spaces before, one optional after). */
+function definitionLines(label: string): LineCodec {
+	const mark = `[^${label}]:`;
+	return hangingIndentLines({
+		opener: mark + ' ',
+		column: CONTINUATION_COLUMN,
+		readOpener(line) {
+			const lead = /^ {0,3}/.exec(line)![0].length;
+			if (!line.startsWith(mark, lead)) return null;
+			const end = lead + mark.length;
+			return line.slice(0, line[end] === ' ' ? end + 1 : end);
+		}
 	});
-	// A body with no lines still keeps the label line, or a reload would read no definition.
-	node.raw = raw === '' ? marker : raw;
 }
 
 export function registerFootnoteDefinition(view: BlockView): void {
@@ -181,7 +180,7 @@ export function registerFootnoteDefinition(view: BlockView): void {
 		},
 		closure: containerClosure({
 			roundTripVia:
-				'container contract=strip — rebuildFootnoteDefRaw re-emits the [^label]: marker + four-space continuation indent',
+				'container contract=strip — rebuildFootnoteDefRaw writes the edited lines under the [^label]: marker and a four-column indent, keeping the rest',
 			focus: {
 				mode: 'implemented',
 				via: 'focus walks into the first child block via createContainerBlock'

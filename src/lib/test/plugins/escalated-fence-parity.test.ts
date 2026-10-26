@@ -15,7 +15,6 @@ import {
 	type CstNode
 } from '#lib/plugin.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
 import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
@@ -107,8 +106,8 @@ const typeInBody =
 		const owner = h.deps.doc.children[0];
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(h.deps.doc) };
 		const write = legalizeWrite(body, index, raw, 'authored');
-		const typing = createLeafTyping(h.deps, h.controller);
-		expect(typing.writeLeafInPlace(docPathFrom([0, index]), write, 0).wrote).toBe(true);
+		const typing = h.controller;
+		expect(typing.typeLeaf(docPathFrom([0, index]), write, 0).wrote).toBe(true);
 	};
 
 /** Backspace at the start of the paragraph below the container, which joins it into the body. */

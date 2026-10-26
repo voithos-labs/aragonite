@@ -64,7 +64,7 @@ async function typeThenRewrite() {
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 
-	await editor.actions.updateBlockContent(0, TYPED, 'authored', 8, 9);
+	await editor.actions.updateBlockContent(0, TYPED, 'authored', 'join-typing', 8, 9);
 	fence.firstElementChild!.dispatchEvent(
 		new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
 	);

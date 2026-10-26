@@ -65,10 +65,10 @@ export function makeEdgeDispatch(
 	let keyCaret = 0;
 	const blockEdit: BlockEditActions = {
 		...stubBlockEdit(),
-		updateBlockContent: (index, content, mode, start = 0, end = start) => {
+		updateBlockContent: (index, content, mode, history, start = 0, end = start) => {
 			edits.push([index, content, start, end]);
 			return (
-				writes?.updateBlockContent(index, content, mode, start, end) ??
+				writes?.updateBlockContent(index, content, mode, history, start, end) ??
 				withStoredCaret(Promise.resolve(true), end)
 			);
 		}

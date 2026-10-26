@@ -59,6 +59,7 @@ export function createTypedInput(deps: TypedInputDeps): (e: InputEvent) => boole
 				void deps.writeText({
 					...rangeWrite(deps.node, edit),
 					intent: 'typed',
+					history: 'join-typing',
 					mode: 'authored',
 					source: 'live-selection-edit'
 				})
@@ -88,6 +89,7 @@ export function createTypedInput(deps: TypedInputDeps): (e: InputEvent) => boole
 					text,
 					caretAfter,
 					intent: 'typed',
+					history: 'join-typing',
 					mode: 'authored',
 					source: 'delimiter-autopair',
 					inPlace: true

@@ -153,28 +153,6 @@ const SELECTOR_READ_RE =
 /** `document.activeElement` compared by identity, which the host taking focus silently falsifies. */
 const ACTIVE_IDENTITY_RE = /document\.activeElement\s*[!=]==|[!=]==\s*document\.activeElement/;
 
-// ── G4.51 debounced checkpoints ──────────────────────────────────────────────
-
-/** The definition sites declare the members rather than spending them as a pair. */
-const CHECKPOINT_DECLARATIONS: string[] = [SOURCE.actionContracts, SOURCE.undoController];
-
-function pairing(
-	id: string,
-	push: RegExp,
-	arm: RegExp,
-	pushCall: string,
-	armCall: string
-): FileRule {
-	return {
-		id,
-		population: (file) => !CHECKPOINT_DECLARATIONS.includes(file.relPath) && push.test(file.code),
-		matches: (file) => !arm.test(file.code),
-		reason: 'a checkpoint push must arm the matching pause once its edit settles (#71)',
-		hits: [`controller.${pushCall}([0], 0);`],
-		misses: [`controller.${pushCall}([0], 0); controller.${armCall}();`]
-	};
-}
-
 // ── G4.71 / G4.72 Markdown whitespace ────────────────────────────────────────
 
 /** `x.trim() === ''`, `x.trim().length === 0` and `!x.trim()`: an emptiness test by `trim()`. */
@@ -305,14 +283,12 @@ const holdsLiveRewrites = (file: SourceFile): boolean =>
 const LIST_MARKER_READ =
 	/\{\s*marker\?:\s*string\s*\}|'listItem'\)\??\.marker\b|\b\w*[mM]eta(?:data)?\??\.marker\b/;
 
-// ── G4.34 / G4.74 private writers ────────────────────────────────────────────
+// ── G4.34 private writer ─────────────────────────────────────────────────────
 
 /** Writers whose callers are their own module: unexported today, held here so one `export`
  *  keyword can't hand them a second caller. */
 const PRIVATE_WRITER_HOMES: Record<string, string> = {
-	buildLinkSourceBytes: SOURCE.linkSourceBytes,
-	terminateLastLine: SOURCE.openTail,
-	releaseLastLine: SOURCE.openTail
+	buildLinkSourceBytes: SOURCE.linkSourceBytes
 };
 
 // ── G4.175 runes mode ────────────────────────────────────────────────────────
@@ -457,6 +433,27 @@ const RULES: FileRule[] = [
 		misses: ['let o: ResizeObserver | null = null;', "typeof ResizeObserver !== 'function'"]
 	},
 	{
+		id: 'G4.260 a step before the render pairs with its after step through aroundRender',
+		matches: /\$effect\.pre\s*\(/,
+		allowed: {
+			'src/lib/around-render.svelte.ts':
+				'the pairing itself: each run before the render schedules its own run after it',
+			[SOURCE.listWindowing]:
+				'records the list path before the render, with no step after the render to pair'
+		},
+		reason:
+			'two effects over one value, one before the render and one after, lose the after step when an effect moves the value again inside the flush; pair them with `aroundRender`',
+		hits: [
+			'$effect.pre(() => {\n\tconst mode = effectiveMode;\n});',
+			'$effect.pre (() => hold(getWindow()));'
+		],
+		misses: [
+			'aroundRender(() => effectiveMode, flip.beforeFlip, flip.afterFlip);',
+			'$effect(() => release());',
+			'// $effect.pre(() => {})'
+		]
+	},
+	{
 		id: 'G4.245 a kind’s write rule runs through kindWriteRule',
 		matches: /\.rawWrite\b|\{[^}=]*\brawWrite\b[^}=]*\}\s*=[^=>]/,
 		allowed: {
@@ -493,23 +490,6 @@ const RULES: FileRule[] = [
 			'export function createClipboardHandlers(deps) {}',
 			'export async function pasteDispatch(\n\tinput,'
 		]
-	},
-	{
-		id: 'G4.195 a block command takes its own undo step in one place',
-		matches: /\.\s*isolateUndoEntry\s*\(/,
-		allowed: {
-			'src/lib/components/blocks/text/inline-commands.ts':
-				'`perform`: every command of a paragraph and a table cell, once a shown source is written',
-			'src/lib/components/blocks/code/CodeBlock.svelte':
-				'the language field’s write, a command with no chord behind it'
-		},
-		reason:
-			'a command is not typing, so its write is an undo step of its own; a block that isolates its own writes keeps a second copy of that rule, which drifts from `createInlineCommands :: perform`',
-		hits: [
-			'controller.isolateUndoEntry(() => write());',
-			'deps.controller\n\t.isolateUndoEntry(w);'
-		],
-		misses: ['isolateUndoEntry(write: () => void): void;', 'isolateUndoEntry: (write) => {']
 	},
 	{
 		id: 'G4.201 one painter puts the selection wash on a widget',
@@ -820,13 +800,6 @@ const RULES: FileRule[] = [
 			'port.setScrollTop(listTopInPort(port, listEl) + model.offsetOf(index));'
 		]
 	},
-	pairing(
-		'G4.51 the controller: no file pushes a debounced checkpoint without arming the pause',
-		/\bpushUndoSnapshotDebounced\s*\(/,
-		/\barmUndoPause\s*\(/,
-		'pushUndoSnapshotDebounced',
-		'armUndoPause'
-	),
 	{
 		id: 'G4.15 every bare `as <Brand>` cast lives in the brand’s home module',
 		matches: (file) =>
@@ -854,8 +827,8 @@ const RULES: FileRule[] = [
 				'SelectionPoint accessors brand RawOffset/CellIndex for the char/cell branch reads',
 			'src/lib/editor-actions/block-edit-scope.ts':
 				'DocPath home: the scope factories brand the commit args’ document-absolute paths',
-			'src/lib/editor-actions/commit/undo-controller.ts':
-				'DocPath at the commit sequence, gating the G1.16 guard entry',
+			'src/lib/editor-actions/commit/commit-frame.ts':
+				'DocPath at the commit frame, gating the G1.16 guard entry',
 			// Public boundaries, where plain-number offsets are branded on entry.
 			'src/lib/components/blocks/editable/editable-surface.ts':
 				'BlockComponent boundary: public number offsets branded at entry',
@@ -1221,23 +1194,15 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'G4.34 G4.74 the link serializer and the last-line walk are named only in their own files',
+		id: 'G4.34 the link serializer is named only in its own file',
 		matches: (file) =>
 			Object.entries(PRIVATE_WRITER_HOMES).some(
 				([name, home]) => file.relPath !== home && new RegExp(`\\b${name}\\b`).test(file.code)
 			),
 		reason:
-			're-emitting a link’s fields as GFM replaces an author’s own syntax, and a route that ends the last line itself is a second copy of the commit’s rule: call the byte writer or let the commit end the line',
-		hits: [
-			at(SOURCE.nodePrimitives, 'releaseLastLine(tail, sharing, grammar);'),
-			at(SOURCE.openTail, 'buildLinkSourceBytes(fields);'),
-			'terminateLastLine(node, ending, sharing, grammar);'
-		],
-		misses: [
-			at(SOURCE.openTail, 'terminateLastLine(node, ending, sharing, grammar);'),
-			at(SOURCE.linkSourceBytes, 'return buildLinkSourceBytes(fields);'),
-			'endWindowLines(body, change, sharing, grammar);\ntext = terminateLine(text, ending);'
-		]
+			're-emitting a link’s fields as GFM replaces an author’s own syntax: call the byte writer',
+		hits: [at(SOURCE.fixUpApply, 'buildLinkSourceBytes(fields);')],
+		misses: [at(SOURCE.linkSourceBytes, 'return buildLinkSourceBytes(fields);')]
 	},
 	{
 		id: 'a value the editor owns is read through its getter, never optional-chained into a default',
@@ -2811,7 +2776,7 @@ const PIECES_UNDER_ORDER_CHECK: FileRule = {
 	misses: [
 		at(
 			ROGUE_DISSOLVE,
-			'return keepingListOrder(\n\t() => leafTexts([list]),\n\t() => assemble(itemPiecesInOrder(children, ordered))\n);'
+			'return keepingListOrder(\n\t() => [list],\n\t() => assemble(itemPiecesInOrder(children, ordered))\n);'
 		),
 		at(ROGUE_DISSOLVE, 'function itemPiecesInOrder(children, ordered) {}')
 	]

@@ -24,13 +24,13 @@ const ROUTES: Record<string, Route> = {
 	'typing the marker key by key': {
 		item: '- ',
 		async write(a, i) {
-			await a.updateBlockContent(i, '-\n', 'authored', 0, 1);
-			await a.updateBlockContent(i, '- \n', 'authored', 1, 2);
+			await a.updateBlockContent(i, '-\n', 'authored', 'join-typing', 0, 1);
+			await a.updateBlockContent(i, '- \n', 'authored', 'join-typing', 1, 2);
 		}
 	},
 	'a write of the whole line': {
 		item: '- [ ] start',
-		write: (a, i) => a.updateBlockContent(i, '- [ ] start\n', 'authored', 0, 11)
+		write: (a, i) => a.updateBlockContent(i, '- [ ] start\n', 'authored', 'join-typing', 0, 11)
 	},
 	'a paste over the line': {
 		item: '- [ ] start',
@@ -47,7 +47,7 @@ const ROUTES: Record<string, Route> = {
 		makesLine: true,
 		async write(a, i) {
 			await a.insertParagraph(i, '');
-			await a.updateBlockContent(i, '- [ ] start\n', 'authored', 0, 11);
+			await a.updateBlockContent(i, '- [ ] start\n', 'authored', 'join-typing', 0, 11);
 		}
 	}
 };
@@ -126,14 +126,14 @@ describe.each(Object.keys(ROUTES))('%s', (routeName) => {
 describe('the caret after a join', () => {
 	it('lands in the new item when the line folds into the list above it', async () => {
 		const h = atRoot('- [ ] fold\n\n\nafter\n');
-		await h.actions.updateBlockContent(1, '- [ ] start\n', 'authored', 0, 11);
+		await h.actions.updateBlockContent(1, '- [ ] start\n', 'authored', 'join-typing', 0, 11);
 		expect(h.bytes()).toBe('- [ ] fold\n- [ ] start\n\nafter\n');
 		expect(h.landings.at(-1)).toMatchObject({ leafPath: [0, 1, 0], offset: 'start'.length });
 	});
 
 	it('lands in the new item when the list below folds into the line', async () => {
 		const h = atRoot('intro\n\n\n- [ ] fold\n');
-		await h.actions.updateBlockContent(1, '- [ ] start\n', 'authored', 0, 11);
+		await h.actions.updateBlockContent(1, '- [ ] start\n', 'authored', 'join-typing', 0, 11);
 		expect(h.landings.at(-1)).toMatchObject({ leafPath: [1, 0, 0], offset: 'start'.length });
 	});
 
@@ -145,7 +145,7 @@ describe('the caret after a join', () => {
 
 	it('lands in the new item when a paragraph with text turns into an item of the list above', async () => {
 		const h = atRoot('- [ ] fold\n\nbuy milk\n');
-		await h.actions.updateBlockContent(1, '- buy milk\n', 'authored', 0, 2);
+		await h.actions.updateBlockContent(1, '- buy milk\n', 'authored', 'join-typing', 0, 2);
 		expect(h.landings.at(-1)).toMatchObject({ leafPath: [0, 1, 0], offset: 0 });
 	});
 });
@@ -154,7 +154,7 @@ describe('one undo after a join', () => {
 	it('gives back the blank line and both lists', async () => {
 		const source = '- [ ] a\n\n\n- [ ] b\n';
 		const h = atRoot(source);
-		await h.actions.updateBlockContent(1, '- [ ] start\n', 'authored', 0, 11);
+		await h.actions.updateBlockContent(1, '- [ ] start\n', 'authored', 'join-typing', 0, 11);
 		await h.undo();
 		expect(h.bytes()).toBe(source);
 	});
@@ -163,7 +163,7 @@ describe('one undo after a join', () => {
 describe('which lines join and which stay apart', () => {
 	it('stays apart when it fills as a paragraph', async () => {
 		const h = atRoot('intro\n\n\n- [ ] fold\n');
-		await h.actions.updateBlockContent(1, 'x\n', 'authored', 0, 1);
+		await h.actions.updateBlockContent(1, 'x\n', 'authored', 'join-typing', 0, 1);
 		expect(h.bytes()).toBe('intro\n\nx\n\n- [ ] fold\n');
 	});
 
@@ -175,19 +175,19 @@ describe('which lines join and which stay apart', () => {
 		['a `)` item over a `.` list', '1) x', '1. a']
 	])('stays apart as %s', async (_label, item, list) => {
 		const h = atRoot(`intro\n\n\n${list}\n`);
-		await h.actions.updateBlockContent(1, `${item}\n`, 'authored', 0, item.length);
+		await h.actions.updateBlockContent(1, `${item}\n`, 'authored', 'join-typing', 0, item.length);
 		expect(h.bytes()).toBe(`intro\n\n${item}\n\n${list}\n`);
 	});
 
 	it('joins as a plain item beside a to-do list, since GFM reads both as bullet items', async () => {
 		const h = atRoot('- [ ] fold\n\n\nafter\n');
-		await h.actions.updateBlockContent(1, '- note\n', 'authored', 0, 6);
+		await h.actions.updateBlockContent(1, '- note\n', 'authored', 'join-typing', 0, 6);
 		expect(h.bytes()).toBe('- [ ] fold\n- note\n\nafter\n');
 	});
 
 	it('joins as a paragraph with text turned into an item', async () => {
 		const h = atRoot('- [ ] fold\n\nbuy milk\n');
-		await h.actions.updateBlockContent(1, '- buy milk\n', 'authored', 0, 2);
+		await h.actions.updateBlockContent(1, '- buy milk\n', 'authored', 'join-typing', 0, 2);
 		expect(h.bytes()).toBe('- [ ] fold\n- buy milk\n');
 	});
 
@@ -207,7 +207,7 @@ describe('which lines join and which stay apart', () => {
 
 	it('joins when a write changes a list to the type of the list above it', async () => {
 		const h = atRoot('- c\n\n 1. a\n');
-		await h.actions.updateBlockContent(1, '- a\n', 'authored', 0, 3);
+		await h.actions.updateBlockContent(1, '- a\n', 'authored', 'join-typing', 0, 3);
 		expect(h.bytes()).toBe('- c\n- a\n');
 	});
 

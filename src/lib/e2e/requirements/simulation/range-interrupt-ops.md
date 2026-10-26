@@ -125,9 +125,6 @@ document's start the only gap boundary this family arrives at by click.
 - find-bar round trip (open, query, navigate, close): focus leaves the editor for the
   input and comes back on Escape with the range still live, so the key replaces exactly
   the range. The one gesture in the family that takes the caret out of the editor
-- dead-space click below a table: declines, so the range survives and the key replaces
-  it. That is the current contract, pinned so that the change which lands a caret there
-  is deliberate
 - a caret that lands inside a container addresses its leaf's raw, and a container's raw
   is not the concatenation of its children, so no offset conversion exists. Every gesture
   targets a top-level landing; one inside a container means a fixture moved under the

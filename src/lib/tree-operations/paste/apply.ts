@@ -28,6 +28,8 @@ export async function applyInlineResult(
 		blockIndex,
 		result.newRaw,
 		'literal',
+		// The clipboard step ended the typing burst before the paste, so the paste opens its own.
+		'join-typing',
 		start.offset,
 		result.caretOffset
 	);

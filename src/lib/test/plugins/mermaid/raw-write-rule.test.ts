@@ -4,10 +4,10 @@ import { normalizeOwnRaw } from '#lib/tree-operations/node-primitives.js';
 import { documentLineEnding } from '#lib/plugin.js';
 import { rangeDelete } from '#lib/selection/range-delete.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { testView } from '#lib/test/support/test-view.js';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // The mermaid kind declares a raw-write rule that puts back a closing fence a truncating write
 // dropped, so bytes written past the diagram's own editor cannot swallow the blocks below it.
@@ -28,12 +28,17 @@ describe('a truncating write of a mermaid block gets its closing fence back', ()
 		const doc = parse('Before\n\n```mermaid\ngraph TD\n```\n\nAfter\n\nTail\n');
 
 		// From just after the opener line into "After", which leaves "er".
-		rangeDelete(
+		writtenBelow(
 			doc,
-			rangeCoverage(doc, coverRange(doc, { path: [1], offset: 11 }, { path: [2], offset: 3 })),
-			createSharingState(),
-			fixtureReading(),
-			'keyless'
+			(scope) =>
+				rangeDelete(
+					doc,
+					rangeCoverage(doc, coverRange(doc, { path: [1], offset: 11 }, { path: [2], offset: 3 })),
+					scope,
+					fixtureReading(),
+					'keyless'
+				),
+			fixtureReading().grammar
 		);
 
 		expect(serialize(doc)).toBe('Before\n\n```mermaid\ner\n```\n\nTail\n');

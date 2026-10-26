@@ -16,7 +16,7 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
-import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
@@ -37,7 +37,12 @@ describe('a grid whose kind carries no table metadata', () => {
 			[[2], '**tail**']
 		]);
 		expect(() =>
-			applyCrossBlockFormat(documentBody(doc), plan, createSharingState(), defaultGrammarView)
+			writtenBelow(
+				doc,
+				(scope) => applyCrossBlockFormat(scope, plan),
+				defaultGrammarView,
+				createSharingState()
+			)
 		).not.toThrow();
 	});
 

@@ -49,7 +49,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	it('leaves the slot standing when the rebuilt opener still interrupts', async () => {
 		const h = makeNestedHarness('a\n> b\n', { index: 1 });
 
-		await h.bundle.blockEdit.updateBlockContent(0, 'bz\n', 'authored', 1, 2);
+		await h.bundle.blockEdit.updateBlockContent(0, 'bz\n', 'authored', 'join-typing', 1, 2);
 
 		expect(serialize(h.deps.doc)).toBe('a\n> bz\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'blockquote']);
@@ -62,7 +62,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		const errors: unknown[] = [];
 		h.events.on('error', (e) => errors.push(e));
 
-		await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored', 'join-typing', 0);
 
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);
 		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
@@ -86,7 +86,13 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	it('a content commit a collapse took over still reports it wrote', async () => {
 		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
 
-		const wrote = await h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored', 0);
+		const wrote = await h.bundle.blockEdit.updateBlockContent(
+			1,
+			'h\n',
+			'authored',
+			'join-typing',
+			0
+		);
 
 		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
 		expect(wrote).toBe(true);
@@ -119,7 +125,7 @@ describe('a keystroke whose container collapses into its follower', () => {
 		const h = makeContainerHarness('> a\n> - b\ntext\n', [0, 1, 0]);
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote', 'paragraph']);
 
-		await h.bundle.blockEdit.updateBlockContent(0, '\n', 'authored', 1, 0);
+		await h.bundle.blockEdit.updateBlockContent(0, '\n', 'authored', 'join-typing', 1, 0);
 
 		expect(serialize(h.deps.doc)).toBe('> a\n>\n> - \ntext\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);

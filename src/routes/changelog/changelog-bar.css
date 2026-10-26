@@ -1,0 +1,55 @@
+/* The changelog's top bar: what it adds to the showcase bar's stylesheet, which draws the rest. */
+
+.changelog-start {
+	justify-self: start;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+}
+
+/* The page's name set as the wordmark's lighter half. */
+.changelog-label {
+	font-size: 15px;
+	letter-spacing: -0.01em;
+	color: var(--color-ui-muted);
+	white-space: nowrap;
+}
+
+.changelog-hint {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-right: 6px;
+	font-size: 12px;
+	color: var(--color-ui-muted);
+	white-space: nowrap;
+}
+
+/* The families fold at a wider bar than the modes, having twice as many segments; the changelog
+   spec's desktop-width row fails once they outgrow it. */
+@container showcase-bar (max-width: 1100px) {
+	.changelog-families {
+		display: none;
+	}
+	.changelog-family-picker {
+		display: block;
+	}
+}
+
+/* No modifier key on a phone, and the document's own title names the page. */
+@container showcase-bar (max-width: 640px) {
+	.changelog-hint {
+		display: none;
+	}
+}
+
+@container showcase-bar (max-width: 560px) {
+	.changelog-label {
+		display: none;
+	}
+	/* The showcase folds its links into settings here; the changelog's way back has nowhere to go. */
+	.changelog-header .showcase-end > .changelog-link {
+		display: inline-flex;
+	}
+}

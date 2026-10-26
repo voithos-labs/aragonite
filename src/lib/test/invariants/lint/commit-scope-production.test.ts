@@ -1,5 +1,5 @@
 /**
- * The commit scope in `invariants/commit-scope.ts` runs in production too, since it defers the
+ * The commit scope in `commit-scope.ts` runs in production too, since it defers the
  * decorations' invalidation (G4.61): a DEV guard on its depth counter would run `invalidate()`
  * inside the commit in production. Only a source scan can see that, because `esm-env` resolves
  * DEV to true under vitest.

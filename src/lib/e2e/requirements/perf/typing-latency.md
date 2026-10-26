@@ -19,12 +19,11 @@ and the gated row for the same shape are not comparable numbers.
   latencies stabilize with fewer samples) typed one at a time; each keystroke
   waits on a check of the CST's document length through the test bridge (never
   `waitForTimeout`), reported as p50/p95
-- caret target: end of block 0, except shapes whose first block is a container
-  (nested-containers, table-heavy). Those type into an appended plain
-  paragraph, since the caret helper cannot enter containers. The dominant
-  per-keystroke cost (the inline sweep over the whole document) does not depend
-  on where the caret is; the cost of rebuilding a block's ancestors is measured
-  directly by the vitest bench.
+- caret target: end of block 0. A shape that opens with a container (nested-containers,
+  table-heavy, the three giant-single shapes) gets a plain paragraph put in front of it as
+  block 0, since `focusBlockEnd(0)` on the container would aim at a last child windowing
+  left unmounted. Typing inside a container is what the container-interior and at-depth
+  rows below are for.
 - cost of the check itself: document length is summed from top-level raw
   lengths, O(top-level blocks) per poll, because serializing the source on every
   poll at 10MB would dwarf the latency being measured
@@ -34,6 +33,16 @@ and the gated row for the same shape are not comparable numbers.
 One row alternates a top-level Enter at the end of block 0 and the Backspace that merges the new
 block back, 16 edits on flat-prose at 10MB, each timed to the top-level block count changing.
 It writes the result a re-bless of the gated `flat-prose-10MB-structural` row reads.
+
+## Container-interior typing (report companion to the gated rows)
+
+Two rows put the caret inside a giant container instead of in the paragraph in front of it:
+the first item of giant-single-list and the first paragraph of giant-single-blockquote, 30
+keystrokes each at 1MB. That first child is the one windowing always keeps mounted, and every
+key on it moves the container's opening line. The keystroke waits on block 0's length like
+every other row, but block 0 grows wherever in the container a key lands, so the row also
+checks the target child grew by exactly 30 and fails otherwise. The gated versions are the
+`-interior-` rows in `perf-gate.md`.
 
 ## At-depth typing (report-only)
 
@@ -99,14 +108,11 @@ the row shows each widget measured once rather than at every byte of its source.
 
 ## Sizes
 
-All shapes run at 100KB / 1MB / 10MB, with nothing capped. The giant-single
-shapes (list/blockquote/table) were uncapped at 0.8.5: their 10MB load is linear and
-windowing bounds the mount, so the keystroke is O(viewport). reference-heavy was
-uncapped at 0.8.5 too, once computing `inlineContent` lazily removed the whole-document
-inline sweep per edit that made its keystroke fail to settle. Container-first shapes
-(nested-containers, table-heavy, and the three giant-single shapes) prepend a
-plain paragraph as the block-0 caret target, since `focusBlockEnd(0)` on a giant
-container would target an unmounted child. (Headline numbers: `baseline.json`.)
+All shapes run at 100KB / 1MB / 10MB, with nothing capped. The giant-single shapes
+(list/blockquote/table) load in linear time and windowing bounds what mounts, so their
+keystroke is O(viewport). reference-heavy's keystroke is too, since a block's inline content
+is computed when something reads it rather than swept over the whole document on every edit.
+(Headline numbers: `baseline.json`.)
 
 One axis is not bounded by the viewport, and so is recorded but not regression-gated
 at 10MB: single-giant-paragraph, whose span rebuild inside the block is O(paragraph

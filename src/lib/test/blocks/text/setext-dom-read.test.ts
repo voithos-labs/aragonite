@@ -107,6 +107,7 @@ describe('a widget source shown in a setext heading keeps the underline', () => 
 			0,
 			'$y$\n---\n',
 			'authored',
+			'join-typing',
 			expect.any(Number),
 			expect.any(Number)
 		);

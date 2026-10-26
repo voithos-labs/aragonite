@@ -85,11 +85,18 @@ const CONTAINERS: Container[] = [
 async function writeLeaf(source: string, path: number[], raw: string): Promise<Document> {
 	if (path.length === 1) {
 		const h = makeTopHarness(source, { reading: LIVE });
-		await h.actions.updateBlockContent(path[0], raw, 'authored', 0, 0);
+		await h.actions.updateBlockContent(path[0], raw, 'authored', 'join-typing', 0, 0);
 		return h.deps.doc;
 	}
 	const h = makeContainerHarness(source, path.slice(0, -1), { reading: LIVE });
-	await h.bundle.blockEdit.updateBlockContent(path[path.length - 1], raw, 'authored', 0, 0);
+	await h.bundle.blockEdit.updateBlockContent(
+		path[path.length - 1],
+		raw,
+		'authored',
+		'join-typing',
+		0,
+		0
+	);
 	return h.deps.doc;
 }
 

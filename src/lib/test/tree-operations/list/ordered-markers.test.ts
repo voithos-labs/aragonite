@@ -1,3 +1,4 @@
+import { deleteNode } from '#lib/tree-operations/node-ops.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import {
@@ -8,7 +9,6 @@ import {
 } from '#lib/tree-operations/list/ordered-markers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { setPluginMetadata, type CstNode } from '#lib/core/nodes.js';
-import { deleteNode } from '#lib/tree-operations/settle.js';
 import { bodyUnder } from '#lib/tree-operations/node-primitives.js';
 
 describe('ordered-markers reads', () => {

@@ -47,6 +47,13 @@ describe('format command branches on a prose block', () => {
 		mounted.instance.setSelection(0, 7);
 		expect(mounted.instance.runCommand(id as CommandId)).toBe(true);
 
-		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, expected, 'literal', 0, 3);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			expected,
+			'literal',
+			'entry',
+			0,
+			3
+		);
 	});
 });

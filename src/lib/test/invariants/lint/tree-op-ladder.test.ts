@@ -18,8 +18,6 @@ const LADDER = [
 	'node-primitives',
 	'unshare',
 	'separator-writes',
-	'neighbour-merge',
-	'settle',
 	'content-write',
 	'stored-as',
 	'leaf-range',
@@ -68,12 +66,12 @@ describe('G4.64 the tree-ops layer order', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	const settle = LADDER.indexOf('settle');
-	const SETTLE = `${LAYER_DIR}settle.ts`;
+	const settle = LADDER.indexOf('content-write');
+	const SETTLE = `${LAYER_DIR}content-write.ts`;
 
 	it('names an upward edge, and skips a downward or off-list one', () => {
-		expect(upwardEdges(SETTLE, settle, "import { x } from './content-write';")).toEqual([
-			`${SETTLE} -> ./content-write`
+		expect(upwardEdges(SETTLE, settle, "import { x } from './stored-as';")).toEqual([
+			`${SETTLE} -> ./stored-as`
 		]);
 		expect(upwardEdges(SETTLE, settle, "import { x } from './unshare';")).toEqual([]);
 		expect(upwardEdges(SETTLE, settle, "import { x } from '../core/lines';")).toEqual([]);

@@ -154,7 +154,7 @@ describe('nested block edit: childless guards', () => {
 		await blockEdit.mergeWithPrevious(0);
 		await blockEdit.mergeWithNext(0);
 		await blockEdit.deleteBlock(0, 'keyless');
-		await blockEdit.updateBlockContent(0, 'text\n', 'authored', 0);
+		await blockEdit.updateBlockContent(0, 'text\n', 'authored', 'join-typing', 0);
 
 		expect(vi.mocked(parent.blockEdit.mergeWithPrevious)).not.toHaveBeenCalled();
 		expect(vi.mocked(parent.blockEdit.mergeWithNext)).not.toHaveBeenCalled();

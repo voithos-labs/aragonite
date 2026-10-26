@@ -5,8 +5,9 @@ import {
 	trackChildIds
 } from '#lib/tree-operations/structural-change.js';
 import { parse } from '#lib/core/parser.js';
-import { deleteAtPath } from '#lib/tree-operations/path-mutate.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { createScopeWriter } from '#lib/editor-actions/commit/scope-writes.js';
+import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import type { BlockComponent } from '#lib/block-component.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
@@ -79,11 +80,12 @@ describe('changeBetweenIds', () => {
 describe('trackChildIds', () => {
 	it('adds up the splices a commit sequence makes through several entry points', () => {
 		const doc = parse('a\n\nb\n\nc\n\nd\n');
-		const ledger = trackChildIds(doc);
-		const sharing = createSharingState();
+		const body = documentBody(doc);
+		const ledger = trackChildIds(body);
+		const writer = createScopeWriter(body, createSharingState(), defaultGrammarView, '\n');
 
-		deleteAtPath(doc, [2], sharing, defaultGrammarView);
-		deleteAtPath(doc, [1], sharing, defaultGrammarView);
+		writer.splice([], 2, 1, []);
+		writer.splice([], 1, 1, []);
 
 		expect(ledger.read()).toEqual({ op: 'delete', at: 1, count: 2 });
 	});

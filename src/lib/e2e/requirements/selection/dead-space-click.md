@@ -9,6 +9,13 @@ Dead space is the root and the block lists inside it: a host that widens or pads
 the block list moves the whole visible side gutter onto the list, so a handler
 that takes only root-targeted clicks leaves that strip dead.
 
+The whole rule, in order. Outside reading mode, a plain press in dead space near a
+block ends any live range first. Then the click goes to a gap caret if it falls
+between two top-level blocks whose facing edges both take one (or above a first block
+that takes one at its top), to the nearest line if the nearest block has text lines,
+and to nothing at all if that block has none (a table, an equation, a rule): no caret,
+no focus.
+
 ## Happy paths
 
 - Click below the last block: the caret lands at the end of the last block's content,
@@ -46,9 +53,12 @@ that takes only root-targeted clicks leaves that strip dead.
   or in the host's own padding around it. The click still resets a live range, as every
   margin click does, and nothing lands on the nearest cell, which would focus a table the
   user never clicked.
-- A kind that addresses its own internals but declares no caret landing still declines,
-  and declines before ending any live range: a rejected click must leave the selection
-  exactly as it found it.
+- With a range live, a click beside a table ends the range and focuses nothing, so a
+  typed character changes nothing at all: no replaced range, no letter in a cell.
+- A kind that addresses its own internals but declares no caret landing still declines.
+  The landing decision itself ends no range, so a declined point leaves the selection as
+  it found it; the press is what ends a live range. That half is a unit row
+  (`test/selection/dead-space-caret-routing.test.ts`).
 - A drag-select released in a padded list's gutter keeps its selection: the press half
   of the gesture is what tells them apart, since the release reports the list either way.
 - A click beside a line inside a container (a quote, a nested list, an alert) lands on that

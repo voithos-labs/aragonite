@@ -20,6 +20,21 @@ export function checkStructuralDescriptor(
 	};
 }
 
+/** G1.154: a content write's fixed-up change, when it replaces a window, holds the written block
+ *  at `index`, since the caret is placed by reading that window's blocks. */
+export function checkWriteInWindow(
+	change: StructuralChange,
+	index: number
+): InvariantViolation | null {
+	if (change.op !== 'replace' || (index >= change.at && index < change.at + change.count))
+		return null;
+	return {
+		code: 'write-in-window',
+		message: `a write at ${index} fixed up to a window at ${change.at} of ${change.count} that misses it`,
+		detail: { change, index }
+	};
+}
+
 /** G1.36, the reading half: one id per child once a commit has written its state, which catches
  *  a descriptor that fits its own array but describes the wrong range. */
 export function checkIdsChildrenLockstep(

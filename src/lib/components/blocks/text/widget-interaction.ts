@@ -602,6 +602,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				void deps.writeText({
 					...rangeWrite(node, { raw: newRaw, caret: caretAfter }),
 					intent: 'typed',
+					history: 'join-typing',
 					mode: 'authored',
 					source: 'widget-key',
 					sessionAnchor: caretBefore,
@@ -656,6 +657,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				deps.writeText({
 					...rangeWrite(deps.node, edit),
 					intent: 'typed',
+					history: 'join-typing',
 					mode: 'authored',
 					source: 'widget',
 					sessionAnchor: selectedWidget.preSelectOffset

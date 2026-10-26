@@ -14,6 +14,8 @@ their own. The rule holds wherever the paste comes from (Ctrl+V, a menu's Paste,
 - The same in a code block's body and in a table cell
 - Type `xy`, select the `y` with Shift+ArrowLeft, Ctrl+X at once: Ctrl+Z puts the `y` back and
   keeps `xy`, in a paragraph, a code block and a table cell
+- Select the `b` with Shift+ArrowLeft, Ctrl+X, then type `z` at once: Ctrl+Z removes `z` and keeps
+  the cut, a second Ctrl+Z puts the `b` back, in a paragraph, a code block and a table cell
 - Type `xy` in a paragraph, then right-click it and pick Paste at once: Ctrl+Z removes the pasted
   text and keeps `xy`; the same through a table cell's menu
 - Type `xy`, then paste over a range across two blocks, cut that range, or paste a grid into a

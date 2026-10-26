@@ -7,7 +7,13 @@
 import type { CstNode } from '../core/nodes';
 import { perfEnabled, recordStripLinesRead } from '../perf/instruments';
 import { concatChildren } from '../core/serializer';
-import { endsInBlankLine, isBlankLine, isBlankText, splitLines } from '../core/lines';
+import {
+	endsInBlankLine,
+	firstLineEnding,
+	isBlankLine,
+	isBlankText,
+	splitLines
+} from '../core/lines';
 import {
 	FIRST_LINE,
 	INNER_LINE,
@@ -28,13 +34,69 @@ export interface StripRebuild {
 	rereads: boolean;
 }
 
-/** A quote or list item, each line written from its pair in the previous bytes while that still
- *  reads the same text; `previous` reads those bytes when their metadata has since changed. */
+export interface StripRebuildOptions {
+	/** The child whose bytes changed and what they were, so only its lines are written. */
+	changed?: ChildRawChange;
+	/** The syntax the previous bytes were written in, when the container's metadata changed it. */
+	previous?: LineCodec;
+	/** A line above the body that holds none of it (an alert's `> [!NOTE]`), written whole; the
+	 *  body's blank first line (`innerPrefix`) sits right under it. */
+	opener?: string;
+}
+
+/** A line-prefixed container's bytes rebuilt from its children: each line written from its pair in
+ *  the previous bytes while that still reads the same text, so an edit rewrites only its own lines. */
 export function rebuildStripRaw(
 	node: CstNode,
 	lines: LineCodec,
-	changed?: ChildRawChange,
-	previous: LineCodec = lines
+	{ changed, previous = lines, opener }: StripRebuildOptions = {}
+): StripRebuild {
+	if (opener === undefined) return rebuildStripBody(node, lines, changed, previous);
+	const raw = node.raw;
+	const marker = lineAt(raw, 0);
+	const markerEnd = marker.text.length + marker.ending.length;
+	const blank = blankFirstLine(node, raw, markerEnd, lines);
+	const head = markerEnd + (blank.kept?.length ?? 0);
+	// The body is rebuilt as if it started the bytes, its child spans moved to match.
+	node.raw = raw.slice(head);
+	moveSpans(node, -head);
+	const outcome = rebuildStripBody(node, lines, changed, previous);
+	const ending = marker.ending || (firstLineEnding(node.raw) ?? '\n');
+	const above = opener + ending + (blank.kept ?? blank.written);
+	node.raw = above + node.raw;
+	moveSpans(node, above.length);
+	return outcome;
+}
+
+/** The body's blank first line as the previous bytes held it, when they did, and as written. */
+function blankFirstLine(
+	node: CstNode,
+	raw: string,
+	at: number,
+	lines: LineCodec
+): { kept: string | null; written: string } {
+	const prefix = node.innerPrefix ?? '';
+	if (prefix === '') return { kept: null, written: '' };
+	const line = lineAt(prefix, 0);
+	const old = lineAt(raw, at);
+	const kept = old.ending !== '' && readLine(lines, old.text, INNER_LINE)?.text === line.text;
+	return {
+		kept: kept ? old.text + old.ending : null,
+		written: lines.write(line.text, INNER_LINE) + line.ending
+	};
+}
+
+function moveSpans(node: CstNode, by: number): void {
+	const spans = node.childSpans;
+	if (spans) for (let k = 0; k < spans.length; k++) spans[k] += by;
+}
+
+/** {@link rebuildStripRaw} over a body that starts the container's bytes. */
+function rebuildStripBody(
+	node: CstNode,
+	lines: LineCodec,
+	changed: ChildRawChange | undefined,
+	previous: LineCodec
 ): StripRebuild {
 	// Written whole, since the region and line-by-line writes give an empty body no line at all.
 	if (bodyHasNoBytes(node)) return rebuildWholeStrip(node, lines, previous);
@@ -45,7 +107,7 @@ export function rebuildStripRaw(
 			outcome.rereads = written?.rereads ?? false;
 			return written?.out ?? null;
 		};
-		const full = (scratch: CstNode) => rebuildStripRaw(scratch, lines);
+		const full = (scratch: CstNode) => rebuildStripBody(scratch, lines, undefined, lines);
 		if (spliceChildRegion(node, changed, rewrite) && spliceIsFaithful(node, full)) return outcome;
 	}
 

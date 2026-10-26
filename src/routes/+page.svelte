@@ -12,6 +12,7 @@
 	import '../../examples/showcase/tag-marks.css';
 	import { untrack } from 'svelte';
 	import { INITIAL_STATE, showsSelectionMenu } from '../../examples/showcase/controls';
+	import { STORED_THEME_SCRIPT, readTheme, toggleTheme } from '../../examples/showcase/theme';
 	import {
 		mountShowcaseBar,
 		type ShowcaseBar,
@@ -28,7 +29,7 @@
 
 	// Props that can change while the editor runs: the toggles set these in place, no remount.
 	let presentationMode = $state(INITIAL_STATE.presentationMode);
-	let theme = $state(INITIAL_STATE.theme);
+	let theme = $state(readTheme());
 
 	// The showcase installs no test probes, so `trackParityDocument` is the only thing putting
 	// its container-heavy document under the teardown parity check.
@@ -49,7 +50,7 @@
 	]);
 
 	const TOGGLE: Partial<Record<ToggleKey, () => void>> = {
-		theme: () => (theme = theme === 'dark' ? 'light' : 'dark'),
+		theme: () => (theme = toggleTheme(theme)),
 		dragHandles: () => {
 			if (editor) source = editor.getSource();
 			dragHandles = !dragHandles;
@@ -124,6 +125,8 @@
 		{/key}
 	</div>
 	<DebugPanel {panel} {...panelFeed} />
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- a constant of ours, not user content -->
+	{@html STORED_THEME_SCRIPT}
 </div>
 
 <style>
@@ -140,16 +143,6 @@
 		--font-editor: 'Inter', system-ui, sans-serif;
 		--font-code: 'JetBrains Mono', ui-monospace, monospace;
 		font-family: var(--font-ui, system-ui, sans-serif);
-	}
-
-	/* Soft Light: the page switches with the editor, from the same data attribute. */
-	.showcase[data-editor-theme='light'] {
-		--color-bg: #dfddd7;
-		--color-border: #c9c7c0;
-		--color-text-primary: #2a2a27;
-		--color-text-secondary: #4a4a45;
-		--color-ui-dulled: #5c5c56;
-		--color-ui-muted: #62625c;
 	}
 	/* The scroll container spans the window so its margins are the editor's own empty space,
 	   where a drag can start; the reading column is the root's padding. */

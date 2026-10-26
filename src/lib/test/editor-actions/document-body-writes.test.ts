@@ -40,10 +40,13 @@ const TAIL_EDITS: [string, (h: TopHarness, last: number) => Promise<boolean>][] 
 		(h, last) => h.actions.replaceBlock(last, [], undefined, { snapshotOffset: 0 })
 	],
 	// Each write ends in the document's own line ending, as every route that writes a line does.
-	['update to blank', (h, last) => h.actions.updateBlockContent(last, ending(h), 'authored', 0)],
+	[
+		'update to blank',
+		(h, last) => h.actions.updateBlockContent(last, ending(h), 'authored', 'join-typing', 0)
+	],
 	[
 		'update to text',
-		(h, last) => h.actions.updateBlockContent(last, `z${ending(h)}`, 'authored', 0)
+		(h, last) => h.actions.updateBlockContent(last, `z${ending(h)}`, 'authored', 'join-typing', 0)
 	]
 ];
 
@@ -86,7 +89,7 @@ describe('the document scope of a multi-scope commit', () => {
 	it('blanks the last block into the blocks the top-level content commit leaves', async () => {
 		const source = 'a\n\nb\n\n';
 		const viaContent = makeTopHarness(source);
-		await viaContent.actions.updateBlockContent(1, '\n', 'authored', 0);
+		await viaContent.actions.updateBlockContent(1, '\n', 'authored', 'join-typing', 0);
 
 		const h = makeTopHarness(source);
 		await h.controller.commitMultiScope({

@@ -23,6 +23,16 @@ test('a settings switch flips the host state and shows it pressed', async ({ pag
 	await expect(page.getByTestId('source-toggle')).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('the theme picked here is the one the showcase opens in next time', async ({ page }) => {
+	await page.getByTestId('showcase-settings').click();
+	await page.getByTestId('theme-toggle').click();
+	await expect(page.locator('.editor')).toHaveAttribute('data-editor-theme', 'dark');
+
+	await page.reload();
+	await expect(page.locator('.showcase')).toHaveAttribute('data-editor-theme', 'dark');
+	await expect(page.locator('.editor')).toHaveAttribute('data-editor-theme', 'dark');
+});
+
 test('a mode segment switches the editor and moves the pressed segment', async ({ page }) => {
 	const reading = page.locator('.showcase-mode[data-mode="reading"]');
 	await reading.click();

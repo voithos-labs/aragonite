@@ -1,8 +1,8 @@
 /**
  * Every entry point that writes the document asks here first. A write in reading mode is declined,
- * and a dev build names it; one made for a document a `source` swap replaced, or after the editor
- * unmounted, is declined quietly. Ask synchronously, before the first await, or the report loses
- * the caller and the write's stamp.
+ * and a dev build names it; one made for a document a `source` swap replaced, after the editor
+ * unmounted, or while an undo or redo installs its entry, is declined quietly. Ask synchronously,
+ * before the first await, or the report loses the caller and the write's stamp.
  */
 
 import { splitLines } from '../../core/lines';
@@ -21,9 +21,18 @@ export interface WriteGate {
 	readonly stamps: DocumentStamps;
 }
 
-/** Whether a write naming `op` may land: quietly false when its document was swapped out or
- *  ended, and false in reading mode, with a dev warning naming the block kind `kindOf` answers. */
+/** Whether a write naming `op` may land: quietly false for a swapped-out or ended document or
+ *  during an undo's install, false in reading mode with a dev warning naming `kindOf`'s kind. */
 export function admitsWrite(
+	gate: WriteGate,
+	op: string,
+	kindOf?: () => string | undefined
+): boolean {
+	return !gate.stamps.historySwapping() && admitsHistoryRequest(gate, op, kindOf);
+}
+
+/** The same check for an undo or redo itself, which may start while another's install runs. */
+export function admitsHistoryRequest(
 	gate: WriteGate,
 	op: string,
 	kindOf?: () => string | undefined
@@ -46,7 +55,7 @@ export function admitsWrite(
  * entry is left on the stack, and silent, because the write that follows reports itself.
  */
 export function admitsSnapshot(gate: WriteGate): boolean {
-	return madeForLiveDocument(gate) && !isReadOnly(gate.reading);
+	return !gate.stamps.historySwapping() && madeForLiveDocument(gate) && !isReadOnly(gate.reading);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

@@ -5,12 +5,12 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { serialize } from '#lib';
-import type { CstNode, Document } from '#lib/core/nodes.js';
-import { documentLineEnding, trimTrailingLineEnding } from '#lib/core/lines.js';
+import type { Document } from '#lib/core/nodes.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { createLeafTyping } from '#lib/editor-actions/leaf-write.js';
-import { legalizeWrite } from '#lib/tree-operations/content-write.js';
+import { contentUpdate } from '#lib/editor-actions/block-edit-core.js';
+import { createPathScope } from '#lib/editor-actions/block-edit-scope.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
@@ -44,31 +44,34 @@ function withFirstLine(raw: string, line: string): string {
 	return nl < 0 ? line : line + raw.slice(nl);
 }
 
-function typeFirstLine(doc: Document, path: number[], line: string, type: TypeFn): boolean {
+function typeFirstLine(
+	doc: Document,
+	path: number[],
+	line: string,
+	type: TypeFn
+): Promise<boolean> | false {
 	const block = blockNodeAt(doc, path);
 	if (block?.kind !== 'paragraph') return false;
 	const text = withFirstLine(block.raw, line + trimTrailingLineEnding(block.raw).split('\n')[0]);
 	return type(path, text);
 }
 
-type TypeFn = (path: number[], text: string) => boolean;
+type TypeFn = (path: number[], text: string) => Promise<boolean>;
 
 describe('a strip container’s first line, property', () => {
-	it('every keystroke leaves the tree reading as its reload', () => {
-		fc.assert(
-			fc.property(arbEdit, ({ fixture, lines }) => {
+	it('every keystroke leaves the tree reading as its reload', async () => {
+		await fc.assert(
+			fc.asyncProperty(arbEdit, async ({ fixture, lines }) => {
 				const [source, path] = FIXTURES[fixture];
 				const { deps } = makeEditorActionsDeps(source);
-				const typing = createLeafTyping(deps, createUndoController(deps));
+				const root = { deps, controller: createUndoController(deps) };
+				// The keystroke's own route: the trial reparse sends a kind change to a commit.
 				const type: TypeFn = (at, text) => {
-					const owner = blockNodeAt(deps.doc, at.slice(0, -1)) as CstNode;
-					const lineEnding = documentLineEnding(deps.doc);
-					const body = { children: owner.children!, owner, lineEnding };
-					const write = legalizeWrite(body, at[at.length - 1], text, 'authored');
-					return typing.writeLeafInPlace(docPathFrom(at), write, 0).wrote;
+					const scope = createPathScope(root, docPathFrom(at.slice(0, -1)))!;
+					return contentUpdate(scope)(at[at.length - 1], text, 'authored', 'join-typing', 0, 0);
 				};
 				for (const pieces of lines) {
-					if (!typeFirstLine(deps.doc, path, pieces.join(''), type)) break;
+					if (!(await typeFirstLine(deps.doc, path, pieces.join(''), type))) break;
 					expect(describeConvergence(deps.doc), serialize(deps.doc)).toBeNull();
 				}
 			}),

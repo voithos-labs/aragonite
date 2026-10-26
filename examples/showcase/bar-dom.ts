@@ -1,4 +1,4 @@
-// Element builders for the showcase bar, which is plain DOM so the three showcases mount one copy.
+// Element builders for the demo site's bars, which are plain DOM so every host mounts one copy.
 import { BAR_ICONS, type BarIconName } from './bar-icons';
 
 /** An attribute map: `false` or `undefined` removes the attribute, `true` sets it empty. */

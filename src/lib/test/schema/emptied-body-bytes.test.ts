@@ -62,7 +62,7 @@ describe('G4.159 an emptied container keeps bytes that reload as it', () => {
 		const h = makeContainerHarness(source, container);
 		const ending = leafAt(h.deps.doc, container, leaf).raw.match(/\r?\n$/)?.[0] ?? '';
 
-		await h.bundle.blockEdit.updateBlockContent(leaf, ending, 'authored', 0);
+		await h.bundle.blockEdit.updateBlockContent(leaf, ending, 'authored', 'join-typing', 0);
 
 		expect(serialize(h.deps.doc)).toBe(emptied);
 		expect(reloadDivergence(h.deps.doc)).toBeNull();

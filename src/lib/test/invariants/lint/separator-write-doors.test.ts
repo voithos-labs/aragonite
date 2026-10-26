@@ -16,8 +16,6 @@ import { SOURCE } from './source-paths';
  */
 const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/separator-writes.ts': 'the one separator write lives here',
-	'src/lib/tree-operations/neighbour-merge.ts':
-		'a merge gives the block it builds from the joined bytes the line the window’s head had',
 	'src/lib/tree-operations/node-ops.ts':
 		'the merge-installed leaf and the reparsed halves carry the slot’s own line',
 	'src/lib/tree-operations/content-write.ts':
@@ -45,9 +43,9 @@ const TRIVIA_WRITERS: Record<string, string> = {
 
 /** Files that may name one of those functions directly rather than the shared one. */
 const HAND_SETTLE_CALLERS: Record<string, string> = {
-	'src/lib/tree-operations/settle.ts': 'defines them, and `settleEdit`, the one fix-up beside them',
-	'src/lib/tree-operations/blank-runs.ts': 'defines the run layout every fix-up ends with',
 	'src/lib/tree-operations/index.ts': 're-exports the one the gap-caret mint still needs',
+	'src/lib/tree-operations/separator-writes.ts':
+		'defines the fill step beside the separator write it makes, for the gap-caret mint',
 	'src/lib/tree-operations/list/sublist-separator.ts': 'defines the empty-marker sublist door',
 	'src/lib/tree-operations/chain-rebuild.ts':
 		'the chain rebuild is where a list rebuilt down to an empty marker becomes visible',
@@ -57,51 +55,23 @@ const HAND_SETTLE_CALLERS: Record<string, string> = {
 		'the nesting move settles the sublist it creates, and a lift the blocks it carries in'
 };
 
-/** G4.208: the commit's one fix-up and the write's own fix-up, each named only by its callers. */
-const FIX_UP_CALLERS: Record<string, string> = {
-	'src/lib/tree-operations/settle.ts': 'defines both, and the write’s is the head of the commit’s',
-	'src/lib/editor-actions/commit/structural-commit.ts':
-		'the commit, once over each body it wrote, after the mutation reports what it did',
-	'src/lib/tree-operations/content-write.ts':
-		'`updateNodeContent`, for a write no commit settles: in place, the trial, a body below a scope'
-};
-
-/** G4.241: where a run is laid out and a join asked, which is the one fix-up and its two helpers. */
-const LAYOUT_AND_JOIN_CALLERS: Record<string, string> = {
-	'src/lib/tree-operations/settle.ts':
-		'`settleEdit` and the write’s fix-up, plus `spliceChildrenSettled` for a body no commit owns',
-	'src/lib/tree-operations/blank-runs.ts': 'defines the run layout',
-	'src/lib/tree-operations/neighbour-merge.ts': 'defines the join question and the span re-read',
-	'src/lib/tree-operations/unfinished-readings.ts':
-		'the fix-up’s step for a construct a written line finishes, re-read through the span'
-};
-
 /** The ops whose fix-up runs a step of its own (a content write, a removal, a move), named only
  *  where the mutation reports that kind through `describeEdit`; unreported, the step is skipped. */
 const KIND_REPORTING_CALLERS: Record<string, string> = {
 	'src/lib/tree-operations/content-write.ts': 'defines `writeNodeContent`',
-	'src/lib/tree-operations/settle.ts': 'defines `deleteNode`',
-	'src/lib/tree-operations/node-ops.ts': 'defines the join, whose delete its caller reports',
+	'src/lib/tree-operations/node-ops.ts':
+		'defines `deleteNode`, and the join whose delete its caller reports',
 	'src/lib/tree-operations/reorder.ts': 'defines the move',
 	'src/lib/tree-operations/index.ts': 're-exports the delete and the join',
 	'src/lib/editor-actions/block-edit-core.ts':
-		'`commitLeafText` reports `written`; the delete, the join and the neighbour delete report `removed`',
+		'the delete, the join and the neighbour delete report `removed`',
 	'src/lib/editor-actions/unwrap-strategies.ts': 'the emptied item’s delete reports `removed`',
 	'src/lib/editor-actions/reorder-action.ts': 'both moves report `moved`'
 };
 
-/** The commits whose mutation fixes up its own writes, so the settle-once check skips them. */
-const OWN_FIX_UP_COMMITS: Record<string, string> = {
-	'src/lib/action-contracts.ts': 'declares the field',
-	'src/lib/editor-actions/commit/structural-commit.ts': 'reads it',
-	'src/lib/selection/cross-block/format-toggle.ts':
-		'a format toggle writes several leaves at any depth and rebuilds their chains inside its mutation, so it settles each write there'
-};
-
 const writesTrivia = /\.leadingTrivia\s*\+?=(?!=)/;
 
-const namesHandSettle =
-	/(?<![\w'"])(normalizeBlankRuns|restoreSeparatorOnFill|restoreSeparatorAfterBlank|settleSublistSeparator|joinListsMadeBeside)\b/;
+const namesHandSettle = /(?<![\w'"])(restoreSeparatorOnFill|settleSublistSeparator)\b/;
 
 describeManifests(
 	[
@@ -126,21 +96,9 @@ describeManifests(
 				'a file names a settle function directly: use the shared one, or declare why it cannot',
 			hits: [
 				'restoreSeparatorOnFill(parent, i + 1, sharing);',
-				"import { normalizeBlankRuns } from '../tree-operations/blank-runs';"
+				"import { settleSublistSeparator } from './list/sublist-separator';"
 			],
-			misses: ['// normalizeBlankRuns lays out the run']
-		},
-		{
-			id: 'G4.208 the fix-up after an edit is run by the commit or the write no commit settles',
-			matches: /(?<![\w'"])(settleEdit|settleContentWrite)\b/,
-			declared: FIX_UP_CALLERS,
-			reason:
-				'a file runs the fix-up itself: report the edit to the commit (`describeEdit`), or write through `updateNodeContent` where no commit settles the body',
-			hits: [
-				'settleEdit(body, { change, before }, grammar, sharing);',
-				"import { settleContentWrite } from '../tree-operations/settle';"
-			],
-			misses: ['// settleEdit runs once per body', 'const settleEditLater = 1;']
+			misses: ['// restoreSeparatorOnFill gives the line back']
 		},
 		{
 			id: 'G4.208 an op whose fix-up runs a step of its own is called where its kind is reported',
@@ -155,28 +113,6 @@ describeManifests(
 				'const moved = reorderChildrenWithTrivia(scope.body, from, to, sharing);'
 			],
 			misses: ['// writeNodeContent leaves the fix-up to the commit', 'const deleteNodeLater = 1;']
-		},
-		{
-			id: 'G4.241 the run layout and the join question are asked by the fix-up alone',
-			matches:
-				/(?<![\w'"])(normalizeBlankRuns|resolveJoin|separateJoin|finishUnfinishedReadings|absorbSpanReading)\b/,
-			declared: LAYOUT_AND_JOIN_CALLERS,
-			reason:
-				'an op asks a join or lays out a run itself, where the commit’s fix-up asks every edit the same way: report the edit through `describeEdit` (a move’s uncovered join included) and let `settleEdit` ask',
-			hits: [
-				'separateJoin(body, at, "placed", grammar, sharing);',
-				"import { normalizeBlankRuns } from '../tree-operations/blank-runs';"
-			],
-			misses: ['// resolveJoin reads the flush pair', 'const resolveJoinLater = 1;']
-		},
-		{
-			id: 'G4.208 a commit skips the settle-once check only where its mutation fixes up its own writes',
-			matches: /(?<![\w'"])fixesUpOwnWrites\b/,
-			declared: OWN_FIX_UP_COMMITS,
-			reason:
-				'a commit claims its mutation fixes up its own writes, which lets the commit settle those bodies twice: report the writes instead, or declare why it can’t',
-			hits: ['landing: () => restored,\n\tfixesUpOwnWrites: true'],
-			misses: ['// fixesUpOwnWrites is the format toggle’s']
 		}
 	],
 	collectEditorSources()
@@ -190,8 +126,6 @@ const DOORS_FILE = SOURCE.separatorWrites;
 
 /** The other files writing separators, held to the same rule. */
 const CARRY_FILES = [
-	SOURCE.settle,
-	SOURCE.neighbourMerge,
 	SOURCE.nodeOps,
 	SOURCE.contentWrite,
 	SOURCE.nodePrimitives,
@@ -219,9 +153,9 @@ describe('every separator entry point retires the child spans it invalidates', (
 		.flatMap((file) => functionBodies(readSource(file).code))
 		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
-	/** The two writers in the shared file, each of which drops the spans first, since a drop below
-	 *  an early return is skipped on the paths that take it. */
-	const DOORS = ['writeSeparator', 'writeWrapSlot'];
+	/** The writer in the shared file, which drops the spans first, since a drop below an early
+	 *  return is skipped on the paths that take it. */
+	const DOORS = ['writeSeparator'];
 
 	it('every named entry point retires the spans first, one red per entry point', () => {
 		const bodies = new Map(
@@ -245,7 +179,6 @@ describe('every separator entry point retires the child spans it invalidates', (
 	 *  or a splice changes the child count, refusing a region rewrite. */
 	const ANSWERED_ELSEWHERE: Record<string, string> = {
 		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
-		installReading: 'writes a fresh block’s line, then splices; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
 		installReplacement: 'carries the line onto the replacement, byte for byte',
 		spliceSpill: 'carries the line onto the first block of a splice; the count moves',
@@ -253,8 +186,8 @@ describe('every separator entry point retires the child spans it invalidates', (
 	};
 
 	// A second writer in the shared file could write a shared node or skip the span drop, which the
-	// one writer does for every fix-up.
-	it('the shared file writes an existing node’s separator through its two writers alone', () => {
+	// one writer does for every write.
+	it('the shared file writes an existing node’s separator through its one writer alone', () => {
 		const writers = functionBodies(readSource(DOORS_FILE).code)
 			.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body))
 			.map((fn) => fn.name)

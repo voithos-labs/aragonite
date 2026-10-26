@@ -8,8 +8,8 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { rangeDelete } from '#lib/selection/range-delete.js';
 import { emptiedPlace } from '#lib/selection/removal-landing.js';
-import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 const cell = (path: number[]): SelectionPoint => ({ path, offset: 0, cellCoordinate: true });
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
@@ -18,7 +18,11 @@ const at = (path: number[], offset: number): SelectionPoint => ({ path, offset }
 function placeAfterRemoval(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
-	const removed = rangeDelete(doc, coverage, createSharingState(), fixtureReading(), 'keyless');
+	const removed = writtenBelow(
+		doc,
+		(scope) => rangeDelete(doc, coverage, scope, fixtureReading(), 'keyless'),
+		fixtureReading().grammar
+	);
 	const caret = removed.caret(removed.newDoc);
 	if (!caret) throw new Error('the removal left no caret');
 	return emptiedPlace(removed.newDoc, coverage, 'delete', caret);

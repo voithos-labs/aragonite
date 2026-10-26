@@ -7,7 +7,7 @@
 import type { CstNode } from '../core/nodes';
 import type { NodeParentView, NodeView } from '../core/node-views';
 import type { SharingState } from './sharing';
-import type { NodeParent } from './node-primitives';
+import { spliceList, type NodeParent } from './node-primitives';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
@@ -42,9 +42,9 @@ export function walkUnsharing(
 	const chain: CstNode[] = [];
 	// The root is the live document or an array the commit sequence owns, writable by contract
 	// (file header).
-	let parentChildren = root.children as CstNode[];
+	let parent = root as NodeParent;
 	for (const index of path) {
-		let node = parentChildren[index];
+		let node = parent.children[index];
 		if (assertInRange) {
 			assertInvariant('unshare-path-in-range', () =>
 				node ? null : { code: 'unshare-path', message: `path index ${index} out of range` }
@@ -52,12 +52,12 @@ export function walkUnsharing(
 		}
 		if (!node) break;
 		if (sharing.isShared(node)) {
-			parentChildren[index] = copyNode(node, sharing);
+			spliceList(parent, index, 1, [copyNode(node, sharing)]);
 			// Write, then re-read through the tree (file header).
-			node = parentChildren[index];
+			node = parent.children[index];
 		}
 		chain.push(node);
-		parentChildren = node.children ?? [];
+		parent = { children: node.children ?? [] };
 	}
 	return chain;
 }
@@ -87,7 +87,7 @@ export function ensureUnsharedChild(
 		child ? null : { code: 'unshare-path', message: `child index ${index} out of range` }
 	);
 	if (!child || !sharing.isShared(child)) return child;
-	parent.children![index] = copyNode(child, sharing);
+	spliceList(parent, index, 1, [copyNode(child, sharing)]);
 	// Write, then re-read through the tree (file header).
 	return parent.children![index];
 }

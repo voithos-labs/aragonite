@@ -19,6 +19,7 @@ export default tseslint.config(
 			'docs/',
 			'conformance-results/',
 			'perf-results/',
+			'behavior-results/',
 			'test-results/',
 			'simulation-captures/',
 			'.superpowers/',

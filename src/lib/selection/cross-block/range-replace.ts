@@ -9,7 +9,7 @@
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import { CURSOR_END } from '../../block-component';
-import type { HeldLanding, MultiScopeTarget } from '../../action-contracts';
+import type { HeldLanding, MultiScopeTarget, ScopeWrites } from '../../action-contracts';
 import type { CrossBlockDispatchContext } from './dispatch';
 import { charOffsetOf, deleteSnapshot, type SelectionPoint } from '../primitives';
 import { rangeDelete, removeHeldWhole, type RangeDeleteResult } from '../range-delete';
@@ -25,7 +25,6 @@ import {
 	isBlockNode,
 	nodeAt
 } from '../../tree-operations/node-primitives';
-import type { SharingState } from '../../tree-operations/sharing';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
@@ -289,10 +288,10 @@ function removeRange(
 	if (removal === 'remove-lines' && (grid?.kind === 'row' || grid?.kind === 'column')) {
 		return commitGridLineDelete(ctx, grid).then((caret) => ({ wrote: caret !== null, caret }));
 	}
-	return commitRemoval(ctx, coverage, (body, sharing) =>
+	return commitRemoval(ctx, coverage, (body, scope) =>
 		removal === 'remove-whole'
-			? removeHeldWhole(body, coverage, sharing, ctx.reading, gesture)
-			: rangeDelete(body, coverage, sharing, ctx.reading, gesture)
+			? removeHeldWhole(body, coverage, scope, ctx.reading, gesture)
+			: rangeDelete(body, coverage, scope, ctx.reading, gesture)
 	);
 }
 
@@ -300,7 +299,7 @@ function removeRange(
 async function commitRemoval(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
-	remove: (body: Document, sharing: SharingState) => RangeDeleteResult
+	remove: (body: Document, scope: ScopeWrites) => RangeDeleteResult
 ): Promise<Removed> {
 	const { start, end } = coverage.range;
 	const doc = ctx.getDoc();
@@ -316,11 +315,12 @@ async function commitRemoval(
 		scopes,
 		snapshot: deleteSnapshot(start.path, start.offset),
 		mutate: (views) => {
-			// The document's view, as a body that carries ids for the ledger below.
+			// The document's working list, read through `top` and spliced through the scope, whose
+			// body carries the ids the ledger below tracks.
 			const top = documentBody(doc, views[0].children);
 			// Opened before the removal: paths go stale as it splices, the scope nodes don't.
-			const ledgers = views.map((v, i) => trackChildIds(i === 0 ? top : v.node));
-			const removed = remove(top, views[0].sharing);
+			const ledgers = views.map((v, i) => trackChildIds(i === 0 ? views[0].body : v.node));
+			const removed = remove(top, views[0]);
 			result = removed;
 			ctx.selection.collapse();
 			// An endpoint table's scope reports the row splice the removal made, matched on the copied

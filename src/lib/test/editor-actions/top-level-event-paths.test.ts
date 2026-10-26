@@ -47,7 +47,7 @@ describe('top-level event paths target the operated block', () => {
 
 	it('a kind-changing updateBlockContent emits updateContent at the block', async () => {
 		const h = makeTopHarness('hello\n');
-		await h.actions.updateBlockContent(0, '# hello\n', 'authored', 0);
+		await h.actions.updateBlockContent(0, '# hello\n', 'authored', 'join-typing', 0);
 		const update = h.edits.find((e) => e.op === 'updateContent');
 		expect(update).toBeDefined();
 		expect(update!.path).toEqual([0]);

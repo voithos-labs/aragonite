@@ -8,10 +8,10 @@ import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { rangeDelete } from '../../selection/range-delete';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { cellPoint, type SelectionPoint } from '../../selection/primitives';
-import { createSharingState } from '../../tree-operations/sharing';
 import { reservedChromeKindOf } from '../../schema/reserved-chrome';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { registerChromePluginsForTests } from './chrome-plugins';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // Source mode, where a copied range carries its bytes as they stand.
 const SOURCE_READING = fixtureReading({}, 'source');
@@ -55,8 +55,11 @@ function cutThenDelete(source: string, start: SelectionPoint, end: SelectionPoin
 	const range = coverRange(doc, start, end);
 	const copied = collectCrossBlockText(doc, rangeCoverage(doc, range), SOURCE_READING);
 	const left = serialize(
-		rangeDelete(doc, rangeCoverage(doc, range), createSharingState(), fixtureReading(), 'keyless')
-			.newDoc
+		writtenBelow(
+			doc,
+			(scope) => rangeDelete(doc, rangeCoverage(doc, range), scope, fixtureReading(), 'keyless'),
+			fixtureReading().grammar
+		).newDoc
 	);
 	return { copied, left };
 }

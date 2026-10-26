@@ -9,7 +9,13 @@ import { recordListMarkerReads } from '../../perf/instruments';
 import type { NodeView } from '../node-views';
 import { indentColumns, remapStrippedLines, stripIndentColumns, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
-import { FIRST_LINE, INNER_LINE, opensOuterBlock, type LineCodec } from '../strip-lines';
+import {
+	FIRST_LINE,
+	INNER_LINE,
+	hangingIndentLines,
+	opensOuterBlock,
+	type LineCodec
+} from '../strip-lines';
 import {
 	lineInterruptsParagraph,
 	lineStartsOuterBlock,
@@ -74,64 +80,27 @@ export function readItemShape(line: string): ItemLineShape | null {
 	return { indent: m[1], marker: m[2], taskMarker: task?.rawMarker ?? null };
 }
 
-/**
- * A list item's line syntax: the marker on its first line, and its other lines indented to the
- * item's content column, a blank separator bare and a blank line ending the body indented.
- */
+/** A list item's line syntax: the marker on its first line, read back only with the same
+ *  indent, marker and task box, and its other lines indented to the item's content column. */
 export function listItemLines(shape: ItemLineShape): LineCodec {
-	const column = shape.indent.length + shape.marker.length;
 	const opener = shape.indent + shape.marker + (shape.taskMarker ?? '');
-	const pad = ' '.repeat(column);
-	return {
-		read(line, place) {
-			if (place.first) {
-				const read = readItemShape(line);
-				const same =
-					read?.indent === shape.indent &&
-					read.marker === shape.marker &&
-					read.taskMarker === shape.taskMarker;
-				return same ? { text: line.slice(opener.length), prefix: opener, lazy: false } : null;
-			}
-			const text = stripIndentColumns(line, column);
-			if (indentColumns(line) >= column) {
-				const cut = line.length - text.length;
-				// Compared as a slice: V8's `endsWith` steps through the text a character at a time.
-				const prefix = cut >= 0 && line.slice(cut) === text ? line.slice(0, cut) : null;
-				return { text, prefix, lazy: false };
-			}
-			// Below the content column a blank line still separates, but can't end the body.
-			if (isBlankLine(line))
-				return place.trailingBlank ? null : { text, prefix: line, lazy: false };
-			return { text, prefix: line.slice(0, line.length - text.length), lazy: true };
-		},
-		write(text, place) {
-			if (place.first) return opener + text;
-			return text === '' && !place.trailingBlank ? '' : pad + text;
-		},
-		spells(line, text, place) {
-			// The opening line is read for its marker, which the text after it can change.
-			if (place.first) return false;
-			if (text === '' && !place.trailingBlank) return line === '';
-			return (
-				line.length === column + text.length &&
-				line.startsWith(pad) &&
-				line.slice(column) === text &&
-				!(column % 4 !== 0 && leadingTab(text))
-			);
+	return hangingIndentLines({
+		opener,
+		column: shape.indent.length + shape.marker.length,
+		readOpener(line) {
+			const read = readItemShape(line);
+			const same =
+				read?.indent === shape.indent &&
+				read.marker === shape.marker &&
+				read.taskMarker === shape.taskMarker;
+			return same ? opener : null;
 		},
 		// The parser asks the opening line with its task marker still on it.
 		continuesLazily: (above, line, aboveFirst) =>
 			wouldKeepParagraphOpen(aboveFirst ? (shape.taskMarker ?? '') + above : above) &&
 			wouldKeepParagraphOpen(line) &&
 			!opensOuterBlock(line)
-	};
-}
-
-/** Whether a tab sits in `text`'s leading whitespace, which a read at a column off the tab stops
- *  rewrites as spaces. */
-function leadingTab(text: string): boolean {
-	for (let i = 0; text[i] === ' ' || text[i] === '\t'; i++) if (text[i] === '\t') return true;
-	return false;
+	});
 }
 
 /** CommonMark §5.2: a marker interrupts a paragraph only as a bullet or at `1`, with a non-empty

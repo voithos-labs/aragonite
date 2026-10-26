@@ -99,7 +99,7 @@ const IMPORTS_BARE_PRIMITIVE =
 /** The commit entries that fix up the neighbours afterwards, plus the two fix-up functions
  *  themselves; a leading dot is the norm, since they are reached on a controller or a scope. */
 const REACHES_SETTLE =
-	/\b(commitStructural|commitMultiScope|commitContainer|settleEdit|spliceChildrenSettled)\s*\(|\.\s*commit\s*\(/;
+	/\b(commitStructural|commitMultiScope|commitContainer|fixUpEdit|spliceFixedUp)\s*\(|\.\s*commit\s*\(/;
 
 const BARE_PRIMITIVE_CALLERS: Record<string, string> = {
 	'src/lib/editor-actions/block-edit-core.ts':
@@ -303,10 +303,8 @@ const PLAIN_READS: Record<string, string> = {
 		'installs after backfill: re-reads a body-rule container’s escaped child; no list item declares a body rule',
 	'src/lib/tree-operations/paste/dispatch.ts':
 		'hands on: reads the clipboard’s own blocks to pick the paste strategy, which a childless container steers; the routes that land them fill in at the splice',
-	'src/lib/tree-operations/blank-runs.ts':
-		'probe: asks whether a leaf’s own reading leaves its trailing blank line out, and installs nothing',
-	'src/lib/tree-operations/neighbour-merge.ts':
-		'installs after backfill: merges a window of whole sibling blocks by how their joined bytes read, comparing block counts on the plain read',
+	'src/lib/tree-operations/fix-up/editor-host.ts':
+		'installs after backfill: the list fix-up reads a body’s blocks at their slot, and its writer gives each block it installs a paragraph to type in (`fix-up/apply.ts :: adopt`)',
 	'src/lib/tree-operations/list/list-builders.ts':
 		'hands on: a split item’s halves are read at the slot and land through list absorb and list break-out, which fill in at the splice',
 	'src/lib/tree-operations/list/reconcile-task.ts':
@@ -702,13 +700,13 @@ const OBLIGATIONS: FileRule[] = [
 		reaches: Object.keys(PLAIN_READS).filter((path) => BACKFILLS_HERE.test(PLAIN_READS[path])),
 		hits: [
 			at(
-				SOURCE_DIR.treeOperations + 'neighbour-merge.ts',
+				SOURCE_DIR.treeOperations + 'node-ops.ts',
 				"const read = readBlocks(bytes, { grammar, scope: 'fragment' });"
 			)
 		],
 		misses: [
 			at(
-				SOURCE_DIR.treeOperations + 'neighbour-merge.ts',
+				SOURCE_DIR.treeOperations + 'node-ops.ts',
 				'for (const block of blocks) ensureEditableContainers(block, ending);'
 			)
 		]
@@ -741,7 +739,7 @@ const OBLIGATIONS: FileRule[] = [
 		population: inKeys(BARE_PRIMITIVE_CALLERS),
 		matches: (file) => !REACHES_SETTLE.test(file.code),
 		reason:
-			'a bare split, merge or delete does not settle its own window: call it inside a commit mutate, or settle through spliceChildrenSettled',
+			'a bare split, merge or delete does not settle its own window: call it inside a commit mutate, or settle through spliceFixedUp',
 		reaches: keys(BARE_PRIMITIVE_CALLERS),
 		hits: [
 			at('src/lib/editor-actions/list-context.ts', '// commitStructural settles the window'),
@@ -750,7 +748,7 @@ const OBLIGATIONS: FileRule[] = [
 		misses: [
 			at('src/lib/editor-actions/list-context.ts', 'await scope.commit({ mutate: (view) => {} });'),
 			at('src/lib/editor-actions/list-context.ts', 'await deps.controller.commitMultiScope({});'),
-			at('src/lib/editor-actions/list-context.ts', 'spliceChildrenSettled(parent, at, 1, [node]);')
+			at('src/lib/editor-actions/list-context.ts', 'spliceFixedUp(parent, at, 1, [node]);')
 		]
 	},
 	{

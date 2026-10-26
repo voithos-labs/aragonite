@@ -1,6 +1,6 @@
+import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { updateNodeContent } from '#lib/tree-operations/index.js';
 import { checkStaleRaw } from '#lib/invariants/node-shape.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';

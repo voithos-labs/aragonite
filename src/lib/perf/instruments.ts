@@ -74,9 +74,6 @@ export interface PerfSnapshot {
 	neighbourPasses: number;
 	/** Blank-line and neighbour fix-up passes run over a body after an edit. */
 	settlePasses: number;
-	/** Walks up or down from a written line for a construct it could finish, and the blocks read. */
-	unfinishedWalks: number;
-	unfinishedBlocksAsked: number;
 }
 
 let enabled = false;
@@ -127,9 +124,7 @@ function emptySnapshot(): PerfSnapshot {
 		deleteWindowUnits: 0,
 		heightTableBuilds: [],
 		neighbourPasses: 0,
-		settlePasses: 0,
-		unfinishedWalks: 0,
-		unfinishedBlocksAsked: 0
+		settlePasses: 0
 	};
 }
 
@@ -285,12 +280,6 @@ export function recordNeighbourPass(): void {
 export function recordSettlePass(): void {
 	if (!enabled) return;
 	counters.settlePasses++;
-}
-
-export function recordUnfinishedWalk(blocksAsked: number): void {
-	if (!enabled) return;
-	counters.unfinishedWalks++;
-	counters.unfinishedBlocksAsked += blocksAsked;
 }
 
 export function incMountedBlocks(): void {

@@ -13,7 +13,7 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
-import { documentBody } from '#lib/tree-operations/node-primitives.js';
+import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // A format toggle writes each covered leaf in place, and one in a list item's first slot keeps the
 // item's checkbox in step with the text it leaves there, as a reload reads it.
@@ -38,7 +38,12 @@ describe('a cross-block format toggle over a list item’s first slot', () => {
 			'strong',
 			fixtureReading()
 		);
-		applyCrossBlockFormat(documentBody(doc), plan!, createSharingState(), defaultGrammarView);
+		writtenBelow(
+			doc,
+			(scope) => applyCrossBlockFormat(scope, plan!),
+			defaultGrammarView,
+			createSharingState()
+		);
 
 		const written = serialize(doc);
 		expect(written).toBe('- [ ] a\n\nb\n');

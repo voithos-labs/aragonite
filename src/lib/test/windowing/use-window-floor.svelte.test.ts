@@ -25,16 +25,21 @@ const COLLAPSED: WindowResult = {
 };
 const OFF: WindowResult = { ...WINDOWED, active: false, floorPx: 0 };
 
-/** A box whose `min-height` writes are recorded in order, and a window the test can move. */
-function mountFloor(initial: WindowResult) {
+/** A box whose `min-height` writes are recorded in order, and a window the test can move.
+ *  `moveAgain` runs after each render, before the floor's release, as a batched height pass does. */
+function mountFloor(initial: WindowResult, moveAgain?: (win: WindowResult) => WindowResult | null) {
 	const writes: string[] = [];
 	const box = document.createElement('div');
 	Object.defineProperty(box.style, 'minHeight', {
 		get: () => writes.at(-1) ?? '',
 		set: (value: string) => writes.push(value)
 	});
-	let win = $state(initial);
+	let win = $state.raw(initial);
 	const stop = $effect.root(() => {
+		$effect(() => {
+			const next = moveAgain?.(win);
+			if (next) win = next;
+		});
 		useWindowFloor(
 			() => box,
 			() => win
@@ -56,6 +61,18 @@ describe('useWindowFloor', () => {
 		const floor = mountFloor(WINDOWED);
 		floor.move({ ...WINDOWED, start: 8, topSpacerPx: 320 });
 		expect(floor.writes).toEqual(['1200px', '', '1200px', '']);
+		floor.stop();
+	});
+
+	// Miss-analysis: each move here landed between flushes, never inside one the way a batched
+	// height pass moves the window again after the render.
+	it('lets go when the window moves again after the render, inside the same flush', () => {
+		const moved = { ...WINDOWED, start: 8, topSpacerPx: 320 };
+		const floor = mountFloor(WINDOWED, (win) =>
+			win === moved ? { ...moved, floorPx: 1100 } : null
+		);
+		floor.move(moved);
+		expect(floor.writes).toEqual(['1200px', '', '1200px', '', '1100px', '']);
 		floor.stop();
 	});
 

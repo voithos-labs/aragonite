@@ -1,7 +1,8 @@
 // Every way text reaches a prose block's caret, driven the way a browser delivers it: a hardware key
 // (keydown, then beforeinput, then the browser's own insert), a soft keyboard (beforeinput with no
 // keydown, or after one that names no key, as Android sends), an autocorrect replacement, an IME
-// commit, and a paste. jsdom inserts nothing itself, so the insert is done here at the DOM caret.
+// commit, and a paste; plus any other hardware key, sent the same way. jsdom inserts nothing
+// itself, so the insert is done here at the DOM caret.
 
 import { settleEditor } from './settle';
 import { surfaceAt, type MountedEditor } from './mount-editor.svelte';
@@ -34,17 +35,55 @@ export async function insertBy(
 	if (route === 'composition') return compose(el, text);
 	if (route === 'paste') return paste(el, text);
 	for (const ch of text) {
-		if (route === 'hardware key' || route === 'soft key after an unnamed keydown') {
-			const name = route === 'hardware key' ? ch : 'Unidentified';
-			const key = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
-			el.dispatchEvent(key);
-			// The keydown handler awaits before its key arms run, as it does in the browser.
-			await settleEditor();
-			if (key.defaultPrevented) continue;
+		if (route === 'hardware key') {
+			await pressHardwareKey(el, { key: ch });
+			continue;
+		}
+		if (route === 'soft key after an unnamed keydown') {
+			if (await keydownTaken(el, { key: 'Unidentified' })) continue;
 		}
 		const inputType = route === 'replacement' ? 'insertReplacementText' : 'insertText';
 		await inputEvent(el, inputType, ch);
 	}
+}
+
+/** Who acted on a hardware key: the editor at keydown or at `beforeinput`, the browser's insert
+ *  of a printable key, or a default action jsdom has no engine for (a delete, a break, Tab). */
+export type KeyOutcome = 'keydown' | 'beforeinput' | 'inserted' | 'browser';
+
+/** One hardware key at `el`'s caret: keydown, `beforeinput`, then a printable key's insert, each
+ *  only if the one before went unprevented. Any other default action is left undone. */
+export async function pressHardwareKey(
+	el: HTMLElement,
+	init: KeyboardEventInit
+): Promise<KeyOutcome> {
+	if (await keydownTaken(el, init)) return 'keydown';
+	const inputType = beforeInputTypeOf(init);
+	if (inputType === null) return 'browser';
+	if (inputType === 'insertText') {
+		const taken = await inputEvent(el, inputType, init.key!);
+		return taken ? 'beforeinput' : 'inserted';
+	}
+	const before = dispatchBeforeInput(el, inputType);
+	await settleEditor();
+	return before.defaultPrevented ? 'beforeinput' : 'browser';
+}
+
+async function keydownTaken(el: HTMLElement, init: KeyboardEventInit): Promise<boolean> {
+	const key = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+	el.dispatchEvent(key);
+	// The keydown handler awaits before its key arms run, as it does in the browser.
+	await settleEditor();
+	return key.defaultPrevented;
+}
+
+/** The `beforeinput` a browser sends after an unprevented keydown; null for a key that sends none. */
+function beforeInputTypeOf({ key, shiftKey, ctrlKey, metaKey, altKey }: KeyboardEventInit) {
+	if (key === 'Enter') return shiftKey ? 'insertLineBreak' : 'insertParagraph';
+	if (key === 'Backspace') return 'deleteContentBackward';
+	if (key === 'Delete') return 'deleteContentForward';
+	const printable = key !== undefined && [...key].length === 1;
+	return printable && !ctrlKey && !metaKey && !altKey ? 'insertText' : null;
 }
 
 /** Text dragged in from outside the editor and dropped at `el`'s caret, which jsdom can't aim by
@@ -98,14 +137,16 @@ export function dispatchImagePaste(el: HTMLElement): Event {
 	return e;
 }
 
-/** A `beforeinput` of `inputType`, then the browser's insert and `input` unless it was prevented. */
-async function inputEvent(el: HTMLElement, inputType: string, data: string): Promise<void> {
+/** A `beforeinput` of `inputType`, then the browser's insert and `input` unless it was prevented;
+ *  true when it was. */
+async function inputEvent(el: HTMLElement, inputType: string, data: string): Promise<boolean> {
 	const before = dispatchBeforeInput(el, inputType, { data });
 	if (!before.defaultPrevented) {
 		insertAtCaret(data);
 		el.dispatchEvent(new InputEvent('input', { inputType, data, bubbles: true }));
 	}
 	await settleEditor();
+	return before.defaultPrevented;
 }
 
 async function compose(el: HTMLElement, text: string): Promise<void> {

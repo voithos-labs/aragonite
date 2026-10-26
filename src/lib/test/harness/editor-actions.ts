@@ -19,7 +19,7 @@ import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
 import type { CommitScope, ScopeCommitArgs } from '#lib/editor-actions/block-edit-scope.js';
 import { asDocPath } from '#lib/selection/path-math.js';
-import { settleEdit, type EditKind, type SettledEdit } from '#lib/tree-operations/settle.js';
+import { fixUpEdit, type EditKind, type FixedUpEdit } from '#lib/tree-operations/fix-up/apply.js';
 import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
 import type { ContainerBlockComponentDeps } from '#lib/editor-actions/container-block-component.js';
 import { refSlotsOver } from '#lib/block-lists/child-refs.js';
@@ -62,6 +62,7 @@ import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js
 import { getStateForNode, expectStateForNode } from '#lib/block-lists/state-registry.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
+import { createScopeWriter, rebuildOwnedChains } from '#lib/editor-actions/commit/scope-writes.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import {
 	createInlineRangeCommit,
@@ -71,6 +72,7 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import type { GapStopScope } from '#lib/selection/gap-caret.js';
 import {
 	createHeadlessActions,
+	recordingFocus,
 	stubBlockComponent,
 	stubBlockEdit,
 	stubCaretMemory,
@@ -184,10 +186,12 @@ export function makeCommitScopeStub(
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);
-			const body = { children, owner: opts.owner, lineEnding: lineEnding() };
+			const list = { kind: 'document' as const, prefix: '', suffix: '', children };
+			const body = { ...list, owner: opts.owner, lineEnding: lineEnding() };
+			const writer = createScopeWriter(body, sharing, fixtureReading().grammar, body.lineEnding);
 			const before = [...children];
 			let kind: EditKind = {};
-			let settled: SettledEdit | null = null;
+			let settled: FixedUpEdit | null = null;
 			const change = args.mutate({
 				body,
 				sharing,
@@ -196,19 +200,22 @@ export function makeCommitScopeStub(
 				describeEdit: (edit) => {
 					kind = { ...kind, ...edit };
 					return () => settled;
-				}
+				},
+				own: writer.own,
+				writeLeaf: writer.writeLeaf
 			});
+			rebuildOwnedChains([writer], sharing, fixtureReading().grammar);
 			if (opts.settle) {
 				const edit = { change, before, ...kind };
 				const grammar = fixtureReading().grammar;
-				settled = settleEdit(body, edit, grammar, sharing, args.trackCaret);
+				settled = fixUpEdit(body, edit, grammar, sharing, args.trackCaret);
 			}
 			const landing = args.landing?.();
 			if (landing && 'path' in landing) await scope.land(landing);
 			return true;
 		},
-		typeIn: (_i, _offset, work) => work(),
-		writeInPlace: () => ({ wrote: false }),
+		typeIn: (_i, _offset, _history, work) => work(),
+		typeLeaf: () => ({ wrote: false }),
 		at: (i, subPath, offset) => ({ path: docPathFrom([i, ...subPath]), offset }),
 		// No render window here: every ref counts as mounted.
 		async land(pos) {
@@ -324,8 +331,8 @@ export function makeStubContainerEdit(): ContainerEditActions {
 	return {
 		commitContainer: vi.fn(),
 		lineEnding: () => '\n',
-		typeInLeaf: vi.fn((_path, _offset, _key, work) => work()),
-		writeLeafInPlace: vi.fn(() => ({ wrote: false as const })),
+		typingKeystroke: vi.fn((_path, _offset, _key, _history, work) => work()),
+		typeLeaf: vi.fn(() => ({ wrote: false as const })),
 		land: vi.fn(async () => 'placed' as const),
 		survivorAfterRemoval: vi.fn(() => null),
 		reportCommitError: vi.fn()
@@ -335,12 +342,13 @@ export function makeStubContainerEdit(): ContainerEditActions {
 export function makeStubController(): UndoController & PasteCommitCoordinator {
 	return {
 		sharing: createSharingState(),
-		pushUndoSnapshotDebounced: vi.fn(),
+		// Runs the work: the undo entry is the stubbed half, the bytes are not.
+		typingKeystroke: vi.fn(
+			(_path: unknown, _offset: number, _key: string, _history: unknown, work: () => unknown) =>
+				work()
+		),
 		flushDebouncedCheckpoint: vi.fn(),
-		// Runs the write: the batch breaks are the stubbed half, the bytes are not.
-		isolateUndoEntry: vi.fn((write: () => void) => write()),
 		undoStep: vi.fn(async (_seed: unknown, run: () => Promise<unknown>) => void (await run())),
-		joinTypingBatch: vi.fn((write: () => unknown) => write()),
 		endUndoStep: vi.fn(),
 		commitStructural: vi.fn(),
 		commitContainerStructural: vi.fn(),
@@ -664,15 +672,19 @@ export function makeContainerHarness(
 	return { ...harness, controller, bundle, state, getNode, focus, edits };
 }
 
-/** The action bundle of the container at `containerPath` over deps a caller already holds, so
- *  one document takes writes at the top level and inside a container alike. */
+/** The bundle of the container at `containerPath` over deps a caller already holds. A merge off
+ *  its edge goes to `parentBlockEdit`, which writes nothing unless the caller passes the parent's. */
 export function containerBundleOver(
 	deps: EditorActionsDeps,
 	controller: UndoController,
 	containerPath: number[],
-	focus: FocusActions = makeStubFocus()
+	focus: FocusActions = recordingFocus(),
+	parentBlockEdit: BlockEditActions = stubBlockEdit()
 ) {
-	const getNode = () => nodeAt(deps.doc, containerPath) as CstNode;
+	// Once an edit takes the container, its state keeps the node it was built on, as an unmounted
+	// container's state would.
+	const built = nodeAt(deps.doc, containerPath) as CstNode;
+	const getNode = () => (nodeAt(deps.doc, containerPath) as CstNode | null) ?? built;
 	const state = makeBlockListState(getNode);
 	const bundle = createStandardNestedActions(
 		state,
@@ -681,8 +693,10 @@ export function containerBundleOver(
 			getNode,
 			path: containerPath,
 			reading: deps.reading,
+			// The root's, as the editor hands both the same one; a fresh one would be an unread spy.
+			caretMemory: deps.caretMemory,
 			parent: {
-				blockEdit: makeStubBlockEdit(),
+				blockEdit: parentBlockEdit,
 				focus,
 				containerEdit: createContainerEditActions(deps, controller)
 			}
@@ -735,7 +749,7 @@ export function recordingWrite(
 ): (
 	...args: Parameters<BlockEditActions['updateBlockContent']>
 ) => ReturnType<typeof withStoredCaret> {
-	return (index, raw, mode, before, after) => {
+	return (index, raw, mode, _history, before, after) => {
 		record({ index, raw, mode, before, after });
 		return withStoredCaret(Promise.resolve(true), after ?? before);
 	};

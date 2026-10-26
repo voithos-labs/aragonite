@@ -55,11 +55,16 @@ typed with the caret inside a run the page shows.
 - live mode: End in an empty heading with a closing run (`#  #`), then a key: the focused heading
   paints both markers, so the key goes past the run (`#  #k`), as in source mode
 - live mode: selecting the whole text and typing a space leaves a paragraph holding the space,
-  the way a heading with no run does; the run goes with the `#` (` x` after the next key)
+  the way a heading with no run does; the run goes with the `#` (` x` after the next key), and
+  the caret stays after the space whether or not the browser kept the hidden `#`, inside a list
+  item and a quote too (`-  x`, `>  x`)
 
 Miss-analysis for the last three: the emptying scenarios ran at the top level only, where the
 browser drops the `#` span, so no scenario kept the markers of an empty heading or replaced the
 whole text with a key.
+
+Miss-analysis for the caret after the space: Firefox keeps the hidden `#`, so the read dropped two
+bytes the caret still counted; the merge gate ran Chromium only, where the browser drops the `#`.
 
 - source mode: selecting `# Hi` and typing `x` keeps the run the selection left (`x #`, a
   paragraph), inside a list item too (`- x #`)

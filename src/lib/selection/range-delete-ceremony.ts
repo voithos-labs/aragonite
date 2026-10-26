@@ -5,7 +5,6 @@
  * reinstalled the way a reload would parse it, and an ordered list that lost items keeps its start.
  */
 
-import type { GrammarView } from '../schema/block-openers';
 import type { Reading } from '../schema/reading';
 import type { StoredAs } from '../schema/stored-as';
 import type { CstNode, Document } from '../core/nodes';
@@ -21,7 +20,7 @@ import {
 import { charOffsetOf } from './primitives';
 import { comparePaths, pathHasPrefix, pathsEqual } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
+import type { ScopeWrites } from '../action-contracts';
 import {
 	blockNodeAt,
 	emptyParagraph,
@@ -32,8 +31,7 @@ import { cleanJoinedRaw } from '../tree-operations/leaf-range';
 import { storedAsAt } from '../tree-operations/stored-as';
 import { cutBeforeSuffix } from '../tree-operations/structural-suffix';
 import { structuralSuffix } from '../core/inline';
-import { ensureUnsharedPath } from '../tree-operations/unshare';
-import { attachedChainPrefix, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
+import { attachedChainPrefix } from '../tree-operations/node-primitives';
 import { slotReaderAt } from '../tree-operations/list/task-paragraph';
 import {
 	taskMarkerCaretShift,
@@ -47,8 +45,7 @@ import { holdOrderedNumbering } from '../tree-operations/list/ordered-markers';
 function deleteSubtreesIdentityGated(
 	doc: Document,
 	deletionPaths: number[][],
-	sharing: SharingState,
-	grammar: GrammarView
+	scope: ScopeWrites
 ): void {
 	const targetNodes = deletionPaths.map((p) => nodeAt(doc, p));
 	const reverseSortedIndices = deletionPaths
@@ -56,9 +53,9 @@ function deleteSubtreesIdentityGated(
 		.sort((a, b) => comparePaths(deletionPaths[b], deletionPaths[a]));
 	for (const i of reverseSortedIndices) {
 		const path = deletionPaths[i];
-		if (nodeAt(doc, path) === targetNodes[i]) {
-			deleteAtPath(doc, path, sharing, grammar);
-			cascadeCleanupEmptyAncestors(doc, path, sharing, grammar, documentLineEnding(doc));
+		if (path.length > 0 && nodeAt(doc, path) === targetNodes[i]) {
+			scope.splice(path.slice(0, -1), path[path.length - 1], 1, []);
+			cascadeCleanupEmptyAncestors(doc, scope, path);
 		}
 	}
 }
@@ -95,9 +92,10 @@ export function installSurvivor(
 	path: number[],
 	source: CstNode,
 	bytes: string,
-	sharing: SharingState,
+	scope: ScopeWrites,
 	reading: Reading
 ): number {
+	const { sharing } = scope;
 	const ending = documentLineEnding(doc);
 	const lineEnding = trailingLineEnding(source.raw, ending);
 	const written = normalizeOwnRaw(source, bytes, ending) || lineEnding;
@@ -117,10 +115,10 @@ export function installSurvivor(
 	const slot = path[path.length - 1];
 	const shift = slot === 0 && owner ? taskMarkerCaretShift(owner, written) : 0;
 	const siblings = (owner ?? doc).children ?? [];
-	// `replaceAtPath` fixes the blank lines around it so the tree reparses the same (G2.13).
+	// The splice fixes the blank lines around it so the tree reparses the same (G2.13).
 	writeKeepingTaskMarker(owner, siblings, slot, sharing, () => {
 		for (const node of replacement) sharing.stamp(node);
-		replaceAtPath(doc, path, replacement, sharing, reading.grammar);
+		scope.splice(path.slice(0, -1), slot, 1, replacement);
 	});
 	return shift;
 }
@@ -133,7 +131,7 @@ export function truncateStartInPlace(
 	startBlock: CstNode,
 	isReservedChrome: boolean,
 	reading: Reading,
-	sharing: SharingState,
+	scope: ScopeWrites,
 	tag: string
 ): number {
 	const cut = charOffsetOf(start, tag);
@@ -151,7 +149,7 @@ export function truncateStartInPlace(
 		storedAsAt(doc, start.path, reading)
 	);
 	const kept = terminateLine(head.raw + structuralSuffix(startBlock), lineEnding);
-	const shift = installSurvivor(doc, start.path, startBlock, kept, sharing, reading);
+	const shift = installSurvivor(doc, start.path, startBlock, kept, scope, reading);
 	return Math.max(0, head.seam + shift);
 }
 
@@ -163,7 +161,7 @@ export function truncateEndInPlace(
 	endBlock: CstNode,
 	isReservedChrome: boolean,
 	reading: Reading,
-	sharing: SharingState,
+	scope: ScopeWrites,
 	tag: string
 ): CstNode | null {
 	const cut = charOffsetOf(end, tag);
@@ -173,7 +171,7 @@ export function truncateEndInPlace(
 		return endBlock;
 	}
 	const tail = cleanTruncatedProse(endBlock, 'tail', cut, storedAsAt(doc, end.path, reading)).raw;
-	installSurvivor(doc, end.path, endBlock, tail, sharing, reading);
+	installSurvivor(doc, end.path, endBlock, tail, scope, reading);
 	return blockNodeAt(doc, end.path);
 }
 
@@ -183,14 +181,13 @@ export function truncateEndInPlace(
 
 export interface DeletionPlan {
 	deletionPaths: number[][];
-	/** Each deletion path's parent chain, copied before any splice, for the rebuild after it. */
+	/** Each deletion path's parent chain, owned before any splice, which the commit rebuilds. */
 	parentChains: CstNode[][];
 	chromeClearChain: CstNode[] | null;
 	/** Each ordered list on a parent chain, with its numbering read before any splice. */
 	listNumbering: Map<CstNode, (sharing: SharingState) => void>;
-	/** The sharing state the plan was collected against; the apply step's splices copy their
-	 *  chains through it, so no branch has to pass it again. */
-	sharing: SharingState;
+	/** The scope the plan was collected against, which the apply step's splices go through. */
+	scope: ScopeWrites;
 }
 
 /** Plans removing every subtree `coverage` holds whole, plus `alsoRemoved` (an end block whose
@@ -199,23 +196,20 @@ export function planCrossBlockDeletion(
 	doc: Document,
 	coverage: RangeCoverage,
 	alsoRemoved: number[][],
-	sharing: SharingState
+	scope: ScopeWrites
 ): DeletionPlan {
 	const clearPath = titleRowToClear(doc, coverage.range);
 	let chromeClearChain: CstNode[] | null = null;
 	const deletionPaths: number[][] = [];
 	for (const root of coverage.wholeRoots) {
 		if (clearPath && pathsEqual(root, clearPath)) {
-			const chain = ensureUnsharedPath(doc, root, sharing);
-			if (chain.length === root.length) chromeClearChain = chain;
+			chromeClearChain = scope.own(root);
 		} else {
 			deletionPaths.push(root.slice());
 		}
 	}
 	deletionPaths.push(...alsoRemoved.map((path) => path.slice()));
-	const parentChains = deletionPaths.map((path) =>
-		ensureUnsharedPath(doc, path.slice(0, -1), sharing)
-	);
+	const parentChains = deletionPaths.map((path) => scope.own(path.slice(0, -1)));
 	// Read once every chain is copied, so a later chain's copy cannot replace an item read here.
 	const listNumbering = new Map<CstNode, (sharing: SharingState) => void>();
 	for (const node of parentChains.flat()) {
@@ -223,39 +217,25 @@ export function planCrossBlockDeletion(
 			listNumbering.set(node, holdOrderedNumbering(node));
 		}
 	}
-	return { deletionPaths, parentChains, chromeClearChain, listNumbering, sharing };
+	return { deletionPaths, parentChains, chromeClearChain, listNumbering, scope };
 }
 
 /** Applies the plan: clears a surviving end container's covered title line (a raw write, never a
  *  node delete), then splices the covered subtrees. */
-export function applyPlannedDeletion(
-	doc: Document,
-	plan: DeletionPlan,
-	grammar: GrammarView
-): void {
+export function applyPlannedDeletion(doc: Document, plan: DeletionPlan): void {
 	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
 	if (chrome) chrome.raw = '\n';
-	deleteSubtreesIdentityGated(doc, plan.deletionPaths, plan.sharing, grammar);
+	deleteSubtreesIdentityGated(doc, plan.deletionPaths, plan.scope);
 }
 
-/** Renumbers each attached ordered list the deletion took items from, then rebuilds every
- *  attached container on the removed subtrees' chains and the cleared title line's container. */
-export function rebuildAfterDeletion(
-	doc: Document,
-	plan: DeletionPlan,
-	sharing: SharingState,
-	grammar: GrammarView
-): void {
-	const attachedChains = plan.parentChains.map((chain) => attachedChainPrefix(doc, chain));
-	if (plan.listNumbering.size > 0) {
-		const attached = new Set(attachedChains.flat());
-		for (const [list, renumber] of plan.listNumbering) if (attached.has(list)) renumber(sharing);
+/** Renumbers each attached ordered list the deletion took items from; the commit rebuilds every
+ *  chain the plan owned. */
+export function renumberAfterDeletion(doc: Document, plan: DeletionPlan): void {
+	if (plan.listNumbering.size === 0) return;
+	const attached = new Set(plan.parentChains.flatMap((chain) => attachedChainPrefix(doc, chain)));
+	for (const [list, renumber] of plan.listNumbering) {
+		if (attached.has(list)) renumber(plan.scope.sharing);
 	}
-	for (const chain of attachedChains) {
-		if (chain.length > 0) rebuildUnsharedChain(doc, chain, sharing, null, grammar);
-	}
-	if (plan.chromeClearChain)
-		rebuildUnsharedChain(doc, plan.chromeClearChain, sharing, null, grammar);
 }
 
 /** The title row of the title-line container holding the end, when the start is outside it. */

@@ -39,6 +39,7 @@ export function handlePendingBreakKey(e: KeyboardEvent, deps: PendingBreakKeyDep
 			text: text.slice(0, at) + e.key + text.slice(at),
 			caretAfter: at + e.key.length,
 			intent: 'typed',
+			history: 'join-typing',
 			mode: 'authored',
 			source: 'pending-break'
 		});

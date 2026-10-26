@@ -192,7 +192,8 @@
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readText: () => readCellText(),
+		readInput: (caret) => ({ text: readCellText(), caret }),
+		repaint: () => cellRender.render({ forceRebuild: true }),
 		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
 		handleKeydown: onKeyDown,
@@ -204,6 +205,8 @@
 			writeText({
 				...rangeWrite(node, replaceRangeInLeaf(node, range, '', storedAs())),
 				intent: 'command',
+				// The removal a typed key makes over a selection, which that key joins.
+				history: 'join-typing',
 				mode: 'authored',
 				source: 'selection-removal'
 			})
@@ -664,6 +667,8 @@
 			text: text.slice(0, offset) + inserted + text.slice(offset),
 			caretAfter: offset + inserted.length,
 			intent: 'typed',
+			// Shift+Enter is a command, so its break is an undo step of its own.
+			history: 'entry',
 			mode: 'authored',
 			source: 'cell-line-break'
 		});

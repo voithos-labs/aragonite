@@ -8,7 +8,7 @@ import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 import { testView } from '#lib/test/support/test-view.js';
-import { mergePrevSettled } from '#lib/test/harness/settle-funnel.js';
+import { mergePrevSettled, writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // The structural paths into the same `</details>` escape: they write the body themselves,
 // with no per-block commit to apply the rule.
@@ -75,12 +75,20 @@ describe('details terminator escape at the cross-block entry points', () => {
 		const doc = parse(MID_LINE_TAG);
 		expect(doc.children[0].children?.length).toBe(3);
 
-		rangeDelete(
+		writtenBelow(
 			doc,
-			rangeCoverage(doc, coverRange(doc, { path: [0, 1], offset: 6 }, { path: [0, 2], offset: 2 })),
-			createSharingState(),
-			fixtureReading(),
-			'keyless'
+			(scope) =>
+				rangeDelete(
+					doc,
+					rangeCoverage(
+						doc,
+						coverRange(doc, { path: [0, 1], offset: 6 }, { path: [0, 2], offset: 2 })
+					),
+					scope,
+					fixtureReading(),
+					'keyless'
+				),
+			fixtureReading().grammar
 		);
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
@@ -90,12 +98,20 @@ describe('details terminator escape at the cross-block entry points', () => {
 	it('escapes a terminator a same-block delete strands at column 0', () => {
 		const doc = parse('<details>\n<summary>T</summary>\n\nzz</details>\n\n</details>\n');
 
-		rangeDelete(
+		writtenBelow(
 			doc,
-			rangeCoverage(doc, coverRange(doc, { path: [0, 1], offset: 0 }, { path: [0, 1], offset: 2 })),
-			createSharingState(),
-			fixtureReading(),
-			'keyless'
+			(scope) =>
+				rangeDelete(
+					doc,
+					rangeCoverage(
+						doc,
+						coverRange(doc, { path: [0, 1], offset: 0 }, { path: [0, 1], offset: 2 })
+					),
+					scope,
+					fixtureReading(),
+					'keyless'
+				),
+			fixtureReading().grammar
 		);
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);

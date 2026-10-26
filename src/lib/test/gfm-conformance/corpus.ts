@@ -36,17 +36,25 @@ export const RANDOM_EXTRAS = [
 
 /** Every string of length 1..maxLen over `ENUM_ALPHABET`, shortest first. */
 export function enumerateCorpus(maxLen: number): string[] {
-	const corpus: string[] = [];
-	let stringsAtLength: string[] = [''];
-	for (let length = 1; length <= maxLen; length++) {
-		stringsAtLength = stringsAtLength.flatMap((prefix) =>
-			ENUM_ALPHABET.map((char) => prefix + char)
-		);
-		// No spread-push: at maxLen 5 the top tier is 11^5 = 161k strings, and
-		// push(...arr) passes each as a call argument — that overflows the stack.
-		for (const string of stringsAtLength) corpus.push(string);
+	return [...enumerateStrings(ENUM_ALPHABET, 1, maxLen)];
+}
+
+/** Every string of length minLen..maxLen over `alphabet`, shortest first and in alphabet order
+ *  within a length, one at a time: past length 6 the strings don't fit in memory together. */
+export function* enumerateStrings(
+	alphabet: readonly string[],
+	minLen: number,
+	maxLen: number
+): Generator<string> {
+	for (let length = minLen; length <= maxLen; length++) {
+		const digits = new Array<number>(length).fill(0);
+		while (true) {
+			yield digits.map((digit) => alphabet[digit]).join('');
+			let place = length - 1;
+			while (place >= 0 && ++digits[place] === alphabet.length) digits[place--] = 0;
+			if (place < 0) break;
+		}
 	}
-	return corpus;
 }
 
 // ── Seeded random sampling ───────────────────────────────────────────────────

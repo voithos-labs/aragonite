@@ -2,10 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { leafTextAround, leafTexts } from '#lib/invariants/leaf-text.js';
-import {
-	checkListMoveKeepsOrder,
-	keepingListOrder
-} from '#lib/invariants/list-move-keeps-order.js';
+import { checkListMoveKeepsOrder } from '#lib/invariants/list-move-keeps-order.js';
+import { keepingListOrder } from '#lib/tree-operations/list/keeping-order.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const textOf = (source: string) => leafTexts(parse(source).children);
@@ -40,7 +38,7 @@ describe('G1.61 a list move keeps the order its text reads in', () => {
 	it('warns once when the move it wraps reorders the region', () => {
 		const [list] = parse('- a\n- b\n').children;
 		keepingListOrder(
-			() => leafTexts([list]),
+			() => [list],
 			() => list.children!.reverse()
 		);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:list-move-keeps-order']);

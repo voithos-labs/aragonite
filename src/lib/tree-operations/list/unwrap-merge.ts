@@ -18,8 +18,7 @@ import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
 import { dissolveItem } from './item-partition';
-import { keepingListOrder } from '../../invariants/list-move-keeps-order';
-import { leafTextAround, leafTexts } from '../../invariants/leaf-text';
+import { keepingTextAround } from './keeping-order';
 import { assignChildIdsDeep } from '../../block-id';
 import { replacePreservingFirst, type StructuralChange } from '../structural-change';
 
@@ -82,14 +81,8 @@ export function mergeListItemIntoPrevious(
 	const absorbed = children[currentIndex].children?.[0] ?? null;
 	// The join rewrites the lines it joins (a live-mode join can drop markers, a line below can
 	// continue the joined paragraph), so the order check reads the text around them.
-	let around: readonly string[] = [];
-	return keepingListOrder(
-		() => (around = leafTextAround([list], target, absorbed)),
-		() => mergeMarkerLine(list, children, currentIndex, targetPath, sharing, reading),
-		() => {
-			const text = leafTexts([list]).join('');
-			return [text.slice(0, around[0].length), text.slice(text.length - around[1].length)];
-		}
+	return keepingTextAround([list], target, absorbed, () =>
+		mergeMarkerLine(list, children, currentIndex, targetPath, sharing, reading)
 	);
 }
 

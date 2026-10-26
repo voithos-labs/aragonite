@@ -1,31 +1,39 @@
 /**
  * The steps every structural commit runs, for suites driving the primitives directly: the edit
- * against a body, then the commit's one fix-up (`settleEdit`), and at the document the step that
+ * against a body, then the commit's one fix-up (`fixUpEdit`), and at the document the step that
  * keeps an open last line open. The primitives leave their fix-up to the commit, so the edit alone
  * proves little.
  */
 
+import { deleteNode } from '#lib/tree-operations/node-ops.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import {
 	asBody,
+	documentBody,
 	type BodyParent,
 	type BodyParentArg
 } from '#lib/tree-operations/node-primitives.js';
+import { documentLineEnding } from '#lib/core/lines.js';
 import {
-	deleteNode,
-	settleEdit,
+	createScopeWriter,
+	rebuildOwnedChains,
+	type ScopeWriter
+} from '#lib/editor-actions/commit/scope-writes.js';
+import {
+	endsOpen,
+	keepOpenTail,
+	fixUpEdit,
 	type BodyEdit,
 	type EditKind,
-	type SettledEdit
-} from '#lib/tree-operations/settle.js';
+	type FixedUpEdit,
+	type TrackedPosition
+} from '#lib/tree-operations/fix-up/apply.js';
 import {
 	mergeIntoPrevDeepLeaf,
 	type JoinLanding,
 	type MergeIntoPrevResult
 } from '#lib/tree-operations/node-ops.js';
 import { reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
-import { endsOpen, keepOpenTail } from '#lib/tree-operations/open-tail.js';
-import type { TrackedPosition } from '#lib/tree-operations/neighbour-merge.js';
 import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import type { Reading } from '#lib/schema/reading.js';
@@ -43,12 +51,12 @@ function commitSteps(
 	grammar: GrammarView,
 	sharing: SharingState,
 	tracked?: TrackedPosition
-): SettledEdit {
+): FixedUpEdit {
 	const doc = 'owner' in parent ? null : parent;
 	const body = asBody(parent);
 	const wasOpen = doc ? endsOpen(doc) : false;
 	const before: CstNode[] = [...body.children];
-	const settled = settleEdit(body, { ...edit(body), before }, grammar, sharing, tracked);
+	const settled = fixUpEdit(body, { ...edit(body), before }, grammar, sharing, tracked);
 	if (doc) keepOpenTail(doc, wasOpen, sharing, grammar);
 	return settled;
 }
@@ -138,4 +146,18 @@ export function reorderSettled(
 		sharing
 	);
 	return { change: settled.change, landing: settled.moved ?? landing };
+}
+
+/** Runs `write` against the document's commit-scope writes, then the commit's rebuild of every
+ *  path it owned, for suites driving an op that writes below a scope. */
+export function writtenBelow<T>(
+	doc: Document,
+	write: (scope: ScopeWriter & { sharing: SharingState }) => T,
+	grammar: GrammarView = defaultGrammarView,
+	sharing: SharingState = createSharingState()
+): T {
+	const writer = createScopeWriter(documentBody(doc), sharing, grammar, documentLineEnding(doc));
+	const result = write({ ...writer, sharing });
+	rebuildOwnedChains([writer], sharing, grammar);
+	return result;
 }

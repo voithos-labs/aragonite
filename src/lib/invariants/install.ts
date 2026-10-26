@@ -33,10 +33,14 @@ import { checkTopLevelUntouched } from './top-level-untouched';
 import { checkLineEndingPairsKept, type LineEndingCounts } from './line-ending-pairs';
 import { lineEndingCounts } from '../core/line-ending-pairs';
 import { concatChildren } from '../core/serializer';
+import { checkWrittenUnshared } from './written-unshared';
+import type { SharingState } from '../tree-operations/sharing';
 
 /** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
  *  container's raw is that rebuild's output. */
 export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): void {
+	// Off under the perf instruments, as G1.55 is: the stale-raw check re-reads each container.
+	if (perfEnabled()) return;
 	for (const node of nodes) {
 		assertInvariant('stale-raw', () => checkStaleRaw(node, grammar));
 		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node, grammar));
@@ -89,6 +93,13 @@ export function assertLineEndingPairsKept(doc: Document, before: LineEndingCount
 export function assertLeafLineEndingPairsKept(before: string, after: string): void {
 	assertInvariant('line-ending-pairs', () =>
 		checkLineEndingPairsKept(lineEndingCounts(before), lineEndingCounts(after))
+	);
+}
+
+/** G1.151 for a keystroke written in place: the nodes it wrote. */
+export function assertWrittenUnshared(written: readonly CstNode[], sharing: SharingState): void {
+	assertInvariant('written-unshared', () =>
+		checkWrittenUnshared(written, (node) => sharing.isShared(node))
 	);
 }
 

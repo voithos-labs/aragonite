@@ -60,7 +60,7 @@
 	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import {
-		rawTextOfContent,
+		readContent,
 		revealsNoMarkers,
 		rawSelectionFocus,
 		caretOnPendingBreakLine
@@ -232,7 +232,8 @@
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readText: () => readRawText(),
+		readInput,
+		repaint: () => textRender.render({ forceRebuild: true }),
 		compositionSeat,
 		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
@@ -258,6 +259,8 @@
 						writeText({
 							...rangeWrite(node, replaceRangeInLeaf(node, range, '', storedAs())),
 							intent: 'command',
+							// The removal a typed key makes over a selection, which that key joins.
+							history: 'join-typing',
 							mode: 'authored',
 							source: 'selection-removal'
 						})
@@ -522,7 +525,14 @@
 		}
 		const ending = editableSurface.lineEnding();
 		const { newRaw, caretOffset } = insertHardBreak(node.raw, offset, ending, content);
-		const write = blockEdit.updateBlockContent(index, newRaw, 'authored', offset, caretOffset);
+		const write = blockEdit.updateBlockContent(
+			index,
+			newRaw,
+			'authored',
+			'entry',
+			offset,
+			caretOffset
+		);
 		if (write.admitted) setPendingCursorOffset(write.caret, 'hard-break');
 	}
 
@@ -553,7 +563,13 @@
 					// The key types its own character, so its write is typing's.
 					perform: () => {
 						const tabbed = insertLiteralTab(getDisplayText(), offset);
-						void writeText({ ...tabbed, intent: 'typed', mode: 'authored', source: 'insert-tab' });
+						void writeText({
+							...tabbed,
+							intent: 'typed',
+							history: 'join-typing',
+							mode: 'authored',
+							source: 'insert-tab'
+						});
 					}
 				};
 			case 'block.mergePrev':
@@ -568,6 +584,7 @@
 							index,
 							demoted.newRaw,
 							'literal',
+							'entry',
 							offset,
 							demoted.caretOffset
 						);
@@ -606,6 +623,7 @@
 							index,
 							cycled.newRaw,
 							'literal',
+							'entry',
 							offset,
 							cycled.caretOffset
 						);
@@ -762,8 +780,8 @@
 
 	const onInput = editableSurface.onInput;
 
-	function readRawText(): string {
-		return el ? rawTextOfContent(el, node.raw, structuralSuffix(node)) : '';
+	function readInput(caret: number): { text: string; caret: number } {
+		return el ? readContent(el, node.raw, structuralSuffix(node), caret) : { text: '', caret };
 	}
 
 	// Built once, not per keydown: every typed character passes both key handlers.
@@ -875,6 +893,7 @@
 			text: trimTrailingLineEnding(demoted.newRaw),
 			caretAfter: demoted.caretOffset,
 			intent: 'repair',
+			history: 'join-typing',
 			mode: 'literal',
 			source: 'demote-on-blur'
 		});

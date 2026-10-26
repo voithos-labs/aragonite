@@ -17,7 +17,7 @@ what the type retired.
 | G3.8  | A reader writing a node's serialized bytes                                           | T     |
 | G3.9  | Forgetting one part of what the caret means without the others                       | T     |
 | G3.10 | A registration pairing fields that can't mean anything together                      | T     |
-| G3.11 | An editor option with no word on whether it can change after mount, or is a boolean  | T     |
+| G3.11 | An editor option with no timing or boolean mark, or one `<Editor>` never names       | T     |
 | G3.12 | A React wrapper prop that isn't an editor option, or hides one                       | T     |
 | G3.13 | A Vue wrapper prop that isn't an editor option, or a boolean Vue would read as false | T     |
 | G3.14 | A Svelte view whose component wants a prop its slot never passes                     | T     |
@@ -80,10 +80,10 @@ Plain JS meets runtime throws (`INCOHERENT_REGISTRATION_PAIRS`, `FIXED_AT_REGIST
 
 **G3.11 · Every option has a spec.** `EDITOR_OPTION_SPECS` gives each editor option, `header`
 included, a timing (`live`, or `once`: read at mount) and marks the booleans; typed against
-`EditorOptions` plus `header`, a missing, stray or mismarked row doesn't compile. `createEditor`
-skips the `once` keys on `update`, the Vue wrapper declares props from it (G3.13), and the consumer
-guide's Props section lists the split. Pins in `create-editor.test.ts :: compileTimePins`. Open gap:
-`Editor.svelte`'s `$props()` destructure is a hand list, so a key missing there still compiles.
+`EditorOptions` plus `header`, a missing, stray or mismarked row doesn't compile, and neither does
+an option `Editor.svelte`'s `$props()` destructure leaves unnamed. `createEditor` skips the `once`
+keys on `update`, the Vue wrapper declares props from it (G3.13), and the consumer guide's Props
+section lists the split. Pins in `create-editor.test.ts :: compileTimePins`.
 
 **G3.12 · The React props are the editor's options.** `AragoniteProps` in `packages/react` is
 `CreateEditorOptions` with `source` swapped for `value`, plus the props only React has (`value`,

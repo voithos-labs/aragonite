@@ -59,7 +59,7 @@ describe('live mode: every cell cut crosses the join', () => {
 
 		// The clipboard carries what the cut took, so a paste gives it back.
 		expect(clipboard.get('text/plain')).toBe('**ld** *i*');
-		expect(committedCalls(mounted)).toEqual([[0, '**bo***t*', 'literal', 4, 4]]);
+		expect(committedCalls(mounted)).toEqual([[0, '**bo***t*', 'literal', 'join-typing', 4, 4]]);
 	});
 
 	it('the context-menu cut takes the same join', async () => {
@@ -70,7 +70,7 @@ describe('live mode: every cell cut crosses the join', () => {
 		await mounted.ref().applyMenuClipboard!('cut', { start: 4, end: 11 });
 		await settleCommit(mounted);
 
-		expect(committedCalls(mounted)).toEqual([[0, '**bo***t*', 'literal', 4, 4]]);
+		expect(committedCalls(mounted)).toEqual([[0, '**bo***t*', 'literal', 'join-typing', 4, 4]]);
 	});
 
 	it('typing over the selection lands the character inside the closed bold', async () => {
@@ -82,7 +82,7 @@ describe('live mode: every cell cut crosses the join', () => {
 		await settleCommit(mounted);
 
 		expect(e.defaultPrevented).toBe(true);
-		expect(committedCalls(mounted)).toEqual([[0, '**boX***t*', 'authored', 4, 5]]);
+		expect(committedCalls(mounted)).toEqual([[0, '**boX***t*', 'authored', 'join-typing', 4, 5]]);
 	});
 
 	it('a native Backspace over the selection takes the same join', async () => {
@@ -94,7 +94,7 @@ describe('live mode: every cell cut crosses the join', () => {
 		await settleCommit(mounted);
 
 		expect(e.defaultPrevented).toBe(true);
-		expect(committedCalls(mounted)).toEqual([[0, '**bo***t*', 'authored', 4, 4]]);
+		expect(committedCalls(mounted)).toEqual([[0, '**bo***t*', 'authored', 'join-typing', 4, 4]]);
 	});
 
 	// Miss-analysis: #523, every cell case started with a delimiter, so none held text a block
@@ -110,7 +110,9 @@ describe('live mode: every cell cut crosses the join', () => {
 			await settleCommit(mounted);
 
 			expect(e.defaultPrevented).toBe(true);
-			expect(committedCalls(mounted)).toEqual([[0, `${lead}**a**d`, 'authored', 5, 5]]);
+			expect(committedCalls(mounted)).toEqual([
+				[0, `${lead}**a**d`, 'authored', 'join-typing', 5, 5]
+			]);
 		}
 	);
 
@@ -122,7 +124,9 @@ describe('live mode: every cell cut crosses the join', () => {
 		dispatchCut(mounted.el);
 		await settleCommit(mounted);
 
-		expect(committedCalls(mounted)).toEqual([[0, 'a\\|b **bo***t*', 'literal', 9, 9]]);
+		expect(committedCalls(mounted)).toEqual([
+			[0, 'a\\|b **bo***t*', 'literal', 'join-typing', 9, 9]
+		]);
 	});
 });
 
@@ -135,7 +139,7 @@ describe('source mode: the same cuts stay byte-literal', () => {
 		dispatchCut(mounted.el);
 		await settleCommit(mounted);
 
-		expect(committedCalls(mounted)).toEqual([[0, '**bot*', 'literal', 4, 4]]);
+		expect(committedCalls(mounted)).toEqual([[0, '**bot*', 'literal', 'join-typing', 4, 4]]);
 	});
 
 	it('type-over stays native, so grapheme and IME behavior are untouched', async () => {

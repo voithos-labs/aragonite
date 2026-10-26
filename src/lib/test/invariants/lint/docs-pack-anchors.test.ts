@@ -85,15 +85,16 @@ describe('in-pack anchors: the index', () => {
 
 // ── The gate ─────────────────────────────────────────────────────────────────
 
-/** The pack gate's output over a scratch pack, git-initialised so the corpus gate under Gate 1
- *  can ask git for the ignored files and the run reaches its summary line. */
-function packGateOutput(docs: Record<string, string>): string {
+/** The pack gate's output over a scratch pack plus any `others` (paths from the repo root),
+ *  git-initialised so the corpus gate can ask git for the ignored files. */
+function packGateOutput(docs: Record<string, string>, others: Record<string, string> = {}): string {
 	const dir = mkdtempSync(path.join(tmpdir(), 'aragonite-pack-'));
 	try {
 		execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore' });
-		mkdirSync(path.join(dir, 'docs/guide'), { recursive: true });
-		for (const [name, body] of Object.entries(docs)) {
-			writeFileSync(path.join(dir, 'docs/guide', name), body);
+		const files = Object.entries(docs).map(([name, body]) => [`docs/guide/${name}`, body]);
+		for (const [name, body] of [...files, ...Object.entries(others)]) {
+			mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
+			writeFileSync(path.join(dir, name), body);
 		}
 		try {
 			return execFileSync('node', [path.join(ROOT, 'scripts/build-docs-pack.mjs')], {
@@ -140,6 +141,16 @@ const SPELLED = packGateOutput({
 
 const DEAD_FILE = packGateOutput({ 'a.md': '# A\n\n```md\n[see](gone.md#x)\n```\n' });
 
+// A link into a gitignored doc resolves on the machine that has one and is dead in a CI checkout.
+const IGNORED_TARGET = packGateOutput(
+	{ 'a.md': '# A\n' },
+	{
+		'.gitignore': 'docs/private.md\n',
+		'docs/private.md': '# mine\n',
+		'docs/notes.md': '# Notes\n\n[plan](private.md)\n'
+	}
+);
+
 describe('in-pack anchors: the gate', () => {
 	it('reds on an anchor no heading spells, same doc or across two', () => {
 		expect(STALE).toContain(DANGLING);
@@ -155,5 +166,11 @@ describe('in-pack anchors: the gate', () => {
 
 	it('reds on a link in code whose file the pack does not ship', () => {
 		expect(DEAD_FILE).toContain('docs-pack: dead pointers');
+	});
+
+	// Miss-analysis: corpus links were resolved on disk alone, and no row planted an ignored target.
+	it('reds on a corpus link to a gitignored file that sits on disk', () => {
+		expect(IGNORED_TARGET).toContain('docs-links: dead links');
+		expect(IGNORED_TARGET).toContain('docs/notes.md → private.md');
 	});
 });

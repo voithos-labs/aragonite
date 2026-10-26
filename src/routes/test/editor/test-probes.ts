@@ -21,9 +21,11 @@ import type { EditorSelection } from '#lib/selection/primitives.js';
 import type { DecorationSource, DecorationSourceHandle } from '#lib/decorations/types.js';
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import {
+	augmentBuiltin,
 	getAllRegisteredKinds,
 	getBlockKindDescriptor,
-	registerBlockKind
+	registerBlockKind,
+	tryGetBlockKindDescriptor
 } from '#lib/schema/block-kind-descriptor.js';
 import { svelteBlockView } from '#lib/components/svelte-block-view.js';
 import { textBlockView } from '#lib/components/blocks/text/text-block-view.js';
@@ -98,6 +100,24 @@ const throwProbePlugin = definePlugin({
 });
 
 let orphanKind: PluginBlockKind | undefined;
+let quoteRebuildThrows = false;
+let quoteThrowProbeInstalled = false;
+
+// The blockquote's own rebuild, wrapped once per page to throw while the probe is on.
+const quoteThrowProbePlugin = definePlugin({
+	name: 'quote-throw-probe',
+	setup() {
+		const original = tryGetBlockKindDescriptor('blockquote')!.rebuildRaw!;
+		augmentBuiltin('blockquote', {
+			container: {
+				rebuildRaw: (...args: Parameters<typeof original>) => {
+					if (quoteRebuildThrows) throw new Error('probe rebuildRaw blew up');
+					return original(...args);
+				}
+			}
+		});
+	}
+});
 
 // The plugin installs once per page, and a failed install can't be retried, so the kind is kept.
 function installOrphanKind(): PluginBlockKind {
@@ -512,6 +532,15 @@ export function installTestProbes({
 			if (!node) return;
 			node.kind = kind;
 			doc.children = [...doc.children];
+		},
+		// A blockquote whose rebuild throws, as a broken plugin container's would, until it is
+		// turned off; a keystroke inside one rolls back.
+		throwOnQuoteRebuild: (on: boolean): void => {
+			if (on && !quoteThrowProbeInstalled) {
+				installPlugins([quoteThrowProbePlugin]);
+				quoteThrowProbeInstalled = true;
+			}
+			quoteRebuildThrows = on;
 		},
 		// A component that throws during render reaches BlockHost's <svelte:boundary>
 		// failed-snippet path.

@@ -1,9 +1,9 @@
 import { test, expect } from '../../fixtures';
-import { gotoReady } from '../../goto-ready';
+import { gotoReady, gotoUnhydrated } from '../../goto-ready';
 import { findInput } from '../search/helpers';
 import type { Page } from '@playwright/test';
-import { clickModeButton } from '../../mode-switch';
 import { clickInPlace } from '../../click-in-place';
+import { clickShowcaseSetting } from '../../showcase-settings';
 
 // The `/changelog` route renders the repo's changelog, one release family per document, behind a
 // prepended `[[toc]]` inside a collapsed `<details>`, under all nine bundled plugins. The route has
@@ -21,6 +21,23 @@ function outlineRaw(page: Page): Promise<string> {
 	});
 }
 
+// The page around the editor, read as light or dark from its background's luminance; `unstyled`
+// while no stylesheet has painted it, so a transparent wrapper never reads as dark.
+function pageTheme(page: Page, wrapper: string): Promise<'light' | 'dark' | 'unstyled'> {
+	return page.locator(wrapper).evaluate((el) => {
+		const [r, g, b, alpha = 1] = (getComputedStyle(el).backgroundColor.match(/[\d.]+/g) ?? []).map(
+			Number
+		);
+		if (r === undefined || alpha === 0) return 'unstyled';
+		return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128 ? 'dark' : 'light';
+	});
+}
+
+async function expectTheme(page: Page, wrapper: string, theme: 'light' | 'dark'): Promise<void> {
+	await expect(page.locator(`${wrapper} .editor`)).toHaveAttribute('data-editor-theme', theme);
+	await expect.poll(() => pageTheme(page, wrapper)).toBe(theme);
+}
+
 test.describe('/changelog route', () => {
 	test.beforeEach(async ({ page }) => {
 		await gotoReady(page, '/changelog');
@@ -31,6 +48,7 @@ test.describe('/changelog route', () => {
 		// The family file's own title, not a version number: the one landmark a release cannot
 		// move. Reading mode hides the `#` marker with `display: none`, so it stays in textContent.
 		await expect(page.locator('[data-block-kind="heading"]').first()).toContainText('Changelog');
+		await expect(page.locator('.editor')).toHaveAttribute('data-presentation', 'reading');
 		// A floor well below the mounted window, robust to it shifting.
 		await expect.poll(() => page.locator('.block-host').count()).toBeGreaterThan(5);
 
@@ -103,7 +121,7 @@ test.describe('/changelog route', () => {
 
 	test('the family picker swaps the document to another release family', async ({ page }) => {
 		const heading = page.locator('[data-block-kind="heading"]').first();
-		const active = page.locator('.changelog-family.active');
+		const active = page.locator('.changelog-family[aria-pressed="true"]');
 		const current = (await active.getAttribute('data-family')) ?? '';
 		await expect(heading).toContainText(`Changelog ${current}`);
 
@@ -126,17 +144,39 @@ test.describe('/changelog route', () => {
 		await expect(findInput(page)).toBeFocused();
 	});
 
-	test('the header toggle flips the document between reading and source', async ({ page }) => {
-		const editor = page.locator('.editor');
-		const marker = page.locator('.text-editable-block .md-marker').first();
-		await expect(editor).toHaveAttribute('data-presentation', 'reading');
-		await expect(marker).toBeHidden();
+	test("opens in the showcase's light theme, the page around the editor included", async ({
+		page
+	}) => {
+		await expectTheme(page, '.changelog', 'light');
+	});
 
-		await clickModeButton(page, 'source');
-		await expect(marker).toBeVisible();
+	test('the header theme toggle flips the editor and the page, and back', async ({ page }) => {
+		const toggle = page.getByTestId('theme-toggle');
+		await expect(toggle).toHaveAttribute('aria-pressed', 'false');
 
-		await clickModeButton(page, 'reading');
-		await expect(marker).toBeHidden();
+		await clickInPlace(toggle);
+		await expectTheme(page, '.changelog', 'dark');
+		await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+		await clickInPlace(toggle);
+		await expectTheme(page, '.changelog', 'light');
+		await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+	});
+
+	test('a dark theme chosen here carries to the showcase', async ({ page }) => {
+		await clickInPlace(page.getByTestId('theme-toggle'));
+		await expectTheme(page, '.changelog', 'dark');
+
+		await clickInPlace(page.getByRole('link', { name: 'showcase' }));
+		await expect(page).toHaveURL(/\/$/);
+		await expectTheme(page, '.showcase', 'dark');
+	});
+
+	test('at desktop width the families sit in one track and the bar fits', async ({ page }) => {
+		await expect(page.locator('.changelog-families')).toBeVisible();
+		await expect(page.locator('.changelog-family-picker')).toBeHidden();
+		const bar = page.locator('.changelog-header .showcase-bar');
+		expect(await bar.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
 	});
 
 	test('the header link navigates back to the showcase', async ({ page }) => {
@@ -146,4 +186,55 @@ test.describe('/changelog route', () => {
 		await expect(page).toHaveURL(/\/$/);
 		await expect(page.getByTestId('showcase-settings')).toBeVisible();
 	});
+});
+
+test.describe('/changelog theme, chosen on the showcase', () => {
+	test.beforeEach(async ({ page }) => {
+		await gotoReady(page, '/');
+	});
+
+	// Light is the default, so its row goes through dark and back, as a visitor trying both would.
+	for (const [theme, flips] of [
+		['dark', 1],
+		['light', 2]
+	] as const) {
+		test(`the ${theme} theme chosen on the showcase carries to the changelog`, async ({ page }) => {
+			for (let i = 0; i < flips; i++) await clickShowcaseSetting(page, 'theme-toggle');
+			await expectTheme(page, '.showcase', theme);
+
+			await clickInPlace(page.getByRole('link', { name: 'changelog' }));
+			await expect(page).toHaveURL(/\/changelog\/?$/);
+			await expectTheme(page, '.changelog', theme);
+		});
+	}
+});
+
+// No beforeEach: each row is two full page loads, which is what a stored choice has to survive.
+test.describe('the stored theme on a fresh load', () => {
+	test('a dark theme chosen on the showcase holds on a fresh load of the changelog', async ({
+		page
+	}) => {
+		await gotoReady(page, '/');
+		await clickShowcaseSetting(page, 'theme-toggle');
+		await expectTheme(page, '.showcase', 'dark');
+
+		await gotoReady(page, '/changelog');
+		await expectTheme(page, '.changelog', 'dark');
+	});
+
+	// Both routes are prerendered light, so a stored dark has to land before the app's scripts do.
+	for (const [route, wrapper] of [
+		['/', '.showcase'],
+		['/changelog', '.changelog']
+	] as const) {
+		test(`a returning dark visitor sees ${route} dark before it hydrates`, async ({ page }) => {
+			await gotoReady(page, '/');
+			await clickShowcaseSetting(page, 'theme-toggle');
+			await expectTheme(page, '.showcase', 'dark');
+
+			await gotoUnhydrated(page, route);
+			await expect(page.locator(`${wrapper} .editor`)).toHaveAttribute('data-editor-theme', 'dark');
+			await expect.poll(() => pageTheme(page, wrapper)).toBe('dark');
+		});
+	}
 });

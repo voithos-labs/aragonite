@@ -219,6 +219,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			text,
 			caretAfter,
 			intent: 'typed',
+			history: 'join-typing',
 			mode: 'authored',
 			source,
 			inPlace: true
@@ -234,6 +235,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		void deps.writeText({
 			...rangeEdit({ start, end }, insert),
 			intent: 'typed',
+			history: 'join-typing',
 			mode: 'authored',
 			source
 		});
@@ -584,7 +586,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const written = rangeEdit(span, '');
 		const kept = keptBlockText(editedBlock(el, text, span, written.text));
 		if (kept !== written.text) writeDisplay(kept, 0, 'delete');
-		else void deps.writeText({ ...written, intent: 'typed', mode: 'authored', source: 'delete' });
+		else
+			void deps.writeText({
+				...written,
+				intent: 'typed',
+				history: 'join-typing',
+				mode: 'authored',
+				source: 'delete'
+			});
 		return true;
 	}
 

@@ -22,11 +22,9 @@ import {
 import { buildListShell } from './list-builders';
 import { lacksSublistSeparator, settleSublistSeparator } from './sublist-separator';
 import { isBlankText, ownTrailingLineEnding } from '../../core/lines';
-import { keepingListOrder } from '../../invariants/list-move-keeps-order';
-import { leafTexts } from '../../invariants/leaf-text';
+import { keepingListOrder } from './keeping-order';
 import { containerScopeState } from '../paste/parent-scope';
 import type { MultiScopeTarget, PasteCommitCoordinator } from '../paste/paste-deps';
-import type { GrammarView } from '../../schema/block-openers';
 
 /** What a move commits through; a container that isn't mounted moves by its ids alone. */
 export type ItemMoveCommits = Pick<PasteCommitCoordinator, 'commitMultiScope' | 'resolveState'>;
@@ -73,7 +71,7 @@ export function nestListItem(
 		snapshot: { path: docPathFrom([...list.path, itemIndex]), offset: 0 },
 		mutate: ([outerScope, destScope]) =>
 			keepingListOrder(
-				() => leafTexts([outerScope.node]),
+				() => [outerScope.node],
 				() => {
 					const sharing = outerScope.sharing;
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
@@ -128,7 +126,6 @@ export function liftNestedItem(
 	parentItemIdx: number,
 	nestedList: NodeView,
 	nestedItemIdx: number,
-	grammar: GrammarView,
 	landing: (promotedAt: number) => Landed = () => null
 ): Promise<boolean> {
 	const node = outer.node;
@@ -166,7 +163,7 @@ export function liftNestedItem(
 		mutate: (scopeViews) => {
 			const [outerScope, nestedScope, parentScope] = scopeViews;
 			return keepingListOrder(
-				() => leafTexts([outerScope.node]),
+				() => [outerScope.node],
 				() => {
 					const sharing = outerScope.sharing;
 					// Opened before the move, since the cleanup below can splice any of the three lists.
@@ -188,13 +185,11 @@ export function liftNestedItem(
 
 					// What the move emptied goes, up to this list, which now holds the promoted item.
 					const outerCount = outerScope.children.length;
-					cascadeCleanupEmptyAncestors(
-						outerScope.node,
-						[parentItemIdx, nestedIdxInParent, nestedItemIdx],
-						sharing,
-						grammar,
-						outerScope.lineEnding
-					);
+					cascadeCleanupEmptyAncestors(outerScope.node, outerScope, [
+						parentItemIdx,
+						nestedIdxInParent,
+						nestedItemIdx
+					]);
 					promotedAt -= outerCount - outerScope.children.length;
 
 					if (nestedScope.children.length > 0) renumberOrderedList(nestedScope.node, 1, sharing);

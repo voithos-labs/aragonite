@@ -11,17 +11,16 @@ import {
 	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
-	displayLines,
-	firstLineEnding,
 	getPluginMetadata,
-	joinDisplayLines,
 	ownTrailingLineEnding,
 	parseContainerBody,
+	quoteLines,
+	rebuildStripRaw,
 	registerBlockKind,
-	serializeChildren,
 	setPluginMetadata,
 	type BlockOpenerResult,
 	type BlockView,
+	type ChildRawChange,
 	type ContainerBodyWrap,
 	type CstNode,
 	type OpenContext,
@@ -68,31 +67,23 @@ function stripBody(lines: ParsedLine[], start: number, end: number): string {
 	return out;
 }
 
-/** Every body line keeps its own ending; the marker line keeps the one the current raw gives it. */
-export function rebuildGithubAlertRaw(node: CstNode): void {
+/** The marker line written from the metadata, and below it the body as quote lines, each kept as
+ *  it stood unless the edit changed it. */
+export function rebuildGithubAlertRaw(node: CstNode, changed?: ChildRawChange) {
 	const alertType = getPluginMetadata<GithubAlertMetadata>(node)?.alertType ?? 'NOTE';
 	const marker = `> [!${alertType}]`;
-	const body =
-		(node.innerPrefix ?? '') + serializeChildren(node.children ?? []) + (node.innerSuffix ?? '');
-
-	if (body === '') {
+	if (bodyIsEmpty(node)) {
 		node.raw = marker + ownTrailingLineEnding(node.raw);
 		return;
 	}
-	const markerEnding = firstLineEnding(node.raw) ?? firstLineEnding(body) ?? '\n';
-	node.raw = marker + markerEnding + prefixQuoteLines(body);
+	return rebuildStripRaw(node, quoteLines, { changed, opener: marker });
 }
 
-function prefixQuoteLines(body: string): string {
-	const lines = displayLines(body);
-	return joinDisplayLines(
-		lines.map((line, i) => {
-			// The empty line after a final break is no line of its own.
-			if (i === lines.length - 1 && line.text === '') return line;
-			return { ...line, text: line.text === '' ? '>' : `> ${line.text}` };
-		})
-	);
-}
+/** Stops at the first byte, so a keystroke in a long alert reads one child. */
+const bodyIsEmpty = (node: CstNode): boolean =>
+	!node.innerPrefix &&
+	!node.innerSuffix &&
+	(node.children ?? []).every((child) => child.leadingTrivia === '' && child.raw === '');
 
 export function registerGithubAlert(view: BlockView): void {
 	const kind = declarePluginKind(GITHUB_ALERT);
@@ -129,7 +120,7 @@ export function registerGithubAlert(view: BlockView): void {
 		},
 		closure: containerClosure({
 			roundTripVia:
-				'container contract=strip — rebuildGithubAlertRaw re-emits the > [!TYPE] marker (casing from metadata) + > -prefixed body, CRLF threaded',
+				'container contract=strip — rebuildGithubAlertRaw writes the > [!TYPE] marker from metadata and the edited body lines with >, keeping the rest, CRLF threaded',
 			focus: {
 				mode: 'implemented',
 				via: 'focus walks into the first body child via createContainerBlock'

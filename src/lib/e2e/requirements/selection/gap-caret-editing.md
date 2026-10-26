@@ -40,19 +40,20 @@ reaches would be invisible to every other spec.
 - Every arrival is a keystroke or click; every insert is real typing or a real Enter; every
   undo is Mod+Z. No programmatic selection or commit calls.
 
-## Known v1 narrowings
+## Limits
 
-- **Paste is refused.** Mod+V at the gap changes nothing and keeps the caret there. The
-  clipboard's contents carry block structure the boundary has no placement rule for yet, so
-  v1 declines rather than guesses. Every input type but `insertText` is refused the same way.
+- **Paste is declined rather than guessed at.** Mod+V at the gap changes nothing and keeps
+  the caret there, since the clipboard can carry block structure the boundary has no place
+  for. Every input type but `insertText` is declined the same way, and `insertMarkdown`
+  returns `false` there.
 - **IME is a unit-level contract only.** Between `compositionstart` and `compositionend` the
   browser owns the proxy element, which is the editor's standing rule for composition; the
   composed text creates the paragraph once on `compositionend` and the proxy is emptied.
   Playwright drives no real IME, so the harness cannot run a composition against a gap
   proxy: those branches are pinned by construction and by that shared rule, not by a
   scenario here.
-- The insert always produces a **paragraph**. Choosing another kind at the boundary is not
-  offered in v1.
+- The insert always produces a **paragraph**. There's no choosing another kind at the
+  boundary.
 
 ## Miss-analysis
 

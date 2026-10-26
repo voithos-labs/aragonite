@@ -60,7 +60,7 @@ export function makeSurface(
 	const writer = createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el });
 	const recording: BlockEditActions = {
 		...stubBlockEdit(),
-		updateBlockContent: (_index, text, _mode, preEdit, saved) => {
+		updateBlockContent: (_index, text, _mode, _history, preEdit, saved) => {
 			commits.push({ text, preEdit, saved });
 			return withStoredCaret(Promise.resolve(true), saved ?? preEdit);
 		}
@@ -107,7 +107,7 @@ export function makeSurface(
 		pasteCoordinator: {},
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
-		readText: () => el.textContent ?? '',
+		readInput: (caret: number) => ({ text: el.textContent ?? '', caret }),
 		compositionSeat: options.compositionSeat,
 		handleKeydown: options.handleKeydown ?? (async () => {}),
 		handleBeforeInput: options.handleBeforeInput,
