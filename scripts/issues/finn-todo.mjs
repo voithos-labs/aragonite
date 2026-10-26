@@ -1,17 +1,17 @@
-// Usage: node scripts/finn-todo.mjs pull|push
+// Usage: node scripts/issues/finn-todo.mjs pull|push
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ASSIGNEE = 'finnrw';
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const TODO_FILE = path.join(ROOT, 'TODO.md');
 const UNGROUPED = 'no area';
 
 const HEADER = [
 	'<!--',
-	'Generated from the issues assigned to Finn; edit, then `node scripts/finn-todo.mjs push`.',
+	'Generated from the issues assigned to Finn; edit, then `node scripts/issues/finn-todo.mjs push`.',
 	'For Finn specifically, who does not follow the issues convention. Thank you Finn.',
 	'-->'
 ].join('\n');
@@ -162,7 +162,7 @@ function push() {
 				ASSIGNEE
 			]).trim();
 			number = Number(url.slice(url.lastIndexOf('/') + 1));
-			run('node', [path.join(ROOT, 'scripts/issue-type.mjs'), String(number), 'feature']);
+			run('node', [path.join(ROOT, 'scripts/issues/issue-type.mjs'), String(number), 'feature']);
 			filed.set(line.title, number);
 			console.log(`#${number} filed: ${line.title}`);
 		}
@@ -179,7 +179,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 	if (verb === 'pull') pull();
 	else if (verb === 'push') push();
 	else {
-		console.error('usage: node scripts/finn-todo.mjs pull|push');
+		console.error('usage: node scripts/issues/finn-todo.mjs pull|push');
 		process.exit(2);
 	}
 }

@@ -10,7 +10,7 @@ import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:c
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
+import { corpusFiles } from '../../../../../scripts/docs/doc-corpus.mjs';
 
 const ROOT = path.resolve('.');
 
@@ -40,7 +40,7 @@ function run(script: string, cwd: string): string[] {
 		stdio: ['ignore', 'pipe', 'pipe']
 	};
 	try {
-		return execFileSync('node', [path.join(ROOT, 'scripts', script)], options).split('\n');
+		return execFileSync('node', [path.join(ROOT, 'scripts/docs', script)], options).split('\n');
 	} catch (err) {
 		const failure = err as { stdout?: string; stderr?: string };
 		return `${failure.stdout ?? ''}\n${failure.stderr ?? ''}`.split('\n');

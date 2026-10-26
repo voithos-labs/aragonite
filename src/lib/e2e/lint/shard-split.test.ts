@@ -1,7 +1,7 @@
 /**
- * The CI shard split (`scripts/e2e-shards.mjs`) places every spec file in exactly one shard, from
+ * The CI shard split (`scripts/ci/e2e-shards.mjs`) places every spec file in exactly one shard, from
  * the checked-in timing table alone; the table names only spec files that exist and has a time or
- * an estimate for every one; and the census (`scripts/e2e-census.mjs`) catches an engine or a shard
+ * an estimate for every one; and the census (`scripts/ci/e2e-census.mjs`) catches an engine or a shard
  * that lost, doubled or skipped tests. The census job waits on every sharded job and is required.
  */
 import { describe, it, expect } from 'vitest';
@@ -13,9 +13,9 @@ import {
 	estimateSeconds,
 	partition,
 	testListLines
-} from '../../../../scripts/e2e-shards.mjs';
-import { censusProblems } from '../../../../scripts/e2e-census.mjs';
-import { CI_CONTEXTS } from '../../../../scripts/branch-protection-contexts.mjs';
+} from '../../../../scripts/ci/e2e-shards.mjs';
+import { censusProblems } from '../../../../scripts/ci/e2e-census.mjs';
+import { CI_CONTEXTS } from '../../../../scripts/release/branch-protection-contexts.mjs';
 
 const SPEC_DIR = 'src/lib/e2e/tests';
 const CONFIG = 'playwright.config.ts';
@@ -49,7 +49,7 @@ describe('the shard timing table', () => {
 		);
 		expect(
 			stale,
-			`a spec moved or went: rename or delete its key in ${TIMINGS_FILE}, or refresh the table with node scripts/refresh-shard-timings.mjs <run-id>`
+			`a spec moved or went: rename or delete its key in ${TIMINGS_FILE}, or refresh the table with node scripts/ci/refresh-shard-timings.mjs <run-id>`
 		).toEqual([]);
 	});
 
@@ -159,7 +159,7 @@ describe('the census job', () => {
 		if (id) current = id;
 		else if (current) jobs.set(current, (jobs.get(current) ?? '') + line + '\n');
 	}
-	const sharded = [...jobs].filter(([, body]) => body.includes('node scripts/e2e-shards.mjs'));
+	const sharded = [...jobs].filter(([, body]) => body.includes('node scripts/ci/e2e-shards.mjs'));
 
 	it('waits on every job the shard split runs in, and is required', () => {
 		const needs = /^ {4}needs:\s*\[(.*)\]/m.exec(jobs.get('e2e-census') ?? '')?.[1] ?? '';
@@ -171,7 +171,7 @@ describe('the census job', () => {
 
 	it('expects every engine a sharded job runs, and each job uploads the summary it counts', () => {
 		const census = jobs.get('e2e-census') ?? '';
-		const expected = /node scripts\/e2e-census\.mjs \S+ (.*)$/m.exec(census)?.[1].split(' ');
+		const expected = /node scripts\/ci\/e2e-census\.mjs \S+ (.*)$/m.exec(census)?.[1].split(' ');
 		const downloads = /^ {10}pattern: (\S+)\*$/m.exec(census)?.[1] ?? '';
 		const engineOf = (body: string) => /^ {10}engine: (\w+)$/m.exec(body)?.[1];
 		expect(downloads, 'the census downloads the summaries by a name prefix').not.toBe('');

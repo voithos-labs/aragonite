@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Whether a change touches more than docs, for the CI jobs that skip a docs-only change.
-// `node scripts/ci-code-changed.mjs <base-sha>` prints `code=true` or `code=false`; a base git
+// `node scripts/ci/ci-code-changed.mjs <base-sha>` prints `code=true` or `code=false`; a base git
 // can't resolve (a new branch, a manual run) prints `code=true`, so a doubt runs everything.
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

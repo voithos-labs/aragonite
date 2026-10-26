@@ -7,7 +7,7 @@ import { afterEach, describe, it, expect } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { typeLeaks, verifyTypes } from '../../../../../scripts/verify-types.mjs';
+import { typeLeaks, verifyTypes } from '../../../../../scripts/pack/verify-types.mjs';
 
 let root = '';
 

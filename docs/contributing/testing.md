@@ -447,8 +447,8 @@ another battery makes their timing-sensitive rows flake for a reason the product
 **In CI.** All three engines' full suites run, sharded, on every pull request to `dev` or `main`
 and every push to either. A change that only touches docs skips the e2e and perf work. macOS
 WebKit runs nightly on `dev` and on every pull request to `main` (`webkit-macos.yml`). How the
-shards split and which engine checks block a merge are in the headers of `scripts/e2e-shards.mjs`
-and `scripts/branch-protection-contexts.mjs`.
+shards split and which engine checks block a merge are in the headers of `scripts/ci/e2e-shards.mjs`
+and `scripts/release/branch-protection-contexts.mjs`.
 
 To read a red run, open the job summary: it has the pass, fail, flaky and skip counts and every
 failing test, and the job's artifact holds the same rows as `ci-summary.json`. A failure you
@@ -943,12 +943,12 @@ run.
 `examples/consumer/` is a tiny SvelteKit app that installs aragonite the way a stranger would:
 from the packed tarball, importing only published entry points. It's a test, not documentation
 (if something is only learnable from that folder, that's a docs bug; file it). CI's
-`consumer-smoke` job runs `scripts/consumer-smoke.mjs`, which:
+`consumer-smoke` job runs `scripts/smoke/consumer-smoke.mjs`, which:
 
 1. builds and packs `dist/`, and checks the tarball holds every published path and no test file.
    It checks the prebuilt build too (`dist/prebuilt/`, what a bundler with no Svelte plugin gets):
    no Svelte import of its own, every entry loads in Node, one plugin registry across entries, and
-   a size budget (`scripts/verify-prebuilt.mjs`)
+   a size budget (`scripts/pack/verify-prebuilt.mjs`)
 2. installs the tarball into the example with `--no-save`
 3. typechecks and builds the example, where an import cycle through a published entry point is
    a build error
@@ -973,7 +973,7 @@ Locally the example depends on `@voithos-labs/aragonite` as `file:../..`, a link
 tree you cloned, so there's no tarball to refresh; after a library change, `npm run package`
 again and the example sees it. Don't edit `examples/consumer/src/plugins/`: it's a git-ignored
 copy of the callout fixture (`src/routes/test/plugins/callout/`) that
-`scripts/sync-consumer-plugins.mjs` regenerates before every `dev`, `build`, `check`, and `test`,
+`scripts/smoke/sync-consumer-plugins.mjs` regenerates before every `dev`, `build`, `check`, and `test`,
 with its `#lib` imports rewritten to the package name.
 
 ## The adapter suite
@@ -997,7 +997,7 @@ The wrappers are npm workspaces of the root, so the root `npm install` installs 
 exactly that version, since all three packages publish together (`npm run release:publish`);
 `src/lib/test/invariants/lint/lockstep-versions.test.ts` fails when one drifts.
 
-`scripts/adapter-smoke.mjs` packs the core and every wrapper, installs the tarballs into each app,
+`scripts/smoke/adapter-smoke.mjs` packs the core and every wrapper, installs the tarballs into each app,
 checks no Svelte came along, builds the apps and runs the suite. CI runs the `perPr` projects on
 every PR (`--per-pr`) and everything on the release PR into `main`. To iterate on one project
 once its app is built (`npm run package` at the root, then `npm install` and `npm run build` in
@@ -1017,16 +1017,16 @@ Heads up if you're mutating a wrapper to see what reds: outside CI the config re
 ## Size budgets
 
 A handful of numbers say how heavy the repo is, and each one has a budget, so it can't creep up
-without anybody deciding it should. They live in `scripts/measure-baseline.json`, each with a
+without anybody deciding it should. They live in `scripts/measure/measure-baseline.json`, each with a
 baseline and a tolerance (how far it may move before anything complains, sized to about one normal
 change).
 
-| Number                                       | What it counts                                                                                                                                                                                                                                                                                                                                                                                                                 | Checked by                                                                                                         |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Production code and comment lines            | Non-blank lines of `.ts`, `.svelte` and `.js` under `src/lib`, tests aside. A line that opens a comment or sits inside one is a comment line                                                                                                                                                                                                                                                                                   | `npm run lint`                                                                                                     |
-| Unit test files, internal and published-only | A unit test file is internal when it, or a helper under `test/` it imports, imports, names a type from or mocks anything the package doesn't publish (published means reachable from an entry point in `package.json` `exports`). A published-only test keeps passing through any rewrite behind the entry points, which is the kind we want more of                                                                           | `npm run lint`                                                                                                     |
-| Active source scans                          | Rows in `docs/design/invariants/scans.md` that aren't marked retired                                                                                                                                                                                                                                                                                                                                                           | `npm run lint`                                                                                                     |
-| The minimal app: first load, total, chunks   | A page that imports `createEditor`, built minified for production, once through the Svelte build and once through the prebuilt one. Three numbers each: the gzipped JS the page loads before it runs (the entry plus what it imports up front), all the JS it could ever load, and how many chunks that is. It's one chunk today, so the first two match; a lazy split shows up as a new chunk, which fails until you bless it | `scripts/verify-dev-strip.mjs`, which runs inside `verify-pack.mjs` (before a publish, and in CI's consumer smoke) |
+| Number                                       | What it counts                                                                                                                                                                                                                                                                                                                                                                                                                 | Checked by                                                                                                              |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Production code and comment lines            | Non-blank lines of `.ts`, `.svelte` and `.js` under `src/lib`, tests aside. A line that opens a comment or sits inside one is a comment line                                                                                                                                                                                                                                                                                   | `npm run lint`                                                                                                          |
+| Unit test files, internal and published-only | A unit test file is internal when it, or a helper under `test/` it imports, imports, names a type from or mocks anything the package doesn't publish (published means reachable from an entry point in `package.json` `exports`). A published-only test keeps passing through any rewrite behind the entry points, which is the kind we want more of                                                                           | `npm run lint`                                                                                                          |
+| Active source scans                          | Rows in `docs/design/invariants/scans.md` that aren't marked retired                                                                                                                                                                                                                                                                                                                                                           | `npm run lint`                                                                                                          |
+| The minimal app: first load, total, chunks   | A page that imports `createEditor`, built minified for production, once through the Svelte build and once through the prebuilt one. Three numbers each: the gzipped JS the page loads before it runs (the entry plus what it imports up front), all the JS it could ever load, and how many chunks that is. It's one chunk today, so the first two match; a lazy split shows up as a new chunk, which fails until you bless it | `scripts/pack/verify-dev-strip.mjs`, which runs inside `verify-pack.mjs` (before a publish, and in CI's consumer smoke) |
 
 A number fails when it moves past its tolerance in either direction. Growing past it means more
 than one change's worth landed. Shrinking past it means the baseline is stale: bless it, so the
@@ -1037,7 +1037,7 @@ baselines, and the tolerances stay put.
 npm run measure                                          # every number, per directory, plus the test helpers that import internals
 npm run measure -- --against $(git merge-base HEAD dev)  # how far each one moved since your branch left dev
 npm run measure:bless                                    # accept the lines, tests and scans as they are now
-node scripts/verify-dev-strip.mjs --bless                # accept the app sizes (after `npm run package`)
+node scripts/pack/verify-dev-strip.mjs --bless                # accept the app sizes (after `npm run package`)
 ```
 
 Same commands in PowerShell. When a branch reports what it did to the numbers, it reports the
@@ -1048,8 +1048,8 @@ The test split is a cheap stand-in for "this test guards behavior". The real che
 module's behavior suites (the e2e specs and property tests that judge it) stay green while its
 insides change shape, and nobody has scripted that one yet.
 
-Each prebuilt entry point also has a gzipped budget of its own, in `scripts/verify-prebuilt.mjs`,
-edited by hand. And for how long CI takes, `node scripts/ci-time.mjs` prints the latest dev push's
+Each prebuilt entry point also has a gzipped budget of its own, in `scripts/pack/verify-prebuilt.mjs`,
+edited by hand. And for how long CI takes, `node scripts/ci/ci-time.mjs` prints the latest dev push's
 wall time and runner minutes, against the median of the last five. That one's report-only, since
 CI time is too noisy to gate on.
 

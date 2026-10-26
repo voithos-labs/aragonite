@@ -1,6 +1,6 @@
 // The framework apps the suite drives: where each lives, how it serves, the framework version its
 // page must report (a prefix), the specs it runs, and whether it gates every PR or only a release.
-// `scripts/adapter-smoke.mjs` builds and runs whatever this lists.
+// `scripts/smoke/adapter-smoke.mjs` builds and runs whatever this lists.
 const EVERY_APP = ['page-contract', 'host-fill'];
 const REACT = [...EVERY_APP];
 const VUE = [...EVERY_APP, 'vue'];

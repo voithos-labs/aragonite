@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // How long CI takes on a dev push: the wall time from push to the last job, and the runner minutes
-// every job spent. Report-only. `node scripts/ci-time.mjs [run-id]` reads one run (the latest
+// every job spent. Report-only. `node scripts/ci/ci-time.mjs [run-id]` reads one run (the latest
 // successful dev push by default) and the median of the last five; it needs an authenticated `gh`.
 import { execFileSync } from 'node:child_process';
 

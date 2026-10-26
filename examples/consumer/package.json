@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"sync-plugins": "node ../../scripts/sync-consumer-plugins.mjs",
+		"sync-plugins": "node ../../scripts/smoke/sync-consumer-plugins.mjs",
 		"predev": "npm run sync-plugins",
 		"prebuild": "npm run sync-plugins",
 		"precheck": "npm run sync-plugins",

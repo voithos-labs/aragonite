@@ -21,14 +21,14 @@ on:
       - 'vite.config.js'
       - 'vite.prebuilt.config.js'
       - 'THIRD-PARTY-NOTICES.md'
-      - 'scripts/consumer-smoke.mjs'
+      - 'scripts/smoke/consumer-smoke.mjs'
       - 'scripts/lib-alias.mjs'
-      - 'scripts/pack-manifest.mjs'
-      - 'scripts/private-install.mjs'
-      - 'scripts/prune-dist.mjs'
-      - 'scripts/sync-consumer-plugins.mjs'
-      - 'scripts/verify-pack.mjs'
-      - 'scripts/verify-prebuilt.mjs'
+      - 'scripts/pack/pack-manifest.mjs'
+      - 'scripts/smoke/private-install.mjs'
+      - 'scripts/pack/prune-dist.mjs'
+      - 'scripts/smoke/sync-consumer-plugins.mjs'
+      - 'scripts/pack/verify-pack.mjs'
+      - 'scripts/pack/verify-prebuilt.mjs'
       - '.github/workflows/consumer-smoke.yml'
   workflow_dispatch:
 
@@ -55,4 +55,4 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: node scripts/consumer-smoke.mjs
+      - run: node scripts/smoke/consumer-smoke.mjs

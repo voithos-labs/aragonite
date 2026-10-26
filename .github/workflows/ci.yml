@@ -24,7 +24,7 @@ concurrency:
 # runs. Bump the SHA and the comment together.
 #
 # Parallel jobs: the static and unit gate, the e2e suite sharded once per browser engine by
-# measured time (`scripts/e2e-shards.mjs`) and the census over its shards, the prod-build perf
+# measured time (`scripts/ci/e2e-shards.mjs`) and the census over its shards, the prod-build perf
 # gate, the consumer and framework smokes (the packed library installed into example apps), and
 # the emoji-table provenance gate. The Chromium e2e shards run every Playwright project (the perf
 # rows skip themselves there; the perf job runs them against the prod build).
@@ -45,7 +45,7 @@ jobs:
       - id: diff
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: node scripts/ci-code-changed.mjs "$BASE" >> "$GITHUB_OUTPUT"
+        run: node scripts/ci/ci-code-changed.mjs "$BASE" >> "$GITHUB_OUTPUT"
       # The e2e jobs run in Playwright's image for this exact version, which ships every browser
       # and its OS packages, so no job installs them from the Ubuntu mirror.
       - id: playwright
@@ -108,7 +108,7 @@ jobs:
           E2E_SHARD: ${{ matrix.shard }}
           E2E_SHARD_PLAN: ${{ runner.temp }}/shard-list.txt.plan.json
         run: |
-          node scripts/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
+          node scripts/ci/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
           npx playwright test --test-list "$RUNNER_TEMP/shard-list.txt"
       - if: always() && needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -146,7 +146,7 @@ jobs:
           E2E_SHARD: ${{ matrix.shard }}
           E2E_SHARD_PLAN: ${{ runner.temp }}/shard-list.txt.plan.json
         run: |
-          node scripts/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
+          node scripts/ci/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
           npx playwright test --test-list "$RUNNER_TEMP/shard-list.txt"
       - if: always() && needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -205,7 +205,7 @@ jobs:
           E2E_SHARD: ${{ matrix.shard }}
           E2E_SHARD_PLAN: ${{ runner.temp }}/shard-list.txt.plan.json
         run: |
-          node scripts/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
+          node scripts/ci/e2e-shards.mjs "$E2E_SHARD" "$RUNNER_TEMP/shard-list.txt"
           npx playwright test --test-list "$RUNNER_TEMP/shard-list.txt" --workers=4
       - if: always() && needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -232,7 +232,7 @@ jobs:
           pattern: e2e-*
           path: e2e-summaries
       - if: needs.changes.outputs.code == 'true'
-        run: node scripts/e2e-census.mjs e2e-summaries chromium webkit firefox
+        run: node scripts/ci/e2e-census.mjs e2e-summaries chromium webkit firefox
 
   perf:
     needs: changes
@@ -271,7 +271,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: node scripts/consumer-smoke.mjs
+      - run: node scripts/smoke/consumer-smoke.mjs
 
   # The framework gate on each PR: the React and Vue wrappers' tarballs in Vite apps, built and in
   # dev. Next, Nuxt and the oldest supported React and Vue run per release, in adapter-suite.yml.
@@ -285,7 +285,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: node scripts/adapter-smoke.mjs --per-pr
+      - run: node scripts/smoke/adapter-smoke.mjs --per-pr
 
   # The committed emoji table is a generated artifact no other gate reproduces, so
   # a hand-edit or half-finished regen would ship silently. Its own job: no `npm ci`

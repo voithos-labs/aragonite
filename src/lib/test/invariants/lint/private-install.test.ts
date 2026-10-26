@@ -17,7 +17,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { withPrivateInstall } from '../../../../../scripts/private-install.mjs';
+import { withPrivateInstall } from '../../../../../scripts/smoke/private-install.mjs';
 
 let root: string;
 let shared: string;

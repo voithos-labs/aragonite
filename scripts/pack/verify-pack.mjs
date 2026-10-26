@@ -7,7 +7,7 @@ import path from 'node:path';
 import { nodeImportFailures } from './node-import.mjs';
 import { collectLeafStrings, requiredPackPaths } from './pack-manifest.mjs';
 import { BLESS_COMMAND, verifyDevStrip } from './verify-dev-strip.mjs';
-import { checkBudgets, readBaseline } from './measure-baseline.mjs';
+import { checkBudgets, readBaseline } from '../measure/measure-baseline.mjs';
 import { verifyPrebuilt } from './verify-prebuilt.mjs';
 import { verifyTypes } from './verify-types.mjs';
 

@@ -79,7 +79,7 @@ Over a grid the walk is per covered cell: a whole-table selection across a 180k-
 
 ## The numbers and the gate
 
-`src/lib/test/perf/baseline.json` holds the exact numbers and the machine spec, and when this doc and that file disagree, the file is right. The README's performance charts are drawn from that file by `scripts/render-perf-chart.mjs`, and nothing runs it for you, so after a re-bless (recording fresh measurements as the accepted baseline) run `node scripts/render-perf-chart.mjs` too.
+`src/lib/test/perf/baseline.json` holds the exact numbers and the machine spec, and when this doc and that file disagree, the file is right. The README's performance charts are drawn from that file by `scripts/docs/render-perf-chart.mjs`, and nothing runs it for you, so after a re-bless (recording fresh measurements as the accepted baseline) run `node scripts/docs/render-perf-chart.mjs` too.
 
 Three commands measure the editor over shared deterministic fixtures, and exactly one of them is a gate. Work out which one you're looking at before you panic about a number.
 

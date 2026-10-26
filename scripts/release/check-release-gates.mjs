@@ -6,7 +6,7 @@ import { PENDING_GATE_CONTEXTS } from './branch-protection-contexts.mjs';
 if (PENDING_GATE_CONTEXTS.length > 0) {
 	console.error(
 		`release refused: ${PENDING_GATE_CONTEXTS.length} engine check(s) don't gate main yet ` +
-			'(PENDING_GATE_CONTEXTS in scripts/branch-protection-contexts.mjs):\n  ' +
+			'(PENDING_GATE_CONTEXTS in scripts/release/branch-protection-contexts.mjs):\n  ' +
 			PENDING_GATE_CONTEXTS.join('\n  ')
 	);
 	process.exit(1);

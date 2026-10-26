@@ -1,5 +1,5 @@
 // The behavior differential's rows: one JSON object per line, keyed by `in` (the input), sorted,
-// fields in a fixed order. The behavior suites write them and `scripts/behavior.mjs` diffs two
+// fields in a fixed order. The behavior suites write them and `scripts/measure/behavior.mjs` diffs two
 // records of them.
 
 /** Field order in a line; a field a row doesn't have is left out. */

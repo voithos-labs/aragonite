@@ -1,6 +1,6 @@
 /**
  * G4.255: every `test.fixme` names the issue it waits on, as a reason starting `#<number>: `, so
- * the release step that re-runs fixme rows (`scripts/fixme-recheck.mjs`) can say which issue a
+ * the release step that re-runs fixme rows (`scripts/release/fixme-recheck.mjs`) can say which issue a
  * passing row belongs to.
  */
 import { describe, it, expect } from 'vitest';

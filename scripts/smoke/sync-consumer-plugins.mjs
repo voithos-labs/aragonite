@@ -3,11 +3,11 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { aliasPath, isAliasSpelling, publishedEntries } from './lib-alias.mjs';
+import { aliasPath, isAliasSpelling, publishedEntries } from '../lib-alias.mjs';
 
 // Anchor at the repo root, not the cwd, so the consumer's own pre-hooks can run
 // this from examples/consumer as well as CI/the smoke running it from the root.
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const SRC = join(ROOT, 'src/routes/test/plugins');
 const OUT = join(ROOT, 'examples/consumer/src/plugins');
 

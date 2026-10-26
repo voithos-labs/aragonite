@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
+import { corpusFiles } from '../../../../../scripts/docs/doc-corpus.mjs';
 import {
 	citingFiles,
 	headingKeys,
@@ -17,7 +17,7 @@ import {
 	resolvesAgainst,
 	sectionFragment,
 	stripFencedBlocks
-} from '../../../../../scripts/check-codebase-map.mjs';
+} from '../../../../../scripts/docs/check-codebase-map.mjs';
 import { SOURCE } from './source-paths';
 
 const ROOTS = ['src', 'docs', 'scripts', 'examples', 'README.md', 'CONTRIBUTING.md'];
