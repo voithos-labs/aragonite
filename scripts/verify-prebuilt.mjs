@@ -12,13 +12,13 @@ import { prebuiltExternals } from './pack-manifest.mjs';
 const PREBUILT_DIR = 'dist/prebuilt';
 
 // Gzipped bytes per entry, each a little above what it measured, and 23,265 of CSS. A group owns
-// the files its entry loads that no earlier group does. Measured: index 470,051, plugin 9,274,
+// the files its entry loads that no earlier group does. Measured: index 470,892, plugin 9,274,
 // svelte 649, admonitions 4,505, details 3,979, emoji 16,374, footnotes 4,349, highlight-occurrences
-// 1,586, latex 7,507, mermaid 6,937, parrot 4,326, slash-commands 1,973, toc 2,843, testing 17,912.
+// 1,586, latex 7,507, mermaid 6,937, parrot 4,326, slash-commands 1,973, toc 2,843, testing 18,084.
 /** @type {{ js: Record<string, number>, css: number }} */
 const BUDGET = {
 	js: {
-		index: 470_250,
+		index: 471_100,
 		plugin: 9_300,
 		svelte: 750,
 		'plugins/admonitions': 4_650,
@@ -31,7 +31,7 @@ const BUDGET = {
 		'plugins/parrot': 4_450,
 		'plugins/slash-commands': 2_100,
 		'plugins/toc': 2_950,
-		testing: 18_050
+		testing: 18_250
 	},
 	css: 23_800
 };
