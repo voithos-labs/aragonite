@@ -10,8 +10,7 @@ import { metadataOf } from '../../core/nodes';
 import { firstDisplayLine, ownTrailingLineEnding } from '../../core/lines';
 import { canInterruptParagraph } from '../../core/parsers/list';
 import { isBlankParagraph } from '../../core/parser';
-import { keepingListOrder } from '../../invariants/list-move-keeps-order';
-import { leafTexts } from '../../invariants/leaf-text';
+import { keepingListOrder } from './keeping-order';
 import { cloneNode } from '../clone';
 import { assembleListHalf } from './list-builders';
 import { orderedBaseOf } from './ordered-markers';
@@ -30,14 +29,14 @@ export function dissolveItem(
 	firstBlock?: CstNode
 ): DissolvedItem {
 	return keepingListOrder(
-		() => leafTexts([list]),
+		() => [list],
 		() => {
 			const own = list.children![itemIndex].children ?? [];
 			const children = firstBlock ? [firstBlock, ...own.slice(1)] : own;
 			const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
 			return assembleInOrder(list, itemIndex, itemPiecesInOrder(children, parentOrdered));
 		},
-		({ blocks }) => leafTexts(blocks)
+		({ blocks }) => blocks
 	);
 }
 

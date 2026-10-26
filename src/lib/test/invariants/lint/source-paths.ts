@@ -67,11 +67,9 @@ export const SOURCE = {
 	blockEditCore: 'src/lib/editor-actions/block-edit-core.ts',
 	leafCommit: 'src/lib/editor-actions/commit/leaf-commit.ts',
 	commitFrame: 'src/lib/editor-actions/commit/commit-frame.ts',
+	commitScope: 'src/lib/commit-scope.ts',
 	containerBlockComponent: 'src/lib/editor-actions/container-block-component.ts',
 	pluginContainer: 'src/lib/editor-actions/plugin/container.ts',
-
-	// ── Dev checks ──────────────────────────────────────────────────────────
-	commitScope: 'src/lib/invariants/commit-scope.ts',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
 	docPathBrand: 'src/lib/selection/path-math.ts',
@@ -219,11 +217,9 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	blockEditCore: 'export function contentUpdate',
 	leafCommit: 'export function createLeafCommit',
 	commitFrame: 'export function createCommitFrame',
+	commitScope: 'export function isCommitInProgress',
 	containerBlockComponent: 'export function dispatchWholeBlockGlobalChord',
 	pluginContainer: 'export interface ContainerBlockDeps',
-
-	// ── Dev checks ──────────────────────────────────────────────────────────
-	commitScope: 'export function isCommitInProgress',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
 	docPathBrand: 'export type DocPath',

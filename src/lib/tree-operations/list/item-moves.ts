@@ -22,8 +22,7 @@ import {
 import { buildListShell } from './list-builders';
 import { lacksSublistSeparator, settleSublistSeparator } from './sublist-separator';
 import { isBlankText, ownTrailingLineEnding } from '../../core/lines';
-import { keepingListOrder } from '../../invariants/list-move-keeps-order';
-import { leafTexts } from '../../invariants/leaf-text';
+import { keepingListOrder } from './keeping-order';
 import { containerScopeState } from '../paste/parent-scope';
 import type { MultiScopeTarget, PasteCommitCoordinator } from '../paste/paste-deps';
 
@@ -72,7 +71,7 @@ export function nestListItem(
 		snapshot: { path: docPathFrom([...list.path, itemIndex]), offset: 0 },
 		mutate: ([outerScope, destScope]) =>
 			keepingListOrder(
-				() => leafTexts([outerScope.node]),
+				() => [outerScope.node],
 				() => {
 					const sharing = outerScope.sharing;
 					const [movedItem] = outerScope.children.splice(itemIndex, 1);
@@ -164,7 +163,7 @@ export function liftNestedItem(
 		mutate: (scopeViews) => {
 			const [outerScope, nestedScope, parentScope] = scopeViews;
 			return keepingListOrder(
-				() => leafTexts([outerScope.node]),
+				() => [outerScope.node],
 				() => {
 					const sharing = outerScope.sharing;
 					// Opened before the move, since the cleanup below can splice any of the three lists.

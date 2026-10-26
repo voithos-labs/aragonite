@@ -2776,7 +2776,7 @@ const PIECES_UNDER_ORDER_CHECK: FileRule = {
 	misses: [
 		at(
 			ROGUE_DISSOLVE,
-			'return keepingListOrder(\n\t() => leafTexts([list]),\n\t() => assemble(itemPiecesInOrder(children, ordered))\n);'
+			'return keepingListOrder(\n\t() => [list],\n\t() => assemble(itemPiecesInOrder(children, ordered))\n);'
 		),
 		at(ROGUE_DISSOLVE, 'function itemPiecesInOrder(children, ordered) {}')
 	]

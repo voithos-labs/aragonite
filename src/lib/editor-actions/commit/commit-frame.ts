@@ -2,7 +2,7 @@
  * The synchronous body every write to the document runs, a structural commit and a keystroke
  * written in place alike: the reading-mode check, the undo entry, the write with its rollback on a
  * throw, the dev checks over what it wrote, then the content version, the gap caret and `edit`.
- * Decorations read nothing while it runs (`invariants/commit-scope.ts`).
+ * Decorations read nothing while it runs (`commit-scope.ts`).
  */
 
 import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
@@ -10,7 +10,7 @@ import type { CommitSnapshotArg, UndoGrouping } from '../../action-contracts';
 import type { ScopedOpDescriptor } from '../../schema/operations';
 import type { CstNode } from '../../core/nodes';
 import { asDocPath } from '../../selection/path-math';
-import { beginCommit, endCommit } from '../../invariants/commit-scope';
+import { beginCommit, endCommit } from '../../commit-scope';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { endsOpen } from '../../tree-operations/fix-up/apply';
 import { emitCommitError, toEditEvent } from '../../editor-events';

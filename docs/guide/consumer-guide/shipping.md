@@ -4,7 +4,7 @@ Part of the [consumer guide](../consumer-guide.md). What changes once the editor
 
 ## A production build
 
-Build for production and the editor's dev checks drop out of your bundle. Those are the invariant checks and the `[aragonite:…]` console warnings a dev build gives you, and under Vite they're about 15 KB gzipped.
+Build for production and the editor's dev checks drop out of your bundle. Those are the invariant checks and the `[aragonite:…]` console warnings a dev build gives you, and under Vite they're about 18 KB gzipped.
 
 It takes a bundler that resolves the `production` export condition:
 

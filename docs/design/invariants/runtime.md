@@ -224,7 +224,7 @@ out-of-range index silently truncates the chain. Inline closure, watcher-netted.
 **G1.23 · No decoration sources mid-commit.** A decoration source running mid-commit would read a
 half-written tree, so `notifyEdit` and `runAll` assert no commit is open, and a source handle's
 `invalidate()` waits until the last one ends. The commit helper opens and closes the scope in
-`invariants/commit-scope.ts`. Inline closure, watcher-netted. In
+`src/lib/commit-scope.ts`. Inline closure, watcher-netted. In
 `decorations/decoration-state.svelte.ts`.
 
 **G1.24 · Closure-block coherence.** A kind's closure block (its answer to each editor system)
@@ -361,7 +361,7 @@ whole, or it would look selected while keys go to the caret. `placeCaret`, `sele
 **G1.47 · A child measures into its own list** (`measures-in-own-list`). Each block list gives its
 direct children one measure channel, which they join through `useMeasuredChild` with their own path.
 The channel refuses any other path: a list item calling the hook after providing its own inner list
-would put its height in a table that doesn't index it. Predicate `checkMeasuresInOwnList` ·
+would put its height in a table that doesn't index it. Predicate `isOwnChild` ·
 `use-container-windowing.svelte.ts` · `measured-child-routes.svelte.test.ts`; G4.97 is the source
 half.
 
@@ -396,7 +396,7 @@ added tab passes, a lost or moved word fails. `checkIndentKeepsText` · `range-i
 merge that moves blocks between list levels (Tab, Shift+Tab, Backspace at a sublist's start or on a
 first item, Enter in an empty item) keeps the list's leaf text in order, read as G1.58 reads it. A
 merge reads only the two lines it joins, since a live join can drop markers.
-`checkListMoveKeepsOrder` · `item-moves.ts`, `item-partition.ts` (G4.123), `unwrap-merge.ts` ·
+`checkListMoveKeepsOrder`, run by `keeping-order.ts` · `item-moves.ts`, `item-partition.ts` (G4.123), `unwrap-merge.ts` ·
 `list-move-keeps-order.test.ts`, `indent-keeps-order.property.test.ts`.
 
 **G1.71 · A command key over a range runs where it was claimed** (`command-key-landing`). Over a

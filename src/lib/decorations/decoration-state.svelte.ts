@@ -20,7 +20,7 @@ import type {
 	ReplaceDecoration,
 	WidgetDecoration
 } from './types';
-import { isCommitInProgress } from '../invariants/commit-scope';
+import { isCommitInProgress } from '../commit-scope';
 import { contentLengthOf, isProseKind } from '../core/inline';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { recordDecorationRun } from '../perf/instruments';

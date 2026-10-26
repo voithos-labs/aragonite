@@ -11,7 +11,11 @@ import {
 	type AnyInlineKind
 } from '../core/nodes';
 import type { ClosureCell } from './closure';
-import { assertInvariant, type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
+import {
+	assertInvariant,
+	devChecksOn,
+	type InvariantViolation
+} from '@voithos-labs/aragonite/dev-checks';
 import {
 	checkRegistryCompleteness,
 	checkOpenerRegistry,
@@ -115,6 +119,9 @@ const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPl
 export function flushPendingRegistrationChecks(
 	report: RegistrationCheckReport = assertInvariant
 ): void {
+	// `report` is a parameter, so a bundler can't tell it does nothing in production; reading the
+	// switch here lets a production build drop the checks.
+	if (!devChecksOn) return;
 	const work = takeRegistrationFlushWork();
 	if (!work) return;
 	if (work.firstFlush) {
@@ -152,6 +159,7 @@ const isKnownInlineKind = (kind: AnyInlineKind): boolean =>
 export function checkInlineConstructPoliciesAtMount(
 	report: RegistrationCheckReport = assertInvariant
 ): void {
+	if (!devChecksOn) return;
 	report('inline-construct-policy', () =>
 		checkInlineConstructPolicy(
 			listInlineConstructPolicies(),

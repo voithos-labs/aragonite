@@ -25,15 +25,35 @@
 			"tolerance": 2,
 			"unit": "scans"
 		},
-		"minimalAppSvelteGzip": {
-			"baseline": 319475,
+		"minimalAppSvelteFirstLoadGzip": {
+			"baseline": 316457,
 			"tolerance": 1000,
 			"unit": "B"
 		},
-		"minimalAppPrebuiltGzip": {
-			"baseline": 319230,
+		"minimalAppSvelteTotalGzip": {
+			"baseline": 316457,
 			"tolerance": 1000,
 			"unit": "B"
+		},
+		"minimalAppSvelteChunks": {
+			"baseline": 1,
+			"tolerance": 0,
+			"unit": "chunks"
+		},
+		"minimalAppPrebuiltFirstLoadGzip": {
+			"baseline": 316266,
+			"tolerance": 1000,
+			"unit": "B"
+		},
+		"minimalAppPrebuiltTotalGzip": {
+			"baseline": 316266,
+			"tolerance": 1000,
+			"unit": "B"
+		},
+		"minimalAppPrebuiltChunks": {
+			"baseline": 1,
+			"tolerance": 0,
+			"unit": "chunks"
 		}
 	}
 }
