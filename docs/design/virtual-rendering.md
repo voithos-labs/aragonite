@@ -12,7 +12,7 @@ Windowing is why you won't feel your chunker of a file (say, 10 MB): the editor 
 
 ---
 
-To make sure each block has a stable index, the mounted blocks are rendered with the absolute index (the index you would use if there were no windowing). For every scope, the first block is 0, the fifth is 4, the seventh is 6, no matter where the viewport is or which slice is mounted. That gives every block a stable, absolute path (the list of indices from the root down to it), and life is easy. Same deal for the render keys: the slice keys on the block's id.
+To make sure each block has a stable index, the mounted blocks are rendered with the absolute index (the index you would use if there were no windowing). For every scope, the first block is 0, the fifth is 4, the seventh is 6, no matter where the viewport is or which slice is mounted. That gives every block a stable, absolute path (the list of indices from the root down to it), and life is easy. Same deal for the render keys: the slice keys on the block's id. A list gets each child's index and id off the slice itself (`src/lib/windowing/window-slice.ts` :: `windowSlicer`), never by adding the loop's index to the window's start, since the start moves the moment a height change shifts the window and the loop only catches up on the next render. Anything that reads a child's path in between (a size report, say) lands on the wrong block.
 
 ## How tall is a block nobody has rendered?
 

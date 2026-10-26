@@ -97,6 +97,18 @@ export async function holdFixturePhotos(page: Page): Promise<() => number> {
 	return () => held;
 }
 
+/** Holds every request for `static/test-fixtures/photos/` until the returned call opens the gate,
+ *  then lets them all through, so those images decode at a moment the spec picks. */
+export async function gateFixturePhotos(page: Page): Promise<() => void> {
+	let open!: () => void;
+	const gate = new Promise<void>((resolve) => (open = resolve));
+	await page.route('**/test-fixtures/photos/**', async (route) => {
+		await gate;
+		await route.fallback();
+	});
+	return open;
+}
+
 /** Holds every image under `https://e2e-deferred.test/` until the returned call, then serves
  *  `svg`, so an image grows at a moment the spec picks rather than during the load. */
 export async function deferImage(page: Page, svg: string): Promise<() => void> {

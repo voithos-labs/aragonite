@@ -7,7 +7,7 @@
 	import { createListContext } from '../../../editor-actions/list-context';
 	import { createListOverrides } from '../../../editor-actions/list-overrides';
 	import { useContainerWindowing } from '../../../windowing/use-container-windowing.svelte';
-	import { sliceWindow } from '../../../windowing/window-slice';
+	import { windowSlicer } from '../../../windowing/window-slice';
 	import { useWindowFloor } from '../../../windowing/use-window-floor.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
@@ -68,7 +68,8 @@
 		() => boxEl,
 		() => win
 	);
-	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
+	const sliceWindow = windowSlicer<NodeView>();
+	let slice = $derived(sliceWindow(node.children ?? [], listState.innerBlockIds, win));
 
 	const column = $derived(markerColumn(markerWidthsOf(node), hidesMarkers(reading.mode())));
 
@@ -99,15 +100,12 @@
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}
-	<!-- `index`, `myPath` and the key all use the absolute item index, never the loop index:
-	     paths and structural ops key off it. -->
-	{#each (node.children ?? []).slice(bounds.start, bounds.end) as item, localIndex (listState.innerBlockIds[bounds.start + localIndex])}
-		{@const absoluteIndex = bounds.start + localIndex}
+	{#each slice.entries as entry (entry.id)}
 		<ListItemBlock
-			node={item}
-			index={absoluteIndex}
-			id={listState.innerBlockIds[absoluteIndex]}
-			myPath={[...myPath, absoluteIndex]}
+			node={entry.node}
+			index={entry.index}
+			id={entry.id}
+			myPath={[...myPath, entry.index]}
 			itemCount={(node.children ?? []).length}
 			slots={listState.refSlots}
 		/>
