@@ -400,6 +400,7 @@ describeManifests(
 					'waits for a page to stop downloading, decoded or not, before leaving it',
 				'src/lib/e2e/tests/blocks/image/image-load-scroll-stability.spec.ts':
 					'asserts the picture has not loaded yet',
+				'src/lib/e2e/tests/goto-ready.spec.ts': 'asserts a picture is still downloading',
 				'src/lib/e2e/tests/perf/vr-nested-growth.spec.ts':
 					'waits for the picture to decode or unmount, whichever comes first'
 			},
