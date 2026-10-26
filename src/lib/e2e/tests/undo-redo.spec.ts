@@ -258,4 +258,23 @@ test.describe('an undo step changes the document', () => {
 		await editor.redo();
 		await editor.bridge.waitForSourceEquals('#x\n\nbc\n');
 	});
+
+	// The redo's render moves the focused heading in the DOM, which blurs it before the caret lands.
+	test('a redo that moves the focused empty heading keeps it a heading', async () => {
+		const SOURCE = '#\n\nb\n\nc\n';
+		await editor.loadContent(SOURCE);
+		await editor.clickBlock(0);
+		await editor.page.keyboard.press(edgeKey('lineEnd'));
+		await editor.page.keyboard.press('Alt+ArrowDown');
+		await editor.waitForNoSourceMutation();
+		for (let i = 0; i < 3 && (await editor.bridge.getSource()) !== SOURCE; i++) {
+			await editor.undo();
+			await editor.waitForNoSourceMutation();
+		}
+		expect(await editor.bridge.getSource()).toBe(SOURCE);
+
+		await editor.redo();
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('b\n\n#\n\nc\n');
+	});
 });

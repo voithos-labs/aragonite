@@ -27,6 +27,7 @@ A gesture that leaves the bytes as they were is no undo step, and nothing writes
 - in `ab` with the caret after `a`: Enter, type `a`, Backspace, Ctrl+Z: one press gets back to `ab`, and `canRunCommand('history.undo')` then answers false. Miss-analysis: every undo row checked a gesture that changed the bytes, so a typing run that deleted what it typed still read as a step
 - a freshly loaded document answers false to `canRunCommand` for undo and redo; after typing, undo answers true; after undoing it, undo answers false and redo true. Miss-analysis: `canRunCommand` was only ever asked of block commands, and the history commands registered no check of their own
 - an empty `#` heading above a paragraph `b`: type `c` after `b`, then `x` after `#`, Ctrl+Z twice: the empty heading is back, still a heading, with the caret in the paragraph; Ctrl+Shift+Z twice gets back to `#x` above `bc`. Miss-analysis: no undo row moved the caret off an empty heading, which turns itself into a paragraph on blur, so that write landed inside the undo and cleared the redo stack unseen
+- `#`, `b`, `c` with the caret in the empty heading: Alt+ArrowDown, Ctrl+Z back to the start, Ctrl+Shift+Z: `b`, then the empty heading still a heading, then `c`. Miss-analysis: the heading row above blurs the heading only as the caret lands, so nothing checked that the install declines a write before then, when its render moves the focused block
 
 ## Cross-block (covered in selection/undo.md)
 
