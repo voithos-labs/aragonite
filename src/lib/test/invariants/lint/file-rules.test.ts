@@ -549,21 +549,6 @@ const RULES: FileRule[] = [
 		misses: ['const box = el.getBoundingClientRect();', 'const rects = block.getClientRects();']
 	},
 	{
-		id: 'G4.243 the browser moves a selection in one place, the caret writer',
-		matches: /\.modify\s*\(/,
-		allowed: {
-			'src/lib/browser/caret-writer.ts':
-				'the caret writer: its line-edge moves, and the read of which line a caret at a soft wrap shows on'
-		},
-		reason:
-			'a `Selection.modify` moves the caret where the writer never recorded it, so the drawn caret and `canonicalizeCaret` misread it: move through `moveCaretToLineEdge` or `extendToLineEdge`, or ask `focusEndsLine`',
-		hits: [
-			"sel.modify('move', 'forward', 'line');",
-			"window.getSelection()!.modify ('extend', 'left', 'lineboundary');"
-		],
-		misses: ['const modified = view.modifiedAt;', 'modify(node);']
-	},
-	{
 		id: 'G4.243 the caret’s line is decided through the soft-wrap read',
 		matches: /\bcaretRectAt(?:Raw)?\s*\(/,
 		allowed: {
@@ -865,25 +850,6 @@ const RULES: FileRule[] = [
 		misses: [
 			"const host = el.closest('[data-block-path]');\nreadBlockPath(host);",
 			'const parsed = JSON.parse(payload);'
-		]
-	},
-	{
-		id: 'the browser is asked for a caret at a point in one module',
-		matches: /\bcaret(Range|Position)FromPoint\b/,
-		allowed: {
-			'src/lib/browser/point.ts':
-				'caretSeatFromPoint, behind the offset lookups that move a padding point level with a line'
-		},
-		reason:
-			'Mac and Linux Chromium answer a point in an element’s top or bottom padding with the line’s start or end: resolve a point through offsetFromViewportPoint or caretOffsetAtPoint',
-		hits: [
-			'const r = document.caretRangeFromPoint(x, y);',
-			'const p = (doc as any).caretPositionFromPoint?.(x, y);'
-		],
-		misses: [
-			'const offset = offsetFromViewportPoint(el, x, y);',
-			'const seat = caretSeatFromPoint(document, x, y);',
-			'// never call caretRangeFromPoint here\nconst a = 1;'
 		]
 	},
 	{
@@ -2844,10 +2810,6 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		branches: 1,
 		reason:
 			'with no document there is no focus or selection a landing could move, so nothing to compare'
-	},
-	'src/lib/schema/commands.ts :: warnSelectionKept': {
-		branches: 1,
-		reason: 'with no DOM a block holds no selection, so no command runs beside one'
 	},
 	'src/lib/editor-actions/replacement-focus.ts :: focusMovedOutsideReplacement': {
 		branches: 1,

@@ -33,9 +33,8 @@ export function getCurrentCursorEditorRelativeX(
 	el: HTMLElement,
 	lineRead: LineRead
 ): EditorX | null {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return null;
-	const range = movingEnd(sel);
+	const range = movingEnd();
+	if (!range) return null;
 
 	const rect =
 		focusCaretAtWrap(el, range, lineRead) ??

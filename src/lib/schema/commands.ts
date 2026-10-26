@@ -258,9 +258,13 @@ export function warnDeadKeyCommand(id: AnyCommandId, path: CommandDispatchPath):
 const warnedSelectionKept = new Set<string>();
 
 /** Dev-warn once per (kind, id) that a command asking for a selection's removal reached a block that
- *  can't remove one while a selection is live, so the command runs beside the selection. */
-export function warnSelectionKept(kind: AnyBlockKind, id: AnyCommandId): void {
-	if (globalThis.getSelection?.()?.isCollapsed !== false) return;
+ *  can't remove one while the browser holds a range, so the command runs beside the selection. */
+export function warnSelectionKept(
+	kind: AnyBlockKind,
+	id: AnyCommandId,
+	holdsRange: () => boolean
+): void {
+	if (!holdsRange()) return;
 	const key = `${kind} ${id}`;
 	if (warnedSelectionKept.has(key)) return;
 	warnedSelectionKept.add(key);

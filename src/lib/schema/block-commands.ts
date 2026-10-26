@@ -186,6 +186,8 @@ export interface CommandGates {
 	activation: PluginActivation;
 	/** True while a cross-block range is painted. */
 	isCrossBlockRange(): boolean;
+	/** Whether the browser holds a selected range, which a command that can't remove it warns about. */
+	holdsNativeRange(): boolean;
 	crossBlockCommands: CrossBlockCommandRouter;
 	/** The interactive mark at the caret, which `decorations.activateAtCaret` runs. */
 	markActivation: MarkActivation;
@@ -326,7 +328,7 @@ function runBlockLocalCommand(
 		return runAtCaret(resolved, id, arg, path, ctx, run);
 	}
 	if (!target.afterSelectionRemoved) {
-		warnSelectionKept(target.kind, id);
+		warnSelectionKept(target.kind, id, ctx.holdsNativeRange);
 		return runAtCaret(resolved, id, arg, path, ctx, run);
 	}
 	// Resolved again after the removal, so a plugin's handler reads the block it left.

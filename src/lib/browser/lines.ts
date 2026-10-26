@@ -57,8 +57,10 @@ export function charRect(text: Text, at: number): DOMRect | null {
 }
 
 /** Where the caret is for a vertical move: the caret itself, or a selection's focus, the end a
- *  Shift+Arrow moves and a plain arrow moves from. Collapsed. */
-export function movingEnd(sel: Selection): Range {
+ *  Shift+Arrow moves and a plain arrow moves from. Collapsed; null with no selection. */
+export function movingEnd(): Range | null {
+	const sel = window.getSelection();
+	if (!sel || sel.rangeCount === 0) return null;
 	if (sel.isCollapsed || !sel.focusNode) return sel.getRangeAt(0);
 	const range = document.createRange();
 	range.setStart(sel.focusNode, sel.focusOffset);
@@ -360,11 +362,10 @@ function isAtEdgeVisualLine(
 	lineRead: LineRead,
 	edge: { isEmpty: boolean; toStart: boolean; boundaryTop: () => number | null }
 ): boolean {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return fallback();
+	const cursorRange = movingEnd();
+	if (!cursorRange) return fallback();
 	if (edge.isEmpty) return true;
 
-	const cursorRange = movingEnd(sel);
 	const tolerance = sameLineTolerance(el);
 
 	const wrap = softWrapAt(cursorRange, el);

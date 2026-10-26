@@ -69,7 +69,7 @@ The probe, for the curious:
 - `caretOffsetAtPoint` clamps the point into the element's box and hands it to the exact probe, `offsetFromViewportPoint`. A shift-click and stage 1's two presses call the exact one directly.
 - The exact probe declines a point outside its element without asking the browser, which would answer one beside it with an offset inside.
 - It moves a point in the top or bottom padding level with the nearest line first, because Chromium on Mac and Linux answers a point above the first line with that line's start (below the last, its end). Sideways padding stays put: every OS keeps the column there, and a list item's marker hangs in it.
-- Two lints hold this shape: every call to the browser's point-to-caret lookup stays in `point-offset.ts`, and a file that mounts an editable surface calls `handlePointerDown` exactly once from each pointer-down handler it binds.
+- Two lints hold this shape: every call to the browser's point-to-caret lookup stays in `browser/point.ts` (G4.270), and a file that mounts an editable surface calls `handlePointerDown` exactly once from each pointer-down handler it binds.
 
 ## 3. The one way in
 
@@ -86,7 +86,7 @@ Below the verbs:
 - Then `src/lib/browser/caret-writer.ts` :: `placeCaretAtRaw` turns the raw offset into a DOM position: past the container's marker prefix, never behind a hidden marker run, and only where a caret can actually sit. A line's start lands in the text after the line break, not at the end of the node that holds it, since WebKit and Firefox draw a caret there on the line above. In an empty block that's before its placeholder `<br>` (the line break an empty editable holds so it has a line at all, alone or after a list item's marker), since Chromium drops an IME composition started after it.
 - A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `place-caret.ts`, which ends what the editor had selected the way `focus` does.
 - The two selections the editor keeps without a DOM caret have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a lint fails any other file that writes either.
-- A lint fails any native selection write outside `widget-offset.ts`.
+- A lint (G4.270) fails any native selection write outside the caret writer, `browser/caret-writer.ts`.
 
 ## 4. The snap
 

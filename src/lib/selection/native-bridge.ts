@@ -11,6 +11,7 @@ import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkPlacementEndsWidget } from '../invariants/placement-ends-widget';
 import { rawOffsetAt } from '../browser/offsets';
 import type { CaretWriter } from '../browser/caret-writer';
+import { readNativeSelection } from '../browser/selection-read';
 import { blockContentElAt } from '../caret/block-el-lookup';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 
@@ -22,14 +23,13 @@ export function readNativeCaretInBlock(
 	path: number[]
 ): SelectionPoint | null {
 	if (document.activeElement !== blockEl) return null;
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return null;
-	const range = sel.getRangeAt(0);
+	const live = readNativeSelection();
+	if (!live) return null;
 	// In a backward selection the anchor sits at the range's end, so the range start would be the
 	// moving focus; the real anchor is used whenever it lies inside the block.
-	const useAnchor = !sel.isCollapsed && sel.anchorNode !== null && blockEl.contains(sel.anchorNode);
-	const node = useAnchor ? sel.anchorNode! : range.startContainer;
-	const nodeOffset = useAnchor ? sel.anchorOffset : range.startOffset;
+	const useAnchor = !live.collapsed && blockEl.contains(live.anchor.node);
+	const node = useAnchor ? live.anchor.node : live.range.startContainer;
+	const nodeOffset = useAnchor ? live.anchor.offset : live.range.startOffset;
 	return { path: path.slice(), offset: rawOffsetAt(blockEl, node, nodeOffset) };
 }
 
@@ -139,12 +139,13 @@ function nativeRangeInFocusedBlock(path: number[]): EditorSelection | null {
 	if (typeof document === 'undefined' || typeof window === 'undefined') return null;
 	const active = document.activeElement;
 	if (!(active instanceof HTMLElement)) return null;
-	const sel = window.getSelection();
-	if (!sel || sel.isCollapsed || sel.anchorNode === null || sel.focusNode === null) return null;
-	if (!active.contains(sel.anchorNode) || !active.contains(sel.focusNode)) return null;
+	const live = readNativeSelection();
+	if (!live || live.collapsed) return null;
+	const { anchor, focus } = live;
+	if (!active.contains(anchor.node) || !active.contains(focus.node)) return null;
 	return {
-		anchor: { path: path.slice(), offset: rawOffsetAt(active, sel.anchorNode, sel.anchorOffset) },
-		focus: { path: path.slice(), offset: rawOffsetAt(active, sel.focusNode, sel.focusOffset) }
+		anchor: { path: path.slice(), offset: rawOffsetAt(active, anchor.node, anchor.offset) },
+		focus: { path: path.slice(), offset: rawOffsetAt(active, focus.node, focus.offset) }
 	};
 }
 

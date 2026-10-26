@@ -811,6 +811,7 @@
 		activation: activePlugins,
 		getPresentationMode: reading.mode,
 		isCrossBlockRange: () => selectionState.isCrossBlock,
+		holdsNativeRange,
 		crossBlockCommands,
 		markActivation,
 		undoStack: undoManager,

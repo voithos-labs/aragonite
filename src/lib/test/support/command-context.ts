@@ -7,6 +7,7 @@ import type {
 import type { MarkActivation } from '#lib/decorations/mark-activation.js';
 import type { KeybindingOverrideMap } from '#lib/schema/keybinding-overrides.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { holdsNativeRange } from '#lib/browser/selection-read.js';
 
 /** A cross-block handler that reaches nothing, as with no range painted. */
 export const INERT_RANGE_ROUTER: CrossBlockCommandRouter = {
@@ -28,6 +29,8 @@ export function commandContext(over: Partial<CommandDispatchContext> = {}): Comm
 		activation: everyInstalledPlugin,
 		getPresentationMode: () => 'source',
 		isCrossBlockRange: () => false,
+		// A suite with no DOM holds no selection, so no command runs beside one.
+		holdsNativeRange: () => typeof window !== 'undefined' && holdsNativeRange(),
 		crossBlockCommands: INERT_RANGE_ROUTER,
 		markActivation: INERT_MARK_ACTIVATION,
 		undoStack: { canUndo: true, canRedo: true },

@@ -148,7 +148,7 @@ const crossed: RawOffset = dom;
 
 The allowed conversions are named functions in `src/lib/core/coordinate-spaces.ts`
 (`toRawOffset`, `toDomTextOffset`, and friends). A source scan also fails any native selection
-write outside `widget-offset.ts`.
+write outside the caret writer (`browser/caret-writer.ts`).
 
 **Spec:** `docs/design/editor.md` § CST ↔ DOM synchronization. ([rule 4](rules.md#the-five-rules))
 

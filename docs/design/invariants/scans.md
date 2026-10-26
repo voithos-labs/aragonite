@@ -52,7 +52,7 @@ unguarded.
 | G4.33  | Live-mode byte candidates verify against what actually paints                                    | L       |
 | G4.34  | Link bytes are written only through the one link byte module                                     | L       |
 | G4.35  | A construct stamps its markers exactly when its policy row says revealable                       | L       |
-| G4.36  | The native selection is written only by the editor's caret writer in `widget-offset.ts`          | L       |
+| G4.36  | A DOM position from walk offsets, a raw range and a public focus are built only in listed files  | L       |
 | G4.37  | Every surface rendering into a caret-walk container stamps content-empty                         | L       |
 | G4.38  | Every editable surface publishes each of `EDITABLE_SURFACE_MEMBERS`                              | L       |
 | G4.39  | Every text-surface component publishes `runCommand`                                              | L       |
@@ -184,7 +184,7 @@ unguarded.
 | G4.219 | No popover closes on focus leaving; every focus-loss listener serves a listed need               | L       |
 | G4.220 | A clipboard read or write outside a clipboard event goes through `system-clipboard.ts`           | L       |
 | G4.221 | No constructed `ClipboardEvent`; a selection's shown text is read in one place                   | L       |
-| G4.222 | The browser's selection is read through the bridge readers                                       | L       |
+| G4.222 | _Retired upward_: the selection is read only under `browser/` (G4.270)                           | L       |
 | G4.223 | The library names no browser engine in code                                                      | L       |
 | G4.224 | A press on editor chrome takes no focus, unless its file is listed as owning focus               | L       |
 | G4.225 | The drag session is the first listener to hear a release                                         | L       |
@@ -201,7 +201,7 @@ unguarded.
 | G4.239 | No block runs a merge by its id; a delete at an edge runs the plain key's binding                | L       |
 | G4.240 | Every `ResizeObserver` is made in `windowing/observe-resize.ts`                                  | L       |
 | G4.241 | _Retired upward_: the run layout and the joins are the commit’s own steps (G4.258)               | L       |
-| G4.243 | Only the caret writer calls `Selection.modify`; a caret's line is read through one step          | L       |
+| G4.243 | A caret's line is read through one step; `Selection.modify` is the caret writer's (G4.270)       | L       |
 | G4.245 | A kind's write rule is run through `kindWriteRule`                                               | L       |
 | G4.247 | A production build of the published package carries no dev check                                 | harness |
 | G4.248 | Dev-only code reads one switch, in `dev-checks.ts`, imported by its package name                 | L       |
@@ -216,6 +216,7 @@ unguarded.
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
 | G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
 | G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
+| G4.270 | The selection, `Selection.modify` and the caret at a point are touched only under `browser/`     | L       |
 
 ### The entries
 
@@ -406,16 +407,15 @@ nothing, and a row without a stamp addresses nothing. An absent row reads as `re
 `lint/stamp-revealable-parity.test.ts`.
 
 **G4.36 · Caret-write sites.** Every native selection write goes through the editor's caret writer,
-`caret/widget-offset.ts :: createCaretWriter` (`EditorServices.caretWriter`), which asks the drawn
-caret to repaint after it (G4.143). A caret goes through `placeCaretAtRaw`, which skips the marker
-prefix, never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or
-`exact`); a range through `selectRawRange`, `extendSelectionToRaw`, `selectSurfaceContent`, or
-`selectDomRange` for nodes in hand. The scan pins four file lists, each with per-file reasons:
+`browser/caret-writer.ts :: createCaretWriter` (`EditorServices.caretWriter`), which asks the drawn
+caret to repaint after it (G4.143), and G4.270 fails a write anywhere else. A caret goes through
+`placeCaretAtRaw`, which skips the marker prefix, never lands behind a hidden marker run, and takes
+a required `clamp` (`reachable` or `exact`); a range through `selectRawRange`,
+`extendSelectionToRaw`, `selectSurfaceContent`, or `selectDomRange` for nodes in hand. The scan
+pins three file lists, each with per-file reasons:
 
-- the files calling a native selection writer, which is `widget-offset.ts` alone (the shapes are
-  in `lint/native-selection-write.ts`, which G4.143 reads too);
-- the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
-  that measure with it);
+- the files building a DOM position from a DOM-walk offset (`browser/offsets.ts` and the readers
+  that measure with it), so no hand-built range reaches `selectDomRange`;
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
 - the surfaces building `focus` from `placeCaret` (`selection/place-caret.ts`).
 
@@ -1232,13 +1232,6 @@ since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The select
 `shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF,
 and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
 
-**G4.222 · The selection is read in one place.** Engines differ in what the selection reports (a
-caret inside a widget, an anchor inside a CRLF pair), so every file reads it through
-`selection/native-bridge.ts` (`readNativeSelection`, `rawSelectionIn`, `nativeRangeIn`,
-`holdsNativeRange`) or `rawSelectionFocus`. The raw readers left (`caret/`, which the bridge
-imports, two files the selection layer imports, and G4.221's `shownSelectionText`) are listed with
-their reason, and the list only shrinks. `lint/native-selection-reads.test.ts`.
-
 **G4.223 · No engine sniffing.** `src/lib` outside `debug/` names no engine in script (`isFirefox`,
 a user-agent read, `Edg/`): an engine bug is fixed where the editor reads or decides, the same way
 on all three, and a CSS vendor prefix or a platform read (Mac's Cmd) is fine. Zero is the baseline
@@ -1336,8 +1329,8 @@ points say when observing starts. `file-rules.test.ts`.
 
 **G4.243 · One read of the caret's line.** At a soft wrap a caret's one DOM position is on two
 lines, and `caretRectAt` reads one of them whatever the browser shows. So at a wrap the line
-checks in `browser/lines.ts` ask the browser, through the caret writer, the one file allowed
-to call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
+checks in `browser/lines.ts` ask the browser through the caret writer, the one file G4.270 lets
+call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
 wrong at a wrap is harmless or a known gap. `lint/file-rules.test.ts`.
 
 **G4.245 · One way to run a write rule.** A kind's `rawWrite` is read only by
@@ -1417,3 +1410,10 @@ every request a test's pages make to another host and fails the spec at teardown
 so the suites run without a network. A spec's own route for a made-up host runs before the block.
 `route.continue()` would send a request straight past it, so a route passes requests on with
 `route.fallback()`. `e2e/lint/e2e-drivers.test.ts`.
+
+**G4.270 · The browser is touched in one module.** Outside `browser/`, `src/lib` reads no native
+selection, writes none and asks no `caretRangeFromPoint` or `caretPositionFromPoint`, with no
+allowlist (`debug/`'s recorder may read what it records). Inside it only `caret-writer.ts` writes,
+`Selection.modify` included; the shapes are in `lint/native-selection-write.ts`, which G4.143 reads
+too. A directory that can't import `browser/` takes the read as a parameter.
+`lint/browser-module.test.ts`.

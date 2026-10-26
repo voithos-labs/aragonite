@@ -410,7 +410,7 @@ offset). Predicate `invariants/command-key-landing.ts :: checkCommandLanding` ·
 **G1.75 · The caret goes before an empty block's `<br>`** (`caret-before-break`). An empty editable
 holds one `<br>`, and a caret looks the same on either side, but in Chromium a composition started
 after it is dropped after its first update, losing or doubling the text. Every caret and range the
-editor writes passes `browser/caret-writer.ts :: writeSelection`, which checks both ends in dev (G4.36
+editor writes passes `browser/caret-writer.ts :: writeSelection`, which checks both ends in dev (G4.270
 keeps every selection write there). `checkCaretBeforeBreak` · `caret-before-break.test.ts`.
 
 **G1.76 · The drawn caret agrees** (`drawn-caret-agrees`). At a `selectionchange` with no paint
