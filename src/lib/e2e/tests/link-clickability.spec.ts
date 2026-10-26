@@ -5,28 +5,34 @@ test.describe('link clickability', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
+		// The new tab only has to open at the link's address, so a test-only host answers it.
+		await page
+			.context()
+			.route('https://e2e-link.test/**', (route) =>
+				route.fulfill({ contentType: 'text/html', body: '<title>link target</title>' })
+			);
 		editor = new EditorPage(page);
 		await editor.goto();
 	});
 
 	test('Ctrl+click on inline link opens URL in new tab', async ({ context }) => {
-		await editor.loadContent('Visit [Example](https://example.com) here.\n');
+		await editor.loadContent('Visit [Example](https://e2e-link.test) here.\n');
 		const link = editor.page.locator('a.md-link-content', { hasText: 'Example' });
 		const popupPromise = context.waitForEvent('page');
 		await link.click({ modifiers: ['ControlOrMeta'] });
 		const popup = await popupPromise;
-		await popup.waitForURL('https://example.com/');
-		expect(popup.url()).toBe('https://example.com/');
+		await popup.waitForURL('https://e2e-link.test/');
+		expect(popup.url()).toBe('https://e2e-link.test/');
 	});
 
 	test('Ctrl+click on bare URL autolink opens URL', async ({ context }) => {
-		await editor.loadContent('See https://example.com today.\n');
-		const link = editor.page.locator('a.md-autolink', { hasText: 'https://example.com' });
+		await editor.loadContent('See https://e2e-link.test today.\n');
+		const link = editor.page.locator('a.md-autolink', { hasText: 'https://e2e-link.test' });
 		const popupPromise = context.waitForEvent('page');
 		await link.click({ modifiers: ['ControlOrMeta'] });
 		const popup = await popupPromise;
-		await popup.waitForURL('https://example.com/');
-		expect(popup.url()).toBe('https://example.com/');
+		await popup.waitForURL('https://e2e-link.test/');
+		expect(popup.url()).toBe('https://e2e-link.test/');
 	});
 
 	test('Ctrl+click on email autolink opens mailto:', async () => {
@@ -51,7 +57,7 @@ test.describe('link clickability', () => {
 	test('plain click on link does not navigate (cursor placement preserved)', async ({
 		context
 	}) => {
-		await editor.loadContent('Visit [Example](https://example.com) here.\n');
+		await editor.loadContent('Visit [Example](https://e2e-link.test) here.\n');
 		const link = editor.page.locator('a.md-link-content', { hasText: 'Example' });
 		let popupFired = false;
 		context.on('page', () => {

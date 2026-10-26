@@ -87,6 +87,16 @@ export function focusedBlockSurface(
 	});
 }
 
+/** Leaves every request for `static/test-fixtures/photos/` unanswered, so those images never
+ *  decode; call it before the navigation, and assert the returned count of held requests. */
+export async function holdFixturePhotos(page: Page): Promise<() => number> {
+	let held = 0;
+	await page.route('**/test-fixtures/photos/**', () => {
+		held++;
+	});
+	return () => held;
+}
+
 /** Holds every image under `https://e2e-deferred.test/` until the returned call, then serves
  *  `svg`, so an image grows at a moment the spec picks rather than during the load. */
 export async function deferImage(page: Page, svg: string): Promise<() => void> {

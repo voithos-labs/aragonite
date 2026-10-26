@@ -2,8 +2,8 @@
  * An e2e spec drives the browser through the shared helpers, each supplying what a raw call skips:
  * the IME driver (G4.49), the clipboard helper (G4.212), `gotoReady` and `reloadReady`, the mode
  * switch that waits (G4.133), the Firefox click-run, insert and in-place helpers (G4.228), the
- * platform's own key spelling (G4.226), `endTypingBatch` (G4.232) and `waitForImagesDecoded`.
- * Probe text is spelled in pieces, since this file is scanned too.
+ * platform's key spelling (G4.226), `endTypingBatch` (G4.232), `waitForImagesDecoded` and a route's
+ * `fallback`, past the fixture's off-host block (G4.269). Probe text is spelled in pieces.
  */
 import { it, expect } from 'vitest';
 import { collectFiles, readSource } from '../../test/invariants/lint/scan-source';
@@ -416,6 +416,16 @@ describeManifests(
 				'new TextDecoder().decode(bytes)',
 				'expect(row.completed).toBe(true);'
 			]
+		},
+		{
+			id: 'G4.269 every e2e route passes a request on with fallback, past the off-host block',
+			population: SCANNED_SPECS,
+			matches: /\.\s*continue\s*\(/,
+			declared: {},
+			reason:
+				"pass the request on with route.fallback(): route.continue() sends it to the network past the fixture's block on other hosts (src/lib/e2e/fixtures.ts)",
+			hits: ['route.continue()', 'await r.continue({ headers });'],
+			misses: ['await route.fallback();', 'continue;']
 		}
 	],
 	files
