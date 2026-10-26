@@ -192,7 +192,7 @@
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readText: () => readCellText(),
+		readInput: (caret) => ({ text: readCellText(), caret }),
 		repaint: () => cellRender.render({ forceRebuild: true }),
 		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),

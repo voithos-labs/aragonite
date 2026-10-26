@@ -110,7 +110,7 @@
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(el).length,
-		readText: () => plainTextOf(el),
+		readInput: (caret) => ({ text: plainTextOf(el), caret }),
 		repaint: paintCode,
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,

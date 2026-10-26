@@ -107,7 +107,7 @@ export function makeSurface(
 		pasteCoordinator: {},
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
-		readText: () => el.textContent ?? '',
+		readInput: (caret: number) => ({ text: el.textContent ?? '', caret }),
 		compositionSeat: options.compositionSeat,
 		handleKeydown: options.handleKeydown ?? (async () => {}),
 		handleBeforeInput: options.handleBeforeInput,

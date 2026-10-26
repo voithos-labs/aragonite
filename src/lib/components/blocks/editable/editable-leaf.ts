@@ -255,7 +255,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(deps.getEl()).length,
-		readText: () => plainTextOf(deps.getEl()),
+		readInput: (caret) => ({ text: plainTextOf(deps.getEl()), caret }),
 		repaint: syncSource,
 		handleKeydown,
 		localHistory: (e) =>

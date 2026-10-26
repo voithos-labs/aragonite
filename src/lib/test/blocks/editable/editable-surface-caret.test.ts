@@ -75,10 +75,10 @@ describe('pre-edit caret', () => {
 		it('is the caret at keydown, for a key the block writes itself', async () => {
 			const harness = makeSurface({
 				handleKeydown: async () => {
-					harness.setCaret(9);
+					harness.setCaret(7);
 					void harness.surface.writeText({
 						text: 'written',
-						caretAfter: 9,
+						caretAfter: 7,
 						intent: 'typed',
 						history: 'join-typing',
 						mode: 'authored',
@@ -116,11 +116,29 @@ describe('pre-edit caret', () => {
 			setCaret(5);
 			surface.onBeforeInput(insertText('x'));
 			surface.notePreEditOffset(2);
-			el.textContent = 'ab';
+			el.textContent = 'abcdef';
 			surface.onInput(new InputEvent('input'));
 
 			expect(commits.map((c) => c.preEdit)).toEqual([2]);
 		});
+	});
+});
+
+describe('the input read', () => {
+	// Miss-analysis: only Firefox keeps the hidden `#` the read drops, and the merge gate ran Chromium.
+	afterEach(() => {
+		document.body.innerHTML = '';
+	});
+
+	it('writes the caret the block read moved along with its text', () => {
+		const { surface, commits, el, setCaret } = makeSurface({
+			overrides: { readInput: (caret) => ({ text: ' ', caret: caret - 2 }) }
+		});
+		el.textContent = '#  ';
+		setCaret(3);
+		surface.onInput(new InputEvent('input'));
+
+		expect(commits.map((c) => c.saved)).toEqual([1]);
 	});
 });
 

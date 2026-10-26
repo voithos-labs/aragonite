@@ -70,6 +70,7 @@ import type { RemovalGesture } from '../selection/caret-target';
 import { admitsWrite } from './commit/reading-write-gate';
 import { refusedWrite, withStoredCaret } from './stored-caret';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkCaretInWrittenText } from '../invariants/write-caret';
 
 /** What both merge directions do when the neighbour cannot merge; `dir` names its side. */
 async function handleIneligibleNeighbor(
@@ -110,6 +111,9 @@ async function handleIneligibleNeighbor(
 export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlockContent'] {
 	return (index, text, mode, history, preEditOffset, postEditFocusOffset) => {
 		scope.caretMemory.forget();
+		assertInvariant('caret-in-written-text', () =>
+			checkCaretInWrittenText(text, postEditFocusOffset ?? preEditOffset)
+		);
 		const kind = () => scope.children()[index]?.kind;
 		if (!admitsWrite(scope, 'updateContent', kind)) return refusedWrite();
 		const write = legalizeWrite(scope.target(), index, text, mode);

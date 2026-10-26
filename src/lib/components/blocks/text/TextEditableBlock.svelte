@@ -60,7 +60,7 @@
 	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import {
-		rawTextOfContent,
+		readContent,
 		revealsNoMarkers,
 		rawSelectionFocus,
 		caretOnPendingBreakLine
@@ -232,7 +232,7 @@
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readText: () => readRawText(),
+		readInput,
 		repaint: () => textRender.render({ forceRebuild: true }),
 		compositionSeat,
 		placement: typedPlacement,
@@ -780,8 +780,8 @@
 
 	const onInput = editableSurface.onInput;
 
-	function readRawText(): string {
-		return el ? rawTextOfContent(el, node.raw, structuralSuffix(node)) : '';
+	function readInput(caret: number): { text: string; caret: number } {
+		return el ? readContent(el, node.raw, structuralSuffix(node), caret) : { text: '', caret };
 	}
 
 	// Built once, not per keydown: every typed character passes both key handlers.
