@@ -146,6 +146,22 @@ describe('the lines a placed block ends', () => {
 		expect(list.raw).toBe('1. one\n6. Ordered\n7. third\n');
 	});
 
+	// Miss-analysis: no merged container carried child spans, so spans left on its old bytes went unseen.
+	it('a list that merges the placed block in place keeps no spans of its old bytes', () => {
+		const doc = parse('- a\n- b');
+		const list = doc.children[0];
+		rebuildListRaw(list);
+		placeLast(documentBody(doc), { kind: 'paragraph', leadingTrivia: '', raw: '  c' });
+		expect(doc.children).toEqual([list]);
+		expect(list.raw).toBe('- a\n- b\n  c\n');
+		const spans = list.childSpans;
+		const regions =
+			spans && list.children!.map((_, i) => list.raw.slice(spans[2 * i], spans[2 * i + 1]));
+		expect(regions ?? null).toEqual(
+			spans ? list.children!.map((c) => c.leadingTrivia + c.raw) : null
+		);
+	});
+
 	it('leaves a row’s cells alone: they sit inside the row’s line', () => {
 		const table = parse('| a | b |\n| --- | --- |\n| c | d |').children[0];
 		const row = table.children!.at(-1)!;

@@ -1,7 +1,10 @@
 import { caretInBlocks } from '#lib/tree-operations/fix-up/apply.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
-import { settledCaretPosition } from '../../tree-operations/content-write';
+import { serialize } from '../../core/serializer';
+import { settledCaretPosition, updateNodeContent } from '../../tree-operations/content-write';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { caretTargetFor } from '../../selection/caret-target';
 import { docPathFrom } from '../../caret/coordinate-spaces';
 import { CURSOR_END } from '../../block-component';
@@ -52,6 +55,15 @@ describe('settledCaretPosition', () => {
 			index: 0,
 			offset: 3
 		});
+	});
+
+	// A filled blank block hands its line to the block below, which moves no block, so the caret stays.
+	// Miss-analysis: every case here built its change by hand, never through the write's fix-up.
+	it('keeps the caret in a filled blank block whose line went to the block below', () => {
+		const doc = parse('\n-a **\n');
+		const settled = updateNodeContent(doc, 0, '()\n', defaultGrammarView, createSharingState());
+		expect(serialize(doc)).toBe('()\n\n-a **\n');
+		expect(settledCaretPosition(settled, 0, 1, doc.children)).toEqual({ index: 0, offset: 1 });
 	});
 
 	// The multi-block window still descends, and the descent starts behind the absorbed bytes:

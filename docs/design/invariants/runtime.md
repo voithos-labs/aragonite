@@ -108,6 +108,7 @@ These checks run in three kinds of place:
 | G1.150 | A block repaints from its bytes after an input the tree took back                             | A·N     |
 | G1.151 | A keystroke written in place leaves no node it wrote shared with an undo entry                | A·N     |
 | G1.152 | _Retired_: its premise was wrong; a fold that keeps its index can still move the leaf's bytes | A       |
+| G1.154 | A content write's fixed-up window holds the block it wrote                                    | A·N     |
 
 ### The entries
 
@@ -637,3 +638,9 @@ place, no node it wrote (the leaf and its ancestors) is still shared with an und
 write through a shared node rewrites history (G1.9). It runs on every key, over the nodes that key
 wrote; the whole-entry digest still runs at the next commit. `checkWrittenUnshared` · `leaf-commit.ts` ·
 `keystroke-commit-frame.test.ts`.
+
+**G1.154 · The caret's window holds the write** (`write-in-window`). When a content write's fix-up
+reports a replaced window, that window holds the written block, since the caret is placed by
+reading that window's blocks. A fix-up that moved no block reports no window at all.
+`checkWriteInWindow` · `content-write.ts :: settledCaretPosition` ·
+`replacement-focus-target.test.ts`, the simulation.

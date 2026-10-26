@@ -51,6 +51,8 @@ import {
 } from './node-primitives';
 import { ensureEditableContainers } from '../schema/opened-reading';
 import { caretInBlocks, fixUpWrite, type FixedUpWrite, type WrittenSlot } from './fix-up/apply';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkWriteInWindow } from '../invariants/structural-descriptor';
 
 export type { FixedUpWrite, WrittenSlot };
 
@@ -431,6 +433,7 @@ export function settledCaretPosition(
 ): { index: number; offset: number } {
 	const { change, textStart } = settled;
 	if (change.op !== 'replace') return { index: at, offset };
+	assertInvariant('write-in-window', () => checkWriteInWindow(change, at));
 	const shifted = offset + textStart;
 	if (change.newCount <= 1) return { index: change.at, offset: shifted };
 	const blocks = children.slice(change.at, change.at + change.newCount);

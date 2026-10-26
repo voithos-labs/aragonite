@@ -47,4 +47,29 @@ describe('the join question under a table', () => {
 		expect(perfSnapshot().parseBytes).toBeLessThanOrEqual(table.length + follower.length);
 		expect(serialize(doc)).toBe(table + follower);
 	});
+
+	// The join below a placed block asks the full question; the placed block's own join never does.
+	// Miss-analysis: the case above reaches only that own join, so the table shortcut went unguarded.
+	it.each(['# heading\n', '---\n', '- item\n'])(
+		'reads the table once when it is placed flush above %j',
+		(follower) => {
+			const table = `| a |\n| - |\n${rows(200)}`;
+			const doc = parse(follower);
+			const body = documentBody(doc);
+			const before = [...body.children];
+			body.children.unshift(parse(table).children[0]);
+			enablePerfInstruments();
+			resetPerfInstruments();
+
+			fixUpEdit(
+				body,
+				{ change: { op: 'insert', at: 0, count: 1 }, before },
+				defaultGrammarView,
+				createSharingState()
+			);
+
+			expect(perfSnapshot().parseBytes).toBeLessThanOrEqual(table.length + follower.length);
+			expect(serialize(doc)).toBe(table + follower);
+		}
+	);
 });
