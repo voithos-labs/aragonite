@@ -617,7 +617,8 @@
 		caretLanding,
 		events,
 		reading,
-		stamps
+		stamps,
+		drafts
 	};
 	const { blockEdit, focus, history, containerEdit, controller } = createEditorActions(
 		editorActionsDeps,

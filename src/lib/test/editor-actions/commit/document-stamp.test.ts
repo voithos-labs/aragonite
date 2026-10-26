@@ -81,3 +81,29 @@ describe('a write made after the editor unmounted', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 });
+
+// Miss-analysis: the gate's rows covered swapped-out and unmounted documents, never a write made
+// while an undo was putting its entry back.
+describe('a write made while an undo or redo installs its entry', () => {
+	it('is refused on the keystroke and commit routes, pushing nothing, with no warning', async () => {
+		const h = stampedTop('ab\n');
+		let keystroke: ReturnType<typeof h.actions.updateBlockContent> | undefined;
+		let split: Promise<boolean> | undefined;
+		await h.stamps.duringHistorySwap(async () => {
+			keystroke = h.actions.updateBlockContent(0, 'abc\n', 'authored', 'join-typing', 2);
+			split = h.actions.splitBlock(0, 1);
+		});
+
+		expect(keystroke!.admitted).toBe(false);
+		expect(await split!).toBe(false);
+		expect(serialize(h.deps.doc)).toBe('ab\n');
+		expect(h.deps.undoManager.getStacks().undo).toEqual([]);
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	it('lands once the install has ended', async () => {
+		const h = stampedTop('ab\n');
+		await h.stamps.duringHistorySwap(async () => {});
+		expect(await h.actions.splitBlock(0, 1)).toBe(true);
+	});
+});

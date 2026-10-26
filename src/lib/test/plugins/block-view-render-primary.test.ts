@@ -218,6 +218,7 @@ describe('a DOM render-primary view', () => {
 	});
 
 	// Miss-analysis: the report rows edited inside the source, and none let the document's undo refill it.
+	// The edit the source still held lands as a step of its own first, which the undo takes back.
 	it('runs afterInput once with the text the document’s undo fills a shown source with', async () => {
 		const seen: string[] = [];
 		const { editor } = mount(domRevealLeaf({ onSourceEdit: (text) => void seen.push(text) }));
@@ -230,8 +231,8 @@ describe('a DOM render-primary view', () => {
 		el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromDrop' }));
 		await pressKey(el, { key: 'z', ctrlKey: true });
 
-		expect(shownSource(editor)?.textContent).toBe('@@ abcd');
-		expect(seen).toEqual(['@@ abcdX', '@@ abcdXY', '@@ abcd']);
+		expect(shownSource(editor)?.textContent).toBe('@@ abcdX');
+		expect(seen).toEqual(['@@ abcdX', '@@ abcdXY', '@@ abcdX']);
 	});
 
 	it('runs no afterInput for a reveal, after an undo changed the text while it was folded', async () => {

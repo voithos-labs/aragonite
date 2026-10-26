@@ -2,7 +2,7 @@
  * Undo and redo: capture the current state for the opposite stack, install the entry's
  * snapshot, restore its selection. Snapshots share the live tree's nodes, so a restore marks
  * the tree shared again and copies the children array; otherwise a later commit would write
- * into the stack's own entry.
+ * into the stack's own entry. Nothing writes while an entry is installed (G1.156).
  */
 
 import { tick } from 'svelte';
@@ -10,7 +10,8 @@ import type { HistoryActions } from '../../action-contracts';
 import type { UndoEntry } from '../../undo/types';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
-import { admitsWrite } from './reading-write-gate';
+import { checkInstalledEntry } from '../../invariants/history-install';
+import { admitsHistoryRequest } from './reading-write-gate';
 import type { EditorActionsDeps, UndoController } from '../deps';
 
 export function createHistoryActions(
@@ -25,6 +26,15 @@ export function createHistoryActions(
 		// Before the swap itself, so a caret placement waiting across it sees the new counter
 		// whichever side of the document write its scroll-into-view finishes on.
 		deps.caretLanding.noteTreeSwap();
+		const generation = deps.caretLanding.generation();
+		// The caret move below blurs blocks, and a block that repairs itself on blur would write.
+		await deps.stamps.duringHistorySwap(() => install(entry, op));
+		// Unless a later undo, redo or `source` swap has replaced the document since.
+		if (deps.caretLanding.generation() !== generation) return;
+		assertInvariant('history-install', () => checkInstalledEntry(op, entry.snapshot, deps.doc));
+	}
+
+	async function install(entry: UndoEntry, op: 'undo' | 'redo'): Promise<void> {
 		deps.sharing.markSnapshotTaken();
 		// The standing range addresses the outgoing tree; read during the render below, its path
 		// could name another block in the incoming one.
@@ -52,17 +62,21 @@ export function createHistoryActions(
 		}
 	}
 
-	// Ends the typing batch, so the next keystroke snapshots the restored tree rather than joining
-	// an entry that has moved to the other stack.
-	function beginHistorySwap(): void {
+	// An open draft commits as a step the undo then takes back. The typing batch ends, so the next
+	// keystroke snapshots the restored tree rather than joining an entry now on the other stack.
+	async function beginHistorySwap(): Promise<void> {
+		const top = deps.undoManager.peekUndo();
+		deps.drafts.closeAll('undo');
 		deps.caretMemory.forget();
 		controller.flushDebouncedCheckpoint();
+		// A draft's step renders first, so its block repaints when the undo takes the edit back.
+		if (deps.undoManager.peekUndo() !== top) await tick();
 	}
 
 	return {
 		async requestUndo(): Promise<void> {
-			if (!admitsWrite(deps, 'undo')) return;
-			beginHistorySwap();
+			if (!admitsHistoryRequest(deps, 'undo')) return;
+			await beginHistorySwap();
 			// Check the stack before capturing: captureCurrentState marks the whole tree as
 			// shared with a snapshot, forcing the next edit to copy its path first.
 			if (!deps.undoManager.canUndo) return;
@@ -72,8 +86,8 @@ export function createHistoryActions(
 		},
 
 		async requestRedo(): Promise<void> {
-			if (!admitsWrite(deps, 'redo')) return;
-			beginHistorySwap();
+			if (!admitsHistoryRequest(deps, 'redo')) return;
+			await beginHistorySwap();
 			if (!deps.undoManager.canRedo) return;
 			const entry = deps.undoManager.redo(controller.captureCurrentState());
 			if (!entry) return;

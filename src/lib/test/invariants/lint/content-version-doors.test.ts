@@ -44,7 +44,7 @@ const INSIDE_THE_COMMIT: Record<string, string> = {
 		'copies the leaf’s chain in the step the commit frame runs after its reading-mode check'
 };
 
-type ReadingCheck = 'admitsWrite' | 'admitsSnapshot';
+type ReadingCheck = 'admitsWrite' | 'admitsSnapshot' | 'admitsHistoryRequest';
 
 /** Writers that must refuse reading mode, and the functions in each that must ask the check. The
  *  `source` prop swap is absent: reading mode allows the host to replace the document. */
@@ -53,7 +53,9 @@ const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> =
 	'src/lib/editor-actions/commit/undo-controller.ts': {
 		admitsSnapshot: ['pushCommitSnapshot', 'typingKeystroke']
 	},
-	'src/lib/editor-actions/commit/history.ts': { admitsWrite: ['requestUndo', 'requestRedo'] }
+	'src/lib/editor-actions/commit/history.ts': {
+		admitsHistoryRequest: ['requestUndo', 'requestRedo']
+	}
 };
 
 /** `check:function` for each named function in `file` that never calls its check. */

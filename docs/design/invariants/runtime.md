@@ -109,6 +109,7 @@ These checks run in three kinds of place:
 | G1.151 | A keystroke written in place leaves no node it wrote shared with an undo entry                | A·N     |
 | G1.152 | _Retired_: its premise was wrong; a fold that keeps its index can still move the leaf's bytes | A       |
 | G1.154 | A content write's fixed-up window holds the block it wrote                                    | A·N     |
+| G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs    | A·N     |
 
 ### The entries
 
@@ -644,3 +645,9 @@ reports a replaced window, that window holds the written block, since the caret 
 reading that window's blocks. A fix-up that moved no block reports no window at all.
 `checkWriteInWindow` · `content-write.ts :: settledCaretPosition` ·
 `structural-descriptor.test.ts`, `replacement-focus-target.test.ts`, the simulation.
+
+**G1.156 · An undo puts back its entry, nothing more** (`history-install`). Once an undo or redo
+has installed its entry and placed the caret, the document's bytes are the entry's. A write in
+between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and
+would clear the redo stack, so the write gate declines every write while the install runs.
+`checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, the behavior rows.

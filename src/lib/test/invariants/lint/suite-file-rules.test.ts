@@ -357,7 +357,9 @@ const RULES: FileRule[] = [
 		matches: /\b(?:setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/,
 		allowed: {
 			'src/lib/test/invariants/lint/file-rules.test.ts':
-				'the editor-side G4.4 row: its probe snippets are timer calls on purpose'
+				'the editor-side G4.4 row: its probe snippets are timer calls on purpose',
+			'src/lib/test/editor-actions/commit/history-install.test.ts':
+				'presses a key in its own task on purpose, to prove an undo finishes putting its entry back before the next task runs'
 		},
 		reason:
 			'wait with settleEditor (test/harness/settle.ts), move a wall-clock timer with vi.useFakeTimers, or wait for real I/O with vi.waitFor; a macrotask flush also runs whatever unrelated timer is due, so a test can pass for the wrong reason',

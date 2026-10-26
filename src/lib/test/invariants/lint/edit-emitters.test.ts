@@ -18,7 +18,7 @@ import {
  *  replace-all. Keyed by function, so a second emit in one of these files still fails. */
 const EDIT_EMITTERS = [
 	'src/lib/editor-actions/commit/commit-frame.ts :: run',
-	'src/lib/editor-actions/commit/history.ts :: restore',
+	'src/lib/editor-actions/commit/history.ts :: install',
 	'src/lib/editor-actions/search-replace.ts :: replaceSubtrees'
 ];
 

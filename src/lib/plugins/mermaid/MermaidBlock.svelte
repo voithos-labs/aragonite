@@ -203,7 +203,7 @@
 			seed: editSeed,
 			current: () => displayCode,
 			close: (cause) => {
-				if (cause === 'mode-change') commitEdit(false);
+				if (cause !== 'document-swap') commitEdit(false);
 			}
 		});
 	}
