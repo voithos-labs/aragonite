@@ -744,7 +744,7 @@ _Are we certain our inline parser is right?_ Of course not, which is why
 inputs commonmark.js reads as one paragraph spanning the whole input are compared, so a divergence
 always means the _inline_ parsers disagree. Bumping the reference is a deliberate re-bless (re-recording the
 committed reference as the new accepted truth) with a changelog note;
-`scripts/extract-spec-examples.mjs` regenerates `spec-examples.json` from the new version's
+`scripts/vendor/extract-spec-examples.mjs` regenerates `spec-examples.json` from the new version's
 downloaded spec.json.
 
 | Tier       | Command                    | Scope                                                                                                               |

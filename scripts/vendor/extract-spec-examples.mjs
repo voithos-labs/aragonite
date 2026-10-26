@@ -10,7 +10,7 @@ import { Parser } from 'commonmark';
 // Read from the pinned devDependency rather than written down again: `reference.ts` already
 // asserts against this same field, so a literal here would be a third copy that can disagree.
 const REFERENCE_VERSION = JSON.parse(
-	readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')
+	readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8')
 ).devDependencies.commonmark;
 
 const parser = new Parser();
@@ -23,7 +23,7 @@ function isInlineOnly(markdown) {
 
 const specPath = process.argv[2];
 if (!specPath) {
-	console.error('usage: node scripts/extract-spec-examples.mjs <path-to-spec.json>');
+	console.error('usage: node scripts/vendor/extract-spec-examples.mjs <path-to-spec.json>');
 	process.exit(1);
 }
 
@@ -48,7 +48,7 @@ const definitionExamples = specExamples
 	.map(pick);
 
 const outPath = fileURLToPath(
-	new URL('../src/lib/test/gfm-conformance/spec-examples.json', import.meta.url)
+	new URL('../../src/lib/test/gfm-conformance/spec-examples.json', import.meta.url)
 );
 writeFileSync(
 	outPath,
