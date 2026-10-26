@@ -355,7 +355,7 @@ Aragonite is free software, released under [MPL-2.0](./LICENSE): use it, study i
 
 [^8]: this is, what you might call, a large bug surface... if you see something weird, be a homie and click that "report a bug" button on aragonite.dev
 
-[^9]: Parse then serialize returns the same text every time. Editing is close - usually surrounding regions are kept the same, and the local edited line keeps its spelling too. The exception is footnote definitions and alerts.
+[^9]: Parse then serialize returns the same text every time. Editing is close - surrounding regions and the line you edit keep their spelling, bar a couple of tracked edge cases.
 
 [^10]: A flat model is rejected because of the constraints it places on the plugin system. Read the [Extensible](#extensible) section to understand why this is.
 
