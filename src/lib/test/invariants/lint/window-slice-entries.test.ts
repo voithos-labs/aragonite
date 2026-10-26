@@ -11,12 +11,13 @@ import type { SourceFile } from './scan-source';
 import { SOURCE } from './source-paths';
 
 const EACH_INDEX = /\{#each\s[^}]*?\bas\s+[^,}]+,\s*(\w+)/g;
-const CONST_FROM_START = /\{@const\s+\w+\s*=\s*[\w.]*\bstart\s*\+/;
+const CONST_FROM_START = /\{@const\s+\w+\s*=\s*(?:[\w.]*\bstart\s*\+|\w+\s*\+\s*[\w.]*\bstart\b)/;
 
 function addsToWindowStart(file: SourceFile): boolean {
 	if (CONST_FROM_START.test(file.code)) return true;
 	for (const [, index] of file.code.matchAll(EACH_INDEX)) {
-		if (new RegExp(`\\bstart\\s*\\+\\s*${index}\\b`).test(file.code)) return true;
+		const sum = `\\bstart\\s*\\+\\s*${index}\\b|\\b${index}\\s*\\+\\s*[\\w.]*\\bstart\\b`;
+		if (new RegExp(sum).test(file.code)) return true;
 	}
 	return false;
 }
@@ -36,7 +37,9 @@ describeFileRules(
 				svelteProbe('{#each slice as node, localIndex (ids[start + localIndex])}'),
 				svelteProbe('{#each rows as row, i}{@const index = start + i}<Row {index} />{/each}'),
 				svelteProbe('{#each items as item, j}<Item index={bounds.start + j} />{/each}'),
-				svelteProbe('{@const rowIdx = bounds.start + localIndex}')
+				svelteProbe('{@const rowIdx = bounds.start + localIndex}'),
+				svelteProbe('{#each slice as node, i}<Child index={i + start} />{/each}'),
+				svelteProbe('{@const rowIdx = j + bounds.start}')
 			],
 			misses: [
 				svelteProbe('{#each slice.entries as entry (entry.id)}{@const index = entry.index}'),
