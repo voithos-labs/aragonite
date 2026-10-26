@@ -83,9 +83,9 @@ Unresolved references render as plain text — e.g. [this broken ref][nonexisten
 [repo-docs]: https://github.com/voithos-labs/aragonite/tree/main/docs
 [CommonMark spec]: https://spec.commonmark.org/0.31.2/
 [gfm]: https://github.github.com/gfm/ "GitHub Flavored Markdown spec"
-[shot]: https://picsum.photos/seed/aragonite-shot/500/300 "Linked screenshot"
-[mountains]: https://picsum.photos/seed/aragonite-ref-mountain/500/350
-[logo]: https://picsum.photos/seed/aragonite-ref-logo/200/200
+[shot]: /test-fixtures/photos/shot-500x300.png "Linked screenshot"
+[mountains]: /test-fixtures/photos/mountain-500x350.png
+[logo]: /test-fixtures/photos/logo-200x200.png
 
 ## Escapes & entities
 
@@ -209,31 +209,31 @@ Click an image to select it. Drag the corner or right-edge handles to resize, or
 
 Standalone image with a width hint:
 
-![A photo|400](https://picsum.photos/seed/aragonite/600/400)
+![A photo|400](/test-fixtures/photos/photo-600x400.png)
 
 Explicit width × height:
 
-![Square|200x200](https://picsum.photos/seed/aragonite-square/300/300)
+![Square|200x200](/test-fixtures/photos/square-300x300.png)
 
-With a title, and intentionally **no size hint** — a remote image with unknown dimensions reserves no height until it decodes, so this one is the live check that loading it (scroll past it, then back up) re-measures the block and holds the scroll position instead of jumping:
+With a title, and intentionally **no size hint** — an image with unknown dimensions reserves no height until it decodes, so this one is the live check that loading it (scroll past it, then back up) re-measures the block and holds the scroll position instead of jumping:
 
-![Mountains](https://picsum.photos/seed/aragonite-mountain/500/350 "Click me — try the popover")
+![Mountains](/test-fixtures/photos/mountain-500x350.png "Click me — try the popover")
 
 Mid-paragraph images render block-level even though the CST stores them inline:
 
-Lorem ipsum dolor sit amet ![inline|180](https://picsum.photos/seed/aragonite-inline/240/180) consectetur adipiscing elit, sed do eiusmod tempor.
+Lorem ipsum dolor sit amet ![inline|180](/test-fixtures/photos/inline-240x180.png) consectetur adipiscing elit, sed do eiusmod tempor.
 
 Inside a list item — the popover commit works in nested containers too:
 
-- ![In a list|300](https://picsum.photos/seed/aragonite-list/400/300)
+- ![In a list|300](/test-fixtures/photos/list-400x300.png)
 - Try selecting and editing this one.
 
 Inside a table cell — falls back to alt-text-only since cells can't accommodate widget layout:
 
 | Photo                                                              | Caption                                  |
 | :----------------------------------------------------------------- | :--------------------------------------- |
-| ![sunset](https://picsum.photos/seed/aragonite-sunset/120/80)      | Cell images render as alt text           |
-| ![field](https://picsum.photos/seed/aragonite-field/120/80 "Field") | Title is preserved in raw, not displayed |
+| ![sunset](/test-fixtures/photos/sunset-120x80.png)                 | Cell images render as alt text           |
+| ![field](/test-fixtures/photos/field-120x80.png "Field")           | Title is preserved in raw, not displayed |
 
 Broken image (404) — note the styled error state:
 

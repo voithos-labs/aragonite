@@ -1,6 +1,7 @@
 // Every PNG the e2e suite serves decodes: each chunk's checksum holds and the pixel data inflates to
-// exactly the size its header declares. A fixture with a valid header and corrupt data still reports
-// a size, so specs pass on it until an engine decodes the pixels and fails the image.
+// the size its header declares, since a corrupt one still reports a size until an engine fails it.
+// `photos/` holds solid 8-bit RGB fills named `<role>-<width>x<height>.png`, each one IDAT deflating
+// <height> rows of a 0 filter byte and <width> RGB triples (Node's `zlib.deflateSync`, level 9).
 // Miss-analysis: nothing checked fixture bytes, and only Linux WebKit, under load, failed the image.
 import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';

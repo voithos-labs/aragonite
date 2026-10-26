@@ -239,6 +239,9 @@ What it fails a spec on:
 - an uncaught page error or rejection, under the tag `pageerror`
 - an error only `window.onerror` sees (Chromium reports a ResizeObserver loop there and nowhere
   else), which the fixture relays under `onerror:<message>`
+- a request to any host but the app server, which it blocks and names by URL. The harness's
+  images live in `static/test-fixtures/`, and a spec that needs a page from elsewhere answers a
+  made-up host (`https://e2e-link.test/`, say) with its own `route`
 
 The verdict lands at teardown and names the fire:
 

@@ -215,6 +215,7 @@ unguarded.
 | G4.262 | The fix-up package loads nothing that parses or writes the tree                                  | L       |
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
 | G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
+| G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
 
 ### The entries
 
@@ -1410,3 +1411,9 @@ a git hook, or another script (an import, or a spawned path), or it is imported 
 `src/`. A doc mention, a test that only reads the file and an error message naming it don't count: a
 script reached only that way is hand-run, and is listed with its reason in the test. A listed script
 that gains a caller, or goes away, fails too, so the list can't rot. `lint/script-callers.test.ts`.
+
+**G4.269 · An e2e page reaches only the app server.** The shared fixture (`e2e/fixtures.ts`) blocks
+every request a test's pages make to another host and fails the spec at teardown, naming each URL,
+so the suites run without a network. A spec's own route for a made-up host runs before the block.
+`route.continue()` would send a request straight past it, so a route passes requests on with
+`route.fallback()`. `e2e/lint/e2e-drivers.test.ts`.

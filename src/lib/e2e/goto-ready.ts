@@ -61,7 +61,7 @@ export function gotoUnhydrated(page: Page, url: RouteUrl): Promise<void> {
 	return navigateFrom(page, readyBudget(), async (timeout) => {
 		// Installed once the page it leaves has loaded, so only the new page's scripts are held.
 		await page.route('**/*', (route) =>
-			route.request().resourceType() === 'script' ? undefined : route.continue()
+			route.request().resourceType() === 'script' ? undefined : route.fallback()
 		);
 		await page.goto(url, { timeout, waitUntil: NAVIGATED });
 	});
