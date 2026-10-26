@@ -22,6 +22,9 @@ describe('G1.41 checkLastLineKept', () => {
 	it.each([
 		['an open document that gained a final break', parse('a\n\nb\n'), true, /gained/],
 		['a closed document that lost its final break', parse('a\n\nb'), false, /lost/],
+		// Miss-analysis: "open" was read off the last block alone, so a document ending in an unended
+		// blank line held in its suffix counted as ended.
+		['a closed document left ending on an unended blank line', parse('a\n '), false, /lost/],
 		['a line glued above the last one', glued('a\n\nb', [0]), true, /document > paragraph/],
 		['a line glued above the last item', glued('- a\n- b', [0, 0]), true, /list > listItem/],
 		// Miss-analysis: every container row ended on a child's line, so no walk had to stop at a
