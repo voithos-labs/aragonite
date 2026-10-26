@@ -113,7 +113,7 @@ const RULE: FileRule = {
 	hits: [{ relPath: 'scripts/new.mjs', code: 'export const x = 1;\n' }],
 	misses: [
 		{ relPath: 'scripts/lib-alias.mjs', code: '' },
-		{ relPath: 'scripts/measure/measure-baseline.json', code: '{}' }
+		{ relPath: 'scripts/pack/size-budget.json', code: '{}' }
 	]
 };
 

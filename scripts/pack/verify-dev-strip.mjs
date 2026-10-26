@@ -2,7 +2,7 @@
 // (G4.265). Vite builds a page that imports the editor, through the Svelte build and the prebuilt
 // one, in development and in production: every check tag the development build carries must be gone
 // from the production one. The production page's first-load and total JS and its chunk count are
-// budget rows in `measure-baseline.json`. Run by verify-pack.mjs after `npm run package`;
+// budget rows in `size-budget.json`. Run by verify-pack.mjs after `npm run package`;
 // `node scripts/pack/verify-dev-strip.mjs [root] [--bless]`.
 import {
 	mkdirSync,
@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { build } from 'vite';
-import { blessBudgets, checkBudgets, readBaseline } from '../measure/measure-baseline.mjs';
+import { blessBudgets, checkBudgets, readBaseline } from './size-budget.mjs';
 import { bytesBySource } from './source-map-owners.mjs';
 
 /** Fewer reached tags than this means the page stopped reaching the editor, not that it's clean. */
@@ -39,7 +39,7 @@ export const BLESS_COMMAND = 'node scripts/pack/verify-dev-strip.mjs --bless';
 
 /**
  * Every failure, as a message (an empty list means each production build is clean), and each
- * production page's gzipped size as its `measure-baseline.json` row.
+ * production page's gzipped size as its `size-budget.json` row.
  * @param {string} [root] The package root, holding package.json, src and dist.
  */
 export async function verifyDevStrip(root = '.') {

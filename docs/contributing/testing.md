@@ -26,8 +26,8 @@ Where to jump:
   what CI checks with it, and how to run it yourself.
 - [The adapter suite](#the-adapter-suite): the same idea for the framework wrappers, one suite
   over React, Next, Vue and Nuxt apps.
-- [Size budgets](#size-budgets): the numbers that say how heavy the repo is, what reds when one
-  moves, and how to accept a move on purpose.
+- [Size budgets](#size-budgets): the first-load budget that reds when it moves, how to accept a
+  move on purpose, and the report numbers that don't gate.
 - [The behavior differential](#the-behavior-differential): every key at every offset of a set of
   documents, compared before and after your change, so a refactor can show it changed nothing.
 - [Every short input](#every-short-input): every string up to a few characters long, parsed,
@@ -1021,33 +1021,34 @@ Heads up if you're mutating a wrapper to see what reds: outside CI the config re
 
 ## Size budgets
 
-A handful of numbers say how heavy the repo is, and each one has a budget, so it can't creep up
-without anybody deciding it should. They live in `scripts/measure/measure-baseline.json`, each with a
-baseline and a tolerance (how far it may move before anything complains, sized to about one normal
-change).
+One number has a budget: how much JS a minimal app loads, since that's what every consumer pays
+for. It lives in `scripts/pack/size-budget.json` with a baseline and a tolerance (how far it may
+move before anything complains, about one normal change).
 
-| Number                                       | What it counts                                                                                                                                                                                                                                                                                                                                                                                                                 | Checked by                                                                                                              |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Production code and comment lines            | Non-blank lines of `.ts`, `.svelte` and `.js` under `src/lib`, tests aside. A line that opens a comment or sits inside one is a comment line                                                                                                                                                                                                                                                                                   | `npm run lint`                                                                                                          |
-| Unit test files, internal and published-only | A unit test file is internal when it, or a helper under `test/` it imports, imports, names a type from or mocks anything the package doesn't publish (published means reachable from an entry point in `package.json` `exports`). A published-only test keeps passing through any rewrite behind the entry points, which is the kind we want more of                                                                           | `npm run lint`                                                                                                          |
-| Active source scans                          | Rows in `docs/design/invariants/scans.md` that aren't marked retired                                                                                                                                                                                                                                                                                                                                                           | `npm run lint`                                                                                                          |
-| The minimal app: first load, total, chunks   | A page that imports `createEditor`, built minified for production, once through the Svelte build and once through the prebuilt one. Three numbers each: the gzipped JS the page loads before it runs (the entry plus what it imports up front), all the JS it could ever load, and how many chunks that is. It's one chunk today, so the first two match; a lazy split shows up as a new chunk, which fails until you bless it | `scripts/pack/verify-dev-strip.mjs`, which runs inside `verify-pack.mjs` (before a publish, and in CI's consumer smoke) |
+| Number                                     | What it counts                                                                                                                                                                                                                                                                                                                                                                                                                 | Checked by                                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| The minimal app: first load, total, chunks | A page that imports `createEditor`, built minified for production, once through the Svelte build and once through the prebuilt one. Three numbers each: the gzipped JS the page loads before it runs (the entry plus what it imports up front), all the JS it could ever load, and how many chunks that is. It's one chunk today, so the first two match; a lazy split shows up as a new chunk, which fails until you bless it | `scripts/pack/verify-dev-strip.mjs`, which runs inside `verify-pack.mjs` (before a publish, and in CI's consumer smoke) |
 
 A number fails when it moves past its tolerance in either direction. Growing past it means more
 than one change's worth landed. Shrinking past it means the baseline is stale: bless it, so the
 next change can't quietly spend what you saved. Blessing writes the current numbers in as the new
 baselines, and the tolerances stay put.
 
+Everything else `npm run measure` prints is a report, and nothing gates on it: production code and
+comment lines, how many unit test files are internal (they, or a helper under `test/` they import,
+import, name a type from or mock something the package doesn't publish, where published means
+reachable from an entry point in `package.json` `exports`) against published-only, and how many
+source scans are active. A published-only test keeps passing through any rewrite behind the entry
+points, which is the kind we want more of.
+
 ```bash
 npm run measure                                          # every number, per directory, plus the test helpers that import internals
 npm run measure -- --against $(git merge-base HEAD dev)  # how far each one moved since your branch left dev
-npm run measure:bless                                    # accept the lines, tests and scans as they are now
-node scripts/pack/verify-dev-strip.mjs --bless                # accept the app sizes (after `npm run package`)
+node scripts/pack/verify-dev-strip.mjs --bless           # accept the app sizes (after `npm run package`)
 ```
 
 Same commands in PowerShell. When a branch reports what it did to the numbers, it reports the
-`--against` deltas. Those measure the old commit directly, so a bless along the way doesn't hide
-anything.
+`--against` deltas.
 
 The test split is a cheap stand-in for "this test guards behavior". The real check is whether a
 module's behavior suites (the e2e specs and property tests that judge it) stay green while its
