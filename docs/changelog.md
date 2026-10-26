@@ -8,6 +8,7 @@ A word on the numbers. Everything before 0.10.1 was a working number: the label 
 
 ## [0.11](changelog/0.11.md)
 
+- [0.11.4](changelog/0.11.md#0114-typing-beside-a-huge-last-block-at-full-speed-again): typing beside a huge list, quote or table at the end of the document is back to full speed
 - [0.11.3](changelog/0.11.md#0113-an-undo-that-always-undoes-something-plugins-that-cant-half-write-your-document-and-edits-that-read-back-like-a-reload): an undo that always undoes something, plugins that can't half-write your document on a keystroke, alerts and footnotes that keep the lines you didn't touch, line codecs for plugin containers, edits around unclosed fences and blank last lines that read back the way a reload does, and Firefox fixes for headings and long tables
 - [0.11.2](changelog/0.11.md#0112-plugin-blocks-in-react-and-vue-an-editor-that-fills-its-box-and-clicks-that-land-where-you-pressed): plugin blocks drawn with React or Vue components, click-to-edit blocks without Svelte, an editor that stays as tall as its host, clicks that land where you pressed, a CommonMark-faithful inline parser that no paste can freeze, and production builds without the dev checks
 - [0.11.1](changelog/0.11.md#0111-deletes-the-editor-decides-lists-that-line-up-and-reading-mode-as-a-page): Backspace and Delete take the same text in every browser, lists keep one column, and reading mode works like a page
