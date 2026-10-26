@@ -99,10 +99,10 @@ These checks run in three kinds of place:
 | G1.133 | Reading mode leaves one block in the tab order; anything else there is a control              | A·N     |
 | G1.136 | A DOM block view that moves or hides the element it was given, or fills its text element      | A·N     |
 | G1.138 | A commit never addresses a container state whose component has unmounted                      | A·N     |
-| G1.139 | Each run of blank lines a fix-up touched reads on reload as the tree holds it                 | A·P·N   |
+| G1.139 | _Retired upward_: a fix-up's blank lines read back through G1.145                             | A·P·N   |
 | G1.141 | Asking which line a caret at a soft wrap is on leaves the selection's focus where it was      | A·N     |
 | G1.143 | A kind's write rule never deletes bytes outside the written span, but an emptied marker       | A·N     |
-| G1.145 | The blocks a fix-up re-divided read back as themselves, with the block after them             | A·N     |
+| G1.145 | The blocks a fix-up wrote read back as themselves, blank lines included                       | A·N     |
 | G1.147 | A render-primary DOM view's rendered half sits in its element; its text comes in time         | A·N     |
 | G1.149 | The editor fills a host with a height on every mount route, and grows in one without          | harness |
 | G1.150 | A block repaints from its bytes after an input the tree took back                             | A·N     |
@@ -320,8 +320,8 @@ bootstrap · `test/invariants/builtin-presentation-facts.test.ts`.
 **G1.41 · The open last line** (`last-line-kept`). Only the document's last line may lack a line
 ending, and a structural edit keeps that as it found it unless the new last line is blank. The check
 fails an open file that gained a break on a text line, a closed one that lost it, and an unended
-line above the last at any depth. `lastLineChild` names the child holding a kind's last line. The
-commit owns the rule (`open-tail.ts`); no edit writes the tail by hand (G4.258). `checkLastLineKept`
+line above the last at any depth, reading "open" off the bytes. The commit owns the rule
+(`fix-up/last-line.ts`); no edit writes the tail by hand (G4.258). `checkLastLineKept`
 · `last-line-kept.test.ts`, `open-last-line.test.ts`, `open-last-line.property.test.ts`.
 
 **G1.42 · A list item's checkbox and blocks say what its reload reads** (`task-marker-slot`). The
@@ -491,7 +491,7 @@ event); dev warns `invariant:metadata-without-rebuild` naming the kind, and ever
 `error` event (`origin: 'commit'`) pointing at `replaceRaw`, the bytes write to use instead.
 `update-block-metadata.test.ts`.
 
-**G1.112 · One fix-up per list.** A commit fixes up (`settleEdit`) each list it wrote once, so a
+**G1.112 · One fix-up per list.** A commit fixes up (`fixUpEdit`) each list it wrote once, so a
 mutation writes with `writeNodeContent`, reports through its scope's `describeEdit`, and leaves the
 fix-up to the commit; one using `updateNodeContent` and reporting there gets it twice, and dev warns
 `invariant:settle-once`. Unseen: two edits calling a separator helper by hand (codebase-map § Blank
@@ -592,12 +592,6 @@ ids (`scopeStateFor`). The check is for what the registry can't see: a state loo
 props. `isUnmountedBlockListState` · `state-registry-lifetime.svelte.test.ts`,
 `range-edit-unmounted-container.spec.ts`.
 
-**G1.139 · Blank runs are laid out** (`blank-runs-laid-out`). Once `settleEdit` or a write's own
-fix-up has run, every run of blank lines the edit touched is laid out the way a reload lays it
-out: the same blank blocks, one separator on the run's first block, and any line a fence line
-takes in that fence line's slot. A route that writes a separator after the layout fails it.
-`checkBlankRunsLaidOut` · `blank-run-layout.test.ts`, `blank-runs.property.test.ts`.
-
 **G1.141 · Asking for the caret's line moves nothing** (`line-read-restores-focus`). At a soft wrap
 the caret writer's `focusEndsLine` moves the focus to its line's end and back, which keeps the side
 of the wrap the browser shows it on. Dev fails when the move back doesn't return the focus, since
@@ -611,12 +605,12 @@ closer. One exception: a block the write emptied gives up its own marker, as a b
 loses its underline. Dev checks every run through `kindWriteRule` (G4.245).
 `checkWriteRuleKeepsBytes` · `node-primitives.ts` · `write-rule-keeps-bytes.test.ts`.
 
-**G1.145 · A settled window reads back as itself** (`settled-window-reads-back`). Once a fix-up
-reports a window, its blocks and the one after them, read again as one stretch of bytes, give the
-same blocks, so a fence whose closer moved can't leave the blocks below paired the old way. Blank
-lines are G1.139's, and a block that reads otherwise alone (a list item) is skipped. A write that
-keeps its block in place reports no window and pays nothing.
-`checkSettledWindowReadsBack` · `settle.ts` · `settled-window-reads-back.test.ts`, `settle-pairing.test.ts`.
+**G1.145 · A fixed-up window reads back as itself** (`settled-window-reads-back`). A window a
+fix-up reports, with one block either side, reparsed as one stretch gives the same blocks and the
+same hidden lines above each block of each blank run (a leaf's own trailing blank line counts as
+one), so no fence keeps an old pairing and no separator sits on the wrong block. A list item, which
+reads otherwise alone, is skipped; unseen: a body's lines beside its own fence lines.
+`checkSettledWindowReadsBack` · `fix-up/apply.ts` · `settled-window-reads-back.test.ts`, `blank-run-layout.test.ts`.
 
 **G1.147 · A render-primary view hands over both halves in time** (`render-primary-attach`). A
 `defineBlockView({ surface: 'render-primary' })` view's rendered element sits inside the element

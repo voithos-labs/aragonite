@@ -274,16 +274,16 @@ One exception, on purpose: when the new last line is blank, it keeps its break, 
 
 #### Where the separators get fixed up
 
-One function does the counting: `tree-operations/blank-runs.ts :: normalizeBlankRuns` takes every run an edit touched and lays it out the way a reload would. It keeps what you can see (the run's blank blocks, and a block's own erased last line) and rewrites the rest: each separator, the lines a container's fence lines take (below), and the document's trailing blank line, which becomes a blank block once one stands above it. The layout it writes is the parser's own, `core/parser.ts :: layoutBlankRun`, so the two can't drift apart.
+The fix-up after an edit does the counting, and it lives in `tree-operations/fix-up/`. Its run layout (`tree-operations/fix-up/runs.ts :: layOutRun`) takes every run an edit touched and lays it out the way a reload would. It keeps what you can see (the run's blank blocks, and a block's own erased last line) and rewrites the rest: each separator, the lines a container's fence lines take (below), and the document's trailing blank line, which becomes a blank block once one stands above it. A unit row holds its layout to the parser's own reading of every run (`blank-run-layout.test.ts`), so the two can't drift apart.
 
-Around it, `tree-operations/settle.ts` keeps the steps a count can't infer, since they depend on what the edit did rather than what's left:
+Around it sit the steps a count can't infer, since they depend on what the edit did rather than what's left:
 
 - give a slot its own separator back when a blank block in it gets text
 - give the follower its separator back after a blank line took it, whether a blank block or a block's own erased line
 - take the separator back off a list an edit made next to a list of the same type
 - give back the line a blank last block borrowed from a closing fence line, once that block is filled or removed
 
-An edit splices and writes, and then the commit runs one fix-up, `settleEdit`, over each child list it wrote: it calls these steps around the edited stretch and finishes with the run layout. A few edits still call a step themselves (the gap-caret insert, and the list moves that leave an empty-marker sublist), and `docs/contributing/codebase-map.md` § Blank lines and separators says why for each. A write, a move or a removal tells the commit what it did first, since each asks a step of its own before the separators get recomputed (a removed block's separator going to the block that takes its place, for one). A write that no commit follows, like the keystroke written in place, runs the write's part of that fix-up itself.
+An edit splices and writes, and then the commit runs one fix-up, `fixUpEdit`, over each child list it wrote: these steps around the edited stretch, then the run layout, then the merges. The fix-up never writes the tree itself: it returns the list's new stretch, and the commit splices it in. A few edits still call a step themselves (the gap-caret insert, and the list moves that leave an empty-marker sublist), and `docs/contributing/codebase-map.md` § Blank lines and separators says why for each. A write, a move or a removal tells the commit what it did first, since each asks a step of its own before the separators get recomputed (a removed block's separator going to the block that takes its place, for one). A write that no commit follows, like the keystroke written in place, runs the write's part of that fix-up itself.
 
 Three separators have nothing to re-derive from, so the edits that need them write them on purpose:
 
