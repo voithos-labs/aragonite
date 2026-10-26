@@ -324,10 +324,13 @@ function rewriteInPlace(
 			spliceList(node, k, 1, [adopt(child, sharing, ending)]);
 		});
 	}
+	const rawChanged = node.raw !== next.raw;
 	const fields = node as unknown as Record<string, unknown>;
 	for (const [key, value] of Object.entries(next)) {
 		if (key !== 'children' && fields[key] !== value) fields[key] = value;
 	}
+	// The spans place each child in the bytes they were laid out against, which the rewrite replaced.
+	if (rawChanged) dropChildSpans(node);
 	return true;
 }
 
