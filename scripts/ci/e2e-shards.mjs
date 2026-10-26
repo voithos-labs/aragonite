@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Splits the e2e suite into CI shards of about equal measured time, one engine at a time.
-// `node scripts/e2e-shards.mjs <current>/<total> <out>` lists the suite (`playwright test --list`
+// `node scripts/ci/e2e-shards.mjs <current>/<total> <out>` lists the suite (`playwright test --list`
 // under the job's `ENGINE`), writes this shard's `--test-list` file to <out> and its plan beside it.
 // Every shard computes the same split from the same list and `src/lib/e2e/shard-timings.json`.
 import { execFileSync } from 'node:child_process';

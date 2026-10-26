@@ -1,10 +1,14 @@
 /**
- * The TODO file `scripts/finn-todo.mjs` renders and reads back. The verbs talk to `gh`; these
+ * The TODO file `scripts/issues/finn-todo.mjs` renders and reads back. The verbs talk to `gh`; these
  * are the two pure halves either side of it, so a round trip is provable without the network.
  */
 
 import { describe, it, expect } from 'vitest';
-import { renderTodo, readTodoLines, numberTodoLines } from '../../../../../scripts/finn-todo.mjs';
+import {
+	renderTodo,
+	readTodoLines,
+	numberTodoLines
+} from '../../../../../scripts/issues/finn-todo.mjs';
 
 const ISSUES = [
 	{ number: 311, title: 'drag handles for more blocks', labels: [{ name: 'area: presentation' }] },
@@ -21,7 +25,7 @@ describe('the TODO file the issues render into', () => {
 	const rendered = renderTodo(ISSUES);
 
 	it('says where the file came from and what to run', () => {
-		expect(rendered).toContain('node scripts/finn-todo.mjs push');
+		expect(rendered).toContain('node scripts/issues/finn-todo.mjs push');
 	});
 
 	it('groups by area, with the unlabelled issues last', () => {

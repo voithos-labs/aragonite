@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Rewrites `src/lib/e2e/shard-timings.json` from CI runs' per-file seconds, a step of release prep.
-// `node scripts/refresh-shard-timings.mjs <run-id>...` downloads each run's e2e summaries with `gh`
+// `node scripts/ci/refresh-shard-timings.mjs <run-id>...` downloads each run's e2e summaries with `gh`
 // and averages a file's seconds over the runs that ran it; an engine no run carries keeps its table.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -44,7 +44,7 @@ export function meanTimings(summaries) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const runs = process.argv.slice(2);
 	if (runs.length === 0)
-		throw new Error('usage: node scripts/refresh-shard-timings.mjs <run-id>...');
+		throw new Error('usage: node scripts/ci/refresh-shard-timings.mjs <run-id>...');
 	const summaries = [];
 	for (const run of runs) {
 		const dir = mkdtempSync(path.join(tmpdir(), 'shard-timings-'));

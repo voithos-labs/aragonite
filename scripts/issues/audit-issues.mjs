@@ -1,7 +1,7 @@
 // Audit the defect ledger against docs/contributing/rules.md § Records: every issue carries a
 // type and one `area:`, and `severity:` is defect-only. Fails on open issues alone, so a closed
 // issue predating the forms is reported without blocking a run.
-// Usage: node scripts/audit-issues.mjs
+// Usage: node scripts/issues/audit-issues.mjs
 import { execFileSync } from 'node:child_process';
 
 const OWNER = 'voithos-labs';

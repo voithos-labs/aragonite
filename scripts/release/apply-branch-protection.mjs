@@ -1,4 +1,4 @@
-// One-shot: apply branch protection, `node scripts/apply-branch-protection.mjs [main|dev]` (default
+// One-shot: apply branch protection, `node scripts/release/apply-branch-protection.mjs [main|dev]` (default
 // main). Needs gh authenticated as a repo admin. `main` requires the checks in
 // `branch-protection-contexts.mjs` and a code owner's review; `dev` only moves forward, since
 // contributors branch from it, so it blocks force pushes and deletion and nothing else.
@@ -49,7 +49,7 @@ const BRANCH = process.argv[2] ?? 'main';
 const protection = RULES[BRANCH];
 if (!protection) {
 	console.error(
-		`usage: node scripts/apply-branch-protection.mjs [${Object.keys(RULES).join('|')}]`
+		`usage: node scripts/release/apply-branch-protection.mjs [${Object.keys(RULES).join('|')}]`
 	);
 	process.exit(1);
 }

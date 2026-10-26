@@ -20,7 +20,7 @@ import {
 	cacheFile,
 	clearLeftovers,
 	resolveAgainst
-} from '../../../../../scripts/behavior-base.mjs';
+} from '../../../../../scripts/measure/behavior-base.mjs';
 
 let root: string;
 const git = (...args: string[]) =>

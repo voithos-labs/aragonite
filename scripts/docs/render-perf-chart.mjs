@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { THEMES as BASE_THEMES, esc, textBuilder } from './chart-common.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const baseline = JSON.parse(readFileSync(join(root, 'src/lib/test/perf/baseline.json'), 'utf8'));
 
 // ── Data ─────────────────────────────────────────────────────────────────────

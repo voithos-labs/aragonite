@@ -14,7 +14,7 @@ run('npm run package');
 // the tracked `file:../..` pin from churning to that name.
 const packOutput = execSync('npm pack', { encoding: 'utf8' });
 const tarball = packOutput.trim().split(/\r?\n/).pop();
-run('node scripts/verify-pack.mjs'); // published paths present and no test files ship
+run('node scripts/pack/verify-pack.mjs'); // published paths present and no test files ship
 // A worktree's consumer install is a link to the main checkout's, so the smoke installs privately.
 withPrivateInstall('examples/consumer/node_modules', () => {
 	// Force a fresh extract: npm may reuse a cached copy for an unchanged version.

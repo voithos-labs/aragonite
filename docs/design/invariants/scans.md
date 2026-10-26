@@ -214,6 +214,7 @@ unguarded.
 | G4.260 | A step before the render and its step after are paired through `aroundRender`                    | L       |
 | G4.262 | The fix-up package loads nothing that parses or writes the tree                                  | L       |
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
+| G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
 
 ### The entries
 
@@ -268,7 +269,7 @@ exemption fails. `lint/consumer-guide-chords.test.ts`.
 `lint/theme-token-manifest.test.ts`.
 
 **G4.10 · Plugin package and pack parity.** Every `src/lib/plugins/<name>` directory is exported as
-`./plugins/<name>`, and verify-pack derives its required files from that (`scripts/pack-manifest.mjs`);
+`./plugins/<name>`, and verify-pack derives its required files from that (`scripts/pack/pack-manifest.mjs`);
 a plugin module with a top-level CSS import is declared in `sideEffects`. The `/renderer` subpaths
 are extra. `lint/plugin-pack-parity.test.ts`.
 
@@ -1054,7 +1055,7 @@ be first. `lint/table-header-flag.test.ts` fails a file other than the table par
 names its source build under `svelte` and the prebuilt one under `default`, at the same path below
 `dist/prebuilt/`; `publishedEntryPoints` throws on a broken pair, so all its readers stop together.
 `sideEffects` covers the whole prebuilt, since a bundler dropping a chunk it thinks pure loses its
-registrations. `lint/plugin-pack-parity.test.ts`; `scripts/verify-prebuilt.mjs` checks the output's
+registrations. `lint/plugin-pack-parity.test.ts`; `scripts/pack/verify-prebuilt.mjs` checks the output's
 imports, Node load, a `/plugin` kind's parse and the size budget.
 
 **G4.175 · Runes mode only.** A component with no rune compiles in legacy mode, which turns on the
@@ -1077,12 +1078,12 @@ carries `data-corner-control`, so the open find bar moves it below itself when i
 **G4.181 · Wrappers release in lockstep.** Each package under `packages/` (the framework wrappers)
 has the root's version and peers `@voithos-labs/aragonite` at exactly that version, so an app can
 only ever install one core next to them; `src/lib/version.ts`, which an input recording names,
-carries that version too. `scripts/check-lockstep.mjs` holds the rule;
+carries that version too. `scripts/release/check-lockstep.mjs` holds the rule;
 `npm run release:publish` runs it before publishing every package together, and
 `lint/lockstep-versions.test.ts` runs it on the tree.
 
 **G4.183 · No Svelte in a non-Svelte app.** The prebuilt build carries its own Svelte, so the core
-declares `svelte` an optional peer. `scripts/adapter-smoke.mjs` installs the packed tarballs into
+declares `svelte` an optional peer. `scripts/smoke/adapter-smoke.mjs` installs the packed tarballs into
 each framework example and fails if `node_modules/svelte` shows up there.
 
 **G4.184 · The editor brings its reset.** `editor.css` opens with a margin, padding and box-sizing
@@ -1094,8 +1095,8 @@ under a `data-host-content` element and keeps the page's styles. `lint/editor-re
 
 **G4.185 · Published types name no Svelte outside `/svelte`.** A React or Vue app type-checks the
 package's declarations with no Svelte installed, so only `@voithos-labs/aragonite/svelte` may reach
-a `svelte` import, and no entry a stylesheet import (`scripts/prune-dist.mjs` strips them).
-`scripts/verify-types.mjs`, run by verify-pack, walks each entry's declarations and names the chain
+a `svelte` import, and no entry a stylesheet import (`scripts/pack/prune-dist.mjs` strips them).
+`scripts/pack/verify-types.mjs`, run by verify-pack, walks each entry's declarations and names the chain
 to any it finds, and fails when `/svelte` reaches no `svelte` (a blind walk).
 `lint/published-types.test.ts` holds the walk to every import shape.
 
@@ -1106,14 +1107,14 @@ either field, or on a local named `view` or `row`, anywhere under `src/lib`; a l
 name gets past it.
 
 **G4.187 · Every framework app is tested.** `examples/adapter-suite/apps.mjs` lists the suite's
-projects, and `scripts/adapter-smoke.mjs` builds and installs whatever it lists. An app under
+projects, and `scripts/smoke/adapter-smoke.mjs` builds and installs whatever it lists. An app under
 `examples/` with no entry there is never installed from the tarballs or tested, and a spec no
 project names never runs. `lint/adapter-apps.test.ts` fails on either.
 
 **G4.188 · Wrappers import on a server.** A server render imports a wrapper before any browser
 exists, so each JS entry a wrapper's `exports` names must load in plain Node without touching the
-DOM or reading a value declared further down the file. `scripts/node-import.mjs ::
-nodeImportFailures` imports each one in a child Node process, and `scripts/verify-pack.mjs` runs it
+DOM or reading a value declared further down the file. `scripts/pack/node-import.mjs ::
+nodeImportFailures` imports each one in a child Node process, and `scripts/pack/verify-pack.mjs` runs it
 on every wrapper after the build. `lint/wrapper-node-import.test.ts` feeds it a clean entry and two
 broken ones.
 
@@ -1344,7 +1345,7 @@ leaf-text reader (it reads the rule's `text`) and the conformance kit are the li
 
 **G4.247 · A production build carries no dev check.** Under the `production` condition the editor's
 dev-checks import gets `dev-checks-stripped.ts`: a constant-`false` switch and empty reporters.
-`scripts/verify-dev-strip.mjs` (run by verify-pack) builds a page through both builds with Vite and
+`scripts/pack/verify-dev-strip.mjs` (run by verify-pack) builds a page through both builds with Vite and
 fails on any check tag the production build keeps; the page imports `configureEditorEnv`, so only
 the swap can prove the switch off. `test/dev-checks-stripped.test.ts` holds the copy to the real
 module's names and to the side-effect annotations esbuild needs.
@@ -1397,8 +1398,14 @@ own files, `core/lines.ts` and `tree-operations/splice-many.ts`. The package rea
 through the host it's handed and returns a patch, so it can't parse on its own or write a list
 it was handed; the writer is the one place a patch lands. `lint/fix-up-package-pure.test.ts`.
 
-**G4.265 · A production build carries no dev-only module.** `scripts/verify-dev-strip.mjs` builds
+**G4.265 · A production build carries no dev-only module.** `scripts/pack/verify-dev-strip.mjs` builds
 the Svelte page for production with source maps and fails on any byte owned by a file under
 `invariants/` or by `debug/dump-tree.ts`. A predicate is reached only inside `assertInvariant` or
 behind `devChecksOn`; code production runs (the commit scope, a list move's wrapper) lives elsewhere.
 The prebuilt page's maps name its chunks, not the modules, so only the Svelte page is read.
+
+**G4.268 · Every script has a caller.** A file under `scripts/` is run by an npm script, a workflow step,
+a git hook, or another script (an import, or a spawned path), or it is imported by a root config or by
+`src/`. A doc mention, a test that only reads the file and an error message naming it don't count: a
+script reached only that way is hand-run, and is listed with its reason in the test. A listed script
+that gains a caller, or goes away, fails too, so the list can't rot. `lint/script-callers.test.ts`.

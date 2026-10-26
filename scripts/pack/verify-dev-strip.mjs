@@ -3,7 +3,7 @@
 // one, in development and in production: every check tag the development build carries must be gone
 // from the production one. The production page's first-load and total JS and its chunk count are
 // budget rows in `measure-baseline.json`. Run by verify-pack.mjs after `npm run package`;
-// `node scripts/verify-dev-strip.mjs [root] [--bless]`.
+// `node scripts/pack/verify-dev-strip.mjs [root] [--bless]`.
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { build } from 'vite';
-import { blessBudgets, checkBudgets, readBaseline } from './measure-baseline.mjs';
+import { blessBudgets, checkBudgets, readBaseline } from '../measure/measure-baseline.mjs';
 import { bytesBySource } from './source-map-owners.mjs';
 
 /** Fewer reached tags than this means the page stopped reaching the editor, not that it's clean. */
@@ -35,7 +35,7 @@ const CHECK_CALL = /\b(?:assertInvariant|devWarn)\(\s*(['"`])([^'"`$\\]+)\1/g;
 const QUOTED = /(['"`])([^'"`$\\\n]+)\1/g;
 
 /** What the reader runs to accept the page's new size. */
-export const BLESS_COMMAND = 'node scripts/verify-dev-strip.mjs --bless';
+export const BLESS_COMMAND = 'node scripts/pack/verify-dev-strip.mjs --bless';
 
 /**
  * Every failure, as a message (an empty list means each production build is clean), and each

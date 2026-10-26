@@ -2,7 +2,7 @@
 // unpublished symbol is pinned to internal shape; one importing only published symbols would
 // survive a rewrite behind the entry points. A test helper's imports count as its tests' own.
 import ts from 'typescript';
-import { aliasPath, importedFile, publishedEntryPoints } from './lib-alias.mjs';
+import { aliasPath, importedFile, publishedEntryPoints } from '../lib-alias.mjs';
 
 /**
  * A source tree read by repo-relative POSIX path: the working tree, or a commit.

@@ -147,8 +147,8 @@ npm run lint     # check
 `npm run lint` sits in the commit gate (the checks that must be green before a commit), and it's actually four checks in a row:
 
 1. the Prettier check
-2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide (`docs/guide/`) may not leave it, and an `#anchor` inside the guide must name a heading its target doc still has
-3. the codebase-map reference gate (`scripts/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist, and every `<doc>.md § Section name` pointer must still name a heading that doc has
+2. the docs-pack link gate (`scripts/docs/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide (`docs/guide/`) may not leave it, and an `#anchor` inside the guide must name a heading its target doc still has
+3. the codebase-map reference gate (`scripts/docs/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist, and every `<doc>.md § Section name` pointer must still name a heading that doc has
 4. ESLint
 
 A failure says which of the four fired, so read that instead of assuming it was formatting. It usually isn't.

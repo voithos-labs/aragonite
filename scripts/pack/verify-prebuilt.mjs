@@ -6,7 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { parseAst } from 'vite';
-import { publishedEntryPoints } from './lib-alias.mjs';
+import { publishedEntryPoints } from '../lib-alias.mjs';
 import { prebuiltExternals } from './pack-manifest.mjs';
 
 const PREBUILT_DIR = 'dist/prebuilt';
@@ -70,7 +70,7 @@ export async function verifyPrebuilt() {
 /**
  * Imports every entry in Node, where there is no DOM, as a server render does. An entry that imports
  * a stylesheet is skipped: Node loads no CSS, and the source build has the same import.
- * @param {import('./lib-alias.mjs').EntryPoint[]} entries
+ * @param {import('../lib-alias.mjs').EntryPoint[]} entries
  * @param {Map<string, string[]>} imports
  */
 async function loadsWithoutDom(entries, imports) {
@@ -90,7 +90,7 @@ async function loadsWithoutDom(entries, imports) {
 /**
  * A kind registered through the prebuilt `/plugin` entry must parse through the prebuilt root, or
  * the entries hold separate copies of the registries.
- * @param {import('./lib-alias.mjs').EntryPoint[]} entries
+ * @param {import('../lib-alias.mjs').EntryPoint[]} entries
  */
 async function sharesOneRegistry(entries) {
 	const load = (/** @type {string} */ subpath) => {

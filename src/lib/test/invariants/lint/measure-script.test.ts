@@ -5,8 +5,8 @@ import {
 	countScans,
 	measureTree,
 	workingTree
-} from '../../../../../scripts/measure.mjs';
-import { checkBudgets } from '../../../../../scripts/measure-baseline.mjs';
+} from '../../../../../scripts/measure/measure.mjs';
+import { checkBudgets } from '../../../../../scripts/measure/measure-baseline.mjs';
 
 const PACKAGE = {
 	name: '@voithos-labs/aragonite',

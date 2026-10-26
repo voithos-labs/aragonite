@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fails a CI run in which an engine's shards together ran fewer tests than the tree lists.
-// `node scripts/e2e-census.mjs <dir> <engine>...` reads every `ci-summary.json` under <dir> (one
+// `node scripts/ci/e2e-census.mjs <dir> <engine>...` reads every `ci-summary.json` under <dir> (one
 // artifact per shard) and expects shards from each engine named.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -33,7 +33,7 @@ export function censusProblems(summaries, engines) {
 	for (const [engine, shards] of byEngine) {
 		const plans = shards.map((s) => s.plan);
 		if (plans.some((plan) => plan === null)) {
-			problems.push(`${engine}: a shard has no plan, so it ran outside scripts/e2e-shards.mjs`);
+			problems.push(`${engine}: a shard has no plan, so it ran outside scripts/ci/e2e-shards.mjs`);
 			continue;
 		}
 		const total = Number(/** @type {Plan} */ (plans[0]).shard.split('/')[1]);
@@ -84,7 +84,7 @@ function readSummaries(dir) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const [dir, ...engines] = process.argv.slice(2);
 	if (!dir || engines.length === 0)
-		throw new Error('usage: node scripts/e2e-census.mjs <dir> <engine>...');
+		throw new Error('usage: node scripts/ci/e2e-census.mjs <dir> <engine>...');
 	const problems = censusProblems(readSummaries(dir), engines);
 	for (const problem of problems) console.error(problem);
 	console.log(`census of ${engines.join(', ')}: ${problems.length} problem(s)`);

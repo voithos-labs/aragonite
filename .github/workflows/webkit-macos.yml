@@ -50,7 +50,7 @@ jobs:
       - id: diff
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: node scripts/ci-code-changed.mjs "$BASE" >> "$GITHUB_OUTPUT"
+        run: node scripts/ci/ci-code-changed.mjs "$BASE" >> "$GITHUB_OUTPUT"
       - id: green
         if: steps.target.outputs.nightly == 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

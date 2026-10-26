@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, collectFiles, EDITOR_SRC, ROUTES_SRC } from './scan-source';
-import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
+import { corpusFiles } from '../../../../../scripts/docs/doc-corpus.mjs';
 import { findCommentBlocks } from './comment-lines';
 import { SOURCE_DIR } from './source-paths';
 

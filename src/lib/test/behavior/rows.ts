@@ -1,10 +1,10 @@
 // How a behavior row writes what an input did, and how a suite writes its rows into the
-// `BEHAVIOR_RECORD` folder for `scripts/behavior.mjs`, which diffs them against a base.
+// `BEHAVIOR_RECORD` folder for `scripts/measure/behavior.mjs`, which diffs them against a base.
 
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import type { EditorSelection } from '#lib/selection/primitives.js';
-import { formatRows, type Row } from '../../../../scripts/behavior-rows.mjs';
+import { formatRows, type Row } from '../../../../scripts/measure/behavior-rows.mjs';
 
 export type { Row };
 

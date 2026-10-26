@@ -8,7 +8,7 @@ for (const target of ['dist/test', 'dist/e2e']) {
 	rmSync(target, { recursive: true, force: true });
 }
 for (const dir of ['scripts', 'examples/adapter-suite']) {
-	for (const name of readdirSync(dir)) {
+	for (const name of readdirSync(dir, { recursive: true })) {
 		if (name.endsWith('.d.mts')) rmSync(`${dir}/${name}`);
 	}
 }

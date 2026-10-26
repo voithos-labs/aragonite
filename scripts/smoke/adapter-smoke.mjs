@@ -1,12 +1,12 @@
 // The framework gate: packs the core and every wrapper, installs the tarballs into each example
 // app the way a user's `npm install` would, builds the apps and runs the shared adapter suite.
-// `node scripts/adapter-smoke.mjs` runs every project in the suite's `APPS`; `--per-pr` runs the
+// `node scripts/smoke/adapter-smoke.mjs` runs every project in the suite's `APPS`; `--per-pr` runs the
 // ones marked `perPr`.
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { withPrivateInstall } from './private-install.mjs';
-import { APPS } from '../examples/adapter-suite/apps.mjs';
+import { APPS } from '../../examples/adapter-suite/apps.mjs';
 
 const perPr = process.argv.includes('--per-pr');
 const projects = Object.entries(APPS).filter(([, app]) => !perPr || app.perPr);
@@ -18,7 +18,7 @@ const PACKS = 'tmp/packs';
 const run = (cmd, opts = {}) => execSync(cmd, { stdio: 'inherit', ...opts });
 
 run('npm run package');
-run('node scripts/verify-pack.mjs');
+run('node scripts/pack/verify-pack.mjs');
 rmSync(PACKS, { recursive: true, force: true });
 mkdirSync(PACKS, { recursive: true });
 // Built just above, so the pack skips the lifecycle scripts that would build it all again.

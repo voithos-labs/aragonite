@@ -33,7 +33,7 @@ const PANELS = [
 	{ mode: 'live', caption: 'live, caret in the same word' }
 ] as const;
 
-// Shared with the README's charts (scripts/chart-common.mjs) so the assets read as one set.
+// Shared with the README's charts (scripts/docs/chart-common.mjs) so the assets read as one set.
 const SURFACES = {
 	light: { page: '#fcfcfb', caption: '#52514e' },
 	dark: { page: '#1a1a19', caption: '#c3c2b7' }

@@ -203,11 +203,11 @@ metadata, and its body holds only the defect:
 
 - The **type** says what it is: `Bug`, `Feature`, or `Task`. The bug and feature forms set it; a
   task or a blank issue gets it afterwards with
-  `node scripts/issue-type.mjs <number> bug|task|feature`.
+  `node scripts/issues/issue-type.mjs <number> bug|task|feature`.
 - Every issue carries one `area:` label, and a `Bug` also carries one `severity:` (only a defect
   has a blast radius): `important` (byte corruption or a broken contract), `minor` (real, bounded
   harm), `watch` (a signal with no confirmed defect or no repro), `nit` (cosmetic).
-  `node scripts/audit-issues.mjs` fails on an open issue missing a type or an area.
+  `node scripts/issues/audit-issues.mjs` fails on an open issue missing a type or an area.
 - Labels come from the existing set (`gh label list`). A label that seems missing is usually a
   different spelling of one that exists; a genuinely new one gets a description in the same voice.
 - The body is what's wrong, the repro, the files, the fix direction, and why it's deferred. No
@@ -220,7 +220,7 @@ Close an issue by naming the shipping commit in the closing comment. Reconcile a
 the commits that resolve it rather than against its own text; work that landed elsewhere can
 close an issue nobody edited.
 
-`scripts/finn-todo.mjs` renders the open issues assigned to one co-founder into a gitignored
+`scripts/issues/finn-todo.mjs` renders the open issues assigned to one co-founder into a gitignored
 checklist and pushes back two edits (a ticked line closes its issue, a line with no number files
 one). It's a view of the ledger, not a second copy.
 

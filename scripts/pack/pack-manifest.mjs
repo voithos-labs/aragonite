@@ -4,7 +4,7 @@
 // tree, so a new plugin subpath flows into both automatically.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { SOURCE_CONDITION, selfImportSpecifiers } from './lib-alias.mjs';
+import { SOURCE_CONDITION, selfImportSpecifiers } from '../lib-alias.mjs';
 
 // Shipped, but named by no `exports` entry: the `/svelte` entry re-exports `Editor.svelte`, which
 // imports `editor.css`. Package-root-relative to match `npm pack --json` file paths.

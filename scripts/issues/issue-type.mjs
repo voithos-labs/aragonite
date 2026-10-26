@@ -1,6 +1,6 @@
 // Set an issue's type. `gh issue edit` cannot: types are GraphQL-only, so this is the door for
 // an issue the forms did not type (one filed before the forms, or converted after triage).
-// Usage: node scripts/issue-type.mjs <number> bug|task|feature
+// Usage: node scripts/issues/issue-type.mjs <number> bug|task|feature
 import { execFileSync } from 'node:child_process';
 
 const OWNER = 'voithos-labs';
@@ -16,7 +16,7 @@ const TYPE_IDS = {
 
 const [number, type] = process.argv.slice(2);
 if (!/^\d+$/.test(number ?? '') || !(type in TYPE_IDS)) {
-	console.error('usage: node scripts/issue-type.mjs <number> bug|task|feature');
+	console.error('usage: node scripts/issues/issue-type.mjs <number> bug|task|feature');
 	process.exit(2);
 }
 

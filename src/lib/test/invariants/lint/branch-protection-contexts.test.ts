@@ -1,5 +1,5 @@
 /**
- * The status-check lists in `scripts/branch-protection-contexts.mjs` match what the workflows
+ * The status-check lists in `scripts/release/branch-protection-contexts.mjs` match what the workflows
  * report, matrix jobs expanded the way GitHub names them: every ci.yml check is required or pending
  * its gate, never both and never neither, and no job hides a red behind `continue-on-error`. A
  * required context nothing reports leaves every PR waiting forever.
@@ -12,11 +12,11 @@ import {
 	CI_CONTEXTS,
 	EXTERNAL_CONTEXTS,
 	PENDING_GATE_CONTEXTS
-} from '../../../../../scripts/branch-protection-contexts.mjs';
+} from '../../../../../scripts/release/branch-protection-contexts.mjs';
 
 const WORKFLOWS = '.github/workflows';
 const CI = 'ci.yml';
-const APPLY_SCRIPT = path.resolve('scripts/apply-branch-protection.mjs');
+const APPLY_SCRIPT = path.resolve('scripts/release/apply-branch-protection.mjs');
 
 // ── Reading a workflow ───────────────────────────────────────────────────────
 

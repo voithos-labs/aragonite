@@ -1,6 +1,6 @@
 /**
  * Every wrapper package releases with the core, and the library's version constant names it
- * (G4.181): `scripts/check-lockstep.mjs` holds the rule, and the publish script runs it first.
+ * (G4.181): `scripts/release/check-lockstep.mjs` holds the rule, and the publish script runs it first.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -8,7 +8,7 @@ import {
 	libraryVersionDrift,
 	lockstepDrift,
 	readManifests
-} from '../../../../../scripts/check-lockstep.mjs';
+} from '../../../../../scripts/release/check-lockstep.mjs';
 
 const ROOT = { version: '1.2.0' };
 const wrapper = (version: string, peer?: string) => ({
