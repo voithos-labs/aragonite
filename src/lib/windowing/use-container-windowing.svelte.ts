@@ -11,7 +11,7 @@ import type { NodeView } from '../core/node-views';
 import type { RootListScroll } from './scroll-owner';
 import { observeResize } from './observe-resize';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { checkMeasuresInOwnList } from '../invariants/measures-in-own-list';
+import { foreignMeasureViolation } from '../invariants/measures-in-own-list';
 import {
 	createListWindowing,
 	type ListScrollWrites,
@@ -106,9 +106,9 @@ function windowingUnit(opts: ContainerWindowingOpts): ListWindowing {
 	// A child that isn't this list's own would write a slot that indexes something else.
 	setContext(CHILD_MEASURE_KEY, {
 		register(path, id, readHeight) {
-			const foreign = checkMeasuresInOwnList(path, opts.getParentPath());
-			if (foreign) {
-				assertInvariant('measures-in-own-list', () => foreign);
+			const listPath = opts.getParentPath();
+			if (!isOwnChild(path, listPath)) {
+				assertInvariant('measures-in-own-list', () => foreignMeasureViolation(path, listPath));
 				return () => {};
 			}
 			return windowing.registerChild(id, { index: path[path.length - 1], readHeight });
@@ -121,4 +121,9 @@ function windowingUnit(opts: ContainerWindowingOpts): ListWindowing {
 	} satisfies ChildMeasureChannel);
 
 	return windowing;
+}
+
+/** Whether `childPath` names a direct child of the list at `listPath`. */
+function isOwnChild(childPath: readonly number[], listPath: readonly number[]): boolean {
+	return childPath.length === listPath.length + 1 && listPath.every((at, i) => childPath[i] === at);
 }

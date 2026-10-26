@@ -71,7 +71,7 @@ export const SOURCE = {
 	pluginContainer: 'src/lib/editor-actions/plugin/container.ts',
 
 	// ── Dev checks ──────────────────────────────────────────────────────────
-	commitScope: 'src/lib/invariants/commit-scope.ts',
+	commitScope: 'src/lib/commit-scope.ts',
 
 	// ── Selection and keys ──────────────────────────────────────────────────
 	docPathBrand: 'src/lib/selection/path-math.ts',

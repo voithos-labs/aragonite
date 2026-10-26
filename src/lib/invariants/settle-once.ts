@@ -16,7 +16,7 @@ export function startCommitSettles(): void {
 
 /** Called by a fix-up that runs outside the commit's own pass. */
 export function noteBodySettled(children: readonly unknown[]): void {
-	settledInCommit?.add(children);
+	if (devChecksOn) settledInCommit?.add(children);
 }
 
 export function checkSettledOnce(

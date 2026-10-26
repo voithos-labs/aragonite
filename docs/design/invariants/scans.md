@@ -213,6 +213,7 @@ unguarded.
 | G4.259 | On the fix-up’s path a list of blocks is written only through `spliceList`                       | L       |
 | G4.260 | A step before the render and its step after are paired through `aroundRender`                    | L       |
 | G4.262 | The fix-up package loads nothing that parses or writes the tree                                  | L       |
+| G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
 
 ### The entries
 
@@ -547,7 +548,7 @@ parser's nesting cap, the `spliceMany` chunk); a `gap` row, where the count foll
 names a defect. A splice a paste can scale goes through `spliceMany`. Array-literal spread and rest
 parameters are out of scope. `lint/spread-call-census.test.ts`.
 
-**G4.61 · The production commit scope.** `invariants/commit-scope.ts` imports no build flag and
+**G4.61 · The production commit scope.** `src/lib/commit-scope.ts` imports no build flag and
 writes its depth counter at plain statement position. The scope defers the decoration engine's
 in-commit `invalidate()`, so a `DEV` guard on it would break production alone, and `esm-env` reads
 DEV as true under vitest, where no behavior test could see it. `lint/commit-scope-production.test.ts`.
@@ -1395,3 +1396,9 @@ inside a later size report, which the browser reports as a loop. `lint/file-rule
 own files, `core/lines.ts` and `tree-operations/splice-many.ts`. The package reads Markdown only
 through the host it's handed and returns a patch, so it can't parse on its own or write a list
 it was handed; the writer is the one place a patch lands. `lint/fix-up-package-pure.test.ts`.
+
+**G4.265 · A production build carries no dev-only module.** `scripts/verify-dev-strip.mjs` builds
+the Svelte page for production with source maps and fails on any byte owned by a file under
+`invariants/` or by `debug/dump-tree.ts`. A predicate is reached only inside `assertInvariant` or
+behind `devChecksOn`; code production runs (the commit scope, a list move's wrapper) lives elsewhere.
+The prebuilt page's maps name its chunks, not the modules, so only the Svelte page is read.

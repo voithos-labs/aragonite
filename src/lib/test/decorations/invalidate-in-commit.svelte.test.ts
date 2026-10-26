@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
-import { isCommitInProgress } from '#lib/invariants/commit-scope.js';
+import { isCommitInProgress } from '#lib/commit-scope.js';
 import { asDocPath } from '#lib/selection/path-math.js';
 import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
 import {

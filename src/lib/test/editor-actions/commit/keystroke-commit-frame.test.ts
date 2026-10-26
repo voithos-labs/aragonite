@@ -5,7 +5,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { EditorError } from '#lib/editor-events.js';
-import { isCommitInProgress } from '#lib/invariants/commit-scope.js';
+import { isCommitInProgress } from '#lib/commit-scope.js';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
