@@ -4,10 +4,6 @@ import type { Work } from './work';
 import type { CstNode, Document } from '../../core/nodes';
 import type { Host } from './types';
 
-/** The host builds its table of kinds with its grammar, on first use: kind traits asked earlier
- *  come back empty. */
-export const prime = (host: Host): void => void host.readingsThatMayChange();
-
 export const isBlankBlock = (node: CstNode | undefined): boolean =>
 	node?.kind === 'paragraph' && isBlankText(node.raw);
 

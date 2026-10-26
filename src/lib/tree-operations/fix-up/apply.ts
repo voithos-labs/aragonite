@@ -100,14 +100,14 @@ export function fixUpEdit(
 		...(edit.removed ? { removed: true as const } : {})
 	};
 	const result = fixUpList(listOf(body), listEdit, editorHost(grammar), tracked);
-	const settled = writePatch(body, result, change, sharing, (i) => before[i]);
+	const widened = writePatch(body, result, change, sharing, (i) => before[i]);
 	if (tracked && result.caret) Object.assign(tracked, result.caret);
-	checkReadsBack(body, settled, grammar);
+	checkReadsBack(body, widened, grammar);
 	const start = written && (result.writtenStart ?? { index: written.index, offset: 0 });
 	return {
-		change: settled,
+		change: widened,
 		written: start
-			? { change: settled, textStart: offsetInWindow(body.children, settled, start) }
+			? { change: widened, textStart: offsetInWindow(body.children, widened, start) }
 			: null,
 		moved: result.movedTo ?? null
 	};
@@ -124,18 +124,18 @@ export function fixUpWrite(
 ): FixedUpWrite {
 	recordSettlePass();
 	noteBodySettled(body.children);
-	// Read before the patch lands, so the list as the write left it.
-	const given = body.children;
 	const written = { ...slot, previous: slot.previous as CstNode };
 	const span = spanOf(change);
 	const result = fixUpList(listOf(body), { span, written }, editorHost(grammar));
 	const shift = span ? span.added - span.removed : 0;
+	// The live list: `before` reads it only inside `writePatch`, ahead of the splice.
+	const given = body.children;
 	const before = (i: number) =>
 		i === slot.index ? written.previous : given[i < slot.index ? i : i + shift];
-	const settled = writePatch(body, result, change, sharing, before);
-	checkReadsBack(body, settled, grammar);
+	const widened = writePatch(body, result, change, sharing, before);
+	checkReadsBack(body, widened, grammar);
 	const start = result.writtenStart ?? { index: slot.index, offset: 0 };
-	return { change: settled, textStart: offsetInWindow(body.children, settled, start) };
+	return { change: widened, textStart: offsetInWindow(body.children, widened, start) };
 }
 
 /** A splice into a container found by walking the live tree, outside a commit's own list, and its
@@ -165,9 +165,9 @@ export function spliceFixedUp(
 	const edit: ListEdit = { before, span: spanOf(change), endingsFromBelow: true };
 	const result = fixUpList(listOf(body), edit, editorHost(grammar));
 	recordSettlePass();
-	const settled = writePatch(body, result, { op: 'noop' }, sharing, (i) => body.children[i]);
+	const merged = writePatch(body, result, { op: 'noop' }, sharing, (i) => body.children[i]);
 	const ids = (parent as CstNode).childIds;
-	if (ids) applyStructuralChangeToIdsRefs(settled, ids, new Array(ids.length));
+	if (ids) applyStructuralChangeToIdsRefs(merged, ids, new Array(ids.length));
 }
 
 /** Merges the blocks that read as one across the joins from the one above `at` to the one below
@@ -184,9 +184,9 @@ export function mergeJoinsAt(
 	const result = mergeJoins(listOf(body), at, added, editorHost(grammar), tracked);
 	if (result.removed === 0 && result.blocks.length === 0) return { op: 'noop' };
 	beforeWrite?.();
-	const settled = writePatch(body, result, { op: 'noop' }, sharing, (i) => body.children[i]);
+	const merged = writePatch(body, result, { op: 'noop' }, sharing, (i) => body.children[i]);
 	if (tracked && result.caret) Object.assign(tracked, result.caret);
-	return settled;
+	return merged;
 }
 
 /** When the document ended open before the commit, the block now last gives its ending up, unless

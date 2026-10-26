@@ -1,7 +1,7 @@
 // Neighbours whose joined bytes read as one block become that block.
 import type { CstNode } from '../../core/nodes';
 import type { SiblingList, Caret, Host, ListResult } from './types';
-import { bytesOf, isBlankBlock, prime, readAt, readsOn } from './reading';
+import { bytesOf, isBlankBlock, readAt, readsOn } from './reading';
 import { finish, replace, startWork, type Work } from './work';
 
 export function mergeJoins(
@@ -11,7 +11,6 @@ export function mergeJoins(
 	host: Host,
 	caret?: Caret
 ): ListResult {
-	prime(host);
 	const work = startWork(list, caret ? { caret } : {});
 	mergeAcross(work, at, at + added, host);
 	return finish(work);

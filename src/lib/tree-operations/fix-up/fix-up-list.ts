@@ -5,7 +5,7 @@ import type { SiblingList, Caret, Host, ListEdit, ListResult } from './types';
 import { endMergedLast, endPlaced } from './endings';
 import { joinSameLists, partJoin, type Role } from './joins';
 import { mergeAcross } from './merge';
-import { isBlankBlock, prime } from './reading';
+import { isBlankBlock } from './reading';
 import {
 	layOutRun,
 	lineGivenBack,
@@ -22,7 +22,6 @@ export function fixUpList(
 	host: Host,
 	caret?: Caret
 ): ListResult {
-	prime(host);
 	const work = startWork(list, {
 		...(caret ? { caret } : {}),
 		...(edit.written ? { writtenStart: { index: edit.written.index, offset: 0 } } : {}),

@@ -3,7 +3,6 @@ import type { CstNode, Document } from '../../core/nodes';
 import type { ListResult } from './types';
 import type { Host } from './types';
 import { withoutLastEnding } from './endings';
-import { prime } from './reading';
 
 export function lastLineOpen(document: Document): boolean {
 	// The last non-empty part of the bytes, read from the end so a long document costs nothing.
@@ -16,7 +15,6 @@ export function lastLineOpen(document: Document): boolean {
 }
 
 export function keepLastLineOpen(document: Document, wasOpen: boolean, host: Host): ListResult {
-	prime(host);
 	const last = document.children.length - 1;
 	const node = document.children[last];
 	const unchanged = { at: 0, removed: 0, blocks: [], keeps: [] };
