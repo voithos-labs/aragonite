@@ -26,7 +26,7 @@ export function checkLastLineKept(doc: DocumentView, wasOpen: boolean): Invarian
 function bytesEndOpen(doc: DocumentView): boolean {
 	let tail = doc.suffix;
 	for (let i = doc.children.length - 1; tail === '' && i >= 0; i--) {
-		tail = (doc.children[i].leadingTrivia ?? '') + doc.children[i].raw;
+		tail = doc.children[i].raw || (doc.children[i].leadingTrivia ?? '');
 	}
 	return tail !== '' && ownTrailingLineEnding(tail) === '';
 }
