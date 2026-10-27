@@ -224,6 +224,8 @@ _(pre-freeze / unstable)_ What an inline widget, a decoration's widget or badge,
 | `PluginView`       | `(target, props) => handle`: draw into `target`, an element the editor made for you and removes once you're destroyed                                                                                                                                    |
 | `PluginViewHandle` | What a view hands back, both optional: `update(props)` takes the slot's next props (leave it out and what you first drew stays), `destroy()` releases what you hold, a framework root or a listener, and a promise it returns has its rejection reported |
 | `svelteView`       | _(from `/svelte`)_ A Svelte component as a view for any of these slots, as long as the props it declares are ones the slot passes: it's mounted into the target with the props live, so `update` re-renders only what reads a prop that changed          |
+| `reactView`        | _(from `@voithos-labs/aragonite-react`)_ A React component as a view for any of these slots, with the slot's props as its props; `update` re-renders it, `destroy` unmounts its root, and `wrap` hands it your providers                                 |
+| `vueView`          | _(from `@voithos-labs/aragonite-vue`)_ A Vue component as a view for any of these slots, given the props it declares; `update` re-renders it, and `app` hands it your app's `provide`s and plugins                                                       |
 
 ### Inline authoring
 

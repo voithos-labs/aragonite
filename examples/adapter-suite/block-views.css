@@ -36,3 +36,12 @@
 	font-weight: 700;
 	cursor: text;
 }
+.chip,
+.memo-length {
+	font-size: 0.75em;
+	padding: 0 0.4em;
+	border-radius: 4px;
+	background: #9ad0ff;
+	color: #222;
+	user-select: none;
+}

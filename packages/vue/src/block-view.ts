@@ -9,7 +9,6 @@ import {
 	h,
 	inject,
 	provide,
-	render,
 	type App,
 	type Component,
 	type InjectionKey,
@@ -31,6 +30,7 @@ import {
 	type RenderPrimaryViewContext,
 	type RenderPrimaryViewSpec
 } from '@voithos-labs/aragonite/plugin';
+import { createViewRoot } from './view-root.js';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -103,12 +103,11 @@ export function vueBlockView<S extends FrameworkSurface>(
 					return () => h(component, { state: props.state, ctx, draft: props.draft });
 				}
 			});
+			const root = createViewRoot(target, app);
 			let draft: string | null = null;
 			const draw = (state: BlockViewState, typed = state.revealed ? draft : null) => {
 				draft = typed;
-				const root = h(Root, { state, draft });
-				root.appContext = app?._context ?? null;
-				render(root, target);
+				root.render(h(Root, { state, draft }));
 			};
 			draw(ctx.state());
 			return {
@@ -119,7 +118,7 @@ export function vueBlockView<S extends FrameworkSurface>(
 				},
 				destroy() {
 					handOver.live = false;
-					render(null, target);
+					root.unmount();
 				}
 			};
 		}

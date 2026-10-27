@@ -5,15 +5,7 @@
  * `<BlockChildren>`) is in place by the time the editor's `mount` or `update` call returns.
  */
 
-import {
-	createContext,
-	useContext,
-	type ComponentType,
-	type HTMLAttributes,
-	type ReactNode
-} from 'react';
-import { flushSync } from 'react-dom';
-import { createRoot } from 'react-dom/client';
+import { createContext, useContext, type ComponentType, type HTMLAttributes } from 'react';
 import {
 	defineBlockView,
 	type BlockView,
@@ -30,6 +22,7 @@ import {
 	type RenderPrimaryViewContext,
 	type RenderPrimaryViewSpec
 } from '@voithos-labs/aragonite/plugin';
+import { createViewRoot, type Wrap } from './view-root.js';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -77,7 +70,7 @@ export type ReactBlockViewOptions<S extends FrameworkSurface> = Omit<
 	afterInput?: S extends 'container' ? never : (text: string, ctx: Surfaces[S]['ctx']) => void;
 	/** Wraps the component, for providers: the block renders in a React root of its own, which
 	 *  a provider in the host app doesn't reach. */
-	wrap?: (block: ReactNode) => ReactNode;
+	wrap?: Wrap;
 };
 
 /** A block view drawn by `Component`; a render-primary block's whole element opens its text. */
@@ -94,7 +87,7 @@ export function reactBlockView<S extends FrameworkSurface>(
 				(ctx as RenderPrimaryViewContext).leaf.attachRendered(target);
 			}
 			const handOver = handOverFor(ctx);
-			const root = createRoot(target);
+			const root = createViewRoot(target, wrap);
 			let draft: string | null = null;
 			const draw = (state: BlockViewState, typed = state.revealed ? draft : null) => {
 				draft = typed;
@@ -103,7 +96,7 @@ export function reactBlockView<S extends FrameworkSurface>(
 						<Component state={state} ctx={ctx as Surfaces[S]['ctx']} draft={draft} />
 					</HandOverContext.Provider>
 				);
-				flushSync(() => root.render(wrap ? wrap(block) : block));
+				root.render(block);
 			};
 			draw(ctx.state());
 			return {
@@ -114,9 +107,7 @@ export function reactBlockView<S extends FrameworkSurface>(
 				},
 				destroy() {
 					handOver.live = false;
-					// React refuses to unmount a root inside its own commit, where the host app's
-					// unmount lands; the editor never reuses `target`, so a microtask later is safe.
-					queueMicrotask(() => root.unmount());
+					void root.unmount();
 				}
 			};
 		}

@@ -1,11 +1,13 @@
 // The kinds the `?block-views` page draws with each framework's own components
-// (`requirements/block-views.md`): a `%% ` memo line, a `@@ ` click-to-edit label, and a `:::box`
-// container. Each app passes its views; the grammar here is shared.
+// (`requirements/block-views.md`): a `%% ` memo line, a `@@ ` click-to-edit label, a `:::box`
+// container, a `{{name}}` inline chip, and a badge on each memo giving its length. Each app passes
+// its views; the grammar here is shared.
 import {
 	activateDirectives,
 	chromeChild,
 	containerClosure,
 	createDirectiveRebuild,
+	declarePluginInlineKind,
 	declarePluginKind,
 	declaredPluginKind,
 	definePlugin,
@@ -13,13 +15,20 @@ import {
 	registerBlockKind,
 	registerChromeLeaf,
 	registerDirective,
+	registerInlineSyntax,
+	registerInlineWidgetKind,
 	setPluginMetadata,
 	simpleLeafClosure,
 	trimWhitespace,
 	type BlockView,
 	type CstNode,
+	type Decoration,
+	type DecorationSource,
 	type EditorPlugin,
-	type ParsedDirective
+	type InlineNode,
+	type InlineWidgetComponentProps,
+	type ParsedDirective,
+	type PluginView
 } from '@voithos-labs/aragonite/plugin';
 
 export { BLOCK_VIEWS_SOURCE, LONG_SOURCE } from './block-views-source';
@@ -28,12 +37,17 @@ export interface BlockViews {
 	memo: BlockView;
 	label: BlockView;
 	box: BlockView;
+	chip: PluginView<InlineWidgetComponentProps>;
+	/** Shows the `data-memo-length` attribute of the decoration it's given. */
+	memoLength: PluginView<{ decoration: Decoration }>;
 }
+
+export const MEMO_LENGTH_ATTR = 'data-memo-length';
 
 export function blockViewsPlugin(views: BlockViews): EditorPlugin {
 	return definePlugin({
 		name: 'block-views',
-		setup() {
+		setup(ctx) {
 			registerLine('memo', '%% ', 25, views.memo, 'leaf: every keystroke commits');
 			registerLine(
 				'label',
@@ -43,8 +57,48 @@ export function blockViewsPlugin(views: BlockViews): EditorPlugin {
 				'render-primary: one commit when the caret leaves'
 			);
 			registerBox(views.box);
+			registerChip(views.chip);
+			ctx.onEditor((editor) => {
+				const handle = editor.decorations.addSource(memoLengths(views.memoLength));
+				return () => handle.dispose();
+			});
 		}
 	});
+}
+
+function registerChip(view: PluginView<InlineWidgetComponentProps>): void {
+	const chip = declarePluginInlineKind('chip');
+	registerInlineSyntax('{', (raw, pos, end): InlineNode | null => {
+		if (!raw.startsWith('{{', pos)) return null;
+		const close = raw.indexOf('}}', pos + 2);
+		if (close < 0 || close + 2 > end || raw.slice(pos + 2, close).includes('\n')) return null;
+		return { kind: chip, start: pos, end: close + 2, children: [] };
+	});
+	registerInlineWidgetKind(chip, {
+		isWidget: () => true,
+		view,
+		editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
+	});
+}
+
+// A badge on every top-level memo, carrying the memo's length, so an edit changes its decoration.
+function memoLengths(view: PluginView<{ decoration: Decoration }>): DecorationSource {
+	return {
+		name: 'memo-length',
+		provide: (doc) =>
+			doc.children.flatMap((node, index): Decoration[] =>
+				node.kind === declaredPluginKind('memo')
+					? [
+							{
+								type: 'block',
+								path: [index],
+								attrs: { [MEMO_LENGTH_ATTR]: String(node.raw.trimEnd().length) },
+								badge: { view }
+							}
+						]
+					: []
+			)
+	};
 }
 
 function registerLine(

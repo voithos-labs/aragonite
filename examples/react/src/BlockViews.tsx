@@ -1,18 +1,23 @@
 // The adapter suite's `?block-views` page (`examples/adapter-suite/requirements/block-views.md`):
-// three blocks drawn by React components through `reactBlockView`.
-import { createContext, useContext, useState } from 'react';
+// three blocks drawn by React components through `reactBlockView`, and an inline widget and a
+// decoration badge through `reactView`.
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
 	Aragonite,
 	BlockChildren,
 	LeafContent,
 	reactBlockView,
+	reactView,
 	type BlockViewProps
 } from '@voithos-labs/aragonite-react';
+import type { Decoration, InlineWidgetComponentProps } from '@voithos-labs/aragonite/plugin';
 import {
 	BLOCK_VIEWS_SOURCE,
 	LONG_SOURCE,
+	MEMO_LENGTH_ATTR,
 	blockViewsPlugin
 } from '../../adapter-suite/block-view-kinds';
+import { viewMounted } from '../../adapter-suite/live-views';
 
 const ANOTHER = '%% another memo\n\nplain text\n';
 
@@ -50,6 +55,31 @@ function Box({ state }: BlockViewProps<'container'>) {
 	);
 }
 
+// Reaches the chip and the badge through `wrap`, each in a React root of its own.
+const FrameworkName = createContext('no provider');
+const withName = (view: ReactNode) => (
+	<FrameworkName.Provider value="react">{view}</FrameworkName.Provider>
+);
+
+function Chip({ source, inline }: InlineWidgetComponentProps) {
+	useEffect(viewMounted, []);
+	return (
+		<span className="chip" data-start={inline.start}>
+			{source.slice(2, -2)} by {useContext(FrameworkName)}
+		</span>
+	);
+}
+
+function MemoLength({ decoration }: { decoration: Decoration }) {
+	useEffect(viewMounted, []);
+	const length = decoration.type === 'block' ? decoration.attrs?.[MEMO_LENGTH_ATTR] : '?';
+	return (
+		<span className="memo-length">
+			{length} by {useContext(FrameworkName)}
+		</span>
+	);
+}
+
 const plugins = [
 	blockViewsPlugin({
 		memo: reactBlockView(Memo, {
@@ -63,7 +93,9 @@ const plugins = [
 			singleLine: true,
 			className: 'label'
 		}),
-		box: reactBlockView(Box, { surface: 'container', className: 'box' })
+		box: reactBlockView(Box, { surface: 'container', className: 'box' }),
+		chip: reactView(Chip, { wrap: withName }),
+		memoLength: reactView(MemoLength, { wrap: withName })
 	})
 ];
 

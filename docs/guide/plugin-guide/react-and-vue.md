@@ -2,9 +2,9 @@
 
 Part of the [plugin guide](../plugin-guide.md). It assumes you've met `registerBlockKind` in [the quickstart](../plugin-guide.md#the-first-fifteen-minutes), since this page only swaps out the part that draws the block.
 
-If your app is React or Vue, you can draw a plugin block with your own components. The packages that give you the `<Aragonite>` component, `@voithos-labs/aragonite-react` and `@voithos-labs/aragonite-vue`, each carry a helper that turns a component into a block view: `reactBlockView` and `vueBlockView`. Under the hood they're `defineBlockView` with your component rendered into the element the editor makes for the block, so they run wherever the editor runs, the prebuilt copy a React or Vue app installs included.
+If your app is React or Vue, you can draw a plugin block with your own components. The packages that give you the `<Aragonite>` component, `@voithos-labs/aragonite-react` and `@voithos-labs/aragonite-vue`, each carry a helper that turns a component into a block view: `reactBlockView` and `vueBlockView`. Under the hood they're `defineBlockView` with your component rendered into the element the editor makes for the block, so they run wherever the editor runs, the prebuilt copy a React or Vue app installs included. For the smaller things a plugin draws (an inline widget, a decoration, a menu row) there's `reactView` and `vueView`.
 
-Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [the same in Vue](#the-same-in-vue) · [providers and app context](#providers-and-app-context) · [what the helpers don't do](#what-the-helpers-dont-do)
+Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [the same in Vue](#the-same-in-vue) · [widgets, decorations and menu rows](#widgets-decorations-and-menu-rows) · [providers and app context](#providers-and-app-context) · [what the helpers don't do](#what-the-helpers-dont-do)
 
 ## A memo in React
 
@@ -158,9 +158,57 @@ The click-to-edit label is a `v-if` on `state.revealed`, and the box puts `<Bloc
 </template>
 ```
 
+## Widgets, decorations and menu rows
+
+An inline widget, a decoration's widget or badge, and an inline menu row don't take a block view. They take a `PluginView`, the little `(target, props) => { update, destroy }` function from [inline kinds](inline-kinds.md#rendering-it-as-a-widget). `reactView(Component)` makes one from a component, which gets the slot's props as its own. Here's a chip for every `{{name}}` in the text:
+
+```tsx
+import { reactView } from '@voithos-labs/aragonite-react';
+import type { InlineWidgetComponentProps } from '@voithos-labs/aragonite/plugin';
+
+function Chip({ source }: InlineWidgetComponentProps) {
+	return <span className="chip">{source.slice(2, -2)}</span>;
+}
+
+registerInlineWidgetKind(chip, {
+	isWidget: () => true,
+	view: reactView(Chip),
+	editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
+});
+```
+
+`a {{pebble}} chip` now reads as `a [pebble] chip`, with `pebble` drawn by `Chip`, and the caret steps over it as one character. (The `chip` kind and its trigger are the `:shortcode:` recipe from that page with `{` as the trigger.)
+
+The component re-renders on every `update` with the slot's new props (typing before the chip moves its `inline.start`, say), and its root unmounts when the slot drops it. There's no per-prop tracking like `svelteView` has, so keep the render cheap.
+
+Vue is `vueView(component)`, and it hands the component only the props it declares, so the slot's other props (a widget gets a handful of functions, too) don't land on your root element as attributes. A badge on the first block, as a single-file component:
+
+```vue
+<!-- Pin.vue -->
+<script setup lang="ts">
+import type { Decoration } from '@voithos-labs/aragonite/plugin';
+
+defineProps<{ decoration: Decoration }>();
+</script>
+
+<template>
+	<span class="pin">pinned</span>
+</template>
+```
+
+```ts
+const pin = vueView(Pin, { app });
+editor.decorations.addSource({
+	name: 'pins',
+	provide: () => [{ type: 'block', path: [0], badge: { view: pin } }]
+});
+```
+
+The first block gets a `pinned` badge. A changed decoration at the same spot keeps the badge and re-renders it with the new `decoration`.
+
 ## Providers and app context
 
-Each block renders in a root of its own (a React root, or a Vue render tree outside your app), so a provider in your app (a theme, a store, i18n) doesn't reach it on its own. Each helper has one way to hand it over:
+Each block and view renders in a root of its own (a React root, or a Vue render tree outside your app), so a provider in your app (a theme, a store, i18n) doesn't reach it on its own. Each helper has one way to hand it over, the same on `reactView` and `vueView` as on the block helpers:
 
 - **React: `wrap`.** It gets the block's element tree and returns it wrapped, so `wrap: (block) => <StoreProvider store={store}>{block}</StoreProvider>`. It runs on every render, so hand it something built once (a module-level store), not a fresh object per call.
 - **Vue: `app`.** Pass your app and the block sees everything it set up: `provide`, global components, plugins like Pinia. That means building the view once the app exists, and your plugin from there:
