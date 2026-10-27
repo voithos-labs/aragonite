@@ -29,7 +29,7 @@ import {
 	restoreGapCaret,
 	type SelectionRestoreOutcome
 } from './selection-restore';
-import { isGapSelection, type GapCaretSelection } from '../undo/types';
+import { isGapSelection, type GapCaretSelection } from './gap-caret';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
 import type { SelectionState } from './selection-state.svelte';

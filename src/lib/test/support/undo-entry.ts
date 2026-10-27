@@ -1,5 +1,6 @@
 import { expect } from 'vitest';
-import { isGapSelection, type UndoEntry } from '#lib/undo/types.js';
+import { isGapSelection } from '#lib/selection/gap-caret.js';
+import type { UndoEntry } from '#lib/undo/types.js';
 import type { EditorSelection, SelectionPoint } from '#lib/selection/primitives.js';
 import type { MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
 

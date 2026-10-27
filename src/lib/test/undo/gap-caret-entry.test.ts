@@ -4,7 +4,7 @@ import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { placeGapCaret } from '#lib/selection/place-caret.js';
-import { isGapSelection } from '#lib/undo/types.js';
+import { isGapSelection } from '#lib/selection/gap-caret.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 

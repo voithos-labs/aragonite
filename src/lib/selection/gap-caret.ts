@@ -11,12 +11,27 @@ import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 import { placeGapCaret } from './place-caret';
 import type { CaretWriter } from '../browser/caret-writer';
+import type { EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 
 /** The boundary before child `index` of the container at `parentPath`; root is `[]`. */
 export interface GapCaretPosition {
 	parentPath: number[];
 	index: number;
+}
+
+/**
+ * A gap caret as an undo entry's selection. Its own type, never a member of `EditorSelection`:
+ * the gap is collapsed-only and can never be a cross-block endpoint.
+ */
+export interface GapCaretSelection {
+	gapCaret: GapCaretPosition;
+}
+
+export function isGapSelection(
+	selection: EditorSelection | GapCaretSelection
+): selection is GapCaretSelection {
+	return 'gapCaret' in selection;
 }
 
 /** A boundary is eligible when every block facing it declares that edge. The root's trailing

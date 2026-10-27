@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { assignIds } from '../../block-id';
-import { isGapSelection } from '../../undo/types';
+import { isGapSelection } from '../../selection/gap-caret';
 import type { UndoEntry } from '../../undo/types';
 
 function entryWith(selection: UndoEntry['selection']): UndoEntry {
