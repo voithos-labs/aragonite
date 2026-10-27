@@ -13,7 +13,7 @@ import {
 	rebuildDirectiveContainerRaw
 } from '#lib/core/directive/kinds.js';
 import type { DirectiveContainerMetadata } from '#lib/core/directive/container-shape.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 describe('registerDirectiveKinds', () => {
 	it('registers the generic container and leaf fallback kinds', () => {

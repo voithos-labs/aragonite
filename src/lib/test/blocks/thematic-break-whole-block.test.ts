@@ -5,7 +5,7 @@
 // default keys) with its own reading-mode check.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { displayLength } from '#lib/core/lines.js';
-import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/editor-actions/whole-block-focus-surface.js';
+import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/selection/whole-block-input.js';
 import {
 	BREAK_INDEX as INDEX,
 	BREAK_RAW as RAW,

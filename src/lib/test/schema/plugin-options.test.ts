@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
-import { pluginContextDeps } from '../support/plugin-context-deps';
+import { pluginContextDeps } from '../harness/plugin-context-deps';
 
 interface BadgeOptions {
 	label: string;

@@ -5,7 +5,7 @@ import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';
 import { completeTypedLine } from '#lib/schema/block-completions.js';
 import { registerMathBlock, MATH_BLOCK } from '#lib/plugins/latex/latex-kind.js';
 import { tryCompleteMathBlock } from '#lib/plugins/latex/math-completion.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // The `$$` completer's line test, the bytes it answers with, and what the editor does with them;
 // the registry is tested in test/schema, the checks around it in test/editor-actions.

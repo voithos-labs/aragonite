@@ -11,7 +11,7 @@ import {
 	MATH_FENCE
 } from '#lib/plugins/latex/latex-kind.js';
 import { makeContainerHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {
 	registerMathFence(testView());

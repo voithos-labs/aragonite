@@ -11,7 +11,7 @@ import type { CaretWriter } from '../../browser/caret-writer';
 import { isInPaddingRow, offsetFromViewportPoint } from '../../browser/point';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
-import { isWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
+import { isWholeBlockInputProxy } from '../whole-block-input';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

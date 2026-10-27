@@ -5,7 +5,7 @@
  */
 
 import type { AnyBlockKind } from '../core/nodes';
-import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
+import { WHOLE_BLOCK_INPUT_ATTR } from './whole-block-input';
 import { tryGetBlockKindDescriptor, type CaretTarget } from '../schema/block-kind-descriptor';
 import { cellPoint, type SelectionEndpoint } from './primitives';
 import { caretOffsetAtPoint, offsetFromViewportPoint } from '../browser/point';

@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { normalizeOwnRaw } from '#lib/tree-operations/node-primitives.js';
 import { documentLineEnding } from '#lib/plugin.js';
-import { rangeDelete } from '#lib/selection/range-delete.js';
+import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delete.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // The mermaid kind declares a raw-write rule that puts back a closing fence a truncating write

@@ -8,7 +8,7 @@ import type { FocusActions } from '#lib/action-contracts.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeCaretMemory } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
-import { commandContext } from '#lib/test/support/command-context.js';
+import { commandContext } from '#lib/test/harness/command-context.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // jsdom lays nothing out, so the block reads as one line and every vertical arrow is at its edge.

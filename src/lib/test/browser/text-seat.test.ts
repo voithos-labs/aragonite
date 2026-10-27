@@ -5,7 +5,7 @@
 // a press inside a container's marker prefix (a task checkbox) painted its spot for every frame.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { caretIsInTextContent, clickMovesSeat } from '#lib/browser/text-seat.js';
-import { buildAmbientSpan } from '#lib/ambient/ambient-dom.js';
+import { buildAmbientSpan } from '#lib/components/blocks/marker-prefix.js';
 import { placeCaretAt } from '../blocks/text/math-widget-fixture';
 
 describe('caretIsInTextContent', () => {

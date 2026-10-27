@@ -17,7 +17,7 @@ import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {
 	registerMathBlock(testView());

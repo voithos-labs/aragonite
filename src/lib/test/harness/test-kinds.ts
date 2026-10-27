@@ -11,8 +11,8 @@ import {
 	type ContainerDescriptorGroup
 } from '#lib/schema/block-kind-descriptor.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 
 /** Fields that override the leaf's defaults, or a function building them from the declared kind,

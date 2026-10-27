@@ -177,7 +177,7 @@ const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/browser/painted.ts': 'the classification home',
 	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
 		'creates the directive container chrome: contenteditable="false" and outside every walk container, so the hiding classification excludes it twice over',
-	'src/lib/ambient/ambient-dom.ts': 'creates and identifies the marker-prefix span',
+	'src/lib/components/blocks/marker-prefix.ts': 'creates and identifies the marker-prefix span',
 	'src/lib/core/inline-render.ts': 'creates inline marker and ref-label spans',
 	'src/lib/core/inline/visibility.ts': 'names the families the hiding rule is stated over',
 	'src/lib/components/blocks/text/text-render.ts': 'creates the block-own prefix span',
@@ -237,7 +237,7 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts':
 		'the one module that states the families and drops what hides',
 	'src/lib/core/inline-render.ts': 'creates the spans `visibility.ts` then reads back',
-	'src/lib/ambient/ambient-dom.ts': 'creates that same widget',
+	'src/lib/components/blocks/marker-prefix.ts': 'creates that same widget',
 	'src/lib/components/blocks/text/text-render.ts': "creates the block's own prefix span",
 	'src/lib/components/blocks/code/code-renderer.ts':
 		'creates the fence marker spans, for every kind that holds its own fence',
@@ -312,7 +312,7 @@ const PLAIN_READS: Record<string, string> = {
 		'hands on: a block a range holds whole is replaced by its text read at the slot, through `replaceBlock`, which fills in',
 	'src/lib/selection/selection-drop.ts':
 		'hands on: the dragged-out block’s rest is read at its slot and lands through `replaceBlock`, which fills in',
-	'src/lib/selection/range-delete-ceremony.ts':
+	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts':
 		'installs after backfill: the survivor of a range delete is read at its slot and given its paragraph before the splice',
 	'src/lib/invariants/node-shape.ts':
 		'probe: G1.1 and G1.12 compare a container’s bytes with its children’s bytes, which the empty paragraph would hide; G1.42 compares block kinds and reads through `readAsOpened`',

@@ -12,7 +12,7 @@ import {
 	MERMAID,
 	type MermaidMetadata
 } from '#lib/plugins/mermaid/mermaid-kind.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const MERMAID_KIND = () => declaredPluginKind(MERMAID);
 

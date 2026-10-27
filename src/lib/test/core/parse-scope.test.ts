@@ -5,8 +5,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import type { OpenContext } from '../../schema/block-openers';
 import { activateDirectiveGrammar } from '../../core/directive/activate';
-import { FRONT_MATTER, registerDocumentTopKind } from '../support/position-scoped-kind';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { FRONT_MATTER, registerDocumentTopKind } from '../harness/position-scoped-kind';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 /** Every context the parser offers, in dispatch order; the probe declines them all. */

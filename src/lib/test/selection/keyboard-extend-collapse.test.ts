@@ -6,7 +6,7 @@ import { collapseCrossBlock } from '../../selection/keyboard-extend';
 import { restoreLandingOver } from '../harness/restore-landing';
 import { registerDetailsKind } from '../../plugins/details/details-kind';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // [0] 2-column table (header + 2 body rows = 6 cells), [1] paragraph.
 const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\ntail\n');

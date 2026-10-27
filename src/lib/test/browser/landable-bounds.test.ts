@@ -7,7 +7,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { createCaretAnchor } from '../../browser/painted';
 import { findDomTextOffsetTarget, landableDomTextBounds } from '../../browser/offsets';
 import { asDomTextOffset } from '../../core/coordinate-spaces';
-import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 
 /** What a `replace` decoration renders: contenteditable="false" text, unlike a widget. */

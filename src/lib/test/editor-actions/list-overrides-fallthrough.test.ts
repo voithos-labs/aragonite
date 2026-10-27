@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 import type { CstNode } from '#lib/core/nodes.js';
 

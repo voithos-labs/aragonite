@@ -6,7 +6,7 @@ import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
 import { activationFor, type PluginActivation } from '#lib/schema/plugin-activation.js';
 import type { AnyCommandId } from '#lib/schema/command-id.js';
-import { commandContext } from '#lib/test/support/command-context.js';
+import { commandContext } from '#lib/test/harness/command-context.js';
 
 // A plugin context for any name, so only the command registry's own activation check can refuse.
 function context(activation: PluginActivation): CommandDispatchContext {

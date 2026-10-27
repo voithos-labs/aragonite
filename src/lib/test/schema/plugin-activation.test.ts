@@ -6,7 +6,7 @@ import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { blockViewFor, registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 import {
 	blockContextActionsFor,
 	registerBlockContextActions
@@ -14,7 +14,7 @@ import {
 import type { NodeView } from '#lib/core/node-views.js';
 import type { PluginBlockKind } from '#lib/core/nodes.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const stubView = testView();
 

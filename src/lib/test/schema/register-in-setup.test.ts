@@ -15,8 +15,8 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { activateDirectives } from '#lib/plugin.js';
 import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const asDevServer = () => configureEditorEnv({ isDev: true, isTest: false });

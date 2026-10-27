@@ -23,7 +23,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { commandContextWith } from '../../support/command-context';
+import { commandContextWith } from '../../harness/command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { holdsNativeRange } from '#lib/browser/selection-read.js';
 

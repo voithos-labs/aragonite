@@ -4,7 +4,7 @@
 // Miss-analysis: GH #115; bounds tests found that position but never whether text can express it.
 import { describe, it, expect, afterEach } from 'vitest';
 import { landableStartAbutsIsland } from '../../browser/offsets';
-import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 
 afterEach(() => document.body.replaceChildren());

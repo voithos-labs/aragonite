@@ -10,7 +10,7 @@ import {
 	type KindCommandTarget
 } from '#lib/schema/block-commands.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
-import { commandContext, commandContextWith } from '../support/command-context';
+import { commandContext, commandContextWith } from '../harness/command-context';
 
 function mover() {
 	return { nudgeReorderUnit: vi.fn(async () => true) };

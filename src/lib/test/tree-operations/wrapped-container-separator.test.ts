@@ -11,7 +11,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { testDirectiveViews, testView } from '#lib/test/support/test-view.js';
+import { testDirectiveViews, testView } from '#lib/test/harness/test-view.js';
 import { deleteSettled } from '#lib/test/harness/settle-funnel.js';
 
 // Inside a container whose parse strips the blank line after its opener into `innerPrefix`, the

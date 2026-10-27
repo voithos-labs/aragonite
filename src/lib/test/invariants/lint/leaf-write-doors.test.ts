@@ -21,7 +21,7 @@ const MARKER_WRAPPED: Record<string, string> = {
 	[CONTENT_WRITE]: 'the content write',
 	'src/lib/tree-operations/node-ops.ts': '`joinIntoLeaf`, the one join into a leaf',
 	[BLOCK_EDIT_CORE]: '`replaceBlock`, the one replace write',
-	'src/lib/selection/range-delete-ceremony.ts':
+	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts':
 		'`installSurvivor`, the one install of what a range delete leaves at a block'
 };
 

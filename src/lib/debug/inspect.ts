@@ -5,7 +5,7 @@
 
 import type { InlineNode } from '../core/nodes';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { isGapSelection, type UndoEntry } from '../undo/types';
+import type { UndoEntry } from '../undo/types';
 import type { OperationKind } from '../schema/operations';
 import type { OperationsLog, OperationEntry } from './operations-log';
 import type { InteractionTraceEntry } from './interaction-trace';
@@ -51,7 +51,8 @@ export function dumpUndoStack(stack: UndoStackLike, n = 10): string {
 
 function formatUndoSelection(sel: UndoEntry['selection']): string {
 	if (!sel) return 'selection=null';
-	if (isGapSelection(sel)) {
+	// Structural test, since importing the selection guard would loop debug/ back through caret/.
+	if ('gapCaret' in sel) {
 		return `selection=gap[${sel.gapCaret.parentPath.join(',')}]#${sel.gapCaret.index}`;
 	}
 	const a = formatPoint(sel.anchor);

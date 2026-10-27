@@ -14,7 +14,7 @@ import {
 	pasteContext
 } from '#lib/test/harness/editor-actions.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // Miss-analysis: no test pasted into a bodyWrite container, only typed, split or deleted (GH #40).
 

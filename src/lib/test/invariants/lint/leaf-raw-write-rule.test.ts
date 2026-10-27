@@ -103,11 +103,11 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 1,
 		why: 'a rollback restores raws the tree already held; nothing new is created'
 	},
-	'src/lib/selection/range-delete-ceremony.ts': {
+	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts': {
 		count: 4,
 		why: 'the chrome-clear and the truncation atoms’ two chrome-endpoint branches, reserved-chrome slots no leaf kind declaring a rule can occupy; and the endpoint reparse re-attaching the blank line that parse stripped (GH #97)'
 	},
-	'src/lib/selection/range-delete-table.ts': {
+	'src/lib/selection/cross-block/range-delete/range-delete-table.ts': {
 		count: 1,
 		why: 'a cell clear; a cleared cell is empty, which `tableCell`’s own rule already returns unchanged'
 	},

@@ -11,7 +11,7 @@ import {
 	screenVisibilityOf
 } from '../../browser/painted';
 import { landableDomTextBounds } from '../../browser/offsets';
-import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 
 afterEach(() => document.body.replaceChildren());

@@ -15,7 +15,7 @@ import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
 import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/index.js';
 import { latexPlugin } from '#lib/plugins/latex/index.js';
 import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 const MINTS_ONLY_ITS_OWN_KIND =
 	'the rung mints only its own inline kind, which the scan leaves unstamped by design — ' +

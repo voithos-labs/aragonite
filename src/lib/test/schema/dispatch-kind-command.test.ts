@@ -3,7 +3,7 @@ import { dispatchKindCommand, registerBlockCommand } from '#lib/schema/block-com
 import { mintCommandId } from '#lib/schema/command-id.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { commandContext, commandContextWith } from '../support/command-context';
+import { commandContext, commandContextWith } from '../harness/command-context';
 import type { CstNode } from '#lib/core/nodes.js';
 
 // No cross-block range in these cases; the dispatch's range decline has its own suite.

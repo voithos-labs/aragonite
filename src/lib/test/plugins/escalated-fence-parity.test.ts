@@ -21,8 +21,8 @@ import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { scanCompiled } from '#lib/test/harness/search-replace.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // ── A third-party kind following the guide's "Code in metadata" recipe ──────
 

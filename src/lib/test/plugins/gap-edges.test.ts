@@ -12,7 +12,7 @@ import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js
 import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import { registerTocBlock } from '#lib/plugins/toc/toc-plugin.js';
 import { gapEligibleAt } from '#lib/selection/gap-caret.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const TABLE = '| a | b |\n| - | - |\n';
 const MATH_BLOCK = '$$\nx^2\n$$\n';

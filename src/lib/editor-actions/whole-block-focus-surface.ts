@@ -9,15 +9,9 @@
 import { onMount } from 'svelte';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { createCaretHostInput } from './caret-host-input';
+import { WHOLE_BLOCK_INPUT_ATTR, isWholeBlockInputProxy } from '../selection/whole-block-input';
 
 // ── Editable-target guards ───────────────────────────────────────────────────
-
-/** The hidden host looks exactly like a plugin's own editable; this is what tells them apart. */
-export const WHOLE_BLOCK_INPUT_ATTR = 'data-whole-block-input';
-
-export function isWholeBlockInputProxy(target: EventTarget | null): boolean {
-	return target instanceof Element && target.hasAttribute(WHOLE_BLOCK_INPUT_ATTR);
-}
 
 /** A key pressed in a plugin's own text editor belongs to that editor (Backspace in a textarea
  *  edits text). The hidden host is excluded here, so no caller can forget it. */

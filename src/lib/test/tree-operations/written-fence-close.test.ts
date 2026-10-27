@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import { typingOver } from '#lib/test/harness/typing.js';
 
 beforeEach(() => {

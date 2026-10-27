@@ -9,7 +9,7 @@ import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 type Edit = (h: TopHarness) => Promise<unknown> | void;
 

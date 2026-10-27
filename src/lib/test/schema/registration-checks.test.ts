@@ -14,10 +14,10 @@ import { registerBlockCommand } from '#lib/schema/block-commands.js';
 import { getOrderedOpeners, type BlockOpener } from '#lib/schema/block-openers.js';
 import { registerChromeLeaf } from '#lib/plugin.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { collector } from '#lib/test/harness/violation-collector.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 

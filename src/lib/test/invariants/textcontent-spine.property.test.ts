@@ -5,7 +5,7 @@ import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { contentLengthOf, parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
-import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { rawTextOfNode } from '../../browser/block-text';
 import type { IndexedDecoration } from '../../decorations/buckets';
 import { applyIslandDecorations, type ApplyIslandsOpts } from '../../decorations/island-dom';

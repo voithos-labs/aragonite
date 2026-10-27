@@ -4,22 +4,8 @@
  */
 
 import type { Document } from '../core/nodes';
-import type { GapCaretPosition } from '../selection/gap-caret';
+import type { GapCaretSelection } from '../selection/gap-caret';
 import type { EditorSelection } from '../selection/primitives';
-
-/**
- * A gap caret at push. Its own type, never a member of `EditorSelection`: the gap is
- * collapsed-only and can never be a cross-block endpoint.
- */
-export interface GapCaretSelection {
-	gapCaret: GapCaretPosition;
-}
-
-export function isGapSelection(
-	selection: EditorSelection | GapCaretSelection
-): selection is GapCaretSelection {
-	return 'gapCaret' in selection;
-}
 
 export interface UndoEntry {
 	snapshot: Document;

@@ -1,9 +1,8 @@
 /**
  * Today's import edges between `src/lib`'s top-level directories (a root file is its own node).
  * `directory-layering.test.ts` fails on an edge not listed and on a listed edge that's gone; a new
- * line needs a reviewer's yes, and a move may only rename nodes along its move map. Two cycles are
- * left to break: {core, schema, caret, browser, invariants, debug} and
- * {selection, editor-actions}.
+ * line needs a reviewer's yes, and a move may only rename nodes along its move map. One cycle is
+ * left to break: {core, schema, caret, browser, invariants, debug}.
  */
 
 /** Pairs joined by at least one import that loads at runtime. */
@@ -11,8 +10,6 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'a11y-strings.ts -> core',
 	'a11y-strings.ts -> schema',
 	'activation-click.ts -> presentation-mode.ts',
-	'ambient -> caret',
-	'ambient -> dev-checks.ts',
 	'block-lists -> block-id.ts',
 	'block-lists -> dev-checks.ts',
 	'bounded-memo.ts -> dev-checks.ts',
@@ -31,7 +28,6 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'components -> a11y-strings.ts',
 	'components -> activation-click.ts',
 	'components -> active-editor.ts',
-	'components -> ambient',
 	'components -> around-render.svelte.ts',
 	'components -> block-component.ts',
 	'components -> block-id.ts',
@@ -71,7 +67,6 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'create-editor.ts -> reactive-props.ts',
 	'debug -> core',
 	'debug -> dev-checks.ts',
-	'debug -> undo',
 	'debug -> version.ts',
 	'decorations -> browser',
 	'decorations -> commit-scope.ts',
@@ -152,13 +147,11 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'selection -> caret',
 	'selection -> core',
 	'selection -> dev-checks.ts',
-	'selection -> editor-actions',
 	'selection -> editor-events.ts',
 	'selection -> invariants',
 	'selection -> presentation-mode.ts',
 	'selection -> schema',
 	'selection -> tree-operations',
-	'selection -> undo',
 	'svelte.ts -> components',
 	'svelte.ts -> editor-actions',
 	'svelte.ts -> svelte-view.svelte.ts',
@@ -203,7 +196,6 @@ export const TYPE_EDGES: readonly string[] = [
 	'action-contracts.ts -> schema',
 	'action-contracts.ts -> selection',
 	'action-contracts.ts -> tree-operations',
-	'ambient -> block-component.ts',
 	'block-component.ts -> block-lists',
 	'block-component.ts -> core',
 	'block-component.ts -> editor-rects.ts',
@@ -221,6 +213,7 @@ export const TYPE_EDGES: readonly string[] = [
 	'debug -> editor-props.ts',
 	'debug -> schema',
 	'debug -> selection',
+	'debug -> undo',
 	'decorations -> editor-events.ts',
 	'dev-checks-stripped.ts -> dev-checks.ts',
 	'editor-actions -> action-contracts.ts',

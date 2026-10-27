@@ -14,7 +14,7 @@ import type { InlineRangeCommit } from '#lib/editor-actions/inline-range-commit.
 import type { CaretRestore } from '#lib/selection/caret-restore.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { commandContext } from '../../support/command-context';
+import { commandContext } from '../../harness/command-context';
 import { resolveHref } from '#lib/core/inline-render.js';
 import {
 	installLayoutStubs,

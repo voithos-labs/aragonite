@@ -2,8 +2,8 @@
  * Every traversal over an inline tree or its rendered DOM is iterative (G4.56): inline nesting
  * depth comes from the input, so one call frame per level overflows the stack and strands the
  * block in a fallback it cannot recover from. The scan covers `core/inline/`, `browser/`, `caret/`,
- * `windowing/`, `ambient/` and the live gesture code in `components/blocks/text/`, whose join
- * rebuild walks the same way.
+ * `windowing/`, the marker prefix builder and the live gesture code in `components/blocks/text/`,
+ * whose join rebuild walks the same way.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -23,7 +23,7 @@ const SCOPE = [
 	SOURCE_DIR.browser,
 	SOURCE_DIR.caret,
 	SOURCE_DIR.windowing,
-	SOURCE_DIR.ambient,
+	SOURCE.markerPrefix,
 	SOURCE_DIR.textBlock
 ];
 

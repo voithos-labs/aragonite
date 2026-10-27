@@ -2,7 +2,7 @@
 // insert or removal ahead of it would silently point it at a different boundary.
 // Miss-analysis: gap tests drove only the gap's own gestures, never an edit from elsewhere.
 import { describe, it, expect } from 'vitest';
-import { isGapSelection } from '#lib/undo/types.js';
+import { isGapSelection } from '#lib/selection/gap-caret.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 
 const TABLE = '| a | b |\n| - | - |\n| c | d |\n';

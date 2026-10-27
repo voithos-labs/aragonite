@@ -15,7 +15,7 @@ import {
 	DETAILS,
 	DETAILS_SUMMARY
 } from '#lib/plugins/details/details-kind.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {
 	registerAdmonitions(testView());

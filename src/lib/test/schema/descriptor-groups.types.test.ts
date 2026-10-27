@@ -8,8 +8,8 @@ import {
 	registerBuiltinBlockKind,
 	type BlockKindRegistration
 } from '#lib/schema/block-kind-descriptor.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 
 const leaf = {

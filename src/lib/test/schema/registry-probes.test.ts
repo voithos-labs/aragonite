@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 describe('registration probes', () => {
 	it('reports a built-in kind as registered and an unknown name as not', () => {

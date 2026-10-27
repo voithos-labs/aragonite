@@ -14,7 +14,7 @@ import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.j
 import type { AnyCommandId } from '#lib/schema/command-id.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { commandContext, commandContextWith } from '../support/command-context';
+import { commandContext, commandContextWith } from '../harness/command-context';
 
 let undos = 0;
 const context = (over: Parameters<typeof commandContext>[0] = {}) =>

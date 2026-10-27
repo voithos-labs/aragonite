@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { runCommandById } from '#lib/schema/block-commands.js';
-import { commandContext } from '#lib/test/support/command-context.js';
+import { commandContext } from '#lib/test/harness/command-context.js';
 import type { ReorderAction } from '#lib/editor-actions/reorder-action.js';
 import type { CommandId } from '#lib/schema/commands.js';
 import type { CstNode } from '#lib/core/nodes.js';

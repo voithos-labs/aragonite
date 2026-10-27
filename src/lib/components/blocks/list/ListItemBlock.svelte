@@ -14,7 +14,7 @@
 	} from '../../../editor-keys';
 	import { headingLevel, metadataOf } from '../../../core/nodes';
 	import { shownKind } from '../../../core/parsers/heading';
-	import { buildAmbientSpan } from '../../../ambient/ambient-dom';
+	import { buildAmbientSpan } from '../marker-prefix';
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import { checkItemMarkerBytes } from '../../../invariants/item-marker-bytes';
 	import { hidesMarkers } from '../../../presentation-mode';

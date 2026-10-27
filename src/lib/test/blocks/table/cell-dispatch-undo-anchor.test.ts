@@ -13,7 +13,7 @@ import { cellAt, installTableLayoutStubs } from './mount-table';
 import { domTextOffsetAtNode } from '#lib/browser/offsets.js';
 import type { CaretWriter } from '#lib/browser/caret-writer.js';
 import type { UndoEntry } from '#lib/undo/types.js';
-import { rangeSelectionOf } from '../../support/undo-entry';
+import { rangeSelectionOf } from '../../harness/undo-entry';
 
 let restoreLayout: () => void;
 beforeAll(() => {

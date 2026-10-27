@@ -6,8 +6,8 @@ import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activati
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { collectReservedChords } from '#lib/schema/reserved-chords.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const CHORD = 'Mod+Shift+8';
 

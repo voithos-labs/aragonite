@@ -12,7 +12,7 @@ import { makeTableStateAt, stubBlockComponent } from '../../harness/editor-actio
 import { settleEditor } from '../../harness/settle';
 import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
 import { press } from './keydown-env';
-import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
 
 type Gesture = 'Backspace' | 'cut' | 'type' | 'paste' | 'compose' | 'Enter' | 'Tab';

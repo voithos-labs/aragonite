@@ -15,7 +15,7 @@ import {
 	rawOfWalkOffset,
 	walkOffsetOfRaw
 } from '../browser/offsets';
-import { isWholeBlockInputProxy } from '../editor-actions/whole-block-focus-surface';
+import { isWholeBlockInputProxy } from './whole-block-input';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import { installDragListener, type DragGranularity } from './drag-pointer';
 import { applySingleBlockRange, applySurfaceContentRange } from './native-bridge';

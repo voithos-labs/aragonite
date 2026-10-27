@@ -5,7 +5,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import type { CstNode, Document } from '../../core/nodes';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
-import { rangeDelete } from '../../selection/range-delete';
+import { rangeDelete } from '../../selection/cross-block/range-delete/range-delete';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { cellPoint, type SelectionPoint } from '../../selection/primitives';
 import { reservedChromeKindOf } from '../../schema/reserved-chrome';

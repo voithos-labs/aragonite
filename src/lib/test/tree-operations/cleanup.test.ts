@@ -6,7 +6,7 @@ import { cascadeCleanupEmptyAncestors } from '../../tree-operations/cleanup';
 import { createSharingState, type SharingState } from '../../tree-operations/sharing';
 import type { CstNode, Document } from '../../core/nodes';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createScopeWriter } from '#lib/editor-actions/commit/scope-writes.js';
 

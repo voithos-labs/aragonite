@@ -5,7 +5,7 @@ import {
 	registerCalloutKind,
 	rebuildCalloutRaw
 } from '../../../routes/test/plugins/callout/callout-kind';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const TWO_PARA = ':::callout\nHello **world**\n\nSecond para\n:::\n';
 const TITLED = ':::callout My Title\nBody\n:::\n';

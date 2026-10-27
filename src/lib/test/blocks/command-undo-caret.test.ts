@@ -12,7 +12,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt, installTableLayoutStubs } from './table/mount-table';
-import { rangeSelectionOf } from '../support/undo-entry';
+import { rangeSelectionOf } from '../harness/undo-entry';
 
 beforeAll(() => {
 	installLayoutStubs();
