@@ -6,7 +6,7 @@ const REACT = [...EVERY_APP];
 const VUE = [...EVERY_APP, 'vue'];
 // The example apps also serve the showcase (`showcase.html`) and a page of framework-drawn plugin
 // blocks and views (`?block-views`); the meta-framework apps do not.
-const EXAMPLE = ['showcase', 'block-views', 'plugin-views'];
+const EXAMPLE = ['showcase', 'block-views', 'plugin-views', 'own-surface'];
 
 export const APPS = {
 	react: {

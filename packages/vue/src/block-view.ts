@@ -117,7 +117,6 @@ export function vueBlockView<S extends FrameworkSurface>(
 					afterInput?.(text, ctx as never);
 				},
 				destroy() {
-					handOver.live = false;
 					root.unmount();
 				}
 			};
@@ -151,10 +150,9 @@ export const BlockChildren = defineComponent({
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** One per mount: it holds the mount's `ctx`, and drops a ref call that lands after `destroy`.
- *  Vue calls a function ref again on each re-render; the editor ignores an element it already has. */
+/** One per mount, holding the mount's `ctx`. Vue calls a function ref again on each re-render; the
+ *  editor ignores an element it already has, and one handed over after `destroy`. */
 interface HandOver {
-	live: boolean;
 	attach(el: unknown): void;
 	mountChildren(el: unknown): void;
 }
@@ -162,20 +160,17 @@ interface HandOver {
 const HAND_OVER: InjectionKey<HandOver> = Symbol('aragonite block view');
 
 function handOverFor(ctx: MountContext): HandOver {
-	const handOver: HandOver = {
-		live: true,
+	return {
 		attach(el) {
-			if (!handOver.live) return;
 			if (!('leaf' in ctx)) throw new Error('<LeafContent> is for a leaf or render-primary block');
 			ctx.leaf.attach(el as HTMLElement | null);
 		},
 		mountChildren(el) {
-			if (!handOver.live || !el) return;
+			if (!el) return;
 			if (!('container' in ctx)) throw new Error('<BlockChildren> is for a container block');
 			ctx.container.mountChildren(el as HTMLElement);
 		}
 	};
-	return handOver;
 }
 
 function useHandOver(name: string): HandOver {

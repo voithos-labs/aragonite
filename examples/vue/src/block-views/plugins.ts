@@ -5,6 +5,7 @@ import { blockViewsPlugin } from '../../../adapter-suite/block-view-kinds';
 import Memo from './Memo.vue';
 import Label from './Label.vue';
 import Box from './Box.vue';
+import Note from './Note.vue';
 import Chip from './Chip.vue';
 import MemoLength from './MemoLength.vue';
 
@@ -18,6 +19,7 @@ export function blockViewPlugins(app: App) {
 				className: 'label'
 			}),
 			box: vueBlockView(Box, { surface: 'container', className: 'box' }),
+			note: vueBlockView(Note, { surface: 'container', className: 'note' }),
 			chip: vueView(Chip, { app }),
 			memoLength: vueView(MemoLength, { app })
 		})

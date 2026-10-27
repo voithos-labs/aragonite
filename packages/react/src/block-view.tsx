@@ -106,7 +106,6 @@ export function reactBlockView<S extends FrameworkSurface>(
 					afterInput?.(text, ctx as never);
 				},
 				destroy() {
-					handOver.live = false;
 					void root.unmount();
 				}
 			};
@@ -133,7 +132,6 @@ export function BlockChildren({ as: Tag = 'div', ...attributes }: ContentProps) 
 /** One per mount, so each ref callback keeps its identity across renders: a new one would be
  *  called with null first, and the editor empties an element handed back to it. */
 interface HandOver {
-	live: boolean;
 	attach(el: HTMLElement | null): void;
 	mountChildren(el: HTMLElement | null): void;
 }
@@ -141,20 +139,17 @@ interface HandOver {
 const HandOverContext = createContext<HandOver | null>(null);
 
 function handOverFor(ctx: MountContext): HandOver {
-	const handOver: HandOver = {
-		live: true,
+	return {
 		attach(el) {
-			if (!handOver.live) return;
 			if (!('leaf' in ctx)) throw new Error('<LeafContent> is for a leaf or render-primary block');
 			ctx.leaf.attach(el);
 		},
 		mountChildren(el) {
-			if (!handOver.live || !el) return;
+			if (!el) return;
 			if (!('container' in ctx)) throw new Error('<BlockChildren> is for a container block');
 			ctx.container.mountChildren(el);
 		}
 	};
-	return handOver;
 }
 
 function useHandOver(name: string): HandOver {

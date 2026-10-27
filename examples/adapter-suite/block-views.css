@@ -45,3 +45,22 @@
 	color: #222;
 	user-select: none;
 }
+/* The whole-block editing host sits in the note's element, so the note is its positioned box. */
+.note {
+	position: relative;
+	border: 1px solid #8884;
+	border-radius: 6px;
+	padding: 0.25em 0.5em;
+}
+.note:focus-within {
+	border-color: #3b82f6;
+}
+.note-text {
+	margin: 0;
+	outline: none;
+}
+.note-source {
+	width: 100%;
+	box-sizing: border-box;
+	font: inherit;
+}
