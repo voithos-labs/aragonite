@@ -11,7 +11,7 @@ import {
 } from '../../browser/offsets';
 import { isHiddenMarkerText } from '../../browser/painted';
 import { findFirstTextNode, findLastTextNode } from '../../browser/lines';
-import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { createSurfaceBackend } from '../../components/blocks/editable/surface-backend';
 import { applyCollapsedCaret } from '../../selection/native-bridge';
 import { caretIsInTextContent } from '../../browser/text-seat';

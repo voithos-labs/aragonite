@@ -7,7 +7,7 @@ import { mountDecorationWidget } from '#lib/decorations/widget-dom.js';
 import type { IndexedDecoration } from '#lib/decorations/buckets.js';
 import type { ReplaceDecoration, WidgetDecoration } from '#lib/decorations/types.js';
 import { rawTextOfNode } from '#lib/browser/block-text.js';
-import { buildAmbientSpan } from '#lib/ambient/ambient-dom.js';
+import { buildAmbientSpan } from '#lib/components/blocks/marker-prefix.js';
 import { contentLengthOf, parseInline } from '#lib/core/inline/index.js';
 import { renderInlineNodes } from '#lib/core/inline-render.js';
 import { renderOptions } from '../harness/fixture-grammar';

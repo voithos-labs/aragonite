@@ -177,7 +177,7 @@ const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/browser/painted.ts': 'the classification home',
 	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
 		'creates the directive container chrome: contenteditable="false" and outside every walk container, so the hiding classification excludes it twice over',
-	'src/lib/ambient/ambient-dom.ts': 'creates and identifies the marker-prefix span',
+	'src/lib/components/blocks/marker-prefix.ts': 'creates and identifies the marker-prefix span',
 	'src/lib/core/inline-render.ts': 'creates inline marker and ref-label spans',
 	'src/lib/core/inline/visibility.ts': 'names the families the hiding rule is stated over',
 	'src/lib/components/blocks/text/text-render.ts': 'creates the block-own prefix span',
@@ -237,7 +237,7 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts':
 		'the one module that states the families and drops what hides',
 	'src/lib/core/inline-render.ts': 'creates the spans `visibility.ts` then reads back',
-	'src/lib/ambient/ambient-dom.ts': 'creates that same widget',
+	'src/lib/components/blocks/marker-prefix.ts': 'creates that same widget',
 	'src/lib/components/blocks/text/text-render.ts': "creates the block's own prefix span",
 	'src/lib/components/blocks/code/code-renderer.ts':
 		'creates the fence marker spans, for every kind that holds its own fence',

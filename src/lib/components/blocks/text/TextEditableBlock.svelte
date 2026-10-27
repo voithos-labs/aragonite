@@ -2,7 +2,7 @@
 	import { getContext, onDestroy, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { isTaskItemText } from '../list/task-checkbox';
-	import { defaultPrefixIndent } from '../../../ambient/ambient-dom';
+	import { defaultPrefixIndent } from '../marker-prefix';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { LIST_CONTEXT_KEY } from '../../../editor-keys';

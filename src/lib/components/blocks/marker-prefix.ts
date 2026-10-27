@@ -3,8 +3,8 @@
  * draws in front of its first prose child's text. Reading it back is `browser/offsets.ts`.
  */
 
-import type { AmbientPrefix } from '../block-component';
-import { DRAG_ANCHOR_ATTR } from '../caret/block-content-selector';
+import type { AmbientPrefix } from '../../block-component';
+import { DRAG_ANCHOR_ATTR } from '../../caret/block-content-selector';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 
 /** The box inside the marker prefix span that editor.css sizes to the hanging indent. */

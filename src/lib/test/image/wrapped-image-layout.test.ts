@@ -9,7 +9,7 @@ import path from 'node:path';
 import { parseInline } from '#lib/core/inline/index.js';
 import { renderInlineNodes, type RenderInlineOptions } from '#lib/core/inline-render.js';
 import { buildImageWidget } from '#lib/components/image/widget-dom.js';
-import { buildAmbientSpan } from '#lib/ambient/ambient-dom.js';
+import { buildAmbientSpan } from '#lib/components/blocks/marker-prefix.js';
 import { renderOptions } from '../harness/fixture-grammar';
 
 function widgetOptions(): RenderInlineOptions {

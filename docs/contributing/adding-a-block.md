@@ -43,7 +43,7 @@ Pick the closest reference and read it fully before you start. It'll answer more
 - `components/blocks/`: the reference components.
 - `schema/`: the registries you'll touch.
 - `editor-actions/`, `block-lists/` and `windowing/`: the primitives a container builds on.
-- `ambient/`: the DOM for a container's dimmed marker, lent to its first child (a footnote definition's `[^label]: `) or drawn in a list item's own cell.
+- `components/blocks/marker-prefix.ts`: the DOM for a container's dimmed marker, lent to its first child (a footnote definition's `[^label]: `) or drawn in a list item's own cell.
 - `browser/`: offsets across that marker included (`browser/offsets.ts`).
 
 ## Registration

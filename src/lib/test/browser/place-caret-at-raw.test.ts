@@ -3,7 +3,7 @@
 // asked to, onto a position the caret can reach; a DOM position reads back through the same
 // prefix length, taken from the DOM.
 import { describe, it, expect, afterEach } from 'vitest';
-import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { rawOffsetAt } from '../../browser/offsets';
 import { rawSelectionFocus } from '../../browser/selection-read';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';

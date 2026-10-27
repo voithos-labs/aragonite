@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: depth tests covered only the renderer, never the traversals reading its DOM back.
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { domDescendants } from '../../browser/dom-descendants';
 import { asDomTextOffset } from '../../core/coordinate-spaces';
 import { findFirstTextNode, findLastTextNode } from '../../browser/lines';
@@ -76,7 +76,7 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 		const block = nestedSpans(DOM_DEPTH);
 		block.replaceChild(buildAmbientSpan('> '), block.firstChild!);
 		// jsdom's attach traversal overflows at this depth and drops a detached range, so the
-		// position is read where it is set; `ambient-dom.test.ts` tests the real selection.
+		// position is read where it is set; `marker-prefix.test.ts` tests the real selection.
 		const seated: [Node, number][] = [];
 		const write = vi
 			.spyOn(window.Selection.prototype, 'setBaseAndExtent')

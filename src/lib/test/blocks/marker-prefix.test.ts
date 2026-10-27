@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { buildAmbientSpan, MARKER_BOX_CLASS } from '../../ambient/ambient-dom';
+import { buildAmbientSpan, MARKER_BOX_CLASS } from '../../components/blocks/marker-prefix';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** The box inside the marker that holds its text and ranges. */

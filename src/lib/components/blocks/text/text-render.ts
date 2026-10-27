@@ -10,7 +10,7 @@ import type { AmbientPrefix } from '../../../block-component';
 import type { DocumentView, NodeView } from '../../../core/node-views';
 import { tagsConstructMarkers } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../host-hooks';
-import { buildAmbientSpan } from '../../../ambient/ambient-dom';
+import { buildAmbientSpan } from '../marker-prefix';
 import {
 	computeInlineContent,
 	contentLengthOf,

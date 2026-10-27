@@ -21,8 +21,7 @@ const GESTURE_ROOTS = [
 	SOURCE_DIR.selection,
 	SOURCE_DIR.treeOperations,
 	SOURCE_DIR.decorations,
-	SOURCE_DIR.search,
-	SOURCE_DIR.ambient
+	SOURCE_DIR.search
 ];
 
 /** Gesture code under `core/`: the link card's byte writer sits beside the link grammar it inverts. */
