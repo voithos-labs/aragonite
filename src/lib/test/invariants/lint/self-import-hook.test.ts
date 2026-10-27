@@ -15,8 +15,10 @@ process.stdout.write(import.meta.resolve('@voithos-labs/aragonite/dev-checks'));
 	const out = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
 		cwd: ROOT,
 		env: { ...process.env, ...env },
-		encoding: 'utf8'
+		encoding: 'utf8',
+		timeout: 120_000
 	});
+	if (out.error) throw out.error;
 	if (out.status !== 0) throw new Error(out.stderr);
 	return out.stdout;
 }
