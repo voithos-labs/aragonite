@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { flushSync } from 'svelte';
 import { allowDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { serialize } from '#lib/core/serializer.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
@@ -12,7 +13,7 @@ import {
 	holdsWholeBlockFocus,
 	isEditableEventTarget,
 	type WholeBlockInputProxy
-} from '#lib/editor-actions/whole-block-focus-surface.js';
+} from '#lib/editor-actions/whole-block-focus-surface.svelte.js';
 import {
 	WHOLE_BLOCK_INPUT_ATTR,
 	isWholeBlockInputProxy
@@ -26,12 +27,14 @@ const holdTabStop = (el: HTMLElement) => {
 	return () => {};
 };
 
-// The proxy factory mounts its host in `onMount`; outside a component the test runs the callback.
-const mountCallbacks = vi.hoisted(() => [] as (() => unknown)[]);
-vi.mock('svelte', async (original) => ({
-	...(await original<typeof import('svelte')>()),
-	onMount: (fn: () => unknown) => mountCallbacks.push(fn)
-}));
+// The proxy factory mounts its host from an effect that follows the box, so each runs in a root.
+const roots: (() => void)[] = [];
+function inEffectRoot<T>(make: () => T): T {
+	let made: T | undefined;
+	roots.push($effect.root(() => void (made = make())));
+	flushSync();
+	return made!;
+}
 
 // The hidden editing host is contenteditable, so each "is a plugin's own editor holding this?"
 // check must exclude it: the focus-element composition, focus placement and offset report.
@@ -56,8 +59,8 @@ function proxyIn(host: HTMLElement): HTMLElement {
 
 beforeEach(() => {
 	document.body.innerHTML = '';
-	mountCallbacks.length = 0;
 });
+afterEach(() => roots.splice(0).forEach((stop) => stop()));
 
 describe('the editing host is not a plugin editable', () => {
 	it('is recognized by its attribute and refused by the editable-target guard', () => {
@@ -159,15 +162,16 @@ describe('the editing host names its block', () => {
 		const boxEl = box();
 		const declared = attach(document.createElement('div'));
 		let label = 'Chart';
-		const proxy = createWholeBlockInputProxy({
-			getBoxEl: () => boxEl,
-			getFocusEl: () => declared,
-			isReading: () => false,
-			holdTabStop,
-			getLabel: () => label,
-			mint: () => {}
-		});
-		mountCallbacks.forEach((run) => run());
+		const proxy = inEffectRoot(() =>
+			createWholeBlockInputProxy({
+				getBoxEl: () => boxEl,
+				getFocusEl: () => declared,
+				isReading: () => false,
+				holdTabStop,
+				getLabel: () => label,
+				mint: () => {}
+			})
+		);
 		expect(proxy.el()?.getAttribute('aria-label')).toBe('Chart');
 
 		label = 'Diagramme';
@@ -183,15 +187,16 @@ describe('the editing host in reading mode', () => {
 	it('is not editable, and a character that reaches it anyway writes nothing', async () => {
 		const editor = makeTopHarness('---\n', { reading: fixtureReading({}, 'reading') });
 		const boxEl = box();
-		const proxy = createWholeBlockInputProxy({
-			getBoxEl: () => boxEl,
-			getFocusEl: () => null,
-			isReading: () => true,
-			holdTabStop,
-			getLabel: () => 'Divider',
-			mint: (text) => void editor.actions.insertParagraph(1, text)
-		});
-		mountCallbacks.forEach((run) => run());
+		const proxy = inEffectRoot(() =>
+			createWholeBlockInputProxy({
+				getBoxEl: () => boxEl,
+				getFocusEl: () => null,
+				isReading: () => true,
+				holdTabStop,
+				getLabel: () => 'Divider',
+				mint: (text) => void editor.actions.insertParagraph(1, text)
+			})
+		);
 		expect(proxy.el()?.getAttribute('contenteditable')).toBe('false');
 
 		proxy
@@ -211,15 +216,16 @@ describe('the editing host in reading mode', () => {
 describe('a paste that reaches the editing host', () => {
 	it('is refused and mints no paragraph', () => {
 		const minted: string[] = [];
-		const proxy = createWholeBlockInputProxy({
-			getBoxEl: () => box(),
-			getFocusEl: () => null,
-			isReading: () => false,
-			holdTabStop,
-			getLabel: () => 'Divider',
-			mint: (text) => void minted.push(text)
-		});
-		mountCallbacks.forEach((run) => run());
+		const proxy = inEffectRoot(() =>
+			createWholeBlockInputProxy({
+				getBoxEl: () => box(),
+				getFocusEl: () => null,
+				isReading: () => false,
+				holdTabStop,
+				getLabel: () => 'Divider',
+				mint: (text) => void minted.push(text)
+			})
+		);
 
 		const paste = new InputEvent('beforeinput', {
 			inputType: 'insertFromPaste',
@@ -230,5 +236,32 @@ describe('a paste that reaches the editing host', () => {
 
 		expect(paste.defaultPrevented).toBe(true);
 		expect(minted).toEqual([]);
+	});
+});
+
+// Miss-analysis: every box the host was tested in stayed for the factory's whole life, and a DOM
+// block view mounted again hands it a new one.
+describe('the editing host follows its box', () => {
+	it('moves into a new box, leaving none in the old one', () => {
+		const first = box();
+		let current = $state(first);
+		const proxy = inEffectRoot(() =>
+			createWholeBlockInputProxy({
+				getBoxEl: () => current,
+				getFocusEl: () => null,
+				isReading: () => false,
+				holdTabStop,
+				getLabel: () => 'Diagram',
+				mint: () => {}
+			})
+		);
+		expect(first.contains(proxy.el())).toBe(true);
+
+		const second = box();
+		current = second;
+		flushSync();
+
+		expect(second.contains(proxy.el())).toBe(true);
+		expect(first.querySelector(`[${WHOLE_BLOCK_INPUT_ATTR}]`)).toBeNull();
 	});
 });

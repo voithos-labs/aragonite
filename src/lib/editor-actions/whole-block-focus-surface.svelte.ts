@@ -6,7 +6,7 @@
  * which a render swap replaces.
  */
 
-import { onMount } from 'svelte';
+import { untrack } from 'svelte';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { createCaretHostInput } from './caret-host-input';
 import { WHOLE_BLOCK_INPUT_ATTR, isWholeBlockInputProxy } from '../selection/whole-block-input';
@@ -140,9 +140,13 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 		proxy.setAttribute('aria-label', deps.getLabel());
 	}
 
-	onMount(() => {
+	// Follows the box, which a DOM block view replaces when its view is mounted again.
+	$effect(() => {
 		const box = deps.getBoxEl();
-		if (!box) return;
+		if (box) return untrack(() => mountIn(box));
+	});
+
+	function mountIn(box: HTMLElement): () => void {
 		proxy = document.createElement('div');
 		proxy.setAttribute(WHOLE_BLOCK_INPUT_ATTR, '');
 		proxy.className = 'whole-block-input';
@@ -163,7 +167,7 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 			proxy?.remove();
 			proxy = null;
 		};
-	});
+	}
 
 	return {
 		el: () => proxy,

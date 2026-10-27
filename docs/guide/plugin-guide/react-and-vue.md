@@ -4,7 +4,7 @@ Part of the [plugin guide](../plugin-guide.md). It assumes you've met `registerB
 
 If your app is React or Vue, you can draw a plugin block with your own components. The packages that give you the `<Aragonite>` component, `@voithos-labs/aragonite-react` and `@voithos-labs/aragonite-vue`, each carry a helper that turns a component into a block view: `reactBlockView` and `vueBlockView`. Under the hood they're `defineBlockView` with your component rendered into the element the editor makes for the block, so they run wherever the editor runs, the prebuilt copy a React or Vue app installs included. For the smaller things a plugin draws (an inline widget, a decoration, a menu row) there's `reactView` and `vueView`.
 
-Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [the same in Vue](#the-same-in-vue) · [widgets, decorations and menu rows](#widgets-decorations-and-menu-rows) · [providers and app context](#providers-and-app-context) · [what the helpers don't do](#what-the-helpers-dont-do)
+Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [a block with its own editing surface](#a-block-with-its-own-editing-surface) · [the same in Vue](#the-same-in-vue) · [widgets, decorations and menu rows](#widgets-decorations-and-menu-rows) · [providers and app context](#providers-and-app-context) · [what the helpers don't do](#what-the-helpers-dont-do)
 
 ## A memo in React
 
@@ -124,6 +124,53 @@ export const boxView = reactBlockView(Box, { surface: 'container', className: 'b
 
 `<BlockChildren>` renders empty, like `<LeafContent>`, and the children land in it, so your chrome goes beside it. The kind itself is the container from [the walkthrough](container-walkthrough.md#the-registration-module): its registration doesn't change, only its `view` does.
 
+## A block with its own editing surface
+
+Some blocks don't want the editor's text at all. The bundled diagram block shows a picture, and editing it means a `<textarea>` of its own. A block like that has no caret inside it, so the editor focuses it as a whole: arrows stop on it, Backspace next to it focuses it and a second press deletes it, Enter adds a paragraph below, and a character typed at it starts one. You declare that on the kind, `blockFocus: 'whole-block'`, with `container: { contract: 'opaque', rebuildRaw }` since the block keeps its text in metadata (the [render-primary recipe](render-primary.md#recipe-a-render-primary-block) walks through that registration). Then you draw it on the container surface and skip the children.
+
+What your component hands over is the element that takes focus, through `ctx.container.attachFocus`, as a ref. A note shown as text until a double click opens a textarea:
+
+```tsx
+function Note({ state, ctx }: BlockViewProps<'container'>) {
+	const text = getPluginMetadata<{ text: string }>(state.node)?.text ?? '';
+	const [editing, setEditing] = useState(false);
+	ctx.container.setCommandHooks({ openEdit: () => setEditing(true) });
+
+	if (editing) {
+		return (
+			<textarea
+				ref={ctx.container.attachFocus}
+				autoFocus
+				defaultValue={text}
+				onBlur={(e) => {
+					setEditing(false);
+					const next = e.currentTarget.value;
+					if (next !== text) void ctx.container.updateOwnMetadata({ text: next });
+				}}
+			/>
+		);
+	}
+	return (
+		<pre ref={ctx.container.attachFocus} tabIndex={-1} onDoubleClick={() => setEditing(true)}>
+			{text}
+		</pre>
+	);
+}
+
+export const noteView = reactBlockView(Note, { surface: 'container', className: 'note' });
+```
+
+Arrow down onto the note and it's focused whole (a `.note:focus-within` border lights up), double-click and you're typing in the textarea, click away and the text commits as one undo step. A few things make it behave:
+
+- **Attach a focus element for every state**, the textarea included. `attachFocus` keeps its identity for the mount, so passing it straight as a `ref` is fine, and so is React handing it `null` on the way out.
+- **DOM focus goes to a hidden editing host**, not to your `<pre>`. The editor puts it in the block's element, next to what you render, since that's where AltGr and IME input arrive. So style focus with `:focus-within`, and give the block's element `position: relative`.
+- **Keys in your textarea are the textarea's.** The kind's keymap stays out of it, and so do the editor's chords. To leave by arrow key on the first or last line, call `ctx.container.moveFocusOut(e.nativeEvent)` and `preventDefault` when it returns true.
+- **A block command reaches your component through `setCommandHooks`.** Bind a `note.edit` command to `Mod+M` in the kind's keymap, have its handler call `ctx.hooks.openEdit()`, and the key opens the textarea ([commands](commands.md)).
+
+In Vue it's the same component shape, with `:ref="ctx.container.attachFocus"` on the textarea and the `<pre>`.
+
+A container with a marker before its first child's text (a footnote definition's `[^label]: `) gets one more option for that: `ambientPrefix(state, editor)`, beside `surface`, returning the marker ([the container walkthrough](container-walkthrough.md)).
+
 ## The same in Vue
 
 `vueBlockView(component, options)` takes the same options, and the package has its own `LeafContent` and `BlockChildren`. The memo, as a single-file component:
@@ -223,4 +270,3 @@ app.mount('#app');
 ## What the helpers don't do
 
 - **A block you draw entirely yourself** (no editable text, no children, like an embed with its own buttons) publishes `focus` and friends from its view, which a component can't hand over. Use `defineBlockView({ surface: 'none' })` for that one ([Block views](../plugin-api.md#block-views)).
-- **A block with its own editing surface** (the bundled diagram block's textarea, with whole-block focus) still needs `createContainerBlock`, from `@voithos-labs/aragonite/svelte` ([the render-primary recipe](render-primary.md#recipe-a-render-primary-block)).

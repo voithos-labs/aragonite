@@ -151,6 +151,29 @@ describe('a DOM leaf view’s lifecycle', () => {
 		expect(editor.source()).toBe(SOURCE.replace('abcd', 'abcd!?'));
 	});
 
+	// Miss-analysis: each framework helper guarded its own late `ref(null)`, and a plain DOM view
+	// handing an element back after its own `destroy` had no row at all.
+	it('ignores an element handed back by a mount that already ended', async () => {
+		const attaches: ((el: HTMLElement | null) => void)[] = [];
+		const editor = mountLeaf(
+			domPlainLeaf(newViewLog(), (_, ctx) => {
+				attaches.push(ctx.leaf.attach);
+				return { update: (state) => !state.node.raw.includes('!') };
+			})
+		);
+		await editor.settle();
+		typeInto(surfaceAt(editor, LEAF), '@@ abcd!');
+		await editor.settle();
+		expect(attaches).toHaveLength(2);
+
+		attaches[0](null);
+		await editor.settle();
+		expect(surfaceAt(editor, LEAF).textContent).toBe('@@ abcd!');
+		typeInto(surfaceAt(editor, LEAF), '@@ abcd!?');
+		await editor.settle();
+		expect(editor.source()).toBe(SOURCE.replace('abcd', 'abcd!?'));
+	});
+
 	it('runs afterInput with the element’s text, and reports its throw while the edit lands', async () => {
 		const seen: string[] = [];
 		const editor = mountLeaf(
