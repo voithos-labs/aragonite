@@ -679,7 +679,7 @@ const FAMILIES: Family[] = [
 	},
 	{
 		name: 'a range delete',
-		stores: { 'selection/range-delete.ts': 1 },
+		stores: { 'selection/cross-block/range-delete/range-delete.ts': 1 },
 		rows: [
 			...[TODO, QUOTED_TODO, NESTED_TODO, FOOTNOTE_TODO].map((place) => ({
 				shape: place.name,
@@ -700,7 +700,7 @@ const FAMILIES: Family[] = [
 	},
 	{
 		name: 'a range delete that stops at a title row',
-		stores: { 'selection/range-delete-ceremony.ts': 2 },
+		stores: { 'selection/cross-block/range-delete/range-delete-ceremony.ts': 2 },
 		rows: [
 			{
 				shape: 'the kept head of a to-do',

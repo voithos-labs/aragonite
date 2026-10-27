@@ -3,13 +3,13 @@ import { takeDevWarns } from '../support/warn-gate';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { commitGridLineDelete } from '#lib/selection/range-delete-table-coverage.js';
+import { commitGridLineDelete } from '#lib/selection/cross-block/range-delete/range-delete-table-coverage.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { makeTableMutations } from './table-mutations-harness';
 import type { EditEvent } from '#lib/editor-events.js';
-import type { GridLineCoverage } from '#lib/selection/range-delete-table-coverage.js';
+import type { GridLineCoverage } from '#lib/selection/cross-block/range-delete/range-delete-table-coverage.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 
 // A column is not a child node, so column edits address the table and carry the column

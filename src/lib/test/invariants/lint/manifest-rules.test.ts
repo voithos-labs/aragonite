@@ -312,7 +312,7 @@ const PLAIN_READS: Record<string, string> = {
 		'hands on: a block a range holds whole is replaced by its text read at the slot, through `replaceBlock`, which fills in',
 	'src/lib/selection/selection-drop.ts':
 		'hands on: the dragged-out block’s rest is read at its slot and lands through `replaceBlock`, which fills in',
-	'src/lib/selection/range-delete-ceremony.ts':
+	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts':
 		'installs after backfill: the survivor of a range delete is read at its slot and given its paragraph before the splice',
 	'src/lib/invariants/node-shape.ts':
 		'probe: G1.1 and G1.12 compare a container’s bytes with its children’s bytes, which the empty paragraph would hide; G1.42 compares block kinds and reads through `readAsOpened`',

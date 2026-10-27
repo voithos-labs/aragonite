@@ -1357,7 +1357,7 @@ const RULES: FileRule[] = [
 				"checks a stored cell endpoint lies inside its table's cells",
 			'src/lib/selection/table-rect-extend.ts':
 				"moves a rectangle's focus cell one step on Shift+arrow, an edit of the selection",
-			'src/lib/selection/range-delete-table.ts':
+			'src/lib/selection/cross-block/range-delete/range-delete-table.ts':
 				'puts the caret in the start cell once the coverage has said which cells clear'
 		},
 		reason:
@@ -1386,9 +1386,10 @@ const RULES: FileRule[] = [
 		matches: /(?<![\w.])(?:survivorWhereRangeResumes|caretWhereRangeResumes)\s*\(/,
 		allowed: {
 			'src/lib/selection/caret-target.ts': 'defines the survivor read',
-			'src/lib/selection/range-delete-chrome.ts':
+			'src/lib/selection/cross-block/range-delete/range-delete-chrome.ts':
 				'defines the caret read, and a range that took its start container whole and runs on',
-			'src/lib/selection/range-delete-table.ts': 'the same range, ending in a table'
+			'src/lib/selection/cross-block/range-delete/range-delete-table.ts':
+				'the same range, ending in a table'
 		},
 		reason:
 			'`survivorAfterRemoval` is the one place a gesture picks the side; a removal that asks for the next block itself lands Backspace below',
@@ -1736,7 +1737,7 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'src/lib/core/inline/link-source-bytes.ts':
 				'the link writer rewrites one whole link and checks its candidate against the screen',
 			'src/lib/inline-menu/inline-menu-session.ts': 'compares two texts and writes nothing',
-			'src/lib/selection/range-delete.ts':
+			'src/lib/selection/cross-block/range-delete/range-delete.ts':
 				'the range delete’s own join, a known gap until it calls `joinLeaves` (T18 slice 5)',
 			'src/lib/selection/cross-block/range-replace.ts':
 				'a key typed over a range into a block with no typing write lands after its removal, a known gap until the text rides into the join (T18 slice 5)'

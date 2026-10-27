@@ -19,8 +19,9 @@ import { describeManifests } from './file-rule';
 const CLEANER_READERS: Record<string, string> = {
 	'src/lib/tree-operations/leaf-range.ts':
 		'defines it, and crosses it from every in-leaf range replace and `joinLeaves`, the merge’s join',
-	'src/lib/selection/range-delete.ts': 'the same-block and cross-block range merges',
-	'src/lib/selection/range-delete-ceremony.ts': 'the shared endpoint join'
+	'src/lib/selection/cross-block/range-delete/range-delete.ts':
+		'the same-block and cross-block range merges',
+	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts': 'the shared endpoint join'
 };
 
 /** Every file calling the one join into a leaf, and what it joins. */

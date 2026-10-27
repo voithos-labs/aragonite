@@ -1,0 +1,79 @@
+import { describe, it, expect } from 'vitest';
+import { parse } from '../../../../core/parser';
+import { serialize } from '../../../../core/serializer';
+import { nodeAt } from '../../../../tree-operations/node-primitives';
+import type { Document } from '../../../../core/nodes';
+import { deleteRange } from '../../../harness/range-delete';
+
+function run(
+	source: string,
+	start: { path: number[]; offset: number },
+	end: { path: number[]; offset: number }
+) {
+	const doc = parse(source);
+	const result = deleteRange(doc, start, end);
+	return {
+		doc: result.newDoc,
+		source: serialize(result.newDoc),
+		caret: result.caret(result.newDoc)!
+	};
+}
+
+function isLeafAt(doc: Document, path: number[]): boolean {
+	const node = nodeAt(doc, path);
+	if (!node) return false;
+	return !('children' in node) || !node.children || node.children.length === 0;
+}
+
+// A cross-block merge can reparse a leaf into a container, and the caret restore focuses the
+// element at the caret's path, so the path must name a leaf, never a non-editable wrapper.
+describe('rangeDelete caret after a merge that re-parses into a container', () => {
+	// Caret at the start of the paragraph's second line, Shift+ArrowDown, Backspace:
+	// the surviving head keeps its line ending, so the join re-parses as a table.
+	it('descends into a table produced by joining a header row to its delimiter', () => {
+		const { doc, source, caret } = run(
+			'| a | b |\nxx\n\n|---|---|\n| 1 | 2 |\n',
+			{ path: [0], offset: 10 },
+			{ path: [1], offset: 0 }
+		);
+
+		expect(source).toBe('| a | b |\n|---|---|\n| 1 | 2 |\n');
+		expect(doc.children[0].kind).toBe('table');
+		expect(isLeafAt(doc, caret.path)).toBe(true);
+	});
+
+	it('descends into a list produced by joining a marker to its item text', () => {
+		const { doc, source, caret } = run(
+			'1\n\n. item\n',
+			{ path: [0], offset: 1 },
+			{ path: [1], offset: 0 }
+		);
+
+		expect(source).toBe('1. item\n');
+		expect(doc.children[0].kind).toBe('list');
+		expect(isLeafAt(doc, caret.path)).toBe(true);
+	});
+
+	it('descends into a blockquote produced by joining a marker to its body', () => {
+		const { doc, source, caret } = run(
+			'>\n\n quote\n',
+			{ path: [0], offset: 1 },
+			{ path: [1], offset: 0 }
+		);
+
+		expect(source).toBe('> quote\n');
+		expect(doc.children[0].kind).toBe('blockquote');
+		expect(isLeafAt(doc, caret.path)).toBe(true);
+	});
+
+	it('leaves a leaf-to-leaf merge caret at the join offset', () => {
+		const { doc, caret } = run(
+			'hello world\n\nfoo bar\n',
+			{ path: [0], offset: 6 },
+			{ path: [1], offset: 4 }
+		);
+
+		expect(caret).toEqual({ path: [0], offset: 6 });
+		expect(isLeafAt(doc, caret.path)).toBe(true);
+	});
+});

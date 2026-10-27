@@ -74,7 +74,7 @@ export const SOURCE = {
 	// ── Selection and keys ──────────────────────────────────────────────────
 	sharedKeydown: 'src/lib/selection/shared-keydown.ts',
 	nativeBridge: 'src/lib/selection/native-bridge.ts',
-	rangeDelete: 'src/lib/selection/range-delete.ts',
+	rangeDelete: 'src/lib/selection/cross-block/range-delete/range-delete.ts',
 	crossBlockKeydown: 'src/lib/selection/cross-block/keydown.ts',
 	keyboardExtend: 'src/lib/selection/keyboard-extend.ts',
 	pointerPreamble: 'src/lib/selection/cross-block/pointer.ts',

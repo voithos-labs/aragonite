@@ -89,7 +89,7 @@ function emittedNewlineLiterals(body: string): string[] {
  * entry because an allowlist per file would let the next write in unnoticed.
  */
 const RAW_LITERAL_ALLOWLIST: Record<string, { count: number; why: string }> = {
-	'src/lib/selection/range-delete-ceremony.ts': {
+	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts': {
 		count: 1,
 		why: 'pre-rebuild placeholder, not emitted bytes: the cleared chrome is re-derived by rebuildUnsharedChain immediately after, which re-emits the opener line with the source ending (a CRLF quote-out yields ">\\r\\n"; the branch is covered by the CRLF-mirror check)'
 	},

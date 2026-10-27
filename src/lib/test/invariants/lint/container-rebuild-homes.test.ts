@@ -49,7 +49,7 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildContainerRaw: 1 },
 		why: 'rebuilds a scratch clone to read the replacement back before any commit'
 	},
-	'src/lib/selection/range-delete-table.ts': {
+	'src/lib/selection/cross-block/range-delete/range-delete-table.ts': {
 		calls: { rebuildTableRowRaw: 1 },
 		why: 'the rows a pair inside one table clears, below the table the delete owns and the commit rebuilds'
 	},

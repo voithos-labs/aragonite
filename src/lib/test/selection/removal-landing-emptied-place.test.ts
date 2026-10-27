@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { rangeDelete } from '#lib/selection/range-delete.js';
+import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delete.js';
 import { emptiedPlace } from '#lib/selection/removal-landing.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { writtenBelow } from '#lib/test/harness/settle-funnel.js';

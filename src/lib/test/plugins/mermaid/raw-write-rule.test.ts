@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { normalizeOwnRaw } from '#lib/tree-operations/node-primitives.js';
 import { documentLineEnding } from '#lib/plugin.js';
-import { rangeDelete } from '#lib/selection/range-delete.js';
+import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delete.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
