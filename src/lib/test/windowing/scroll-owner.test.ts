@@ -122,9 +122,8 @@ class FakeResizeObserver {
 	}
 	observe(): void {}
 	disconnect(): void {}
-	grow(to: number): void {
-		const entries = [{ borderBoxSize: [{ blockSize: to, inlineSize: 0 }] }];
-		this.callback(entries as unknown as ResizeObserverEntry[], this as unknown as ResizeObserver);
+	report(): void {
+		this.callback([], this as unknown as ResizeObserver);
 	}
 }
 
@@ -138,7 +137,8 @@ afterEach(() => {
 
 function growHeader(f: Fixture): void {
 	const el = document.createElement('div');
-	el.getBoundingClientRect = () => ({ height: 40 }) as DOMRect;
+	let height = 40;
+	el.getBoundingClientRect = () => ({ height }) as DOMRect;
 	const uninstall = installHeaderSlotCompensation({
 		el,
 		port: f.owner.port,
@@ -146,7 +146,8 @@ function growHeader(f: Fixture): void {
 	});
 	// The observer reports after layout, when the list below has already moved down.
 	f.growHeaderBy(GROWTH);
-	FakeResizeObserver.last!.grow(40 + GROWTH);
+	height += GROWTH;
+	FakeResizeObserver.last!.report();
 	uninstall();
 }
 

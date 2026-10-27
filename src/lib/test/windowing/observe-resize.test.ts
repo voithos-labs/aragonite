@@ -28,11 +28,17 @@ class FakeResizeObserver {
 
 let reportedHeight = 0;
 
-/** A resize delivery for `el`, while the fake observer still watches it; each is a new height
- *  unless the caller names one. */
+/** Lays `el` out at a new size and delivers its report, while the fake observer still watches
+ *  it; each is a new height unless the caller names one. */
 function resize(el: Element, height = ++reportedHeight, width = 600): void {
+	el.getBoundingClientRect = () => ({ width, height }) as DOMRect;
+	report(el, { width, height });
+}
+
+/** A report for `el` whose border box is `box`, with no change to how `el` is laid out. */
+function report(el: Element, box: { width: number; height: number }): void {
 	if (!observed.includes(el)) return;
-	const borderBoxSize = [{ blockSize: height, inlineSize: width }];
+	const borderBoxSize = [{ blockSize: box.height, inlineSize: box.width }];
 	deliver([{ target: el, borderBoxSize } as unknown as ResizeObserverEntry], {} as ResizeObserver);
 }
 
@@ -150,6 +156,34 @@ describe('createSharedResizeWatch: reporting early', () => {
 		sizes.reportNow();
 		resize(el, 420, 500);
 		expect(heard).toEqual([420, 420]);
+	});
+
+	// Miss-analysis: every fake report's border box matched the stubbed rect, so the readers never
+	// disagreed. An ancestor's `transform: scale()` or `zoom` scales the rect but not the border box.
+	it('hears one height per change when the border box and the laid-out box differ', () => {
+		const sizes = createSharedResizeWatch();
+		const el = laidOut({ width: 480, height: 336 });
+		const heard: number[] = [];
+		sizes.watch(el, (height) => heard.push(height));
+		frames.forEach((run) => run());
+		sizes.reportNow();
+		report(el, { width: 600, height: 420 });
+		sizes.reportNow();
+		expect(heard).toEqual([336]);
+	});
+
+	it('hands nothing to an element whose last watcher stopped during the same call', () => {
+		const sizes = createSharedResizeWatch();
+		const first = laidOut({ width: 600, height: 20 });
+		const second = laidOut({ width: 600, height: 420 });
+		let stopSecond = () => {};
+		sizes.watch(first, () => stopSecond());
+		stopSecond = sizes.watch(second, () => {});
+		sizes.reportNow();
+		const heard: number[] = [];
+		sizes.watch(second, (height) => heard.push(height));
+		sizes.reportNow();
+		expect(heard).toEqual([420]);
 	});
 
 	it('reads nothing for an element no longer in the document', () => {
