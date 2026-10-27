@@ -218,6 +218,7 @@ unguarded.
 | G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
 | G4.270 | The selection, `Selection.modify` and the caret at a point are touched only under `browser/`     | L       |
 | G4.271 | A windowed list hands each child the index and id from its own slice entry                       | L       |
+| G4.272 | Every child process a file under `src/lib` spawns carries a timeout of its own                   | L       |
 
 ### The entries
 
@@ -1422,3 +1423,7 @@ that can't import `browser/` takes the read as a parameter. `lint/browser-module
 entries and passes each child `entry.index` and `entry.id`. An index added up from the live window start
 runs ahead of the loop's own index as soon as a height write moves the window, so a size report read
 before the next render lands on the wrong block. `lint/window-slice-entries.test.ts`.
+
+**G4.272 · A spawned child process has a timeout.** Every `spawn`, `exec`, `execFile`, `fork` and
+their sync forms under `src/lib`, tests included, passes a `timeout` in its options, so a hung child
+fails its own test instead of holding the whole run. `lint/spawn-timeouts.test.ts`.

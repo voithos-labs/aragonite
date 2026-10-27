@@ -1,5 +1,5 @@
 /**
- * Every child process a file under `src/lib` spawns carries a `timeout` of its own, so a hung child
+ * G4.272: every child process a file under `src/lib` spawns carries a `timeout` of its own, so a hung child
  * fails its test instead of holding the run. The scan is `call-site-rule.ts`.
  * Miss-analysis: no scan read spawn calls, so one hung `git init` held a unit run for 28 minutes.
  */
