@@ -42,10 +42,16 @@ test('arrows stop on the note whole and leave it, both ways', async ({ page }) =
 	await expect.poll(() => activeText(page)).toContain(' chip');
 });
 
-test('Shift+Tab from the paragraph below lands on the note’s editing host', async ({ page }) => {
+test('Shift+Tab from below lands on the note’s editing host, and Tab goes on from it', async ({
+	page
+}) => {
 	await caretAtEnd(page, 'after the blocks');
 	await page.keyboard.press('Shift+Tab');
 	await expect.poll(() => noteFocusedWhole(page)).toBe(true);
+
+	await page.keyboard.press('Tab');
+	await expect.poll(() => activeText(page)).toBe('after the blocks');
+	expect(await mirror(page).textContent()).toBe(BLOCK_VIEWS_SOURCE);
 });
 
 test('a double click opens the textarea, and leaving it commits one undo step', async ({

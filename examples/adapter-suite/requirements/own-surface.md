@@ -21,11 +21,12 @@ page error or console warning.
 
 ## Edge cases
 
-- Shift+Tab from the paragraph below lands on the note's editing host, inside the note.
+- Shift+Tab from the paragraph below lands on the note's editing host, inside the note, and Tab
+  from there goes on to the paragraph below. Tab in a paragraph types a tab, so the way in by Tab
+  is from below.
 - A character typed at the focused note, and an AltGr-style insert of `€`, each land in a new
   paragraph below it, the note's bytes untouched.
 - ArrowUp on the textarea's first line leaves the note for the paragraph above and commits.
-- Escape in the textarea drops the edit and leaves the note focused whole.
+- Escape in the textarea drops the edit and leaves the note focused whole, on an editing host
+  that survived the component swapping its text for the textarea and back.
 - Backspace at the focused note deletes it, and Ctrl+Z brings it back.
-- The editing host lives inside the element the framework renders into, beside the component's
-  own nodes, and survives the component swapping its text for the textarea and back.
