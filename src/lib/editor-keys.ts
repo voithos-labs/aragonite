@@ -85,7 +85,7 @@ export interface ChildMeasureChannel {
 	measureNow(id: string): void;
 	measureOnResize(id: string, observedHeight: number): void;
 	/** Every child's size is watched by one observer per editor; its callback only records heights. */
-	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
+	watchSize(el: Element, onHeight: (height: number) => void): () => void;
 }
 
 // ── Facets ───────────────────────────────────────────────────────────────────

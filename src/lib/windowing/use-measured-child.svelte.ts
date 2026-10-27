@@ -43,10 +43,6 @@ export function useMeasuredChild(opts: MeasuredChildOpts): void {
 	$effect(() => {
 		const el = opts.getEl();
 		if (!el) return;
-		return channel.watchSize(el, (entry) => {
-			const box = entry.borderBoxSize?.[0];
-			const height = box ? box.blockSize : entry.contentRect?.height;
-			if (height != null) channel.measureOnResize(opts.getId(), height);
-		});
+		return channel.watchSize(el, (height) => channel.measureOnResize(opts.getId(), height));
 	});
 }

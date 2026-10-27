@@ -80,8 +80,8 @@ export interface ScrollOwner {
 	/** Runs `run` after the current flush, with every other list's. */
 	measureSoon(run: () => void): void;
 	/** Watches a child's size with the editor's one observer. The callback runs inside the browser's
-	 *  size report, so a height it records moves the window and the scroll inside that report. */
-	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
+	 *  size report, or earlier inside an owner write, so a height it records moves the scroll there. */
+	watchSize(el: Element, onHeight: (height: number) => void): () => void;
 	/** Take the position for a scroll into view now, before the mount's awaits; `scroll()` once
 	 *  the block is mounted. */
 	place(path: readonly number[], opts: PlaceOptions): ScrollPlacement;
@@ -212,10 +212,11 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		for (const queued of runs) queued();
 	}
 
-	/** Every owner write but the round's own: it measures the queued blocks and closes the round
-	 *  first, so it reads tables that know every mounted block, and no correction lands after it. */
+	/** Every owner write but the round's own: it first brings the tables up to the page (queued
+	 *  measures, size reports not sent yet) and closes the round, so no correction lands after it. */
 	function writeScroll(target: () => ScrollTarget | null): void {
 		measureQueued();
+		sizes.reportNow();
 		closeRound();
 		const to = target();
 		const p = writable();
@@ -337,7 +338,7 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		},
 		beginRound,
 		roundOpen: () => open !== null,
-		watchSize: (el, onResize) => sizes.watch(el, onResize),
+		watchSize: (el, onHeight) => sizes.watch(el, onHeight),
 		measureSoon(run) {
 			if (soon.size === 0) void tick().then(measureQueued);
 			soon.add(run);
