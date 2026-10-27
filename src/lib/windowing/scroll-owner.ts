@@ -212,12 +212,17 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		for (const queued of runs) queued();
 	}
 
-	/** Every owner write but the round's own: it first brings the tables up to the page (queued
-	 *  measures, size reports not sent yet) and closes the round, so no correction lands after it. */
-	function writeScroll(target: () => ScrollTarget | null): void {
+	/** Brings the tables up to the page (queued measures, size reports not sent yet) and closes the
+	 *  round, so a position read after it has no correction still to land. */
+	function catchUp(): void {
 		measureQueued();
 		sizes.reportNow();
 		closeRound();
+	}
+
+	/** Every owner write but the round's own, read off the page once the tables have caught up. */
+	function writeScroll(target: () => ScrollTarget | null): void {
+		catchUp();
 		const to = target();
 		const p = writable();
 		if (!to || !p) return;
@@ -375,8 +380,8 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			});
 		},
 		keep() {
-			// Closed first, so the position kept is the one the open round's correction leaves.
-			closeRound();
+			// Caught up first, so the position kept is the one the pending correction leaves.
+			catchUp();
 			const p = writable();
 			const before = p?.scrollTop() ?? 0;
 			return async () => {

@@ -90,3 +90,33 @@ describe('scroll owner: a write takes the size reports the browser has not sent 
 		});
 	}
 });
+
+describe('scroll owner: a kept position', () => {
+	// Miss-analysis: the keep row checked only that the growth was heard before the restore wrote,
+	// not where the restore left the scroll. The position kept is the one the correction leaves.
+	it('is read after the size reports the browser has not sent yet', async () => {
+		const port = stubScrollport({ viewportHeight: 100 });
+		const owner = stubScrollOwner(port);
+		let growth = 0;
+		owner.resolveTargetsWith({
+			resolve: () => null,
+			holdForRound: () => {
+				const from = growth;
+				return () => growth - from;
+			},
+			mountTop: () => null,
+			pathAt: () => null,
+			syncScrollTop: () => {}
+		});
+		const grown = document.body.appendChild(document.createElement('div'));
+		grown.getBoundingClientRect = () => ({ width: 600, height: GROWN }) as DOMRect;
+		owner.watchSize(grown, (height) => {
+			owner.beginRound();
+			growth = height - 20;
+		});
+		port.setScrollTop(50);
+
+		await owner.keep()();
+		expect(port.scrollTop()).toBe(50 + GROWN - 20);
+	});
+});
