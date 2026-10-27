@@ -26,10 +26,21 @@ class FakeResizeObserver {
 	}
 }
 
-/** A resize delivery for `el`, while the fake observer still watches it. */
-function resize(el: Element): void {
+let reportedHeight = 0;
+
+/** A resize delivery for `el`, while the fake observer still watches it; each is a new height
+ *  unless the caller names one. */
+function resize(el: Element, height = ++reportedHeight, width = 600): void {
 	if (!observed.includes(el)) return;
-	deliver([{ target: el } as ResizeObserverEntry], {} as ResizeObserver);
+	const borderBoxSize = [{ blockSize: height, inlineSize: width }];
+	deliver([{ target: el, borderBoxSize } as unknown as ResizeObserverEntry], {} as ResizeObserver);
+}
+
+/** An element in the document whose laid-out box is whatever `size` holds now. */
+function laidOut(size: { width: number; height: number }): HTMLElement {
+	const el = document.body.appendChild(document.createElement('div'));
+	el.getBoundingClientRect = () => ({ ...size }) as DOMRect;
+	return el;
 }
 
 beforeEach(() => {
@@ -43,7 +54,10 @@ beforeEach(() => {
 	});
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+	vi.unstubAllGlobals();
+	document.body.replaceChildren();
+});
 
 describe('observeResize', () => {
 	it('starts observing at the next frame, not at the call', () => {
@@ -94,5 +108,57 @@ describe('createSharedResizeWatch', () => {
 		expect(observed).toContain(el);
 		stopSecond();
 		expect(observed).not.toContain(el);
+	});
+});
+
+// Miss-analysis (#798): the shared watch had no early report, so a scroll read off the page while
+// a report had not come yet worked from tables that lagged the page, and no row covered either half.
+describe('createSharedResizeWatch: reporting early', () => {
+	it('hands a laid-out change over once, and nothing on a second call with no change', () => {
+		const sizes = createSharedResizeWatch();
+		const size = { width: 600, height: 20 };
+		const heard: number[] = [];
+		sizes.watch(laidOut(size), (height) => heard.push(height));
+		frames.forEach((run) => run());
+		sizes.reportNow();
+		size.height = 420;
+		sizes.reportNow();
+		sizes.reportNow();
+		expect(heard).toEqual([20, 420]);
+	});
+
+	it("skips the observer's own later report of the size it already handed over", () => {
+		const sizes = createSharedResizeWatch();
+		const size = { width: 600, height: 420 };
+		const el = laidOut(size);
+		const heard: number[] = [];
+		sizes.watch(el, (height) => heard.push(height));
+		frames.forEach((run) => run());
+		sizes.reportNow();
+		resize(el, 420);
+		resize(el, 380);
+		expect(heard).toEqual([420, 380]);
+	});
+
+	// The drawn caret repaints on a reflow that changes only the width.
+	it('still hands over a change in width alone', () => {
+		const sizes = createSharedResizeWatch();
+		const el = laidOut({ width: 600, height: 420 });
+		const heard: number[] = [];
+		sizes.watch(el, (height) => heard.push(height));
+		frames.forEach((run) => run());
+		sizes.reportNow();
+		resize(el, 420, 500);
+		expect(heard).toEqual([420, 420]);
+	});
+
+	it('reads nothing for an element no longer in the document', () => {
+		const sizes = createSharedResizeWatch();
+		const el = laidOut({ width: 600, height: 420 });
+		const heard: number[] = [];
+		sizes.watch(el, (height) => heard.push(height));
+		el.remove();
+		sizes.reportNow();
+		expect(heard).toEqual([]);
 	});
 });

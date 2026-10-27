@@ -27,27 +27,58 @@ export function observeResizeNow(el: Element, onResize: ResizeObserverCallback):
 }
 
 export interface SharedResizeWatch {
-	/** Watches `el` from the next frame on; returns the disposer. */
-	watch(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
+	/** Watches `el`'s border-box height from the next frame on; returns the disposer. */
+	watch(el: Element, onHeight: (height: number) => void): () => void;
+	/** Hands each watched element's size change that the browser has laid out but not reported yet
+	 *  to its watchers now. The browser's own report of that size, when it comes, hands over nothing. */
+	reportNow(): void;
+}
+
+/** A size report's border-box height, read off the element's border box where the engine gives
+ *  no box, so a first measurement and every later report compare like with like. */
+export function borderBoxHeight(entry: ResizeObserverEntry): number {
+	const box = entry.borderBoxSize?.[0];
+	return box ? box.blockSize : entry.target.getBoundingClientRect().height;
+}
+
+interface Size {
+	width: number;
+	height: number;
 }
 
 /** One observer for many elements, each watched from the next frame, made after the width watcher.
  *  Every watcher of an element hears each resize; the last one to stop unobserves it. */
 export function createSharedResizeWatch(): SharedResizeWatch {
-	const listeners = new Map<Element, Set<(entry: ResizeObserverEntry) => void>>();
+	const listeners = new Map<Element, Set<(height: number) => void>>();
+	// The size each element's watchers last heard, from either route.
+	const handed = new Map<Element, Size>();
 	let observer: ResizeObserver | null = null;
+
+	function handOver(el: Element, size: Size): void {
+		const last = handed.get(el);
+		if (last && last.width === size.width && last.height === size.height) return;
+		handed.set(el, size);
+		for (const onHeight of [...(listeners.get(el) ?? [])]) onHeight(size.height);
+	}
+
 	const deliver: ResizeObserverCallback = (entries) => {
 		for (const entry of entries) {
-			for (const onResize of [...(listeners.get(entry.target) ?? [])]) onResize(entry);
+			const box = entry.borderBoxSize?.[0];
+			handOver(
+				entry.target,
+				box
+					? { width: box.inlineSize, height: box.blockSize }
+					: entry.target.getBoundingClientRect()
+			);
 		}
 	};
 	return {
-		watch(el, onResize) {
+		watch(el, onHeight) {
 			if (typeof ResizeObserver !== 'function') return () => {};
 			const watchers = listeners.get(el) ?? new Set();
 			listeners.set(el, watchers);
 			// A fresh function per watch, so the same callback watching twice stops one at a time.
-			const watcher = (entry: ResizeObserverEntry) => onResize(entry);
+			const watcher = (height: number) => onHeight(height);
 			watchers.add(watcher);
 			const frame = requestAnimationFrame(() => {
 				observer ??= new ResizeObserver(deliver);
@@ -58,8 +89,14 @@ export function createSharedResizeWatch(): SharedResizeWatch {
 				watchers.delete(watcher);
 				if (watchers.size > 0 || listeners.get(el) !== watchers) return;
 				listeners.delete(el);
+				handed.delete(el);
 				observer?.unobserve(el);
 			};
+		},
+		reportNow() {
+			for (const el of [...listeners.keys()]) {
+				if (el.isConnected) handOver(el, el.getBoundingClientRect());
+			}
 		}
 	};
 }

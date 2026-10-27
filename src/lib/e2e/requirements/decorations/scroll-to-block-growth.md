@@ -32,6 +32,9 @@ target and 90 paragraphs after it, so the target starts windowed out.
   resolved, so the two release points can't silently be one case.
 - A mid-scroll row checks only the settled page: a read between a photo's growth
   and the same frame's correction sees a page no frame paints.
+- A picture above the target grows and, in the same task, `scrollTo` nearest or
+  `navigateTo` jumps to the target, before the browser has reported the growth:
+  once the report arrives, the target is still where it landed, within 2px.
 
 ## Miss-analysis
 
@@ -40,3 +43,13 @@ target and 90 paragraphs after it, so the target starts windowed out.
   only image tests held the photos undecoded forever (`scroll-to-settle`), so
   nothing grew above a target once it had landed, and no test ran the routes
   that scroll to a block as one class.
+- #798: a search jump while pictures above it were still loading could land the
+  view away from the match. A jump read the target off a page whose new picture
+  sizes the browser hadn't reported yet, so the height tables lagged the page.
+  Every growth row let the browser's own frame order decide whether a report came
+  first, which WebKit loses now and then and Chromium almost never; no row put the growth
+  ahead of the report on purpose.
+- The undo rows timed out on Firefox about one run in three: their setup scrolled
+  to the top in the same frame as the keystroke, and the browser's own reveal of
+  that keystroke's caret ran after it and scrolled back. `scrollEditorTo` wrote
+  as soon as it was called, and no helper test typed and scrolled back to back.

@@ -151,6 +151,8 @@ export function mountedTopLevelCount(page: Page): Promise<number> {
 }
 
 export async function scrollPageTo(page: Page, top: number): Promise<void> {
+	// After the frame that reveals a keystroke's caret, as `EditorPage.scrollEditorTo` waits for.
+	await settleFrames(page);
 	await page.evaluate((t) => window.scrollTo(0, t), top);
 	await settleFrames(page);
 }

@@ -245,3 +245,65 @@ for (const { route, fixture } of CASES) {
 		}
 	});
 }
+
+// The page lays a picture's new size out before the browser reports it. A jump in that gap reads
+// the target off the grown page, and the tables must hear the growth first or count it twice.
+const SAME_TASK: { name: string; prepare?(editor: EditorPage): Promise<void>; call: string }[] = [
+	{ name: "scrollTo { block: 'nearest' }", call: 'scrollTo' },
+	{ name: 'navigateTo', prepare: (editor) => editor.clickBlock(0), call: 'navigateTo' }
+];
+
+// The target block's top below the editor viewport's top, or null while it is windowed out.
+function blockTop(page: Page, path: number[]): Promise<number | null> {
+	return page.evaluate((path) => {
+		const el = document.querySelector(`.editor [data-block-path="${JSON.stringify(path)}"]`);
+		const editor = document.querySelector('.editor')!;
+		return el ? el.getBoundingClientRect().top - editor.getBoundingClientRect().top : null;
+	}, path);
+}
+
+for (const route of SAME_TASK) {
+	test(`${route.name} stays put when a picture above grows just before it (#798)`, async ({
+		page
+	}) => {
+		await gateFixturePhotos(page);
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(FIXTURES.root.md);
+		await editor.waitForRenderFlush();
+		const path = await FIXTURES.root.targetPath(page);
+		await route.prepare?.(editor);
+		expect(await scrollTo(editor, path, 'nearest')).toBe(true);
+		await editor.waitForRenderFlush();
+
+		// One task: the picture grows, the route runs and its landing is read, before any frame can
+		// report the growth.
+		const landed = await page.evaluate(
+			async ({ path, call }) => {
+				const t = (window as any).__test;
+				const editorTop = () => document.querySelector('.editor')!.getBoundingClientRect().top;
+				const target = () =>
+					document.querySelector(`.editor [data-block-path="${JSON.stringify(path)}"]`)!;
+				const pictures = [...document.querySelectorAll<HTMLImageElement>('.editor img')];
+				const above = pictures.filter(
+					(img) => img.getBoundingClientRect().bottom <= target().getBoundingClientRect().top
+				);
+				const picture = above[above.length - 1];
+				picture.style.display = 'block';
+				picture.style.height = '400px';
+				const resolved: boolean = await (call === 'scrollTo'
+					? t.rects.scrollTo(path)
+					: t.rects.navigateTo(path, 0));
+				return { resolved, top: target().getBoundingClientRect().top - editorTop() };
+			},
+			{ path, call: route.call }
+		);
+		expect(landed.resolved).toBe(true);
+
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+		const top = await blockTop(page, path);
+		expect(top, 'still mounted once the growth is reported').not.toBeNull();
+		expect(Math.abs(top! - landed.top)).toBeLessThanOrEqual(2);
+	});
+}
