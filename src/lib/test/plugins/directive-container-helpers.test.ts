@@ -6,7 +6,7 @@ import {
 	rebuildCalloutRaw,
 	CALLOUT_TITLE
 } from '../../../routes/test/plugins/callout/callout-kind';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // `createDirectiveRebuild` is the shared body behind both callout and admonitions (the
 // only per-kind difference is the name resolver), so its byte-assembly is pinned once

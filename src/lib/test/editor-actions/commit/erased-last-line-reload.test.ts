@@ -14,7 +14,7 @@ import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
 import { makeContainerHarness, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence, describeRunDivergence } from '#lib/test/harness/parse-converged.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const reloadsAsItself = (doc: Document) => {
 	expect(describeConvergence(doc)).toBeNull();

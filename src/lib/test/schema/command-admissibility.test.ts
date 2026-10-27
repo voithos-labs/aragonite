@@ -15,7 +15,7 @@ import type { AnyCommandId } from '#lib/schema/command-id.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { allowDevWarns } from '../support/warn-gate';
-import { commandContext as context } from '../support/command-context';
+import { commandContext as context } from '../harness/command-context';
 
 /** A focused block that answers every built-in id, so the answer comes from the dispatch alone. */
 const surface = (): KindCommandTarget => ({ kind: 'paragraph', runCommand: () => true });

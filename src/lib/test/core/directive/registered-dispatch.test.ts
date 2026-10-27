@@ -7,7 +7,7 @@ import { declarePluginKind, declarePluginInlineKind } from '#lib/schema/plugin-k
 import { registerDirective } from '#lib/core/directive/registry.js';
 import { DIRECTIVE_LEAF, DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => activateDirectiveGrammar(testDirectiveViews()));
 

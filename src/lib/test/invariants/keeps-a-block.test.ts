@@ -8,7 +8,7 @@ import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { makeBlockListState, makeTopHarness } from '../harness/editor-actions';
 import { takeDevWarns } from '../support/warn-gate';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 /** `bytes` parsed, and the quote at `index` emptied, as a removal with no cleanup leaves it. */
 function emptiedQuote(bytes: string, index = 0): { doc: Document; quote: CstNode } {

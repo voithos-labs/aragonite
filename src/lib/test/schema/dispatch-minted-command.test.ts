@@ -7,7 +7,7 @@ import {
 } from '#lib/schema/block-commands.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { commandContext, commandContextWith } from '../support/command-context';
+import { commandContext, commandContextWith } from '../harness/command-context';
 
 const nodeOf = (kind: string): CstNode =>
 	({

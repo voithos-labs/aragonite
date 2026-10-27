@@ -14,7 +14,7 @@ import type { AnyCommandId } from '#lib/schema/command-id.js';
 import { buildContainerKindTarget } from '#lib/editor-actions/plugin/container.js';
 import { createEditorEvents, emitCommandError } from '#lib/editor-events.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { commandContext } from '#lib/test/support/command-context.js';
+import { commandContext } from '#lib/test/harness/command-context.js';
 
 const KIND = 'owned-block';
 let commandId: AnyCommandId;

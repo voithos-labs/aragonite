@@ -3,7 +3,7 @@ import { installPlugins, parse } from '#lib';
 import { getPluginMetadata } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import type { GithubAlertMetadata } from '#lib/plugins/admonitions/kinds.js';
-import { roundTripCases } from '#lib/test/support/round-trip.js';
+import { roundTripCases } from '#lib/test/harness/round-trip.js';
 
 // Native GitHub alerts: a blockquote whose first line is exactly `> [!TYPE]` becomes its own
 // `githubAlert` kind, with the marker line in the container raw and metadata only. Every

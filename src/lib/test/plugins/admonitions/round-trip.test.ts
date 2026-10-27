@@ -3,7 +3,7 @@ import { installPlugins, parse, serialize } from '#lib';
 import { getPluginMetadata } from '#lib/plugin.js';
 import { admonitionsPlugin, convertGithubAlerts } from '#lib/plugins/admonitions/index.js';
 import type { AdmonitionMetadata } from '#lib/plugins/admonitions/kinds.js';
-import { roundTripCases } from '#lib/test/support/round-trip.js';
+import { roundTripCases } from '#lib/test/harness/round-trip.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);

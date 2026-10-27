@@ -8,7 +8,7 @@ import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountCode, type MountedCode } from './mount-code';
 

@@ -404,7 +404,7 @@ describe('G4.63 classifier non-vacuity', () => {
 	});
 
 	it('allows the copyable test support and any npm package', () => {
-		expect(isAllowedSpecifier(file, '#lib/test/support/round-trip.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#lib/test/support/warn-gate.js')).toBe(true);
 		expect(isAllowedSpecifier(file, '#lib/test/harness/editor-actions.js')).toBe(true);
 		expect(isAllowedSpecifier(file, 'vitest')).toBe(true);
 		expect(isAllowedSpecifier(file, 'fast-check')).toBe(true);

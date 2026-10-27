@@ -12,7 +12,7 @@ import {
 	type KeybindingOverride
 } from '#lib/schema/keybinding-overrides.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { commandContextWith } from '#lib/test/support/command-context.js';
+import { commandContextWith } from '#lib/test/harness/command-context.js';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
 
 function makeDeps(

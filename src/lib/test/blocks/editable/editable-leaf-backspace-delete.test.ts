@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { recordingFocus } from '#lib/testing/headless-actions.js';
-import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from '../fixtures/reveal-leaf';
 
 const KIND = 'backspace-leaf';
 

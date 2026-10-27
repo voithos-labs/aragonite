@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 import {
 	makeEditorActionsDeps,
 	stubBlockComponent,

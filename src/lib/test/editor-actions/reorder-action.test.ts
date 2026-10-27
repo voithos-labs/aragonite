@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 import { makeReorderContainer, makeReorderHarness } from './reorder-harness';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import type { CstNode } from '#lib/core/nodes.js';

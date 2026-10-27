@@ -17,7 +17,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchKey, pressKey, settleEditor } from '#lib/test/harness/settle.js';
-import { newestEntryCaret } from '../../support/undo-entry';
+import { newestEntryCaret } from '../../harness/undo-entry';
 
 beforeAll(() => {
 	installLayoutStubs();

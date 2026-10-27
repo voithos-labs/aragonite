@@ -12,7 +12,7 @@ import {
 	mountRevealLeaf,
 	registerRevealLeafKind,
 	type RevealLeafForm
-} from './fixtures/reveal-leaf';
+} from '../fixtures/reveal-leaf';
 
 const KIND = 'reveal-point-leaf';
 const RAW = '@@ one two\n';

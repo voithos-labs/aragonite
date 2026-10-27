@@ -4,7 +4,7 @@ import { getPluginMetadata } from '#lib/core/nodes.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { rebuildDirectiveContainerRaw } from '#lib/core/directive/kinds.js';
 import type { DirectiveContainerMetadata } from '#lib/core/directive/container-shape.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 // Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
 // edit re-synthesizes the fence lines, which must not normalize CRLF to `\n`.

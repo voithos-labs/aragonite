@@ -51,7 +51,7 @@ import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
 import { declaredPluginKind, isInlineKindDeclared } from '#lib/schema/plugin-kind.js';
 import { completeTypedLine } from '#lib/schema/block-completions.js';
 import { collectFiles, importSpecifiers, readSource } from '../invariants/lint/scan-source';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 
 // ── One probe per public registration ────────────────────────────────────────
 // Each check registers through an exported register or declare function and reports whether it

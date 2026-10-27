@@ -96,6 +96,12 @@ Four deliberate exceptions, and no, a fifth isn't on offer:
 - **The debug-panel state test** (`test/debug/panel-state`) covers a route-level module outside
   `src/lib/`, so it has no in-library module to mirror.
 
+Two helper folders sit beside the mirrored tests. `test/support/` holds only what Vitest loads by
+itself (the setup files in `vitest.config.ts` and the data they read). Anything a test file imports
+to mount, drive or fixture something goes in `test/harness/`. Neither holds a test file; a test of
+that machinery (the warn gate, the growth harness) sits at `test/` root, since there's no source
+folder for it to mirror.
+
 A source scan (a test under `lint/` that reads source files and fails on a pattern) takes every
 path it reads from `src/lib/test/invariants/lint/source-paths.ts`, so moving a file is one edit
 there. Hand-write a path in a scan instead and `source-paths.test.ts` fails, naming the path. A scan

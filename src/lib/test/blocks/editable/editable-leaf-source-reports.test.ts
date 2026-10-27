@@ -14,7 +14,7 @@ import {
 	mountRevealLeaf,
 	registerRevealLeafKind,
 	type RevealLeafForm
-} from './fixtures/reveal-leaf';
+} from '../fixtures/reveal-leaf';
 
 const SOURCE = '@@ one';
 const COMMITTED = '@@ one漢';

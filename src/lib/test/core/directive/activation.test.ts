@@ -9,7 +9,7 @@ import {
 } from '#lib/schema/registration-checks.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 // Activation is call-based, so the reset before each case lets the opener register both before and
 // after the first parse.

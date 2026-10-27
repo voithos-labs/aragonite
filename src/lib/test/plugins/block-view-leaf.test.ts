@@ -15,7 +15,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchKey, pressKey } from '#lib/test/harness/settle.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { newestEntryCaret } from '../support/undo-entry';
+import { newestEntryCaret } from '../harness/undo-entry';
 import { BLOCK_CONTENT_SELECTOR } from '#lib/caret/block-content-selector.js';
 import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
 import { PLAIN_LEAF_FORMS, domPlainLeaf, markerLeafPlugin, newViewLog } from './fixtures/dom-views';

@@ -5,9 +5,9 @@ import { unmount } from 'svelte';
 import { installLayoutStubs, selectRange } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
-import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
-import PlainOneLineLeafBlock from './fixtures/PlainOneLineLeafBlock.svelte';
-import { mountBlock } from '../harness/mount-block';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from '../fixtures/reveal-leaf';
+import PlainOneLineLeafBlock from '../fixtures/PlainOneLineLeafBlock.svelte';
+import { mountBlock } from '../../harness/mount-block';
 
 const KIND = 'enter-leaf';
 const RAW = '@@ one\n';

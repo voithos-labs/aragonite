@@ -10,9 +10,9 @@ import {
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 import { registerCommand, getCommand } from '#lib/schema/commands.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const minimal = {
 	gapEdges: 'none',

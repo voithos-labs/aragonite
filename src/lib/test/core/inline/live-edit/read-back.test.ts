@@ -7,7 +7,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { keepsKindAt, readBack, shownOf } from '#lib/core/inline/live-edit/read-back.js';
-import { fixtureReading } from '../../harness/fixture-grammar';
+import { fixtureReading } from '../../../harness/fixture-grammar';
 
 function at(source: string, path: number[]) {
 	const doc = parse(source);

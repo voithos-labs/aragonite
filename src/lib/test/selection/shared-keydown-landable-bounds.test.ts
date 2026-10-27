@@ -19,7 +19,7 @@ import { makeRenderHarness } from '#lib/test/harness/text-render.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
-import { commandContext } from '#lib/test/support/command-context.js';
+import { commandContext } from '#lib/test/harness/command-context.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
 

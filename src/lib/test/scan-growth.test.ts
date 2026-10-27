@@ -9,7 +9,7 @@ import {
 	MIN_SAMPLE_MS,
 	describeGrowth,
 	measureScanGrowth
-} from './scan-growth';
+} from './harness/scan-growth';
 
 type CostMs = (bytes: number) => number;
 

@@ -13,7 +13,7 @@ import {
 	mountEditor,
 	surfaceAt,
 	typeInto
-} from '../harness/mount-editor.svelte';
+} from '../../harness/mount-editor.svelte';
 
 const ruleBox = definePlugin({
 	name: 'rule-box',

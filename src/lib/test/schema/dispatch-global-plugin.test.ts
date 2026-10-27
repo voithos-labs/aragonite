@@ -2,7 +2,7 @@ import { it, expect } from 'vitest';
 import { dispatchKeyCommand } from '#lib/schema/block-commands.js';
 import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import type { EditorContext } from '#lib/schema/plugin-install.js';
-import { commandContext } from '../support/command-context';
+import { commandContext } from '../harness/command-context';
 
 it('a plugin-global chord dispatches from an ordinary leaf and the sink receives a contained throw', () => {
 	const editor = { editorId: 'e' } as never as EditorContext;

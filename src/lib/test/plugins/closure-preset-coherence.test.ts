@@ -6,7 +6,7 @@ import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { registerTocBlock, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockView } from '#lib/schema/block-view.js';
 
 // The blocks built on simpleLeafClosure, checked against their registered descriptors so a

@@ -6,7 +6,7 @@ import {
 	rebuildMermaidRaw,
 	type MermaidMetadata
 } from '#lib/plugins/mermaid/mermaid-kind.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // An opaque container serializes `raw` verbatim, so the byte round trip passes even when the
 // metadata was captured wrongly. The cases pin the rebuild instead, which is what every

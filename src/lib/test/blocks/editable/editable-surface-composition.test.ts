@@ -6,7 +6,7 @@ import { takeDevWarns } from '../../support/warn-gate';
 import { makeSurface, type SurfaceHarness } from '../../harness/editable-surface';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { makeEditorActionsDeps, type EditorActionsHarness } from '../../harness/editor-actions';

@@ -10,7 +10,7 @@ import { declaredPluginInlineKind } from '#lib/schema/plugin-kind.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 let kind: PluginInlineKind;
 beforeEach(() => {

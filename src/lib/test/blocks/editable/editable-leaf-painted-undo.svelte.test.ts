@@ -13,7 +13,7 @@ import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { UNDO_DEBOUNCE_MS } from '#lib/editor-actions/commit/text-batch.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
-import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from '../fixtures/reveal-leaf';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const KIND = 'painted-undo-leaf';

@@ -13,11 +13,11 @@ import {
 	surfaceAt,
 	typeInto,
 	type MountedEditor
-} from '../harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '../harness/settle';
-import { mountBlock } from '../harness/mount-block';
-import { leafDocument, registerRevealLeafKind } from './fixtures/reveal-leaf';
-import PlainOneLineLeafBlock from './fixtures/PlainOneLineLeafBlock.svelte';
+} from '../../harness/mount-editor.svelte';
+import { pressKey, settleEditor } from '../../harness/settle';
+import { mountBlock } from '../../harness/mount-block';
+import { leafDocument, registerRevealLeafKind } from '../fixtures/reveal-leaf';
+import PlainOneLineLeafBlock from '../fixtures/PlainOneLineLeafBlock.svelte';
 import { latexPlugin } from '#lib/plugins/latex/index.js';
 import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
 import type { EditorProps } from '#lib/components/editor-component-props.js';

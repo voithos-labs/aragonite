@@ -5,7 +5,7 @@ import { parsesBack, rebalanceLiveSplit } from '#lib/core/inline/live-edit/live-
 import { definitionsOf } from '#lib/core/inline/scan/definitions.js';
 import { getContentRange, parseInline } from '#lib/core/inline/index.js';
 import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
-import { fixtureReading, renderOptions, topLevelSplit } from '../../harness/fixture-grammar';
+import { fixtureReading, renderOptions, topLevelSplit } from '../../../harness/fixture-grammar';
 
 // The bytes a live-mode Enter writes into each half. Each case states the literal cut a refusal
 // leaves; the `\n` padding is what `splitNode` has already added.

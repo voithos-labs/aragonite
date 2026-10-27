@@ -7,7 +7,7 @@ import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delet
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import { mergePrevSettled, writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // The structural paths into the same `</details>` escape: they write the body themselves,

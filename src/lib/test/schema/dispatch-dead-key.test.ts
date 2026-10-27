@@ -7,7 +7,7 @@ import {
 } from '#lib/schema/block-commands.js';
 import { runGlobalChord, runGlobalChordOnKind } from '#lib/schema/commands.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { commandContext, commandContextWith } from '../support/command-context';
+import { commandContext, commandContextWith } from '../harness/command-context';
 
 describe('leaf-path dispatch of an unresolved plugin command', () => {
 	afterEach(() => {

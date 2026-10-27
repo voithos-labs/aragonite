@@ -1,4 +1,4 @@
-import { describeRoundTrips } from '#lib/test/support/round-trip.js';
+import { describeRoundTrips } from '#lib/test/harness/round-trip.js';
 
 // Source shapes no arm of the round-trip property's generators draws (invariants/arbitraries/gfm.ts
 // and raw-string.ts). Every shape they do draw is that property's to check.

@@ -4,7 +4,7 @@ import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { declaredPluginKind } from '../../schema/plugin-kind';
 import { DIRECTIVE_LEAF, registerDirectiveKinds } from '../../core/directive/kinds';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 function leaf(source: string): CstNode {
 	return parse(source).children[0];

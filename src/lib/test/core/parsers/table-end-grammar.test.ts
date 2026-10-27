@@ -8,7 +8,7 @@ import { serialize } from '#lib/core/serializer.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import { createRegistryView } from '#lib/schema/registry-view.js';
 import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 

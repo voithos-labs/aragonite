@@ -13,7 +13,7 @@ import {
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { newestEntryCaret } from '../../support/undo-entry';
+import { newestEntryCaret } from '../../harness/undo-entry';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 beforeAll(() => {

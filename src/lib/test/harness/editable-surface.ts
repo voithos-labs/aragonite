@@ -14,7 +14,7 @@ import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { fixtureReading } from './fixture-grammar';
 import { stubBlockEdit, stubCaretMemory } from '#lib/testing/headless-actions.js';
 import type { CaretMemory } from '#lib/caret/caret-memory.js';
-import { commandContext } from '../support/command-context';
+import { commandContext } from './command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export interface SurfaceHarness {

@@ -6,7 +6,7 @@ import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.j
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from '../fixtures/reveal-leaf';
 
 const KIND = 'reveal-undo-leaf';
 const SOURCE = '@@ one two';

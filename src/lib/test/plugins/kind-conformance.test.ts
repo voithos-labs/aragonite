@@ -25,7 +25,7 @@ import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.
 import { registerTocBlock, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
 import { parrotPlugin, PARROT } from '#lib/plugins/parrot/index.js';
 import { installPlugins } from '#lib';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockView } from '#lib/schema/block-view.js';
 import type { UnfinishedReading } from '#lib/schema/block-openers.js';
 import { OPENER_PRIORITIES } from '#lib/schema/opener-priorities.js';

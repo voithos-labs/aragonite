@@ -6,9 +6,9 @@ import type { ClosureBlock } from '#lib/schema/closure.js';
 import { containerClosure, simpleLeafClosure } from '#lib/schema/closure.js';
 import { checkClosureCoherence, type ClosureCoherenceEntry } from '#lib/invariants/registry.js';
 import { closureCoherenceEntry } from '#lib/schema/registration-checks.js';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 import { testContainer } from '#lib/test/harness/test-kinds.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const leaf = { mergeRole: 'not-mergeable', editable: true, supportsInline: false } as const;
 

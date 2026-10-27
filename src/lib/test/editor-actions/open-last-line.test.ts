@@ -18,7 +18,7 @@ import { buildExitReplacement } from '#lib/tree-operations/list/exit-replacement
 import { buildQuoteExitReplacement } from '#lib/tree-operations/blockquote.js';
 import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
-import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
 import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
 import {
@@ -28,7 +28,7 @@ import {
 	pasteContext
 } from '#lib/test/harness/editor-actions.js';
 import { makeHarness, runOp, type Op } from '#lib/test/undo/restoration-ops.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 type Route = (source: string) => Promise<Document>;
 

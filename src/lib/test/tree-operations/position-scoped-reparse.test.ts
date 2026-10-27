@@ -5,7 +5,7 @@ import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { FRONT_MATTER, registerDocumentTopKind } from '../support/position-scoped-kind';
+import { FRONT_MATTER, registerDocumentTopKind } from '../harness/position-scoped-kind';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 

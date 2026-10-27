@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unmount, flushSync } from 'svelte';
 import type { InlineMenuCombobox } from '#lib/inline-menu/inline-menu-state.svelte.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
-import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from '../fixtures/reveal-leaf';
 
 const KIND = 'combobox-leaf';
 const SOURCE = '@@ one';

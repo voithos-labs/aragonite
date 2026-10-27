@@ -1,9 +1,9 @@
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import { getInlineContent } from '../../core/inline/inline-cache';
-import { definitionsOf } from '../../core/inline/scan/definitions';
-import type { CstNode } from '../../core/nodes';
+import { parse } from '../../../core/parser';
+import { getInlineContent } from '../../../core/inline/inline-cache';
+import { definitionsOf } from '../../../core/inline/scan/definitions';
+import type { CstNode } from '../../../core/nodes';
 
 function firstProse(src: string): CstNode {
 	return parse(src).children[0];

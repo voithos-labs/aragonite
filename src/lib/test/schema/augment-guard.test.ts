@@ -10,8 +10,8 @@ import {
 	type BlockKindAugmentation
 } from '#lib/schema/block-kind-descriptor.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const minimal = {
 	gapEdges: 'none',

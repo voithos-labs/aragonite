@@ -17,7 +17,7 @@ import {
 	makePasteCommit
 } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const PARROT_LINE = '%%parrot party responsibly\n';
 

@@ -7,7 +7,7 @@ import {
 	runPasteDispatch,
 	makePasteCommit
 } from '#lib/test/harness/editor-actions.js';
-import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 
 // A cell holds text, never blocks, so blank lines a copy wrapped around the text must not decide
 // the route: read as content, they send a plain text paste down the path that breaks the table.

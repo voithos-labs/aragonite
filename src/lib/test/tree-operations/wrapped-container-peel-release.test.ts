@@ -13,7 +13,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // A blank run reaching a body's tail borrows a line into `innerSuffix` so the reload keeps the
 // block, and a tail that stops being blank gives it back.

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { fixtureReading } from '../harness/fixture-grammar';
-import { isVerticallyTransparentNode } from '../../core/inline/transparency';
-import { parse } from '../../core/parser';
-import type { CstNode } from '../../core/nodes';
+import { fixtureReading } from '../../harness/fixture-grammar';
+import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
+import { parse } from '../../../core/parser';
+import type { CstNode } from '../../../core/nodes';
 
 // The predicate computes inline content on demand, so a freshly parsed node is
 // the real shape it sees in production — no pre-population needed.

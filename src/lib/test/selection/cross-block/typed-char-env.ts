@@ -10,7 +10,7 @@ import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import type { Reading } from '#lib/schema/reading.js';
-import { commandContext } from '../../support/command-context';
+import { commandContext } from '../../harness/command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** `reading` is the editor's own, which every write reads off the root. */

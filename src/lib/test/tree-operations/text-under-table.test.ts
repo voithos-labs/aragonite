@@ -12,7 +12,7 @@ import { settled, deleteSettled } from '#lib/test/harness/settle-funnel.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // A table takes any line straight below its rows that opens no other block, so a block an edit
 // turns into text right under a table gets a blank line between, and stays the block it is.

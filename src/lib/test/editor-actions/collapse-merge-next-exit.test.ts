@@ -12,7 +12,7 @@ import {
 	makeTopHarness
 } from '#lib/test/harness/editor-actions.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // Forward Delete at the end of a collapsed summary must exit past the container rather
 // than stop on the unmounted body (refAt(i+1) does nothing): a focus move, no edit.

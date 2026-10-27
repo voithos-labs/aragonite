@@ -41,7 +41,7 @@ import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js'
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
 import { settleEditor } from '../harness/settle';
-import { ensurePasteSurface } from '../support/paste-surface';
+import { ensurePasteSurface } from '../harness/paste-surface';
 import { mountCell, noIslands } from '../blocks/table/mount-cell';
 import {
 	decorationIsland,

@@ -15,7 +15,7 @@ import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 /** One block under a presentation root, focused, with the caret placed by the block itself. */
 function mountBlock(source: string, mode: PresentationMode, caret: number) {

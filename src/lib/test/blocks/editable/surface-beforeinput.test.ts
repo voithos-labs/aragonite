@@ -12,12 +12,12 @@ import {
 	placeCaret,
 	surfaceAt,
 	type MountedEditor
-} from '../harness/mount-editor.svelte';
-import { pressKey, settleEditor } from '../harness/settle';
-import { mountBlock } from '../harness/mount-block';
-import { cellAt, installTableLayoutStubs } from './table/mount-table';
-import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from './fixtures/reveal-leaf';
-import PlainOneLineLeafBlock from './fixtures/PlainOneLineLeafBlock.svelte';
+} from '../../harness/mount-editor.svelte';
+import { pressKey, settleEditor } from '../../harness/settle';
+import { mountBlock } from '../../harness/mount-block';
+import { cellAt, installTableLayoutStubs } from '../table/mount-table';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from '../fixtures/reveal-leaf';
+import PlainOneLineLeafBlock from '../fixtures/PlainOneLineLeafBlock.svelte';
 
 const beforeInput = (inputType: string) =>
 	new InputEvent('beforeinput', { inputType, bubbles: true, cancelable: true });

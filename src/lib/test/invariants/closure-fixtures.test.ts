@@ -13,7 +13,7 @@ import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.
 import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
 import { ADMONITION } from '#lib/plugins/admonitions/kinds.js';
 import { registerTocBlock, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // Every declared `conformanceFixture` parses to a tree containing the kind that declared it
 // (G1.24 rule c). Checked here rather than at registration, because a `parse` import there would

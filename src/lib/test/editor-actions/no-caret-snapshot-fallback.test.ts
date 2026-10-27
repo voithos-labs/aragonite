@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
-import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';

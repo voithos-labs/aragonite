@@ -7,7 +7,7 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { makeCommitScopeStub, parseLeaf as leaf } from '#lib/test/harness/editor-actions.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 function focusSpy() {
 	const calls: number[] = [];

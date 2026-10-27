@@ -7,7 +7,7 @@ import { blockNodeAt } from '../../../../tree-operations/node-primitives';
 import { registerDetailsKind } from '../../../../plugins/details/details-kind';
 import type { CellSelectionPoint } from '../../../../selection/primitives';
 import { deleteRange } from '../../../harness/range-delete';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 /** Row-major cell index on the table block's own path. */
 const cell = (path: number[], index: number): CellSelectionPoint => ({

@@ -16,7 +16,7 @@ import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { blockViewEntry } from '#lib/components/block-view-entry.js';
 import CodeBlock from '#lib/components/blocks/code/CodeBlock.svelte';
 import TableBlock from '#lib/components/blocks/table/TableBlock.svelte';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 
 const fakeComponent = () => {};
 const leaf = {

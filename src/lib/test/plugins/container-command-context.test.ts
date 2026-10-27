@@ -6,7 +6,7 @@ import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { buildContainerKindTarget } from '#lib/editor-actions/plugin/container.js';
 import type { AnyBlockKind, CstNode, PluginBlockKind } from '#lib/core/nodes.js';
 import type { AnyCommandId } from '#lib/schema/command-id.js';
-import { commandContextWith } from '#lib/test/support/command-context.js';
+import { commandContextWith } from '#lib/test/harness/command-context.js';
 
 let note: PluginBlockKind;
 let noteAlt: PluginBlockKind;

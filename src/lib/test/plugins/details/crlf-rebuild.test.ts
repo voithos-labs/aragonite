@@ -6,7 +6,7 @@ import {
 	rebuildDetailsRaw,
 	type DetailsMetadata
 } from '#lib/plugins/details/details-kind.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // Without edits an opaque container emits its `raw` verbatim, so only `rebuildDetailsRaw`
 // is at risk: the three tag lines it builds have to reproduce the authored line ending rather

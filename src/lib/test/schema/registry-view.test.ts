@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { blockViewFor, getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 import { createRegistryView, defaultRegistryView } from '#lib/schema/registry-view.js';
 import type { AnyBlockKind, PluginBlockKind } from '#lib/core/nodes.js';

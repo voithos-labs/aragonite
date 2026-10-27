@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, it, expect } from 'vitest';
-import type { InlineNode, PluginInlineKind } from '../../core/nodes';
+import type { InlineNode, PluginInlineKind } from '../../../core/nodes';
 import {
 	isInlineWidget,
 	buildCoreInlineWidget,
@@ -9,8 +9,8 @@ import {
 	registerInlineWidgetKind,
 	augmentInlineWidgetKind,
 	getInlineWidgetEditing
-} from '../../core/inline/inline-widgets';
-import { declarePluginInlineKind } from '../../schema/plugin-kind';
+} from '../../../core/inline/inline-widgets';
+import { declarePluginInlineKind } from '../../../schema/plugin-kind';
 
 describe('isInlineWidget: registry-driven recognition', () => {
 	it('treats image as a widget unconditionally', () => {

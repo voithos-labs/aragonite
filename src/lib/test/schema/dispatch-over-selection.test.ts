@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { runCommandById } from '#lib/schema/block-commands.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { commandContextWith } from '../support/command-context';
+import { commandContextWith } from '../harness/command-context';
 
 /** A live, non-collapsed document selection, the state the dev warning looks for. */
 function selectSomeText(): void {

@@ -13,7 +13,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { commandContext } from '../../support/command-context';
+import { commandContext } from '../../harness/command-context';
 
 export function rangeContext(
 	deps: EditorActionsDeps,

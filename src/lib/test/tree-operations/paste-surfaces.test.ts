@@ -7,7 +7,7 @@ import {
 import { tableCellPasteSurface } from '../../components/blocks/table/table-cell-paste';
 import { everyInstalledPlugin } from '../../schema/plugin-activation';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
-import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import type { AnyBlockKind } from '../../core/nodes';
 
 // Plugin kinds, which the reset drops; a built-in kind's surface outlives it.

@@ -12,7 +12,7 @@ import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
 import { chordIsClaimed, collectReservedChords } from '#lib/schema/reserved-chords.js';
 import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
-import { commandContext } from '../support/command-context';
+import { commandContext } from '../harness/command-context';
 
 const CHORD = 'Mod+Shift+9';
 

@@ -9,9 +9,9 @@ import {
 	type BlockKindRegistration
 } from '#lib/schema/block-kind-descriptor.js';
 import { lineInterruptsParagraph, type BlockOpener } from '#lib/schema/block-openers.js';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 import { collector } from '#lib/test/harness/violation-collector.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it has the same duties
 // around pending registrations: the two sibling paths must behave alike.

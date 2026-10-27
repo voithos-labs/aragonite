@@ -9,7 +9,7 @@ import type { KeybindingOverrideMap } from '#lib/schema/keybinding-overrides.js'
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import type { AnyBlockKind, CstNode, PluginBlockKind } from '#lib/core/nodes.js';
 import type { AnyCommandId } from '#lib/schema/command-id.js';
-import { commandContextWith } from '#lib/test/support/command-context.js';
+import { commandContextWith } from '#lib/test/harness/command-context.js';
 
 let leaf: PluginBlockKind;
 let leafAlt: PluginBlockKind;
