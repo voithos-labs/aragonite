@@ -1,9 +1,8 @@
 /**
  * Today's import edges between `src/lib`'s top-level directories (a root file is its own node).
  * `directory-layering.test.ts` fails on an edge not listed and on a listed edge that's gone; a new
- * line needs a reviewer's yes, and a move may only rename nodes along its move map. Two cycles are
- * left to break: {core, schema, caret, browser, invariants, debug} and
- * {selection, editor-actions}.
+ * line needs a reviewer's yes, and a move may only rename nodes along its move map. One cycle is
+ * left to break: {core, schema, caret, browser, invariants, debug}.
  */
 
 /** Pairs joined by at least one import that loads at runtime. */
@@ -152,7 +151,6 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'selection -> caret',
 	'selection -> core',
 	'selection -> dev-checks.ts',
-	'selection -> editor-actions',
 	'selection -> editor-events.ts',
 	'selection -> invariants',
 	'selection -> presentation-mode.ts',

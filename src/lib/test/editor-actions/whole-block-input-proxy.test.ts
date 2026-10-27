@@ -7,14 +7,16 @@ import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { createContainerBlockComponent } from '#lib/editor-actions/container-block-component.js';
 import {
-	WHOLE_BLOCK_INPUT_ATTR,
 	composeWholeBlockFocusSurface,
 	createWholeBlockInputProxy,
 	holdsWholeBlockFocus,
 	isEditableEventTarget,
-	isWholeBlockInputProxy,
 	type WholeBlockInputProxy
 } from '#lib/editor-actions/whole-block-focus-surface.js';
+import {
+	WHOLE_BLOCK_INPUT_ATTR,
+	isWholeBlockInputProxy
+} from '#lib/selection/whole-block-input.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { makeShimDeps, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 

@@ -10,7 +10,7 @@ import {
 	holdsOwnText,
 	type BlockHit
 } from '#lib/selection/block-hit-test.js';
-import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/editor-actions/whole-block-focus-surface.js';
+import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/selection/whole-block-input.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 const CARET_TARGET = { path: [1, 2], offset: 7 };

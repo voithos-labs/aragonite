@@ -866,7 +866,7 @@ fails when `TextEditableBlock.svelte`'s keydown calls the shared keymap first.
 of top-level directories (root files as their own nodes), runtime and type-only edges apart, that
 must match `lint/directory-layering-baseline.ts`: a new edge fails naming its imports, a gone one
 until its line is deleted. The scan can't refuse an added line, so a new one gets a reviewer's eye.
-Two runtime cycles are still listed. Always: nothing in `tree-operations/` imports `editor-actions/`
+One runtime cycle is still listed. Always: nothing in `tree-operations/` imports `editor-actions/`
 or `components/`, and an unresolvable import fails. `lint/directory-layering.test.ts`.
 
 **G4.123 · An item's children leave it under the order check.** Backspace's unwrap of a first list
