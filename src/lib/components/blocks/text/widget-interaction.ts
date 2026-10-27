@@ -44,6 +44,7 @@ import type { RevealFold } from '../editable/surface-clipboard';
 import { hasModifier, isPlainTypingKey, surfaceHoldsRange } from './click-snap-guard';
 import { caretEdgeKey, pageKey } from '../../../schema/keybindings';
 import { caretIsInTextContent } from '../../../browser/text-seat';
+import { elementAtPoint } from '../../../browser/point';
 import {
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
@@ -375,16 +376,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		})();
 	}
 
-	/** The widget under the pointer, asked of the DOM rather than of a rectangle: a KaTeX render
-	 *  draws past its own border box, and `elementFromPoint` counts that overflow. */
+	/** The widget under the pointer, asked of the DOM since a KaTeX render draws past its box;
+	 *  jsdom finds no element, and the rectangle scan in `hitTestRevealWidget` answers there. */
 	function revealWidgetFromDom(
 		el: HTMLElement,
 		x: number,
 		y: number
 	): { inline: InlineNode } | null {
-		// jsdom has no hit testing; the rectangle scan in `hitTestRevealWidget` answers there.
-		if (typeof document.elementFromPoint !== 'function') return null;
-		const at = document.elementFromPoint(x, y);
+		const at = elementAtPoint(el.ownerDocument, x, y);
 		const island =
 			at instanceof Element ? at.closest('[data-inline-widget][data-source-start]') : null;
 		// The point may sit over another block's widget entirely.

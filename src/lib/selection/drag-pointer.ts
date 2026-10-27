@@ -8,7 +8,7 @@ import type { UserScrollport } from '../windowing/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionEndpoint } from './primitives';
 import type { BlockElLookup } from '../caret/block-el-lookup';
-import { caretOffsetAtPoint } from '../browser/point';
+import { caretOffsetAtPoint, elementAtPoint } from '../browser/point';
 import { applyCollapsedCaret, applySingleBlockRange } from './native-bridge';
 import type { CaretWriter } from '../browser/caret-writer';
 import { isWholeBlockEndpoint, type SelectionPoint } from './primitives';
@@ -198,7 +198,7 @@ export function installDragListener(
 		autoScroll: {
 			getTargets: (clientX, clientY) => {
 				const targets: UserScrollport[] = [ctx.scrollContainer];
-				const t = document.elementFromPoint(clientX, clientY);
+				const t = elementAtPoint(ctx.editorRoot.ownerDocument, clientX, clientY);
 				if (t instanceof HTMLElement) {
 					const inner = scrollableSelfOrAncestor(t);
 					if (inner && inner !== ctx.scrollContainer) targets.push(inner);

@@ -56,7 +56,7 @@ A click inside a text block: the browser already knows (or the editor does, for 
 2. Below the last mounted block while the document's tail is windowed out (not mounted at all), the caret lands at the real last block's end through the caret landing (stage 3), which mounts it first, since a block with no box can't be probed.
 3. Otherwise the point clamps into the nearest block's box.
 
-With a point inside a box, `src/lib/selection/block-hit-test.ts` :: `blockAtPoint` names the block. A container (a quote, a list, an alert) keeps its lines as child blocks, so a point on the container's own box, like a quote's bar, moves down to the child it's level with, however deep (`src/lib/selection/nearest-block.ts` :: `descendToLevelChild`). A drag into the margin takes the same step.
+With a point inside a box, `src/lib/selection/block-hit-test.ts` :: `blockAtPoint` names the block. A container (a quote, a list, an alert) keeps its lines as child blocks, so a point on the container's own box, like a quote's bar, moves down to the child it's level with, however deep (`src/lib/selection/nearest-block.ts` :: `descendToLevelChild`). A drag into the margin takes the same step, with one difference: below a windowed-out tail it follows the last mounted block (`blockNearPoint`), so an autoscrolling drag keeps growing as blocks mount, where a press there names no block (`hitAtDocumentPoint`).
 
 Then the kind names the spot inside the block. A table names a cell through its `caretTargetAtPoint` hook; a block of text (prose, or code, whose box has room around its lines) answers through `src/lib/browser/point.ts` :: `caretOffsetAtPoint`, the nearest offset. Neither does arithmetic of its own: both read the one DOM-to-offset walk in `src/lib/browser/offsets.ts`, so an image or a hidden marker counts the same whether you clicked or arrowed there. The walk also reads a caret that WebKit or Firefox parks between a CRLF line's `\r` and `\n` as the line's end, before the pair, which is where Chromium puts it anyway.
 
@@ -69,7 +69,7 @@ The probe, for the curious:
 - `caretOffsetAtPoint` clamps the point into the element's box and hands it to the exact probe, `offsetFromViewportPoint`. A shift-click and stage 1's two presses call the exact one directly.
 - The exact probe declines a point outside its element without asking the browser, which would answer one beside it with an offset inside.
 - It moves a point in the top or bottom padding level with the nearest line first, because Chromium on Mac and Linux answers a point above the first line with that line's start (below the last, its end). Sideways padding stays put: every OS keeps the column there, and a list item's marker hangs in it.
-- Two lints hold this shape: every call to the browser's point-to-caret lookup stays in `browser/point.ts` (G4.270), and a file that mounts an editable surface calls `handlePointerDown` exactly once from each pointer-down handler it binds.
+- Two lints hold this shape: every call to the browser's point lookups (the caret at a point, the element at a point) stays in `browser/point.ts` (G4.270), and a file that mounts an editable surface calls `handlePointerDown` exactly once from each pointer-down handler it binds.
 
 ## 3. The one way in
 

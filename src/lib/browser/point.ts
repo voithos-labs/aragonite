@@ -1,10 +1,17 @@
 /**
- * Viewport point to caret offset inside one element. The browser finds the DOM position, and
- * `offsets.ts`'s walk does the arithmetic: this module computes no offset of its own, so
- * an atomic widget and a leading marker prefix count here exactly as they do for a live caret read.
+ * What sits under a viewport point: the element there, and the caret offset inside one element.
+ * The browser finds the DOM position and `offsets.ts`'s walk does the arithmetic, so an atomic
+ * widget and a leading marker prefix count here exactly as they do for a live caret read.
  */
 
 import { rawOffsetAt } from './offsets';
+
+/** The topmost element at a viewport point; null where nothing is there, or where the document
+ *  lays nothing out (jsdom has no `elementFromPoint`). */
+export function elementAtPoint(doc: Document, clientX: number, clientY: number): Element | null {
+	if (typeof doc.elementFromPoint !== 'function') return null;
+	return doc.elementFromPoint(clientX, clientY);
+}
 
 /** The caret offset in `el` nearest a viewport point, clamped into `el`'s box first so a click on
  *  the frame still names one. Null where `el` holds no text. */

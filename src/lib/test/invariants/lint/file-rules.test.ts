@@ -2835,8 +2835,8 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		reason: 'with no media queries (jsdom) a recording names its pointer `none`'
 	},
 	'src/lib/testing/mount-dom-stubs.ts :: installEditorDomStubsForTests': {
-		branches: 3,
-		reason: 'with no DOM there is no element, range prototype or document to fill in'
+		branches: 2,
+		reason: 'with no DOM there is no element or range prototype to fill in'
 	}
 };
 

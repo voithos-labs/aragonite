@@ -6,20 +6,22 @@
  */
 
 import { CURSOR_END, type BlockComponent } from '../block-component';
-import { blockAtPoint, holdsOwnText, type BlockHit } from './block-hit-test';
+import { holdsOwnText, type BlockHit } from './block-hit-test';
 import type { CaretTarget } from '../schema/block-kind-descriptor';
 import {
-	descendToLevelChild,
+	hitAtDocumentPoint,
+	lastMountedTopLevel,
 	measureBlocks,
-	nearestBand,
-	probePointIn,
+	nearestBlockOf,
+	UNMOUNTED_TAIL,
 	type MeasuredBlock,
+	type NearestBlock,
 	type ProbedHit
 } from './nearest-block';
 import { placeGapCaret } from './place-caret';
 import { holdsNativeRange } from '../browser/selection-read';
 import { canGapStop, type GapStopScope } from './gap-caret';
-import { caretOffsetAtPoint } from '../browser/point';
+import { caretOffsetAtPoint, elementAtPoint } from '../browser/point';
 import type { CaretPosition, SelectionEndpoint } from './primitives';
 import type { LandingOutcome } from './caret-landing';
 import { docPathFrom } from '../core/coordinate-spaces';
@@ -56,9 +58,9 @@ export interface DeadSpaceCaret {
 	/** Where a click at the point would land, as a drag anchor: a text offset, or the whole block
 	 *  (a table, an equation) so the range takes all of it whichever way the drag goes. */
 	anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null;
-	/** The path of the block nearest a click, the point clamped into its box: what a click on
-	 *  the margin or on a block's own box selects in. */
-	blockPathNearPoint(root: HTMLElement, x: number, y: number): number[] | null;
+	/** The block nearest a press, the point clamped into its box: what a click run on the margin
+	 *  or on a block's own box selects in. */
+	blockNearPress(root: HTMLElement, x: number, y: number): NearestBlock | null;
 }
 
 export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
@@ -87,8 +89,7 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	// Every read happens before the returned call places anything: placing a caret can close a
 	// shown source, which redraws the line the point was read against.
 	function planAtPoint(root: HTMLElement, x: number, y: number): (() => void) | null {
-		// One measuring pass: the gap check and the nearest-block clamp read the same layout, and
-		// a second query would force layout again inside one click.
+		// One measuring pass, so the gap check and the nearest-block clamp read the same boxes.
 		const blocks = measureBlocks(root);
 		const boundary = rootBoundaryOutsideBands(blocks, y);
 		if (boundary !== null && canGapStop(deps.gapScope, [], boundary)) {
@@ -102,19 +103,8 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 				});
 			};
 		}
-		const band = nearestBand(
-			blocks.map((b) => b.rect),
-			y
-		);
-		if (!band) return null;
-
-		// Below the last mounted block is not below the document while a tail is windowed out,
-		// and the real last block has no box to hit-test until it mounts.
-		if (band.belowAll && lastMountedTopLevel(blocks) !== deps.lastBlockIndex()) {
-			return () => void landAtDocumentEnd(root, x);
-		}
-
-		const near = hitInBand(root, blocks, band, x, y);
+		const near = hitAtDocumentPoint(root, blocks, x, y, deps.lastBlockIndex());
+		if (near === UNMOUNTED_TAIL) return () => void landAtDocumentEnd(root, x);
 		if (!near) return null;
 		const { hit, x: probeX, y: probeY } = near;
 		// A block with no text line (an equation, a table, source shown only while editing) takes
@@ -149,20 +139,14 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		};
 	}
 
-	/** The nearest block's hit for a click, with the point clamped into its box. */
-	function hitNearPoint(root: HTMLElement, x: number, y: number): ProbedHit | null {
-		const blocks = measureBlocks(root);
-		const band = nearestBand(
-			blocks.map((b) => b.rect),
-			y
-		);
-		if (!band) return null;
-		if (band.belowAll && lastMountedTopLevel(blocks) !== deps.lastBlockIndex()) return null;
-		return hitInBand(root, blocks, band, x, y);
+	/** The nearest block's hit for a press; a point below an unmounted tail names none. */
+	function pressHit(root: HTMLElement, x: number, y: number): ProbedHit | null {
+		const near = hitAtDocumentPoint(root, measureBlocks(root), x, y, deps.lastBlockIndex());
+		return near === UNMOUNTED_TAIL ? null : near;
 	}
 
 	function anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null {
-		const near = hitNearPoint(root, x, y);
+		const near = pressHit(root, x, y);
 		if (!near) return null;
 		const { hit, x: probeX, y: probeY } = near;
 		// No text to measure against: an offset would put a range end at the block's start and
@@ -174,14 +158,15 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		return { path: hit.path.slice(), offset: landing.offset };
 	}
 
-	function blockPathNearPoint(root: HTMLElement, x: number, y: number): number[] | null {
-		return hitNearPoint(root, x, y)?.hit.path.slice() ?? null;
+	function blockNearPress(root: HTMLElement, x: number, y: number): NearestBlock | null {
+		const near = pressHit(root, x, y);
+		return near && nearestBlockOf(near);
 	}
 
 	return {
 		isDeadSpaceTarget: isDeadSpace,
 		anchorAtPoint,
-		blockPathNearPoint,
+		blockNearPress,
 		notePress(root, event) {
 			const plain =
 				isDeadSpace(root, event.target) &&
@@ -209,15 +194,6 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/** The last mounted top-level index; -1 when none is mounted. */
-function lastMountedTopLevel(blocks: MeasuredBlock[]): number {
-	for (let i = blocks.length - 1; i >= 0; i--) {
-		const path = blocks[i].path;
-		if (path?.length === 1) return path[0];
-	}
-	return -1;
-}
-
 /** The root-level gap a `y` outside every block's box names. Below the last block is excluded:
  *  that click means end of document, and the last mounted block may not be the last block. */
 function rootBoundaryOutsideBands(blocks: MeasuredBlock[], y: number): number | null {
@@ -236,20 +212,6 @@ function rootBoundaryOutsideBands(blocks: MeasuredBlock[], y: number): number | 
 	return null;
 }
 
-/** The block a band answers for a point: the point clamped into the band's box, then handed
- *  down to the child level with it when the box is a container's. */
-function hitInBand(
-	root: HTMLElement,
-	blocks: MeasuredBlock[],
-	band: { index: number; belowAll: boolean },
-	x: number,
-	y: number
-): ProbedHit | null {
-	const probe = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
-	const hit = blockAtPoint(root, probe.x, probe.y);
-	return hit && descendToLevelChild(root, { hit, ...probe }, band.belowAll);
-}
-
 /** The root and any block list inside it: a host that pads `.block-list` moves the side gutter
  *  onto the list, which then reports itself as the click target. */
 function isDeadSpace(root: HTMLElement, target: EventTarget | null): boolean {
@@ -260,7 +222,7 @@ function isDeadSpace(root: HTMLElement, target: EventTarget | null): boolean {
 /** Whether the original point (not the clamped one) sits inside some block's content: on a
  *  descendant of a block host, not on the host's own box or the dead space around it. */
 function pressedOnBlockContent(root: HTMLElement, x: number, y: number): boolean {
-	const direct = document.elementFromPoint(x, y);
+	const direct = elementAtPoint(root.ownerDocument, x, y);
 	if (!(direct instanceof Element) || isDeadSpace(root, direct)) return false;
 	const host = direct.closest('[data-block-path]');
 	return host !== null && host !== direct;

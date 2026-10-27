@@ -20,8 +20,7 @@ import type { BlockElLookup } from '../caret/block-el-lookup';
 import { installDragListener, type DragGranularity } from './drag-pointer';
 import { applySingleBlockRange, applySurfaceContentRange } from './native-bridge';
 import type { CaretWriter } from '../browser/caret-writer';
-import { blockNearPoint } from './nearest-block';
-import { readBlockPath } from './path-lookup';
+import { blockNearPoint, type NearestBlock } from './nearest-block';
 import type { SelectionEndpoint, SelectionPoint } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 
@@ -88,7 +87,7 @@ export interface MultiClickDeps {
 	lifetimeSignal?: AbortSignal;
 	/** A click outside every editable element (the margin, a container's own box) names the
 	 *  nearest block, as a single click there does; null when the click is on a button or handle. */
-	marginBlockAt(target: EventTarget | null, clientX: number, clientY: number): number[] | null;
+	marginBlockAt(target: EventTarget | null, clientX: number, clientY: number): NearestBlock | null;
 	/** Whether the click landed on an inline widget the editor already holds selected whole. */
 	pressesSelectedWidget(target: EventTarget | null): boolean;
 }
@@ -114,6 +113,13 @@ export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 		if (deps.pressesSelectedWidget(e.target)) return;
 		const press = pressedSurface(deps, e);
 		if (!press) return;
+		// The browser's own word pick would land in the nearest text, which no single click there
+		// focuses either.
+		if (press === NO_TEXT) {
+			e.preventDefault();
+			claimed = true;
+			return;
+		}
 		const anchorSpan = selectAtPoint(
 			deps.caretWriter,
 			press.surface,
@@ -156,48 +162,26 @@ export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 	};
 }
 
-/** The editable element a click selects in: the one under it, else the nearest block's, the
- *  way a single click in the margin lands there. A block with no text has no word to select. */
+/** A margin press nearest a block with no text of its own (a table, a rule): nothing to select. */
+const NO_TEXT = 'no-text';
+
+/** The editable element a click selects in: the one under it, else the nearest block's own
+ *  text, the way a single click in the margin lands there. */
 function pressedSurface(
 	deps: MultiClickDeps,
 	e: MouseEvent
-): { surface: HTMLElement; anchor: SelectionEndpoint | null } | null {
+): { surface: HTMLElement; anchor: SelectionEndpoint | null } | typeof NO_TEXT | null {
 	// Up through a non-editable span inside the editable (a list's `- ` prefix) to the editable.
 	const own = surfaceOf(e.target);
 	if (own) return isWholeBlockInputProxy(own) ? null : { surface: own, anchor: null };
-	const path = deps.marginBlockAt(e.target, e.clientX, e.clientY);
-	const block = path && deps.getBlockElByPath(path);
-	if (!block) return null;
-	// A container's own box (a quote's gutter) selects in the leaf nearest the click, the way a
-	// click beside a line lands in that line.
-	const surface = block.contentEditable === 'true' ? block : nearestSurfaceIn(block, e.clientY);
-	const surfacePath = surface && pathOfSurface(surface);
-	const offset = surface && caretOffsetAtPoint(surface, e.clientX, e.clientY);
-	if (!surface) return null;
-	return { surface, anchor: surfacePath && offset !== null ? { path: surfacePath, offset } : null };
-}
-
-function nearestSurfaceIn(block: HTMLElement, clientY: number): HTMLElement | null {
-	let best: HTMLElement | null = null;
-	let bestDistance = Infinity;
-	for (const el of block.querySelectorAll<HTMLElement>('[contenteditable="true"]')) {
-		const rect = el.getBoundingClientRect();
-		const distance = clientY < rect.top ? rect.top - clientY : Math.max(0, clientY - rect.bottom);
-		if (distance < bestDistance) {
-			best = el;
-			bestDistance = distance;
-		}
-	}
-	return best;
-}
-
-/** The path of the block this editable element is the text of; null for one addressed some
- *  other way (a table's cell), whose drag is not a character drag. */
-function pathOfSurface(surface: HTMLElement): number[] | null {
-	const host = surface.closest<HTMLElement>('[data-block-path]');
-	const path = readBlockPath(host);
-	if (!path || !host?.contains(surface)) return null;
-	return host.querySelector('[contenteditable="true"]') === surface ? path : null;
+	const near = deps.marginBlockAt(e.target, e.clientX, e.clientY);
+	if (!near) return null;
+	if (!near.ownText) return NO_TEXT;
+	const offset = caretOffsetAtPoint(near.ownText, e.clientX, e.clientY);
+	return {
+		surface: near.ownText,
+		anchor: offset === null ? null : { path: near.path.slice(), offset }
+	};
 }
 
 /** Selects the unit's span at the click and returns it, in raw offsets. */

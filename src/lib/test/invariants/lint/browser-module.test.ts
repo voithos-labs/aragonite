@@ -1,8 +1,8 @@
 /**
  * G4.270: what the browser holds for editing is read and written only under `browser/` (the
- * selection, `Selection.modify`, the caret at a point), so an engine quirk in any of them is
+ * selection, `Selection.modify`, the caret and the element at a point), so an engine quirk in any of them is
  * fixed in one module (`docs/design/editor.md` § Browser engines). Inside it, the selection is
- * read only in `selection-read.ts` and the caret writer, written only by the writer, and the
+ * read only in `selection-read.ts` and the caret writer, written only by the writer, and a
  * point asked only in `point.ts`.
  */
 
@@ -130,6 +130,27 @@ const RULES: FileRule[] = [
 			'const seat = caretSeatFromPoint(document, x, y);',
 			'// never call caretRangeFromPoint here\nconst a = 1;',
 			at(SOURCE.pointLookup, 'const r = document.caretRangeFromPoint(x, y);')
+		]
+	},
+	{
+		id: 'G4.270 the browser is asked for the element at a point only in browser/point.ts',
+		population: except(SOURCE.pointLookup),
+		matches: /\belements?FromPoint\b/,
+		mustMatch: [SOURCE.pointLookup],
+		reaches: [SOURCE.blockHitTest, SOURCE.editorDomStubs, SOURCE.tableCell],
+		reason:
+			'jsdom has no element lookup, and every caller needs the same answer there: ask elementAtPoint (browser/point.ts)',
+		hits: [
+			'const el = document.elementFromPoint(x, y);',
+			'const els = el.ownerDocument.elementsFromPoint(x, y);',
+			"if (typeof document.elementFromPoint !== 'function') return null;",
+			'document.elementFromPoint ??= () => null;',
+			inBrowser('const el = doc.elementFromPoint(x, y);')
+		],
+		misses: [
+			'const el = elementAtPoint(root.ownerDocument, x, y);',
+			'// the lookup behind elementFromPoint\nconst a = 1;',
+			at(SOURCE.pointLookup, 'return doc.elementFromPoint(clientX, clientY);')
 		]
 	}
 ];

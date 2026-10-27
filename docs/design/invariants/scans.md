@@ -216,7 +216,7 @@ unguarded.
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
 | G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
 | G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
-| G4.270 | The selection, `Selection.modify` and the caret at a point are touched only under `browser/`     | L       |
+| G4.270 | The selection, `Selection.modify` and what sits at a point are touched only under `browser/`     | L       |
 | G4.271 | A windowed list hands each child the index and id from its own slice entry                       | L       |
 
 ### The entries
@@ -1414,9 +1414,10 @@ so the suites run without a network. A spec's own route for a made-up host runs 
 
 **G4.270 · The browser is touched in one module.** Only `browser/selection-read.ts` and the caret
 writer read the native selection (`debug/`'s recorder may read what it records), only
-`caret-writer.ts` writes it, `Selection.modify` included, and only `point.ts` asks for a caret at a
-point. The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads too. A directory
-that can't import `browser/` takes the read as a parameter. `lint/browser-module.test.ts`.
+`caret-writer.ts` writes it, `Selection.modify` included, and only `point.ts` asks for a caret or an
+element at a point. The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads
+too. A directory that can't import `browser/` takes the read as a parameter.
+`lint/browser-module.test.ts`.
 
 **G4.271 · A windowed list indexes its children from its slice entries.** A list renders `windowSlicer`'s
 entries and passes each child `entry.index` and `entry.id`. An index added up from the live window start
