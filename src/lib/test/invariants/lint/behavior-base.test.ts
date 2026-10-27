@@ -24,7 +24,7 @@ import {
 
 let root: string;
 const git = (...args: string[]) =>
-	execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+	execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 120_000 }).trim();
 
 /** Commits `files` on the current branch and returns the commit's sha. */
 function commit(files: Record<string, string>): string {
@@ -149,7 +149,7 @@ describe('behavior: the base record', () => {
 
 describe('behavior: worktrees left by other runs', () => {
 	it('clears a dead run’s worktree and leaves a live run’s alone', () => {
-		const dead = spawnSync(process.execPath, ['-e', '']).pid;
+		const dead = spawnSync(process.execPath, ['-e', ''], { timeout: 120_000 }).pid;
 		const live = process.ppid;
 		for (const pid of [dead, live]) mkdirSync(worktreeOf(pid), { recursive: true });
 		clearLeftovers(root);
@@ -158,7 +158,7 @@ describe('behavior: worktrees left by other runs', () => {
 	});
 
 	it('refuses to clear a dead run’s folder that is itself a link', () => {
-		const dead = spawnSync(process.execPath, ['-e', '']).pid;
+		const dead = spawnSync(process.execPath, ['-e', ''], { timeout: 120_000 }).pid;
 		const outside = mkdtempSync(join(tmpdir(), 'behavior-install-'));
 		writeFileSync(join(outside, 'kept.txt'), 'kept');
 		mkdirSync(join(root, 'behavior-results'));

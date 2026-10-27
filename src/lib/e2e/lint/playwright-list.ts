@@ -62,8 +62,9 @@ export function listPlaywrightTests(): { tests: ListedTest[]; errors: string[] }
 	const run = spawnSync(
 		process.execPath,
 		[resolveModule('@playwright/test/cli'), 'test', '--list', '--reporter=json'],
-		{ encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }
+		{ encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 300_000 }
 	);
+	if (run.error) throw run.error;
 	if (!run.stdout) throw new Error(`playwright test --list printed nothing: ${run.stderr}`);
 	const report = JSON.parse(run.stdout) as ListReport;
 	return {
