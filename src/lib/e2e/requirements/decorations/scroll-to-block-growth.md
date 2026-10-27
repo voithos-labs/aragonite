@@ -49,3 +49,7 @@ target and 90 paragraphs after it, so the target starts windowed out.
   Every growth row let the browser's own frame order decide whether a report came
   first, which WebKit loses now and then and Chromium almost never; no row put the growth
   ahead of the report on purpose.
+- The undo rows timed out on Firefox about one run in three: their setup scrolled
+  to the top in the same frame as the keystroke, and the browser's own reveal of
+  that keystroke's caret ran after it and scrolled back. `scrollEditorTo` wrote
+  as soon as it was called, and no helper test typed and scrolled back to back.

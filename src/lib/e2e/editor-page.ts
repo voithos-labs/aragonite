@@ -93,6 +93,9 @@ export class EditorPage {
 	/** The editor scrolls inside its own box, not the page, so `page.mouse.wheel` would miss it;
 	 *  writing scrollTop fires the passive listener windowing subscribes with. */
 	async scrollEditorTo(scrollTop: number): Promise<void> {
+		// The browser reveals a keystroke's caret at its next frame, which would undo a write made
+		// before it; no user's scroll lands that early.
+		await this.waitForRenderFlush();
 		await this.page.evaluate((top) => {
 			const el = document.querySelector('.editor') as HTMLElement | null;
 			if (el) el.scrollTop = top;
