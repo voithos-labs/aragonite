@@ -27,10 +27,10 @@ import {
 	type DeleteIntent,
 	type DeleteSpan
 } from '../../../caret/delete-extent';
-import { lineEdgeOffset } from '../../../browser/lines';
+import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { hasModifier, isBareKey, isPlainTypingKey } from './click-snap-guard';
-import { caretIsInTextContent } from '../../../browser/text-seat';
+import { caretIsInTextContent, readNativeSelection } from '../../../browser/selection-read';
 import { createMarkerCompletion } from './marker-completion';
 import {
 	resolveEdgeDeletion,
@@ -40,7 +40,6 @@ import {
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { widgetAtCursor, widgetsIn, type WidgetAtCursor } from './widget-adjacency';
 import type { CaretUnitSource } from '../../../selection/shared-keydown';
-import { readNativeSelection } from '../../../browser/selection-read';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../editable/surface-write';

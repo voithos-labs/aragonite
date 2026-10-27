@@ -4,7 +4,8 @@
 // Miss-analysis: the dark-until-the-click rule asked only whether the press sat beside a widget, so
 // a press inside a container's marker prefix (a task checkbox) painted its spot for every frame.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { caretIsInTextContent, clickMovesSeat } from '#lib/browser/text-seat.js';
+import { caretIsInTextContent } from '#lib/browser/selection-read.js';
+import { clickMovesCaret } from '#lib/browser/offsets.js';
 import { buildAmbientSpan } from '#lib/components/blocks/marker-prefix.js';
 import { placeCaretAt } from '../blocks/text/math-widget-fixture';
 
@@ -76,7 +77,7 @@ describe('caretIsInTextContent', () => {
 	});
 });
 
-describe('clickMovesSeat', () => {
+describe('clickMovesCaret', () => {
 	let el: HTMLElement;
 	let prefixText: Text;
 	let text: Text;
@@ -97,15 +98,15 @@ describe('clickMovesSeat', () => {
 	afterEach(() => el.remove());
 
 	it('moves a seat inside the marker prefix, the task checkbox included', () => {
-		expect(clickMovesSeat(el, { node: prefixText, offset: 3 })).toBe(true);
+		expect(clickMovesCaret(el, { node: prefixText, offset: 3 })).toBe(true);
 	});
 
 	it('moves a seat beside a widget, at an element-level offset', () => {
-		expect(clickMovesSeat(el, { node: el, offset: 2 })).toBe(true);
+		expect(clickMovesCaret(el, { node: el, offset: 2 })).toBe(true);
 	});
 
 	it('keeps a seat in the text, its first position right after the prefix included', () => {
-		expect(clickMovesSeat(el, { node: text, offset: 0 })).toBe(false);
-		expect(clickMovesSeat(el, { node: text, offset: 4 })).toBe(false);
+		expect(clickMovesCaret(el, { node: text, offset: 0 })).toBe(false);
+		expect(clickMovesCaret(el, { node: text, offset: 4 })).toBe(false);
 	});
 });

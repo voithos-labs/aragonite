@@ -1189,7 +1189,7 @@ diagnostic-only. `e2e/lint/recordings.test.ts`.
 
 **G4.214 · One measure of a caret.** WebKit and Firefox measure a collapsed range right after a `\n`
 on the line it ends, putting each line start on the line above. `caretRectAt`
-(`browser/lines.ts`) measures the next character instead, and every caret box goes through it
+(`browser/visual-lines.ts`) measures the next character instead, and every caret box goes through it
 (the column search, sticky x, drawn caret, drop caret, `rects.caretRect()` and the rest); the scan
 fails a Range measured elsewhere, bar a few never-collapsed spans. A caret written at a line start
 lands in the next line's text likewise (`findDomTextLanding`). `lint/file-rules.test.ts`.
@@ -1330,7 +1330,7 @@ points say when observing starts. `file-rules.test.ts`.
 
 **G4.243 · One read of the caret's line.** At a soft wrap a caret's one DOM position is on two
 lines, and `caretRectAt` reads one of them whatever the browser shows. So at a wrap the line
-checks in `browser/lines.ts` ask the browser through the caret writer, the one file G4.270 lets
+checks in `browser/visual-lines.ts` ask the browser through the caret writer, the one file G4.270 lets
 call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
 wrong at a wrap is harmless or a known gap. `lint/file-rules.test.ts`.
 

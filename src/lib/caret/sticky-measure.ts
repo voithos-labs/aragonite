@@ -27,7 +27,7 @@ import {
 	sameLineTolerance,
 	type CaretRect,
 	type LineRead
-} from '../browser/lines';
+} from '../browser/visual-lines';
 
 export function getCurrentCursorEditorRelativeX(
 	el: HTMLElement,

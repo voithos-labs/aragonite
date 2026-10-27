@@ -11,7 +11,11 @@ import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { SurfaceBackend } from '../editable/surface-backend';
 import { selectWidgetWhole } from '../../../selection/place-caret';
-import { rawSelectionIn, rawSelectionFocus } from '../../../browser/selection-read';
+import {
+	rawSelectionIn,
+	rawSelectionFocus,
+	caretIsInTextContent
+} from '../../../browser/selection-read';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,
@@ -43,7 +47,6 @@ import { checkMotionLeftWidget } from '../../../invariants/selected-widget-motio
 import type { RevealFold } from '../editable/surface-clipboard';
 import { hasModifier, isPlainTypingKey, surfaceHoldsRange } from './click-snap-guard';
 import { caretEdgeKey, pageKey } from '../../../schema/keybindings';
-import { caretIsInTextContent } from '../../../browser/text-seat';
 import { elementAtPoint } from '../../../browser/point';
 import {
 	findFirstEdgeWidget,

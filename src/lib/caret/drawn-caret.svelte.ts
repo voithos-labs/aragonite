@@ -11,7 +11,7 @@ import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { caretHost, chipStopBox, codeChipEdge, hostBox, measureCaret } from './drawn-caret-measure';
 import { caretSeatInElement } from '../browser/point';
-import { clickMovesSeat } from '../browser/text-seat';
+import { clickMovesCaret } from '../browser/offsets';
 import { readNativeSelection } from '../browser/selection-read';
 import {
 	drawnCaretTarget,
@@ -153,7 +153,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		press = null;
 		const el = e.button === 0 ? editableAt(e.target) : null;
 		const seat = el && caretSeatInElement(el, e.clientX, e.clientY);
-		if (el && seat && el.contains(seat.node)) press = { el, moves: clickMovesSeat(el, seat) };
+		if (el && seat && el.contains(seat.node)) press = { el, moves: clickMovesCaret(el, seat) };
 		armFrame();
 	}
 
@@ -171,7 +171,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const live = readNativeSelection();
 		if (!live?.collapsed) return;
 		const { startContainer: node, startOffset: offset } = live.range;
-		if (press.el.contains(node)) press.moves = clickMovesSeat(press.el, { node, offset });
+		if (press.el.contains(node)) press.moves = clickMovesCaret(press.el, { node, offset });
 	}
 
 	function endPress(): void {

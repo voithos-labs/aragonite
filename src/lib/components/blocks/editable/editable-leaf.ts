@@ -35,7 +35,7 @@ import {
 	type DeleteAnswer,
 	type DeleteIntent
 } from '../../../caret/delete-extent';
-import { lineEdgeOffset } from '../../../browser/lines';
+import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { isAtMostOneCharacter } from '../../../core/text-units';
 import { nativeRangeIn } from '../../../browser/selection-read';
 import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';

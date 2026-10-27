@@ -10,11 +10,11 @@ import {
 	findDomTextOffsetTarget
 } from '../../browser/offsets';
 import { isHiddenMarkerText } from '../../browser/painted';
-import { findFirstTextNode, findLastTextNode } from '../../browser/lines';
+import { findFirstTextNode, findLastTextNode } from '../../browser/visual-lines';
 import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { createSurfaceBackend } from '../../components/blocks/editable/surface-backend';
 import { applyCollapsedCaret } from '../../selection/native-bridge';
-import { caretIsInTextContent } from '../../browser/text-seat';
+import { caretIsInTextContent } from '../../browser/selection-read';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 interface Fixture {

@@ -11,7 +11,7 @@ import {
 	neighbourCaretRect,
 	softWrapAt,
 	type CaretRect
-} from '../browser/lines';
+} from '../browser/visual-lines';
 import { isAtomicInlineWidget } from '../browser/painted';
 import type { ClientCaretBox, HostBox, WidgetEdgeBox } from './drawn-caret-target';
 
