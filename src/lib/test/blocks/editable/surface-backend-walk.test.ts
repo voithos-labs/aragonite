@@ -6,6 +6,8 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { asRawOffset } from '../../../core/coordinate-spaces';
 import { createSurfaceBackend } from '../../../components/blocks/editable/surface-backend';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { caretPointAtRaw } from '#lib/browser/offsets.js';
+import { takeDevWarns } from '../../support/warn-gate';
 
 afterEach(() => {
 	document.body.replaceChildren();
@@ -77,18 +79,31 @@ describe('the surface backend counts a widget by its source bytes', () => {
 });
 
 describe('the surface backend treats adjacent hidden fence lines as one run (#572)', () => {
-	it('never parks the caret between the two hidden lines of an empty fence', () => {
+	function emptyFence(): { el: HTMLElement; opener: HTMLElement; closer: HTMLElement } {
 		const el = surface('live');
 		const opener = fenceLine('```\n');
 		const closer = fenceLine('```');
 		el.append(opener, closer);
 		el.focus();
-		createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).setRaw(asRawOffset(4), {
-			clamp: 'exact'
-		});
-		const { node, offset } = caret();
+		return { el, opener, closer };
+	}
+
+	it('never lands the caret between the two hidden lines of an empty fence', () => {
+		const { el, opener, closer } = emptyFence();
+		const { node, offset } = caretPointAtRaw(el, 4);
 		const between =
 			node === el && el.childNodes[offset - 1] === opener && el.childNodes[offset] === closer;
 		expect(between).toBe(false);
+	});
+
+	// Unstamped, the two lines hide and nothing shows a caret (G1.159).
+	it('writes no caret into an empty fence whose lines both hide', () => {
+		const { el } = emptyFence();
+		window.getSelection()!.removeAllRanges();
+		createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el }).setRaw(asRawOffset(4), {
+			clamp: 'exact'
+		});
+		expect(window.getSelection()!.rangeCount).toBe(0);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:caret-paints']);
 	});
 });

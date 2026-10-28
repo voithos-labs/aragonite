@@ -14,7 +14,8 @@ import { selectWidgetWhole } from '../../../selection/place-caret';
 import {
 	rawSelectionIn,
 	rawSelectionFocus,
-	caretIsInTextContent
+	caretIsInTextContent,
+	liveCaretSpot
 } from '../../../browser/selection-read';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
@@ -811,8 +812,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		el.focus({ preventScroll: true });
 		deps.cursor.setRaw(asRawOffset(seat.offset), { clamp: 'reachable' });
-		// `setRaw` may have landed in a trailing text node, where the browser draws a caret.
-		if (!caretIsInTextContent(el)) deps.setSnapTarget(seat.offset);
+		// Text shows its own caret, and beside a picture the caret writer already asked for the bar.
+		const spot = liveCaretSpot(el);
+		if (spot !== 'text' && spot !== 'widget-block') deps.setSnapTarget(seat.offset);
 	}
 
 	/** Select the whole shown token, decided from the press: the editor root's word-select runs

@@ -199,7 +199,8 @@ export function createHeadlessActions(
 		// A headless suite has no drawn caret to repaint.
 		caretWriter: createCaretWriter(
 			() => {},
-			() => deps.reading.mode() === 'reading'
+			() => deps.reading.mode() === 'reading',
+			() => false
 		),
 		getBlockElByPath: () => null,
 		get caretLanding() {

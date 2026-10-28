@@ -321,11 +321,15 @@
 		composition
 	});
 	// Reading mode has no caret; one the editor asks for there marks where leaving puts it.
-	const caretWriter = createCaretWriter(drawnCaret.request, (el, raw) => {
-		if (reading.mode() !== 'reading') return false;
-		readingFocus.notePoint(el, raw);
-		return true;
-	});
+	const caretWriter = createCaretWriter(
+		drawnCaret.request,
+		(el, raw) => {
+			if (reading.mode() !== 'reading') return false;
+			readingFocus.notePoint(el, raw);
+			return true;
+		},
+		drawnCaret.showWidgetEdge
+	);
 
 	// With no live range this reads no document bytes, so a keystroke at a caret costs nothing here.
 	const coverage = $derived.by(() => {

@@ -269,6 +269,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 				installSelectionChangeBridge({
 					caretWriter: createCaretWriter(
 						() => {},
+						() => false,
 						() => false
 					),
 					composition,
@@ -334,6 +335,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 			installSelectionChangeBridge({
 				caretWriter: createCaretWriter(
 					() => {},
+					() => false,
 					() => false
 				),
 				composition: { live: () => false },

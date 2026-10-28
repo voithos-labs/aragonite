@@ -1,7 +1,7 @@
 /**
  * The editor's one writer of the native selection (`docs/design/selection.md`). Every write and
- * clear goes through `createCaretWriter`, which checks each endpoint, remembers the caret it
- * wrote, and asks the drawn caret to repaint.
+ * clear goes through `createCaretWriter`, which checks each endpoint, writes a caret only where
+ * something shows it, remembers the caret it wrote, and asks the drawn caret to repaint.
  */
 
 import {
@@ -20,6 +20,8 @@ import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkCaretBeforeBreak } from '../invariants/caret-before-break';
 import { checkCaretOutsideLineEndingPair } from '../invariants/line-ending-pairs';
 import { checkLineReadRestored } from '../invariants/line-read-restores';
+import { checkCaretPaints } from '../invariants/caret-paints';
+import { type CaretSpot, caretSpotOf, visibleTextAtSameOffset } from './caret-spot';
 import { splitsLineEndingPair } from '../core/line-ending-pairs';
 import { hiddenSuffixLength, markerPrefixOf, markerHidingMode, mayBeOffCanonical } from './painted';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
@@ -31,7 +33,8 @@ export type CaretClamp = 'reachable' | 'exact';
 /**
  * The editor's one writer of the native selection, built once per editor. Every write and clear
  * calls `onWrite` after it lands, which asks the drawn caret to repaint; a refused write calls
- * nothing. Methods return false when refused.
+ * nothing. Methods return false when refused, as a caret nothing would show is (G1.159), leaving
+ * the selection where it was.
  */
 export interface CaretWriter {
 	/** A collapsed caret at raw `raw` in `el`, past a marker prefix (Chromium bounces one before
@@ -66,16 +69,36 @@ export interface CaretWriter {
 	clear(): void;
 }
 
-/** `declinesCaret` is handed each caret the writer is asked for and answers true where none may
- *  stand (reading mode), taking note of the point if it wants it. */
+/** `declinesCaret` answers true where no caret may stand (reading mode), noting the point if it
+ *  wants it; `showWidgetEdge` asks the drawn caret for its bar beside the widget at raw `raw`. */
 export function createCaretWriter(
 	onWrite: () => void,
-	declinesCaret: (el: HTMLElement, raw: number) => boolean
+	declinesCaret: (el: HTMLElement, raw: number) => boolean,
+	showWidgetEdge: (el: HTMLElement, raw: number) => boolean
 ): CaretWriter {
 	// The editor's own caret stands wherever it put it; only a caret the browser moved is moved.
 	let written: DomPosition | null = null;
 
-	function writeSelection(anchor: DomPosition, focus: DomPosition): boolean {
+	// A caret goes only where something shows it (`docs/design/caret-placement.md` § 3).
+	function writeSelection(
+		anchor: DomPosition,
+		focus: DomPosition,
+		el: HTMLElement | null
+	): boolean {
+		let spot: CaretSpot | null = null;
+		if (el && anchor.node === focus.node && anchor.offset === focus.offset) {
+			spot = caretSpotOf(el, focus);
+			// Focus decides which markers hide (an empty block's chrome); before it, G1.33 judges at focusin.
+			if (spot === 'none' && el.contains(document.activeElement)) {
+				const text = visibleTextAtSameOffset(el, focus);
+				if (!text) {
+					assertInvariant('caret-paints', () => checkCaretPaints(el, focus));
+					return false;
+				}
+				anchor = focus = text;
+				spot = 'text';
+			}
+		}
 		assertInvariant(
 			'caret-before-break',
 			() => checkCaretBeforeBreak(anchor) ?? checkCaretBeforeBreak(focus)
@@ -91,7 +114,12 @@ export function createCaretWriter(
 		} catch {
 			return false;
 		}
-		written = sel.isCollapsed ? { node: sel.focusNode!, offset: sel.focusOffset } : null;
+		written =
+			sel.isCollapsed && sel.focusNode ? { node: sel.focusNode, offset: sel.focusOffset } : null;
+		// Beside a widget with no line box only the drawn caret's bar shows the caret.
+		if (el && spot === 'widget-block' && written) {
+			showWidgetEdge(el, rawOffsetAt(el, written.node, written.offset));
+		}
 		onWrite();
 		return true;
 	}
@@ -106,7 +134,8 @@ export function createCaretWriter(
 		const focus = { node: focusNode, offset: sel.focusOffset };
 		return writeSelection(
 			alter === 'move' ? focus : { node: anchorNode, offset: sel.anchorOffset },
-			focus
+			focus,
+			editableHolding(focusNode)
 		);
 	}
 
@@ -129,7 +158,7 @@ export function createCaretWriter(
 	}
 
 	function selectRawRange(el: HTMLElement, anchor: number, focus: number): boolean {
-		return writeSelection(caretPointAtRaw(el, anchor), caretPointAtRaw(el, focus));
+		return writeSelection(caretPointAtRaw(el, anchor), caretPointAtRaw(el, focus), el);
 	}
 
 	function clear(): void {
@@ -148,7 +177,7 @@ export function createCaretWriter(
 			}
 			const at = clamp === 'reachable' ? clampToLandableRaw(el, Math.max(0, raw)) : raw;
 			const point = caretPointAtRaw(el, at);
-			return writeSelection(point, point);
+			return writeSelection(point, point, el);
 		},
 		selectRawRange,
 		extendSelectionToRaw(el, raw) {
@@ -159,7 +188,7 @@ export function createCaretWriter(
 			if (anchor.node instanceof Text && splitsLineEndingPair(anchor.node.data, anchor.offset)) {
 				anchor.offset--;
 			}
-			return writeSelection(anchor, caretPointAtRaw(el, raw));
+			return writeSelection(anchor, caretPointAtRaw(el, raw), el);
 		},
 		selectSurfaceContent(el) {
 			const suffix = hiddenSuffixLength(el);
@@ -167,12 +196,13 @@ export function createCaretWriter(
 			if ((markerPrefixOf(el) || suffix > 0) && contentLength > 0) {
 				return selectRawRange(el, 0, contentLength);
 			}
-			return writeSelection(caretPointAtRaw(el, 0), endOfContents(el));
+			return writeSelection(caretPointAtRaw(el, 0), endOfContents(el), el);
 		},
 		selectDomRange(range) {
 			return writeSelection(
 				{ node: range.startContainer, offset: range.startOffset },
-				{ node: range.endContainer, offset: range.endOffset }
+				{ node: range.endContainer, offset: range.endOffset },
+				editableHolding(range.endContainer)
 			);
 		},
 		canonicalizeCaret(el) {
@@ -181,13 +211,13 @@ export function createCaretWriter(
 			if (written?.node === caret.node && written.offset === caret.offset) return false;
 			written = null;
 			const target = canonicalCaretPoint(el, caret.node, caret.offset);
-			return target !== null && writeSelection(target, target);
+			return target !== null && writeSelection(target, target, el);
 		},
 		rewriteCaret(el) {
 			const caret = liveCaretIn(el);
 			// Only the editor's own caret: one the browser left is `canonicalizeCaret`'s to judge.
 			if (!caret || written?.node !== caret.node || written.offset !== caret.offset) return false;
-			return writeSelection(caret, caret);
+			return writeSelection(caret, caret, el);
 		},
 		moveCaretToLineEdge(side) {
 			return modifyToLineEdge('move', side);
@@ -198,6 +228,12 @@ export function createCaretWriter(
 		focusEndsLine,
 		clear
 	};
+}
+
+/** The focused element holding `node`, for a write that names no element: a caret's editable. */
+function editableHolding(node: Node): HTMLElement | null {
+	const active = document.activeElement;
+	return active instanceof HTMLElement && active.contains(node) ? active : null;
 }
 
 /** The browser's collapsed caret, when it sits inside `el`. */

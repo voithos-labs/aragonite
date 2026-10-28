@@ -735,8 +735,7 @@
 
 	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
-	// Only clears: the widget edge means "the click meant this", and only `snapClickToWidgetEdge`
-	// sets it.
+	// Only clears: a click's snap and the caret writer set the edge, each where it put the caret.
 	function clearSnapTargetIfMoved(root: HTMLElement): void {
 		const held = drawnCaret.widgetEdgeFor(widgetEdgeOwner);
 		if (held === null) return;
