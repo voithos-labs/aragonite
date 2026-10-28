@@ -116,6 +116,20 @@ test('Escape drops the edit and leaves the note focused whole', async ({ page })
 	expect(await mirror(page).textContent()).toBe(BLOCK_VIEWS_SOURCE);
 });
 
+test('Alt+ArrowUp moves the focused note above the paragraph before it, still focused whole', async ({
+	page
+}) => {
+	await focusNoteFromAbove(page);
+	await page.keyboard.press('Alt+ArrowUp');
+
+	const note = '```note\nhello note\n```';
+	await expectMirror(
+		page,
+		BLOCK_VIEWS_SOURCE.replace(`a {{pebble}} chip\n\n${note}`, `${note}\n\na {{pebble}} chip`)
+	);
+	await expect.poll(() => noteFocusedWhole(page)).toBe(true);
+});
+
 test('Backspace at the focused note deletes it, and undo brings it back', async ({ page }) => {
 	await focusNoteFromAbove(page);
 	await page.keyboard.press('Backspace');

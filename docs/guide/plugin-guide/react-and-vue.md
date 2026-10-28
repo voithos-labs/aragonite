@@ -131,6 +131,10 @@ Some blocks don't want the editor's text at all. The bundled diagram block shows
 What your component hands over is the element that takes focus, through `ctx.container.attachFocus`, as a ref. A note shown as text until a double click opens a textarea:
 
 ```tsx
+import { useState } from 'react';
+import { reactBlockView, type BlockViewProps } from '@voithos-labs/aragonite-react';
+import { getPluginMetadata } from '@voithos-labs/aragonite/plugin';
+
 function Note({ state, ctx }: BlockViewProps<'container'>) {
 	const text = getPluginMetadata<{ text: string }>(state.node)?.text ?? '';
 	const [editing, setEditing] = useState(false);
@@ -211,7 +215,7 @@ An inline widget, a decoration's widget or badge, and an inline menu row don't t
 
 ```tsx
 import { reactView } from '@voithos-labs/aragonite-react';
-import type { InlineWidgetComponentProps } from '@voithos-labs/aragonite/plugin';
+import { registerInlineWidgetKind, type InlineWidgetComponentProps } from '@voithos-labs/aragonite/plugin';
 
 function Chip({ source }: InlineWidgetComponentProps) {
 	return <span className="chip">{source.slice(2, -2)}</span>;

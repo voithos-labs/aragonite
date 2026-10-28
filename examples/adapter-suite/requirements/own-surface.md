@@ -30,3 +30,5 @@ page error or console warning.
 - Escape in the textarea drops the edit and leaves the note focused whole, on an editing host
   that survived the component swapping its text for the textarea and back.
 - Backspace at the focused note deletes it, and Ctrl+Z brings it back.
+- Alt+ArrowUp at the focused note moves it above the chip paragraph, and it stays focused whole.
+  Miss: the reorder chord at a framework-drawn whole-block block had no row.
