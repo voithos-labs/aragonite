@@ -23,7 +23,6 @@ import DevProbeBlock from './DevProbeBlock.svelte';
 export const DEVPROBE = 'devprobe';
 
 interface DevProbeMetadata {
-	colonCount: number;
 	closerColonCount: number;
 	closerNewline: boolean;
 }
@@ -38,7 +37,6 @@ function devprobeFromDirective(parsed: ParsedDirective): CstNode {
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
 	setPluginMetadata<DevProbeMetadata>(node, {
-		colonCount: parsed.fence.colonCount,
 		closerColonCount: parsed.closerColonCount,
 		closerNewline: parsed.closerNewline
 	});
@@ -72,7 +70,7 @@ export function devProbePlugin(): EditorPlugin {
 					},
 					reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 					undo: { mode: 'inherit-default' },
-					clipboard: { mode: 'inherit-default' },
+					clipboard: { mode: 'not-supported', reason: 'dev-guard harness only' },
 					simOracle: { mode: 'implemented', via: 'dev-guard e2e under the [invariant:] watcher' }
 				}
 			});
