@@ -2,6 +2,7 @@
 // that block, so typing beside a large container would cost its size on every key.
 // Miss-analysis: the keystroke cost rows counted parses and sibling reads, never a string join, so
 // the last-line check joining the last block's blank lines to its bytes passed them all.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
@@ -48,7 +49,13 @@ function joinsWhileTyping(container: string): number {
 			joins = counted.joins;
 		}
 		const raw = deps.doc.children[0].raw;
-		const write = legalizeWrite(documentBody(deps.doc), 0, raw.replace('\n', 'Q\n'), 'authored');
+		const write = legalizeWrite(
+			documentBody(deps.doc),
+			0,
+			raw.replace('\n', 'Q\n'),
+			'authored',
+			defaultGrammarView
+		);
 		expect(controller.typeLeaf(docPathFrom([0]), write, 0).wrote).toBe(true);
 	}
 	return joins();

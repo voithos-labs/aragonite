@@ -3,14 +3,11 @@
  * the in-place write, and putting the caret back after a write that moved it.
  */
 
-import { updateNodeContent, writtenOpenerCloser } from '../tree-operations/content-write';
+import { updateNodeContent } from '../tree-operations/content-write';
 import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import { makeBlockNode, metadataOf } from '../core/nodes';
 import { documentLineEnding } from '../core/lines';
-import {
-	replacePreservingFirst,
-	type StructuralChange
-} from '../tree-operations/structural-change';
+import type { StructuralChange } from '../tree-operations/structural-change';
 import { createSharingState } from '../tree-operations/sharing';
 import { followsTaskMarker } from '../tree-operations/list/task-paragraph';
 import { readBlockPath } from '../selection/path-lookup';
@@ -29,10 +26,6 @@ export function previewContentReparse(
 	write: LegalWrite,
 	grammar: Parameters<typeof updateNodeContent>[3]
 ): StructuralChange {
-	// The trial holds no block below, so an opener the write closes against them is decided here.
-	if (writtenOpenerCloser(target, index, write.text, grammar) !== null) {
-		return replacePreservingFirst(index, 1, 1);
-	}
 	const node = target.children[index];
 	const owner = 'owner' in target ? target.owner : undefined;
 	const tailSuffix =

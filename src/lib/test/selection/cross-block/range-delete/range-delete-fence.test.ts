@@ -36,14 +36,14 @@ describe('range delete inside a fenced code block', () => {
 		]
 	])('%s', (_, source, left) => expectDeleted(source, at([0], 8), at([0], 9), left));
 
-	// The rule is the block's own, not the document's: the same join inside a paragraph is
-	// ordinary text, and escalating anything there would rewrite the user's bytes.
-	it('leaves the same join inside a paragraph alone', () => {
+	// The fence's rule is the block's own, so the same join inside a paragraph grows nothing, but
+	// the fence it opens gets a closer of its own rather than reading the heading in.
+	it('closes the fence the same join opens inside a paragraph', () => {
 		const doc = parse('``\n`\n\n# Heading\n');
 
 		deleteRange(doc, at([0], 2), at([0], 3));
 
-		expect(serialize(doc)).toBe('```\n\n# Heading\n');
+		expect(serialize(doc)).toBe('```\n```\n\n# Heading\n');
 	});
 });
 

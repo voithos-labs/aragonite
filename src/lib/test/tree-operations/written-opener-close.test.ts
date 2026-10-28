@@ -94,26 +94,12 @@ describe('closing a fence a write leaves open', () => {
 	});
 });
 
-// An opener that backs out when unclosed (`$$`) gets its reading's closer once a line
-// below would close it; with nothing below to close it, it stays text.
-describe('closing an opener that backs out', () => {
+// An opener that backs out when unclosed (`$$`) stays text when nothing below would close it; the
+// rows that close one are `written-opener-routes.test.ts`, one per write route.
+describe('an opener that backs out, with nothing below to close it', () => {
 	beforeEach(() => {
 		installPlugins([admonitionsPlugin()]);
 		registerDetailsKind(testView());
-	});
-
-	it('closes `$$` above a math block', () => {
-		const { type } = typingOver('para\n\n$$\nx\n$$\n');
-
-		expect(type(0, '$$\n')).toBe('$$\n$$\n\n$$\nx\n$$\n');
-	});
-
-	// A directive's first line holds no caret, so it reads down as a reload does, closer and all.
-	it('leaves `:::note` above a directive block unclosed, reading the block below in', () => {
-		const { doc, type } = typingOver('para\n\n:::tip\nbody\n:::\n');
-
-		expect(type(0, ':::note\n')).toBe(':::note\n\n:::tip\nbody\n:::\n');
-		expect(doc.children.map((c) => c.kind)).toEqual(['admonition']);
 	});
 
 	// Leaving it text is what a reload of those bytes reads, so nothing has to close it.

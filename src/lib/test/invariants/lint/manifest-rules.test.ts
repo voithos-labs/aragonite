@@ -294,6 +294,8 @@ const PLAIN_READS: Record<string, string> = {
 		'installs after backfill: counts the blocks joined or split bytes read as, a probe, and installs a joined leaf read at its slot after giving it its paragraph (`installMergedLeaf`)',
 	'src/lib/tree-operations/node-primitives.ts':
 		'probe: re-derives the metadata of a block written in place under its own kind, and installs none of the read’s nodes',
+	'src/lib/tree-operations/written-openers.ts':
+		'probe: reads written bytes, alone and with the blocks below, to find an opener that would read down into them; installs none of what it reads',
 	'src/lib/tree-operations/stored-as.ts':
 		'probe: answers how a slot reads bytes, for the write rules and the live join’s comparisons; nothing it reads is installed here',
 	'src/lib/tree-operations/paste/paste-replacement.ts':

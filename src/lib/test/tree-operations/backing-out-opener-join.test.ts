@@ -30,7 +30,7 @@ import { detailsPlugin } from '#lib/plugins/details/index.js';
 function typedOverSecond(source: string, text: string, index = 1): string[] {
 	const { deps } = makeEditorActionsDeps(source);
 	const typing = createUndoController(deps);
-	const write = legalizeWrite(deps.doc, index, text, 'authored');
+	const write = legalizeWrite(deps.doc, index, text, 'authored', defaultGrammarView);
 	expect(typing.typeLeaf(docPathFrom([index]), write, 0).wrote).toBe(true);
 	expectParseConverged(deps.doc);
 	return deps.doc.children.map((c) => c.kind);
@@ -145,10 +145,15 @@ const ROUTES: [string, Route][] = [
 			return {
 				doc: h.deps.doc,
 				write: (index, text) =>
-					commitLeafText(scope, index, legalizeWrite(scope.target(), index, text, 'authored'), {
-						snapshotOffset: 0,
-						caret: 0
-					}),
+					commitLeafText(
+						scope,
+						index,
+						legalizeWrite(scope.target(), index, text, 'authored', defaultGrammarView),
+						{
+							snapshotOffset: 0,
+							caret: 0
+						}
+					),
 				split: (index, offset) => h.actions.splitBlock(index, offset)
 			};
 		}
@@ -163,7 +168,7 @@ const ROUTES: [string, Route][] = [
 				write: async (index, text) =>
 					typing.typeLeaf(
 						docPathFrom([index]),
-						legalizeWrite(h.deps.doc, index, text, 'authored'),
+						legalizeWrite(h.deps.doc, index, text, 'authored', defaultGrammarView),
 						0
 					),
 				split: (index, offset) => h.actions.splitBlock(index, offset)
@@ -205,30 +210,32 @@ describe.each(ROUTES)('a closer written blocks below the construct it finishes, 
 			0,
 			'$$\n',
 			'$$\n$$\n\na\n\n$$\nm\n$$\n\nb\n\n$$\nn\n$$\n'
+		],
+		[
+			'a `::::note` shortened to `:::note`',
+			'::::note\n\nx\n\n:::\n',
+			0,
+			':::note\n',
+			':::note\n:::\n\nx\n\n:::\n'
+		],
+		[
+			'a `:::note` written under paragraph text',
+			'a\n\nx\n\n:::\n',
+			0,
+			'a\n:::note\n',
+			'a\n:::note\n:::\n\nx\n\n:::\n'
+		],
+		[
+			'a `::::note` above a `:::` it refuses',
+			'x::::note\n\na\n\n:::\n\nb\n\n::::\n',
+			0,
+			'::::note\n',
+			'::::note\n::::\n\na\n\n:::\n\nb\n\n::::\n'
 		]
 	])('%s gets its own closer', async (_l, source, index, text, expected) => {
 		const { doc, write } = route(source);
 		await write(index, text);
 		expect(serialize(doc)).toBe(expected);
-		expectParseConverged(doc);
-	});
-
-	// A directive's first line holds no caret, so its opener isn't closed as it's written and takes
-	// in the closer below, as a reload reads it.
-	it.each([
-		['a `::::note` shortened to `:::note`', '::::note\n\nx\n\n:::\n', ':::note\n', 1],
-		['a `:::note` written under paragraph text', 'a\n\nx\n\n:::\n', 'a\n:::note\n', 2],
-		[
-			'a `::::note` above a `:::` it refuses',
-			'x::::note\n\na\n\n:::\n\nb\n\n::::\n',
-			'::::note\n',
-			1
-		]
-	])('%s takes in the closer below', async (_l, source, text, count) => {
-		const { doc, write } = route(source);
-		await write(0, text);
-		expect(doc.children).toHaveLength(count);
-		expect(doc.children[count - 1].kind).toBe('admonition');
 		expectParseConverged(doc);
 	});
 
@@ -253,19 +260,16 @@ describe('an opener made by a write inside a quote', () => {
 		installPlugins([latexPlugin(), admonitionsPlugin()]);
 	});
 
-	it('a directive opener above a `:::` it refuses reads down to the `::::`', async () => {
-		const h = makeNestedHarness('> x::::note\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n', { index: 0 });
-		const raw = h.deps.doc.children[0].children![0].raw;
-		await h.bundle.blockEdit.updateBlockContent(0, raw.slice(1), 'authored', 'join-typing', 1, 0);
-		expect(h.deps.doc.children[0].children).toHaveLength(1);
-		expectParseConverged(h.deps.doc);
-	});
-
 	it.each([
 		[
 			'above two `$$` blocks',
 			'> x$$\n>\n> a\n>\n> $$\n> m\n> $$\n>\n> b\n>\n> $$\n> n\n> $$\n',
 			'> $$\n> $$\n>\n> a\n>\n> $$\n> m\n> $$\n>\n> b\n>\n> $$\n> n\n> $$\n'
+		],
+		[
+			'above a `:::` it refuses',
+			'> x::::note\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n',
+			'> ::::note\n> ::::\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n'
 		]
 	])('gets its own closer %s', async (_l, source, expected) => {
 		const h = makeNestedHarness(source, { index: 0 });

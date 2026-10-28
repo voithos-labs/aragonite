@@ -64,7 +64,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const substituted = applyRangesToText(leaf.raw, ranges, template);
 			installOwnRaw(
 				leaf,
-				legalizeWrite(target, index, substituted, 'literal').text,
+				legalizeWrite(target, index, substituted, 'literal', deps.reading.grammar).text,
 				deps.reading.grammar
 			);
 		}

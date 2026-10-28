@@ -31,6 +31,7 @@ import {
 	nodeAt,
 	normalizeOwnRaw
 } from '../../../tree-operations/node-primitives';
+import { closeWrittenOpeners } from '../../../tree-operations/content-write';
 import { cleanJoinedRaw } from '../../../tree-operations/leaf-range';
 import { storedAsAt } from '../../../tree-operations/stored-as';
 import { cutBeforeSuffix } from '../../../tree-operations/structural-suffix';
@@ -89,19 +90,23 @@ function cleanTruncatedProse(
 	return cleanJoinedRaw({ ...join, typed: '', store });
 }
 
-/** Installs `bytes` at `path` as a reload reads them there, through `source`'s write rule, keeping
- *  its leading blank lines and the task-marker rule; returns the caret shift a marker takes. */
+/** Installs `bytes`, which take the place of `before`, at `path` as a reload reads them there, made
+ *  legal like any write there; returns the caret shift a task marker takes. */
 export function installSurvivor(
 	doc: Document,
 	path: number[],
 	source: CstNode,
 	bytes: string,
+	before: string,
 	scope: ScopeWrites,
 	reading: Reading
 ): number {
 	const { sharing } = scope;
 	const ending = documentLineEnding(doc);
 	const lineEnding = trailingLineEnding(source.raw, ending);
+	const owner = blockNodeAt(doc, path.slice(0, -1)) ?? undefined;
+	const slot = path[path.length - 1];
+	const siblings = (owner ?? doc).children ?? [];
 	const written = normalizeOwnRaw(source, bytes, ending) || lineEnding;
 	const reparsed = slotReaderAt(doc, path, reading.grammar)(written);
 	const replacement = reparsed.children.slice();
@@ -115,14 +120,13 @@ export function installSurvivor(
 	}
 	// The slot reader reads plain, so a survivor that reads as a bare container gets its paragraph.
 	for (const node of replacement) ensureEditableContainers(node, ending);
-	const owner = blockNodeAt(doc, path.slice(0, -1)) ?? undefined;
-	const slot = path[path.length - 1];
+	const holder = owner ? { children: siblings, owner, lineEnding: ending } : doc;
+	const closed = closeWrittenOpeners(holder, slot, before, replacement, reading.grammar);
 	const shift = slot === 0 && owner ? taskMarkerCaretShift(owner, written) : 0;
-	const siblings = (owner ?? doc).children ?? [];
 	// The splice fixes the blank lines around it so the tree reparses the same (G2.13).
 	writeKeepingTaskMarker(owner, siblings, slot, sharing, () => {
-		for (const node of replacement) sharing.stamp(node);
-		scope.splice(path.slice(0, -1), slot, 1, replacement);
+		for (const node of closed) sharing.stamp(node);
+		scope.splice(path.slice(0, -1), slot, 1, closed);
 	});
 	return shift;
 }
@@ -153,7 +157,7 @@ export function truncateStartInPlace(
 		storedAsAt(doc, start.path, reading)
 	);
 	const kept = terminateLine(head.raw + structuralSuffix(startBlock), lineEnding);
-	const shift = installSurvivor(doc, start.path, startBlock, kept, scope, reading);
+	const shift = installSurvivor(doc, start.path, startBlock, kept, startBlock.raw, scope, reading);
 	return Math.max(0, head.seam + shift);
 }
 
@@ -175,7 +179,7 @@ export function truncateEndInPlace(
 		return endBlock;
 	}
 	const tail = cleanTruncatedProse(endBlock, 'tail', cut, storedAsAt(doc, end.path, reading)).raw;
-	installSurvivor(doc, end.path, endBlock, tail, scope, reading);
+	installSurvivor(doc, end.path, endBlock, tail, endBlock.raw, scope, reading);
 	return blockNodeAt(doc, end.path);
 }
 

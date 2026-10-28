@@ -161,7 +161,15 @@ function joinedRangeDelete(
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
 		scope.own(start.path);
-		const shift = installSurvivor(doc, start.path, startBlock, joined.raw, scope, reading);
+		const shift = installSurvivor(
+			doc,
+			start.path,
+			startBlock,
+			joined.raw,
+			startRaw,
+			scope,
+			reading
+		);
 		const joinAt = { path: start.path.slice(), offset: Math.max(0, joined.seam + shift) };
 		return { newDoc: doc, caret: () => joinAt };
 	}
@@ -171,7 +179,10 @@ function joinedRangeDelete(
 	scope.own(start.path);
 	const plan = planCrossBlockDeletion(doc, coverage, [end.path], scope);
 	applyPlannedDeletion(doc, plan);
-	const shift = installSurvivor(doc, start.path, startBlock, joined.raw, scope, reading);
+	// What the join takes the place of is both blocks, so a line kept from the end block counts as
+	// there before.
+	const consumed = startRaw + endBlock.raw;
+	const shift = installSurvivor(doc, start.path, startBlock, joined.raw, consumed, scope, reading);
 	renumberAfterDeletion(doc, plan);
 
 	// The reparse can turn the survivor into a container (a list marker joined to text), whose own

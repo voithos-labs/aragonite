@@ -33,7 +33,8 @@ function typeInto(h: ReturnType<typeof makeTopHarness>, leaf: number[], text: st
 		body,
 		leaf[leaf.length - 1],
 		raw.slice(0, at) + text + raw.slice(at),
-		'authored'
+		'authored',
+		defaultGrammarView
 	);
 	h.controller.typeLeaf(docPathFrom(leaf), write, at + 1);
 }

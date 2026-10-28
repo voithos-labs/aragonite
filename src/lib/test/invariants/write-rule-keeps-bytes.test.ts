@@ -1,5 +1,6 @@
 // G1.143: a kind's write rule never deletes bytes outside the written span, but an emptied block's
 // own marker; both places that run a rule (the content write, a raw write) check it.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
@@ -54,7 +55,7 @@ describe('G1.143 a write rule keeps the bytes the write left alone', () => {
 		const node: CstNode = { kind, leadingTrivia: '', raw: 'a\nb\n' };
 		const parent = { children: [node], owner: undefined, lineEnding: '\n' as const };
 
-		legalizeWrite(parent, 0, 'Xa\nb\n', 'authored');
+		legalizeWrite(parent, 0, 'Xa\nb\n', 'authored', defaultGrammarView);
 		normalizeOwnRaw(node, 'Xa\nb\n', '\n');
 
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([

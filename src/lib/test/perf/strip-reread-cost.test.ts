@@ -1,5 +1,6 @@
 // Miss-analysis: the rederive gate counted parses per keystroke but never their size, so nothing
 // said a list item's re-read stays the size of the item in a long list.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
@@ -33,7 +34,7 @@ function typeInPlace(leaf: number[], raws: string[]): CstNode {
 	for (const raw of raws) {
 		const owner = blockNodeAt(deps.doc, leaf.slice(0, -1)) as CstNode;
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
-		const write = legalizeWrite(body, leaf[leaf.length - 1], raw, 'authored');
+		const write = legalizeWrite(body, leaf[leaf.length - 1], raw, 'authored', defaultGrammarView);
 		expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);
 	}
 	return blockNodeAt(deps.doc, leaf.slice(0, -1)) as CstNode;

@@ -110,7 +110,7 @@ function typeInPlace(source: string, index: number, raws: string[]): Document {
 	for (const raw of raws) {
 		const owner = deps.doc.children[0];
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
-		const write = legalizeWrite(body, index, raw, 'authored');
+		const write = legalizeWrite(body, index, raw, 'authored', defaultGrammarView);
 		expect(typing.typeLeaf(docPathFrom([0, index]), write, 0).wrote).toBe(true);
 	}
 	return deps.doc;

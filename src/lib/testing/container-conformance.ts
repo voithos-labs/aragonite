@@ -510,7 +510,7 @@ function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
 	const lineEnding = documentLineEnding(doc);
 	const body = { children: owner.children!, owner, lineEnding };
 	const text = TITLE_PROBE + trailingLineEnding(title.raw, lineEnding);
-	const write = legalizeWrite(body, 0, text, 'authored');
+	const write = legalizeWrite(body, 0, text, 'authored', deps.reading.grammar);
 	const typed = createUndoController(deps).typeLeaf(docPathFrom(leafPath), write, 0);
 	assert(typed.wrote, `${kind} takes a keystroke in its title row`);
 	assertParseConverged(doc, `${kind} after a keystroke in its title row`);

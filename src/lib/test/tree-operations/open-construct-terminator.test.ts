@@ -173,10 +173,10 @@ describe('the new block declines where nothing is at stake (GH #180)', () => {
 	});
 });
 
-// Only a write adds a closer, so a reorder that exposes an open fence above prose still merges to
-// the reload's reading rather than writing bytes no keystroke produced.
-describe('a gesture that writes no bytes still absorbs (GH #180)', () => {
-	it('a reorder lifting an open fence above prose folds the way the reload reads it', () => {
+// A move puts the block on new lines, so an open fence it lifts above prose gets its own closer
+// there rather than reading the prose in.
+describe('a move closes the construct it lifts (GH #180)', () => {
+	it('a reorder lifting an open fence above prose gives it its own closer', () => {
 		const doc = parse('a\n\n```\nx\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'fencedCode']);
 
@@ -188,7 +188,10 @@ describe('a gesture that writes no bytes still absorbs (GH #180)', () => {
 			defaultGrammarView
 		);
 
-		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([['fencedCode', '```\nx\n\na\n']]);
+		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
+			['fencedCode', '```\nx\n```\n'],
+			['paragraph', 'a\n']
+		]);
 		expect(describeConvergence(doc)).toBeNull();
 		expect(settled.change.op).toBe('replace');
 	});

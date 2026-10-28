@@ -111,6 +111,7 @@ These checks run in three kinds of place:
 | G1.154 | A content write's fixed-up window holds the block it wrote                                    | A·N     |
 | G1.155 | A block's write puts its caret inside the text it writes                                      | A·N     |
 | G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs    | A·N     |
+| G1.158 | A block a commit splices in holds no opener it wrote that a block below would close           | A·N     |
 
 ### The entries
 
@@ -659,3 +660,10 @@ has installed its entry and placed the caret, the document's bytes are the entry
 between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and
 would clear the redo stack, so the write gate declines every write while the install runs.
 `checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, the behavior rows.
+
+**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit
+splices or moves in holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further
+down would close, since that opener would read in blocks the edit never touched. Every write route
+closes one first (`legalizeWrite`, `closeWrittenOpeners`); a content write and a removal aren't
+asked, and a range delete's survivor lands outside a commit's list, where the route rows hold it.
+`checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.

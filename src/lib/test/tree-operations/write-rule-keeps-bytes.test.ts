@@ -43,7 +43,7 @@ const ROUTES: Array<[string, Route, (raw: string, cut: number) => string]> = [
 		(source, { raw, cut }) => {
 			const { deps } = makeEditorActionsDeps(source);
 			const typing = createUndoController(deps);
-			const write = legalizeWrite(deps.doc, 1, raw.slice(cut), 'authored');
+			const write = legalizeWrite(deps.doc, 1, raw.slice(cut), 'authored', defaultGrammarView);
 			typing.typeLeaf(docPathFrom([1]), write, 0);
 			return deps.doc;
 		},
