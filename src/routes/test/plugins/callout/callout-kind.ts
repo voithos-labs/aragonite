@@ -1,22 +1,21 @@
 /**
  * `:::callout` fenced-div callout: a plugin container kind built on the public registration API,
- * dispatched through the shared `:::name` directive support. Dev and e2e only. The title sits in
- * the opener line yet is a real CST child at index 0, so `strip(raw) !== serialize(children)` and
- * the container contract is `'opaque'`. No other plugin takes its directive names: a name two
- * plugins want resolves by install order, which SSR and the browser disagree on.
+ * dispatched through the shared `:::name` directive support. Dev and e2e only. The opener line,
+ * title included, is child 0 and the closing line no child, so the container contract is
+ * `'opaque'`. No other plugin takes its directive names: a name two plugins want resolves by
+ * install order, which SSR and the browser disagree on.
  */
 
 import {
 	activateDirectives,
-	chromeChild,
 	containerClosure,
 	createDirectiveRebuild,
 	declarePluginKind,
 	declaredPluginKind,
 	DIRECTIVE_BODY_WRAP,
+	withDirectiveName,
 	registerBlockKind,
 	registerBlockCommand,
-	registerChromeLeaf,
 	registerDirective,
 	setPluginMetadata,
 	type BlockView,
@@ -25,7 +24,6 @@ import {
 } from '#lib/plugin.js';
 
 export const CALLOUT = 'callout';
-export const CALLOUT_TITLE = 'callout-title';
 /** The second variant, so the kind switch has somewhere to switch to. */
 export const ASIDE = 'aside';
 
@@ -37,21 +35,14 @@ interface CalloutMetadata {
 	lineEnding: string;
 }
 
-/**
- * The opener's info string is the plain title (callout's own convention: no `[label]{attrs}`);
- * the fence bytes go into metadata so `rebuildCalloutRaw` can put them back.
- */
+/** The body's blocks; the grammar puts the opener line, which holds the title, in front of them. */
 function calloutFromDirective(parsed: ParsedDirective): CstNode {
-	const title = parsed.fence.info.trim();
 	const node: CstNode = {
 		kind: declaredPluginKind(CALLOUT),
 		leadingTrivia: parsed.leadingTrivia,
 		raw: parsed.raw,
 		innerPrefix: parsed.body?.prefix ?? '',
-		children: [
-			chromeChild(declaredPluginKind(CALLOUT_TITLE), title),
-			...(parsed.body?.children ?? [])
-		],
+		children: parsed.body?.children ?? [],
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
 	setPluginMetadata<CalloutMetadata>(node, {
@@ -64,13 +55,8 @@ function calloutFromDirective(parsed: ParsedDirective): CstNode {
 	return node;
 }
 
-/**
- * Rebuilds the container's raw text when its children change, which the commit path runs. The
- * variant name comes from metadata rather than being fixed here, so a `:::aside` round-trips.
- */
-export const rebuildCalloutRaw = createDirectiveRebuild<CalloutMetadata>(
-	(meta) => meta?.calloutType ?? CALLOUT
-);
+/** Rebuilds the container's raw text when its children change, which the commit path runs. */
+export const rebuildCalloutRaw = createDirectiveRebuild();
 
 export function registerCalloutKind(view: BlockView): void {
 	// The shared directive grammar must be live before the callout names resolve.
@@ -78,12 +64,11 @@ export function registerCalloutKind(view: BlockView): void {
 	activateDirectives();
 
 	const callout = declarePluginKind(CALLOUT);
-	const calloutTitle = declarePluginKind(CALLOUT_TITLE);
 
-	// The metadata patch merges over the stored fence bytes, so the closing `:::` survives.
+	// The variant is the opener line's name, so the switch rewrites that line.
 	const setKind = registerBlockCommand(callout, 'callout.setKind', (ctx) => {
 		if (typeof ctx.arg !== 'string') return false;
-		ctx.updateMetadata({ calloutType: ctx.arg });
+		ctx.replaceRaw(withDirectiveName(ctx.node.raw, ctx.arg));
 		return true;
 	});
 
@@ -97,12 +82,10 @@ export function registerCalloutKind(view: BlockView): void {
 		editable: true,
 		supportsInline: false,
 		container: {
-			// The title child breaks `strip(raw) === serialize(children)`: see the header.
+			// The fence lines break `strip(raw) === serialize(children)`: see the header.
 			contract: 'opaque',
 			rebuildRaw: rebuildCalloutRaw,
-			bodyWrap: DIRECTIVE_BODY_WRAP,
-			reservedChrome: { kind: calloutTitle },
-			unwrapRole: { middleChildBackspace: 'default-merge' }
+			bodyWrap: DIRECTIVE_BODY_WRAP
 		},
 		conformanceFixture: ':::callout My Title\n\nbody\n\n:::\n',
 		closure: containerClosure({
@@ -111,11 +94,11 @@ export function registerCalloutKind(view: BlockView): void {
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: {
 				mode: 'implemented',
-				via: 'updateMetadata — the type switch commits as one undoable metadataUpdate'
+				via: 'replaceRaw: the type switch rewrites the opener line as one undoable edit'
 			},
 			clipboard: {
 				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the title re-emits the callout — a mid-title start reopens it around the collected body, a mid-title end yields a title-only callout'
+				via: 'byte-slice copy; a slice touching the opener line re-emits the callout: a mid-title start reopens it around the collected body, a mid-title end yields a title-only callout'
 			},
 			simOracle: {
 				mode: 'implemented',
@@ -129,8 +112,4 @@ export function registerCalloutKind(view: BlockView): void {
 			{ chord: 'Mod+8', command: setKind, arg: ASIDE }
 		]
 	});
-
-	// The reserved title child, registered through the public API: no `#lib` component import,
-	// and the leaf keeps its kind (contextDependentKind), so typing leaves it a `callout-title`.
-	registerChromeLeaf(calloutTitle, { blockClass: 'callout-title' });
 }

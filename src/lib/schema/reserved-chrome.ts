@@ -1,16 +1,39 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
-import { tryGetBlockKindDescriptor, type BlockKindDescriptor } from './block-kind-descriptor';
+import {
+	tryGetBlockKindDescriptor,
+	type BlockKindDescriptor,
+	type UnwrapRole
+} from './block-kind-descriptor';
+import { isDirectiveContainerKind } from '../core/directive/registry';
+import { DIRECTIVE_OPENER_LINE } from '../core/directive/container-shape';
 
 /**
- * Checks for a container's reserved title row (its fixed first child), read off the container's
- * `reservedChrome` declaration so the rest of the editor never names a plugin kind.
+ * Checks for a container's reserved title row (its fixed first child): the row its `reservedChrome`
+ * declares, or for a `:::` container the opener line the grammar gives it. The rest of the editor
+ * asks here and never names a plugin kind.
  */
 
-/** The title row kind a container declares, or undefined if it declares none. */
+/** The title row kind a container has, or undefined if it has none. */
 export function reservedChromeKindOf(containerKind: AnyBlockKind): AnyBlockKind | undefined {
+	if (isDirectiveContainerKind(containerKind)) return DIRECTIVE_OPENER_LINE as AnyBlockKind;
 	return tryGetBlockKindDescriptor(containerKind)?.reservedChrome?.kind;
+}
+
+/** Whether the container's title row is its opener line, so the row's offsets are the raw's own. */
+export function rowIsOpenerLine(containerKind: AnyBlockKind): boolean {
+	return isDirectiveContainerKind(containerKind);
+}
+
+/** The kind's Backspace roles; a title row is always kept, whichever first-child role it declares. */
+export function unwrapRoleOf(kind: AnyBlockKind): UnwrapRole | undefined {
+	const declared = tryGetBlockKindDescriptor(kind)?.unwrapRole;
+	if (reservedChromeKindOf(kind) === undefined) return declared;
+	return {
+		firstChildBackspace: 'keep-reserved-chrome',
+		middleChildBackspace: declared?.middleChildBackspace ?? 'default-merge'
+	};
 }
 
 /** True when `childIndex` is the title row position (index 0) of a container declaring one. */
@@ -29,12 +52,16 @@ export function rowContentRange(
 	return range ? range(row) : { start: 0, end: displayLength(row.raw) };
 }
 
-/** The bytes in front of the title on a container's title row; empty for a row that is all title. */
+/** The bytes in front of the title on a container's title row, the spaces after the name included;
+ *  empty for a row that is all title. */
 export function rowMarker(
 	container: NodeView,
 	row: NodeView | undefined = container.children?.[0]
 ): string {
-	return row ? row.raw.slice(0, rowContentRange(container, row).start) : '';
+	if (!row) return '';
+	const start = rowContentRange(container, row).start;
+	const spaces = /^[ \t]*/.exec(row.raw.slice(start))![0].length;
+	return row.raw.slice(0, start + spaces);
 }
 
 /** True only when the kind declares an `isCollapsed` check and that check reports it collapsed. */

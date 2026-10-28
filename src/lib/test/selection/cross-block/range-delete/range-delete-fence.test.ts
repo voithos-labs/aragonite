@@ -115,7 +115,7 @@ describe('range delete that consumes a fenced code opener', () => {
 		const CALLOUT = ':::callout Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n';
 
 		it('keeps it on the end truncation, which takes the opener and not the closer', () => {
-			expectDeleted(CALLOUT, at([0, 0], 2), at([1], 8), ':::callout Ti\n:::\n\ndy\n```\n\ntail\n');
+			expectDeleted(CALLOUT, at([0, 0], 13), at([1], 8), ':::callout Ti\n:::\n\ndy\n```\n\ntail\n');
 		});
 
 		// The whole surviving tail is the closer line, which reads as a bare opener and gets its
@@ -123,7 +123,7 @@ describe('range delete that consumes a fenced code opener', () => {
 		it('closes a tail that is exactly the closer line again', () => {
 			const doc = parse(CALLOUT);
 
-			deleteRange(doc, at([0, 0], 2), at([1], 11));
+			deleteRange(doc, at([0, 0], 13), at([1], 11));
 
 			expect(serialize(doc)).toBe(':::callout Ti\n:::\n\n```\n```\n\ntail\n');
 			expect(kindsOf(doc)).toEqual(['callout', 'fencedCode', 'paragraph']);
@@ -190,12 +190,13 @@ describe('range delete that consumes a fenced code closer', () => {
 	describe('through the chrome wall', () => {
 		beforeEach(registerCalloutForTests);
 
+		// The range takes the opener line's head too, so the container's bytes read as paragraphs.
 		it('restores the closer of a code block truncated outside the wall', () => {
 			const doc = parse('```js\nbody\n```\n\n:::callout Title\nBody1\n:::\n\nBelow\n');
 
-			deleteRange(doc, at([0], 8), at([1, 0], 3));
+			deleteRange(doc, at([0], 8), at([1, 0], 14));
 
-			expect(kindsOf(doc)).toEqual(['fencedCode', 'callout', 'paragraph']);
+			expect(serialize(doc)).toBe('```js\nbo\n```\n\nle\nBody1\n:::\n\nBelow\n');
 			expectParseConverged(doc);
 		});
 	});

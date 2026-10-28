@@ -20,7 +20,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 	it('reproduces CRLF on the opener and closer when a child edit rebuilds the container', () => {
 		const node = parse(':::custom\r\nbody\r\n:::\r\n').children[0];
 
-		node.children![0].raw = 'edited\r\n';
+		node.children![1].raw = 'edited\r\n';
 		rebuildDirectiveContainerRaw(node);
 
 		expect(node.raw).toBe(':::custom\r\nedited\r\n:::\r\n');
@@ -29,7 +29,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 	it('keeps `\\n` chrome lines for an LF-authored directive after rebuild', () => {
 		const node = parse(':::custom\nbody\n:::\n').children[0];
 
-		node.children![0].raw = 'edited\n';
+		node.children![1].raw = 'edited\n';
 		rebuildDirectiveContainerRaw(node);
 
 		expect(node.raw).toBe(':::custom\nedited\n:::\n');
@@ -39,7 +39,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 	it("keeps the closer's own ending when it differs from the opener", () => {
 		const node = parse(':::custom\nbody\n:::\r\n').children[0];
 
-		node.children![0].raw = 'edited\n';
+		node.children![1].raw = 'edited\n';
 		rebuildDirectiveContainerRaw(node);
 
 		expect(node.raw).toBe(':::custom\nedited\n:::\r\n');

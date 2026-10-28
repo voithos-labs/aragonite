@@ -50,6 +50,7 @@ describe('G4.3 conformance kit: the childless opaque container', () => {
 		expect(report.kind).toBe(MERMAID);
 		expect(report.cells.filter((c) => c.status === 'asserted').map((c) => c.cell)).toEqual([
 			'terminatorCollision',
+			'openerLine',
 			'declarations'
 		]);
 	});

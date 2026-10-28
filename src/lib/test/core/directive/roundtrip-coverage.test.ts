@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { getPluginMetadata, type CstNode, type PluginBlockKind } from '#lib/core/nodes.js';
+import type { CstNode, PluginBlockKind } from '#lib/core/nodes.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { matchDirectiveOpener } from '#lib/core/directive/grammar.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { parseInline } from '#lib/core/inline/index.js';
@@ -11,7 +13,6 @@ import {
 	DIRECTIVE_CONTAINER,
 	DIRECTIVE_TEXT
 } from '#lib/core/directive/kinds.js';
-import type { DirectiveContainerMetadata } from '#lib/core/directive/container-shape.js';
 import { registerDirective, type ParsedDirective } from '#lib/core/directive/registry.js';
 import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
@@ -234,8 +235,9 @@ function hasNesting(nodes: CstNode[], inside = false): boolean {
 function collectContainerInfos(nodes: CstNode[], out: string[]): void {
 	for (const node of nodes) {
 		if (node.kind === DIRECTIVE_CONTAINER) {
-			const meta = getPluginMetadata<DirectiveContainerMetadata>(node);
-			if (meta) out.push(meta.info);
+			// The info is the opener line past the name; the line is the container's first child.
+			const fence = matchDirectiveOpener(trimTrailingLineEnding(node.children?.[0]?.raw ?? ''));
+			if (fence) out.push(fence.info);
 		}
 		if (node.children) collectContainerInfos(node.children, out);
 	}

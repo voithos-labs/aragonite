@@ -20,12 +20,12 @@ describe('callout kind round-trip', () => {
 		expect(serialize(parse(TWO_PARA))).toBe(TWO_PARA);
 	});
 
-	it('parses to a note container: reserved title child 0 + its body blocks', () => {
+	it('parses to a note container: its opener line at child 0 + its body blocks', () => {
 		const note = parse(TWO_PARA).children[0];
 		expect(note.kind).toBe('callout');
-		// Child 0 is the reserved (here empty) callout-title; the body follows.
+		// Child 0 is the opener line; the body follows.
 		expect(note.children?.length).toBe(3);
-		expect(note.children?.[0].kind).toBe('callout-title');
+		expect(note.children?.[0].kind).toBe('directiveOpenerLine');
 		expect(note.children?.slice(1).map((c) => c.kind)).toEqual(['paragraph', 'paragraph']);
 	});
 
@@ -34,14 +34,14 @@ describe('callout kind round-trip', () => {
 		expect(serialize(parse(src))).toBe(src);
 
 		const note = parse(src).children[0];
-		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'heading', 'list']);
+		expect(note.children?.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'heading', 'list']);
 	});
 
-	it('parses an opener-line title into a reserved callout-title child', () => {
+	it('parses the opener line, title included, into child 0', () => {
 		const note = parse(TITLED).children[0];
 		expect(note.kind).toBe('callout');
-		expect(note.children?.[0].kind).toBe('callout-title');
-		expect(note.children?.[0].raw).toBe('My Title\n');
+		expect(note.children?.[0].kind).toBe('directiveOpenerLine');
+		expect(note.children?.[0].raw).toBe(':::callout My Title\n');
 		expect(note.children?.[1].kind).toBe('paragraph');
 	});
 
@@ -49,10 +49,10 @@ describe('callout kind round-trip', () => {
 		expect(serialize(parse(TITLED))).toBe(TITLED);
 	});
 
-	it('reserves an empty callout-title child when the opener carries no title', () => {
+	it('holds the bare opener line when it carries no title', () => {
 		const note = parse(UNTITLED).children[0];
-		expect(note.children?.[0].kind).toBe('callout-title');
-		expect(note.children?.[0].raw).toBe('\n');
+		expect(note.children?.[0].kind).toBe('directiveOpenerLine');
+		expect(note.children?.[0].raw).toBe(':::callout\n');
 		expect(serialize(parse(UNTITLED))).toBe(UNTITLED);
 	});
 

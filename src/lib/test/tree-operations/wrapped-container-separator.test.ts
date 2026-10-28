@@ -63,7 +63,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 	// reading the title as a predecessor left the head separated from nothing.
 	it('treats the reserved chrome leaf as above the body, not as a predecessor', () => {
 		const doc = parse(':::callout Title\n\nA\n\nB\n:::\n');
-		expect(doc.children[0].children?.[0].kind).toBe('callout-title');
+		expect(doc.children[0].children?.[0].kind).toBe('directiveOpenerLine');
 
 		deleteSettled(bodyParentOf(doc.children[0]), 1, defaultGrammarView, createSharingState());
 		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
@@ -74,13 +74,18 @@ describe('separator settle inside a chrome-wrapped container', () => {
 
 	it('keeps a blank body head alive by moving the separator above it', () => {
 		const doc = parse(':::callout\n\n\nB\n\nC\n:::\n');
-		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'B\n', 'C\n']);
+		expect(doc.children[0].children?.map((c) => c.raw)).toEqual([
+			':::callout\n',
+			'\n',
+			'B\n',
+			'C\n'
+		]);
 
 		// Drop B, leaving the blank head and C, whose separator is then the only spare line.
 		deleteSettled(bodyParentOf(doc.children[0]), 2, defaultGrammarView, createSharingState());
 		rebuildAncestryRaw(doc.children[0], [], fixtureGrammar);
 
-		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'C\n']);
+		expect(doc.children[0].children?.map((c) => c.raw)).toEqual([':::callout\n', '\n', 'C\n']);
 		expectParseConverged(doc);
 	});
 });
@@ -123,7 +128,7 @@ describe('emptying a body block against the wrap’s chrome lines', () => {
 		const doc = parse(':::callout Title\n```\nc\n```\nBody2\n:::\n');
 		const callout = doc.children[0];
 		expect(callout.children!.map((c) => c.kind)).toEqual([
-			'callout-title',
+			'directiveOpenerLine',
 			'fencedCode',
 			'paragraph'
 		]);

@@ -784,14 +784,12 @@
    owns marker + newline, so collapsing it leaves no blank line at the box's edge. */
 /* .md-ref-label: resolution metadata, not content; a rendered document shows only the
    link text. */
-/* .directive-marker: the container's border and gutter are the directive fence's rendered form,
-   so a focused block inside never shows the fence's source. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
 		[data-presentation='live']
 	)
-	:is(.md-marker:not([contenteditable='false']), .md-fence-line, .md-ref-label, .directive-marker) {
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line, .md-ref-label) {
 	display: none;
 }
 

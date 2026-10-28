@@ -48,7 +48,7 @@ const EMPTY_FIXTURES: Record<string, { source: string; path: number[]; openAt?: 
 	heading: { source: '# \n', path: [0] },
 	fencedCode: { source: '```\n\n```\n', path: [0] },
 	directiveLeaf: { source: '::spoiler\n', path: [0] },
-	'admonition-title': { source: ':::note\n\nbody\n\n:::\n', path: [0, 0] },
+	directiveOpenerLine: { source: ':::note\n\nbody\n\n:::\n', path: [0, 0] },
 	'details-summary': {
 		source: '<details>\n<summary></summary>\n\nbody\n\n</details>\n',
 		path: [0, 0]

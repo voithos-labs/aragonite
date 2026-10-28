@@ -3,7 +3,6 @@
  * and the component agree on names without a circular import.
  */
 export const ADMONITION = 'admonition';
-export const ADMONITION_TITLE = 'admonition-title';
 export const GITHUB_ALERT = 'githubAlert';
 
 /** In cycle order; index 0 is the fallback when a node carries no name in its metadata. */
@@ -22,7 +21,7 @@ export function capitalize(name: string): string {
 	return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-/** Every field flows back into the opener bytes through `rebuildRaw`. Primitive-valued
+/** What a reload reads off the fence lines; the opener line itself is child 0. Primitive-valued
  *  only: the undo clone shallow-copies metadata. */
 export interface AdmonitionMetadata {
 	name: string;

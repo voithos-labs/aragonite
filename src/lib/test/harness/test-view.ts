@@ -11,5 +11,5 @@ export function testView(): BlockView {
 
 /** The two views `activateDirectiveGrammar` takes. */
 export function testDirectiveViews(): DirectiveViews {
-	return { container: testView(), leaf: testView() };
+	return { container: testView(), leaf: testView(), openerLine: testView() };
 }

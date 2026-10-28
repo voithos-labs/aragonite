@@ -11,10 +11,8 @@ import {
 	declaredPluginKind,
 	registerBlockKind,
 	registerDirective,
+	createDirectiveRebuild,
 	setPluginMetadata,
-	getPluginMetadata,
-	serializeDirective,
-	serializeChildren,
 	type CstNode,
 	type EditorPlugin,
 	type ParsedDirective
@@ -26,7 +24,6 @@ export const DEVPROBE = 'devprobe';
 
 interface DevProbeMetadata {
 	colonCount: number;
-	info: string;
 	closerColonCount: number;
 	closerNewline: boolean;
 }
@@ -42,26 +39,10 @@ function devprobeFromDirective(parsed: ParsedDirective): CstNode {
 	};
 	setPluginMetadata<DevProbeMetadata>(node, {
 		colonCount: parsed.fence.colonCount,
-		info: parsed.fence.info,
 		closerColonCount: parsed.closerColonCount,
 		closerNewline: parsed.closerNewline
 	});
 	return node;
-}
-
-function rebuildDevProbeRaw(node: CstNode): void {
-	const meta = getPluginMetadata<DevProbeMetadata>(node);
-	if (!meta) return;
-	node.raw = serializeDirective({
-		colonCount: meta.colonCount,
-		name: DEVPROBE,
-		info: meta.info,
-		innerPrefix: node.innerPrefix ?? '',
-		body: serializeChildren(node.children ?? []),
-		innerSuffix: node.innerSuffix ?? '',
-		closerColonCount: meta.closerColonCount,
-		closerNewline: meta.closerNewline
-	});
 }
 
 export function devProbePlugin(): EditorPlugin {
@@ -77,11 +58,7 @@ export function devProbePlugin(): EditorPlugin {
 				supportsInline: false,
 				container: {
 					contract: 'opaque',
-					rebuildRaw: rebuildDevProbeRaw,
-					unwrapRole: {
-						firstChildBackspace: 'lift-first-child-keep-container',
-						middleChildBackspace: 'default-merge'
-					}
+					rebuildRaw: createDirectiveRebuild()
 				},
 				conformanceFixture: ':::devprobe\n\nbody\n\n:::\n',
 				closure: {

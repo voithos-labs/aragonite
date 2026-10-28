@@ -23,7 +23,7 @@ import type { GrammarView } from './block-openers';
 import { readAsOpened } from './opened-reading';
 import type { ChildRawChange } from './child-spans';
 import type { StripRebuild } from './strip-rebuild';
-import { reservedChromeKindOf } from './reserved-chrome';
+import { reservedChromeKindOf, rowIsOpenerLine } from './reserved-chrome';
 
 /**
  * Rebuild `raw` for every container along `path`, innermost first. The leaf at the end of `path`
@@ -168,11 +168,16 @@ function rereadWhole(
 	const blocks = parseContainerRaw(node.raw, grammar, filled);
 	const reread = soleNodeOfKind(blocks, node.kind);
 	if (!reread) return { outcome: 'diverged', blocks, filled };
-	// A strip container's metadata is its line prefix, which decides how every child line reads.
-	if (contract === 'strip' && !sameChildren(node, reread))
+	// A strip container's metadata is its line prefix, which decides how every child line reads; an
+	// opener line the rebuild widened for its body is a child too.
+	if (contract === 'strip' ? !sameChildren(node, reread) : openerLineMoved(node, reread))
 		return { outcome: 'reread', node: reread, filled };
 	takeMetadata(node, reread);
 	return KEPT;
+}
+
+function openerLineMoved(live: CstNode, reread: CstNode): boolean {
+	return rowIsOpenerLine(live.kind) && live.children?.[0]?.raw !== reread.children?.[0]?.raw;
 }
 
 function sameChildren(live: CstNode, reread: CstNode): boolean {

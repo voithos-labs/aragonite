@@ -10,11 +10,7 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
-import {
-	registerCalloutKind,
-	CALLOUT,
-	CALLOUT_TITLE
-} from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
 import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
 import { FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
@@ -77,7 +73,7 @@ describe('kind conformance: plugin kinds enroll', () => {
 	// fixture-free cells too, so no registered kind sits outside every battery.
 	it('every kind the dogfood registrars register executes its headless cells', async () => {
 		const registered = getAllRegisteredKinds().filter((k) => !isBuiltinBlockKind(k));
-		expect(registered).toContain(declaredPluginKind(CALLOUT_TITLE));
+		expect(registered).toContain(declaredPluginKind('directiveOpenerLine'));
 		for (const k of registered) {
 			const report = await runKindConformance(k);
 			expect(new Set(report.cells.map((c) => c.cell))).toEqual(

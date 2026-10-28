@@ -24,7 +24,11 @@ import {
 } from '../lines';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
-import { DIRECTIVE_BODY_WRAP, type DirectiveContainerMetadata } from './container-shape';
+import {
+	DIRECTIVE_BODY_WRAP,
+	DIRECTIVE_OPENER_LINE,
+	type DirectiveContainerMetadata
+} from './container-shape';
 
 /** The opener the generic directive container registers with; it opens leaves too. */
 export function directiveContainerOpener(
@@ -92,6 +96,11 @@ export function directiveContainerOpener(
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');
 
+			const openerLine = makeBlockNode({
+				kind: DIRECTIVE_OPENER_LINE as AnyBlockKind,
+				leadingTrivia: '',
+				raw: ctx.line.raw
+			});
 			const factory = resolveBlockDirectiveFactory('container', fence.name, ctx.grammar);
 			if (factory) {
 				const parsed: ParsedDirective = {
@@ -103,7 +112,9 @@ export function directiveContainerOpener(
 					closerNewline,
 					lineEnding
 				};
-				return { node: factory(parsed), consumed: closerIdx + 1 - ctx.index };
+				const node = factory(parsed);
+				node.children = [openerLine, ...(node.children ?? [])];
+				return { node, consumed: closerIdx + 1 - ctx.index };
 			}
 
 			const node: CstNode = {
@@ -111,13 +122,12 @@ export function directiveContainerOpener(
 				leadingTrivia: ctx.leadingTrivia,
 				raw,
 				innerPrefix: body.prefix,
-				children: body.children,
+				children: [openerLine, ...body.children],
 				innerSuffix: body.suffix
 			};
 			setPluginMetadata<DirectiveContainerMetadata>(node, {
 				name: fence.name,
 				colonCount: fence.colonCount,
-				info: fence.info,
 				closerColonCount,
 				closerNewline,
 				lineEnding

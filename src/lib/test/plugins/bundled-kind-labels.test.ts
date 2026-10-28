@@ -9,7 +9,7 @@ import { blockNoun } from '#lib/components/menu/default-context-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
-import { ADMONITION, ADMONITION_TITLE, GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { ADMONITION, GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
 import {
 	registerDetailsKind,
 	DETAILS,
@@ -37,7 +37,7 @@ describe('bundled container labels', () => {
 
 describe('bundled title-row labels', () => {
 	it.each([
-		[ADMONITION, ADMONITION_TITLE, 'Title'],
+		[ADMONITION, 'directiveOpenerLine', 'Title'],
 		[DETAILS, DETAILS_SUMMARY, 'Summary']
 	])('the %s title row (%s) is named %s', (container, leaf, label) => {
 		// A title row never parses on its own, so it is read as its container's first child.

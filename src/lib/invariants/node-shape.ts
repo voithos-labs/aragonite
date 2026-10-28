@@ -4,7 +4,7 @@ import { readBlocks } from '../core/parser';
 import { readAsOpened } from '../schema/opened-reading';
 import { concatChildren } from '../core/serializer';
 import { countsCells, getBlockKindDescriptor, hasOwnOpener } from '../schema/block-kind-descriptor';
-import { reservedChromeKindOf } from '../schema/reserved-chrome';
+import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
 import type { GrammarView } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
@@ -230,14 +230,21 @@ function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): stri
 
 // ── G1.14: reserved-chrome slot ───────────────────────────────────────────────
 
-/** G1.14: a container declaring `reservedChrome` holds a leaf of that kind at child 0; a failure
- *  means an operation deleted or replaced that child instead of emptying it. */
+/** G1.14: a container with a title row holds a leaf of that kind at child 0, and an opener-line row
+ *  holds the container's first line; a failure means a write replaced the row or went past it. */
 export function checkReservedChromeSlot(node: CstNode): InvariantViolation | null {
 	const chromeKind = reservedChromeKindOf(node.kind);
 	if (chromeKind === undefined) return null;
 
 	const child0 = node.children?.[0];
-	if (child0?.kind === chromeKind) return null;
+	if (child0?.kind === chromeKind) {
+		if (!rowIsOpenerLine(node.kind) || firstLineOf(node.raw) === child0.raw) return null;
+		return {
+			code: 'reserved-chrome-slot',
+			message: `${node.kind}: child 0 must hold the opener line ${JSON.stringify(firstLineOf(node.raw))}, found ${JSON.stringify(child0.raw)}`,
+			detail: { kind: node.kind, expected: firstLineOf(node.raw), found: child0.raw }
+		};
+	}
 	return {
 		code: 'reserved-chrome-slot',
 		message: `${node.kind}: child 0 must be reserved chrome "${chromeKind}", found "${child0?.kind ?? 'none'}"`,
@@ -335,4 +342,10 @@ function holdsListItem(node: NodeView): boolean {
 function soleItem(blocks: readonly NodeView[]): NodeView | null {
 	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
 	return list?.children?.length === 1 ? list.children[0] : null;
+}
+
+/** The first line of `raw` with its line ending. */
+function firstLineOf(raw: string): string {
+	const nl = raw.indexOf('\n');
+	return nl < 0 ? raw : raw.slice(0, nl + 1);
 }

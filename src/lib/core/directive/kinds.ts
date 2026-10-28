@@ -1,7 +1,7 @@
 /**
  * Generic fallback kinds for the `:::name` directive primitive, so `:::anything` stays lossless
- * with no plugin installed. The container is `'opaque'`: its fence lives in the node's own
- * `raw`, not in a child, making `rebuildDirectiveContainerRaw` the single reconstruction path.
+ * with no plugin installed. Every `:::` container is `'opaque'` and rebuilt by
+ * `rebuildDirectiveContainerRaw`, which writes its first child, the opener line, back as it stands.
  * Imports stay core-relative because the plugin barrel (`plugin.ts`) would cycle back through core.
  */
 
@@ -13,6 +13,7 @@ import {
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import type { BlockView } from '../../schema/block-view';
 import { containerClosure } from '../../schema/closure';
+import { registerTitleRowLeaf } from '../../schema/title-row-leaf';
 import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
@@ -22,22 +23,30 @@ import { registerCoreInlineWidget } from '../inline/inline-widgets';
 import { mintWidgetShell } from '../inline/widget-shell';
 import { matchDirectiveOpener, serializeDirective } from './grammar';
 import { directiveContainerOpener } from './container-opener';
-import { DIRECTIVE_BODY_WRAP, type DirectiveContainerMetadata } from './container-shape';
+import { DIRECTIVE_BODY_WRAP, DIRECTIVE_CONTAINER, DIRECTIVE_OPENER_LINE } from './container-shape';
 
-export const DIRECTIVE_CONTAINER = 'directiveContainer';
+export { DIRECTIVE_CONTAINER, DIRECTIVE_OPENER_LINE };
 export const DIRECTIVE_LEAF = 'directiveLeaf';
 export const DIRECTIVE_TEXT = 'directiveText';
 
-/** What draws the two generic directive kinds; core can't import components, so they arrive here. */
+/** What draws the generic directive kinds and every `:::` container's opener line; core can't
+ *  import components, so they arrive here. */
 export interface DirectiveViews {
 	container: BlockView;
 	leaf: BlockView;
+	openerLine: BlockView;
 }
 
 export function registerDirectiveKinds(views: DirectiveViews): void {
 	if (isBlockKindRegistered(DIRECTIVE_CONTAINER)) return; // idempotent for HMR / re-import
 	const container = declarePluginKind(DIRECTIVE_CONTAINER);
 	const leaf = declarePluginKind(DIRECTIVE_LEAF);
+	const openerLine = declarePluginKind(DIRECTIVE_OPENER_LINE);
+	// The container's own component styles the line, so the row kind has one look for all.
+	registerTitleRowLeaf(openerLine, views.openerLine, {
+		label: 'Title',
+		contentStart: { range: directiveLineContentRange }
+	});
 
 	registerBlockKind(container, {
 		view: views.container,
@@ -51,21 +60,21 @@ export function registerDirectiveKinds(views: DirectiveViews): void {
 		container: {
 			contract: 'opaque',
 			rebuildRaw: rebuildDirectiveContainerRaw,
-			bodyWrap: DIRECTIVE_BODY_WRAP,
-			unwrapRole: {
-				firstChildBackspace: 'lift-first-child-keep-container',
-				middleChildBackspace: 'default-merge'
-			}
+			bodyWrap: DIRECTIVE_BODY_WRAP
 		},
 		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n',
 		closure: containerClosure({
 			roundTripVia: 'container contract=opaque — rebuildDirectiveContainerRaw',
-			focus: { mode: 'implemented', via: 'focus walks into the first body child' },
+			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (lift-first-child-keep-container; default-merge) — Backspace at the body start lifts the first block out and the fences close over the rest'
+				via: 'mergeRole=container; Backspace at the body start goes to the opener line, as in any container with a title row'
 			},
 			undo: { mode: 'inherit-default' },
+			clipboard: {
+				mode: 'implemented',
+				via: 'byte-slice copy; a slice touching the opener line re-emits the container around what it collected'
+			},
 			simOracle: { mode: 'implemented', via: 'directive e2e under the [invariant:] watcher' }
 		})
 	});
@@ -77,7 +86,7 @@ export function registerDirectiveKinds(views: DirectiveViews): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		contentStart: { range: directiveLeafContentRange },
+		contentStart: { range: directiveLineContentRange },
 		keymap: DIRECTIVE_LEAF_KEYMAP,
 		conformanceFixture: '::spoiler\n',
 		closure: {
@@ -132,28 +141,49 @@ const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
 ];
 
-// The `::name` fence is a dimmed marker prefix, like a heading's. A raw that stops opening a fence
-// reparses to a paragraph first, so the null branch is only a fallback.
-function directiveLeafContentRange(node: NodeView): { start: number; end: number } {
+/** The `::name` or `:::name` fence of a leaf or an opener line is a dimmed marker prefix, like a
+ *  heading's; a line that stops opening a fence has none. */
+export function directiveLineContentRange(node: NodeView): { start: number; end: number } {
 	const fence = matchDirectiveOpener(trimTrailingLineEnding(node.raw));
 	const start = fence ? fence.colonCount + fence.name.length : 0;
 	return { start, end: displayLength(node.raw) };
 }
 
+/** Writes the opener line (child 0) back as it stands, the body behind it, and the closing line;
+ *  the colon runs widen when a body line would otherwise read as the closer. */
 export function rebuildDirectiveContainerRaw(node: CstNode): void {
-	const meta = getPluginMetadata<DirectiveContainerMetadata>(node);
-	if (!meta) return;
-	node.raw = serializeDirective({
-		colonCount: meta.colonCount,
-		name: meta.name,
-		info: meta.info,
-		innerPrefix: node.innerPrefix ?? '',
-		body: serializeChildren(node.children ?? []),
-		innerSuffix: node.innerSuffix ?? '',
-		closerColonCount: meta.closerColonCount,
-		closerNewline: meta.closerNewline,
-		lineEnding: meta.lineEnding,
-		// The closer is the raw's last line, so its ending is the raw's own, else the opener's.
-		closerLineEnding: ownTrailingLineEnding(node.raw) || undefined
-	});
+	const meta = getPluginMetadata<DirectiveClosingLine>(node);
+	const [row, ...body] = node.children ?? [];
+	const line = row ? trimTrailingLineEnding(row.raw) : '';
+	const fence = matchDirectiveOpener(line);
+	const innerPrefix = node.innerPrefix ?? '';
+	const innerSuffix = node.innerSuffix ?? '';
+	const closerColonCount = meta?.closerColonCount ?? fence?.colonCount ?? 3;
+	const closerNewline = meta?.closerNewline ?? true;
+	// The closer is the raw's last line, so its ending is the raw's own, else the opener's.
+	const closerLineEnding = ownTrailingLineEnding(node.raw) || undefined;
+	const lineEnding = (row && ownTrailingLineEnding(row.raw)) || '\n';
+	// A line that stopped opening a fence is kept as typed; the re-read reads what it now is.
+	node.raw = fence
+		? serializeDirective({
+				colonCount: fence.colonCount,
+				name: fence.name,
+				info: fence.info,
+				innerPrefix,
+				body: serializeChildren(body),
+				innerSuffix,
+				closerColonCount,
+				closerNewline,
+				lineEnding,
+				closerLineEnding
+			})
+		: `${line}${lineEnding}${innerPrefix}${serializeChildren(body)}${innerSuffix}` +
+			':'.repeat(closerColonCount) +
+			(closerNewline ? (closerLineEnding ?? lineEnding) : '');
+}
+
+/** What a `:::` container's metadata keeps of its closing line, which no child holds. */
+interface DirectiveClosingLine {
+	closerColonCount: number;
+	closerNewline: boolean;
 }

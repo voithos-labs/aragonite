@@ -156,17 +156,23 @@ describe('container kind re-derivation gate', () => {
 	// A directive's opener declines a lone line (it wants its `:::` closer), so only the first
 	// condition applies, and typing in the body never touches the line with the directive name.
 	it('reparses nothing while typing into a directive container body', () => {
-		typeInto(':::spoiler\n\nbody\n\n:::\n', [0, 0], KEYSTROKES);
+		typeInto(':::spoiler\n\nbody\n\n:::\n', [0, 1], KEYSTROKES);
 
 		expect(reparses()).toBe(0);
 	});
 
-	// The metadata an opaque container keeps never comes from its title row, and its body sits
-	// between the fence lines; only a moved closer, a lengthened fence, pays a parse.
+	// The metadata an opaque container keeps never comes from the title on its opener line, and its
+	// body sits between the fence lines; only a moved closer, a lengthened fence, pays a parse.
 	it('reparses nothing while typing into a titled directive title', () => {
-		typeInPlace(':::note Title\nbody\n:::\n', 0, growing('Title', KEYSTROKES));
+		typeInPlace(':::note Title\nbody\n:::\n', 0, growing(':::note Title', KEYSTROKES));
 
 		expect(reparses()).toBe(0);
+	});
+
+	it('reparses once for a keystroke in the name on the opener line', () => {
+		typeInPlace(':::note Title\nbody\n:::\n', 0, [':::notes Title\n']);
+
+		expect(reparses()).toBe(1);
 	});
 
 	it('reparses nothing while typing into a titled directive body', () => {

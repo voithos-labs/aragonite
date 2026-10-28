@@ -135,7 +135,9 @@ const REASON =
 function rebuildNames(sources: SourceFile[]): string[] {
 	const names = new Set(KIND_FREE);
 	for (const file of sources) {
-		for (const m of file.code.matchAll(/\brebuildRaw\s*:\s*([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+		// A factory called in place (`rebuildRaw: createDirectiveRebuild()`) builds a rebuilder; it isn't one.
+		for (const m of file.code.matchAll(/\brebuildRaw\s*:\s*([A-Za-z_$][\w$]*)(?![\w$]|\s*[(<])/g))
+			names.add(m[1]);
 	}
 	return [...names];
 }

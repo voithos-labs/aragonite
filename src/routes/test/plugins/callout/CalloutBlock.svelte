@@ -44,17 +44,13 @@
 		color: var(--color-text-muted);
 	}
 
-	/* CSS makes the `callout-title` leaf look like a title row, but it stays a real block inside
-	   the one `.block-list`, so selection and windowing treat it as an ordinary child. */
-	.callout-block :global(.callout-title) {
+	/* CSS makes the opener line look like a title row, but it stays a real block inside the one
+	   `.block-list`, so selection and windowing treat it as an ordinary child. */
+	.callout-block
+		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line) {
 		font-weight: 600;
 		border-bottom: 1px solid var(--color-ui-muted);
 		margin-bottom: 4px;
 		padding-bottom: 4px;
-	}
-	.callout-block :global(.callout-title:empty)::before {
-		content: 'Title';
-		color: var(--color-ui-dulled);
-		pointer-events: none;
 	}
 </style>

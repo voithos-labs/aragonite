@@ -73,11 +73,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 4,
 		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild, the whole-body fallback, and the opener line set aside and put back around them'
 	},
-	'src/lib/core/directive/kinds.ts': { count: 1, why: "the directive container's own rebuildRaw" },
-	'src/lib/editor-actions/plugin/directive-container.ts': {
-		count: 1,
-		why: 'the titled-directive rebuildRaw factory'
-	},
+	'src/lib/core/directive/kinds.ts': { count: 1, why: 'the rebuildRaw every `:::` container uses' },
 	'src/lib/plugins/admonitions/github-alert-kind.ts': {
 		count: 1,
 		why: "the alert's own rebuildRaw for an empty body; a filled one rebuilds through `rebuildStripRaw`"
@@ -89,10 +85,6 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	'src/lib/plugins/mermaid/mermaid-kind.ts': {
 		count: 1,
 		why: 'the mermaid leaf re-emits its fence from its own metadata: for its bytes, the kind is itself the rule'
-	},
-	'examples/consumer/src/routes/dev-guard/dev-probe.ts': {
-		count: 1,
-		why: "the reference plugin's own rebuildRaw"
 	},
 	'src/lib/editor-actions/search-replace.ts': {
 		count: 1,

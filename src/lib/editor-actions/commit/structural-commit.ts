@@ -26,6 +26,7 @@ import { ensureUnsharedPath, rebuildOwnedContainer } from '../../tree-operations
 import type { SharingState } from '../../tree-operations/sharing';
 import {
 	rebuildUnsharedChain,
+	rereadDivergedRoots,
 	sharedChainLevels,
 	type AncestrySeamFold,
 	type ContainerReclassification
@@ -392,11 +393,13 @@ export function createStructuralCommit(
 					);
 				}
 				const deepestFirst = [...prepared].sort((a, b) => b.chain.length - a.chain.length);
+				const readsWhole = new Set<CstNode>();
 				reclassified.push(
 					...rebuildOwnedChains(
 						deepestFirst.map((p) => p.writer),
 						deps.sharing,
-						deps.reading.grammar
+						deps.reading.grammar,
+						readsWhole
 					)
 				);
 				for (let i = 0; i < prepared.length; i++) {
@@ -431,7 +434,10 @@ export function createStructuralCommit(
 				// keeps a scope spliced out of the tree from being rebuilt off its emptied children.
 				const order = [...prepared].sort((a, b) => b.chain.length - a.chain.length);
 				// An ancestor several scopes share is rebuilt once, by the last chain holding it.
-				const levels = sharedChainLevels(order.map((p) => p.chain));
+				const levels = sharedChainLevels(
+					order.map((p) => p.chain),
+					readsWhole
+				);
 				order.forEach((p, i) => {
 					const before = folds.length;
 					reclassified.push(
@@ -447,6 +453,9 @@ export function createStructuralCommit(
 					);
 					foldLanding = foldLandingFor(folds.slice(before), p.target.path) ?? foldLanding;
 				});
+				reclassified.push(
+					...rereadDivergedRoots(deps.doc, readsWhole, deps.sharing, folds, deps.reading.grammar)
+				);
 				unwindFolds = publishAncestryFolds(deps, folds);
 				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;

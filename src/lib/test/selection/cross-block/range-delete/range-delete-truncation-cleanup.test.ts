@@ -74,11 +74,11 @@ describe.each(CROSSINGS)('a delete across $name', ({ head, headPath, tail }) => 
 	});
 });
 
-// The title line's bytes are the container's own line, so their truncation stays byte for byte
+// The opener line's bytes are the container's own line, so their truncation stays byte for byte
 // even in live mode.
 it('a title line endpoint keeps its truncation byte-literal in live', () => {
 	const marked = 'Above\n\n:::callout **Ti**tle\nBody\n:::\n\nBelow\n';
-	const { source } = run(marked, { path: [0], offset: 2 }, { path: [1, 0], offset: 4 }, 'live');
+	const { source } = run(marked, { path: [0], offset: 2 }, { path: [1, 0], offset: 15 }, 'live');
 
-	expect(source).toContain(':::callout **tle');
+	expect(source).toContain('Ab\n\n**tle\n');
 });
