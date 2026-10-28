@@ -113,7 +113,7 @@ parse(':::note My title\n\nbody\n:::\n').children[0];
 // {
 //   kind: 'admonition', raw: ':::note My title\n\nbody\n:::\n', innerPrefix: '\n',
 //   children: [
-//     { kind: 'admonition-title', leadingTrivia: '', raw: 'My title\n' },
+//     { kind: 'directiveOpenerLine', leadingTrivia: '', raw: ':::note My title\n' },
 //     { kind: 'paragraph', leadingTrivia: '', raw: 'body\n' }
 //   ],
 //   innerSuffix: '', ...
@@ -128,11 +128,11 @@ parse(':::note My title\n\nbody\n:::\n').children[0];
 
 Containers don't all relate to their children the same way, so each declares a `containerContract` on its block-kind descriptor. **There are three**, and a new container kind has to pick one:
 
-| Contract   | `raw` vs children                                                                                                                         | Kinds                                 |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `'strip'`  | `strip(raw) === serialize(children)`: the container syntax is a strippable prefix on each line                                            | blockquote, list, listItem            |
-| `'grid'`   | Cells parse straight from `raw`; there is no strippable prefix. Children are addressed by coordinate (row, cell)                          | table, tableRow                       |
-| `'opaque'` | `raw` is authoritative and is _not_ a strip decomposition: some bytes live only in the container's own `raw` (a title on the opener line) | directive containers, plugin callouts |
+| Contract   | `raw` vs children                                                                                                                   | Kinds                                 |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `'strip'`  | `strip(raw) === serialize(children)`: the container syntax is a strippable prefix on each line                                      | blockquote, list, listItem            |
+| `'grid'`   | Cells parse straight from `raw`; there is no strippable prefix. Children are addressed by coordinate (row, cell)                    | table, tableRow                       |
+| `'opaque'` | `raw` is authoritative and is _not_ a strip decomposition: some bytes live only in the container's own `raw` (a `:::` closing line) | directive containers, plugin callouts |
 
 The strip equation, on a quote holding a paragraph and a list:
 
@@ -183,7 +183,7 @@ Only `'strip'` carries that equation as a checked invariant. `'grid'` and `'opaq
 
   The row's rebuild writes its surplus back after its rendered cells, so an edit anywhere in the row or the table keeps those bytes (padding too, unless the edit gives a pipe-less row its pipes). A row that becomes the header (the header row deleted, a table split) takes its surplus as columns and the table widens, since a header wider than its delimiter row is no table at all.
 
-- **Opaque.** Chrome (the parts of a block that are furniture, not content, like a callout's title) lives in the container's own bytes: the title on a `:::note My title` opener line appears in no child at all. So `rebuildRaw` is the only way the container's bytes get rebuilt, and two dev-mode checks stand in for the equation. One runs the rebuild twice and compares the two outputs to each other (never to `raw`, which a faithful parse of unusual spelling may legally differ from). The other reparses `raw` to catch children changed without a rebuild, or metadata that no longer matches the bytes.
+- **Opaque.** Some of the container's bytes live in no child at all: a `:::note` container's closing `:::` line is its own (its opener line is child 0, the title row). So `rebuildRaw` is the only way the container's bytes get rebuilt, and two dev-mode checks stand in for the equation. One runs the rebuild twice and compares the two outputs to each other (never to `raw`, which a faithful parse of unusual spelling may legally differ from). The other reparses `raw` to catch children changed without a rebuild, or metadata that no longer matches the bytes.
 
 Why a plugin author should care, rather than skim: get the contract wrong and the editor will helpfully "fix" your container in ways that destroy it. An opaque container declared `'strip'` gets its chrome bytes checked against a decomposition that doesn't exist.
 

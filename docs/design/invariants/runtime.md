@@ -30,7 +30,7 @@ These checks run in three kinds of place:
 | G1.11  | Every keymap chord is unique per kind and names a known command                               | A·N     |
 | G1.12  | An opaque container's raw still reparses to its live children and metadata                    | A·N     |
 | G1.13  | An opaque `rebuildRaw` is deterministic over committed state                                  | A·N     |
-| G1.14  | A container declaring `reservedChrome` holds its chrome leaf at child 0                       | A·N     |
+| G1.14  | A container with a title row holds it at child 0; a `:::` row is the container's first line   | A·N     |
 | G1.15  | A plugin opener claims at least one line, and its raw matches the lines it consumed           | A·N     |
 | G1.16  | Every coordinate a commit declares is document-absolute                                       | A·N     |
 | G1.17  | An opener registered after the grammar was read warns                                         | A·N     |
@@ -178,8 +178,9 @@ and is skipped otherwise. `checkOpaqueStaleRaw` (`node-shape.ts`) · commit prim
 probe-vs-probe: run it twice, require the same bytes. Predicate `checkOpaqueRebuildDeterminism`
 (`node-shape.ts`) · commit primitive · `opaque-rebuild-determinism.test.ts`.
 
-**G1.14 · Reserved-chrome slot.** A container declaring `reservedChrome` holds a chrome leaf of the
-declared kind at child 0; kinds with no declaration are exempt. Predicate `checkReservedChromeSlot`
+**G1.14 · Reserved-chrome slot.** A container with a title row holds a leaf of the row's kind at
+child 0: the kind its `reservedChrome` declares, or `directiveOpenerLine` for a `:::` container,
+whose row must also hold the container's first line byte for byte. Other kinds are exempt. Predicate `checkReservedChromeSlot`
 (`node-shape.ts`) · commit primitive · `reserved-chrome-slot.test.ts`.
 
 **G1.15 · Opener return trust.** A plugin opener claims at least one line (`consumed >= 1`). A
