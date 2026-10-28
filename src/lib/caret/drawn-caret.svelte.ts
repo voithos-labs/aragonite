@@ -10,7 +10,7 @@ import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { caretHost, chipStopBox, codeChipEdge, hostBox, measureCaret } from './drawn-caret-measure';
-import { caretSeatInElement } from '../browser/point';
+import { caretPositionInElement } from '../browser/point';
 import { clickMovesCaret } from '../browser/offsets';
 import { readNativeSelection } from '../browser/selection-read';
 import {
@@ -152,8 +152,8 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 	function onPointerDown(e: PointerEvent): void {
 		press = null;
 		const el = e.button === 0 ? editableAt(e.target) : null;
-		const seat = el && caretSeatInElement(el, e.clientX, e.clientY);
-		if (el && seat && el.contains(seat.node)) press = { el, moves: clickMovesCaret(el, seat) };
+		const at = el && caretPositionInElement(el, e.clientX, e.clientY);
+		if (el && at && el.contains(at.node)) press = { el, moves: clickMovesCaret(el, at) };
 		armFrame();
 	}
 
@@ -166,7 +166,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 
 	// Where the browser really put the caret decides, and a caret that later moves into text on its
 	// own (a press whose click landed outside the editor) shows again.
-	function notePressSeat(): void {
+	function notePressCaret(): void {
 		if (!press) return;
 		const live = readNativeSelection();
 		if (!live?.collapsed) return;
@@ -362,7 +362,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 
 	// At a selection change the painted bar must still sit on its caret, unless the caret moved.
 	function onSelectionChange(): void {
-		notePressSeat();
+		notePressCaret();
 		assertInvariant('drawn-caret-agrees', () => {
 			const root = deps.getRoot();
 			if (!root || !painted || requested || frame !== 0) return null;

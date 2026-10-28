@@ -127,7 +127,7 @@ const RULES: FileRule[] = [
 		],
 		misses: [
 			'const offset = offsetFromViewportPoint(el, x, y);',
-			'const seat = caretSeatFromPoint(document, x, y);',
+			'const at = browserCaretAtPoint(document, x, y);',
 			'// never call caretRangeFromPoint here\nconst a = 1;',
 			at(SOURCE.pointLookup, 'const r = document.caretRangeFromPoint(x, y);')
 		]
