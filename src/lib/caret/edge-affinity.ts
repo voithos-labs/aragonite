@@ -22,9 +22,9 @@ export interface PinnedOffset {
 /** Which way a key steps across a code chip's border (`edge-step.ts`): only a plain ArrowLeft or
  *  ArrowRight, since Shift extends a range, Ctrl and Alt jump a word and Meta jumps the line. */
 export function edgeStepDirection(
-	e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey' | 'isComposing'>
+	e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey'>
 ): 'backward' | 'forward' | null {
-	if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return null;
+	if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return null;
 	if (e.key === 'ArrowRight') return 'forward';
 	return e.key === 'ArrowLeft' ? 'backward' : null;
 }
@@ -32,9 +32,8 @@ export function edgeStepDirection(
 /** The key that can land the caret at a code chip's edge from its right-hand side, or null:
  *  a plain ArrowLeft from the text after it, and the line-end key past a chip ending the line. */
 export function chipArrivalKey(
-	e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey' | 'isComposing'>
+	e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey'>
 ): 'ArrowLeft' | 'lineEnd' | null {
-	if (e.isComposing) return null;
 	const edge = caretEdgeKey(e);
 	if (edge?.to === 'line' && edge.side === 'end' && !edge.extend) return 'lineEnd';
 	if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return null;

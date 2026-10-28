@@ -5,6 +5,7 @@
  * sets its own.
  */
 
+import { imeOwnsKey } from '../../browser/composition';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
@@ -263,8 +264,16 @@ export function buildContainerKindTarget(
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
-	const { caretMemory, caretWriter, selection, scrollOwner, commands, drafts, readingFocus } =
-		getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		caretMemory,
+		caretWriter,
+		selection,
+		scrollOwner,
+		commands,
+		drafts,
+		readingFocus,
+		composition
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = reading.mode;
@@ -331,7 +340,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				isReading: () => isReadingMode(getPresentationMode),
 				getLabel: () => blockAccessibleName(deps.getNode()),
 				holdTabStop: (proxy) => readingFocus.hold(proxy, deps.getPath),
-				mint: (text) => void parentBlockEdit.insertParagraph(deps.getIndex() + 1, text)
+				mint: (text) => parentBlockEdit.insertParagraph(deps.getIndex() + 1, text),
+				composition
 			})
 		: undefined;
 
@@ -423,6 +433,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const commandOf = (e: KeyboardEvent) => commandForKey(e, deps.getNode().kind, commands);
 
 	const handleKeydown = (e: KeyboardEvent): void => {
+		if (imeOwnsKey(e)) return;
 		if (e.defaultPrevented) return;
 		// A whole-block kind has no child blocks, so an editable target is the plugin's own editor
 		// (its textarea), and the key is that editor's.
@@ -464,7 +475,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			isReading: () => isReadingMode(getPresentationMode),
 			selection,
 			caretMemory,
-			commandOf
+			commandOf,
+			takesKey: (press, openAfter) => inputProxy?.takesKey(press, openAfter) ?? false
 		});
 	}
 

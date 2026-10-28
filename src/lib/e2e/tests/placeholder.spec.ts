@@ -77,6 +77,28 @@ test.describe('placeholder: the string form', () => {
 		await expect(el).not.toHaveAttribute('aria-placeholder');
 		expect(await editor.bridge.getSource()).toBe('\n');
 	});
+
+	test.describe('a composition the browser drops', () => {
+		test.use({ expectWarns: ['composition'] });
+
+		// After the `<br>`, where Chromium drops a composition; the hand-fired IME drops at any key.
+		test('comes back once the dropped text is deleted', async ({ page }) => {
+			const el = surfaceAt(page, [0]);
+			await editor.focusBlockStart(0);
+			await page.evaluate(() => {
+				const block = document.activeElement!;
+				const end = block.childNodes.length;
+				window.getSelection()!.setBaseAndExtent(block, end, block, end);
+			});
+			const ime = await attachIme(page);
+			await ime.compose('か');
+			await expect(el).not.toHaveAttribute('data-placeholder');
+
+			await page.keyboard.press('Backspace');
+			await expect.poll(() => editor.bridge.getSource()).toBe('\n');
+			await expect(el).toHaveAttribute('data-placeholder', HINT);
+		});
+	});
 });
 
 test.describe('placeholder: the function form', () => {

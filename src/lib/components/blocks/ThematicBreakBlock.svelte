@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../browser/composition';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import {
@@ -21,7 +22,8 @@
 		selection,
 		reading,
 		commands,
-		readingFocus
+		readingFocus,
+		composition
 	} = wiring.deps;
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
@@ -37,7 +39,8 @@
 		isReading,
 		getLabel: () => blockAccessibleName(node),
 		holdTabStop: (proxy) => readingFocus.hold(proxy, () => myPath),
-		mint: (text) => void blockEdit.insertParagraph(index + 1, text)
+		mint: (text) => blockEdit.insertParagraph(index + 1, text),
+		composition
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -77,6 +80,7 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onKeyDown(e: KeyboardEvent): void {
+		if (imeOwnsKey(e)) return;
 		// Plugin containers run the same handler for undo and redo while focused as a whole.
 		if (dispatchWholeBlockGlobalChord(e, node.kind, commands)) return;
 
@@ -92,7 +96,8 @@
 			isReading,
 			selection,
 			caretMemory,
-			commandOf: (press) => wiring.resolveChord(press, node.kind)
+			commandOf: (press) => wiring.resolveChord(press, node.kind),
+			takesKey: inputProxy.takesKey
 		});
 	}
 </script>

@@ -124,3 +124,43 @@ test.describe('mermaid whole-block focus: AltGr and IME input', () => {
 		expect(await editor.bridge.getSource()).toBe(before); // an uncommitted draft writes nothing
 	});
 });
+
+// Chromium and WebKit send a key the IME takes for itself with code 229 (`ime.openingKey`), and the
+// diagram's own keydowns must leave it to the IME as the editor's do.
+test.describe('mermaid: a key the IME owns is never a diagram command', () => {
+	let editor: MermaidPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new MermaidPage(page);
+		await editor.loadDiagram(STANDARD_DIAGRAM_DOC);
+	});
+
+	test('the edit textarea keeps its edit through the IME’s Escape and Tab', async ({ page }) => {
+		await multiClickElement(editor.viewport, 2);
+		await expect(editor.textarea).toBeFocused();
+		const code = await editor.textarea.inputValue();
+		const ime = await attachIme(page);
+
+		await ime.openingKey('Escape');
+		await ime.openingKey('Tab');
+
+		await expect(editor.textarea).toBeFocused();
+		await expect(editor.textarea).toHaveValue(code);
+		await page.keyboard.press('Escape');
+		await expect(editor.textarea).toHaveCount(0);
+	});
+
+	test('the focus view stays open through the IME’s Escape', async ({ page }) => {
+		await editor.viewport.click();
+		await page.keyboard.press('ControlOrMeta+m');
+		const overlay = page.getByTestId('mermaid-overlay');
+		await expect(overlay).toBeFocused();
+		const ime = await attachIme(page);
+
+		await ime.openingKey('Escape');
+
+		await expect(overlay).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(overlay).toHaveCount(0);
+	});
+});

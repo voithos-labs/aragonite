@@ -217,15 +217,27 @@ describe('editor-root keydown: dispatch order is required', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('a chorded or composing key is not text and keeps its own branch', () => {
+	it('a chorded key is not text and keeps its own branch', () => {
 		const h = harness();
 		h.setCrossBlock(true);
 		h.root.focus();
 
 		h.press('b', { ctrlKey: true });
-		h.press('x', { isComposing: true });
 		expect(h.inserted).toEqual([]);
-		expect(h.crossBlockKeys.map((e) => e.key)).toEqual(['b', 'x']);
+		expect(h.crossBlockKeys.map((e) => e.key)).toEqual(['b']);
+	});
+
+	// Miss-analysis: the root asked only `isComposing`, and no row sent the key that opens an IME,
+	// which Chromium and WebKit send with code 229 and no composition flag.
+	it('an IME key, the one that opens a composition included, reaches no branch', () => {
+		const h = harness();
+		h.setCrossBlock(true);
+		h.root.focus();
+
+		h.press('x', { isComposing: true });
+		h.press('x', { keyCode: 229 });
+		h.press('Process');
+		expect([h.inserted, h.crossBlockKeys]).toEqual([[], []]);
 	});
 
 	it('the cross-block branch stays silent on a collapsed caret', () => {

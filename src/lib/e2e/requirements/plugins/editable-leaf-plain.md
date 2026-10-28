@@ -50,3 +50,10 @@ leaf gets the rule without wiring anything itself.
   a soft keyboard's `beforeinput` alone, and the next letter lands where the family was
 - Undo batches like prose: a burst of typed characters undoes in one step, back to the text as
   it was before the typing
+- A composition the browser drops (no `compositionend`), then Enter, saves the composed text once
+  and Enter acts as it does after the same text typed (WebKit and Firefox, whose IME drops at a
+  key; Chromium's owns a key pressed inside it)
+- A composition over a range across blocks anchored in the memo lands its commit in the memo,
+  the same bytes typing the text over that range leaves
+  - Miss-analysis: every composition row ran in a built-in block, so no row held a plugin's leaf
+    to the composition rules the built-ins keep

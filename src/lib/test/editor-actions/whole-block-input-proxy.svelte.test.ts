@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { createCompositionTracker } from '#lib/browser/composition.js';
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { allowDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
@@ -126,7 +127,8 @@ describe('container shim routing through the host', () => {
 		const host = proxyIn(boxEl);
 		const proxy: WholeBlockInputProxy = {
 			el: () => host,
-			focus: (d) => landed.push(d)
+			focus: (d) => landed.push(d),
+			takesKey: () => false
 		};
 
 		shim(boxEl, proxy).focus(0);
@@ -143,7 +145,8 @@ describe('container shim routing through the host', () => {
 		const host = proxyIn(boxEl);
 		const shimApi = shim(boxEl, {
 			el: () => host,
-			focus: () => host.focus()
+			focus: () => host.focus(),
+			takesKey: () => false
 		});
 
 		host.focus();
@@ -168,6 +171,7 @@ describe('the editing host names its block', () => {
 				getFocusEl: () => declared,
 				isReading: () => false,
 				holdTabStop,
+				composition: createCompositionTracker(),
 				getLabel: () => label,
 				mint: () => {}
 			})
@@ -193,6 +197,7 @@ describe('the editing host in reading mode', () => {
 				getFocusEl: () => null,
 				isReading: () => true,
 				holdTabStop,
+				composition: createCompositionTracker(),
 				getLabel: () => 'Divider',
 				mint: (text) => void editor.actions.insertParagraph(1, text)
 			})
@@ -222,6 +227,7 @@ describe('a paste that reaches the editing host', () => {
 				getFocusEl: () => null,
 				isReading: () => false,
 				holdTabStop,
+				composition: createCompositionTracker(),
 				getLabel: () => 'Divider',
 				mint: (text) => void minted.push(text)
 			})
@@ -251,6 +257,7 @@ describe('the editing host follows its box', () => {
 				getFocusEl: () => null,
 				isReading: () => false,
 				holdTabStop,
+				composition: createCompositionTracker(),
 				getLabel: () => 'Diagram',
 				mint: () => {}
 			})

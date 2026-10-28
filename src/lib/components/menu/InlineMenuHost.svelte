@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../browser/composition';
 	import { tick } from 'svelte';
 	import { INLINE_MENU_LABEL } from '../../a11y-strings';
 	import type { EditorEvents } from '../../editor-events';
@@ -81,7 +82,7 @@
 		if (!showing || !root) return;
 		const onKeyDown = (e: KeyboardEvent) => {
 			// A composing Enter belongs to the IME's candidate window.
-			if (e.isComposing) return;
+			if (imeOwnsKey(e)) return;
 			// The bare key alone: a chorded arrow (Shift to extend, Mod to jump) stays the document's.
 			const chord = eventToChord(e);
 			if (chord === 'ArrowDown') menu.move(1);

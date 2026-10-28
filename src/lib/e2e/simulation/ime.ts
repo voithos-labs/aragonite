@@ -15,6 +15,9 @@ export interface ImeDriver {
 	abort(): Promise<void>;
 	/** Presses a key inside the open composition, as a keystroke the IME takes for itself. */
 	press(key: string): Promise<void>;
+	/** Sends the keydown that opens a composition, before it starts: code 229 and `isComposing:
+	 *  false`, named `Process` (Windows) or the letter pressed (macOS). */
+	openingKey(key: string): Promise<void>;
 }
 
 export async function attachIme(page: Page): Promise<ImeDriver> {
@@ -43,6 +46,17 @@ async function cdpIme(page: Page): Promise<ImeDriver> {
 		async press(key: string): Promise<void> {
 			// Chromium's keydown inside a CDP composition already says `isComposing: true`.
 			await page.keyboard.press(key);
+		},
+		async openingKey(key: string): Promise<void> {
+			// No text, so Chromium types nothing for it, as for the IME's own key.
+			for (const type of ['rawKeyDown', 'keyUp'] as const) {
+				await cdp.send('Input.dispatchKeyEvent', {
+					type,
+					key,
+					windowsVirtualKeyCode: 229,
+					nativeVirtualKeyCode: 229
+				});
+			}
 		}
 	};
 }
@@ -127,6 +141,16 @@ function handFiredIme(page: Page): ImeDriver {
 	}
 
 	return {
+		async openingKey(key: string): Promise<void> {
+			await page.evaluate((key) => {
+				const el = document.activeElement as HTMLElement;
+				for (const type of ['keydown', 'keyup']) {
+					const e = new KeyboardEvent(type, { key, bubbles: true, cancelable: true });
+					Object.defineProperty(e, 'keyCode', { value: 229 });
+					el.dispatchEvent(e);
+				}
+			}, key);
+		},
 		async compose(text: string): Promise<void> {
 			await openWindow();
 			await write(text, false);

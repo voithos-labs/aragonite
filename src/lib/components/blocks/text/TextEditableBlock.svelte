@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsInput } from '../../../browser/composition';
 	import { getContext, onDestroy, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { isTaskItemText } from '../list/task-checkbox';
@@ -64,6 +65,7 @@
 	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { readContent } from '../../../browser/block-text';
+	import { readInput } from '../../../browser/input';
 	import { revealsNoMarkers } from '../../../browser/painted';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
@@ -158,7 +160,6 @@
 	// A shared constant keeps an empty decoration list out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
-	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
 	// The drawn caret holds the widget edge a click meant under this block's own key, which survives
@@ -225,17 +226,13 @@
 		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		requestCaret: (at, { source }) => setPendingCursorOffset(at, source),
 		ownPairs,
 		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readInput,
+		readBack,
 		repaint: () => textRender.render({ forceRebuild: true }),
 		compositionSeat,
 		placement: typedPlacement,
@@ -730,7 +727,7 @@
 		untrack(() => {
 			// It reads the selection, which forces a layout: never in a block the caret has not
 			// been in, since a fling mounts many.
-			if (composing || !caretHasEntered) return;
+			if (editableSurface.composing() || !caretHasEntered) return;
 			constructReveal.update(true);
 		});
 		markKeystrokeSettle();
@@ -768,7 +765,7 @@
 		if (!root) return;
 		const handler = () => {
 			clearSnapTargetIfMoved(root);
-			if (composing) return;
+			if (editableSurface.composing()) return;
 			// The line goes once the caret leaves it, whatever moved the caret.
 			if (pendingBreak.at() !== null && !caretOnPendingBreakLine(root)) pendingBreak.end();
 			widgetInteraction.foldRevealIfSelectionEscaped();
@@ -782,7 +779,7 @@
 
 	const onInput = editableSurface.onInput;
 
-	function readInput(caret: number): { text: string; caret: number } {
+	function readBack(caret: number): { text: string; caret: number } {
 		return el ? readContent(el, node.raw, structuralSuffix(node), caret) : { text: '', caret };
 	}
 
@@ -805,7 +802,7 @@
 	};
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (composing || editableSurface.isDetached()) return;
+		if (editableSurface.isDetached()) return;
 
 		// Ahead of the shared keymap, which takes ArrowLeft at the text's start to the block above.
 		if (handlePendingBreakKey(e, pendingBreakKeyDeps)) return;
@@ -838,9 +835,10 @@
 		if (typedInput(e)) return;
 		// A soft keyboard's line break, with no keydown, is the Shift+Enter command; the browser's
 		// own would put a bare newline in the DOM, and one mid-composition writes nothing.
-		if (e.inputType === 'insertLineBreak') {
+		const read = readInput(e);
+		if (read.kind === 'break' && !read.paragraph) {
 			e.preventDefault();
-			if (composing || e.isComposing) return;
+			if (editableSurface.composing() || imeOwnsInput(e)) return;
 			// Input, not a key, so it asks for the selection's removal itself.
 			editableSurface.afterSelectionRemoved((afterRemoval) =>
 				runCommand('block.hardBreak', undefined, { afterRemoval })

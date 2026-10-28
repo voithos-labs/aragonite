@@ -6,6 +6,7 @@
 	 * ever taking focus, so the caret it acts on stays exactly where it is.
 	 */
 	import type { MenuIconName } from '../../menu-icons';
+	import { imeOwnsKey } from '../../browser/composition';
 
 	export interface MenuEntry {
 		id: string;
@@ -120,6 +121,7 @@
 			e.stopImmediatePropagation();
 		};
 		const onKeyDown = (e: KeyboardEvent) => {
+			if (imeOwnsKey(e)) return;
 			if (e.altKey || e.ctrlKey || e.metaKey) return;
 			const open = flyout;
 			const children = open ? (items[open.row].children ?? []) : [];

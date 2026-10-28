@@ -4,20 +4,23 @@
  * browser's own delete through.
  */
 
-import { decidedDelete, type DeleteVerdict } from '../caret/delete-extent';
+import type { DeleteVerdict } from '../caret/delete-extent';
+import { decidedDelete } from '../browser/input';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 
 export function checkDeleteDecided(
-	inputType: string,
+	e: Pick<InputEvent, 'inputType'>,
 	verdict: DeleteVerdict | null
 ): InvariantViolation | null {
-	if (decidedDelete(inputType) === null) return null;
+	const intent = decidedDelete(e);
+	if (intent === null) return null;
 	if (verdict && !verdict.decided) return null;
+	const name = `${intent.direction} ${intent.unit} delete`;
 	return {
 		code: verdict ? 'delete-not-prevented' : 'delete-never-decided',
 		message: verdict
-			? `the editor wrote a ${inputType} and the browser's delete ran too`
-			: `a ${inputType} reached input without the editor's delete step deciding it`,
-		detail: { inputType }
+			? `the editor wrote a ${name} and the browser's delete ran too`
+			: `a ${name} reached input without the editor's delete step deciding it`,
+		detail: { ...intent }
 	};
 }

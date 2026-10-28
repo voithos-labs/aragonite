@@ -1,14 +1,8 @@
 // Miss-analysis: deletes were left to each engine, and no test compared what the three take.
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import {
-	characterExtent,
-	decidedDelete,
-	isCharacterBackspace,
-	DECLINED_DELETES,
-	DELETE_WINDOW,
-	type DeleteDirection
-} from '../../caret/delete-extent';
+import { characterExtent, DELETE_WINDOW } from '../../caret/delete-extent';
+import type { DeleteDirection } from '../../browser/input';
 import { graphemeSegmenter } from '../../core/text-units';
 import {
 	disablePerfInstruments,
@@ -254,30 +248,5 @@ describe('characterExtent: a span never splits what the editor keeps whole', () 
 				}
 			})
 		);
-	});
-});
-
-describe('decidedDelete: which inputs the editor writes itself', () => {
-	it('decides the two character deletes', () => {
-		expect(decidedDelete('deleteContentBackward')).toEqual({
-			unit: 'character',
-			direction: 'backward'
-		});
-		expect(decidedDelete('deleteContentForward')).toEqual({
-			unit: 'character',
-			direction: 'forward'
-		});
-	});
-
-	it('declines every other delete, and nothing is both', () => {
-		for (const type of DECLINED_DELETES) expect(decidedDelete(type)).toBeNull();
-		expect(decidedDelete('insertText')).toBeNull();
-		expect(decidedDelete('toString')).toBeNull();
-	});
-
-	it('names only the one-character Backspace as one', () => {
-		expect(isCharacterBackspace('deleteContentBackward')).toBe(true);
-		expect(isCharacterBackspace('deleteContentForward')).toBe(false);
-		expect(isCharacterBackspace('deleteWordBackward')).toBe(false);
 	});
 });

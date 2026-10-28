@@ -9,64 +9,11 @@ import { graphemeSegmenter, wordSegmenter } from '../core/text-units';
 import { recordDeleteWindow } from '../perf/instruments';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
 import type { VisibleText } from '../browser/offsets';
-
-export type DeleteDirection = 'backward' | 'forward';
+import type { DeleteDirection, DeleteIntent } from '../browser/input';
 
 export interface DeleteSpan {
 	start: number;
 	end: number;
-}
-
-/** How much a delete takes, before the bounds of the line cut it short: a soft line ends where the
- *  text wraps on screen, a hard line at the line ending. */
-export type DeleteUnit = 'character' | 'word' | 'soft-line' | 'hard-line';
-
-export interface DeleteIntent {
-	unit: DeleteUnit;
-	direction: DeleteDirection;
-}
-
-/** The delete inputs the editor writes itself, each with what it takes and from which side. */
-export const DECIDED_DELETES: Readonly<Record<string, DeleteIntent>> = {
-	deleteContentBackward: { unit: 'character', direction: 'backward' },
-	deleteContentForward: { unit: 'character', direction: 'forward' },
-	deleteWordBackward: { unit: 'word', direction: 'backward' },
-	deleteWordForward: { unit: 'word', direction: 'forward' },
-	deleteSoftLineBackward: { unit: 'soft-line', direction: 'backward' },
-	deleteSoftLineForward: { unit: 'soft-line', direction: 'forward' },
-	deleteHardLineBackward: { unit: 'hard-line', direction: 'backward' },
-	deleteHardLineForward: { unit: 'hard-line', direction: 'forward' }
-};
-
-/** The delete inputs left to the browser and read back on `input`: the ones that are another
- *  gesture's (a cut, a drag, an IME), and the two that name no side of the caret. */
-export const DECLINED_DELETES: ReadonlySet<string> = new Set([
-	'deleteEntireSoftLine',
-	'deleteContent',
-	'deleteByCut',
-	'deleteByDrag',
-	'deleteCompositionText'
-]);
-
-/** What a delete input takes when the editor decides it; null for every other input. */
-export function decidedDelete(inputType: string): DeleteIntent | null {
-	return Object.hasOwn(DECIDED_DELETES, inputType) ? DECIDED_DELETES[inputType] : null;
-}
-
-/** Whether `inputType` is a one-character Backspace, by key or soft keyboard. */
-export function isCharacterBackspace(inputType: string): boolean {
-	const intent = decidedDelete(inputType);
-	return intent?.unit === 'character' && intent.direction === 'backward';
-}
-
-/** Whether `inputType` deletes anything, a cut's or a drag's own delete included. */
-export function isDeleteInput(inputType: string): boolean {
-	return inputType.startsWith('delete');
-}
-
-/** Whether `inputType` is the delete half of a cut or a drag, which the clipboard or drop owns. */
-export function isMoveDelete(inputType: string): boolean {
-	return inputType === 'deleteByCut' || inputType === 'deleteByDrag';
 }
 
 /** Why a delete the editor decides went to the browser after all, read back on `input` instead.

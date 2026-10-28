@@ -6,6 +6,7 @@
 	import { tick } from 'svelte';
 	import {
 		getPluginMetadata,
+		imeOwnsKey,
 		trimTrailingLineEnding,
 		normalizeLineEndings,
 		POINTER_GESTURE_ATTR,
@@ -291,6 +292,7 @@
 		// The textarea owns its keys while editing, native undo included; no chord may
 		// bubble to the container keymap mid-edit.
 		e.stopPropagation();
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
 			e.preventDefault();
 			commitEdit(true);
@@ -327,6 +329,7 @@
 
 	function onOverlayKeydown(e: KeyboardEvent): void {
 		e.stopPropagation();
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Escape') {
 			e.preventDefault();
 			closeFocusView();

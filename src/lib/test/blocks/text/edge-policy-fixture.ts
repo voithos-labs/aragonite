@@ -7,7 +7,7 @@ import {
 	type EdgePolicyDispatchDeps
 } from '#lib/components/blocks/text/edge-policy-dispatch.js';
 import { parse } from '#lib/core/parser.js';
-import type { DeleteIntent } from '#lib/caret/delete-extent.js';
+import type { DeleteIntent } from '#lib/browser/input.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';

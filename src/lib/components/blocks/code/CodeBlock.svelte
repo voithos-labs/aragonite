@@ -4,14 +4,15 @@
 	import type { NodeView } from '../../../core/node-views';
 	import type { CodeRunRequest } from '../../../host-hooks';
 	import { asRawOffset } from '../../../core/coordinate-spaces';
+	import { deleteExtent, type DeleteAnswer } from '../../../caret/delete-extent';
 	import {
 		decidedDelete,
-		deleteExtent,
 		isDeleteInput,
 		isMoveDelete,
-		type DeleteAnswer,
+		readInput,
+		targetRange,
 		type DeleteIntent
-	} from '../../../caret/delete-extent';
+	} from '../../../browser/input';
 	import { lineEdgeOffset } from '../../../browser/visual-lines';
 	import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../browser/painted';
 	import type { RawRange } from '../../../browser/offsets';
@@ -79,7 +80,6 @@
 	// range asks `editSpan` with it.
 	const fenceLinesShown = $derived(paintsFocusedMarkers(presentationMode));
 	let el: HTMLDivElement | undefined = $state();
-	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
@@ -98,16 +98,12 @@
 		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		requestCaret: (at) => {
 			pendingCursorOffset = at;
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(el).length,
-		readInput: (caret) => ({ text: plainTextOf(el), caret }),
+		readBack: (caret) => ({ text: plainTextOf(el), caret }),
 		repaint: paintCode,
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
@@ -361,16 +357,17 @@
 
 	function onBeforeInput(e: InputEvent): void {
 		// A delete the editor decides is `deleteCodeAt`'s, and the fence check sees it only if declined.
-		if (!decidedDelete(e.inputType) && guardFenceRangedEdit(e)) return;
+		if (!decidedDelete(e) && guardFenceRangedEdit(e)) return;
+		const read = readInput(e);
 		// A soft keyboard's line break, with no keydown, is the Shift+Enter command; an IME emitting
 		// one mid-composition writes nothing.
-		if (e.inputType === 'insertLineBreak' && !composing && el) {
+		if (read.kind === 'break' && !read.paragraph && !editableSurface.composing() && el) {
 			e.preventDefault();
 			// Input, not a key, so it asks for the selection's removal itself.
 			editableSurface.afterSelectionRemoved(() => runCommand('code.softBreak'));
 			return;
 		}
-		if (composing || e.inputType !== 'insertText' || !el) return;
+		if (editableSurface.composing() || read.kind !== 'insert' || !el) return;
 		const data = e.data;
 		if (!data || data.length !== 1) return;
 
@@ -422,7 +419,7 @@
 	/** The one check for every browser edit that rewrites a range here. With the fence lines
 	 *  hidden, the block writes the edit over its `editSpan` itself. */
 	function guardFenceRangedEdit(e: InputEvent): boolean {
-		if (composing || !el || fenceLinesShown) return false;
+		if (editableSurface.composing() || !el || fenceLinesShown) return false;
 		const range = pendingEditRange(e);
 		if (!range) return false;
 		const span = editSpan(node, range, fenceLinesShown);
@@ -446,28 +443,27 @@
 
 	// A cut's or a drag's own delete belongs to the clipboard or drop handler.
 	function deletes(e: InputEvent): boolean {
-		return isDeleteInput(e.inputType) && !isMoveDelete(e.inputType);
+		return isDeleteInput(e) && !isMoveDelete(e);
 	}
 
 	function replacesRange(e: InputEvent, range: RawRange): boolean {
-		const replacing = e.inputType === 'insertText' || e.inputType === 'insertReplacementText';
-		return replacing && range.start !== range.end;
+		const kind = readInput(e).kind;
+		return (kind === 'insert' || kind === 'replace') && range.start !== range.end;
 	}
 
 	/** A bracket or quote typed over a range wraps it (the auto-pair path), unless the range
 	 *  holds no body at all. */
 	function wrapsBody(e: InputEvent, range: RawRange, span: RawRange | null): boolean {
-		if (e.inputType !== 'insertText' || e.data?.length !== 1 || range.start === range.end) {
+		if (readInput(e).kind !== 'insert' || e.data?.length !== 1 || range.start === range.end) {
 			return false;
 		}
 		return getCloserFor(e.data) !== null && span !== null;
 	}
 
-	/** `getTargetRanges()` wins, since a word delete at a collapsed caret reports the word; it is
-	 *  feature-detected because jsdom lacks it. */
+	/** The browser's target wins, since a word delete at a collapsed caret reports the word. */
 	function pendingEditRange(e: InputEvent): RawRange | null {
-		const targets = typeof e.getTargetRanges === 'function' ? e.getTargetRanges() : [];
-		if (targets.length > 0) return backend.rawRangeOf(targets[0]);
+		const target = targetRange(e);
+		if (target) return backend.rawRangeOf(target);
 		const selected = backend.getRawSelection();
 		if (selected) return selected;
 		const caret = backend.getRaw();
@@ -477,25 +473,17 @@
 	/** The text an input type writes over its span, or null to refuse it. A `dataTransfer`
 	 *  payload is refused, since it would skip the paste transforms (G4.11). */
 	function rangedEditInsertion(e: InputEvent, span: RawRange): string | null {
-		if (isDeleteInput(e.inputType)) return '';
-		switch (e.inputType) {
-			case 'insertText':
-				return e.data ?? '';
-			case 'insertLineBreak':
-				return editableSurface.lineEnding();
-			// The keydown path auto-indents (computeCodeEnter 'normal'), and a mobile or
-			// IME insertParagraph is the same gesture arriving without a keydown.
-			case 'insertParagraph':
-				return (
-					editableSurface.lineEnding() + getLineLeadingWhitespace(getDisplayText(), span.start)
-				);
-			default:
-				return null;
-		}
+		const read = readInput(e);
+		if (read.kind === 'delete') return '';
+		if (read.kind === 'insert') return e.data ?? '';
+		if (read.kind !== 'break') return null;
+		// The keydown path auto-indents (computeCodeEnter 'normal'), and a mobile or IME
+		// insertParagraph is the same gesture arriving without a keydown.
+		const indent = read.paragraph ? getLineLeadingWhitespace(getDisplayText(), span.start) : '';
+		return editableSurface.lineEnding() + indent;
 	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (composing) return;
 		if (!el) return;
 
 		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;

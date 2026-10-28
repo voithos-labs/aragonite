@@ -34,7 +34,8 @@ function makeDeps(
 		isReading,
 		selection,
 		caretMemory,
-		commandOf: (e) => commandForKey(e, 'thematicBreak', commandContextWith(overrides))
+		commandOf: (e) => commandForKey(e, 'thematicBreak', commandContextWith(overrides)),
+		takesKey: () => false
 	};
 	return { deps, splitBlock, deleteBlock, insertParagraph, moveFocus, caretMemory };
 }
@@ -123,14 +124,6 @@ describe('handleWholeBlockKeys', () => {
 		handleWholeBlockKeys(e, deps);
 		expect(insertParagraph).not.toHaveBeenCalled();
 		expect(e.preventDefault).toHaveBeenCalled();
-	});
-
-	it('declines a mid-composition character, whose bytes the IME has not committed', () => {
-		const { deps, insertParagraph } = makeDeps();
-		const e = press('a', { isComposing: true });
-		handleWholeBlockKeys(e, deps);
-		expect(insertParagraph).not.toHaveBeenCalled();
-		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 
 	it.each([{ ctrlKey: true }, { metaKey: true }, { altKey: true }])(

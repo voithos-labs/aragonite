@@ -5,6 +5,7 @@
  * synchronously during initialisation. `plugin-guide/editable-content.md` § The editable leaf.
  */
 
+import { imeOwnsInput, imeOwnsKey } from '../../../browser/composition';
 import { onDestroy, tick, untrack } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { EditableLeafBlockApi, StickyColumnDirection } from '../../../block-component';
@@ -27,14 +28,15 @@ import {
 	holdsOnlyMarkerChrome
 } from '../../../browser/painted';
 import { clampToLandableRaw, landableRawBounds, type RawRange } from '../../../browser/offsets';
+import { deleteExtent, type DeleteAnswer } from '../../../caret/delete-extent';
 import {
 	decidedDelete,
-	deleteExtent,
 	isDeleteInput,
 	isMoveDelete,
-	type DeleteAnswer,
+	readInput,
+	targetRange,
 	type DeleteIntent
-} from '../../../caret/delete-extent';
+} from '../../../browser/input';
 import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { isAtMostOneCharacter } from '../../../core/text-units';
 import { nativeRangeIn } from '../../../browser/selection-read';
@@ -215,7 +217,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		componentPluginOptions(pluginEditor, deps.getNode().kind) as Options;
 	const isReading = () => getPresentationMode() === 'reading';
 
-	let composing = false;
 	let pendingCursor: number | null = null;
 	/** The open reveal's edit, which writes only over the bytes it opened on; null while folded. */
 	let draft: Draft | null = null;
@@ -243,10 +244,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getNode: deps.getNode,
 		getMyPath: deps.getPath,
 		getIndex: deps.getIndex,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		// render-primary never restores a pending caret: focus has already left on
 		// commit, and a re-render must not pull it back.
 		requestCaret: (at) => {
@@ -254,12 +251,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(deps.getEl()).length,
-		readInput: (caret) => ({ text: plainTextOf(deps.getEl()), caret }),
+		readBack: (caret) => ({ text: plainTextOf(deps.getEl()), caret }),
 		repaint: syncSource,
 		handleKeydown,
-		localHistory: (e) =>
-			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
-			stepSourceHistory(e, e.inputType === 'historyUndo'),
+		localHistory: (e) => {
+			const read = readInput(e);
+			return read.kind === 'history' && stepSourceHistory(e, !read.redo);
+		},
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret,
 		commandTarget: () => keyTarget,
@@ -459,7 +457,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// report here.
 	function afterNativeEdit(): void {
 		const el = deps.getEl();
-		if (!el || composing || (el.textContent ?? '') === reported) return;
+		if (!el || editableSurface.composing() || (el.textContent ?? '') === reported) return;
 		repaintSource();
 		reportSourceEdit(el.textContent ?? '');
 	}
@@ -483,7 +481,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	function repaintSource(): void {
 		const el = deps.getEl();
-		if (!el || !deps.renderSource || composing) return;
+		if (!el || !deps.renderSource || editableSurface.composing()) return;
 		const offset = backend.getRaw();
 		const text = el.textContent ?? '';
 		// A native edit (an IME commit) reaches the kind's reshape like the leaf's own edits do.
@@ -640,7 +638,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
-		if (composing || !el) return;
+		if (!el) return;
 
 		// Undo inside a shown painted source steps through its own edits; the document sees them as
 		// one entry written on blur.
@@ -702,16 +700,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	 *  node and its delete cannot see hidden markers. Clamping keeps edits off hidden fence lines. */
 	function onBeforeInput(e: InputEvent): void {
 		// A delete the editor decides is `deleteAtCaret`'s, and reaches the splice only if declined.
-		if (!decidedDelete(e.inputType)) spliceTargetRange(e);
+		if (!decidedDelete(e)) spliceTargetRange(e);
 	}
 
 	function spliceTargetRange(e: InputEvent): void {
-		if (!deps.renderSource || composing || e.isComposing) return;
+		if (!deps.renderSource || editableSurface.composing() || imeOwnsInput(e)) return;
 		const el = deps.getEl();
 		if (!el) return;
-		const insert = sourceInsertion(e.inputType, e.data);
+		const insert = sourceInsertion(e);
 		if (insert === null) return;
-		const target = e.getTargetRanges()[0];
+		const target = targetRange(e);
 		const range = target ? backend.rawRangeOf(target) : null;
 		if (!range) return;
 		e.preventDefault();
@@ -721,11 +719,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	/** What an input writes over its target range in a painted source; null leaves it alone. */
-	function sourceInsertion(inputType: string, data: string | null): string | null {
-		if (isDeleteInput(inputType)) return isMoveDelete(inputType) ? null : '';
-		if (inputType === 'insertText') return data ?? '';
-		const breaks = inputType === 'insertLineBreak' || inputType === 'insertParagraph';
-		return breaks ? editableSurface.lineEnding() : null;
+	function sourceInsertion(e: InputEvent): string | null {
+		if (isDeleteInput(e)) return isMoveDelete(e) ? null : '';
+		const read = readInput(e);
+		if (read.kind === 'insert') return e.data ?? '';
+		return read.kind === 'break' ? editableSurface.lineEnding() : null;
 	}
 
 	/** A collapsed delete takes what the delete rule names in the DOM's text, which a shown
@@ -785,7 +783,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			if (!isRevealed()) onRenderClick(e);
 		},
 		onkeydown: (e) => {
-			if (!isRevealed()) void dispatchChord(e);
+			if (!isRevealed() && !imeOwnsKey(e)) void dispatchChord(e);
 		}
 	};
 
@@ -796,7 +794,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		oninput: (e: Event) => {
 			editableSurface.onInput(e);
 			noteShownSource();
-			if (!(e as InputEvent).isComposing) afterNativeEdit();
+			if (!imeOwnsInput(e as InputEvent)) afterNativeEdit();
 		},
 		onbeforeinput: editableSurface.onBeforeInput,
 		onkeydown: editableSurface.onKeyDown,

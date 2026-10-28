@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '#lib/core/inline/index.js';
-import {
-	resolveEdgeDeletion,
-	type DeleteDirection
-} from '#lib/components/blocks/text/construct-edge-delete.js';
+import { resolveEdgeDeletion } from '#lib/components/blocks/text/construct-edge-delete.js';
+import type { DeleteDirection } from '#lib/browser/input.js';
+
 import { screenVisibility } from '#lib/core/inline/visibility.js';
 import { makeBlockNode, type BlockKind } from '#lib/core/nodes.js';
 import { topLevelStore } from '#lib/test/harness/fixture-grammar.js';

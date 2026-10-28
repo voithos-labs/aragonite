@@ -10,6 +10,7 @@ import type { NodeView } from '../../core/node-views';
 import type { EditorOptions, PlaceholderBlock } from '../../editor-props';
 import type { Reading } from '../../schema/reading';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import type { CompositionTracker } from '../../browser/composition';
 
 /** The prop as the editor hands it down, and whether the document holds one top-level block. */
 export interface PlaceholderPolicy {
@@ -23,15 +24,15 @@ export interface PlaceholderHintDeps {
 	getNode: () => NodeView;
 	getPath: () => number[];
 	reading: Reading;
+	/** The composing text is in the element but not yet in the bytes, so the hint steps aside. */
+	composition: Pick<CompositionTracker, 'subscribe' | 'openIn'>;
 }
 
 export interface PlaceholderHint {
 	/** The text the block shows now, or null. */
 	text(): string | null;
-	/** Tracks focus on the editable element, attached through its spread. */
+	/** Tracks focus and composition on the editable element, attached through its spread. */
 	track(el: HTMLElement): () => void;
-	/** Set by the surface's own composition handlers. */
-	setComposing(value: boolean): void;
 	/** A shown source whose edits reach the node only on blur, judged in place of the node; null
 	 *  once it folds. */
 	setShownSource(text: string | null): void;
@@ -56,7 +57,6 @@ function isEmptyBlock(node: NodeView): boolean {
 
 export function createPlaceholderHint(deps: PlaceholderHintDeps): PlaceholderHint {
 	let focused = $state(false);
-	// The composing text is in the element but not yet in the bytes, so the hint would sit over it.
 	let composing = $state(false);
 	let shown = $state<string | null>(null);
 
@@ -86,15 +86,21 @@ export function createPlaceholderHint(deps: PlaceholderHintDeps): PlaceholderHin
 		el.addEventListener('focusin', syncFocus, { signal: detach.signal });
 		el.addEventListener('focusout', syncFocus, { signal: detach.signal });
 		syncFocus();
-		return () => detach.abort();
+		const syncComposing = () =>
+			untrack(() => {
+				composing = deps.composition.openIn(el);
+			});
+		const unsubscribe = deps.composition.subscribe(syncComposing);
+		syncComposing();
+		return () => {
+			detach.abort();
+			unsubscribe();
+		};
 	}
 
 	return {
 		text: () => text,
 		track,
-		setComposing: (value) => {
-			composing = value;
-		},
 		// Untracked: a fold can run from the focusout a source fires as it unmounts mid-render.
 		setShownSource: (source) =>
 			untrack(() => {

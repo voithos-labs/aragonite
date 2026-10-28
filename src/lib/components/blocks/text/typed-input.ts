@@ -5,12 +5,14 @@
  * only in how they read their own text.
  */
 
+import { imeOwnsInput } from '../../../browser/composition';
 import type { NodeView } from '../../../core/node-views';
 import type { ContentRange } from '../../../core/inline';
 import type { StoredAs } from '../../../schema/stored-as';
 import type { Reading } from '../../../schema/reading';
 import type { CaretMemory } from '../../../caret/caret-memory';
 import { asRawOffset } from '../../../core/coordinate-spaces';
+import { readInput } from '../../../browser/input';
 import { keepsKindAt } from '../../../core/inline/live-edit/read-back';
 import type { SurfaceBackend } from '../editable/surface-backend';
 import { rangeWrite, type TextWrite } from '../editable/surface-write';
@@ -98,7 +100,7 @@ export function createTypedInput(deps: TypedInputDeps): (e: InputEvent) => boole
 
 	// Firefox drops a native insertion right before an inline widget that ends the block.
 	const beforeClosingWidget = (e: InputEvent): boolean => {
-		if (e.inputType !== 'insertText' || e.isComposing || !e.data) return false;
+		if (readInput(e).kind !== 'insert' || imeOwnsInput(e) || !e.data) return false;
 		const caret = deps.cursor.getRaw();
 		if (caret === null || !deps.edges.typeBeforeClosingWidget(caret, e.data)) return false;
 		e.preventDefault();

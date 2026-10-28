@@ -16,11 +16,10 @@ import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { StoredAs } from '../../../schema/stored-as';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import { removesExactly } from './screen-diff';
-import { characterExtent, type DeleteDirection } from '../../../caret/delete-extent';
+import { characterExtent } from '../../../caret/delete-extent';
+import type { DeleteDirection } from '../../../browser/input';
 
 // ── Public API ───────────────────────────────────────────────────────────────
-
-export type { DeleteDirection };
 
 /** Named fields rather than a positional row: `display`, the two ranges and the caret are all
  *  offsets into the same string, and a swapped pair would type-check. */

@@ -32,6 +32,10 @@ Fixture: `Above text` / a mermaid fence / `tail text`.
   textarea rather than the host, and typing there edits the draft instead of creating a
   paragraph
 
+- A key the IME owns, sent with code 229 the way Chromium and WebKit send the keys an IME takes
+  for itself: an Escape and a Tab in the edit textarea leave the edit open with its code as it was,
+  and an Escape in the focus view leaves it open; a plain Escape still closes each
+
 ## User interactions
 
 - Click a toolbar button, then click the diagram: focus reaches the editing host and an
@@ -53,3 +57,5 @@ Fixture: `Above text` / a mermaid fence / `tail text`.
   while the component's own recovery was still one `tick` away, so it passed under a recovery
   that leaves focus on the diagram. An assertion made mid-gesture measures the gesture, not its
   outcome
+- The IME-key scenarios: the diagram's own keydowns sat on the IME-key scan's list of plugin code
+  that can't reach the editor's IME check, so no row ever sent them a key the IME owns

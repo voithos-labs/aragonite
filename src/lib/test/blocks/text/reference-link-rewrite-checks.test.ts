@@ -6,10 +6,8 @@ import { screenVisibility } from '#lib/core/inline/visibility.js';
 import { definitionsOf, type LinkReferenceResolver } from '#lib/core/inline/scan/definitions.js';
 import { resolveMarkedInsertion } from '#lib/components/blocks/text/pending-mark-insert.js';
 import { hiddenEdges } from '#lib/components/blocks/text/edge-seat.js';
-import {
-	resolveEdgeDeletion,
-	type DeleteDirection
-} from '#lib/components/blocks/text/construct-edge-delete.js';
+import { resolveEdgeDeletion } from '#lib/components/blocks/text/construct-edge-delete.js';
+import type { DeleteDirection } from '#lib/browser/input.js';
 import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import { makeBlockNode } from '#lib/core/nodes.js';
 import { fixtureReading, topLevelStore } from '#lib/test/harness/fixture-grammar.js';

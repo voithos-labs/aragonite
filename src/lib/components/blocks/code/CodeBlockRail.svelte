@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../../browser/composition';
 	import { onDestroy, tick } from 'svelte';
 	import {
 		CODE_COPY_LABEL,
@@ -186,7 +187,7 @@
 		// The field owns its keys while open: an Escape that closes it must not reach anything
 		// else listening for one. An Enter or Escape during a composition belongs to the IME.
 		e.stopPropagation();
-		if (e.isComposing) return;
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			// A spelling the registry resolves is a name, not a search: it commits as typed, so

@@ -6,9 +6,9 @@ import {
 	deleteExtent,
 	wordExtent,
 	type DeleteContext,
-	type DeleteIntent,
 	type ForwardWordReach
 } from '#lib/caret/delete-extent.js';
+import type { DeleteIntent } from '#lib/browser/input.js';
 import type { VisibleText } from '#lib/browser/offsets.js';
 import {
 	disablePerfInstruments,

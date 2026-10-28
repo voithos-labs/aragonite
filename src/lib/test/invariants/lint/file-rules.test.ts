@@ -1568,12 +1568,12 @@ const RULES: FileRule[] = [
 		matches:
 			/['"`]delete(?:Content|Word|SoftLine|HardLine|EntireSoftLine|By|Composition)\w*['"`]|\.startsWith\(\s*['"`]delete['"`]|\/\^delete/,
 		allowed: {
-			[SOURCE.deleteExtent]:
-				'the one list of delete input types, which says what each takes and which the editor writes'
+			[SOURCE.inputRead]:
+				'the one table of input types, which says what each delete takes and which the editor writes'
 		},
-		reaches: [SOURCE.deleteExtent],
+		reaches: [SOURCE.inputRead],
 		reason:
-			'a branch on a delete input type is a second opinion on which deletes the editor writes: ask `caret/delete-extent.ts` (`decidedDelete`, `isDeleteInput`, `isMoveDelete`)',
+			'a branch on a delete input type is a second opinion on which deletes the editor writes: ask `browser/input.ts` (`readInput`, `decidedDelete`, `isDeleteInput`, `isMoveDelete`)',
 		hits: [
 			"if (e.inputType !== 'deleteContentBackward') return false;",
 			"case 'deleteWordForward':",
@@ -1582,7 +1582,7 @@ const RULES: FileRule[] = [
 			'const cut = inputType === "deleteByCut";'
 		],
 		misses: [
-			'if (!isCharacterBackspace(e.inputType)) return false;',
+			'if (!isCharacterBackspace(e)) return false;',
 			"blockEdit.deleteBlock(index, 'Backspace');",
 			"case 'table.deleteRow':",
 			"['deleteRow', 'Delete row', canDeleteRow(rowIdx, rowCount)]"

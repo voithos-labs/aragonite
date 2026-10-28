@@ -8,7 +8,8 @@
 
 import { untrack } from 'svelte';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
-import { createCaretHostInput } from './caret-host-input';
+import { createCaretHostInput, type CaretHostInput } from './caret-host-input';
+import type { CompositionTracker } from '../browser/composition';
 import { WHOLE_BLOCK_INPUT_ATTR, isWholeBlockInputProxy } from '../selection/whole-block-input';
 
 // ── Editable-target guards ───────────────────────────────────────────────────
@@ -89,7 +90,8 @@ export interface WholeBlockInputProxyDeps {
 	/** Holds the host's tabindex for the reading-mode tab stop; returns the release. */
 	holdTabStop: (el: HTMLElement) => () => void;
 	/** Commit the bytes the host produced: the same paragraph the keydown path creates. */
-	mint: (text: string) => void;
+	mint: (text: string) => unknown;
+	composition: CompositionTracker;
 }
 
 export interface WholeBlockInputProxy {
@@ -98,11 +100,13 @@ export interface WholeBlockInputProxy {
 	/** Put DOM focus for a whole-block entry, falling back to `declared` when the plugin owns
 	 *  the caret or the host has not mounted. */
 	focus(declared: HTMLElement): void;
+	/** Whether `event` ended a composition the browser dropped here (`CaretHostInput.takesKey`). */
+	takesKey: CaretHostInput['takesKey'];
 }
 
 export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): WholeBlockInputProxy {
 	let proxy: HTMLElement | null = null;
-	const hostInput = createCaretHostInput(() => proxy, deps.mint);
+	const hostInput = createCaretHostInput(() => proxy, deps.mint, deps.composition);
 
 	/** Every read of the declared element inside the proxy goes through the demotion, so a kind
 	 *  supplying its own `getFocusEl` (without the composed fallback) is held to the rule too. */
@@ -178,6 +182,7 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 			}
 			demoteDeclaredFromTabOrder(declared);
 			focusProxy();
-		}
+		},
+		takesKey: hostInput.takesKey
 	};
 }

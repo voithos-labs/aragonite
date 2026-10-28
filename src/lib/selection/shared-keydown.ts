@@ -222,9 +222,7 @@ function collapseRangeForArrow(
 	ctx: SharedKeydownContext,
 	el: HTMLElement
 ): boolean {
-	if (!isArrowKey(e.key) || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) {
-		return false;
-	}
+	if (!isArrowKey(e.key) || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return false;
 	// A caret, the common case, costs no walk of the block.
 	if (!holdsNativeRange()) return false;
 	const range = rawSelectionIn(el);
@@ -277,9 +275,7 @@ function handleUnitStep(
 	el: HTMLElement,
 	offset: number | null
 ): boolean {
-	if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing || ctx.selection.isCrossBlock) {
-		return false;
-	}
+	if (e.ctrlKey || e.metaKey || e.altKey || ctx.selection.isCrossBlock) return false;
 	const extending = e.shiftKey;
 	if (offset === null) return false;
 	const direction = e.key === 'ArrowRight' ? 'forward' : 'backward';

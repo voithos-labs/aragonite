@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../../browser/composition';
 	import { getContext, setContext, untrack } from 'svelte';
 	import type { ListContext } from '../../../action-contracts';
 	import type { BlockComponent } from '../../../block-component';
@@ -231,6 +232,7 @@
 	// Tab, Shift+Tab and Mod+Enter bubble up from the inner paragraph. Only kind commands run here:
 	// the paragraph has already dispatched the global ones, so undo would otherwise fire twice.
 	function handleKeydown(e: KeyboardEvent): void {
+		if (imeOwnsKey(e)) return;
 		// A key a nested item declined is still that item's: the task toggle must not reach the
 		// task it sits in.
 		if (!(e.target instanceof Element) || e.target.closest('.list-item-block') !== boxEl) return;

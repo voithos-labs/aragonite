@@ -220,6 +220,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a code chip’s border, so the modifier reads there are a refusal.'
 	},
 	{
+		file: 'editor-actions/caret-host-input.ts',
+		chords: [],
+		keys: ['Enter'],
+		note: 'A plain key that ended a composition the browser dropped in the gap caret or a block focused whole is spent there, Enter opening the paragraph after the composed one; a chord goes on to the host.'
+	},
+	{
 		file: 'editor-actions/container-block-component.ts',
 		chords: ['Mod+C', 'Mod+X'],
 		keys: [

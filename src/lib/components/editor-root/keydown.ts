@@ -4,6 +4,7 @@
  * pressed inside a block (`test/editor-root/keydown.test.ts` pins the order).
  */
 
+import { imeOwnsKey } from '../../browser/composition';
 import { claimsBodyChord, isForeignTextEntry, isTextEntrySurface } from '../../active-editor';
 import type { SearchState } from '../../search/search-state.svelte';
 import type { CrossBlockHandlers } from '../../selection/cross-block/dispatch';
@@ -103,6 +104,7 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 
 	return {
 		handleKeyDown(event, root) {
+			if (imeOwnsKey(event)) return;
 			// Normalizes the key (CapsLock uppercases e.key without Shift), matching
 			// every other chord-dispatch site.
 			const chord = eventToChord(event);
@@ -127,8 +129,8 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			if (!ownsCaret || !deps.isCrossBlock) return;
 
 			// With nothing editable focused, no `beforeinput` fires for a typed character, so it
-			// comes in here; composition and chorded keys are left alone.
-			if (isCharacterKey(event.key) && !event.isComposing && !event.ctrlKey && !event.metaKey) {
+			// comes in here; chorded keys are left alone.
+			if (isCharacterKey(event.key) && !event.ctrlKey && !event.metaKey) {
 				event.preventDefault();
 				void deps.crossBlock.insertText(event.key);
 				return;
