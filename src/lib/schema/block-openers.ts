@@ -63,6 +63,9 @@ export interface UnfinishedReading {
 	/** Whether a line could be the one that changes it. A cheap candidate test, not a match: true
 	 *  for every line this opener accepts as its closer, wider is fine, narrower breaks the edit. */
 	mayClose: (lineText: string) => boolean;
+	/** The line that closes a waiting block whose bytes are `raw`, which an opener typed on its own
+	 *  line is given so it takes in no block below it; null where no line closes it. */
+	closer: ((raw: string) => string) | null;
 	/** The block takes in every line below it until its closer, as an unclosed fence does: it never
 	 *  stands above another block, and with no closer below it reads to the body's end. */
 	readsOn?: boolean;
@@ -156,6 +159,30 @@ export function unfinishedReadings(grammar: GrammarView): readonly UnfinishedRea
 		readingsByOpeners.set(openers, readings);
 	}
 	return readings;
+}
+
+/** The reading that says a block of these bytes waits on a line below to close it, or null. */
+export function waitingReading(raw: string, grammar: GrammarView): UnfinishedReading | null {
+	return unfinishedReadings(grammar).find((reading) => reading.notFinal(raw)) ?? null;
+}
+
+/** The topmost of the `count` blocks above that a line of `written` closes by the same reading, the
+ *  block a closer typed below finishes, so that line opens nothing; -1 when there is none. */
+export function waitingAboveClosedBy(
+	written: readonly string[],
+	rawAbove: (index: number) => string,
+	count: number,
+	readings: readonly UnfinishedReading[]
+): number {
+	const closing = readings.filter(
+		(reading) => !reading.readsOn && written.some((line) => reading.mayClose(line))
+	);
+	if (closing.length === 0) return -1;
+	let top = -1;
+	for (let i = count - 1; i >= 0; i--) {
+		if (closing.some((reading) => reading.notFinal(rawAbove(i)))) top = i;
+	}
+	return top;
 }
 
 /**

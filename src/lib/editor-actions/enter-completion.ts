@@ -1,12 +1,14 @@
 /**
  * Enter completion: a lone typed line a registered completer recognises becomes the structure
- * it opens instead of splitting. `planEnterCompletion` is pure; `withEnterCompletion` is the
- * one place a plan is applied, on Enter and, for the completers that answer as you type, after
- * a keystroke's write.
+ * it opens instead of splitting. `withEnterCompletion` is the one place a plan is applied: on
+ * Enter, and in place of a keystroke's write for the completers that answer as you type. That
+ * comes before the content write's own closer for an opener (`content-write.ts`), since a
+ * completer also puts the caret in the body.
  */
 
 import {
 	displayLength,
+	displayLines,
 	isBlankText,
 	splitLines,
 	trailingLineEnding,
@@ -18,7 +20,12 @@ import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { readAsOpened } from '../schema/opened-reading';
-import type { GrammarView } from '../schema/block-openers';
+import {
+	unfinishedReadings,
+	waitingAboveClosedBy,
+	type GrammarView
+} from '../schema/block-openers';
+import { refusedWrite, withStoredCaret } from './stored-caret';
 import {
 	completeLineOnType,
 	completeTypedLine,
@@ -38,8 +45,8 @@ export function withEnterCompletion(
 	grammar: GrammarView,
 	getLineEnding: () => LineEnding
 ): BlockEditActions {
-	/** `snapshotOffset` is where the caret was, so one undo restores the typed line with the caret
-	 *  at its end rather than in front of it. */
+	/** `snapshotOffset` is where undo puts the caret back: the line's end on Enter, where the
+	 *  keystroke began on type. */
 	const complete = (index: number, completion: EnterCompletion, snapshotOffset: number) =>
 		blockEdit.replaceBlock(
 			index,
@@ -57,9 +64,18 @@ export function withEnterCompletion(
 			if (!completion) return blockEdit.splitBlock(index, offset, run);
 			return complete(index, completion, offset);
 		},
-		async completeLineOnType(index: number, caret: number): Promise<boolean> {
-			const completion = planTypedCompletion(childAt(index), caret, grammar, getLineEnding());
-			return completion ? complete(index, completion, caret) : false;
+		completeLineOnType(index, text, caret, preEditOffset) {
+			const node = childAt(index);
+			const typed = node && { ...node, raw: text };
+			const completion = planTypedCompletion(typed, caret, grammar, getLineEnding());
+			if (!completion) return refusedWrite();
+			// A line that closes an opener waiting above finishes that block and opens none.
+			const lines = displayLines(text).map((line) => line.text);
+			const above = (i: number) => childAt(i)?.raw ?? '';
+			if (waitingAboveClosedBy(lines, above, index, unfinishedReadings(grammar)) >= 0) {
+				return refusedWrite();
+			}
+			return withStoredCaret(complete(index, completion, preEditOffset), caret, undefined, false);
 		}
 	};
 }

@@ -39,7 +39,8 @@ export function directiveContainerOpener(
 		// A run of colons alone could be the closer of a container left open above.
 		readingNotFinal: {
 			notFinal: directiveReadingNotFinal,
-			mayClose: (line) => isDirectiveCloser(line, 3)
+			mayClose: (line) => isDirectiveCloser(line, 3),
+			closer: (raw) => ':'.repeat(matchDirectiveOpener(firstDisplayLine(raw).text)?.colonCount ?? 3)
 		},
 		tryOpen(ctx) {
 			const fence = matchDirectiveOpener(ctx.line.text);

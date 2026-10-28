@@ -4,10 +4,13 @@
  * rebuilt raw (`docs/design/structural-edits.md` § Structural operations).
  */
 
-import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
-import type { GrammarView } from '../schema/block-openers';
+import {
+	unfinishedReadings,
+	type GrammarView,
+	type UnfinishedReading
+} from '../schema/block-openers';
 import {
 	lineOpensAs,
 	parseContainerRaw,
@@ -15,10 +18,9 @@ import {
 	type BytesReading
 } from '../schema/container-raw';
 import {
-	displayLines,
+	splitLines,
 	documentLineEnding,
 	firstDisplayLine,
-	joinDisplayLines,
 	ownTrailingLineEnding,
 	trimTrailingLineEnding,
 	type LineEnding
@@ -188,43 +190,130 @@ function writeLegal(
 }
 
 /**
- * The written bytes parsed, with a construct they leave open closed first, or the next parse and
- * the neighbour merge would read every block below it as its body.
+ * The written bytes parsed, with an opener the write put on a line of its own given its own closer
+ * first, or the next parse and the fix-up would read the blocks below into it.
  */
 function closeWrittenConstruct(
 	parent: BodyParent,
 	blockIndex: number,
 	text: string,
-	oldKind: AnyBlockKind,
-	read: FragmentReader
+	read: FragmentReader,
+	readings: readonly UnfinishedReading[]
 ): { text: string; parsed: Document } {
 	const parsed = read(text);
-	const next = parent.children[blockIndex + 1];
-	if (!next) return { text, parsed };
-	if (parsed.children.length === 1 && parsed.children[0].kind === oldKind) return { text, parsed };
-	const terminator = openConstructTerminator(text, parsed.children, read);
-	// An opener the write only exposed reads on as a reload reads it, closer and all.
-	if (!terminator || !opensOnWrittenLine(parent.children[blockIndex].raw, text, parsed)) {
-		return { text, parsed };
-	}
-	if (takesCloserBelow(text, parsed, next, read)) return { text, parsed };
-	const closed = text + terminator;
+	const closer = openerCloser(parent.children, blockIndex, text, read, readings, () => parsed);
+	if (closer === null) return { text, parsed };
+	const closed = text + closer;
 	return { text: closed, parsed: read(closed) };
 }
 
-/** Whether an opener typed back onto its body takes the closer flush beneath it; a fence typed
- *  on its own line, or with a blank line under it, gets a closer of its own. */
+/** The closing line, ending and all, a write of `text` over child `index` adds for an opener it puts
+ *  on a line of its own; null when it leaves none. */
+export function writtenOpenerCloser(
+	parent: WriteTarget,
+	index: number,
+	text: string,
+	grammar: GrammarView
+): string | null {
+	const owner = 'owner' in parent ? parent.owner : undefined;
+	const read = fragmentReaderAt(owner, index, grammar);
+	return openerCloser(parent.children, index, text, read, unfinishedReadings(grammar), () =>
+		read(text)
+	);
+}
+
+function openerCloser(
+	children: readonly NodeView[],
+	index: number,
+	text: string,
+	read: FragmentReader,
+	readings: readonly UnfinishedReading[],
+	readWritten: () => Document
+): string | null {
+	const next = children[index + 1];
+	// The closer is a line of its own, so bytes whose last line is unterminated have nowhere to put
+	// one, and an opener the write only exposed reads on as a reload reads it, closer and all.
+	const ending = ownTrailingLineEnding(text);
+	if (!next || ending === '' || !waitsOnWrittenLine(children[index].raw, text, readings)) {
+		return null;
+	}
+	const parsed = readWritten();
+	const opened = parsed.children[parsed.children.length - 1];
+	const reading = opened && waitingFor(opened, readings);
+	if (!reading?.closer || !opensOnWrittenLine(children[index].raw, text, parsed)) return null;
+	if (takesCloserBelow(text, opened, next, read, readings)) return null;
+	if (!reading.readsOn && !takesBlocksBelow(children, index, text, parsed, reading, read)) {
+		return null;
+	}
+	const closer = reading.closer(opened.raw) + ending;
+	return opensEditableLine(read(text + closer), parsed.children.length - 1) ? closer : null;
+}
+
+// A kind that holds child blocks draws its opener line as chrome, not text the caret types in, so
+// closing it mid-name would send the rest of the name into its body.
+function opensEditableLine(closed: Document, index: number): boolean {
+	const kind = closed.children[index]?.kind;
+	return kind !== undefined && !mustHoldChild(kind);
+}
+
+/** The reading a block waits on, when one names the line that would close it. */
+const waitingFor = (block: NodeView, readings: readonly UnfinishedReading[]) =>
+	readings.find((reading) => reading.closer !== null && reading.notFinal(block.raw)) ?? null;
+
+/** Whether the bytes from some line the write changed on wait for a closer, before any parse:
+ *  a keystroke in prose is answered here. */
+function waitsOnWrittenLine(
+	before: string,
+	text: string,
+	readings: readonly UnfinishedReading[]
+): boolean {
+	const span = writtenSpan(before, text);
+	for (let at = text.lastIndexOf('\n', span.start - 1) + 1; at <= span.end && at < text.length;) {
+		const rest = text.slice(at);
+		if (readings.some((reading) => reading.closer !== null && reading.notFinal(rest))) return true;
+		const lineEnd = text.indexOf('\n', at);
+		if (lineEnd < 0) break;
+		at = lineEnd + 1;
+	}
+	return false;
+}
+
+/** Whether an opener typed back onto its body takes the closer flush beneath it; one typed on its
+ *  own line, or with a blank line under it, gets a closer of its own. */
 function takesCloserBelow(
 	text: string,
-	parsed: Document,
+	opened: NodeView,
 	next: NodeView,
-	read: FragmentReader
+	read: FragmentReader,
+	readings: readonly UnfinishedReading[]
 ): boolean {
-	const opened = parsed.children[parsed.children.length - 1];
 	const hasBody = trimTrailingLineEnding(opened.raw).includes('\n');
 	if (!hasBody || next.leadingTrivia !== '') return false;
-	const head = text + firstDisplayLine(next.raw).text + ownTrailingLineEnding(text);
-	return !openConstructTerminator(head, read(head).children, read);
+	const head = read(text + firstDisplayLine(next.raw).text + ownTrailingLineEnding(text));
+	const last = head.children[head.children.length - 1];
+	return !last || waitingFor(last, readings) === null;
+}
+
+/** Whether an opener that only a closer below changes takes blocks in down to one, read at each
+ *  block holding a line that may close it, as the fix-up reads them. */
+function takesBlocksBelow(
+	children: readonly NodeView[],
+	index: number,
+	text: string,
+	parsed: Document,
+	reading: UnfinishedReading,
+	read: FragmentReader
+): boolean {
+	const opened = parsed.children.length - 1;
+	let bytes = text;
+	for (let k = index + 1; k < children.length; k++) {
+		const node = children[k];
+		bytes += node.leadingTrivia + node.raw;
+		if (!splitLines(node.raw).some((line) => reading.mayClose(line.text))) continue;
+		const reread = read(bytes).children[opened];
+		if (reread && reread.raw.length > parsed.children[opened].raw.length) return true;
+	}
+	return false;
 }
 
 /** Whether the last block of `parsed` opens on a line the write changed in `before`. */
@@ -234,29 +323,6 @@ function opensOnWrittenLine(before: string, text: string, parsed: Document): boo
 	const lineEnd = start + firstDisplayLine(last.raw).text.length;
 	const span = writtenSpan(before, text);
 	return span.start <= lineEnd && span.end >= start;
-}
-
-/**
- * The closing line the bytes need when their last construct runs to end of file; null when they
- * close themselves, or no fence opener explains the run.
- */
-function openConstructTerminator(
-	text: string,
-	blocks: readonly CstNode[],
-	read: FragmentReader
-): string | null {
-	// The closer is a line of its own, so bytes whose last line is unterminated have nowhere to
-	// put one: an unterminated tail slice absorbs nothing while it stands alone.
-	const ending = ownTrailingLineEnding(text);
-	if (ending === '' || blocks.length === 0) return null;
-	const probe = read(text + ending + NEXT_PROSE_LINE + ending);
-	if (probe.children.length !== blocks.length) return null;
-	const [openerLine, ...bodyLines] = displayLines(blocks[blocks.length - 1].raw);
-	const opener = matchFenceOpen(openerLine.text);
-	if (!opener) return null;
-	const body = joinDisplayLines(bodyLines);
-	const run = escalatedFenceLength(body, opener.marker, opener.length);
-	return opener.indent + opener.marker.repeat(run) + ending;
 }
 
 function writeParsedContent(
@@ -280,8 +346,8 @@ function writeParsedContent(
 		parent,
 		blockIndex,
 		text,
-		oldKind,
-		fragmentReaderAt(parent.owner, blockIndex, grammar)
+		fragmentReaderAt(parent.owner, blockIndex, grammar),
+		unfinishedReadings(grammar)
 	);
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];

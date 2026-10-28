@@ -73,12 +73,13 @@ describe('the walk for a construct a keystroke could finish, over a 5,000-block 
 		expect(askedNear(walkOf('paragraph 0x\n', 0).blocks, 0)).toBe(true);
 	});
 
-	// The one keystroke that pays for the body: a first line left waiting reads down to a closer.
-	it('a first line left waiting on a closer reads every block below once', () => {
+	// The one keystroke that pays for the body: a first line left waiting reads down for a closer,
+	// once for the closer the write would give it and once for the walk.
+	it('a first line left waiting on a closer reads every block below twice', () => {
 		const { asked } = walkOf('$$\n', 0, `x$$\n\n${BODY}`);
-		// Each block below holds one line, asked once by the one declaration waiting on it.
-		expect(asked).toBeGreaterThanOrEqual(BLOCKS);
-		expect(asked).toBeLessThan(2 * BLOCKS);
+		// Each block below holds one line, asked once a pass by the one declaration waiting on it.
+		expect(asked).toBeGreaterThanOrEqual(2 * BLOCKS);
+		expect(asked).toBeLessThan(3 * BLOCKS);
 	});
 
 	// An unclosed fence takes every line below it, so none stands above the line a keystroke wrote.

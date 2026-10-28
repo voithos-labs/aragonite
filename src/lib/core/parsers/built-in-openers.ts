@@ -136,6 +136,6 @@ export const BUILT_IN_OPENERS = {
 		},
 		interruptsParagraph: false,
 		// A definition ends at a blank line, so no line past one finishes it.
-		readingNotFinal: { notFinal: definitionReadingNotFinal, mayClose: () => false }
+		readingNotFinal: { notFinal: definitionReadingNotFinal, mayClose: () => false, closer: null }
 	}
 } satisfies Partial<Record<BlockKind, BlockOpener>>;

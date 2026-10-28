@@ -124,7 +124,7 @@ export function createNestedBlockEdit(
 
 		// Unwrapped, this bundle completes no line, as its `splitBlock` doesn't; `withEnterCompletion`
 		// adds both above the container's overrides.
-		completeLineOnType: async () => false
+		completeLineOnType: () => refusedWrite()
 	};
 
 	return blockEdit;

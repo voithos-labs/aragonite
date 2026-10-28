@@ -32,6 +32,7 @@ export const DETAILS_SUMMARY = 'details-summary';
 
 const OPEN_LINE = /^<details( open)?>$/;
 const SUMMARY_LINE = /^<summary>(.*)<\/summary>$/;
+const CLOSE_TAG = '</details>';
 const CLOSE_LINE = /^<\/details>$/;
 
 /** `<summary>` above and `</details>` below, so a blank against either belongs to the element. */
@@ -200,7 +201,11 @@ export function registerDetailsKind(view: BlockView): void {
 			// Redundant with htmlBlock's type-6 interrupt, which details wins on re-dispatch; kept
 			// so this opener's paragraph behavior does not depend on that priority order.
 			interruptsParagraph: (line) => OPEN_LINE.test(line),
-			readingNotFinal: { notFinal: awaitsClosingTag, mayClose: (line) => CLOSE_LINE.test(line) },
+			readingNotFinal: {
+				notFinal: awaitsClosingTag,
+				mayClose: (line) => CLOSE_LINE.test(line),
+				closer: () => CLOSE_TAG
+			},
 			tryOpen(ctx) {
 				const openMatch = ctx.line.text.match(OPEN_LINE);
 				if (!openMatch) return null;

@@ -40,6 +40,7 @@ import {
 	isMathFenceLine,
 	legalMathSource,
 	mathBlockLines,
+	mathCloser,
 	mathCloserLine,
 	opensMathBlock,
 	readMathSource
@@ -221,7 +222,11 @@ export function registerMathBlock(view: BlockView): void {
 			// `$$` collides with no built-in matcher, so this number only keeps it from tying.
 			priority: OPENER_PRIORITIES.fencedCode + 5,
 			interruptsParagraph: opensMathBlock,
-			readingNotFinal: { notFinal: awaitsMathCloser, mayClose: isMathFenceLine },
+			readingNotFinal: {
+				notFinal: awaitsMathCloser,
+				mayClose: isMathFenceLine,
+				closer: mathCloser
+			},
 			tryOpen(ctx) {
 				const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);
 				// An unclosed fence declines, so its lines read as a paragraph.

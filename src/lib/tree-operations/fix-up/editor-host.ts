@@ -2,7 +2,11 @@
 import type { CstNode } from '../../core/nodes';
 import { splitLines } from '../../core/lines';
 import { tableTakesLine } from '../../core/parsers/table';
-import { unfinishedReadings, type GrammarView } from '../../schema/block-openers';
+import {
+	unfinishedReadings,
+	waitingAboveClosedBy,
+	type GrammarView
+} from '../../schema/block-openers';
 import { readAsOpened } from '../../schema/opened-reading';
 import { isGridKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { childHoldingLastLine, followBytes } from '../../schema/container-raw';
@@ -29,6 +33,8 @@ function createHost(grammar: GrammarView): Host {
 			return lines.length > 0 && tableTakesLine(lines, 0, lines.length, grammar);
 		},
 		readingsThatMayChange: () => unfinishedReadings(grammar),
+		waitingAboveClosedBy: (written, rawAbove, count) =>
+			waitingAboveClosedBy(written, rawAbove, count, unfinishedReadings(grammar)),
 		kindTraits: (kind) => {
 			const descriptor = tryGetBlockKindDescriptor(kind as CstNode['kind']);
 			return {

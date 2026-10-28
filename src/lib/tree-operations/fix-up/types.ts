@@ -86,6 +86,13 @@ export interface Host {
 	/** Whether a table right above a block with these bytes takes its first line as a row. */
 	continuesTableAbove(raw: string): boolean;
 	readingsThatMayChange(): readonly UnfinishedReading[];
+	/** The topmost of the `count` blocks above that a line of `written` closes, or -1
+	 *  (`schema/block-openers.ts :: waitingAboveClosedBy`). */
+	waitingAboveClosedBy(
+		written: readonly string[],
+		rawAbove: (i: number) => string,
+		count: number
+	): number;
 	kindTraits(kind: string): KindTraits;
 	/** A copy of a container whose `raw` was rewritten from `rawBefore`, its metadata read again. */
 	containerAfterRewrite(node: CstNode, rawBefore: string): { node: CstNode };

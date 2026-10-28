@@ -25,10 +25,9 @@ const FENCE_HOME = SOURCE.fenceRule;
 
 /** Every site sizing a fence run over a body, which is a wider set than the write rule. */
 const ESCALATION_SITES: Record<string, string> = {
-	'src/lib/core/parsers/fence-syntax.ts': 'the grammar leaf that defines it',
+	'src/lib/core/parsers/fence-syntax.ts':
+		'the grammar leaf that defines it, and the closer the fence reading gives a write that left one open',
 	[FENCE_HOME]: 'the fencedCode write rule',
-	'src/lib/tree-operations/content-write.ts':
-		'sizes the terminator the content write mints for a construct it left open (GH #180)',
 	'src/lib/debug/diagnostics-report.ts':
 		'sizes the section fences of a field report whose bodies routinely carry fences of their own',
 	'src/lib/plugins/mermaid/mermaid-kind.ts':

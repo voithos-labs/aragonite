@@ -91,7 +91,15 @@ test.describe('inline delimiter auto-pair', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('fencedCode');
 	});
 
-	// A step over a closer that leaves a line another on-type rule handles still reaches it.
+	// `$$` alone on a line opens a math block once a `$$` below closes it, so the pair isn't written.
+	test('a $ on an empty line types alone', async ({ page }) => {
+		await editor.loadContent('above\n\n\n');
+		await editor.focusBlock(1, 0);
+		await page.keyboard.type('$');
+		await editor.bridge.waitForSourceEquals('above\n\n$\n');
+		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+	});
+
 	test('$$ still forms the math block as the second $ lands', async ({ page }) => {
 		await editor.loadContent('above\n\n\n');
 		await editor.focusBlock(1, 0);
