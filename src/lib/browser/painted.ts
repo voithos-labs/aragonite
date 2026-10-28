@@ -198,18 +198,6 @@ export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
 	return chrome;
 }
 
-/** Whether every walk segment is a hidden marker run, so no caret position has a pixel of its own;
- *  `invariants/landable-caret.ts` refuses this shape when focus lands. */
-export function paintsNoLandableContent(container: ParentNode): boolean {
-	let hidden = false;
-	for (const seg of landingSegments(container, markerHidingMode(container))) {
-		if (seg.len === 0) continue;
-		if (seg.kind !== 'opaque' || !seg.hidden) return false;
-		hidden = true;
-	}
-	return hidden;
-}
-
 /** Whether `node` sits inside an atomic inline widget under `root`, where a caret is no caret of
  *  the editor's: the browser can leave one there, but no key types into it. */
 export function isInsideAtomicWidget(root: ParentNode, node: Node): boolean {
