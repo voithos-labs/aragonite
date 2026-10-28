@@ -9,6 +9,7 @@ import type { RawOffset } from '../core/coordinate-spaces';
 import { normalizeLineEndings } from '../core/lines';
 import { placeholderBreakOf } from './placeholder-break';
 import { isBreakAnchor, isInVisibleText } from './painted';
+import { type CaretSpot, caretSpotOf } from './caret-spot';
 
 /** One read of the browser's selection; `range` is its first range, still live. */
 export interface NativeSelectionRead {
@@ -119,4 +120,11 @@ export function caretOnPendingBreakLine(el: HTMLElement): boolean {
 export function caretIsInTextContent(el: HTMLElement): boolean {
 	const live = readNativeSelection();
 	return !!live && isInVisibleText(el, live.range.startContainer);
+}
+
+/** How the live collapsed caret in `el` shows (`caret-spot.ts :: caretSpotOf`), or null with none. */
+export function liveCaretSpot(el: HTMLElement): CaretSpot | null {
+	const live = readNativeSelection();
+	if (!live?.collapsed || !el.contains(live.focus.node)) return null;
+	return caretSpotOf(el, live.focus);
 }

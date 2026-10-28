@@ -105,7 +105,7 @@ For the second, `src/lib/caret/widget-edge-snap.ts` :: `nearestWidgetEdgeSeat` d
 | beside one                                                   | the nearest, comparing rows before columns, so a click past a line's end never reaches a widget on the line below |
 | above or below one (the strip a box leaves around a picture) | the one on the side the click landed                                                                              |
 
-The widgets it measures are every widget the block draws, a picture inside a link or emphasis included (`src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn`). Where no text node sits beside that edge, the block hands the edge to the drawn caret, which draws the caret there and hides the browser's.
+The widgets it measures are every widget the block draws, a picture inside a link or emphasis included (`src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn`). Where no text node sits beside that edge, the drawn caret draws the caret there and hides the browser's. Beside an emoji or a formula the block asks for it, and beside a picture the caret writer already did when it wrote the caret (§ 3).
 
 The snap does nothing when the browser already put the caret in visible text, or when the surface holds a range (the second and third clicks of a run are a word or block selection, `src/lib/selection/multi-click.ts`, not a caret).
 
