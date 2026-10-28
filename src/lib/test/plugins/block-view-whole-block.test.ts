@@ -220,8 +220,11 @@ describe('a DOM view focused whole', () => {
 				)
 		});
 		const editor = mountEditor({ source: '> [!NOTE]\n> body\n', plugins: [plugin] });
+		const errors: unknown[] = [];
+		editor.instance.getEvents().on('error', (report) => errors.push(report.error));
 		await editor.settle();
 		const failed = blockHostAt(editor, [0]).querySelector('[data-failed-block]');
 		expect(failed?.textContent).toContain('> [!NOTE]');
+		expect(String(errors[0])).toContain("blockFocus: 'whole-block'");
 	});
 });
