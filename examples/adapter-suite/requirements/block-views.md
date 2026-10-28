@@ -9,7 +9,7 @@ its child blocks). A `load` button swaps in a second document, `load-long` swaps
 with three hundred paragraphs after it, an `unmount` toggle removes and restores the editor, and a
 `mirror` shows the value the app holds. The editor scrolls inside a box of its own, so a long
 document windows: only the blocks near the viewport are mounted. The page's inline chip and memo
-badge are `plugin-views.md`'s, and its note block `own-surface.md`'s. Every scenario fails on any console error, page error or console
+badge are `plugin-views.md`'s, its note block `own-surface.md`'s, and its die `hand-built.md`'s. Every scenario fails on any console error, page error or console
 warning, not only the editor's own.
 
 ## Happy paths

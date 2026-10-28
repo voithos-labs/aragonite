@@ -8,7 +8,9 @@
 import {
 	createContext,
 	useContext,
+	useImperativeHandle,
 	type ComponentType,
+	type DependencyList,
 	type HTMLAttributes,
 	type ReactNode
 } from 'react';
@@ -21,6 +23,9 @@ import {
 	type ContainerSurface,
 	type ContainerViewContext,
 	type ContainerViewSpec,
+	type HandBuiltBlock,
+	type HandBuiltViewContext,
+	type HandBuiltViewSpec,
 	type LeafSurface,
 	type LeafViewContext,
 	type LeafViewSpec,
@@ -32,9 +37,10 @@ import { createViewRoot } from './view-root.js';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-// A component's `ctx` leaves out the calls that hand the editor an element, which `LeafContent`,
-// `BlockChildren` and the helper itself make.
+// A component's `ctx` leaves out the calls that hand the editor something, which `LeafContent`,
+// `BlockChildren`, `useBlockHandle` and the helper itself make.
 interface Surfaces {
+	none: { spec: HandBuiltViewSpec; ctx: BlockViewContext };
 	leaf: {
 		spec: LeafViewSpec;
 		ctx: BlockViewContext & { readonly leaf: Omit<LeafSurface, 'attach'> };
@@ -51,10 +57,12 @@ interface Surfaces {
 	};
 }
 
-type MountContext = LeafViewContext | RenderPrimaryViewContext | ContainerViewContext;
+type MountContext =
+	HandBuiltViewContext | LeafViewContext | RenderPrimaryViewContext | ContainerViewContext;
 
-/** What the editor builds into a framework-drawn block: editable text, shown always or behind a
- *  rendered view until a click, or child blocks. */
+/** What the editor builds into a framework-drawn block: nothing (the component draws it all and
+ *  publishes with `useBlockHandle`), editable text, shown always or behind a rendered view until a
+ *  click, or child blocks. */
 export type FrameworkSurface = keyof Surfaces;
 
 /** What the block's component gets: the block's state, and the editor calls for its surface. */
@@ -73,7 +81,9 @@ export type ReactBlockViewOptions<S extends FrameworkSurface> = Omit<
 	/** Classes for the element the editor made for the block, which it measures as the block. */
 	className?: string;
 	/** Hears each change to the shown text, once, never mid-composition; leaf surfaces only. */
-	afterInput?: S extends 'container' ? never : (text: string, ctx: Surfaces[S]['ctx']) => void;
+	afterInput?: S extends 'container' | 'none'
+		? never
+		: (text: string, ctx: Surfaces[S]['ctx']) => void;
 	/** Wraps the component, for providers: the block renders in a React root of its own, which
 	 *  a provider in the host app doesn't reach. */
 	wrap?: (block: ReactNode) => ReactNode;
@@ -123,12 +133,18 @@ type ContentProps = Omit<HTMLAttributes<HTMLElement>, 'children'> & {
 
 /** The element the editor edits the block's text in. It renders empty: the text is the editor's. */
 export function LeafContent({ as: Tag = 'div', ...attributes }: ContentProps) {
-	return <Tag {...attributes} ref={useHandOver('LeafContent').attach} />;
+	return <Tag {...attributes} ref={useHandOver('<LeafContent>').attach} />;
 }
 
 /** The element the editor mounts the block's children into. It renders empty: chrome goes beside it. */
 export function BlockChildren({ as: Tag = 'div', ...attributes }: ContentProps) {
-	return <Tag {...attributes} ref={useHandOver('BlockChildren').mountChildren} />;
+	return <Tag {...attributes} ref={useHandOver('<BlockChildren>').mountChildren} />;
+}
+
+/** What the editor calls on a `surface: 'none'` block (`focus`, `getCursorOffset`, `focusable` and
+ *  friends), made by `create` and made again when `deps` change, as `useImperativeHandle` does. */
+export function useBlockHandle(create: () => HandBuiltBlock, deps?: DependencyList): void {
+	useImperativeHandle(useHandOver('useBlockHandle').publish, create, deps);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
@@ -138,6 +154,7 @@ export function BlockChildren({ as: Tag = 'div', ...attributes }: ContentProps) 
 interface HandOver {
 	attach(el: HTMLElement | null): void;
 	mountChildren(el: HTMLElement | null): void;
+	publish(block: HandBuiltBlock | null): void;
 }
 
 const HandOverContext = createContext<HandOver | null>(null);
@@ -152,12 +169,16 @@ function handOverFor(ctx: MountContext): HandOver {
 			if (!el) return;
 			if (!('container' in ctx)) throw new Error('<BlockChildren> is for a container block');
 			ctx.container.mountChildren(el);
+		},
+		publish(block) {
+			if (!('block' in ctx)) throw new Error("useBlockHandle is for a `surface: 'none'` block");
+			ctx.block.publish(block);
 		}
 	};
 }
 
 function useHandOver(name: string): HandOver {
 	const handOver = useContext(HandOverContext);
-	if (!handOver) throw new Error(`<${name}> renders only inside a reactBlockView component`);
+	if (!handOver) throw new Error(`${name} runs only inside a reactBlockView component`);
 	return handOver;
 }

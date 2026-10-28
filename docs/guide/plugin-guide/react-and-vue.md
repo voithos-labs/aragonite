@@ -4,7 +4,7 @@ Part of the [plugin guide](../plugin-guide.md). It assumes you've met `registerB
 
 If your app is React or Vue, you can draw a plugin block with your own components. The packages that give you the `<Aragonite>` component, `@voithos-labs/aragonite-react` and `@voithos-labs/aragonite-vue`, each carry a helper that turns a component into a block view: `reactBlockView` and `vueBlockView`. Under the hood they're `defineBlockView` with your component rendered into the element the editor makes for the block, so they run wherever the editor runs, the prebuilt copy a React or Vue app installs included. For the smaller things a plugin draws (an inline widget, a decoration, a menu row) there's `reactView` and `vueView`.
 
-Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [a block with its own editing surface](#a-block-with-its-own-editing-surface) · [the same in Vue](#the-same-in-vue) · [widgets, decorations and menu rows](#widgets-decorations-and-menu-rows) · [providers and app context](#providers-and-app-context) · [what the helpers don't do](#what-the-helpers-dont-do)
+Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [a block with its own editing surface](#a-block-with-its-own-editing-surface) · [a block you draw whole](#a-block-you-draw-whole) · [the same in Vue](#the-same-in-vue) · [widgets, decorations and menu rows](#widgets-decorations-and-menu-rows) · [providers and app context](#providers-and-app-context)
 
 ## A memo in React
 
@@ -30,15 +30,15 @@ export const memoView = reactBlockView(Memo, { surface: 'leaf', singleLine: true
 
 **`reactBlockView(Component, options)`** takes the component and the options `defineBlockView` takes, minus `mount`:
 
-| Option                          | What it does                                                                                                                                                      |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `surface`                       | `'leaf'` (editable text, always shown), `'render-primary'` (a rendered view until a click opens the text) or `'container'` (child blocks)                         |
-| `singleLine`                    | Leaf surfaces: the bytes are one line, so Enter ends the block instead of typing a newline                                                                        |
-| `renderSource`, `reshapeSource` | Render-primary: draw the shown text as DOM, and put an edited text back in the shape your kind keeps ([the editable leaf](editable-content.md#the-editable-leaf)) |
-| `watchDocument`                 | Re-render on every change to the document, not just to this block (a table of contents wants this)                                                                |
-| `className`                     | Classes for the element the editor made for the block                                                                                                             |
-| `afterInput(text, ctx)`         | Leaf surfaces: hears each change to the shown text once, never mid-composition; on a click-to-edit block that's before anything is committed                      |
-| `wrap(block)`                   | Wraps your component, for providers ([below](#providers-and-app-context))                                                                                         |
+| Option                          | What it does                                                                                                                                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `surface`                       | `'leaf'` (editable text, always shown), `'render-primary'` (a rendered view until a click opens the text), `'container'` (child blocks) or `'none'` (you draw it all, [below](#a-block-you-draw-whole)) |
+| `singleLine`                    | Leaf surfaces: the bytes are one line, so Enter ends the block instead of typing a newline                                                                                                              |
+| `renderSource`, `reshapeSource` | Render-primary: draw the shown text as DOM, and put an edited text back in the shape your kind keeps ([the editable leaf](editable-content.md#the-editable-leaf))                                       |
+| `watchDocument`                 | Re-render on every change to the document, not just to this block (a table of contents wants this)                                                                                                      |
+| `className`                     | Classes for the element the editor made for the block                                                                                                                                                   |
+| `afterInput(text, ctx)`         | Leaf surfaces: hears each change to the shown text once, never mid-composition; on a click-to-edit block that's before anything is committed                                                            |
+| `wrap(block)`                   | Wraps your component, for providers ([below](#providers-and-app-context))                                                                                                                               |
 
 `<LeafContent>` is the element the editor edits your text in. It renders empty, and it has to stay that way: the editor puts its own text node in there, so your badge, icon or whatever else goes beside it, never inside. It takes the usual HTML attributes plus `as` (`'div'` by default, or `'span'`, `'p'`, `'pre'`).
 
@@ -70,6 +70,7 @@ On a plain leaf every keystroke commits, so `state.node.raw` changes, and the me
 | `'leaf'`           | `ctx.leaf.reveal(offset?)` to put the caret in the text, `ctx.leaf.commitSource(text)` to replace it as one undo step                                                                                  |
 | `'render-primary'` | the same `ctx.leaf` calls                                                                                                                                                                              |
 | `'container'`      | `ctx.container.updateOwnMetadata(patch)`, `moveFocusOut(event)`, `captureScrollPosition()` and `openDraft(spec)`, the container helpers the [walkthrough](container-walkthrough.md#the-component) uses |
+| `'none'`           | nothing more: what the editor calls on your block goes the other way, through `useBlockHandle` ([below](#a-block-you-draw-whole))                                                                      |
 
 ## A click-to-edit block
 
@@ -175,6 +176,71 @@ In Vue it's the same component shape, with `:ref="ctx.container.attachFocus"` on
 
 A container with a marker before its first child's text (a footnote definition's `[^label]: `) gets one more option for that: `ambientPrefix(state, editor)`, beside `surface`, returning the marker ([the container walkthrough](container-walkthrough.md)).
 
+## A block you draw whole
+
+Some blocks have no text for the editor and no children either: an embed with its own buttons, a little widget, a die. Draw one on the `'none'` surface and the editor builds nothing inside it. What it needs from you is the other direction: how to put focus on the block, and whether focus is in it right now. You hand that over with `useBlockHandle`, which works like React's `useImperativeHandle`.
+
+A die that rolls when you press its button (in order, because this is a docs page and not a casino):
+
+```tsx
+import { useRef, useState } from 'react';
+import { reactBlockView, useBlockHandle, type BlockViewProps } from '@voithos-labs/aragonite-react';
+
+function Die({ state }: BlockViewProps<'none'>) {
+	const sides = Number(/d(\d+)/.exec(state.node.raw)?.[1] ?? 6);
+	const [rolled, setRolled] = useState(0);
+	const button = useRef<HTMLButtonElement>(null);
+
+	useBlockHandle(
+		() => ({
+			focusable: true,
+			focus: () => button.current?.focus(),
+			getCursorOffset: () => (document.activeElement === button.current ? 0 : null)
+		}),
+		[]
+	);
+
+	return (
+		<button ref={button} onClick={() => setRolled((n) => (n % sides) + 1)}>
+			d{sides}: {rolled || 'roll me'}
+		</button>
+	);
+}
+
+export const dieView = reactBlockView(Die, { surface: 'none', className: 'die' });
+```
+
+Register it on a leaf kind with `editable: false` and a line like `!! d6` draws a button. ArrowDown from the paragraph above lands on the button, Enter rolls it, and ArrowDown again moves on to the paragraph below. What to know:
+
+- **Three members are the minimum.** `focus(offset)` puts focus in your block (the offset means nothing to a block with no text, so ignore it), `getCursorOffset()` is `0` while focus is inside and `null` otherwise, and `focusable` says whether arrows should stop here at all. You can add the optional ones from the [Block views](../plugin-api.md#block-views) list, like `measurePartialRects` to paint a selection over your block.
+- **Until you publish, arrows pass over the block.** The same goes for a component that stops calling `useBlockHandle`, or unmounts. Both helpers render your component before the editor needs anything from it, so in practice this only matters for a component that publishes conditionally.
+- **`deps` work like `useImperativeHandle`'s.** Leave them out and you publish a fresh object every render, which works but makes the editor rebuild its handle on every render. Pass `[]` when your functions read refs.
+- **Plain arrows leave the block.** An arrow pressed on your button moves to the neighbour it points at. Keys in a text field of yours stay there, and so does any arrow you `preventDefault` (two buttons you arrow between, say).
+- **It can't write its own bytes.** A `'none'` block has no way to change its Markdown or run a block command at itself. If your block edits itself, draw it on the container surface with `blockFocus: 'whole-block'`, like [the note above](#a-block-with-its-own-editing-surface).
+
+In Vue, `useBlockHandle` is a composable you call in `setup`, and `deps` is anything `watch` takes:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useBlockHandle, type BlockViewProps } from '@voithos-labs/aragonite-vue';
+
+defineProps<BlockViewProps<'none'>>();
+const rolled = ref(0);
+const button = ref<HTMLButtonElement | null>(null);
+
+useBlockHandle(() => ({
+	focusable: true,
+	focus: () => button.value?.focus(),
+	getCursorOffset: () => (document.activeElement === button.value ? 0 : null)
+}));
+</script>
+
+<template>
+	<button ref="button" @click="rolled = (rolled % 6) + 1">d6: {{ rolled || 'roll me' }}</button>
+</template>
+```
+
 ## The same in Vue
 
 `vueBlockView(component, options)` takes the same options, and the package has its own `LeafContent` and `BlockChildren`. The memo, as a single-file component:
@@ -270,7 +336,3 @@ app.use(pinia);
 const memoView = vueBlockView(Memo, { surface: 'leaf', singleLine: true, app });
 app.mount('#app');
 ```
-
-## What the helpers don't do
-
-- **A block you draw entirely yourself** (no editable text, no children, like an embed with its own buttons) publishes `focus` and friends from its view, which a component can't hand over. Use `defineBlockView({ surface: 'none' })` for that one ([Block views](../plugin-api.md#block-views)).

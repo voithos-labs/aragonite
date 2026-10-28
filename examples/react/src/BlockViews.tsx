@@ -1,5 +1,5 @@
 // The adapter suite's `?block-views` page (`examples/adapter-suite/requirements/block-views.md`):
-// four blocks drawn by React components through `reactBlockView`, and an inline widget and a
+// five blocks drawn by React components through `reactBlockView`, and an inline widget and a
 // decoration badge through `reactView`.
 import {
 	createContext,
@@ -17,15 +17,18 @@ import {
 	LeafContent,
 	reactBlockView,
 	reactView,
+	useBlockHandle,
 	type BlockViewProps
 } from '@voithos-labs/aragonite-react';
 import type { Decoration, InlineWidgetComponentProps } from '@voithos-labs/aragonite/plugin';
 import {
 	BLOCK_VIEWS_SOURCE,
 	BOOM,
+	DICE_BOOM,
 	LONG_SOURCE,
 	MEMO_LENGTH_ATTR,
 	blockViewsPlugin,
+	diceSides,
 	noteText,
 	type NoteHooks
 } from '../../adapter-suite/block-view-kinds';
@@ -140,6 +143,28 @@ function atEdge(box: HTMLTextAreaElement, key: string): boolean {
 	return false;
 }
 
+// A die the component draws whole: its button takes the caret, and it rolls in order, since a fair
+// die would make a flaky test. `!! boom` throws.
+function Dice({ state }: BlockViewProps<'none'>) {
+	const sides = diceSides(state.node);
+	const [rolled, setRolled] = useState(0);
+	const roll = useRef<HTMLButtonElement | null>(null);
+	useBlockHandle(
+		() => ({
+			focusable: true,
+			focus: () => roll.current?.focus(),
+			getCursorOffset: () => (document.activeElement === roll.current ? 0 : null)
+		}),
+		[]
+	);
+	if (state.node.raw.startsWith(DICE_BOOM)) throw new Error('the die went boom');
+	return (
+		<button ref={roll} className="dice-roll" onClick={() => setRolled((n) => (n % sides) + 1)}>
+			d{sides}: {rolled || 'roll me'}
+		</button>
+	);
+}
+
 // Reaches the chip and the badge through `wrap`, each in a React root of its own.
 const FrameworkName = createContext('no provider');
 const withName = (view: ReactNode) => (
@@ -182,6 +207,7 @@ const plugins = [
 		}),
 		box: reactBlockView(Box, { surface: 'container', className: 'box' }),
 		note: reactBlockView(Note, { surface: 'container', className: 'note' }),
+		dice: reactBlockView(Dice, { surface: 'none', className: 'dice' }),
 		chip: reactView(Chip, { wrap: withName }),
 		memoLength: reactView(MemoLength, { wrap: withName })
 	})
