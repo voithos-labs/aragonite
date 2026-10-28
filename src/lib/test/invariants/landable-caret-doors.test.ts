@@ -159,7 +159,11 @@ describe('G1.33 fires from the focus boundary', () => {
 		blockComponentAt(editor, [0]).parkCaret?.(0);
 		await editor.settle();
 
-		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:landable-caret']);
+		// Through the caret writer, which refuses the caret as well (G1.159).
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([
+			'invariant:landable-caret',
+			'invariant:caret-paints'
+		]);
 	});
 
 	it('fires when the render-primary reveal puts a caret in a marker-only source', async () => {
@@ -173,6 +177,10 @@ describe('G1.33 fires from the focus boundary', () => {
 		blockComponentAt(editor, [0]).parkCaret?.(0);
 		await editor.settle();
 
-		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:landable-caret']);
+		// Through the caret writer, which refuses the caret as well (G1.159).
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([
+			'invariant:landable-caret',
+			'invariant:caret-paints'
+		]);
 	});
 });

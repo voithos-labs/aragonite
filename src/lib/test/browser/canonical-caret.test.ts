@@ -57,6 +57,7 @@ describe('a caret the browser left off its spot moves to it', () => {
 		const el = mount(BOLD);
 		const writer = createCaretWriter(
 			() => {},
+			() => false,
 			() => false
 		);
 		browserCaret(textOf(el, ' text'), 0);
@@ -70,6 +71,7 @@ describe('a caret the browser left off its spot moves to it', () => {
 		browserCaret(textOf(el, 'bold'), 0);
 		createCaretWriter(
 			() => {},
+			() => false,
 			() => false
 		).canonicalizeCaret(el);
 		expect(rawSelectionFocus(el)).toBe(5);
@@ -80,6 +82,7 @@ describe('a caret the browser left off its spot moves to it', () => {
 		browserCaret(textOf(el, '2'), 1);
 		createCaretWriter(
 			() => {},
+			() => false,
 			() => false
 		).canonicalizeCaret(el);
 		expect(caret()).toEqual({ node: el, offset: 2 });
@@ -93,6 +96,7 @@ describe('a caret the browser left off its spot moves to it', () => {
 		browserCaret(el.firstChild!, 3);
 		createCaretWriter(
 			() => {},
+			() => false,
 			() => false
 		).canonicalizeCaret(el);
 		expect(caret()).toEqual({ node: el.firstChild, offset: 2 });
@@ -102,6 +106,7 @@ describe('a caret the browser left off its spot moves to it', () => {
 		const el = mount(BOLD);
 		const writer = createCaretWriter(
 			() => {},
+			() => false,
 			() => false
 		);
 		browserCaret(textOf(el, ' text'), 0);
@@ -129,6 +134,7 @@ describe('every other caret stays', () => {
 		expect(
 			createCaretWriter(
 				() => {},
+				() => false,
 				() => false
 			).canonicalizeCaret(el)
 		).toBe(false);
@@ -141,6 +147,7 @@ describe('every other caret stays', () => {
 		expect(
 			createCaretWriter(
 				() => {},
+				() => false,
 				() => false
 			).canonicalizeCaret(el)
 		).toBe(false);
@@ -151,6 +158,7 @@ describe('every other caret stays', () => {
 		const el = mount(BOLD);
 		const writer = createCaretWriter(
 			() => {},
+			() => false,
 			() => false
 		);
 		writer.placeCaretAtRaw(el, 13, { clamp: 'exact' });
@@ -175,6 +183,7 @@ describe('the check on every key', () => {
 		resetPerfInstruments();
 		createCaretWriter(
 			() => {},
+			() => false,
 			() => false
 		).canonicalizeCaret(el);
 		expect(perfSnapshot().caretCanonicalSteps).toBe(1);
