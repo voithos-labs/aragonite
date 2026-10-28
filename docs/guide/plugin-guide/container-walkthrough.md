@@ -414,7 +414,7 @@ The flip is one undoable edit, so undo un-debunks it, which is how conspiracies 
 
 The wrapper and the two `light`s are there because the editor paints no background of its own. A fresh app's page is white, so the built-in chrome (the wrapper's attribute) and the editor's own surfaces (the prop) both have to say so; on a dark page, both say `dark`, or nothing. [consumer-guide.md](../consumer-guide.md)'s theming section explains the two tiers.
 
-Want a collapse toggle? That's how `<details>` folds: its descriptor declares its summary as a title row (`reservedChrome`) with an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit. Without it, such a reveal has nowhere to land and reports that it didn't. A `:::` box can't fold yet, though, since its title row is the opener line the grammar builds, not one you declare.
+Want a collapse toggle? That's how `<details>` folds: its descriptor declares its summary as a title row (`reservedChrome`) with an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit. Without it, such a reveal has nowhere to land and reports that it didn't. A `:::` box folds the same way, except its title row is the opener line the grammar builds, so its `reservedChrome` names that row's kind: `{ kind: declaredPluginKind('directiveOpenerLine'), isCollapsed }`. A dev build warns if it names any other.
 
 ![A conspiracy, debunked on camera](./conspiracy.gif)
 
@@ -431,7 +431,7 @@ The type does the nagging: a missing column or a missing block is a compile erro
 1. A container can't declare `roundTrip: inherit-default`; its `rebuildRaw` is the mechanism.
 2. A `not-mergeable` kind can't declare `mergeBackspace: inherit-default`; it has no default merge to inherit.
 3. A cell claiming the focus-then-delete model (a `focus` or `mergeBackspace` `via` saying `focus-then-delete` or `a second press deletes`) must be backed by `blockFocus: 'whole-block'`.
-4. A kind declaring `reservedChrome` can't leave `clipboard: inherit-default`; the chrome bytes live in the container's own raw, so the default byte slice is wrong for it.
+4. A kind with a title row (a declared `reservedChrome`, or the opener line every `:::` container has) can't leave `clipboard: inherit-default`; the row's bytes live in the container's own raw, so the default byte slice is wrong for it.
 
 **Name a mechanism your own kind carries.** `implemented` needs a `via` you can point at: your component, your `rebuildRaw`, your test. Never an internal editor mechanism you don't own. A cell you can't name honestly is `inherit-default` or `not-supported`, never an invented capability.
 

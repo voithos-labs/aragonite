@@ -34,7 +34,7 @@ These checks run in three kinds of place:
 | G1.15  | A plugin opener claims at least one line, and its raw matches the lines it consumed           | A·N     |
 | G1.16  | Every coordinate a commit declares is document-absolute                                       | A·N     |
 | G1.17  | An opener registered after the grammar was read warns                                         | A·N     |
-| G1.18  | A container's `reservedChrome` names a registered chrome kind                                 | A·N     |
+| G1.18  | A container's `reservedChrome` names a registered chrome kind, the one child 0 holds          | A·N     |
 | G1.19  | A commit scope's declared path still resolves to its captured node                            | A       |
 | G1.20  | An unshared chain is as deep as the path it was asked for                                     | A       |
 | G1.21  | A column edit's row scopes are the owned table's own children                                 | A       |
@@ -203,7 +203,8 @@ first editor mounts. Predicate `checkLateOpenerRegistration` (`registry.ts`) · 
 
 **G1.18 · Reserved-chrome coherence.** The chrome kind a container's `reservedChrome` names (its
 title row) is registered, which `registerChromeLeaf` does, and a registered kind always carries its
-view (G3.15, which retired this check's component half). The bootstrap counterpart to G1.14's
+view (G3.15, which retired this check's component half). It's also the row child 0 holds, so a `:::`
+container, whose row is the opener line the grammar builds, can only name `directiveOpenerLine`. The bootstrap counterpart to G1.14's
 per-commit slot check. Predicate `checkReservedChromeCoherence`
 (`registry.ts`) · bootstrap · `reserved-chrome-coherence.test.ts`,
 `test/schema/registration-checks.test.ts`.
@@ -232,7 +233,7 @@ half-written tree, so `notifyEdit` and `runAll` assert no commit is open, and a 
 
 **G1.24 · Closure-block coherence.** A kind's closure block (its answer to each editor system)
 agrees with its descriptor: no `inherit-default` for a container's `roundTrip` (its `rebuildRaw` is
-the round trip), a `not-mergeable` kind's `mergeBackspace` or a `reservedChrome` kind's `clipboard`,
+the round trip), a `not-mergeable` kind's `mergeBackspace` or the `clipboard` of a kind with a title row (declared, or a `:::` opener line),
 and a cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must
 parse to its kind, checked in the unit sweep since a `parse` import in the flush is a cycle.
 `checkClosureCoherence` · bootstrap · `closure-coherence.test.ts`, `closure-fixtures.test.ts`.
