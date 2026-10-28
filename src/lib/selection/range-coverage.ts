@@ -234,6 +234,12 @@ export function isChromeChild(container: ChromeContainer, leafPath: readonly num
 	);
 }
 
+/** The container whose title row the leaf at `path` is, or null for any other leaf. */
+export function titleRowOwner(doc: DocumentView, path: readonly number[]): NodeView | null {
+	const container = nearestChromeContainer(doc, path);
+	return container && isChromeChild(container, path) ? container.node : null;
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
 function sealed(start: SelectionPoint, end: SelectionPoint, wholeUnits: DocPath[]): CoveredRange {

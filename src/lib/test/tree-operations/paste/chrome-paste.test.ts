@@ -11,6 +11,7 @@ import {
 } from '../../harness/editor-actions';
 import type { AnyBlockKind, CstNode, Document } from '../../../core/nodes';
 import { testChromeContainer } from '#lib/test/harness/test-kinds.js';
+import { registerCalloutForTests } from '#lib/test/selection/chrome-plugins.js';
 
 function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): Document {
 	return {
@@ -99,6 +100,52 @@ describe('paste into a reserved-chrome leaf', () => {
 			12
 		);
 		expect(controller.commitMultiScope).not.toHaveBeenCalled();
+	});
+
+	// Miss-analysis (#801): every chrome paste row pasted into a title-only row, so none had a
+	// `:::name` marker on the row for the paste to land in.
+	it.each([
+		['inside the colon run', 2],
+		['inside the name', 5],
+		['between the name and the title', 10]
+	])('a paste %s of an opener line lands at the title start', async (_name, offset) => {
+		registerCalloutForTests();
+		const doc = parse(':::callout Title\nBody\n:::\n');
+		const blockEdit = makeStubBlockEdit();
+
+		await pasteDispatch(
+			{ pastedText: 'x', targetPath: [0, 0], offset },
+			pasteContext({ doc, blockEdit, controller: makeStubController() })
+		);
+
+		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			':::callout xTitle\n',
+			'literal',
+			'join-typing',
+			offset,
+			12
+		);
+	});
+
+	it('a paste on the end of an untitled opener line starts a title', async () => {
+		registerCalloutForTests();
+		const doc = parse(':::callout\nBody\n:::\n');
+		const blockEdit = makeStubBlockEdit();
+
+		await pasteDispatch(
+			{ pastedText: 'x', targetPath: [0, 0], offset: 10 },
+			pasteContext({ doc, blockEdit, controller: makeStubController() })
+		);
+
+		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(
+			0,
+			':::callout x\n',
+			'literal',
+			'join-typing',
+			10,
+			12
+		);
 	});
 
 	it('leaves an ordinary paragraph target on the container absorb path', async () => {

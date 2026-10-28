@@ -66,16 +66,16 @@ export interface SharedChainLevels {
 	readonly readsWhole: Set<CstNode>;
 }
 
-/** The levels each chain rebuilds in this order: a node several chains hold is left to the last of
- *  them, so it's rebuilt once; `readsWhole` holds nodes an earlier pass found reading as other blocks. */
-export function sharedChainLevels(
-	chains: readonly (readonly CstNode[])[],
-	readsWhole = new Set<CstNode>()
-): SharedChainLevels[] {
+/**
+ * The levels each chain rebuilds when the chains are rebuilt in this order, one per chain: a node
+ * several chains hold is left to the last of them, so it's rebuilt once, after everything below it.
+ */
+export function sharedChainLevels(chains: readonly (readonly CstNode[])[]): SharedChainLevels[] {
 	const lastHolder = new Map<CstNode, number>();
 	chains.forEach((chain, j) => {
 		for (const node of chain) lastHolder.set(node, j);
 	});
+	const readsWhole = new Set<CstNode>();
 	return chains.map((chain, j) => {
 		let floor = chain.length;
 		while (floor > 0 && lastHolder.get(chain[floor - 1]) === j) floor--;
@@ -156,31 +156,8 @@ export function rebuildUnsharedChain(
 	}
 	if (spilled && floor > 0) shared!.readsWhole.add(chain[floor - 1]);
 	else if (spilled && folds) spliceSpill(spilled, sharing, folds);
-	// With no fold to take the blocks, a later pass over the same set reads the node whole again.
-	else if (spilled) shared?.readsWhole.add(spilled.node);
 	if (perfEnabled() && chain.length > floor) recordRebuildDepth(chain.length - floor);
 	return reclassified;
-}
-
-/**
- * Re-reads whole each top-level node an earlier pass found reading as other blocks, putting in what
- * its bytes read as: a range that cut a container's opener line leaves no chain that reaches it.
- */
-export function rereadDivergedRoots(
-	doc: Document,
-	readsWhole: Set<CstNode>,
-	sharing: SharingState,
-	folds: AncestrySeamFold[],
-	grammar: GrammarView
-): ContainerReclassification[] {
-	return [...readsWhole]
-		.filter((node) => doc.children.includes(node))
-		.flatMap((node) =>
-			rebuildUnsharedChain(doc, [node], sharing, folds, grammar, undefined, {
-				floor: 0,
-				readsWhole
-			})
-		);
 }
 
 /** A chain node whose bytes read as blocks its position cannot hold as one node. */

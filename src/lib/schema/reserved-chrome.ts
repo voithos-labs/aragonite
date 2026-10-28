@@ -1,6 +1,6 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { displayLength } from '../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import {
 	tryGetBlockKindDescriptor,
 	type BlockKindDescriptor,
@@ -62,6 +62,34 @@ export function rowMarker(
 	const start = rowContentRange(container, row).start;
 	const spaces = /^[ \t]*/.exec(row.raw.slice(start))![0].length;
 	return row.raw.slice(0, start + spaces);
+}
+
+/** The title row's text, line ending aside, keeping only the title from offset `from` on: the
+ *  marker always stays, and a row left with no title drops the spaces after the name. */
+export function rowKeepingTitleFrom(container: NodeView, row: NodeView, from: number): string {
+	const marker = rowMarker(container, row);
+	const title = trimTrailingLineEnding(row.raw).slice(Math.max(from, marker.length));
+	return title ? marker + title : row.raw.slice(0, rowContentRange(container, row).start);
+}
+
+/** The title row's text, line ending aside, up to offset `to`; a cut inside the marker keeps it. */
+export function rowKeepingTitleTo(container: NodeView, row: NodeView, to: number): string {
+	return trimTrailingLineEnding(row.raw).slice(0, Math.max(to, rowMarker(container, row).length));
+}
+
+/** Where text put on a title row at `offset` lands, and the space it needs in front: a spot in or at
+ *  the end of a `:::name` marker moves to the title's start, so the text never joins the name. */
+export function titleInsertionPoint(
+	container: NodeView,
+	row: NodeView,
+	offset: number
+): { offset: number; gap: string } {
+	const nameEnd = rowContentRange(container, row).start;
+	const titleStart = rowMarker(container, row).length;
+	if (nameEnd === 0 || offset > titleStart || (offset === titleStart && titleStart > nameEnd)) {
+		return { offset, gap: '' };
+	}
+	return { offset: titleStart, gap: titleStart > nameEnd ? '' : ' ' };
 }
 
 /** True only when the kind declares an `isCollapsed` check and that check reports it collapsed. */

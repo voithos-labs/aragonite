@@ -43,12 +43,15 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 		expect(note.children?.[1].children).toHaveLength(2);
 	});
 
-	it('between-hole: prose above → body table cell clears the opener line it crossed', () => {
+	it('between-hole: prose above → body table cell clears the title in place', () => {
 		// end.offset 1 = inclusive last cell of header row → header removed, body promoted.
-		const { source, caret } = run(TBL_FIXTURE, point([0], 2), cellPoint([1, 1], 1));
+		const { doc, source, caret } = run(TBL_FIXTURE, point([0], 2), cellPoint([1, 1], 1));
 		// The truncated prose head keeps its line ending, so the blank line the source had between it
-		// and the container survives.
-		expect(source).toBe('Ab\n\n\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
+		// and the container survives, matching the title-line start case below.
+		expect(source).toBe('Ab\n\n:::callout\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
+		const note = doc.children[1];
+		expect(note.children?.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'table']);
+		expect(note.children?.[0].raw).toBe(':::callout\n');
 		expect(caret).toEqual({ path: [0], offset: 2 });
 	});
 
@@ -65,8 +68,12 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 		// The body is a table plus a trailing paragraph, so the emptied table is not at the end of
 		// a last-child chain: no unit delete, the wall clear applies instead.
 		const source = 'Above\n\n:::callout Title\n| a | b |\n| --- | --- |\n\nAfter\n:::\n\nBelow\n';
-		const { source: out } = run(source, point([0], 2), cellPoint([1, 1], 1));
-		expect(out).toBe('Ab\n\n\n\nAfter\n:::\n\nBelow\n');
+		const { doc, source: out } = run(source, point([0], 2), cellPoint([1, 1], 1));
+		expect(out).toBe('Ab\n\n:::callout\n\nAfter\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.map((c) => c.kind)).toEqual([
+			'directiveOpenerLine',
+			'paragraph'
+		]);
 	});
 
 	it('G1.9: the covered chrome clears through an unshared copy, never the snapshot node', () => {
@@ -82,10 +89,13 @@ describe('chrome wall × table branch: table endpoint inside the container', () 
 describe('chrome wall × table branch: table endpoint outside the container', () => {
 	beforeEach(registerCalloutForTests);
 
-	it("chrome-end endpoint: table above → mid-title keeps the opener line's tail", () => {
+	it('chrome-end endpoint: table above → mid-title keeps the tail in the title row', () => {
 		// start.offset 2 = row-start of body row (1,2) → that row removed, header kept.
-		const { source, caret } = run(TBL_ABOVE_FIXTURE, cellPoint([0], 2), point([1, 0], 14));
-		expect(source).toBe('| a | b |\n| --- | --- |\n\nle\nBody\n:::\n\nBelow\n');
+		const { doc, source, caret } = run(TBL_ABOVE_FIXTURE, cellPoint([0], 2), point([1, 0], 14));
+		expect(source).toBe('| a | b |\n| --- | --- |\n\n:::callout le\nBody\n:::\n\nBelow\n');
+		const note = doc.children[1];
+		expect(note.children?.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(note.children?.[0].raw).toBe(':::callout le\n');
 		expect(caret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
@@ -100,13 +110,18 @@ describe('chrome wall × table branch: table endpoint outside the container', ()
 		sharing.markSnapshotTaken();
 		const { newDoc } = deleteRange(doc, cellPoint([0], 2), point([1, 0], 14), { sharing });
 
-		expect(serialize(newDoc)).toContain('\n\nle\nBody\n');
+		expect(newDoc.children[1].children![0].raw).toBe(':::callout le\n');
 		expect(snapshotTitle.raw).toBe(':::callout Title\n');
 	});
 
-	it('table → table across the wall: the between opener line clears via the shared collection', () => {
-		const { source, caret } = run(TBL_BOTH_FIXTURE, cellPoint([0], 2), cellPoint([1, 1], 1));
-		expect(source).toBe('| a | b |\n| --- | --- |\n\n\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n');
+	it('table → table across the wall: the between title clears via the shared collection', () => {
+		const { doc, source, caret } = run(TBL_BOTH_FIXTURE, cellPoint([0], 2), cellPoint([1, 1], 1));
+		expect(source).toBe(
+			'| a | b |\n| --- | --- |\n\n:::callout\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n'
+		);
+		const note = doc.children[1];
+		expect(note.children?.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'table']);
+		expect(note.children?.[0].raw).toBe(':::callout\n');
 		expect(caret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 

@@ -705,7 +705,7 @@ const FAMILIES: Family[] = [
 			{
 				shape: 'the kept head of a to-do',
 				run: () => backspaceRange(`- [ ] # y**z**\n\n${CALLOUT}`, [[0, 0, 0], 5], [[1, 1], 2]),
-				want: `- [ ] # y\n\n\ndy\n:::\n`
+				want: `- [ ] # y\n\n:::callout\ndy\n:::\n`
 			},
 			{
 				shape: 'the kept tail of a to-do',

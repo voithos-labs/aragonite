@@ -11,7 +11,12 @@ import type { DocumentView } from '../../../core/node-views';
 import type { CaretPosition, SelectionPoint } from '../../primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { RemovalLanding } from '../../removal-landing';
-import { isChromeChild, nearestChromeContainer, type RangeCoverage } from '../../range-coverage';
+import {
+	isChromeChild,
+	nearestChromeContainer,
+	titleRowOwner,
+	type RangeCoverage
+} from '../../range-coverage';
 import type { ScopeWrites } from '../../../action-contracts';
 import { comparePaths, pathsEqual } from '../../path-math';
 import {
@@ -68,12 +73,11 @@ export function unjoinedRangeDelete(
 
 	// The end truncates first, while its path is still valid.
 	if (endChain) {
-		const endC = nearestChromeContainer(doc, end.path);
 		truncateEndInPlace(
 			doc,
 			end,
 			endChain[endChain.length - 1],
-			endC !== null && isChromeChild(endC, end.path),
+			titleRowOwner(doc, end.path),
 			reading,
 			scope,
 			'unjoinedRangeDelete:end'
@@ -83,13 +87,12 @@ export function unjoinedRangeDelete(
 	applyPlannedDeletion(doc, plan);
 
 	// Every deletion sits after the start in document order, so its path is still live.
-	const startC = nearestChromeContainer(doc, start.path);
 	const seam = startChain
 		? truncateStartInPlace(
 				doc,
 				start,
 				startChain[startChain.length - 1],
-				startC !== null && isChromeChild(startC, start.path),
+				titleRowOwner(doc, start.path),
 				reading,
 				scope,
 				'unjoinedRangeDelete:start'

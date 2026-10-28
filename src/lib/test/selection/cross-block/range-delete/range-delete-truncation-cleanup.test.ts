@@ -80,5 +80,5 @@ it('a title line endpoint keeps its truncation byte-literal in live', () => {
 	const marked = 'Above\n\n:::callout **Ti**tle\nBody\n:::\n\nBelow\n';
 	const { source } = run(marked, { path: [0], offset: 2 }, { path: [1, 0], offset: 15 }, 'live');
 
-	expect(source).toContain('Ab\n\n**tle\n');
+	expect(source).toContain(':::callout **tle');
 });

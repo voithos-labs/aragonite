@@ -9,6 +9,8 @@ import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import type { CstNode, Document } from '../../../core/nodes';
 import type { SelectionPoint } from '../../primitives';
+import type { NodeView } from '../../../core/node-views';
+import { rowKeepingTitleFrom, rowKeepingTitleTo } from '../../../schema/reserved-chrome';
 import {
 	nearestChromeContainer,
 	type CoveredRange,
@@ -132,12 +134,12 @@ export function installSurvivor(
 }
 
 /** Truncates the start endpoint in place, after the planned deletion, and returns the caret's
- *  offset. `isReservedChrome` must be read before any splice moved the tree. */
+ *  offset. `rowOwner`, the container whose title row the start is, must be read before any splice. */
 export function truncateStartInPlace(
 	doc: Document,
 	start: SelectionPoint,
 	startBlock: CstNode,
-	isReservedChrome: boolean,
+	rowOwner: NodeView | null,
 	reading: Reading,
 	scope: ScopeWrites,
 	tag: string
@@ -145,9 +147,10 @@ export function truncateStartInPlace(
 	const cut = charOffsetOf(start, tag);
 	const ending = documentLineEnding(doc);
 	const lineEnding = trailingLineEnding(startBlock.raw, ending);
-	if (isReservedChrome) {
-		startBlock.raw = terminateLine(startBlock.raw.slice(0, cut), lineEnding);
-		return cut;
+	if (rowOwner) {
+		const head = rowKeepingTitleTo(rowOwner, startBlock, cut);
+		startBlock.raw = head + lineEnding;
+		return head.length;
 	}
 	// The kept head keeps the block's structure after it (a setext underline), as a join does.
 	const head = cleanTruncatedProse(
@@ -167,15 +170,15 @@ export function truncateEndInPlace(
 	doc: Document,
 	end: SelectionPoint,
 	endBlock: CstNode,
-	isReservedChrome: boolean,
+	rowOwner: NodeView | null,
 	reading: Reading,
 	scope: ScopeWrites,
 	tag: string
 ): CstNode | null {
 	const cut = charOffsetOf(end, tag);
-	if (isReservedChrome) {
-		endBlock.raw =
-			endBlock.raw.slice(cut) || trailingLineEnding(endBlock.raw, documentLineEnding(doc));
+	if (rowOwner) {
+		const lineEnding = trailingLineEnding(endBlock.raw, documentLineEnding(doc));
+		endBlock.raw = rowKeepingTitleFrom(rowOwner, endBlock, cut) + lineEnding;
 		return endBlock;
 	}
 	const tail = cleanTruncatedProse(endBlock, 'tail', cut, storedAsAt(doc, end.path, reading)).raw;
@@ -228,11 +231,15 @@ export function planCrossBlockDeletion(
 	return { deletionPaths, parentChains, chromeClearChain, listNumbering, scope };
 }
 
-/** Applies the plan: clears a surviving end container's covered title line (a raw write, never a
- *  node delete), then splices the covered subtrees. */
+/** Applies the plan: clears the title on a surviving end container's covered title row (a raw
+ *  write that keeps any `:::name` marker, never a node delete), then splices the covered subtrees. */
 export function applyPlannedDeletion(doc: Document, plan: DeletionPlan): void {
-	const chrome = plan.chromeClearChain?.[plan.chromeClearChain.length - 1];
-	if (chrome) chrome.raw = '\n';
+	const chain = plan.chromeClearChain;
+	if (chain && chain.length >= 2) {
+		const [container, row] = chain.slice(-2);
+		const lineEnding = trailingLineEnding(row.raw, documentLineEnding(doc));
+		row.raw = rowKeepingTitleFrom(container, row, row.raw.length) + lineEnding;
+	}
 	deleteSubtreesIdentityGated(doc, plan.deletionPaths, plan.scope);
 }
 

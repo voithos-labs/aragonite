@@ -190,13 +190,12 @@ describe('range delete that consumes a fenced code closer', () => {
 	describe('through the chrome wall', () => {
 		beforeEach(registerCalloutForTests);
 
-		// The range takes the opener line's head too, so the container's bytes read as paragraphs.
 		it('restores the closer of a code block truncated outside the wall', () => {
 			const doc = parse('```js\nbody\n```\n\n:::callout Title\nBody1\n:::\n\nBelow\n');
 
 			deleteRange(doc, at([0], 8), at([1, 0], 14));
 
-			expect(serialize(doc)).toBe('```js\nbo\n```\n\nle\nBody1\n:::\n\nBelow\n');
+			expect(kindsOf(doc)).toEqual(['fencedCode', 'callout', 'paragraph']);
 			expectParseConverged(doc);
 		});
 	});

@@ -34,7 +34,6 @@ import {
 	type MergeIntoPrevResult
 } from '#lib/tree-operations/node-ops.js';
 import { reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
-import { rereadDivergedRoots } from '#lib/tree-operations/chain-rebuild.js';
 import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import type { Reading } from '#lib/schema/reading.js';
@@ -159,8 +158,6 @@ export function writtenBelow<T>(
 ): T {
 	const writer = createScopeWriter(documentBody(doc), sharing, grammar, documentLineEnding(doc));
 	const result = write({ ...writer, sharing });
-	const readsWhole = new Set<CstNode>();
-	rebuildOwnedChains([writer], sharing, grammar, readsWhole);
-	rereadDivergedRoots(doc, readsWhole, sharing, [], grammar);
+	rebuildOwnedChains([writer], sharing, grammar);
 	return result;
 }

@@ -84,23 +84,21 @@ export function createScopeWriter(
 	};
 }
 
-/** Rebuilds every path the writers owned, deepest first and each container once, before the fix-up
- *  reads their bytes; a node reading as other blocks lands in `readsWhole` for a later pass. */
+/**
+ * Rebuilds every path the writers owned, deepest scope first and each container once, before any
+ * list is fixed up, since the fix-up reads the containers' bytes.
+ */
 export function rebuildOwnedChains(
 	writers: readonly ScopeWriter[],
 	sharing: SharingState,
-	grammar: GrammarView,
-	readsWhole?: Set<CstNode>
+	grammar: GrammarView
 ): ContainerReclassification[] {
 	const chains = writers.flatMap(({ body, owned }) =>
 		owned
 			.map(({ chain }) => ({ root: body, chain: attachedChainPrefix(body, chain) }))
 			.sort((a, b) => b.chain.length - a.chain.length)
 	);
-	const levels = sharedChainLevels(
-		chains.map((o) => o.chain),
-		readsWhole
-	);
+	const levels = sharedChainLevels(chains.map((o) => o.chain));
 	return chains.flatMap(({ root, chain }, i) =>
 		rebuildUnsharedChain(root, chain, sharing, null, grammar, undefined, levels[i])
 	);

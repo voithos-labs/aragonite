@@ -10,8 +10,7 @@ import { metadataOf } from '../../../core/nodes';
 import type { SelectionPoint } from '../../primitives';
 import type { RangeDeleteResult } from './range-delete';
 import {
-	isChromeChild,
-	nearestChromeContainer,
+	titleRowOwner,
 	type CellRun,
 	type GridCoverage,
 	type RangeCoverage
@@ -96,12 +95,11 @@ export function tableAwareRangeDelete(
 	const plan = planCrossBlockDeletion(doc, coverage, [], scope);
 	// A kept text end truncates first, while its path is still valid, and never merges.
 	if (endBlock && !endTable) {
-		const endC = nearestChromeContainer(doc, end.path);
 		truncateEndInPlace(
 			doc,
 			end,
 			endBlock,
-			endC !== null && isChromeChild(endC, end.path),
+			titleRowOwner(doc, end.path),
 			reading,
 			scope,
 			'tableAwareRangeDelete:end'
@@ -111,12 +109,11 @@ export function tableAwareRangeDelete(
 	// Every deletion sits after the start in document order, so its path is still live.
 	let seam: number | null = null;
 	if (startBlock && !startTable) {
-		const startC = nearestChromeContainer(doc, start.path);
 		seam = truncateStartInPlace(
 			doc,
 			start,
 			startBlock,
-			startC !== null && isChromeChild(startC, start.path),
+			titleRowOwner(doc, start.path),
 			reading,
 			scope,
 			'tableAwareRangeDelete:start'

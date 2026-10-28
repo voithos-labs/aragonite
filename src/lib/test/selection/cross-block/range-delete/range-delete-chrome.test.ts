@@ -4,6 +4,7 @@ import { serialize } from '../../../../core/serializer';
 import { involvesReservedChrome } from '../../../../selection/cross-block/range-delete/range-delete-chrome';
 import { createSharingState } from '../../../../tree-operations/sharing';
 import { registerCalloutForTests } from '../../chrome-plugins';
+import { expectParseConverged } from '../../../harness/parse-converged';
 import type { SelectionPoint } from '../../../../selection/primitives';
 import { deleteRange } from '../../../harness/range-delete';
 
@@ -65,22 +66,27 @@ describe('chrome wall: rangeDelete post-states', () => {
 		expect(note.children?.map((c) => c.raw)).toEqual([':::callout Title\n', 'Body1\n', 'Body2\n']);
 	});
 
-	// A range from above takes the opener line's head with it, as it takes a code fence's: what's
-	// left reads as paragraphs, and nothing merges across the line.
-	it('end-in-chrome, full coverage: the opener line goes, body intact, no merge', () => {
-		const { source, caret } = run(FIXTURE, point([0], 2), point([1, 0], 16));
-		expect(source).toBe('Ab\n\n\nBody1\n\nBody2\n:::\n\nBelow\n');
+	it('end-in-chrome, full coverage: the title clears in place, body intact, no merge', () => {
+		const { doc, source, caret } = run(FIXTURE, point([0], 2), point([1, 0], 16));
+		expect(source).toBe('Ab\n\n:::callout\nBody1\n\nBody2\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.[0].kind).toBe('directiveOpenerLine');
 		expect(caret).toEqual({ path: [0], offset: 2 });
 	});
 
-	it('end-in-chrome, partial coverage: the line keeps its tail, never merged upward', () => {
-		const { source } = run(FIXTURE, point([0], 2), point([1, 0], 14));
-		expect(source).toBe('Ab\n\nle\nBody1\n\nBody2\n:::\n\nBelow\n');
+	it('end-in-chrome, partial coverage: the title keeps its tail, never merged upward', () => {
+		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 0], 14));
+		expect(source).toBe('Ab\n\n:::callout le\nBody1\n\nBody2\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.[0].kind).toBe('directiveOpenerLine');
 	});
 
-	it('chrome between: start truncates, the opener line clears, end body child keeps its tail', () => {
-		const { source } = run(FIXTURE, point([0], 2), point([1, 1], 2));
-		expect(source).toBe('Ab\n\n\ndy1\n\nBody2\n:::\n\nBelow\n');
+	it('chrome between: start truncates, the title clears, end body child keeps its tail', () => {
+		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 1], 2));
+		expect(source).toBe('Ab\n\n:::callout\ndy1\n\nBody2\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.map((c) => c.kind)).toEqual([
+			'directiveOpenerLine',
+			'paragraph',
+			'paragraph'
+		]);
 	});
 
 	it('start-in-chrome, end outside: title keeps its head, body deletes, container survives', () => {
@@ -122,11 +128,17 @@ describe('chrome wall: rangeDelete post-states', () => {
 		expect(note.children?.length).toBe(3);
 	});
 
-	// An end fully covering a body child truncates it in place to an empty line, and the opener
-	// line the range crossed goes with it.
-	it('end fully covering a body child leaves it as an empty line in place', () => {
-		const { source } = run(FIXTURE, point([0], 2), point([1, 1], 5));
-		expect(source).toBe('Ab\n\n\n\n\nBody2\n:::\n\nBelow\n');
+	// The wall's in-place rule protects the edge between the title line and the body, so an end
+	// fully covering a body child truncates it in place to an empty paragraph.
+	it('end fully covering a body child leaves it as an empty paragraph in place', () => {
+		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 1], 5));
+		expect(source).toBe('Ab\n\n:::callout\n\n\nBody2\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.map((c) => c.raw)).toEqual([':::callout\n', '\n', 'Body2\n']);
+		// The placeholder survives the reload only through a second blank line: the `:::` fence line
+		// strips the first into the wrap, where a reload puts it.
+		expect(doc.children[1].innerPrefix).toBe('\n');
+		expect(doc.children[1].children?.map((c) => c.leadingTrivia)).toEqual(['', '', '']);
+		expectParseConverged(doc);
 	});
 
 	// A covered title line must clear through a copy, or `chrome.raw = '\n'` corrupts the raw an

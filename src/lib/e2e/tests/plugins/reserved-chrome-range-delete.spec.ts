@@ -10,7 +10,7 @@ import {
 import { extendKey } from '../../platform-keys';
 
 /**
- * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
+ * The `:::callout` callout holds its opener line as child 0, an editable title row (see
  * src/routes/test/plugins/callout). Part 4, the boundary rangeDelete stops at: nothing merges
  * across it. An endpoint outside truncates in place, a title the range covers is emptied rather
  * than removed, and the container goes only when the range covers its whole subtree from outside.
@@ -34,7 +34,7 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		await editor.dragFromTo([0], 2, [1, 0], 5);
+		await editor.dragFromTo([0], 2, [1, 0], 16);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains(':::callout\n');
@@ -44,8 +44,8 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['', 'Body']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout', 'Body']);
 		expect(callout.raw).toBe(':::callout\nBody\n:::\n');
 		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout\nBody\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
@@ -53,7 +53,7 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
-			.toEqual(['callout-title', 'paragraph']);
+			.toEqual(['directiveOpenerLine', 'paragraph']);
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 	});
 
@@ -72,8 +72,8 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		// Keeping the column puts the focus at title offset 0, so the range covers no title text:
 		// "Above" truncates in place and the title stays.
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['Title', 'Body']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout Title', 'Body']);
 		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout Title\nBody\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -88,8 +88,8 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.bridge.waitForSourceEquals('Ab\n\n:::callout\ndy1\n\nBody2\n:::\n\nBelow\n');
 
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph', 'paragraph']);
-		expect(callout.childTexts).toEqual(['', 'dy1', 'Body2']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout', 'dy1', 'Body2']);
 		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout\ndy1\n\nBody2\n:::\n\nBelow\n');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -97,7 +97,9 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		// The title was emptied through a copy made before the write (G1.9), so undo restores the node
 		// itself, which `getSource` cannot show; polling the child's text waits for the rebuild.
 		await editor.undo();
-		await expect.poll(() => readCallout(page, 1).then((n) => n.childTexts[0])).toBe('Title');
+		await expect
+			.poll(() => readCallout(page, 1).then((n) => n.childTexts[0]))
+			.toBe(':::callout Title');
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
 	});
 
@@ -105,15 +107,15 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		page
 	}) => {
 		await editor.loadContent(WALL_FIXTURE);
-		await editor.dragFromTo([1, 0], 3, [2], 3);
+		await editor.dragFromTo([1, 0], 14, [2], 3);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceEquals('Above\n\n:::callout Tit\n:::\n\now\n');
 
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(1);
-		expect(callout.childKinds).toEqual(['callout-title']);
-		expect(callout.childTexts).toEqual(['Tit']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine']);
+		expect(callout.childTexts).toEqual([':::callout Tit']);
 		expect(await editor.bridge.getSource()).toBe('Above\n\n:::callout Tit\n:::\n\now\n');
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		// Going from three children to one is the harder case for BlockListState: the ids and
@@ -124,7 +126,7 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
-			.toEqual(['callout-title', 'paragraph', 'paragraph']);
+			.toEqual(['directiveOpenerLine', 'paragraph', 'paragraph']);
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
 	});
 
@@ -147,7 +149,7 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childTexts))
-			.toEqual(['Title', 'Body1', 'Body2']);
+			.toEqual([':::callout Title', 'Body1', 'Body2']);
 		expect(await editor.bridge.getSource()).toBe(WALL_FIXTURE);
 	});
 
@@ -160,8 +162,8 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.bridge.waitForSourceContains('BoZy2');
 
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['Title', 'BoZy2']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout Title', 'BoZy2']);
 
 		// The same gesture over a container that declares no title row: the ordinary path handles
 		// both alike, which shows the rule applies only where a title row is declared.
@@ -177,19 +179,19 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		// A range from the title's start through the body's end covers the subtree from inside, so the
-		// container stays with an emptied title row and an empty body paragraph (G1.14).
+		// Covered from inside, the container keeps an emptied title and an empty body paragraph; the
+		// cut clamps to the title's start, so `:::callout ` keeps its space for a typed title.
 		await editor.dragFromTo([1, 0], 0, [1, 1], 4);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::callout\n');
+		await editor.bridge.waitForSourceContains(':::callout \n');
 
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['', '']);
-		expect(await editor.bridge.getSource()).toBe('Above\n\n:::callout\n\n:::\n');
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout ', '']);
+		expect(await editor.bridge.getSource()).toBe('Above\n\n:::callout \n\n:::\n');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
