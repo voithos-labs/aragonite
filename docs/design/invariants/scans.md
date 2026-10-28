@@ -1433,6 +1433,6 @@ fails its own test instead of holding the whole run. `lint/spawn-timeouts.test.t
 **G4.273 · An IME key is never a command.** A keydown handler that runs a command starts with
 `imeOwnsKey(e)`, which also catches the key opening a composition (code 229, `isComposing: false`
 in Chromium and WebKit). The scan counts each file's keydown wirings against its `imeOwnsKey`
-calls, and lists a forward to a handler that asks, or a listener that runs no command, with why;
-the bundled plugins' own keydowns are listed, since plugin code reaches only the published API.
+calls, and lists a forward to a handler that asks, or a listener that runs no command, with why.
+The bundled plugins ask too, through the `imeOwnsKey` the plugin entry point exports.
 `lint/ime-key-fence.test.ts`.
