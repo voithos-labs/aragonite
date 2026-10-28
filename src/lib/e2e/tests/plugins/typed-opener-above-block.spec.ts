@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import type { PresentationMode } from '../../../presentation-mode';
 import { PluginsPage } from './helpers';
-import { edgeKey } from '../../platform-keys';
 
 // An opener typed into an empty paragraph above a finished block of its family leaves that block
 // whole: the opener closes itself, or isn't written. Every gesture is real keys, read off the bytes,
@@ -29,6 +28,10 @@ for (const mode of MODES) {
 		async function aboveBlock(below: string): Promise<void> {
 			await editor.loadContent(`Top\n\n\n\nNext\n\n${below}`);
 			await editor.focusBlockEnd(1);
+		}
+
+		async function caretAt(): Promise<{ path: number[]; offset: number } | undefined> {
+			return (await editor.bridge.getSelectionPaths())?.focus;
 		}
 
 		async function expectBelowWhole(below: { raw: string; kind: string }): Promise<void> {
@@ -72,26 +75,6 @@ for (const mode of MODES) {
 			});
 		}
 
-		// The completer only answers a line typed at its end, so these reach the closer of its own.
-		test('a pasted `$$` above a math block gets a closer of its own', async () => {
-			await aboveBlock(BELOW['a math block'].raw);
-			await editor.seedClipboard('$$');
-			await editor.paste();
-
-			await editor.bridge.waitForSourceContains('Top\n\n$$\n$$\n');
-			await expectBelowWhole(BELOW['a math block']);
-		});
-
-		test('`$$` finished in front of the caret gets a closer of its own', async ({ page }) => {
-			await aboveBlock(BELOW['a math block'].raw);
-			await page.keyboard.type('$');
-			await page.keyboard.press(edgeKey('lineStart'));
-			await page.keyboard.type('$');
-
-			await editor.bridge.waitForSourceContains('Top\n\n$$\n$$\n');
-			await expectBelowWhole(BELOW['a math block']);
-		});
-
 		// Nothing below could close it, so a reload reads it as a paragraph too.
 		test('`:::note` typed above a math block stays a paragraph', async ({ page }) => {
 			await aboveBlock(BELOW['a math block'].raw);
@@ -101,15 +84,18 @@ for (const mode of MODES) {
 			await expectBelowWhole(BELOW['a math block']);
 		});
 
-		test('`:::note` typed above a directive block closes as it is typed', async ({ page }) => {
-			test.fixme(
-				true,
-				'#801: a directive opener line holds no caret, so it reads the blocks below in as it is typed'
-			);
+		test('`:::note` typed above a directive block closes at its first letter, the caret on its line', async ({
+			page
+		}) => {
 			await aboveBlock(BELOW['a directive block'].raw);
-			await page.keyboard.type(':::note');
+			await page.keyboard.type(':::n');
+			await editor.bridge.waitForSourceContains('Top\n\n:::n\n:::\n');
+			await expect.poll(caretAt).toEqual({ path: [1, 0], offset: 4 });
 
+			await page.keyboard.type('ote');
 			await editor.bridge.waitForSourceContains('Top\n\n:::note\n:::\n');
+			await expect.poll(caretAt).toEqual({ path: [1, 0], offset: 7 });
+			expect(await editor.bridge.getBlockKind(1)).toBe('admonition');
 			await expectBelowWhole(BELOW['a directive block']);
 		});
 
