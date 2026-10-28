@@ -672,14 +672,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// A keydown that writes for itself fires no beforeinput, so the caret is read here too.
 	const onKeyDown = withKeydownVerdict(async (e) => {
+		// A key can outrun the `selectionchange` that moves a caret the browser left off its spot, and
+		// every handler below reads the caret; the IME's opening key composes there too.
+		const el = deps.getEl();
+		if (el && !deps.composition.live()) deps.caretWriter.canonicalizeCaret(el);
 		if (imeOwnsKey(e)) {
 			deleteKeydown = null;
 			return;
 		}
-		// A key can outrun the `selectionchange` that moves a caret the browser left off its spot, and
-		// every handler below reads the caret.
-		const el = deps.getEl();
-		if (el) deps.caretWriter.canonicalizeCaret(el);
 		recordPreEditOffset();
 		if (e.key === 'Enter') enterKeydown = e;
 		deleteKeydown = e.key === 'Backspace' || e.key === 'Delete' ? e : null;

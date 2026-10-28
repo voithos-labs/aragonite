@@ -1011,13 +1011,12 @@ inline kind and the other link shapes, and each `a[href]` must resolve to such a
 live edit target. `lint/file-rules.test.ts` keeps following a link (`window.open`, `activateLink`,
 `closest('a[href]')`) to the root click in `gestures.ts`, after `clickFollowsAt`.
 
-**G4.155 · One composition tracker.** The editor keeps one record of the composition in
-progress, `browser/composition.ts :: createCompositionTracker`, and it asks at every key, input and
-composition start in the editor whether the browser dropped one. A file that wires
-`compositionstart` or `compositionend` hands it to one of the two hosts (the editable surface, the
-caret host), and both open, adopt and end their composition through the tracker: a range across
-blocks claims a composition's start, so the block its removal leaves the caret in only sees the
-runs and adopts them. A composing flag of a file's own fails too. `lint/composition-holders.test.ts`.
+**G4.155 · One composition tracker.** `browser/composition.ts :: createCompositionTracker` holds
+the composition in progress and ends one the browser dropped at any key or input in the editor. A
+file wiring `compositionstart` or `compositionend` hands it to a host (the editable surface, the
+caret host), both open, adopt and end through the tracker (a range claims a start, so the block its
+removal leaves the caret in adopts the runs), and no file keeps a composing flag of its own.
+`lint/composition-holders.test.ts`.
 
 **G4.157 · Every bundled block kind can be inserted.** `test/plugins/insertable-kinds.test.ts`
 installs every plugin under `src/lib/plugins/` from its zero-argument factory and reads the kinds
@@ -1416,12 +1415,11 @@ so the suites run without a network. A spec's own route for a made-up host runs 
 `route.fallback()`. `e2e/lint/e2e-drivers.test.ts`.
 
 **G4.270 · The browser is touched in one module.** Only `browser/selection-read.ts` and the caret
-writer read the native selection (`debug/`'s recorder may read what it records), only
-`caret-writer.ts` writes it, `Selection.modify` included, and only `point.ts` asks for a caret or an
-element at a point. An input event's `inputType` and `getTargetRanges` are read only in `input.ts`
-(`readInput`, `targetRange`), and `isComposing` only in `composition.ts` (`imeOwnsKey`,
-`imeOwnsInput`). The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads too. A
-directory that can't import `browser/` takes the read as a parameter. `lint/browser-module.test.ts`.
+writer read the native selection, only `caret-writer.ts` writes it (`Selection.modify` included),
+`point.ts` asks for a caret or element at a point, `input.ts` reads `inputType` and
+`getTargetRanges`, and `composition.ts` reads `isComposing`. `debug/`'s recorder may read what it
+records; a directory that can't import `browser/` takes the read as a parameter. The write shapes
+are in `lint/native-selection-write.ts` (G4.143 reads it too). `lint/browser-module.test.ts`.
 
 **G4.271 · A windowed list indexes its children from its slice entries.** A list renders `windowSlicer`'s
 entries and passes each child `entry.index` and `entry.id`. An index added up from the live window start
@@ -1432,10 +1430,9 @@ before the next render lands on the wrong block. `lint/window-slice-entries.test
 their sync forms under `src/lib`, tests included, passes a `timeout` in its options, so a hung child
 fails its own test instead of holding the whole run. `lint/spawn-timeouts.test.ts`.
 
-**G4.273 · An IME key is never a command.** Every keydown handler that runs a command starts with
-`imeOwnsKey(e)`, which also catches the key that opens a composition (code 229, sent with
-`isComposing: false` by Chromium and WebKit). The scan counts each file's keydown wirings against
-its `imeOwnsKey` calls; a wiring that forwards to a handler that asks, or a listener that runs no
-command (the drawn caret's frame, the undo step any input ends, the crop's write guard), is listed
-with why. Plugin code reaches only the published API, so the bundled plugins' own keydowns are
-listed until it carries the check. `lint/ime-key-fence.test.ts`.
+**G4.273 · An IME key is never a command.** A keydown handler that runs a command starts with
+`imeOwnsKey(e)`, which also catches the key opening a composition (code 229, `isComposing: false`
+in Chromium and WebKit). The scan counts each file's keydown wirings against its `imeOwnsKey`
+calls, and lists a forward to a handler that asks, or a listener that runs no command, with why;
+the bundled plugins' own keydowns are listed, since plugin code reaches only the published API.
+`lint/ime-key-fence.test.ts`.

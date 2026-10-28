@@ -4,6 +4,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { takeDevWarns } from '../../support/warn-gate';
 import { makeSurface, type SurfaceHarness } from '../../harness/editable-surface';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
@@ -90,6 +91,23 @@ describe('composing gate', () => {
 			await surface.onKeyDown(new KeyboardEvent('keydown', init));
 			await surface.onKeyDown(new KeyboardEvent('keydown', { key: 'x' }));
 			expect(seen).toEqual(['x']);
+		});
+
+		// The opening key comes before the composition, which starts at the caret it finds.
+		it('moves the caret onto its spot at the opening key, and not inside a composition', async () => {
+			const canonicalized: HTMLElement[] = [];
+			const caretWriter = {
+				...testCaretWriter,
+				canonicalizeCaret: (el: HTMLElement) => void canonicalized.push(el)
+			};
+			const { surface, el } = makeSurface({ overrides: { caretWriter } });
+			await surface.onKeyDown(new KeyboardEvent('keydown', { key: 'q', keyCode: 229 }));
+			expect(canonicalized).toEqual([el]);
+
+			el.dispatchEvent(new CompositionEvent('compositionstart'));
+			surface.onCompositionStart();
+			await surface.onKeyDown(new KeyboardEvent('keydown', { key: 'q', keyCode: 229 }));
+			expect(canonicalized).toEqual([el]);
 		});
 	});
 
