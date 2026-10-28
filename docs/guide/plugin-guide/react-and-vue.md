@@ -218,7 +218,7 @@ Register it on a leaf kind with `editable: false` and a line like `!! d6` draws 
 - **Plain arrows leave the block.** An arrow pressed on your button moves to the neighbour it points at. Keys in a text field of yours stay there, and so does any arrow you `preventDefault` (two buttons you arrow between, say).
 - **It can't write its own bytes.** A `'none'` block has no way to change its Markdown or run a block command at itself. If your block edits itself, draw it on the container surface with `blockFocus: 'whole-block'`, like [the note above](#a-block-with-its-own-editing-surface).
 
-In Vue, `useBlockHandle` is a composable you call in `setup`, and `deps` is anything `watch` takes:
+In Vue, `useBlockHandle` is a composable you call in `setup`, and `deps` is what you'd hand `watch`, a ref, a getter or an array of them:
 
 ```vue
 <script setup lang="ts">
