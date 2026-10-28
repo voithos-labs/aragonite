@@ -201,13 +201,12 @@ parsed documents never re-parse, so the kind would miss every open document. Reg
 first editor mounts. Predicate `checkLateOpenerRegistration` (`registry.ts`) · bootstrap ·
 `test/schema/registration-checks.test.ts`.
 
-**G1.18 · Reserved-chrome coherence.** The chrome kind a container's `reservedChrome` names (its
-title row) is registered, which `registerChromeLeaf` does, and a registered kind always carries its
-view (G3.15, which retired this check's component half). It's also the row child 0 holds, so a `:::`
-container, whose row is the opener line the grammar builds, can only name `directiveOpenerLine`. The bootstrap counterpart to G1.14's
-per-commit slot check. Predicate `checkReservedChromeCoherence`
+**G1.18 · Reserved-chrome coherence.** The chrome kind a container's `reservedChrome` names is
+registered (`registerChromeLeaf` does that, view included, G3.15) and is the row child 0 holds, so
+a `:::` container, whose row is its opener line, can only name `directiveOpenerLine`. The bootstrap
+counterpart to G1.14's per-commit slot check. Predicate `checkReservedChromeCoherence`
 (`registry.ts`) · bootstrap · `reserved-chrome-coherence.test.ts`,
-`test/schema/registration-checks.test.ts`.
+`test/schema/registration-checks.test.ts`, `opener-line-registration.test.ts`.
 
 **G1.19 · Multi-scope commit path.** A scope's declared path still resolves to its captured node,
 checked over all scopes _before_ any spine is copied, since a stale-but-in-range path would copy and
@@ -233,8 +232,8 @@ half-written tree, so `notifyEdit` and `runAll` assert no commit is open, and a 
 
 **G1.24 · Closure-block coherence.** A kind's closure block (its answer to each editor system)
 agrees with its descriptor: no `inherit-default` for a container's `roundTrip` (its `rebuildRaw` is
-the round trip), a `not-mergeable` kind's `mergeBackspace` or the `clipboard` of a kind with a title row (declared, or a `:::` opener line),
-and a cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must
+the round trip), a `not-mergeable` kind's `mergeBackspace` or a title-row kind's `clipboard`, and a
+cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must
 parse to its kind, checked in the unit sweep since a `parse` import in the flush is a cycle.
 `checkClosureCoherence` · bootstrap · `closure-coherence.test.ts`, `closure-fixtures.test.ts`.
 
