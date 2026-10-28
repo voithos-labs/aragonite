@@ -41,7 +41,7 @@ export interface DrawnCaretReads {
 	source: { drawable: boolean } | null;
 	/** Focus is in the gap caret's proxy, the editable that takes input between two blocks. */
 	gap: boolean;
-	/** The bar beside the widget edge a click meant, or null. */
+	/** The bar beside the widget edge a click or the caret writer holds, or null. */
 	widgetEdge: WidgetEdgeBox | null;
 	/** A held press whose click will move the caret from where the press put it. */
 	pressed: boolean;

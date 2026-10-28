@@ -67,6 +67,13 @@ export interface DrawnCaret {
 	widgetEdgeFor(owner: object): number | null;
 }
 
+/** The editor's own handle on the drawn caret: what the caret writer asks of it too. */
+export interface EditorDrawnCaret extends DrawnCaret {
+	/** Holds the widget edge at `offset` for the editable `el`, the writer's ask beside a widget
+	 *  with no line box; false where `el` draws no bar there. */
+	showWidgetEdge(el: HTMLElement, offset: number): boolean;
+}
+
 export interface DrawnCaretDeps {
 	getRoot(): HTMLElement | null;
 	caretMode(): CaretMode;
@@ -101,7 +108,7 @@ export function caretMedia(): CaretMedia | null {
 }
 
 /** Builds the drawn caret during the editor's init, where its effects are owned. */
-export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
+export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 	const sources = new Map<HTMLElement, CaretSource>();
 	const media = caretMedia();
 	let bar: HTMLElement | null = null;
@@ -462,7 +469,13 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 			};
 		},
 		armWidgetEdge: widgetEdge.arm,
-		widgetEdgeFor: widgetEdge.heldFor
+		widgetEdgeFor: widgetEdge.heldFor,
+		showWidgetEdge(el, offset) {
+			const edges = sources.get(el)?.widgetEdge;
+			if (!edges?.box(offset)) return false;
+			widgetEdge.arm(edges.owner, offset);
+			return true;
+		}
 	};
 }
 

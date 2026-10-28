@@ -59,6 +59,7 @@ describe('every caret writer method requests one paint', () => {
 	it('the table names every method the writer has', () => {
 		const writer = createCaretWriter(
 			() => {},
+			() => false,
 			() => false
 		);
 		const read: WriterRead[] = ['focusEndsLine'];
@@ -69,6 +70,7 @@ describe('every caret writer method requests one paint', () => {
 		let requests = 0;
 		const writer = createCaretWriter(
 			() => requests++,
+			() => false,
 			() => false
 		);
 		const text = paragraph('hello').firstChild!;
@@ -84,6 +86,7 @@ describe('every caret writer method requests one paint', () => {
 		let requests = 0;
 		const writer = createCaretWriter(
 			() => requests++,
+			() => false,
 			() => false
 		);
 		const el = paragraph('hello');
@@ -96,6 +99,7 @@ describe('every caret writer method requests one paint', () => {
 		let requests = 0;
 		const writer = createCaretWriter(
 			() => requests++,
+			() => false,
 			() => false
 		);
 		const text = paragraph('hello').firstChild!;
@@ -115,7 +119,8 @@ describe('in reading mode the writer writes no caret', () => {
 	it('placeCaretAtRaw drops the selection instead and reports the refusal', () => {
 		const writer = createCaretWriter(
 			() => {},
-			() => true
+			() => true,
+			() => false
 		);
 		const el = paragraph('hello');
 		window.getSelection()!.collapse(el.firstChild, 1);
@@ -127,7 +132,8 @@ describe('in reading mode the writer writes no caret', () => {
 	it('a range still writes, so select-all and a drag keep working', () => {
 		const writer = createCaretWriter(
 			() => {},
-			() => true
+			() => true,
+			() => false
 		);
 		const el = paragraph('hello');
 

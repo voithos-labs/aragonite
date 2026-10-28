@@ -7,7 +7,6 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
 	holdsOnlyMarkerChrome,
 	isHiddenMarkerRoot,
-	paintsNoLandableContent,
 	screenVisibilityOf
 } from '../../browser/painted';
 import { landableDomTextBounds } from '../../browser/offsets';
@@ -133,27 +132,5 @@ describe('screenVisibilityOf: the reading a rewrite takes', () => {
 			hidesMarkers: false,
 			chromePaints: false
 		});
-	});
-});
-
-describe('paintsNoLandableContent: what the caret guard refuses', () => {
-	it('holds for an unstamped chrome-only block and falls the moment it paints', () => {
-		expect(paintsNoLandableContent(mountBlock({ mode: 'live' }, span('md-marker', '# ')))).toBe(
-			true
-		);
-		expect(
-			paintsNoLandableContent(mountBlock({ mode: 'live', stamped: true }, span('md-marker', '# ')))
-		).toBe(false);
-	});
-
-	it('leaves an empty block and an ambient-fronted one alone', () => {
-		expect(paintsNoLandableContent(mountBlock({ mode: 'live' }))).toBe(false);
-		expect(paintsNoLandableContent(mountBlock({ mode: 'live' }, buildAmbientSpan('- ')))).toBe(
-			false
-		);
-	});
-
-	it('is silent in source mode, where nothing hides', () => {
-		expect(paintsNoLandableContent(mountBlock({}, span('md-marker', '# ')))).toBe(false);
 	});
 });

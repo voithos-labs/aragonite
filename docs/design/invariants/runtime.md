@@ -112,6 +112,7 @@ These checks run in three kinds of place:
 | G1.155 | A block's write puts its caret inside the text it writes                                      | A·N     |
 | G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs    | A·N     |
 | G1.158 | A block a commit splices in holds no opener it wrote that a block below would close           | A·N     |
+| G1.159 | The caret writer writes a caret only where something shows it                                 | A·N     |
 
 ### The entries
 
@@ -283,11 +284,11 @@ mount, once the hooks load. `checkInlineConstructPolicy` · `runStartupInvariant
 `inline-construct-policy-coherence.test.ts`, `inline-construct-policy.test.ts`.
 
 **G1.33 · The caret can land.** In a mode that hides markers and edits (live, preview-inline), a
-block holding the caret paints a spot the caret can land on; one that's all hidden markers takes the
-next key between `display:none` spans, on either side. Built-ins hold by construction
-(`docs/design/live-mode.md` § 4.1), so this catches a plugin drawing its own marker chrome. It fires
-from the root's `focusin`, so a consumer's caret component is covered. `checkLandableCaret` ·
-`editor-root/focus.ts` · `landable-caret.test.ts`, `landable-caret-doors.test.ts`.
+block holding the caret has a spot a caret shows at, read by G1.159's own check at its start; one
+that's all hidden markers takes the next key between `display:none` spans. Built-ins hold by
+construction (`docs/design/live-mode.md` § 4.1). It fires from the root's `focusin`, so a caret no
+writer placed (a consumer's own component) is covered. `checkLandableCaret` · `editor-root/focus.ts`
+· `landable-caret.test.ts`, `landable-caret-doors.test.ts`.
 
 **G1.35 · Single-node sink.** A slot that installs exactly one node never installs bytes that
 reparse to several (bytes arriving plural are fine). Every join (Backspace, Delete, the list-item
@@ -668,3 +669,10 @@ down would close, since that opener would read in blocks the edit never touched.
 closes one first (`legalizeWrite`, `closeWrittenOpeners`); a content write and a removal aren't
 asked, and a range delete's survivor lands outside a commit's list, where the route rows hold it.
 `checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.
+
+**G1.159 · A written caret shows** (`caret-paints`). The caret writer writes a caret only where
+something shows it: text or a line the browser paints, or a picture's edge, where it asks the drawn
+caret for its bar. A spot with only hidden marker runs beside it, in a block holding focus (focus
+decides what hides), moves to visible text at the same offset, or is refused (no write, a false
+return); only a plugin block drawing nothing but markers gets there. `checkCaretPaints` ·
+`browser/caret-writer.ts` · `caret-spot.test.ts`, `caret-shows`.
