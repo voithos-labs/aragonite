@@ -97,22 +97,32 @@ export function checkLateOpenerRegistration(
 
 export interface ReservedChromeCoherenceEntry {
 	kind: AnyBlockKind;
+	/** The row kind the container's `reservedChrome` declares. */
 	reservedChromeKind?: AnyBlockKind;
+	/** The row kind its child 0 holds: the declared one, or a `:::` container's opener line. */
+	rowKind?: AnyBlockKind;
 }
 
 /** G1.18: the title-row kind a container's `reservedChrome` names is registered, which brings its
- *  view with it. G1.14 checks the child itself on every commit. */
+ *  view with it, and is the row its child 0 holds. G1.14 checks the child itself on every commit. */
 export function checkReservedChromeCoherence(
 	entries: readonly ReservedChromeCoherenceEntry[],
 	hasDescriptor: (kind: AnyBlockKind) => boolean
 ): InvariantViolation | null {
-	for (const { kind, reservedChromeKind } of entries) {
+	for (const { kind, reservedChromeKind, rowKind } of entries) {
 		if (reservedChromeKind === undefined) continue;
 		if (!hasDescriptor(reservedChromeKind)) {
 			return {
 				code: 'reserved-chrome-coherence',
 				message: `reservedChrome kind "${reservedChromeKind}" (declared by "${kind}") has no registered descriptor`,
 				detail: { kind, chromeKind: reservedChromeKind, missing: 'descriptor' }
+			};
+		}
+		if (rowKind !== undefined && rowKind !== reservedChromeKind) {
+			return {
+				code: 'reserved-chrome-coherence',
+				message: `reservedChrome kind "${reservedChromeKind}" (declared by "${kind}") is never built: a \`:::\` container's title row is its opener line, so declare kind "${rowKind}" there`,
+				detail: { kind, chromeKind: reservedChromeKind, built: rowKind }
 			};
 		}
 	}
@@ -132,7 +142,8 @@ export interface ClosureCoherenceEntry {
 	/** `via` prose of an `implemented` cell; undefined for the other two modes. */
 	focusVia: string | undefined;
 	mergeBackspaceVia: string | undefined;
-	declaresReservedChrome: boolean;
+	/** Child 0 is a title row: a declared `reservedChrome`, or a `:::` container's opener line. */
+	hasTitleRow: boolean;
 	clipboardMode: ClosureCellMode;
 }
 
@@ -177,10 +188,10 @@ export function checkClosureCoherence(
 				};
 			}
 		}
-		if (entry.declaresReservedChrome && entry.clipboardMode === 'inherit-default') {
+		if (entry.hasTitleRow && entry.clipboardMode === 'inherit-default') {
 			return {
 				code: 'closure-coherence',
-				message: `kind "${entry.kind}" declares reservedChrome but its closure clipboard is inherit-default: the chrome bytes live in the container's own opener line, so a slice crossing that boundary has no default semantics; name what a copy produces (implemented) or mark it not-supported`,
+				message: `kind "${entry.kind}" has a title row but its closure clipboard is inherit-default: the row's bytes live in the container's own opener line, so a slice crossing that boundary has no default semantics; name what a copy produces (implemented) or mark it not-supported`,
 				detail: { kind: entry.kind, column: 'clipboard' }
 			};
 		}

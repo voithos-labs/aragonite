@@ -1,8 +1,12 @@
-// A content write closes a fence it leaves open only when the write typed the opener and the bytes
-// below don't close it already; a fence the write merely exposed reads on as a reload reads it.
+// A content write closes an opener it leaves open only when the write typed the opener and the bytes
+// below don't close it already; an opener the write merely exposed reads on as a reload reads it.
 // Miss-analysis (GH #768): the auto-close rows typed fresh openers only, so none retyped a broken
 // opener whose old closer still stood below.
+// Miss-analysis (#800): every fresh row typed a fence, so none typed an opener that backs out.
 import { describe, it, expect, beforeEach } from 'vitest';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
 import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -87,5 +91,29 @@ describe('closing a fence a write leaves open', () => {
 
 		type(1, '``js\n```\n');
 		expect(type(1, '```js\n')).toBe('para\n\n```js\n```\n```\n\nafter\n');
+	});
+});
+
+// An opener that backs out when unclosed (`$$`) stays text when nothing below would close it; the
+// rows that close one are `written-opener-routes.test.ts`, one per write route.
+describe('an opener that backs out, with nothing below to close it', () => {
+	beforeEach(() => {
+		installPlugins([admonitionsPlugin()]);
+		registerDetailsKind(testView());
+	});
+
+	// Leaving it text is what a reload of those bytes reads, so nothing has to close it.
+	it.each([
+		['`$$` above paragraphs', 'para\n\nnext\n', '$$\n', '$$\n\nnext\n'],
+		[
+			'`<details>` above a details block, which a blank line ends anyway',
+			'para\n\n<details>\n<summary>s</summary>\n\nx\n\n</details>\n',
+			'<details>\n',
+			'<details>\n\n<details>\n<summary>s</summary>\n\nx\n\n</details>\n'
+		]
+	])('leaves %s as written', (_name, source, written, expected) => {
+		const { type } = typingOver(source);
+
+		expect(type(0, written)).toBe(expected);
 	});
 });

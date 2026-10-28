@@ -13,6 +13,7 @@ import type { Reading } from '#lib/schema/reading.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import { createSurfaceWrite } from '#lib/components/blocks/editable/surface-write.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { refusedWrite } from '#lib/editor-actions/stored-caret.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 /** A recorded write less its mode. */
@@ -43,7 +44,7 @@ export function harness(
 		updateBlockContent: recordingWrite(({ index, raw, before, after }) =>
 			commits.push({ index, raw, before, after })
 		),
-		completeLineOnType: async () => false
+		completeLineOnType: () => refusedWrite()
 	} as unknown as BlockEditActions;
 	const deps = {
 		get node() {

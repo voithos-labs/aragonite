@@ -2,6 +2,7 @@
 // asked its table for (`mount-table.ts` mounts the real table instead). Read-only questions and
 // single gestures only: a commit replaces the node and nothing above re-renders with it.
 
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { vi } from 'vitest';
 import TableCellBlock from '#lib/components/blocks/table/TableCellBlock.svelte';
 import type { BlockComponent } from '#lib/block-component.js';
@@ -104,7 +105,7 @@ export function mountCell(
 	vi.mocked(mounted.blockEdit.updateBlockContent).mockImplementation(
 		(index, text, mode, caretBefore, caretAfter) => {
 			const body = { children: row.children!, owner: row, lineEnding: '\n' as const };
-			const write = legalizeWrite(body, index, text, mode);
+			const write = legalizeWrite(body, index, text, mode, defaultGrammarView);
 			return withStoredCaret(
 				Promise.resolve(true),
 				write.storedOffset(caretAfter ?? caretBefore ?? 0)

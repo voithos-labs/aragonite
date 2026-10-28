@@ -1,6 +1,6 @@
 # Feature: Reserved-child-0 title row, structural ops + paste
 
-The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf. This file
+The `:::callout` callout holds its opener line at child index 0, an editable leaf of kind `directiveOpenerLine`. This file
 records what the structural operations do at that reserved index (merge, Backspace, Enter,
 typing) and what a paste into the title does. The checks read behavior: the tree and the
 selection read by path through `window.__test`, not visuals.
@@ -13,7 +13,7 @@ selection read by path through `window.__test`, not visuals.
 - Enter in the title: the caret moves into the first body child at offset 0, the title never splits, and the document and its raw text are untouched
 - Enter in the title of a callout that has only a title: an empty body paragraph is created and focused, and typing lands in it
 - moving into the body commits nothing: descending onto an existing body writes nothing, so a single Ctrl+Z afterwards takes back the edit made before it
-- typing in the title: the child keeps its `callout-title` kind, through `contextDependentKind`, and the typed title re-renders in the opener line
+- typing in the title: the child keeps its `directiveOpenerLine` kind, through `contextDependentKind`, and the typed title re-renders in the opener line
 - windowing: the reserved title row keeps the `BlockListState` ids and references in step with the children across edits
 
 ## Gate 5: paste into the title (must pass)
@@ -22,7 +22,7 @@ The title leaf is a single line once serialized, so any paste aimed at it is for
 before the container paste family gets a chance: the clipboard is flattened to one line and
 spliced in at the caret, the title stays one node, and the container family never fires.
 
-- a clipboard of several blocks: pasting a two-paragraph clipboard into the title splices its text in at the caret with the paragraph break collapsed to a single space, so the title stays one `callout-title` node rather than splitting into paragraphs, and the container paste family never fires
+- a clipboard of several blocks: pasting a two-paragraph clipboard into the title splices its text in at the caret with the paragraph break collapsed to a single space, so the title stays one `directiveOpenerLine` node rather than splitting into paragraphs, and the container paste family never fires
 - a CRLF paragraph break: a Windows clipboard's `\r\n\r\n` break collapses to one space rather than two, because each run is flattened once, so the pasted title carries no doubled whitespace
 
 ## User interactions

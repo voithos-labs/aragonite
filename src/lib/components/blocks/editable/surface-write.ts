@@ -13,7 +13,6 @@ import type { BlockAutoPairs } from '../text/auto-pair-record';
 import type { HeldInsertion, TextEdit } from '../../../caret/next-insertion';
 import { shownKind } from '../../../core/parsers/heading';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
-import { withStoredCaret } from '../../../editor-actions/stored-caret';
 
 /** `typed` is a keystroke's own edit, which can name a new block kind and complete its line;
  *  `command` is a chord, a menu row, a clipboard edit or a shown source's commit, and `repair`
@@ -81,32 +80,34 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		const spend = (text: string): TextEdit =>
 			write.inPlace ? held.spendInPlace(text, write) : held.spend(text, write, began);
 		const edit = typed && changed ? spend(display) : write;
-		const written = deps.blockEdit.updateBlockContent(
-			index,
-			// The block's own ending only: a last line saved without one stays that way.
-			withOwnEnding(node, edit.text),
-			write.mode,
-			write.history,
-			began,
-			edit.caretAfter
-		);
+		// The block's own ending only: a last line saved without one stays that way.
+		const bytes = withOwnEnding(node, edit.text);
+		// A typed line an on-type completer takes is written as its completion, never as the line.
+		const completion =
+			typed && !deps.showsSource?.()
+				? deps.blockEdit.completeLineOnType(index, bytes, edit.caretAfter, began)
+				: null;
+		const written = completion?.admitted
+			? completion
+			: deps.blockEdit.updateBlockContent(
+					index,
+					bytes,
+					write.mode,
+					write.history,
+					began,
+					edit.caretAfter
+				);
 		held.finish(changed);
 		if (!written.admitted) return written;
 		// Ends the auto-pair's record when the pair it wrote isn't standing in the new bytes.
 		deps.ownPairs?.consult(edit.text, edit.caretAfter);
-		// A new kind, a merge or a changed container lands the caret itself, so the block puts
-		// none back. An on-type completion is its own later write, whose undo entry reads this caret.
+		// A new kind, a merge, a changed container or a completion lands the caret itself, so the
+		// block puts none back.
 		if (written.keepsCaret && !write.leavesCaret) {
 			deps.requestCaret(written.caret, { source: write.source });
 		}
-		if (!typed) return written;
-		const landed = deps.showsSource?.()
-			? written
-			: written.then(
-					async (wrote) => (await deps.blockEdit.completeLineOnType(index, written.caret)) || wrote
-				);
-		void deps.kindCue.afterTypedWrite(landed, deps.getPath(), before);
-		return withStoredCaret(landed, written.caret, written.storedOffset, written.keepsCaret);
+		if (typed) void deps.kindCue.afterTypedWrite(written, deps.getPath(), before);
+		return written;
 	};
 }
 

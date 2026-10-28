@@ -8,6 +8,10 @@ import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { keepsKindAt, readBack, shownOf } from '#lib/core/inline/live-edit/read-back.js';
 import { fixtureReading } from '../../../harness/fixture-grammar';
+import { testView } from '../../../harness/test-view';
+import { installPlugins } from '#lib';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
 
 function at(source: string, path: number[]) {
 	const doc = parse(source);
@@ -65,6 +69,25 @@ describe('whether the auto-pair’s line keeps its kind where it is stored', () 
 	it('a line that would read as another kind does not keep it', () => {
 		const { node, store } = at('**\n', [0]);
 		expect(keepsKindAt(node, '****', store)).toBe(false);
+	});
+
+	// Miss-analysis (#800): the kind rows read the line alone, so none asked of a lone `$$`, which
+	// reads as a paragraph only until a `$$` line below closes it.
+	it('a line that waits on a closer below does not keep its kind', () => {
+		installPlugins([admonitionsPlugin()]);
+		registerMathBlock(testView());
+		const { node, store } = at('\n', [0]);
+		expect(keepsKindAt(node, '$$', store)).toBe(false);
+		expect(keepsKindAt(node, ':::note', store)).toBe(false);
+		expect(keepsKindAt(node, '$$x', store)).toBe(true);
+	});
+
+	// Miss-analysis: the waiting row typed only openers that have a closer, so none asked of a
+	// `[`-led line, which may become a link definition but closes on no line below.
+	it('a line that waits on no closing line keeps its kind', () => {
+		const { node, store } = at('[see\n', [0]);
+		expect(keepsKindAt(node, '[see ``', store)).toBe(true);
+		expect(keepsKindAt(node, '[see $$', store)).toBe(true);
 	});
 
 	it('a cell keeps its kind whatever its text, since it stores no block', () => {

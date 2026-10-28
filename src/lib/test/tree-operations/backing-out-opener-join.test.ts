@@ -18,6 +18,7 @@ import {
 import { createTopLevelScope } from '#lib/editor-actions/block-edit-scope.js';
 import { commitLeafText } from '#lib/editor-actions/block-edit-core.js';
 import { describeConvergence, expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { serialize } from '#lib/core/serializer.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
@@ -29,7 +30,7 @@ import { detailsPlugin } from '#lib/plugins/details/index.js';
 function typedOverSecond(source: string, text: string, index = 1): string[] {
 	const { deps } = makeEditorActionsDeps(source);
 	const typing = createUndoController(deps);
-	const write = legalizeWrite(deps.doc, index, text, 'authored');
+	const write = legalizeWrite(deps.doc, index, text, 'authored', defaultGrammarView);
 	expect(typing.typeLeaf(docPathFrom([index]), write, 0).wrote).toBe(true);
 	expectParseConverged(deps.doc);
 	return deps.doc.children.map((c) => c.kind);
@@ -82,7 +83,13 @@ function fencedOpener(kind: string, fence: string, declared: boolean): BlockOpen
 		priority: OPENER_PRIORITIES.fencedCode + 7,
 		interruptsParagraph: (line) => line === fence,
 		...(declared
-			? { readingNotFinal: { notFinal: awaitsCloser, mayClose: (line) => line === fence } }
+			? {
+					readingNotFinal: {
+						notFinal: awaitsCloser,
+						mayClose: (line: string) => line === fence,
+						closer: () => fence
+					}
+				}
 			: {}),
 		tryOpen(ctx): BlockOpenerResult | null {
 			if (ctx.line.text !== fence) return null;
@@ -138,10 +145,15 @@ const ROUTES: [string, Route][] = [
 			return {
 				doc: h.deps.doc,
 				write: (index, text) =>
-					commitLeafText(scope, index, legalizeWrite(scope.target(), index, text, 'authored'), {
-						snapshotOffset: 0,
-						caret: 0
-					}),
+					commitLeafText(
+						scope,
+						index,
+						legalizeWrite(scope.target(), index, text, 'authored', defaultGrammarView),
+						{
+							snapshotOffset: 0,
+							caret: 0
+						}
+					),
 				split: (index, offset) => h.actions.splitBlock(index, offset)
 			};
 		}
@@ -156,7 +168,7 @@ const ROUTES: [string, Route][] = [
 				write: async (index, text) =>
 					typing.typeLeaf(
 						docPathFrom([index]),
-						legalizeWrite(h.deps.doc, index, text, 'authored'),
+						legalizeWrite(h.deps.doc, index, text, 'authored', defaultGrammarView),
 						0
 					),
 				split: (index, offset) => h.actions.splitBlock(index, offset)
@@ -181,41 +193,49 @@ describe.each(ROUTES)('a closer written blocks below the construct it finishes, 
 		expectParseConverged(doc);
 	});
 
-	// The closer was already there; the opener above it only now accepts it.
+	// An opener a write puts on a line of its own gets its own closer, as a typed fence does, so a
+	// closer already below stays the block it was.
 	it.each([
-		['::::note', ':::note', ':::', 'admonition'],
-		['$$$', '$$', '$$', 'mathBlock']
-	])('a `%s` shortened to `%s` takes in the `%s` below', async (long, short, closer, kind) => {
-		const { doc, write } = route(`${long}\n\nx\n\n${closer}\n`);
-		expect(doc.children).toHaveLength(3);
-		await write(0, `${short}\n`);
-		expect(doc.children.map((c) => c.kind)).toEqual([kind]);
-		expectParseConverged(doc);
-	});
-
-	// A write read as several blocks starts each past the first on a line it wrote.
-	it.each([
-		['a `:::note`', 'a\n\nx\n\n:::\n', 'a\n:::note\n', 'admonition'],
-		['a `$$`', 'a\n\nx\n\n$$\n', 'a\n$$\n', 'mathBlock']
-	])(
-		'%s written under paragraph text takes in the closer below',
-		async (_l, source, text, kind) => {
-			const { doc, write } = route(source);
-			await write(0, text);
-			expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', kind]);
-			expectParseConverged(doc);
-		}
-	);
-
-	// A fence that starts waiting re-pairs every fence below it, and a closer it refuses stops nothing.
-	it.each([
-		['past a `:::` the `::::` refuses', 'x::::note\n\na\n\n:::\n\nb\n\n::::\n', '::::note\n', 1],
-		['and every `$$` pair below', 'x$$\n\na\n\n$$\nm\n$$\n\nb\n\n$$\nn\n$$\n', '$$\n', 5],
-		['into more blocks than it re-read', 'x$$\n\na\n\n$$\nm\n\nn\n$$\n', '$$\n', 4]
-	])('an opener made by a write reads down %s', async (_l, source, text, count) => {
+		['a `$$$` shortened to `$$`', '$$$\n\nx\n\n$$\n', 0, '$$\n', '$$\n$$\n\nx\n\n$$\n'],
+		[
+			'a `$$` written under paragraph text',
+			'a\n\nx\n\n$$\n',
+			0,
+			'a\n$$\n',
+			'a\n$$\n$$\n\nx\n\n$$\n'
+		],
+		[
+			'a `$$` above two `$$` blocks',
+			'x$$\n\na\n\n$$\nm\n$$\n\nb\n\n$$\nn\n$$\n',
+			0,
+			'$$\n',
+			'$$\n$$\n\na\n\n$$\nm\n$$\n\nb\n\n$$\nn\n$$\n'
+		],
+		[
+			'a `::::note` shortened to `:::note`',
+			'::::note\n\nx\n\n:::\n',
+			0,
+			':::note\n',
+			':::note\n:::\n\nx\n\n:::\n'
+		],
+		[
+			'a `:::note` written under paragraph text',
+			'a\n\nx\n\n:::\n',
+			0,
+			'a\n:::note\n',
+			'a\n:::note\n:::\n\nx\n\n:::\n'
+		],
+		[
+			'a `::::note` above a `:::` it refuses',
+			'x::::note\n\na\n\n:::\n\nb\n\n::::\n',
+			0,
+			'::::note\n',
+			'::::note\n::::\n\na\n\n:::\n\nb\n\n::::\n'
+		]
+	])('%s gets its own closer', async (_l, source, index, text, expected) => {
 		const { doc, write } = route(source);
-		await write(0, text);
-		expect(doc.children).toHaveLength(count);
+		await write(index, text);
+		expect(serialize(doc)).toBe(expected);
 		expectParseConverged(doc);
 	});
 
@@ -234,24 +254,28 @@ describe.each(ROUTES)('a closer written blocks below the construct it finishes, 
 	});
 });
 
-// A body below the document reads down the same way, through the keystroke's own route.
+// A body below the document closes a written opener the same way, through the keystroke's own route.
 describe('an opener made by a write inside a quote', () => {
 	beforeEach(() => {
 		installPlugins([latexPlugin(), admonitionsPlugin()]);
 	});
 
 	it.each([
-		['past a `:::` the `::::` refuses', '> x::::note\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n', 1],
 		[
-			'and every `$$` pair below',
+			'above two `$$` blocks',
 			'> x$$\n>\n> a\n>\n> $$\n> m\n> $$\n>\n> b\n>\n> $$\n> n\n> $$\n',
-			5
+			'> $$\n> $$\n>\n> a\n>\n> $$\n> m\n> $$\n>\n> b\n>\n> $$\n> n\n> $$\n'
+		],
+		[
+			'above a `:::` it refuses',
+			'> x::::note\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n',
+			'> ::::note\n> ::::\n>\n> a\n>\n> :::\n>\n> b\n>\n> ::::\n'
 		]
-	])('reads down %s', async (_l, source, count) => {
+	])('gets its own closer %s', async (_l, source, expected) => {
 		const h = makeNestedHarness(source, { index: 0 });
 		const raw = h.deps.doc.children[0].children![0].raw;
 		await h.bundle.blockEdit.updateBlockContent(0, raw.slice(1), 'authored', 'join-typing', 1, 0);
-		expect(h.deps.doc.children[0].children).toHaveLength(count);
+		expect(serialize(h.deps.doc)).toBe(expected);
 		expectParseConverged(h.deps.doc);
 	});
 });

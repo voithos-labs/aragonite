@@ -2,6 +2,8 @@ import type { CstNode } from '../core/nodes';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
 import type { BodyParent } from './node-primitives';
+import type { GrammarView } from '../schema/block-openers';
+import { closeWrittenOpeners } from './content-write';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 
@@ -41,13 +43,14 @@ export interface Reordered {
 	uncovered: number | null;
 }
 
-/** Reorder an owned children array, each separator staying with its position rather than its
- *  node. The commit's fix-up, told it was a move and which join it uncovered, settles the joins. */
+/** Reorder an owned children array, each separator staying with its position and the moved block
+ *  closed where it lands; the commit's fix-up, told the move and the join it uncovered, settles it. */
 export function reorderChildrenWithTrivia(
 	body: BodyParent,
 	from: number,
 	to: number,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView
 ): Reordered {
 	const children = body.children;
 	if (from === to) return { change: { op: 'noop' }, landing: to, uncovered: null };
@@ -65,6 +68,13 @@ export function reorderChildrenWithTrivia(
 	const change = reorderChildren(children, from, to);
 	for (let k = 0; k < windowTrivia.length; k++) {
 		children[lo + k].leadingTrivia = windowTrivia[k];
+	}
+	// A moved opener reads down into its new neighbours unless it gets its own closer there; every
+	// line of it is new where it lands.
+	const [placed] = closeWrittenOpeners(body, to, '', [children[to]], grammar);
+	if (placed !== children[to]) {
+		sharing.stamp(placed);
+		children[to] = placed;
 	}
 	// The pair the moved block left meets here, uncovered only when it sat flush between them.
 	const vacated = from < to ? from : from + 1;

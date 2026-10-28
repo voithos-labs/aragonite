@@ -9,7 +9,7 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
+ * The `:::callout` callout holds its opener line as child 0, an editable title row (see
  * src/routes/test/plugins/callout). Part 2, structural edits around that reserved child 0: a merge
  * targets the last body child and never the title; a Backspace inside against the unmergeable
  * title moves focus instead of merging; typing keeps the kind; and Enter moves into the body,
@@ -36,7 +36,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(2);
-		expect(callout.childTexts[0]).toBe('Title'); // title untouched
+		expect(callout.childTexts[0]).toBe(':::callout Title'); // title untouched
 		expect(callout.childTexts[1]).toBe('BodyAfter'); // merged into last body child
 		expect(await editor.bridge.getSource()).not.toMatch(/^After$/m);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -53,14 +53,14 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		// is unchanged: body prose never enters the title.
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(2);
-		expect(callout.childTexts).toEqual(['Title', 'Body']);
+		expect(callout.childTexts).toEqual([':::callout Title', 'Body']);
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
 	test('Gate 2b(ii): Backspace at start of the title is a no-op', async ({ page }) => {
 		await editor.loadContent(FIXTURE);
-		await editor.focusBlockAtPath([1, 0], 0); // start of "Title"
+		await editor.focusBlockAtPath([1, 0], 0); // start of the opener line
 		await editor.pressDeclined('Backspace');
 
 		// The callout declares its title row as `reservedChrome`, which keeps child 0 in place on
@@ -69,7 +69,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);
-		expect(callout.childTexts).toEqual(['Title', 'Body']);
+		expect(callout.childTexts).toEqual([':::callout Title', 'Body']);
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -78,7 +78,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await editor.focusBlockAtPath([1, 0], 16); // end of "Title"
 		await page.keyboard.press('Enter');
 
 		// A title row serializes as one line, so Enter goes to `chrome.descendToBody`, the
@@ -87,15 +87,15 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(2);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['Title', 'Body']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout Title', 'Body']);
 		expect(callout.raw).toBe(':::callout Title\nBody\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 
 		// The caret landed at body offset 0, so a typed character starts the body text.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('XBody');
-		expect((await readCallout(page, 1)).childTexts).toEqual(['Title', 'XBody']);
+		expect((await readCallout(page, 1)).childTexts).toEqual([':::callout Title', 'XBody']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -105,21 +105,21 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.loadContent('Above\n\n:::callout Title\n:::\n');
 		const seed = await readCallout(page, 1);
 		expect(seed.childCount).toBe(1);
-		expect(seed.childKinds).toEqual(['callout-title']);
+		expect(seed.childKinds).toEqual(['directiveOpenerLine']);
 
-		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await editor.focusBlockAtPath([1, 0], 16); // end of "Title"
 		await page.keyboard.press('Enter');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(2);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['Title', '']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout Title', '']);
 
 		// The new paragraph is a real place for the caret, not just a splice in the CST.
 		await editor.typeText('New body');
 		await editor.bridge.waitForSourceContains('New body');
-		expect((await readCallout(page, 1)).childTexts).toEqual(['Title', 'New body']);
+		expect((await readCallout(page, 1)).childTexts).toEqual([':::callout Title', 'New body']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -131,7 +131,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.typeText('Q');
 		await editor.bridge.waitForSourceContains('BodyQ');
 
-		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await editor.focusBlockAtPath([1, 0], 16); // end of "Title"
 		await page.keyboard.press('Enter');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
@@ -140,23 +140,23 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childTexts))
-			.toEqual(['Title', 'Body']);
+			.toEqual([':::callout Title', 'Body']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2d: typing into the title keeps the callout-title kind (contextDependentKind)', async ({
+	test('Gate 2d: typing into the title keeps the opener-line kind (contextDependentKind)', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await editor.focusBlockAtPath([1, 0], 16); // end of "Title"
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains(':::callout TitleX');
 
-		// `registerChromeLeaf` gives callout-title `contextDependentKind`, so a commit keeps the kind
+		// The opener-line row has `contextDependentKind`, so a commit keeps the kind
 		// rather than reparsing the bare title line as a paragraph.
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds[0]).toBe('callout-title');
-		expect(callout.childTexts[0]).toBe('TitleX');
+		expect(callout.childKinds[0]).toBe('directiveOpenerLine');
+		expect(callout.childTexts[0]).toBe(':::callout TitleX');
 		expect(await editor.bridge.getSource()).toContain(':::callout TitleX');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -175,7 +175,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds[0]).toBe('callout-title'); // chrome row still index 0
+		expect(callout.childKinds[0]).toBe('directiveOpenerLine'); // chrome row still index 0
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 	// ── Part 5: pasting into the title ───────────────────────────────────────
@@ -184,17 +184,17 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await editor.focusBlockAtPath([1, 0], 16); // end of "Title"
 		await editor.seedClipboard('x\n\ny');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains(':::callout Titlex y');
 
-		// Newlines collapse to one space and the title stays a single callout-title node rather
+		// Newlines collapse to one space and the title stays a single opener-line node rather
 		// than splitting into paragraphs.
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(2);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['Titlex y', 'Body']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout Titlex y', 'Body']);
 		expect(await editor.bridge.getSource()).toBe('Above\n\n:::callout Titlex y\nBody\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});

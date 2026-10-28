@@ -31,7 +31,7 @@ import {
 	type PasteSurface,
 	type StructuralPasteResult
 } from '../paste-surfaces';
-import { isReservedChromeChild } from '../../schema/reserved-chrome';
+import { isReservedChromeChild, titleInsertionPoint } from '../../schema/reserved-chrome';
 import { applyInlineResult, applyStructuralResult } from './apply';
 import { normalizeClipboardForBody } from './body-write';
 import { applyContainerMatchingPaste, findContainerMatchingUnwrap } from './container-match';
@@ -141,9 +141,13 @@ export async function pasteDispatch(
 		isReservedChromeChild(chromeParent, input.targetPath[input.targetPath.length - 1])
 	) {
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
+		// A paste at a caret is title text, so one on the row's `:::name` lands past it.
+		const at = input.preDelete
+			? { offset: input.offset, gap: '' }
+			: titleInsertionPoint(chromeParent, targetNode, input.offset);
 		const hook =
 			getPasteSurface(targetNode.kind, activePlugins)?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, flattened, input.preDelete, store, ending);
+		const result = hook(targetNode, at.offset, at.gap + flattened, input.preDelete, store, ending);
 		const landing = await applyInlineResult(input.targetPath, result, ctx, start);
 		return inlineCaretResult(result.caretOffset, landing);
 	}

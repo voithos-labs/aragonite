@@ -66,6 +66,10 @@ const WIDGET_ATTR = 'data-inline-widget';
  *  and `styles/editor.css`. Written in every mode, so a mode switch never finds it stale. */
 export const CONTENT_EMPTY_ATTR = 'data-content-empty';
 
+/** Set on the editable element of a row that shows its source while the caret is in it (a `:::`
+ *  container's opener line); read by this walk and `styles/editor.css` like the attribute above. */
+export const SOURCE_AT_CARET_ATTR = 'data-source-at-caret';
+
 /** The class the preview-inline reveal trigger sets and this walk's hiding rule reads, defined
  *  once so the two sides cannot drift. */
 export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
@@ -128,10 +132,15 @@ export function screenVisibilityOf(container: ParentNode | null): VisibilityCont
 	);
 }
 
-/** The stylesheet's condition for painting an empty construct's markers: `data-content-empty`
- *  plus focus inside, read by containment because jsdom lacks `:focus-within`. */
+/** The stylesheet's condition for painting an empty construct's or a source-at-caret row's markers:
+ *  the attribute plus focus inside, read by containment because jsdom lacks `:focus-within`. */
 function chromeStampPaints(container: Element): boolean {
-	if (!container.hasAttribute(CONTENT_EMPTY_ATTR)) return false;
+	if (
+		!container.hasAttribute(CONTENT_EMPTY_ATTR) &&
+		!container.hasAttribute(SOURCE_AT_CARET_ATTR)
+	) {
+		return false;
+	}
 	const active = container.ownerDocument.activeElement;
 	return active !== null && container.contains(active);
 }

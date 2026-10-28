@@ -8,7 +8,12 @@
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { familyHidesText, markerFamilyOf, type VisibilityContext } from '../core/inline/visibility';
-import { CONTENT_EMPTY_ATTR, isHiddenMarkerRoot, screenVisibilityOf } from '../browser/painted';
+import {
+	CONTENT_EMPTY_ATTR,
+	SOURCE_AT_CARET_ATTR,
+	isHiddenMarkerRoot,
+	screenVisibilityOf
+} from '../browser/painted';
 
 interface ProbeCase {
 	name: string;
@@ -18,6 +23,8 @@ interface ProbeCase {
 	reveal?: boolean;
 	/** The block holds only markers, so two of the three families paint (a ref label does not). */
 	contentEmpty?: boolean;
+	/** The block shows its source while focused, which an unfocused probe must still hide. */
+	sourceAtCaret?: boolean;
 }
 
 const FAMILIES = ['md-marker', 'md-fence-line', 'md-ref-label'];
@@ -28,6 +35,7 @@ const CASES: ProbeCase[] = /* @__PURE__ */ FAMILIES.flatMap((family) => [
 	{ name: family, family, focusedHost: false },
 	{ name: `${family} (focused host)`, family, focusedHost: true },
 	{ name: `${family} (content-empty block)`, family, focusedHost: false, contentEmpty: true },
+	{ name: `${family} (source-at-caret row)`, family, focusedHost: false, sourceAtCaret: true },
 	...(family === 'md-marker'
 		? [
 				{
@@ -89,6 +97,7 @@ function mountProbe(
 	const block = document.createElement('div');
 	block.setAttribute('contenteditable', 'true');
 	if (probe.contentEmpty) block.setAttribute(CONTENT_EMPTY_ATTR, '');
+	if (probe.sourceAtCaret) block.setAttribute(SOURCE_AT_CARET_ATTR, '');
 	const span = document.createElement('span');
 	span.className = probe.reveal ? `${probe.family} md-construct-reveal` : probe.family;
 	for (const [name, value] of Object.entries(probe.attrs ?? {})) span.setAttribute(name, value);

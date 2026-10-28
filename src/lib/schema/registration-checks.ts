@@ -39,6 +39,7 @@ import {
 	isKnownMergeRole,
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
+import { reservedChromeKindOf } from './reserved-chrome';
 import { isBuiltinCommandId } from './commands';
 import { isPluginCommandId } from './command-id';
 import { takeRegistrationFlushWork } from './registration-pending';
@@ -60,7 +61,8 @@ const keymapEntries = (kinds: readonly AnyBlockKind[]) =>
 const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
 	kinds.map((kind) => ({
 		kind,
-		reservedChromeKind: tryGetBlockKindDescriptor(kind)?.reservedChrome?.kind
+		reservedChromeKind: tryGetBlockKindDescriptor(kind)?.reservedChrome?.kind,
+		rowKind: reservedChromeKindOf(kind)
 	}));
 
 const viaOf = (cell: ClosureCell): string | undefined =>
@@ -82,7 +84,7 @@ export const closureCoherenceEntry = (
 	declaresWholeBlockFocus: d.blockFocus === 'whole-block',
 	focusVia: viaOf(d.closure.focus),
 	mergeBackspaceVia: viaOf(d.closure.mergeBackspace),
-	declaresReservedChrome: d.reservedChrome !== undefined,
+	hasTitleRow: reservedChromeKindOf(kind) !== undefined,
 	clipboardMode: d.closure.clipboard.mode
 });
 

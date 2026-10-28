@@ -10,6 +10,7 @@ import { CONTENT_VISIBILITY, visibleRuns, type VisibleRun } from '../visibility'
 import { landsKeepingMarks, shownSpan, type ShownSpan } from './shown-marks';
 import type { ContentRange } from '../index';
 import type { Reading } from '../../../schema/reading';
+import { unfinishedReadings, waitingReading } from '../../../schema/block-openers';
 import { isBlankText, ownTrailingLineEnding, trimTrailingLineEnding } from '../../lines';
 import type { CstNode, InlineNode } from '../../nodes';
 import type { NodeView } from '../../node-views';
@@ -82,11 +83,14 @@ export function shownRunsOf(
 	return { shown: read.lead + text + '\n'.repeat(read.openLines), runs };
 }
 
-/** Whether `line` still reads as `node`'s kind where `store` keeps it: always, on an inline
- *  surface, which never reads its text as a block. */
+/** Whether `line` still reads as `node`'s kind where `store` keeps it, whatever lines come below
+ *  it: always, on an inline surface, which never reads its text as a block. */
 export function keepsKindAt(node: NodeView, line: string, store: StoredAs): boolean {
 	if (store.surface === 'inline') return true;
-	return readBack(line + ownTrailingLineEnding(node.raw), store)?.block?.kind === node.kind;
+	const block = readBack(line + ownTrailingLineEnding(node.raw), store)?.block;
+	// A lone `$$` reads as a paragraph only until a `$$` line below closes it.
+	const readings = unfinishedReadings(store.reading.grammar);
+	return block?.kind === node.kind && waitingReading(block.raw, readings) === null;
 }
 
 /** What `[from, to)` of `raw` shows, its content being `range`: text and each character's marks. */

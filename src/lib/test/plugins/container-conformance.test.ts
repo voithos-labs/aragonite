@@ -93,6 +93,7 @@ describe('G4.3 conformance kit: plugin containers', () => {
 			'focusBubble:asserted',
 			'terminatorCollision:asserted',
 			'titleRow:asserted',
+			'openerLine:asserted',
 			'declarations:asserted'
 		]);
 		expect(report.cells.find((c) => c.cell === 'multiScope')?.detail).toBe(NO_MULTI_SCOPE_OP);
@@ -110,6 +111,7 @@ describe('G4.3 conformance kit: plugin containers', () => {
 			'focusBubble',
 			'terminatorCollision',
 			'titleRow',
+			'openerLine',
 			'declarations'
 		]);
 	});

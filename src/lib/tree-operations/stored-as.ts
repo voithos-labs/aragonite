@@ -68,7 +68,7 @@ function storeOver(reading: Reading, locate: () => Slot): StoredAs {
 		stored(bytes) {
 			const { holder, index, inserted } = slot();
 			const target = inserted ? withNewBlock(holder, index, inserted) : holder;
-			return legalizeWrite(target, index, bytes, 'literal').text;
+			return legalizeWrite(target, index, bytes, 'literal', reading.grammar).text;
 		},
 		readSlot(stored) {
 			const { holder, index } = slot();

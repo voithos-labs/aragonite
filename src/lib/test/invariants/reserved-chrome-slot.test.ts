@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { checkReservedChromeSlot } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 import { testChromeContainer } from '#lib/test/harness/test-kinds.js';
+import { activateDirectives } from '#lib/plugin.js';
+import { parse } from '#lib/core/parser.js';
 
 describe('checkReservedChromeSlot (G1.14)', () => {
 	it('passes when child 0 is the declared chrome kind', () => {
@@ -37,6 +39,16 @@ describe('checkReservedChromeSlot (G1.14)', () => {
 			raw: ':::note\n:::\n',
 			children: []
 		} as CstNode;
+		expect(checkReservedChromeSlot(node)?.code).toBe('reserved-chrome-slot');
+	});
+
+	// Miss-analysis (#801): the row held only the title, so no check tied it to the opener line.
+	it("holds a `:::` container's opener line to the container's first line", () => {
+		activateDirectives();
+		const node = parse(':::note Title\nbody\n:::\n').children[0];
+		expect(checkReservedChromeSlot(node)).toBeNull();
+
+		node.children![0] = { ...node.children![0], raw: ':::tip Title\n' };
 		expect(checkReservedChromeSlot(node)?.code).toBe('reserved-chrome-slot');
 	});
 

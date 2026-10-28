@@ -37,8 +37,8 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		await editor.bridge.waitForSourceEquals(DOC);
 	});
 
-	// Mod+Z in a just-formed block's open source steps back one typing burst at a time, then restores
-	// the paragraph without leaking draft bytes; exact text, since `toHaveText` collapses whitespace.
+	// Mod+Z in a just-formed block's open source walks the draft back a burst at a time, then restores
+	// the `$` the second keystroke found; exact text, since `toHaveText` collapses whitespace.
 	test('undo from inside a just-created reveal walks the draft back, then returns the paragraph', async ({
 		page
 	}) => {
@@ -61,7 +61,7 @@ test.describe('a render-primary block folds onto the document it opened over', (
 		expect(await editor.bridge.getSource()).toBe('$$\n\n$$\n');
 
 		await page.keyboard.press('ControlOrMeta+z');
-		await editor.bridge.waitForSourceEquals('$$\n');
+		await editor.bridge.waitForSourceEquals('$\n');
 		expect(await editor.bridge.getSource()).not.toContain('x^2');
 	});
 });

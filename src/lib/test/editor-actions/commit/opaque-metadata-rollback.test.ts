@@ -42,7 +42,7 @@ async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
 		scopes: [{ node: h.directive(), path: [0], state: createBlockListState(h.directive) }],
 		snapshot: { path: asDocPath([0, 0]), offset: 0 },
 		mutate: ([scope]) => {
-			scope.children[0].raw = 'hidden\n';
+			scope.children[1].raw = 'hidden\n';
 			return [{ op: 'noop' }];
 		}
 	});
@@ -64,7 +64,7 @@ describe('a commit that unwinds after a fence was lengthened (#640)', () => {
 				],
 				snapshot: { path: asDocPath([0, 0]), offset: 0 },
 				mutate: ([scope]) => {
-					scope.children[0].raw = 'hidden\n:::\n';
+					scope.children[1].raw = 'hidden\n:::\n';
 					return [{ op: 'noop' }, { op: 'noop' }];
 				}
 			})

@@ -14,7 +14,13 @@ import { testView } from '#lib/test/harness/test-view.js';
 
 /** `text` made legal as the only child of `owner`, the way the write hands it to the trial. */
 const legalIn = (node: NodeView, text: string, owner?: NodeView) =>
-	legalizeWrite({ children: [node], owner, lineEnding: '\n' }, 0, text, 'literal');
+	legalizeWrite(
+		{ children: [node], owner, lineEnding: '\n' },
+		0,
+		text,
+		'literal',
+		defaultGrammarView
+	);
 
 function focusBlockAt(path: number[]): void {
 	focusHostWithRawPath(JSON.stringify(path));

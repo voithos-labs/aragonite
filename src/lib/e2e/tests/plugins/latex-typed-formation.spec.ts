@@ -94,9 +94,9 @@ test.describe('block math: typed formation', () => {
 		await editor.bridge.waitForSourceContains('$$\nx^2\n$$\n');
 	});
 
-	// A render-first block commits on blur, so opening the source and blurring is the unit an undo
-	// follows.
-	test('one undo after the blur restores the paragraph byte-for-byte', async ({ page }) => {
+	// A render-first block commits on blur, so the blur ends the entry, and the block is written in
+	// place of the second keystroke, so undo goes back to before it.
+	test('one undo after the blur takes the second `$` back', async ({ page }) => {
 		await editor.loadContent('Before\n\n\n');
 		await typeAtEnd(editor, 1, '$$');
 		await editor.bridge.waitForSourceContains(COMPLETED);
@@ -104,12 +104,12 @@ test.describe('block math: typed formation', () => {
 		await editor.waitForRenderFlush();
 
 		await editor.undo();
-		await editor.bridge.waitForSourceEquals('Before\n\n$$\n');
+		await editor.bridge.waitForSourceEquals('Before\n\n$\n');
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 
 		// The undo snapshot holds where the caret was, not where the completion sent it.
 		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceEquals('Before\n\n$$Z\n');
+		await editor.bridge.waitForSourceEquals('Before\n\n$Z\n');
 	});
 
 	// An opener line carrying body text implies no multi-line form, so it leaves the shape any

@@ -220,7 +220,8 @@ function keystrokeMovesOneLine(source: string, pick: number, offset: number): vo
 		body,
 		leaf.at(-1)!,
 		raw.slice(0, at) + 'Q' + raw.slice(at),
-		'authored'
+		'authored',
+		defaultGrammarView
 	);
 	const before = splitLines(serialize(deps.doc)).map((line) => line.raw);
 	createUndoController(deps).typeLeaf(docPathFrom(leaf), write, at);

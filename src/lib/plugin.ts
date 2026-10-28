@@ -317,7 +317,8 @@ export type { ChromeLeafOptions };
 // Create the reserved child-0 node for a container's title leaf: the text plus its newline.
 export { chromeChild } from './editor-actions/plugin/chrome-leaf';
 // One definition of collapsed, shared by a component's getter and the traversals over the CST.
-export { isCollapsedContainer } from './schema/reserved-chrome';
+// `rowContentRange` is the title part of a title row, past a `:::name` marker.
+export { isCollapsedContainer, rowContentRange } from './schema/reserved-chrome';
 
 // ── Editable-leaf surface (pre-freeze) ───────────────────────────────────────
 // What a block built on `createEditableLeaf` (from `/svelte`) publishes.
@@ -329,19 +330,20 @@ export type { EditableLeafBlockApi, StickyColumnDirection } from './block-compon
 export { activateDirectives } from './components/blocks/directive/activate-directives';
 export { registerDirective, isDirectiveRegistered } from './core/directive/registry';
 export type { DirectiveDefinition, ParsedDirective } from './core/directive/registry';
-// `escalatedColonCount` is the rule `serializeDirective` applies, for emitters building `:::name`
-// text by concatenation, where a body line reproducing the fence would close it early.
+// `escalatedColonCount` is `serializeDirective`'s fence rule, for an emitter building `:::name` text
+// by hand; `withDirectiveName` renames a container on its opener line, for a `replaceRaw`.
 export {
 	escalatedColonCount,
 	parseDirectiveAttributes,
-	serializeDirective
+	serializeDirective,
+	withDirectiveName
 } from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
-// The `rebuildRaw` for a directive container whose child 0 is an editable title.
+// The `rebuildRaw` for a `:::` container: child 0 is its opener line, which the grammar puts there.
 export { createDirectiveRebuild } from './editor-actions/plugin/directive-container';
-// The wrap every `:::` body parses with; a directive kind declares it as its `container.bodyWrap`
-// so the editor's blank-line fix-up knows the blank line against the fence belongs to the fence.
-export { DIRECTIVE_BODY_WRAP } from './core/directive/container-shape';
+// The wrap every `:::` body parses with (a kind's `container.bodyWrap`), and the kind of every `:::`
+// container's opener-line row (what a folding `:::` kind names as its `reservedChrome.kind`).
+export { DIRECTIVE_BODY_WRAP, DIRECTIVE_OPENER_LINE } from './core/directive/container-shape';
 
 // ── Renderer utilities (pre-freeze) ──────────────────────────────────────────
 // Where an injected renderer is set and cached per theme, with the plugin's own fallback when it's

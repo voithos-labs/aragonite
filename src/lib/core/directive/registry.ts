@@ -10,13 +10,15 @@ import type { DirectiveTier, DirectiveFence } from './grammar';
 import type { AnyBlockKind, PluginInlineKind, CstNode, InlineNode, Document } from '../nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { createPluginRegistry } from '../../schema/plugin-registry';
+import { DIRECTIVE_CONTAINER } from './container-shape';
 
 export interface ParsedDirective {
 	fence: DirectiveFence;
 	body?: Document;
 	/** Passed through so a factory node serializes intact. */
 	leadingTrivia: string;
-	/** The exact consumed slice (opener + body + closer); a factory sets `node.raw` to this. */
+	/** The exact consumed slice (opener + body + closer); a factory sets `node.raw` to this. The
+	 *  grammar puts the opener line in front of the children the factory returns. */
 	raw: string;
 	closerColonCount: number;
 	closerNewline: boolean;
@@ -32,10 +34,14 @@ export interface DirectiveDefinition {
 
 const definitions = createPluginRegistry<string, DirectiveDefinition>({
 	label: 'registerDirective',
-	isBuiltin: () => false
+	isBuiltin: () => false,
+	onChange: () => (containerKinds = null)
 });
 
 const keyOf = (tier: DirectiveTier, name: string): string => `${tier}:${name}`;
+
+// Every editor's, whatever it installed: whether a kind holds its opener line is a fact of its shape.
+let containerKinds: Set<AnyBlockKind | PluginInlineKind> | null = null;
 
 export function registerDirective(
 	tier: DirectiveTier,
@@ -61,6 +67,17 @@ export function registerDirective(
 		def,
 		`registerDirective: "${key}" is already registered. Directives are register-once.`
 	);
+}
+
+/** Whether `kind` is a `:::` container, whose first child the grammar makes its opener line. */
+export function isDirectiveContainerKind(kind: AnyBlockKind | PluginInlineKind): boolean {
+	containerKinds ??= new Set(
+		definitions
+			.records()
+			.filter(({ key }) => key.startsWith('container:'))
+			.map(({ value }) => value.kind)
+	);
+	return kind === DIRECTIVE_CONTAINER || containerKinds.has(kind);
 }
 
 /** The name's definition under an editor's grammar; a name its plugin registered is absent where

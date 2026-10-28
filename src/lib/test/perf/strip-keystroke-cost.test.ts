@@ -2,6 +2,7 @@
 // the typing costs no parse.
 // Miss-analysis: the keystroke cost tests counted rebuild depth and re-reads, never how many lines
 // a rebuild read, so a rebuild that walked every line of its container per key passed them.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
@@ -42,7 +43,13 @@ function typeTwice(source: string): CstNode {
 		const raw = owner.children![TARGET].raw;
 		const at = raw.indexOf('\n');
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
-		const write = legalizeWrite(body, TARGET, raw.slice(0, at) + 'Q' + raw.slice(at), 'authored');
+		const write = legalizeWrite(
+			body,
+			TARGET,
+			raw.slice(0, at) + 'Q' + raw.slice(at),
+			'authored',
+			defaultGrammarView
+		);
 		expect(typing.typeLeaf(docPathFrom(leaf), write, at + 1).wrote).toBe(true);
 	}
 	return blockNodeAt(deps.doc, leaf) as CstNode;

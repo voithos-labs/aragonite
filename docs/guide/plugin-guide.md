@@ -511,7 +511,7 @@ function rebuildBoxRaw(node: CstNode): void {
 // the editor calls it after a child edit; node.raw now reads ':::box\nedited line\n:::\n'
 ```
 
-A directive container with a title line doesn't hand-write this at all: `createDirectiveRebuild` in the walkthrough does the same job with the fence bytes, the line ending and the title handled for you.
+A `:::` directive container doesn't hand-write this at all: `createDirectiveRebuild` in the walkthrough does the same job with the opener line, the closing line and the line ending handled for you.
 
 The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw }`) is a performance opt-in for a container big enough that re-reading every child on every keystroke costs real time (the built-in list and quote use it). It names the one child whose raw just changed and the bytes it held before, so you can re-emit that child's region alone. If you take it:
 

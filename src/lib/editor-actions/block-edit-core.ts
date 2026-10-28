@@ -54,6 +54,7 @@ import type {
 	UndoGrouping
 } from '../action-contracts';
 import {
+	closeWrittenOpeners,
 	legalizeWrite,
 	settledCaretPosition,
 	type LegalWrite,
@@ -116,7 +117,7 @@ export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlock
 		);
 		const kind = () => scope.children()[index]?.kind;
 		if (!admitsWrite(scope, 'updateContent', kind)) return refusedWrite();
-		const write = legalizeWrite(scope.target(), index, text, mode);
+		const write = legalizeWrite(scope.target(), index, text, mode, scope.reading.grammar);
 		const caret = write.storedOffset(postEditFocusOffset ?? preEditOffset);
 		// Decided before `work` first yields, which `typeIn` runs up to before it returns.
 		let keepsCaret = false;
@@ -219,7 +220,7 @@ export async function commitLeafTextAt(
 	const scope = createPathScope(root, docPathFrom(leafPath.slice(0, -1)));
 	const index = leafPath[leafPath.length - 1];
 	if (!scope || !scope.children()[index]) return { wrote: false };
-	const write = legalizeWrite(scope.target(), index, text, 'literal');
+	const write = legalizeWrite(scope.target(), index, text, 'literal', scope.reading.grammar);
 	return commitLeafText(scope, index, write, {
 		snapshotOffset: opts.snapshotOffset,
 		caret: write.storedOffset(opts.caret),
@@ -491,7 +492,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const target = scope.target();
 			const lineEnding = 'lineEnding' in target ? target.lineEnding : documentLineEnding(target);
 			const text = withLineEnding(raw, lineEnding);
-			const write = legalizeWrite(target, i, text, 'literal');
+			const write = legalizeWrite(target, i, text, 'literal', scope.reading.grammar);
 			const kept = caret === undefined ? undefined : offsetThroughRewrite(node.raw, text, caret);
 			// With no caret to keep, only a block that became new blocks takes one, at its start.
 			const landed = await commitLeafText(scope, i, write, {
@@ -532,8 +533,15 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						return { op: 'delete', at: i, count: 1 };
 					}
 					const old = view.body.children[i];
-					const normalized = normalizeReplacementTrivia(old, replacement);
-					for (const node of normalized) ensureEditableContainers(node, view.body.lineEnding);
+					const trivia = normalizeReplacementTrivia(old, replacement);
+					for (const node of trivia) ensureEditableContainers(node, view.body.lineEnding);
+					const normalized = closeWrittenOpeners(
+						view.body,
+						i,
+						old.raw,
+						trivia,
+						scope.reading.grammar
+					);
 					const { children, owner } = view.body;
 					const change = writeKeepingTaskMarker(owner, children, i, view.sharing, () => {
 						spliceMany(children, i, 1, normalized);

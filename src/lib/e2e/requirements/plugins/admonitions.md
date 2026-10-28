@@ -20,15 +20,17 @@ here.
 
 - kinds render distinctly: the important, tip and caution admonitions each render a box
   carrying its own `data-kind`, so the user can tell the kinds apart
-- title rendering: a titled admonition shows its title text in the title leaf; an untitled one
-  shows the capitalized kind name as a placeholder (`Important`)
+- title rendering: a titled admonition's opener line shows its title after the `:::tip`; an
+  untitled one shows its bare `:::important` in source mode, and where that line is hidden
+  (reading mode) the capitalized kind name stands in as a placeholder (`Important`)
 
 ## User interactions
 
-- typing in the title leaf: real keyboard input into the untitled `:::important` title fills the
-  placeholder and rewrites the opener to `:::important Read me`; the source round-trips stable
+- typing on the opener line: real keyboard input at the end of the untitled `:::important` line
+  writes `:::important Read me` and the box stops flagging the title empty; the source
+  round-trips stable
 - `Mod+7` cycles the kind: a real chord on the tip admonition advances it to `:::important` (the
-  source changes and exactly one `metadataUpdate` edit op fires), and one `Ctrl+Z` restores
+  source changes and exactly one `updateContent` edit op fires), and one `Ctrl+Z` restores
   `:::tip`, so each keypress is one undoable commit; round-trips stable
 - convert button: clicking it rewrites the top-level `> [!CAUTION]` blockquote to a `:::caution`
   admonition and leaves the fenced `> [!NOTE]` byte-identical (never `:::note`, since only a

@@ -56,7 +56,13 @@ export function createInlineRangeCommit(root: EditorRoot): InlineRangeCommit {
 		const moved = movedBy(start, edit.caret - bytes.length, bytes.length);
 		// Compared against the bytes the write would store (G4.28), so a splice a table cell's pipe
 		// escaping cancels out adds no undo entry (dismissing an image after a resize).
-		const write = legalizeWrite(scope.target(), index, edit.raw, 'literal');
+		const write = legalizeWrite(
+			scope.target(),
+			index,
+			edit.raw,
+			'literal',
+			root.deps.reading.grammar
+		);
 		return { scope, index, write: write.text === leaf.raw ? null : write, moved };
 	}
 

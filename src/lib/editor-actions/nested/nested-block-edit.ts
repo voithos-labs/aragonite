@@ -6,8 +6,7 @@
 
 import type { BlockEditActions } from '../../action-contracts';
 import type { BlockListState } from '../../block-lists/block-list-state.svelte';
-import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { isCollapsedContainer } from '../../schema/reserved-chrome';
+import { isCollapsedContainer, unwrapRoleOf } from '../../schema/reserved-chrome';
 import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
 import { createContainerScope } from '../block-edit-scope';
@@ -47,7 +46,7 @@ export function createNestedBlockEdit(
 		async mergeWithPrevious(innerIndex) {
 			if (!deps.node.children) return false;
 
-			const unwrapRole = tryGetBlockKindDescriptor(deps.node.kind)?.unwrapRole;
+			const unwrapRole = unwrapRoleOf(deps.node.kind);
 
 			if (innerIndex <= 0) {
 				if (unwrapRole) {
@@ -124,7 +123,7 @@ export function createNestedBlockEdit(
 
 		// Unwrapped, this bundle completes no line, as its `splitBlock` doesn't; `withEnterCompletion`
 		// adds both above the container's overrides.
-		completeLineOnType: async () => false
+		completeLineOnType: () => refusedWrite()
 	};
 
 	return blockEdit;

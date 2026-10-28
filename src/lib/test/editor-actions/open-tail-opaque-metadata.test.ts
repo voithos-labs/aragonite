@@ -1,5 +1,6 @@
 // Miss-analysis: the open-last-line suite checked the bytes a structural edit left, never an edit
 // after it, so no test saw an opaque container rebuild from a line ending its metadata had missed.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, serialize } from '#lib';
 import { documentLineEnding } from '#lib/core/lines.js';
@@ -23,7 +24,7 @@ const typeInBody =
 	(h) => {
 		const owner = h.deps.doc.children[0];
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(h.deps.doc) };
-		const write = legalizeWrite(body, 0, raw, 'authored');
+		const write = legalizeWrite(body, 0, raw, 'authored', defaultGrammarView);
 		const typing = h.controller;
 		expect(typing.typeLeaf(docPathFrom([0, 0]), write, 0).wrote).toBe(true);
 	};

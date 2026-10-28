@@ -2,6 +2,7 @@
 // The fence rule on the code block's own commit path: both commit paths, a keystroke and an IME
 // composition end, hand the write what the browser left as typed bytes, and the write's fence
 // rule reconciles them.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { parse } from '#lib/core/parser.js';
@@ -28,7 +29,7 @@ function committed(): string {
 	const [index, text, mode] = calls[0];
 	expect(mode).toBe('authored');
 	const target = { children: parse(SOURCE).children, owner: undefined, lineEnding: '\n' as const };
-	return trimTrailingLineEnding(legalizeWrite(target, index, text, mode).text);
+	return trimTrailingLineEnding(legalizeWrite(target, index, text, mode, defaultGrammarView).text);
 }
 
 beforeEach(() => {

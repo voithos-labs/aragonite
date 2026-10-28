@@ -224,7 +224,7 @@ async function applyContainerMatchingMerge(
 		const rel = merge.targetLeafPath.slice(unwrap.outerPath.length);
 		const holder = rel.slice(0, -1).reduce((node, i) => node.children![i], scope.node);
 		const body = { children: holder.children!, owner: holder, lineEnding };
-		const write = legalizeWrite(body, leafIndex, text, 'literal');
+		const write = legalizeWrite(body, leafIndex, text, 'literal', ctx.reading.grammar);
 		return { settled: scope.writeLeaf(rel, write), storedOffset: write.storedOffset };
 	};
 	let merged: MergedLeaf | null = null;

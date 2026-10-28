@@ -13,7 +13,7 @@ only the reload path here.
 
 ## Happy paths
 
-- the prop installs the first listed plugin before the parse: the default callout seed's first block is a `callout` container whose child 0 is `callout-title`, never a `paragraph`, which is what a missing grammar gives, and never a `directiveContainer`, which is what the grammar gives when callout is not registered
+- the prop installs the first listed plugin before the parse: the default callout seed's first block is a `callout` container whose child 0 is its `directiveOpenerLine` row, never a `paragraph`, which is what a missing grammar gives, and never a `directiveContainer`, which is what the grammar gives when callout is not registered
 - the prop installs every listed plugin, not only the first: the admonitions seed parses an `admonition` kind into the document, which proves a plugin at the end of the array installed before the seed parsed
 
 ## Edge cases

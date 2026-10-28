@@ -36,28 +36,31 @@ test.describe('plugin admonitions', () => {
 	test('a titled admonition shows its title; an untitled one shows the kind placeholder', async ({
 		page
 	}) => {
-		// Titled: the title row renders the opener line's title verbatim.
-		await expect(page.locator(".admonition[data-kind='tip'] .admonition-title")).toHaveText(
-			'Pro tip'
+		// Titled: the opener line holds the title after its `:::tip` (the page is in source mode).
+		await expect(page.locator(".admonition[data-kind='tip'] .directive-opener-line")).toHaveText(
+			':::tip Pro tip'
 		);
-		expect((await readContainer(page, 2)).childTexts[0]).toBe('Pro tip');
+		expect((await readContainer(page, 2)).childTexts[0]).toBe(':::tip Pro tip');
 
-		// Untitled: the title leaf is empty and the box flags it, so the capitalized
-		// kind name stands in as a placeholder (a CSS ::after, not real title bytes).
+		// Untitled: the box flags it, and where the line's `:::important` is hidden the capitalized
+		// kind name stands in (a CSS ::after, not real title bytes); source mode shows the line.
 		const box = page.locator(".admonition[data-kind='important']");
 		await expect(box).toHaveAttribute('data-title-empty', 'true');
-		expect((await readContainer(page, 1)).childTexts[0]).toBe('');
-		const placeholder = await box
-			.locator('.admonition-title')
-			.evaluate((el) => getComputedStyle(el, '::after').content);
-		expect(placeholder).toContain('Important');
+		expect((await readContainer(page, 1)).childTexts[0]).toBe(':::important');
+		const placeholder = () =>
+			box
+				.locator('.directive-opener-line')
+				.evaluate((el) => getComputedStyle(el, '::after').content);
+		expect(await placeholder()).toBe('none');
+		await editor.setPresentationMode('reading');
+		expect(await placeholder()).toContain('Important');
 	});
 
 	test('typing into the untitled title fills the placeholder and rewrites the opener', async ({
 		page
 	}) => {
-		await editor.focusBlockAtPath([1, 0], 0);
-		await editor.typeText('Read me');
+		await editor.focusBlockAtPath([1, 0], 12);
+		await editor.typeText(' Read me');
 
 		await editor.bridge.waitForSourceContains(':::important Read me');
 		// Once titled, the box stops flagging the title empty.
@@ -65,7 +68,7 @@ test.describe('plugin admonitions', () => {
 			'data-title-empty',
 			'false'
 		);
-		expect((await readContainer(page, 1)).childTexts[0]).toBe('Read me');
+		expect((await readContainer(page, 1)).childTexts[0]).toBe(':::important Read me');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
@@ -77,9 +80,9 @@ test.describe('plugin admonitions', () => {
 
 		await editor.bridge.waitForSourceContains(':::important Pro tip');
 		await editor.bridge.waitForSourceNotContains(':::tip');
-		// Exactly one metadata commit per keypress: no split, no input op.
+		// Exactly one write of the opener line per keypress: no split, no metadata op.
 		const ops = await page.evaluate(() => (window as any).__test.stopEditOpCapture());
-		expect(ops).toEqual(['metadataUpdate']);
+		expect(ops).toEqual(['updateContent']);
 		expect(await roundTripStable(page)).toBe(true);
 
 		await editor.undo();

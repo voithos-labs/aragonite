@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
-import { setPluginMetadata } from '#lib/core/nodes.js';
+import { makeBlockNode, setPluginMetadata } from '#lib/core/nodes.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	getBlockKindDescriptor,
@@ -9,6 +9,7 @@ import {
 import {
 	DIRECTIVE_CONTAINER,
 	DIRECTIVE_LEAF,
+	DIRECTIVE_OPENER_LINE,
 	registerDirectiveKinds,
 	rebuildDirectiveContainerRaw
 } from '#lib/core/directive/kinds.js';
@@ -38,14 +39,14 @@ describe('directiveLeaf render descriptor', () => {
 
 	const leaf = () => getBlockKindDescriptor(declaredPluginKind(DIRECTIVE_LEAF));
 
-	it('marks `::name` as the content-range prefix so only the fence dims', () => {
+	it('marks `::name` and its space as the content-range prefix so only the fence dims', () => {
 		const node: CstNode = {
 			kind: declaredPluginKind(DIRECTIVE_LEAF),
 			leadingTrivia: '',
 			raw: '::toc info\n'
 		};
-		// `::toc` (5) dims; ` info` (5..10) is the editable content.
-		expect(leaf().getContentRange!(node)).toEqual({ start: 5, end: 10 });
+		// `::toc ` (6) dims; `info` (6..10) is the editable content.
+		expect(leaf().getContentRange!(node)).toEqual({ start: 6, end: 10 });
 	});
 
 	it('spans the whole line when the info is empty', () => {
@@ -87,34 +88,34 @@ describe('rebuildDirectiveContainerRaw', () => {
 	};
 
 	const paragraph = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
+	const openerLine = (raw: string): CstNode =>
+		makeBlockNode({ kind: declaredPluginKind(DIRECTIVE_OPENER_LINE), leadingTrivia: '', raw });
 
 	it('re-emits opener colons, verbatim info, inner blank lines, and the closer', () => {
 		const node = build(
 			{
 				name: 'x',
-				colonCount: 3,
-				info: ' t',
 				closerColonCount: 3,
-				closerNewline: true,
-				lineEnding: '\n'
+				closerNewline: true
 			},
-			{ innerPrefix: '\n', children: [paragraph('body\n')], innerSuffix: '\n' }
+			{
+				innerPrefix: '\n',
+				children: [openerLine(':::x t\n'), paragraph('body\n')],
+				innerSuffix: '\n'
+			}
 		);
 		rebuildDirectiveContainerRaw(node);
 		expect(node.raw).toBe(':::x t\n\nbody\n\n:::\n');
 	});
 
-	it('widens the opener and closer to a deeper colon count', () => {
+	it("keeps the opener line's own colon count", () => {
 		const node = build(
 			{
 				name: 'x',
-				colonCount: 4,
-				info: '',
 				closerColonCount: 4,
-				closerNewline: true,
-				lineEnding: '\n'
+				closerNewline: true
 			},
-			{ innerPrefix: '', children: [paragraph('body\n')], innerSuffix: '' }
+			{ innerPrefix: '', children: [openerLine('::::x\n'), paragraph('body\n')], innerSuffix: '' }
 		);
 		rebuildDirectiveContainerRaw(node);
 		expect(node.raw).toBe('::::x\nbody\n::::\n');
@@ -124,13 +125,10 @@ describe('rebuildDirectiveContainerRaw', () => {
 		const node = build(
 			{
 				name: 'x',
-				colonCount: 3,
-				info: '',
 				closerColonCount: 3,
-				closerNewline: false,
-				lineEnding: '\n'
+				closerNewline: false
 			},
-			{ innerPrefix: '', children: [paragraph('body\n')], innerSuffix: '' }
+			{ innerPrefix: '', children: [openerLine(':::x\n'), paragraph('body\n')], innerSuffix: '' }
 		);
 		rebuildDirectiveContainerRaw(node);
 		expect(node.raw).toBe(':::x\nbody\n:::');

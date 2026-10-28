@@ -16,9 +16,10 @@ beforeEach(() => {
 });
 
 describe('the opaque stale-raw check compares metadata with the reparse (#640)', () => {
-	// A bare `rebuildRaw` is a rebuild outside every route that re-reads the metadata.
+	// A bare `rebuildRaw` is a rebuild outside every route that re-reads the bytes: the widened
+	// fence leaves the opener line, which holds the colon count, behind.
 	it.each([
-		['a directive with no title', ':::spoiler\nhidden\n:::\n', 0],
+		['a directive with no title', ':::spoiler\nhidden\n:::\n', 1],
 		['a directive with a title', ':::note Heads up\nbody\n:::\n', 1]
 	])('fires on %s whose bare rebuild lengthened the fence', (_label, source, bodyIndex) => {
 		const node = parse(source).children[0];
@@ -27,8 +28,7 @@ describe('the opaque stale-raw check compares metadata with the reparse (#640)',
 
 		const violation = checkOpaqueStaleRaw(node, defaultGrammarView);
 		expect(violation?.code).toBe('opaque-stale-raw');
-		expect(violation?.detail).toMatchObject({ reason: 'metadata-diverges' });
-		expect(violation?.message).toContain('.colonCount: live 3 != reparsed 4');
+		expect(violation?.message).toContain('stale relative to its children');
 	});
 
 	it('fires on a childless container whose metadata its bytes no longer produce', () => {

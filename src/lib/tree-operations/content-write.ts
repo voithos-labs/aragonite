@@ -4,27 +4,17 @@
  * rebuilt raw (`docs/design/structural-edits.md` § Structural operations).
  */
 
-import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
-import type { GrammarView } from '../schema/block-openers';
+import { unfinishedReadings, type GrammarView } from '../schema/block-openers';
 import {
 	lineOpensAs,
 	parseContainerRaw,
 	rebuildContainerRaw,
 	type BytesReading
 } from '../schema/container-raw';
-import {
-	displayLines,
-	documentLineEnding,
-	firstDisplayLine,
-	joinDisplayLines,
-	ownTrailingLineEnding,
-	trimTrailingLineEnding,
-	type LineEnding
-} from '../core/lines';
+import { documentLineEnding, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import { openLinesAtEnd } from '../core/inline';
-import { writtenSpan } from '../core/written-span';
 import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
 import {
 	getBlockKindDescriptor,
@@ -38,7 +28,7 @@ import type { SharingState } from './sharing';
 import { resyncChildIds } from './children';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { taskMarkerCaretShift, writeKeepingTaskMarker } from './list/reconcile-task';
-import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
+import { fragmentReaderAt } from './list/task-paragraph';
 import {
 	NEXT_PROSE_LINE,
 	asBody,
@@ -50,6 +40,12 @@ import {
 	spliceList
 } from './node-primitives';
 import { ensureEditableContainers } from '../schema/opened-reading';
+import {
+	offsetPastClosers,
+	withClosers,
+	writtenOpenerClosers,
+	type WrittenCloser
+} from './written-openers';
 import { caretInBlocks, fixUpWrite, type FixedUpWrite, type WrittenSlot } from './fix-up/apply';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkWriteInWindow } from '../invariants/structural-descriptor';
@@ -80,13 +76,14 @@ export type WriteTarget =
 	  }
 	| DocumentView;
 
-/** `text` made legal as the bytes of the block at `index`: the prose rule, the kind's `rawWrite`,
- *  then the container's `bodyWrite`, all reading the tree as it stands before the write. */
+/** `text` made legal as the bytes of the block at `index`, among the siblings as they stand once it
+ *  lands: the prose rule, the kind's `rawWrite`, the container's `bodyWrite`, then a written opener's closer. */
 export function legalizeWrite(
 	parent: WriteTarget,
 	index: number,
 	text: string,
-	mode: WriteMode
+	mode: WriteMode,
+	grammar: GrammarView
 ): LegalWrite {
 	const node = parent.children[index];
 	const owner = 'owner' in parent ? parent.owner : undefined;
@@ -99,7 +96,9 @@ export function legalizeWrite(
 	const bodyRule = owner ? tryGetBlockKindDescriptor(owner.kind)?.bodyWrite : undefined;
 	// A child's bytes are never the container's own syntax, so the body rule reads them as content.
 	const bodyCtx: WriteContext | undefined = owner && { node: owner, mode: 'literal', lineEnding };
-	const stored = bodyRule && bodyCtx ? bodyRule.normalize(own, bodyCtx) : own;
+	const body = bodyRule && bodyCtx ? bodyRule.normalize(own, bodyCtx) : own;
+	const closers = closersFor(parent.children, index, node, body, owner, grammar);
+	const stored = withClosers(body, closers);
 	// A list item takes a typed task marker out of its first paragraph, or gives one back.
 	const markerShift = index === 0 && owner ? taskMarkerCaretShift(owner, stored) : 0;
 	const storedOffset = (offset: number): number => {
@@ -107,9 +106,62 @@ export function legalizeWrite(
 		const inProse = dropped ? Math.min(offset, dropped.text.length) : offset;
 		const inOwn = ownRule ? ownRule.mapOffset(prose, inProse, ownCtx) : inProse;
 		const inBody = bodyRule && bodyCtx ? bodyRule.mapOffset(own, inOwn, bodyCtx) : inOwn;
-		return Math.max(inBody + markerShift, 0);
+		return Math.max(offsetPastClosers(inBody, closers) + markerShift, 0);
 	};
 	return { text: stored, storedOffset } as LegalWrite;
+}
+
+// A kind with no reading of its own (a table cell, a title row) holds no block opener.
+function closersFor(
+	children: readonly NodeView[],
+	index: number,
+	node: NodeView,
+	text: string,
+	owner: NodeView | undefined,
+	grammar: GrammarView
+): WrittenCloser[] {
+	if (tryGetBlockKindDescriptor(node.kind)?.contextDependentKind) return [];
+	const read = fragmentReaderAt(owner, index, grammar);
+	return writtenOpenerClosers(children, index, node.raw, text, read, unfinishedReadings(grammar));
+}
+
+/** {@link legalizeWrite}'s closers for a write that arrives as blocks, put at child `index` over the
+ *  bytes `before` (the block they replace, or nothing for a block moved there). */
+export function closeWrittenOpeners(
+	target: WriteTarget,
+	index: number,
+	before: string,
+	blocks: readonly CstNode[],
+	grammar: GrammarView
+): CstNode[] {
+	if (blocks.some((block) => tryGetBlockKindDescriptor(block.kind)?.contextDependentKind)) {
+		return [...blocks];
+	}
+	const owner = 'owner' in target ? target.owner : undefined;
+	const read = fragmentReaderAt(owner, index, grammar);
+	const ends: number[] = [];
+	let text = '';
+	for (const [k, block] of blocks.entries()) {
+		text += (k > 0 ? block.leadingTrivia : '') + block.raw;
+		ends.push(text.length);
+	}
+	const readings = unfinishedReadings(grammar);
+	const closers = writtenOpenerClosers(target.children, index, before, text, read, readings);
+	const ending = 'lineEnding' in target ? target.lineEnding : documentLineEnding(target);
+	const out = [...blocks];
+	for (const closer of closers) {
+		const k = ends.indexOf(closer.at);
+		if (k < 0) continue;
+		const bytes = blocks[k].raw + closer.text;
+		const closed = read(bytes).children;
+		if (closed.length !== 1) continue;
+		// The whole closed bytes, since the reparse splits a trailing blank line off into its suffix.
+		const node: CstNode = { ...closed[0], leadingTrivia: blocks[k].leadingTrivia, raw: bytes };
+		ensureEditableContainers(node, ending);
+		assignChildIdsDeep(node);
+		out[k] = node;
+	}
+	return out;
 }
 
 /** The empty lines after a final hard break that a write of `text` over prose block `node` drops,
@@ -146,7 +198,7 @@ export function writeNodeContent(
 	sharing: SharingState
 ): UnsettledWrite {
 	const body = asBody(parent);
-	const legal = legalText(body, blockIndex, text);
+	const legal = legalText(body, blockIndex, text, grammar);
 	// Reconciled before the container's raw rebuild writes the list item's marker.
 	return writeKeepingTaskMarker(body.owner, body.children, blockIndex, sharing, () =>
 		writeLegal(body, blockIndex, legal, grammar)
@@ -165,15 +217,20 @@ export function updateNodeContent(
 	sharing: SharingState
 ): FixedUpWrite {
 	const body = asBody(parent);
-	const legal = legalText(body, blockIndex, text);
+	const legal = legalText(body, blockIndex, text, grammar);
 	return writeKeepingTaskMarker(body.owner, body.children, blockIndex, sharing, () => {
 		const { change, written } = writeLegal(body, blockIndex, legal, grammar);
 		return fixUpWrite(body, written, change, grammar, sharing);
 	});
 }
 
-const legalText = (body: BodyParent, index: number, text: string | LegalWrite): string =>
-	typeof text === 'string' ? legalizeWrite(body, index, text, 'literal').text : text.text;
+const legalText = (
+	body: BodyParent,
+	index: number,
+	text: string | LegalWrite,
+	grammar: GrammarView
+): string =>
+	typeof text === 'string' ? legalizeWrite(body, index, text, 'literal', grammar).text : text.text;
 
 function writeLegal(
 	parent: BodyParent,
@@ -185,78 +242,6 @@ function writeLegal(
 	const previous = { ...parent.children[blockIndex] };
 	const change = writeParsedContent(parent, blockIndex, text, grammar);
 	return { change, written: { index: blockIndex, previous, text } };
-}
-
-/**
- * The written bytes parsed, with a construct they leave open closed first, or the next parse and
- * the neighbour merge would read every block below it as its body.
- */
-function closeWrittenConstruct(
-	parent: BodyParent,
-	blockIndex: number,
-	text: string,
-	oldKind: AnyBlockKind,
-	read: FragmentReader
-): { text: string; parsed: Document } {
-	const parsed = read(text);
-	const next = parent.children[blockIndex + 1];
-	if (!next) return { text, parsed };
-	if (parsed.children.length === 1 && parsed.children[0].kind === oldKind) return { text, parsed };
-	const terminator = openConstructTerminator(text, parsed.children, read);
-	// An opener the write only exposed reads on as a reload reads it, closer and all.
-	if (!terminator || !opensOnWrittenLine(parent.children[blockIndex].raw, text, parsed)) {
-		return { text, parsed };
-	}
-	if (takesCloserBelow(text, parsed, next, read)) return { text, parsed };
-	const closed = text + terminator;
-	return { text: closed, parsed: read(closed) };
-}
-
-/** Whether an opener typed back onto its body takes the closer flush beneath it; a fence typed
- *  on its own line, or with a blank line under it, gets a closer of its own. */
-function takesCloserBelow(
-	text: string,
-	parsed: Document,
-	next: NodeView,
-	read: FragmentReader
-): boolean {
-	const opened = parsed.children[parsed.children.length - 1];
-	const hasBody = trimTrailingLineEnding(opened.raw).includes('\n');
-	if (!hasBody || next.leadingTrivia !== '') return false;
-	const head = text + firstDisplayLine(next.raw).text + ownTrailingLineEnding(text);
-	return !openConstructTerminator(head, read(head).children, read);
-}
-
-/** Whether the last block of `parsed` opens on a line the write changed in `before`. */
-function opensOnWrittenLine(before: string, text: string, parsed: Document): boolean {
-	const last = parsed.children[parsed.children.length - 1];
-	const start = text.length - parsed.suffix.length - last.raw.length;
-	const lineEnd = start + firstDisplayLine(last.raw).text.length;
-	const span = writtenSpan(before, text);
-	return span.start <= lineEnd && span.end >= start;
-}
-
-/**
- * The closing line the bytes need when their last construct runs to end of file; null when they
- * close themselves, or no fence opener explains the run.
- */
-function openConstructTerminator(
-	text: string,
-	blocks: readonly CstNode[],
-	read: FragmentReader
-): string | null {
-	// The closer is a line of its own, so bytes whose last line is unterminated have nowhere to
-	// put one: an unterminated tail slice absorbs nothing while it stands alone.
-	const ending = ownTrailingLineEnding(text);
-	if (ending === '' || blocks.length === 0) return null;
-	const probe = read(text + ending + NEXT_PROSE_LINE + ending);
-	if (probe.children.length !== blocks.length) return null;
-	const [openerLine, ...bodyLines] = displayLines(blocks[blocks.length - 1].raw);
-	const opener = matchFenceOpen(openerLine.text);
-	if (!opener) return null;
-	const body = joinDisplayLines(bodyLines);
-	const run = escalatedFenceLength(body, opener.marker, opener.length);
-	return opener.indent + opener.marker.repeat(run) + ending;
 }
 
 function writeParsedContent(
@@ -276,13 +261,7 @@ function writeParsedContent(
 		return { op: 'noop' };
 	}
 
-	const { text: newText, parsed: reparsed } = closeWrittenConstruct(
-		parent,
-		blockIndex,
-		text,
-		oldKind,
-		fragmentReaderAt(parent.owner, blockIndex, grammar)
-	);
+	const reparsed = fragmentReaderAt(parent.owner, blockIndex, grammar)(text);
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];
 	// A marker-consuming container (a GitHub alert) needs its raw rebuilt from the backfilled
@@ -310,14 +289,14 @@ function writeParsedContent(
 	// In-place refresh keeps the node's object identity: component, IME state, and inline
 	// cache are all keyed on it.
 	if (newKind === oldKind) {
-		node.raw = newText;
+		node.raw = text;
 		adoptReparsedFields(node, first);
 		if (firstBackfilled) rebuildContainerRaw(node, grammar);
 		return { op: 'noop' };
 	}
 
-	const replacement: CstNode = first ?? { kind: 'paragraph', leadingTrivia: '', raw: newText };
-	replacement.raw = newText;
+	const replacement: CstNode = first ?? { kind: 'paragraph', leadingTrivia: '', raw: text };
+	replacement.raw = text;
 	replacement.leadingTrivia = node.leadingTrivia;
 	if (firstBackfilled) rebuildContainerRaw(replacement, grammar);
 	spliceList(parent, blockIndex, 1, [replacement]);

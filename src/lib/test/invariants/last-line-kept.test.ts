@@ -71,12 +71,12 @@ describe('G1.41 over a container with its own closing line', () => {
 	beforeEach(() => activateDirectiveGrammar(testDirectiveViews()));
 
 	it('fails a body line glued onto a directive’s closing `:::`', () => {
-		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 0]);
+		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 1]);
 		expect(checkLastLineKept(doc, false)?.message).toMatch(/directiveContainer > paragraph/);
 	});
 
 	it('fails the directive the rebuild then writes, whose closer lost its line', () => {
-		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 0]);
+		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 1]);
 		rebuildContainerRaw(doc.children[1], defaultGrammarView);
 		expect(doc.children[1].raw).toBe(':::note\nbody:::\n');
 		expect(checkLastLineKept(doc, false)?.message).toMatch(/directiveContainer > paragraph/);

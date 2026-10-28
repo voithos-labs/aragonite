@@ -1,5 +1,6 @@
 // Miss-analysis: the join a same-kind keystroke asks was costed by the perf gate's wall clock only,
 // so nothing said how many of a flush neighbour's bytes one keystroke parses.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
@@ -40,7 +41,7 @@ function bytesPerKeystroke(source: string, leaf: number[], raws: string[]): numb
 		const target: WriteTarget = owner
 			? { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) }
 			: deps.doc;
-		const write = legalizeWrite(target, leaf[leaf.length - 1], raw, 'authored');
+		const write = legalizeWrite(target, leaf[leaf.length - 1], raw, 'authored', defaultGrammarView);
 		resetPerfInstruments();
 		expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);
 		return perfSnapshot().parseBytes;

@@ -30,11 +30,11 @@ These checks run in three kinds of place:
 | G1.11  | Every keymap chord is unique per kind and names a known command                               | A·N     |
 | G1.12  | An opaque container's raw still reparses to its live children and metadata                    | A·N     |
 | G1.13  | An opaque `rebuildRaw` is deterministic over committed state                                  | A·N     |
-| G1.14  | A container declaring `reservedChrome` holds its chrome leaf at child 0                       | A·N     |
+| G1.14  | A container with a title row holds it at child 0; a `:::` row is the container's first line   | A·N     |
 | G1.15  | A plugin opener claims at least one line, and its raw matches the lines it consumed           | A·N     |
 | G1.16  | Every coordinate a commit declares is document-absolute                                       | A·N     |
 | G1.17  | An opener registered after the grammar was read warns                                         | A·N     |
-| G1.18  | A container's `reservedChrome` names a registered chrome kind                                 | A·N     |
+| G1.18  | A container's `reservedChrome` names a registered chrome kind, the one child 0 holds          | A·N     |
 | G1.19  | A commit scope's declared path still resolves to its captured node                            | A       |
 | G1.20  | An unshared chain is as deep as the path it was asked for                                     | A       |
 | G1.21  | A column edit's row scopes are the owned table's own children                                 | A       |
@@ -111,6 +111,7 @@ These checks run in three kinds of place:
 | G1.154 | A content write's fixed-up window holds the block it wrote                                    | A·N     |
 | G1.155 | A block's write puts its caret inside the text it writes                                      | A·N     |
 | G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs    | A·N     |
+| G1.158 | A block a commit splices in holds no opener it wrote that a block below would close           | A·N     |
 
 ### The entries
 
@@ -177,8 +178,9 @@ and is skipped otherwise. `checkOpaqueStaleRaw` (`node-shape.ts`) · commit prim
 probe-vs-probe: run it twice, require the same bytes. Predicate `checkOpaqueRebuildDeterminism`
 (`node-shape.ts`) · commit primitive · `opaque-rebuild-determinism.test.ts`.
 
-**G1.14 · Reserved-chrome slot.** A container declaring `reservedChrome` holds a chrome leaf of the
-declared kind at child 0; kinds with no declaration are exempt. Predicate `checkReservedChromeSlot`
+**G1.14 · Reserved-chrome slot.** A container with a title row holds a leaf of the row's kind at
+child 0: the kind its `reservedChrome` declares, or `directiveOpenerLine` for a `:::` container,
+whose row must also hold the container's first line byte for byte. Other kinds are exempt. Predicate `checkReservedChromeSlot`
 (`node-shape.ts`) · commit primitive · `reserved-chrome-slot.test.ts`.
 
 **G1.15 · Opener return trust.** A plugin opener claims at least one line (`consumed >= 1`). A
@@ -199,12 +201,12 @@ parsed documents never re-parse, so the kind would miss every open document. Reg
 first editor mounts. Predicate `checkLateOpenerRegistration` (`registry.ts`) · bootstrap ·
 `test/schema/registration-checks.test.ts`.
 
-**G1.18 · Reserved-chrome coherence.** The chrome kind a container's `reservedChrome` names (its
-title row) is registered, which `registerChromeLeaf` does, and a registered kind always carries its
-view (G3.15, which retired this check's component half). The bootstrap counterpart to G1.14's
-per-commit slot check. Predicate `checkReservedChromeCoherence`
+**G1.18 · Reserved-chrome coherence.** The chrome kind a container's `reservedChrome` names is
+registered (`registerChromeLeaf` does that, view included, G3.15) and is the row child 0 holds, so
+a `:::` container, whose row is its opener line, can only name `directiveOpenerLine`. The bootstrap
+counterpart to G1.14's per-commit slot check. Predicate `checkReservedChromeCoherence`
 (`registry.ts`) · bootstrap · `reserved-chrome-coherence.test.ts`,
-`test/schema/registration-checks.test.ts`.
+`test/schema/registration-checks.test.ts`, `opener-line-registration.test.ts`.
 
 **G1.19 · Multi-scope commit path.** A scope's declared path still resolves to its captured node,
 checked over all scopes _before_ any spine is copied, since a stale-but-in-range path would copy and
@@ -230,8 +232,8 @@ half-written tree, so `notifyEdit` and `runAll` assert no commit is open, and a 
 
 **G1.24 · Closure-block coherence.** A kind's closure block (its answer to each editor system)
 agrees with its descriptor: no `inherit-default` for a container's `roundTrip` (its `rebuildRaw` is
-the round trip), a `not-mergeable` kind's `mergeBackspace` or a `reservedChrome` kind's `clipboard`,
-and a cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must
+the round trip), a `not-mergeable` kind's `mergeBackspace` or a title-row kind's `clipboard`, and a
+cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must
 parse to its kind, checked in the unit sweep since a `parse` import in the flush is a cycle.
 `checkClosureCoherence` · bootstrap · `closure-coherence.test.ts`, `closure-fixtures.test.ts`.
 
@@ -659,3 +661,10 @@ has installed its entry and placed the caret, the document's bytes are the entry
 between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and
 would clear the redo stack, so the write gate declines every write while the install runs.
 `checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, the behavior rows.
+
+**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit
+splices or moves in holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further
+down would close, since that opener would read in blocks the edit never touched. Every write route
+closes one first (`legalizeWrite`, `closeWrittenOpeners`); a content write and a removal aren't
+asked, and a range delete's survivor lands outside a commit's list, where the route rows hold it.
+`checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.

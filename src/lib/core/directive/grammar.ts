@@ -37,6 +37,11 @@ export function matchDirectiveOpener(lineText: string): DirectiveFence | null {
 	};
 }
 
+/** `raw` with its opener line's name set to `name`; as it stands when its first line opens no fence. */
+export function withDirectiveName(raw: string, name: string): string {
+	return raw.replace(/^(:{2,})[A-Za-z][A-Za-z0-9-]*/, (_, colons: string) => colons + name);
+}
+
 const COLON = 0x3a;
 
 // Char-scan, not `new RegExp` per call: this runs inside the parser's per-line loop and

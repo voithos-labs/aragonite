@@ -2,6 +2,7 @@
 // own, and the run below gives up the separator it doubled, so a reload reads the same blocks.
 // Miss-analysis: the rebuild tests fed parser-built trees, where a paragraph never ends in a blank
 // line, and no row put a blank line under the erased block, whose separator then counted twice.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -33,7 +34,7 @@ const ROUTES: [string, (source: string) => { doc: Document; write: Write }][] = 
 			const { deps } = makeEditorActionsDeps(source);
 			const scope = createTopLevelScope(deps, createUndoController(deps));
 			const write: Write = async (index, text, caret) => {
-				const legal = legalizeWrite(scope.target(), index, text, 'authored');
+				const legal = legalizeWrite(scope.target(), index, text, 'authored', defaultGrammarView);
 				await commitLeafText(scope, index, legal, { snapshotOffset: caret, caret });
 			};
 			return { doc: deps.doc, write };
@@ -47,7 +48,7 @@ const ROUTES: [string, (source: string) => { doc: Document; write: Write }][] = 
 			const write: Write = async (index, text, caret) => {
 				typing.typeLeaf(
 					docPathFrom([index]),
-					legalizeWrite(deps.doc, index, text, 'authored'),
+					legalizeWrite(deps.doc, index, text, 'authored', defaultGrammarView),
 					caret
 				);
 			};

@@ -21,7 +21,8 @@ function rebuiltWithBody(source: string, bodyRaw: string) {
 	const node = doc.children[0];
 	node.children![1].raw = bodyRaw;
 	rebuildUnsharedAncestry(doc, [0], createSharingState(), null, fixtureGrammar);
-	return node;
+	// The widened opener line is re-read into a new node at the position.
+	return doc.children[0];
 }
 
 describe('admonition fence escalation past body colon runs', () => {

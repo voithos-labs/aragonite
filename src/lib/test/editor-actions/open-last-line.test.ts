@@ -300,7 +300,7 @@ describe('a directive container that ends the document', () => {
 			'a block split inside it',
 			'intro\n\n:::note\nbody\n:::',
 			'intro\n\n:::note\nbo\n\ndy\n:::',
-			inContainer([1], (bundle) => bundle.blockEdit.splitBlock(0, 2))
+			inContainer([1], (bundle) => bundle.blockEdit.splitBlock(1, 2))
 		]
 	])('%s keeps the closer line open', async (_name, source, after, route) => {
 		activateDirectiveGrammar(testDirectiveViews());

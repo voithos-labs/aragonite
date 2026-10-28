@@ -2,6 +2,7 @@
 // Every function that reads a math block's opener, body and closer, over the same shapes, held to
 // one split: `readMathSource` for `$$`, the code fence's own for ```math. The parser's side reads a
 // block's stored bytes, its line ending kept; the painter's side reads the source being edited.
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '#lib';
 import {
@@ -115,7 +116,7 @@ const MATH_FIXTURE = '$$\nx\n$$';
 /** The `$$` kind's write rule, as a blur writes an edited source. */
 function blurWrite(text: string, eol: LineEnding): string {
 	const doc = parse(MATH_FIXTURE + eol);
-	return trimTrailingLineEnding(legalizeWrite(doc, 0, text + eol, 'authored').text);
+	return trimTrailingLineEnding(legalizeWrite(doc, 0, text + eol, 'authored', fixtureGrammar).text);
 }
 
 function writeRuleText(raw: string, eol: LineEnding): string {

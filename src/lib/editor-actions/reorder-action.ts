@@ -58,7 +58,8 @@ export function createReorderAction(
 						documentBody(deps.doc, children),
 						unit.index,
 						to,
-						deps.sharing
+						deps.sharing,
+						deps.reading.grammar
 					);
 					landedAt = moved.landing;
 					settled = docScope.describeEdit({
@@ -88,7 +89,13 @@ export function createReorderAction(
 			mutate: (scope) => {
 				// Read before the move, which can take the first item and its number elsewhere.
 				const start = orderedBaseOf(scope.node.children?.[0]);
-				const moved = reorderChildrenWithTrivia(scope.body, unit.index, to, scope.sharing);
+				const moved = reorderChildrenWithTrivia(
+					scope.body,
+					unit.index,
+					to,
+					scope.sharing,
+					deps.reading.grammar
+				);
 				landedAt = moved.landing;
 				settled = scope.describeEdit({ moved: { to: landedAt, uncovered: moved.uncovered } });
 				// Only an ordered list renumbers; any other container keeps its children as moved.

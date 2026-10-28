@@ -24,7 +24,7 @@ import { HARDCODED_CHORD_SITES } from '#lib/schema/reserved-chords.js';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { ADMONITION, ADMONITION_TITLE } from '#lib/plugins/admonitions/kinds.js';
+import { ADMONITION } from '#lib/plugins/admonitions/kinds.js';
 import { detailsPlugin, DETAILS_SUMMARY } from '#lib/plugins/details/index.js';
 import { emojiPlugin } from '#lib/plugins/emoji/index.js';
 import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
@@ -203,7 +203,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		commands: ['admonition.cycleKind' as CommandId]
 	},
 	'Move from the title into the body': {
-		kind: declaredPluginKind(ADMONITION_TITLE),
+		kind: declaredPluginKind('directiveOpenerLine'),
 		commands: ['chrome.descendToBody']
 	},
 	'Move from the summary into the body': {

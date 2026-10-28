@@ -5,7 +5,6 @@
 // Each app passes its views; the grammar here is shared.
 import {
 	activateDirectives,
-	chromeChild,
 	containerClosure,
 	createDirectiveRebuild,
 	declarePluginInlineKind,
@@ -22,14 +21,12 @@ import {
 	definePlugin,
 	DIRECTIVE_BODY_WRAP,
 	registerBlockKind,
-	registerChromeLeaf,
 	registerDirective,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	scanFence,
 	setPluginMetadata,
 	simpleLeafClosure,
-	trimWhitespace,
 	type BlockView,
 	type CstNode,
 	type Decoration,
@@ -170,10 +167,7 @@ function boxFromDirective(parsed: ParsedDirective): CstNode {
 		leadingTrivia: parsed.leadingTrivia,
 		raw: parsed.raw,
 		innerPrefix: parsed.body?.prefix ?? '',
-		children: [
-			chromeChild(declaredPluginKind('box-title'), trimWhitespace(parsed.fence.info)),
-			...(parsed.body?.children ?? [])
-		],
+		children: parsed.body?.children ?? [],
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
 	setPluginMetadata<BoxMetadata>(node, {
@@ -188,7 +182,6 @@ function boxFromDirective(parsed: ParsedDirective): CstNode {
 function registerBox(view: BlockView): void {
 	activateDirectives();
 	const box = declarePluginKind('box');
-	const title = declarePluginKind('box-title');
 	registerDirective('container', 'box', { kind: box, fromDirective: boxFromDirective });
 	registerBlockKind(box, {
 		view,
@@ -198,22 +191,19 @@ function registerBox(view: BlockView): void {
 		gapEdges: 'both',
 		container: {
 			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild<BoxMetadata>(() => 'box'),
-			bodyWrap: DIRECTIVE_BODY_WRAP,
-			reservedChrome: { kind: title },
-			unwrapRole: { middleChildBackspace: 'default-merge' }
+			rebuildRaw: createDirectiveRebuild(),
+			bodyWrap: DIRECTIVE_BODY_WRAP
 		},
 		conformanceFixture: ':::box Title\nbody\n:::\n',
 		closure: containerClosure({
 			roundTripVia: 'createDirectiveRebuild',
-			focus: { mode: 'implemented', via: 'focus walks to the title row' },
+			focus: { mode: 'implemented', via: 'focus walks to the opener line' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: { mode: 'implemented', via: 'children commit as ordinary blocks' },
 			simOracle: { mode: 'inherit-default' },
 			clipboard: { mode: 'implemented', via: 'byte-slice copy' }
 		})
 	});
-	registerChromeLeaf(title, { label: 'Box title', blockClass: 'box-title' });
 }
 
 // ── The note block ───────────────────────────────────────────────────────────

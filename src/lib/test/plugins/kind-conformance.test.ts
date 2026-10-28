@@ -10,11 +10,7 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
-import {
-	registerCalloutKind,
-	CALLOUT,
-	CALLOUT_TITLE
-} from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
 import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
 import { FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
@@ -77,7 +73,7 @@ describe('kind conformance: plugin kinds enroll', () => {
 	// fixture-free cells too, so no registered kind sits outside every battery.
 	it('every kind the dogfood registrars register executes its headless cells', async () => {
 		const registered = getAllRegisteredKinds().filter((k) => !isBuiltinBlockKind(k));
-		expect(registered).toContain(declaredPluginKind(CALLOUT_TITLE));
+		expect(registered).toContain(declaredPluginKind('directiveOpenerLine'));
 		for (const k of registered) {
 			const report = await runKindConformance(k);
 			expect(new Set(report.cells.map((c) => c.cell))).toEqual(
@@ -127,6 +123,60 @@ describe('kind conformance: a fence kind declares the fence reading', () => {
 
 	it('asserts a fence kind declaring fenceReading', async () => {
 		const report = await runKindConformance(demoFence('demo-fence-read', fenceReading));
+		expect(statusOf(report, 'unfinishedReading')).toBe('asserted');
+	});
+});
+
+// ── A backing-out kind's closer ──────────────────────────────────────────────
+
+/** A `@@`-bounded kind that, unclosed, backs out to a paragraph, as `$$` does; its reading names
+ *  `closer` for the line that closes it. */
+function backingOut(name: string, fence: string, closer: UnfinishedReading['closer']) {
+	const awaitsCloser = (raw: string) => {
+		const [opener, ...rest] = raw.split('\n');
+		return opener === fence && !rest.includes(fence);
+	};
+	return testLeaf(name, (kind) => ({
+		conformanceFixture: `${fence}\nx\n${fence}\n`,
+		opener: {
+			priority: OPENER_PRIORITIES.fencedCode + 7,
+			interruptsParagraph: (line) => line === fence,
+			readingNotFinal: { notFinal: awaitsCloser, mayClose: (line) => line === fence, closer },
+			tryOpen(ctx) {
+				if (ctx.line.text !== fence) return null;
+				let close = ctx.index + 1;
+				while (close < ctx.end && ctx.lines[close].text !== fence) close++;
+				if (close >= ctx.end) return null;
+				const raw = ctx.lines
+					.slice(ctx.index, close + 1)
+					.map((line) => line.raw)
+					.join('');
+				return {
+					node: { kind, leadingTrivia: ctx.leadingTrivia, raw },
+					consumed: close + 1 - ctx.index
+				};
+			}
+		}
+	}));
+}
+
+// Miss-analysis: the cell asked only `mayClose` of a backing-out opener, so a reading with no
+// closer let an opener typed on its own line take in every block below it.
+describe('kind conformance: a backing-out kind names its closer', () => {
+	it('fails a backing-out kind whose reading declares no closer', async () => {
+		await expect(runKindConformance(backingOut('bare-closer', '@@1', null))).rejects.toThrow(
+			/declares no closer/
+		);
+	});
+
+	it('fails a closer that leaves the fixture open', async () => {
+		await expect(runKindConformance(backingOut('wrong-closer', '@@2', () => '@@'))).rejects.toThrow(
+			/doesn't close its fixture/
+		);
+	});
+
+	it('asserts a closer that closes the fixture', async () => {
+		const report = await runKindConformance(backingOut('own-closer', '@@3', () => '@@3'));
 		expect(statusOf(report, 'unfinishedReading')).toBe('asserted');
 	});
 });

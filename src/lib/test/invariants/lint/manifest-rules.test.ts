@@ -171,12 +171,10 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 };
 
 // Read off the families themselves, so a new one is scanned the day it is added.
-const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal', 'directive-marker'];
+const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal'];
 
 const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/browser/painted.ts': 'the classification home',
-	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
-		'creates the directive container chrome: contenteditable="false" and outside every walk container, so the hiding classification excludes it twice over',
 	'src/lib/components/blocks/marker-prefix.ts': 'creates and identifies the marker-prefix span',
 	'src/lib/core/inline-render.ts': 'creates inline marker and ref-label spans',
 	'src/lib/core/inline/visibility.ts': 'names the families the hiding rule is stated over',
@@ -294,6 +292,8 @@ const PLAIN_READS: Record<string, string> = {
 		'installs after backfill: counts the blocks joined or split bytes read as, a probe, and installs a joined leaf read at its slot after giving it its paragraph (`installMergedLeaf`)',
 	'src/lib/tree-operations/node-primitives.ts':
 		'probe: re-derives the metadata of a block written in place under its own kind, and installs none of the read’s nodes',
+	'src/lib/tree-operations/written-openers.ts':
+		'probe: reads written bytes, alone and with the blocks below, to find an opener that would read down into them; installs none of what it reads',
 	'src/lib/tree-operations/stored-as.ts':
 		'probe: answers how a slot reads bytes, for the write rules and the live join’s comparisons; nothing it reads is installed here',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
@@ -573,7 +573,7 @@ const MANIFESTS: ManifestRule[] = [
 		},
 		declared: MARKER_CLASS_FILES,
 		reason: 'a file started naming marker classes: declare its role',
-		hits: ["const SEL = '.md-marker';", "el.classList.add('directive-marker');"],
+		hits: ["const SEL = '.md-marker';", "el.classList.add('md-construct-reveal');"],
 		misses: [at('x.svelte', '<style>:global(.md-marker) { display: none; }</style>')]
 	},
 	{

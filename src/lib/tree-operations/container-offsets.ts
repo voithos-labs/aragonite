@@ -2,12 +2,13 @@
  * Maps between a byte offset in a block's `raw` and a caret position in one of its leaves, and
  * finds where a container's marker takes its space. A container's raw re-prefixes its children's
  * lines (`> `, an item's indent), so the map goes line by line; only a `'strip'` container's is
- * known.
+ * known, plus the opener line a `:::` container holds as its first child.
  */
 
 import type { NodeView } from '../core/node-views';
 import { displayLength, isWhitespaceChar, splitLines, type ParsedLine } from '../core/lines';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { rowIsOpenerLine } from '../schema/reserved-chrome';
 
 export interface LeafPosition {
 	/** Child indices from the node down to the leaf; empty when the node is the leaf. */
@@ -20,12 +21,16 @@ export interface LeafPosition {
 
 /**
  * The leaf and offset `rawOffset` addresses inside `node`; null when a container on the way is
- * not a strip container, whose bytes this module can't map to its children.
+ * not a strip container, whose bytes this module can't map to its children, past its opener line.
  */
 export function leafAtRawOffset(node: NodeView, rawOffset: number): LeafPosition | null {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	if (!descriptor?.isContainer || !node.children?.length) {
 		return { path: [], offset: Math.min(Math.max(rawOffset, 0), displayLength(node.raw)) };
+	}
+	const openerLine = node.children[0];
+	if (rowIsOpenerLine(node.kind) && rawOffset <= displayLength(openerLine.raw)) {
+		return { path: [0], offset: Math.max(rawOffset, 0) };
 	}
 	if (descriptor.containerContract !== 'strip') return null;
 
@@ -54,6 +59,7 @@ export function rawOffsetOfLeaf(
 	offset: number
 ): number | null {
 	if (path.length === 0) return offset;
+	if (path.length === 1 && path[0] === 0 && rowIsOpenerLine(node.kind)) return offset;
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	const children = node.children;
 	if (descriptor?.containerContract !== 'strip' || !children?.[path[0]]) return null;

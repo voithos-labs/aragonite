@@ -4,14 +4,14 @@ import { PluginsPage, roundTripStable } from './helpers';
 /**
  * A plugin registering its own command: `:::callout` registers `callout.setKind` and binds it to
  * Mod+7 ('callout') and Mod+8 ('aside'). Each test presses a real key on an inner block and follows
- * the chain from keypress through the container's keymap to the metadata commit and raw rebuild.
+ * the chain from keypress through the container's keymap to the rewrite of the opener line.
  * Shift-held digits are avoided because the browser turns '1' into '!'.
  */
 
 const CALLOUT_DOC = ':::callout\nbody\n:::\n';
 const WARNING_DOC = ':::aside\nbody\n:::\n';
 
-test.describe('callout.setKind: create → keymap → bubble dispatch → metadata commit', () => {
+test.describe('callout.setKind: create → keymap → bubble dispatch → opener-line rewrite', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -29,14 +29,14 @@ test.describe('callout.setKind: create → keymap → bubble dispatch → metada
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	test('the type-change fires exactly one metadataUpdate edit op', async ({ page }) => {
+	test('the type-change fires exactly one updateContent edit op', async ({ page }) => {
 		await editor.loadContent(CALLOUT_DOC);
 		await editor.focusBlockAtPath([0, 1], 0);
 		await page.evaluate(() => (window as any).__test.startEditOpCapture());
 		await page.keyboard.press('ControlOrMeta+8');
 		await editor.bridge.waitForSourceContains(':::aside');
 		const ops = await page.evaluate(() => (window as any).__test.stopEditOpCapture());
-		expect(ops).toEqual(['metadataUpdate']);
+		expect(ops).toEqual(['updateContent']);
 	});
 
 	test('Ctrl+Z restores the prior type', async ({ page }) => {

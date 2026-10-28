@@ -13,12 +13,17 @@ import { cellRowCol } from '../core/coordinate-spaces';
 import {
 	displayLength,
 	documentLineEnding,
+	ownTrailingLineEnding,
 	terminateLine,
 	trailingLineEnding,
 	type LineEnding
 } from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
-import { isReservedChromeChild } from '../schema/reserved-chrome';
+import {
+	isReservedChromeChild,
+	rowKeepingTitleFrom,
+	rowKeepingTitleTo
+} from '../schema/reserved-chrome';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { Reading } from '../schema/reading';
 import { bytesLeavingLeaf } from '../tree-operations/leaf-range';
@@ -64,8 +69,7 @@ export function collectCrossBlockText(
 		const startOffset = charOffsetOf(start, 'collectCrossBlockText:start');
 		// A start inside a container's title line emits nothing yet: the container's opener
 		// is rebuilt around the body, which the copy collects below.
-		chromeStart =
-			start.path.length > 1 ? startChromeContainer(doc, start, startRaw, startOffset) : null;
+		chromeStart = start.path.length > 1 ? startChromeContainer(doc, start, startOffset) : null;
 		if (!chromeStart) {
 			const marker =
 				start.path.length > 1 ? soleChildContainerPrefix(doc, start.path, startRaw) : null;
@@ -88,7 +92,7 @@ export function collectCrossBlockText(
 		endHead = emitTablePortion(endNode, coverage.endCells.from, coverage.endCells.to);
 	} else {
 		const endOffset = charOffsetOf(end, 'collectCrossBlockText:end');
-		const chromeBytes = endOffset > 0 ? endChromeContainerBytes(doc, end, endRaw, endOffset) : null;
+		const chromeBytes = endOffset > 0 ? endChromeContainerBytes(doc, end, endOffset) : null;
 		const partial = endOffset > 0 && endOffset < displayLength(endRaw) && end.path.length > 1;
 		const marker = partial ? soleChildContainerPrefix(doc, end.path, endRaw) : null;
 		endHead = chromeBytes ?? (marker ?? '') + carried(doc, end.path, 0, endOffset, reading);
@@ -193,7 +197,6 @@ function chromeWrapperRebuild(
 function endChromeContainerBytes(
 	doc: DocumentView,
 	end: SelectionPoint,
-	endRaw: string,
 	endOffset: number
 ): string | null {
 	const childIndex = end.path[end.path.length - 1];
@@ -202,6 +205,7 @@ function endChromeContainerBytes(
 
 	const rebuildRaw = chromeWrapperRebuild(parent, childIndex);
 	if (!rebuildRaw) return null;
+	const row = parent.children![childIndex];
 
 	const synthetic = makeBlockNode({
 		kind: parent.kind,
@@ -213,9 +217,9 @@ function endChromeContainerBytes(
 		innerSuffix: '',
 		children: [
 			makeBlockNode({
-				kind: parent.children![childIndex].kind,
+				kind: row.kind,
 				leadingTrivia: '',
-				raw: endRaw.slice(0, endOffset)
+				raw: rowKeepingTitleTo(parent, row, endOffset)
 			})
 		]
 	});
@@ -226,7 +230,7 @@ function endChromeContainerBytes(
 interface ChromeStartContainer {
 	path: number[];
 	node: NodeView;
-	/** The title line from the start offset on. */
+	/** The title row from the start offset on, behind the row's marker. */
 	chromeTail: string;
 	rebuildRaw: (node: CstNode) => void;
 }
@@ -236,7 +240,6 @@ interface ChromeStartContainer {
 function startChromeContainer(
 	doc: DocumentView,
 	start: SelectionPoint,
-	startRaw: string,
 	startOffset: number
 ): ChromeStartContainer | null {
 	const containerPath = start.path.slice(0, -1);
@@ -245,10 +248,11 @@ function startChromeContainer(
 
 	const rebuildRaw = chromeWrapperRebuild(container, start.path[start.path.length - 1]);
 	if (!rebuildRaw) return null;
+	const row = container.children![0];
 	return {
 		path: containerPath,
 		node: container,
-		chromeTail: startRaw.slice(startOffset),
+		chromeTail: rowKeepingTitleFrom(container, row, startOffset) + ownTrailingLineEnding(row.raw),
 		rebuildRaw
 	};
 }

@@ -63,7 +63,7 @@ describe('a blank run that is the whole wrapped body', () => {
 		expect(callout.innerPrefix).toBe('\n');
 		expect(callout.innerSuffix).toBe('\n');
 		expect(callout.children!.map((c) => [c.leadingTrivia, c.raw])).toEqual([
-			['', 'Title\n'],
+			['', ':::callout Title\n'],
 			['', '\n'],
 			['', '\n']
 		]);

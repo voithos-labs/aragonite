@@ -23,6 +23,7 @@ import type { GrammarView } from './block-openers';
 import { readAsOpened } from './opened-reading';
 import type { ChildRawChange } from './child-spans';
 import type { StripRebuild } from './strip-rebuild';
+import { reservedChromeKindOf, rowIsOpenerLine } from './reserved-chrome';
 
 /**
  * Rebuild `raw` for every container along `path`, innermost first. The leaf at the end of `path`
@@ -96,7 +97,7 @@ export type BytesReading =
 	| { outcome: 'diverged'; blocks: CstNode[]; filled: readonly CstNode[] };
 
 export interface FollowOptions {
-	/** Only the title row changed, which no metadata comes from (`ReservedChrome`). */
+	/** Only the title on the title row changed, which no metadata comes from (`ReservedChrome`). */
 	titleRowOnly?: boolean;
 	/** A child's bytes stopped reading as one node where they stand, so the whole node is read. */
 	whole?: boolean;
@@ -120,7 +121,8 @@ export function followBytes(
 	if (contract === 'opaque' && (closerMoved || (openerMoved && !options.titleRowOnly))) {
 		return rereadWhole(node, contract, grammar);
 	}
-	if (!openerMoved) return KEPT;
+	// A title is no kind's metadata, so the opener line it changed reads as it stood.
+	if (!openerMoved || options.titleRowOnly) return KEPT;
 	const strip = contract === 'strip';
 	if (!strip && !hasOwnOpener(node.kind)) return KEPT;
 	const opened = soleNodeOfKind(readOpenerLine(node.raw, grammar), node.kind);
@@ -166,11 +168,16 @@ function rereadWhole(
 	const blocks = parseContainerRaw(node.raw, grammar, filled);
 	const reread = soleNodeOfKind(blocks, node.kind);
 	if (!reread) return { outcome: 'diverged', blocks, filled };
-	// A strip container's metadata is its line prefix, which decides how every child line reads.
-	if (contract === 'strip' && !sameChildren(node, reread))
+	// A strip container's metadata is its line prefix, which decides how every child line reads; an
+	// opener line the rebuild widened for its body is a child too.
+	if (contract === 'strip' ? !sameChildren(node, reread) : openerLineMoved(node, reread))
 		return { outcome: 'reread', node: reread, filled };
 	takeMetadata(node, reread);
 	return KEPT;
+}
+
+function openerLineMoved(live: CstNode, reread: CstNode): boolean {
+	return rowIsOpenerLine(live.kind) && live.children?.[0]?.raw !== reread.children?.[0]?.raw;
 }
 
 function sameChildren(live: CstNode, reread: CstNode): boolean {
@@ -261,7 +268,7 @@ export function lineChildren(node: NodeView): readonly NodeView[] {
 	if (descriptor?.containerContract === 'strip') return children;
 	if (isGridDescriptor(descriptor)) return isGridKind(children.at(-1)!.kind) ? children : [];
 	if (!descriptor?.bodyWrap?.beforeCloserLine) return [];
-	return descriptor.reservedChrome ? children.slice(1) : children;
+	return reservedChromeKindOf(node.kind) !== undefined ? children.slice(1) : children;
 }
 
 export function firstLine(raw: string): string {

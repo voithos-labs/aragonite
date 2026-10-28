@@ -12,6 +12,7 @@ import {
 	documentLineEnding,
 	splitLines,
 	ownTrailingLineEnding,
+	trailingLineEnding,
 	trimTrailingLineEnding
 } from '../core/lines';
 import { parse } from '../core/parser';
@@ -422,15 +423,30 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 			detail: 'no opener reads the fixture without its last line as waiting on a closer'
 		};
 	}
+	const ending = trailingLineEnding(ctx.node.raw, '\n');
 	for (const opener of waiting) {
+		const reading = opener.readingNotFinal!;
 		assert(
-			opener.readingNotFinal!.mayClose(closer),
+			reading.mayClose(closer),
 			`${ctx.kind}'s opener says its fixture without its last line is unfinished, but its ` +
 				`readingNotFinal.mayClose refuses ${show(closer)}, the line that finishes it: mayClose ` +
 				`must accept every closer the opener takes, or a closer typed blocks below is never asked`
 		);
+		// A completer only answers a line typed at its end, so a paste needs the closer too.
+		assert(
+			typeof reading.closer === 'function',
+			`${ctx.kind}'s opener backs out when unclosed but its readingNotFinal declares no closer: ` +
+				`declare the line that closes it, or an opener typed on its own line takes in every ` +
+				`block below it down to the next line that may close it`
+		);
+		const closed = opened + reading.closer(opened) + ending;
+		assert(
+			opensKind(opener, closed, ctx.kind),
+			`${ctx.kind}'s readingNotFinal.closer gives ${show(reading.closer(opened))}, which doesn't ` +
+				`close its fixture: the closer must make the opener's bytes one block of the kind`
+		);
 	}
-	return 'mayClose accepts the closer that finishes the fixture';
+	return 'mayClose accepts the closer that finishes the fixture, and closer gives one';
 }
 
 /** Whether `opener` reads `raw` alone as a block of `kind`. */

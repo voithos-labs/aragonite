@@ -36,14 +36,14 @@ describe('range delete inside a fenced code block', () => {
 		]
 	])('%s', (_, source, left) => expectDeleted(source, at([0], 8), at([0], 9), left));
 
-	// The rule is the block's own, not the document's: the same join inside a paragraph is
-	// ordinary text, and escalating anything there would rewrite the user's bytes.
-	it('leaves the same join inside a paragraph alone', () => {
+	// The fence's rule is the block's own, so the same join inside a paragraph grows nothing, but
+	// the fence it opens gets a closer of its own rather than reading the heading in.
+	it('closes the fence the same join opens inside a paragraph', () => {
 		const doc = parse('``\n`\n\n# Heading\n');
 
 		deleteRange(doc, at([0], 2), at([0], 3));
 
-		expect(serialize(doc)).toBe('```\n\n# Heading\n');
+		expect(serialize(doc)).toBe('```\n```\n\n# Heading\n');
 	});
 });
 
@@ -115,7 +115,7 @@ describe('range delete that consumes a fenced code opener', () => {
 		const CALLOUT = ':::callout Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n';
 
 		it('keeps it on the end truncation, which takes the opener and not the closer', () => {
-			expectDeleted(CALLOUT, at([0, 0], 2), at([1], 8), ':::callout Ti\n:::\n\ndy\n```\n\ntail\n');
+			expectDeleted(CALLOUT, at([0, 0], 13), at([1], 8), ':::callout Ti\n:::\n\ndy\n```\n\ntail\n');
 		});
 
 		// The whole surviving tail is the closer line, which reads as a bare opener and gets its
@@ -123,7 +123,7 @@ describe('range delete that consumes a fenced code opener', () => {
 		it('closes a tail that is exactly the closer line again', () => {
 			const doc = parse(CALLOUT);
 
-			deleteRange(doc, at([0, 0], 2), at([1], 11));
+			deleteRange(doc, at([0, 0], 13), at([1], 11));
 
 			expect(serialize(doc)).toBe(':::callout Ti\n:::\n\n```\n```\n\ntail\n');
 			expect(kindsOf(doc)).toEqual(['callout', 'fencedCode', 'paragraph']);
@@ -193,7 +193,7 @@ describe('range delete that consumes a fenced code closer', () => {
 		it('restores the closer of a code block truncated outside the wall', () => {
 			const doc = parse('```js\nbody\n```\n\n:::callout Title\nBody1\n:::\n\nBelow\n');
 
-			deleteRange(doc, at([0], 8), at([1, 0], 3));
+			deleteRange(doc, at([0], 8), at([1, 0], 14));
 
 			expect(kindsOf(doc)).toEqual(['fencedCode', 'callout', 'paragraph']);
 			expectParseConverged(doc);
