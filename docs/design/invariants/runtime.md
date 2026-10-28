@@ -253,8 +253,9 @@ holds at entry. A blur with no reveal or in a cross-block range is silent. `widg
 
 **G1.27 · Composition window.** `compositionend` lands only inside a composition the surface
 opened, at its start or, when a range across blocks was live at the start, at its first composed
-character. An unpaired end means `compositionend` was wired without `compositionstart`, and every
-composed keystroke committed mid-IME. Predicate `checkCompositionEndPaired`
+character; a start the range claimed that ends with no composed character pairs too. An unpaired end
+means `compositionend` was wired without `compositionstart`, and every composed keystroke committed
+mid-IME. The tracker (`browser/composition.ts :: end`) answers whether the end paired. Predicate `checkCompositionEndPaired`
 (`inline-transitions.ts`) · run in `components/blocks/editable/editable-surface.ts :: onCompositionEnd` ·
 `inline-transitions.test.ts`, `test/blocks/editable/editable-surface-composition.test.ts`.
 

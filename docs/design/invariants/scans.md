@@ -147,7 +147,7 @@ unguarded.
 | G4.150 | One placer for a hidden edge: no other file reads the caret's side or how it arrived             | L       |
 | G4.151 | One click-side check, called from the click entry both prose blocks share                        | L       |
 | G4.152 | Every rendered link has an Edit link target, and only the root click follows one                 | T·L     |
-| G4.155 | Every composing-flag holder asks both composition questions: a drop, and an opening              | L       |
+| G4.155 | A composition event goes to one of the two composition hosts, which keep it in the one tracker   | L       |
 | G4.157 | Every block kind a bundled plugin installs has an insert entry, or says why it has none          | harness |
 | G4.159 | An emptied quote, list item or bundled strip container keeps bytes that reload as it             | harness |
 | G4.163 | A mark's own handlers are called only by the hover lifecycle, activation and the click           | L       |
@@ -195,7 +195,7 @@ unguarded.
 | G4.230 | Editor chrome runs no undo or redo of its own; the root answers them there                       | L       |
 | G4.231 | A right-click menu listens for `contextmenu` only where it is declared                           | L       |
 | G4.232 | An e2e spec splits undo steps with `endTypingBatch`, never a fixed wait                          | L       |
-| G4.234 | Delete input types live in `delete-extent.ts`; blocks hear `beforeinput` via their surface       | L       |
+| G4.234 | Delete input types live in `browser/input.ts`; blocks hear `beforeinput` via their surface       | L       |
 | G4.235 | In reading mode the page owns Tab: no block reads the key by hand or sets its own tab stop       | L       |
 | G4.237 | A test never navigates a page its `beforeEach` already navigated                                 | L       |
 | G4.239 | No block runs a merge by its id; a delete at an edge runs the plain key's binding                | L       |
@@ -216,9 +216,10 @@ unguarded.
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
 | G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
 | G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
-| G4.270 | The selection, `Selection.modify` and what sits at a point are touched only under `browser/`     | L       |
+| G4.270 | The selection, the point lookups, `inputType` and `isComposing` are read only under `browser/`   | L       |
 | G4.271 | A windowed list hands each child the index and id from its own slice entry                       | L       |
 | G4.272 | Every child process a file under `src/lib` spawns carries a timeout of its own                   | L       |
+| G4.273 | A keydown handler that runs a command asks `imeOwnsKey` first                                    | L       |
 
 ### The entries
 
@@ -1010,12 +1011,13 @@ inline kind and the other link shapes, and each `a[href]` must resolve to such a
 live edit target. `lint/file-rules.test.ts` keeps following a link (`window.open`, `activateLink`,
 `closest('a[href]')`) to the root click in `gestures.ts`, after `clickFollowsAt`.
 
-**G4.155 · Every composing-flag holder asks both composition questions.** A holder of a composing
-flag (the editable surface, the caret host) asks `dropped-composition.ts` whether the browser
-dropped its composition (`reportDroppedComposition`) and whether a composed run opens one
-(`opensComposition`). A range across blocks claims a composition's start, so the block its removal
-leaves the caret in only sees the runs. The scan finds a holder by its `reportDroppedComposition`
-call, so a new holder asks that one too. `lint/composition-holders.test.ts`.
+**G4.155 · One composition tracker.** The editor keeps one record of the composition in
+progress, `browser/composition.ts :: createCompositionTracker`, and it asks at every key, input and
+composition start in the editor whether the browser dropped one. A file that wires
+`compositionstart` or `compositionend` hands it to one of the two hosts (the editable surface, the
+caret host), and both open, adopt and end their composition through the tracker: a range across
+blocks claims a composition's start, so the block its removal leaves the caret in only sees the
+runs and adopts them. A composing flag of a file's own fails too. `lint/composition-holders.test.ts`.
 
 **G4.157 · Every bundled block kind can be inserted.** `test/plugins/insertable-kinds.test.ts`
 installs every plugin under `src/lib/plugins/` from its zero-argument factory and reads the kinds
@@ -1298,7 +1300,7 @@ A `waitForTimeout` within three lines of an undo, or on a line naming undo group
 does a reach for the real pause or the page handle outside `e2e/typing-batch.ts` and `tests/undo-typing-pause.spec.ts`.
 `e2e/lint/e2e-drivers.test.ts`.
 
-**G4.234 · One list of which deletes the editor writes.** `caret/delete-extent.ts` names every
+**G4.234 · One list of which deletes the editor writes.** `browser/input.ts` names every
 delete input type and what each takes, so one spelled out anywhere else (a string, a
 `startsWith('delete')`, a regex) fails: ask `decidedDelete`, `isDeleteInput` or `isMoveDelete`. A
 `beforeinput` binding other than `editableSurface.onBeforeInput`, whose last step writes the delete,
@@ -1416,9 +1418,10 @@ so the suites run without a network. A spec's own route for a made-up host runs 
 **G4.270 · The browser is touched in one module.** Only `browser/selection-read.ts` and the caret
 writer read the native selection (`debug/`'s recorder may read what it records), only
 `caret-writer.ts` writes it, `Selection.modify` included, and only `point.ts` asks for a caret or an
-element at a point. The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads
-too. A directory that can't import `browser/` takes the read as a parameter.
-`lint/browser-module.test.ts`.
+element at a point. An input event's `inputType` and `getTargetRanges` are read only in `input.ts`
+(`readInput`, `targetRange`), and `isComposing` only in `composition.ts` (`imeOwnsKey`,
+`imeOwnsInput`). The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads too. A
+directory that can't import `browser/` takes the read as a parameter. `lint/browser-module.test.ts`.
 
 **G4.271 · A windowed list indexes its children from its slice entries.** A list renders `windowSlicer`'s
 entries and passes each child `entry.index` and `entry.id`. An index added up from the live window start
@@ -1428,3 +1431,11 @@ before the next render lands on the wrong block. `lint/window-slice-entries.test
 **G4.272 · A spawned child process has a timeout.** Every `spawn`, `exec`, `execFile`, `fork` and
 their sync forms under `src/lib`, tests included, passes a `timeout` in its options, so a hung child
 fails its own test instead of holding the whole run. `lint/spawn-timeouts.test.ts`.
+
+**G4.273 · An IME key is never a command.** Every keydown handler that runs a command starts with
+`imeOwnsKey(e)`, which also catches the key that opens a composition (code 229, sent with
+`isComposing: false` by Chromium and WebKit). The scan counts each file's keydown wirings against
+its `imeOwnsKey` calls; a wiring that forwards to a handler that asks, or a listener that runs no
+command (the drawn caret's frame, the undo step any input ends, the crop's write guard), is listed
+with why. Plugin code reaches only the published API, so the bundled plugins' own keydowns are
+listed until it carries the check. `lint/ime-key-fence.test.ts`.

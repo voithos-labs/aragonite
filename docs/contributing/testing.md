@@ -741,7 +741,11 @@ event order and full wiring, drive real sequences in e2e through `attachIme`
 already waits for the composed text to show up in the focused element's DOM, since there's no
 source change mid-composition to wait on. A key pressed while the composition's still open goes
 through `ime.press(key)`: WebKit's real keydown doesn't know about the hand-fired composition, so
-it'd arrive saying `isComposing: false` and the editor would end the composition early.
+it'd arrive saying `isComposing: false` and the editor would end the composition early. The key
+that opens a composition, before it starts, goes through `ime.openingKey(key)`, which sends it with
+code 229 the way Chromium and WebKit do. In the unit harness, a composition the browser drops is
+heard by the editor's tracker, so a row that ends one dispatches the signal on the element before it
+calls the surface's handler (`editable-surface-composition.test.ts` has the shape).
 
 ## The conformance differ
 
