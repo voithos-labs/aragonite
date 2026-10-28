@@ -72,6 +72,9 @@ export interface EditorDrawnCaret extends DrawnCaret {
 	/** Holds the widget edge at `offset` for the editable `el`, the writer's ask beside a widget
 	 *  with no line box; false where `el` draws no bar there. */
 	showWidgetEdge(el: HTMLElement, offset: number): boolean;
+	/** Shows the bar for each even span of `spans` and hides it for each odd one, in ms, then
+	 *  goes back to its usual look; nothing under reduced motion. */
+	pulse(spans: readonly number[]): void;
 }
 
 export interface DrawnCaretDeps {
@@ -369,6 +372,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 
 	// At a selection change the painted bar must still sit on its caret, unless the caret moved.
 	function onSelectionChange(): void {
+		releaseEdgeLeftBehind();
 		notePressCaret();
 		assertInvariant('drawn-caret-agrees', () => {
 			const root = deps.getRoot();
@@ -383,6 +387,20 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 			});
 		});
 		armFrame();
+	}
+
+	// A held edge belongs to the editable it was held in; a live selection anywhere else ends it,
+	// while no range at all keeps it, since the browser drops a caret beside a picture.
+	function releaseEdgeLeftBehind(): void {
+		const owner = widgetEdge.owner();
+		if (!owner) return;
+		const at = readNativeSelection()?.anchor.node;
+		if (!at) return;
+		for (const source of sources.values()) {
+			if (source.widgetEdge?.owner !== owner) continue;
+			if (!source.el.contains(at)) widgetEdge.arm(owner, null);
+			return;
+		}
 	}
 
 	// A scroller between the caret's editable and its host (a wide table, a code block) moves the
@@ -475,6 +493,18 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 			if (!edges?.box(offset)) return false;
 			widgetEdge.arm(edges.owner, offset);
 			return true;
+		},
+		pulse(spans) {
+			const total = spans.reduce((sum, span) => sum + span, 0);
+			if (!bar || bar.hidden || total <= 0 || typeof bar.animate !== 'function') return;
+			if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+			let at = 0;
+			const frames: Keyframe[] = spans.map((span, i) => {
+				const frame = { opacity: i % 2 === 0 ? 1 : 0, offset: at / total, easing: 'step-end' };
+				at += span;
+				return frame;
+			});
+			bar.animate([...frames, { opacity: 1, offset: 1 }], { duration: total });
 		}
 	};
 }
@@ -492,6 +522,9 @@ export function createWidgetEdgeHolder(onChange: () => void) {
 		},
 		heldFor(owner: object): number | null {
 			return held?.owner === owner ? held.offset : null;
+		},
+		owner(): object | null {
+			return held?.owner ?? null;
 		},
 		/** For a torn-down owner, whose edge nothing will draw again. */
 		release(owner: object): void {

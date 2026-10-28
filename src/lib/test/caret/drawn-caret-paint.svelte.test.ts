@@ -218,6 +218,26 @@ describe('the widget edge a click meant', () => {
 		unregister();
 		expect(caret.widgetEdgeFor(owner)).toBeNull();
 	});
+
+	// Miss-analysis: the rows above ended an edge only through its own owner, never by the
+	// selection going to another block, which each block's own check skips once it holds no range.
+	it('ends when the selection moves into another editable, and stays when the range drops', async () => {
+		const { editor, el } = await mountAtCaret(5);
+		const caret = editor.instance.__test.getDrawnCaret();
+		const owner = {};
+		const held = document.createElement('div');
+		editor.target.append(held);
+		caret.register({ el: held, drawable: () => true, widgetEdge: { owner, box: () => null } });
+
+		caret.armWidgetEdge(owner, 3);
+		window.getSelection()!.removeAllRanges();
+		document.dispatchEvent(new Event('selectionchange'));
+		expect(caret.widgetEdgeFor(owner)).toBe(3);
+
+		placeCaret(el, 2);
+		document.dispatchEvent(new Event('selectionchange'));
+		expect(caret.widgetEdgeFor(owner)).toBeNull();
+	});
 });
 
 describe('an editable that mounts', () => {
