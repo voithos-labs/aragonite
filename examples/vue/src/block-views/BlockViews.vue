@@ -1,5 +1,5 @@
 <!-- The adapter suite's `?block-views` page (`examples/adapter-suite/requirements/block-views.md`):
-     four blocks drawn by Vue components through `vueBlockView`, and an inline widget and a
+     five blocks drawn by Vue components through `vueBlockView`, and an inline widget and a
      decoration badge through `vueView`. -->
 <script setup lang="ts">
 import { inject, ref } from 'vue';

@@ -6,6 +6,7 @@
 <script lang="ts">
 	import { getAllContexts, getContext, mount, unmount, untrack } from 'svelte';
 	import { on } from 'svelte/events';
+	import type { FocusActions } from '../../action-contracts';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import type {
@@ -13,6 +14,8 @@
 		BlockViewHandle,
 		CommandHooksSurface,
 		BlockViewSpec,
+		HandBuiltBlock,
+		HandBuiltSurface,
 		BlockViewState,
 		ContainerSurface,
 		LeafSurface,
@@ -25,6 +28,7 @@
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
+		FOCUS_KEY,
 		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
@@ -40,9 +44,12 @@
 	import { warnIfForeignRuntime } from '../../foreign-runtime';
 	import { createEditableLeaf } from '../blocks/editable/editable-leaf';
 	import { createContainerBlock } from '../../editor-actions/plugin/container';
+	import { moveFocusOutByArrow } from '../../editor-actions/container-block-component';
+	import { isEditableEventTarget } from '../../editor-actions/whole-block-focus-surface.svelte';
+	import { commandForKey } from '../../schema/commands';
 	import BlockList from '../BlockList.svelte';
 	import { bindLeafSurface } from './leaf-surface-binding.svelte';
-	import { handBuiltRef } from './hand-built-ref';
+	import { handBuiltRef, samePublication } from './hand-built-ref';
 
 	let {
 		spec,
@@ -55,7 +62,10 @@
 	const view = untrack(() => spec);
 	const editorDoc = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const events = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.events;
+	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
+	const events = services?.events;
+	// Read before the container factory, which sets the focus its children see.
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 
 	let leafEl: HTMLElement | null = $state(null);
 	let renderedEl: HTMLElement | null = $state(null);
@@ -142,15 +152,21 @@
 		}) as BlockViewContext & T;
 	}
 
-	// A framework unmounts a little after `destroy` and hands its elements back as it goes; once a
-	// mount ends, its calls that hand over an element do nothing, so a remounted view keeps its own.
-	const HAND_OVERS = new Set(['attach', 'attachRendered', 'mountChildren', 'attachFocus']);
+	// A framework unmounts a little after `destroy`, handing things back as it goes; once a mount
+	// ends, its calls that hand the editor something do nothing, so a remounted view keeps its own.
+	const HAND_OVERS = new Set([
+		'attach',
+		'attachRendered',
+		'mountChildren',
+		'attachFocus',
+		'publish'
+	]);
 	function untilDestroyed<T extends object>(surface: T, mount: { ended: boolean }): T {
 		const guarded = { ...surface } as Record<string, unknown>;
 		for (const [key, call] of Object.entries(surface)) {
 			if (!HAND_OVERS.has(key)) continue;
-			guarded[key] = (el: HTMLElement | null) => {
-				if (!mount.ended) (call as (el: HTMLElement | null) => void)(el);
+			guarded[key] = (value: unknown) => {
+				if (!mount.ended) (call as (value: unknown) => void)(value);
 			};
 		}
 		return guarded as T;
@@ -250,6 +266,34 @@
 		...hooksSurface
 	};
 
+	// ── Hand-built surface ────────────────────────────────────────────────────
+
+	// Undefined until the mount's first publication.
+	let published: HandBuiltBlock | null | undefined;
+	const handBuiltSurface: HandBuiltSurface = {
+		publish(block) {
+			if (published !== undefined && samePublication(block, published)) return;
+			published = block;
+			handBuilt = handBuiltRef(
+				block,
+				() => tryGetBlockKindDescriptor(node.kind)?.editable ?? false
+			);
+		}
+	};
+
+	// Keys in the view's own text field stay there; a plain arrow anywhere else in the block leaves it.
+	function handBuiltKeydown(e: KeyboardEvent): void {
+		if (e.defaultPrevented || isEditableEventTarget(e.target) || !services) return;
+		const { caretMemory, commands } = services;
+		const exit = {
+			getIndex: () => index,
+			focus: focusActions,
+			caretMemory,
+			commandOf: (press: KeyboardEvent) => commandForKey(press, node.kind, commands)
+		};
+		if (moveFocusOutByArrow(e, exit)) e.preventDefault();
+	}
+
 	// ── Mount, update, destroy ────────────────────────────────────────────────
 
 	function mountSpec(target: HTMLElement, mount: { ended: boolean }): BlockViewHandle {
@@ -266,11 +310,10 @@
 			const surface = untilDestroyed(containerSurface!, mount);
 			return view.mount(target, viewContext({ container: surface }));
 		}
-		const mounted = view.mount(target, viewContext({}));
-		handBuilt = handBuiltRef(
-			mounted,
-			() => tryGetBlockKindDescriptor(node.kind)?.editable ?? false
-		);
+		published = undefined;
+		const block = untilDestroyed(handBuiltSurface, mount);
+		const mounted = view.mount(target, viewContext({ block }));
+		if (published === undefined) handBuiltSurface.publish(null);
 		return mounted;
 	}
 
@@ -280,6 +323,8 @@
 			// On the block's element, so the keys of a whole-block view's own focus element reach it too.
 			const offKeys = container ? on(target, 'keydown', container.handleKeydown) : null;
 			handle = mountSpec(target, mount);
+			// After the mount, so a framework root's own listener on `target` sees the key first.
+			const offArrows = view.surface === 'none' ? on(target, 'keydown', handBuiltKeydown) : null;
 			mountedTarget = target;
 			seen = watched();
 			assertInvariant('dom-view-content', () => checkDomViewContent(target, leafEl));
@@ -287,6 +332,7 @@
 			return () => {
 				mount.ended = true;
 				offKeys?.();
+				offArrows?.();
 				const ending = handle;
 				handle = null;
 				mountedTarget = null;

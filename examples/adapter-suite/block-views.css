@@ -64,3 +64,17 @@
 	box-sizing: border-box;
 	font: inherit;
 }
+.dice-roll {
+	font: inherit;
+	padding: 0.25em 0.75em;
+	border: 1px solid #8884;
+	border-radius: 6px;
+	background: #f4f4f5;
+	color: #222;
+	cursor: pointer;
+}
+.dice-roll:focus-visible,
+.dice-roll:focus {
+	outline: 2px solid #3b82f6;
+	outline-offset: 1px;
+}

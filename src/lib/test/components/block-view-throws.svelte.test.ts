@@ -48,7 +48,7 @@ const FORMS: { form: string; atMount: () => BlockView; onChange: () => BlockView
 				mount(target, ctx) {
 					throwing(ctx.state().node.raw, 'boom');
 					target.textContent = ctx.state().node.raw;
-					return { focus() {}, getCursorOffset: () => null, focusable: true };
+					return {};
 				}
 			}),
 		onChange: () =>
@@ -56,12 +56,7 @@ const FORMS: { form: string; atMount: () => BlockView; onChange: () => BlockView
 				surface: 'none',
 				mount(target, ctx) {
 					target.textContent = ctx.state().node.raw;
-					return {
-						focus() {},
-						getCursorOffset: () => null,
-						focusable: true,
-						update: (state) => throwing(state.node.raw, 'bang')
-					};
+					return { update: (state) => throwing(state.node.raw, 'bang') };
 				}
 			})
 	}
@@ -111,9 +106,6 @@ describe('a DOM view whose destroy throws', () => {
 			mount(target) {
 				target.textContent = 'drawn';
 				return {
-					focus() {},
-					getCursorOffset: () => null,
-					focusable: true,
 					destroy() {
 						throw new Error('destroy exploded');
 					}

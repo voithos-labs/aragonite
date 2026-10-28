@@ -4,6 +4,7 @@ export {
 	reactBlockView,
 	LeafContent,
 	BlockChildren,
+	useBlockHandle,
 	type BlockViewProps,
 	type FrameworkSurface,
 	type ReactBlockViewOptions
