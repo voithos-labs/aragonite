@@ -2439,6 +2439,8 @@ const RANGE_INDENT: ManifestRule[] = [
 				'a command key, run at the caret the range’s removal leaves',
 			'src/lib/editor-actions/plugin/container.ts':
 				'reads what a key means for the caret memory, and never runs it',
+			'src/lib/components/dom-block-view/DomBlockView.svelte':
+				'reads what an arrow leaving a hand-built block means for the caret memory, and never runs it',
 			'src/lib/components/link-card/LinkCardHost.svelte':
 				'asks only whether the key is the one that opens the link card'
 		},

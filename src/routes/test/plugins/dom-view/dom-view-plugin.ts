@@ -72,16 +72,16 @@ const memoView = defineBlockView({
 
 const badgeView = defineBlockView({
 	surface: 'none',
-	mount(target) {
+	mount(target, ctx) {
 		target.className = 'dom-badge';
 		target.tabIndex = -1;
 		target.textContent = 'a badge drawn by hand';
-		return {
-			...counted(DOM_BADGE),
+		ctx.block.publish({
 			focus: () => target.focus({ preventScroll: true }),
 			getCursorOffset: () => null,
 			focusable: true
-		};
+		});
+		return counted(DOM_BADGE);
 	}
 });
 

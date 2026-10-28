@@ -80,6 +80,19 @@ export function focusAcrossBlockEdge(key: string, deps: BlockEdgeExitDeps): bool
 	return true;
 }
 
+/** A plain arrow pressed in a block's own editor or controls, a plugin container's or a
+ *  hand-built view's, hands the caret to the neighbour it points at. False for any other key. */
+export function moveFocusOutByArrow(
+	e: KeyboardEvent,
+	deps: Pick<WholeBlockKeyDeps, 'getIndex' | 'focus' | 'caretMemory' | 'commandOf'>
+): boolean {
+	if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false;
+	// The block exposes no caret x to measure, so a vertical exit keeps the column it arrived
+	// with, exactly as a whole-block pass-through does.
+	deps.caretMemory.noteKey(e, deps.commandOf(e));
+	return focusAcrossBlockEdge(e.key, deps);
+}
+
 export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	getRaw: () => string;
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock' | 'insertParagraph'>;

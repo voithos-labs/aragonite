@@ -35,8 +35,8 @@ export const contentsView = defineBlockView({
 				})
 			);
 		draw();
-		// A list to read, not a place for the caret, so focus never lands here.
-		return { update: draw, focusable: false, focus() {}, getCursorOffset: () => null };
+		// A list to read, not a place for the caret: it publishes nothing, so focus passes over it.
+		return { update: draw };
 	}
 });
 ```
