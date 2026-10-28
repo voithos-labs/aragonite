@@ -5,16 +5,14 @@
 	import { createContainerBlock } from '#lib/editor-actions/plugin/container.js';
 	import BlockList from '#lib/components/BlockList.svelte';
 	import type { NodeView } from '#lib/core/node-views.js';
-	import { rowContentRange } from '#lib/schema/reserved-chrome.js';
+	import { rowMarker } from '#lib/schema/reserved-chrome.js';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
 	let boxEl: HTMLElement | undefined = $state();
 
 	// The `:::name` a mode that hides markers draws in place of the line's own, as a CSS string.
-	const marker = $derived(
-		JSON.stringify(node.children?.[0]?.raw.slice(0, rowContentRange(node).start) ?? '')
-	);
+	const marker = $derived(JSON.stringify(rowMarker(node)));
 
 	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
 		getNode: () => node,

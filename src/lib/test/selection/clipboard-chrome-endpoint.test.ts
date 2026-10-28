@@ -49,6 +49,19 @@ describe('cross-block copy ending in reserved chrome', () => {
 		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe(':::callout Title');
 	});
 
+	// Miss-analysis: the end side sliced the row's bytes itself, and no row ended inside the name.
+	it.each([3, 7])('an endpoint inside `:::callout` (offset %i) keeps the whole name', (offset) => {
+		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], offset))),
+			SOURCE_READING
+		);
+		const note = parse(text).children.find((c) => c.kind === 'callout');
+		expect(note?.children?.map((c) => c.kind)).toEqual(['directiveOpenerLine']);
+		expect(trimTrailingLineEnding(note!.children![0].raw).trimEnd()).toBe(':::callout');
+	});
+
 	// The copied opener keeps the live `open` flag; a closed details is copied whole, since the
 	// range reaches past its title into the hidden body.
 	for (const { label, src, open, kinds, title } of [
