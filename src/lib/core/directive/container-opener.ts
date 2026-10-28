@@ -127,10 +127,8 @@ export function directiveContainerOpener(
 			};
 			setPluginMetadata<DirectiveContainerMetadata>(node, {
 				name: fence.name,
-				colonCount: fence.colonCount,
 				closerColonCount,
-				closerNewline,
-				lineEnding
+				closerNewline
 			});
 			return { node, consumed: closerIdx + 1 - ctx.index };
 		}

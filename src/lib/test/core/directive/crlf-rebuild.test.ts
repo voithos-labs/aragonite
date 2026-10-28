@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { getPluginMetadata } from '#lib/core/nodes.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { rebuildDirectiveContainerRaw } from '#lib/core/directive/kinds.js';
-import type { DirectiveContainerMetadata } from '#lib/core/directive/container-shape.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 // Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
@@ -12,11 +10,6 @@ import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 beforeEach(() => activateDirectiveGrammar(testDirectiveViews()));
 
 describe('directive rebuild preserves CRLF chrome line endings', () => {
-	it('captures the authored line ending at parse time', () => {
-		const node = parse(':::custom info\r\nbody\r\n:::\r\n').children[0];
-		expect(getPluginMetadata<DirectiveContainerMetadata>(node)?.lineEnding).toBe('\r\n');
-	});
-
 	it('reproduces CRLF on the opener and closer when a child edit rebuilds the container', () => {
 		const node = parse(':::custom\r\nbody\r\n:::\r\n').children[0];
 

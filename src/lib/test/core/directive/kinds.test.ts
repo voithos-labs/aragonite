@@ -95,10 +95,8 @@ describe('rebuildDirectiveContainerRaw', () => {
 		const node = build(
 			{
 				name: 'x',
-				colonCount: 3,
 				closerColonCount: 3,
-				closerNewline: true,
-				lineEnding: '\n'
+				closerNewline: true
 			},
 			{
 				innerPrefix: '\n',
@@ -114,10 +112,8 @@ describe('rebuildDirectiveContainerRaw', () => {
 		const node = build(
 			{
 				name: 'x',
-				colonCount: 4,
 				closerColonCount: 4,
-				closerNewline: true,
-				lineEnding: '\n'
+				closerNewline: true
 			},
 			{ innerPrefix: '', children: [openerLine('::::x\n'), paragraph('body\n')], innerSuffix: '' }
 		);
@@ -129,10 +125,8 @@ describe('rebuildDirectiveContainerRaw', () => {
 		const node = build(
 			{
 				name: 'x',
-				colonCount: 3,
 				closerColonCount: 3,
-				closerNewline: false,
-				lineEnding: '\n'
+				closerNewline: false
 			},
 			{ innerPrefix: '', children: [openerLine(':::x\n'), paragraph('body\n')], innerSuffix: '' }
 		);

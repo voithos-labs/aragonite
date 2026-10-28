@@ -13,12 +13,10 @@ export const DIRECTIVE_BODY_WRAP: ContainerBodyWrap = {
 export const DIRECTIVE_CONTAINER = 'directiveContainer';
 export const DIRECTIVE_OPENER_LINE = 'directiveOpenerLine';
 
-/** The closing-line bytes a generic container keeps; the opener line is its first child. */
+/** A generic container's name and the closing line, which no child holds; the opener line is
+ *  its first child. */
 export interface DirectiveContainerMetadata {
 	name: string;
-	colonCount: number;
 	closerColonCount: number;
 	closerNewline: boolean;
-	/** Authored line ending for the opener and closer fence lines. */
-	lineEnding: string;
 }

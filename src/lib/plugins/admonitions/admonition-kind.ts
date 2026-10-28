@@ -51,10 +51,8 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 		};
 		setPluginMetadata<AdmonitionMetadata>(node, {
 			name: parsed.fence.name,
-			colonCount: parsed.fence.colonCount,
 			closerColonCount: parsed.closerColonCount,
-			closerNewline: parsed.closerNewline,
-			lineEnding: parsed.lineEnding
+			closerNewline: parsed.closerNewline
 		});
 		return node;
 	};
