@@ -8,7 +8,7 @@ Miss-analysis: the join check after a write asked only the pair of blocks beside
 
 - `:::note\n<div>\n`, Enter at the end of `<div>`, then `:::` on the new line under it: `:::note\n<div>\n\n:::\n`, one block holding the `<div>`, and the tree reloads as itself (the #684 report's own keys)
 - `$$\n<div>\n\nx\n`, Enter at the end of `x`, then `$$`: one math block from the first `$$` to the one typed, and the tree reloads as itself
-- `::::note\n\nx\n\n:::\n`, Delete at the start of the first line: `:::note` now takes the `:::` below as its closer, one block, and the tree reloads as itself; Undo gives back the four colons and the three paragraphs, which reload as themselves too
+- `::::note\n\nx\n\n:::\n`, Delete at the start of the first line: the shortened `:::note` is an opener the keystroke wrote, so it gets a closer of its own (`:::note\n:::\n\nx\n\n:::\n`), the blocks below stay as they were, and the tree reloads as itself; Undo gives back the four colons, which reload as themselves too
 
 ## Edge cases
 

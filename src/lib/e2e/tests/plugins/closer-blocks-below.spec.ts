@@ -35,17 +35,15 @@ test.describe('a closer typed blocks below the construct it finishes', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	test('a fence shortened to fit a closer below takes it in, and Undo backs it out', async ({
-		page
-	}) => {
+	test('a fence shortened above a closer gets its own, and Undo backs it out', async ({ page }) => {
 		const source = '::::note\n\nx\n\n:::\n';
 		await editor.loadContent(source);
 		expect(await editor.bridge.getBlockCount()).toBe(3);
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('Delete');
 
-		await expect.poll(() => editor.bridge.getSource()).toBe(':::note\n\nx\n\n:::\n');
-		expect(await editor.bridge.getBlockCount()).toBe(1);
+		await expect.poll(() => editor.bridge.getSource()).toBe(':::note\n:::\n\nx\n\n:::\n');
+		expect(await editor.bridge.getBlockCount()).toBe(3);
 		expect(await editor.parseConverged()).toBe(true);
 
 		await editor.undo();
