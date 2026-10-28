@@ -45,6 +45,7 @@ import {
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { legalizeWrite } from '../tree-operations/content-write';
+import { reservedChromeKindOf, rowMarker } from '../schema/reserved-chrome';
 import { docPathFrom } from '../core/coordinate-spaces';
 import { assertParseConverged } from './parse-convergence';
 import { mountBlockListState } from './headless-block-list.svelte';
@@ -486,7 +487,7 @@ const TITLE_PROBE = 'probe title';
  *  that keystroke's rebuild and the tree has to match a fresh parse, every metadata key included. */
 function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
 	const descriptor = getBlockKindDescriptor(kind);
-	const chromeKind = descriptor.reservedChrome?.kind;
+	const chromeKind = reservedChromeKindOf(kind);
 	if (descriptor.containerContract !== 'opaque' || chromeKind === undefined) {
 		return {
 			status: 'exempt',
@@ -509,7 +510,7 @@ function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
 	const owner = nodeAtPath(doc, leafPath.slice(0, -1));
 	const lineEnding = documentLineEnding(doc);
 	const body = { children: owner.children!, owner, lineEnding };
-	const text = TITLE_PROBE + trailingLineEnding(title.raw, lineEnding);
+	const text = rowMarker(owner, title) + TITLE_PROBE + trailingLineEnding(title.raw, lineEnding);
 	const write = legalizeWrite(body, 0, text, 'authored', deps.reading.grammar);
 	const typed = createUndoController(deps).typeLeaf(docPathFrom(leafPath), write, 0);
 	assert(typed.wrote, `${kind} takes a keystroke in its title row`);

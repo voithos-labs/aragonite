@@ -15,6 +15,7 @@ import { cloneMetadata } from '../clone';
 import { fragmentReaderAt } from '../list/task-paragraph';
 import { itemsShareList } from '../list/ordered-markers';
 import type { Host } from './types';
+import { reservedChromeKindOf } from '../../schema/reserved-chrome';
 
 const hosts = new WeakMap<GrammarView, Host>();
 
@@ -39,7 +40,7 @@ function createHost(grammar: GrammarView): Host {
 			const descriptor = tryGetBlockKindDescriptor(kind as CstNode['kind']);
 			return {
 				bodyWrap: descriptor?.bodyWrap,
-				titleRowKind: descriptor?.reservedChrome?.kind,
+				titleRowKind: reservedChromeKindOf(kind as CstNode['kind']),
 				container: descriptor?.isContainer === true,
 				contextDependent: descriptor?.contextDependentKind === true,
 				stripContainer: descriptor?.containerContract === 'strip',

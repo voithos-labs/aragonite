@@ -1,5 +1,6 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import { displayLength } from '../core/lines';
 import { tryGetBlockKindDescriptor, type BlockKindDescriptor } from './block-kind-descriptor';
 
 /**
@@ -15,6 +16,25 @@ export function reservedChromeKindOf(containerKind: AnyBlockKind): AnyBlockKind 
 /** True when `childIndex` is the title row position (index 0) of a container declaring one. */
 export function isReservedChromeChild(container: NodeView, childIndex: number): boolean {
 	return childIndex === 0 && reservedChromeKindOf(container.kind) !== undefined;
+}
+
+/** The title part of a container's title row, as offsets into the row's raw: the row kind's
+ *  content range, so a row holding the opener line leaves its `:::name` marker out. */
+export function rowContentRange(
+	container: NodeView,
+	row: NodeView | undefined = container.children?.[0]
+): { start: number; end: number } {
+	if (!row) return { start: 0, end: 0 };
+	const range = tryGetBlockKindDescriptor(row.kind)?.getContentRange;
+	return range ? range(row) : { start: 0, end: displayLength(row.raw) };
+}
+
+/** The bytes in front of the title on a container's title row; empty for a row that is all title. */
+export function rowMarker(
+	container: NodeView,
+	row: NodeView | undefined = container.children?.[0]
+): string {
+	return row ? row.raw.slice(0, rowContentRange(container, row).start) : '';
 }
 
 /** True only when the kind declares an `isCollapsed` check and that check reports it collapsed. */

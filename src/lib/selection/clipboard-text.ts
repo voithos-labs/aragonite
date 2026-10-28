@@ -18,7 +18,7 @@ import {
 	type LineEnding
 } from '../core/lines';
 import { copyRectangleAsSubTable } from '../tree-operations/sub-table-copy';
-import { isReservedChromeChild } from '../schema/reserved-chrome';
+import { isReservedChromeChild, rowContentRange, rowMarker } from '../schema/reserved-chrome';
 import { getBlockKindDescriptor, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { Reading } from '../schema/reading';
 import { bytesLeavingLeaf } from '../tree-operations/leaf-range';
@@ -226,7 +226,7 @@ function endChromeContainerBytes(
 interface ChromeStartContainer {
 	path: number[];
 	node: NodeView;
-	/** The title line from the start offset on. */
+	/** The title row from the start offset on, behind the row's marker. */
 	chromeTail: string;
 	rebuildRaw: (node: CstNode) => void;
 }
@@ -245,10 +245,12 @@ function startChromeContainer(
 
 	const rebuildRaw = chromeWrapperRebuild(container, start.path[start.path.length - 1]);
 	if (!rebuildRaw) return null;
+	// A row holding the opener line keeps its marker, or the re-emitted opener opens nothing.
+	const contentStart = rowContentRange(container).start;
 	return {
 		path: containerPath,
 		node: container,
-		chromeTail: startRaw.slice(startOffset),
+		chromeTail: rowMarker(container) + startRaw.slice(Math.max(startOffset, contentStart)),
 		rebuildRaw
 	};
 }
