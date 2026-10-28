@@ -21,6 +21,7 @@
 		type RawRange
 	} from '../../../browser/offsets';
 	import { rawSelectionFocus } from '../../../browser/selection-read';
+	import { readInput } from '../../../browser/input';
 	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../core/coordinate-spaces';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../caret/sticky-measure';
@@ -192,7 +193,7 @@
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readInput: (caret) => ({ text: readCellText(), caret }),
+		readBack: (caret) => ({ text: readCellText(), caret }),
 		repaint: () => cellRender.render({ forceRebuild: true }),
 		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
@@ -649,7 +650,8 @@
 	function onBeforeInput(e: InputEvent): void {
 		if (typedInput(e)) return;
 		// A soft keyboard's line break, with no keydown, is the Shift+Enter command.
-		if (e.inputType === 'insertLineBreak') {
+		const read = readInput(e);
+		if (read.kind === 'break' && !read.paragraph) {
 			e.preventDefault();
 			// Input, not a key, so it asks for the removal itself.
 			editableSurface.afterSelectionRemoved(() => runCommand('cell.lineBreak'));

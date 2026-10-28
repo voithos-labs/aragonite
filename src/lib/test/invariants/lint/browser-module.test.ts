@@ -1,9 +1,9 @@
 /**
  * G4.270: what the browser holds for editing is read and written only under `browser/` (the
- * selection, `Selection.modify`, the caret and the element at a point), so an engine quirk in any of them is
- * fixed in one module (`docs/design/editor.md` § Browser engines). Inside it, the selection is
- * read only in `selection-read.ts` and the caret writer, written only by the writer, and a
- * point asked only in `point.ts`.
+ * selection, `Selection.modify`, what sits at a point, what an input asks for), so an engine quirk
+ * in any of them is fixed in one module (`docs/design/editor.md` § Browser engines). Inside it, the
+ * selection is read in `selection-read.ts` and the writer, written by the writer, a point asked in
+ * `point.ts` and an input read in `input.ts`.
  */
 
 import { describeFileRules, except, notUnder, under, type FileRule, type Probe } from './file-rule';
@@ -151,6 +151,34 @@ const RULES: FileRule[] = [
 			'const el = elementAtPoint(root.ownerDocument, x, y);',
 			'// the lookup behind elementFromPoint\nconst a = 1;',
 			at(SOURCE.pointLookup, 'return doc.elementFromPoint(clientX, clientY);')
+		]
+	},
+	{
+		id: 'G4.270 an input event is read only in browser/input.ts',
+		population: (file) => notUnder(SOURCE_DIR.debug)(file) && except(SOURCE.inputRead)(file),
+		matches:
+			/\.\s*inputType\b|\[\s*['"`]inputType['"`]\s*\]|\{[^{}]*\binputType\b[^{}]*\}\s*=[^=>]|\bgetTargetRanges\b/,
+		mustMatch: [SOURCE.inputRead],
+		reaches: [SOURCE.liveSelectionEdit, SOURCE.typedInput, SOURCE.editableLeaf],
+		reason:
+			'engines and soft keyboards disagree about which input type a gesture sends, so the editor reads each one once: ask `readInput` (its intent, a shared constant) or `targetRange` in browser/input.ts',
+		hits: [
+			"if (e.inputType === 'insertText') return;",
+			'switch (event.inputType) {}',
+			"return e.inputType.startsWith('delete');",
+			'const { inputType, data } = e;',
+			"const t = e['inputType'];",
+			'const target = e.getTargetRanges()[0];',
+			"if (typeof e.getTargetRanges === 'function') read();",
+			inBrowser("if (e.inputType === 'insertText') return;")
+		],
+		misses: [
+			"if (readInput(e).kind === 'insert') return;",
+			'const target = targetRange(e);',
+			"el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText' }));",
+			'function decidedDelete(e: Pick<InputEvent, typeof INPUT_TYPE>) {}',
+			at(SOURCE.inputRead, 'return INTENTS.get(e.inputType) ?? OTHER;'),
+			at(`${SOURCE_DIR.debug}probe.ts`, 'const type = e.inputType;')
 		]
 	}
 ];

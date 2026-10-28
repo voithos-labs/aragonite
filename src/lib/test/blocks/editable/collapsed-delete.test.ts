@@ -8,7 +8,7 @@ import {
 	type CollapsedDeleteReads
 } from '#lib/components/blocks/editable/collapsed-delete.js';
 import { checkDeleteDecided } from '#lib/invariants/collapsed-delete.js';
-import type { DeleteIntent } from '#lib/caret/delete-extent.js';
+import type { DeleteIntent } from '#lib/browser/input.js';
 
 function input(inputType: string, init: Partial<InputEventInit> = {}): InputEvent {
 	return new InputEvent('beforeinput', { inputType, cancelable: true, ...init });
@@ -238,14 +238,16 @@ describe('decideDeleteChord: what a delete chord does at its keydown, whatever i
 describe('G1.132 checkDeleteDecided: no delete the editor decides reaches input undecided', () => {
 	it('passes a declined delete and any input the editor never decides', () => {
 		const declined = { decided: false, decline: 'composing' } as const;
-		expect(checkDeleteDecided('deleteContentBackward', declined)).toBeNull();
-		expect(checkDeleteDecided('insertText', null)).toBeNull();
-		expect(checkDeleteDecided('deleteEntireSoftLine', null)).toBeNull();
+		expect(checkDeleteDecided({ inputType: 'deleteContentBackward' }, declined)).toBeNull();
+		expect(checkDeleteDecided({ inputType: 'insertText' }, null)).toBeNull();
+		expect(checkDeleteDecided({ inputType: 'deleteEntireSoftLine' }, null)).toBeNull();
 	});
 
 	it('fails a delete no delete step saw, and one the browser ran after the editor wrote it', () => {
-		expect(checkDeleteDecided('deleteContentBackward', null)?.code).toBe('delete-never-decided');
-		expect(checkDeleteDecided('deleteContentForward', { decided: true })?.code).toBe(
+		expect(checkDeleteDecided({ inputType: 'deleteContentBackward' }, null)?.code).toBe(
+			'delete-never-decided'
+		);
+		expect(checkDeleteDecided({ inputType: 'deleteContentForward' }, { decided: true })?.code).toBe(
 			'delete-not-prevented'
 		);
 	});

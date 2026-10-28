@@ -84,7 +84,6 @@ export const SOURCE = {
 
 	// ── Caret geometry and windowing ────────────────────────────────────────
 	coordinateBrands: 'src/lib/core/coordinate-spaces.ts',
-	deleteExtent: 'src/lib/caret/delete-extent.ts',
 	domWalk: 'src/lib/browser/dom-descendants.ts',
 	blockContentSelector: 'src/lib/caret/block-content-selector.ts',
 	blockElLookup: 'src/lib/caret/block-el-lookup.ts',
@@ -111,6 +110,7 @@ export const SOURCE = {
 	selectionRead: 'src/lib/browser/selection-read.ts',
 	caretWriter: 'src/lib/browser/caret-writer.ts',
 	pointLookup: 'src/lib/browser/point.ts',
+	inputRead: 'src/lib/browser/input.ts',
 	textBlockComponent: 'src/lib/components/blocks/text/TextEditableBlock.svelte',
 	textClipboard: 'src/lib/components/blocks/text/text-clipboard.ts',
 	edgePolicyDispatch: 'src/lib/components/blocks/text/edge-policy-dispatch.ts',
@@ -239,7 +239,6 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 
 	// ── Caret geometry and windowing ────────────────────────────────────────
 	coordinateBrands: 'export type RawOffset',
-	deleteExtent: 'export const DECIDED_DELETES',
 	domWalk: 'export function* domDescendants',
 	blockContentSelector: 'export const BLOCK_CONTENT_SELECTOR',
 	blockElLookup: 'export function blockContentElAt',
@@ -266,6 +265,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	selectionRead: 'export function shownSelectionText(',
 	caretWriter: 'export function createCaretWriter(',
 	pointLookup: 'export function caretOffsetAtPoint(',
+	inputRead: 'export function readInput(',
 	textBlockComponent: 'const widgetEdgeOwner = {};',
 	textClipboard: 'export interface TextClipboardDeps',
 	edgePolicyDispatch: 'export type EdgePolicy',

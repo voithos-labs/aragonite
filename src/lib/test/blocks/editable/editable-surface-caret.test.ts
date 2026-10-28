@@ -132,7 +132,7 @@ describe('the input read', () => {
 
 	it('writes the caret the block read moved along with its text', () => {
 		const { surface, commits, el, setCaret } = makeSurface({
-			overrides: { readInput: (caret) => ({ text: ' ', caret: caret - 2 }) }
+			overrides: { readBack: (caret) => ({ text: ' ', caret: caret - 2 }) }
 		});
 		el.textContent = '#  ';
 		setCaret(3);

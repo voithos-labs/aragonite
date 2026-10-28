@@ -6,6 +6,7 @@
  */
 
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { readInput } from '../browser/input';
 
 /** What a composing-flag holder heard: the event, or `compositionstart` where it gets none. */
 export type CompositionSignal = Event | 'compositionstart';
@@ -25,7 +26,8 @@ export function reportDroppedComposition(signal: CompositionSignal, open: boolea
 /** Whether `event` is a composed run with no composition open here: a range across blocks claimed
  *  the start, and this holder has the caret its removal left, so it opens the composition first. */
 export function opensComposition(event: InputEvent, open: boolean): boolean {
-	return !open && event.isComposing && event.inputType === 'insertCompositionText';
+	const read = readInput(event);
+	return !open && event.isComposing && read.kind === 'compose' && !read.final;
 }
 
 function sentOutsideComposition(signal: CompositionSignal): boolean {
@@ -34,7 +36,8 @@ function sentOutsideComposition(signal: CompositionSignal): boolean {
 	if (e.isComposing !== false) return false;
 	// A key's own beforeinput and input say `isComposing: false` even inside a live composition, and
 	// its keydown carries the real state, so only typed text in either proves the composition over.
-	if (e.type === 'beforeinput' || e.type === 'input') return e.inputType === 'insertText';
+	if (e.type === 'beforeinput' || e.type === 'input')
+		return readInput(signal as InputEvent).kind === 'insert';
 	// The key that opens or feeds an IME reports `isComposing: false` in Chromium and WebKit.
 	return e.key !== 'Process' && e.keyCode !== 229;
 }

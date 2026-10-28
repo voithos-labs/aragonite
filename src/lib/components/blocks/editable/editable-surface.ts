@@ -106,12 +106,13 @@ import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkRepaintReadsTree } from '../../../invariants/repaint-reads-tree';
 import { checkCompositionEndPaired } from '../../../invariants/inline-transitions';
 import { checkDeleteDecided } from '../../../invariants/collapsed-delete';
-import type {
-	DeleteAnswer,
-	DeleteDirection,
-	DeleteIntent,
-	DeleteVerdict
-} from '../../../caret/delete-extent';
+import type { DeleteAnswer, DeleteVerdict } from '../../../caret/delete-extent';
+import {
+	readInput,
+	targetRange,
+	type DeleteDirection,
+	type DeleteIntent
+} from '../../../browser/input';
 import {
 	decideCollapsedDelete,
 	decideDeleteChord,
@@ -269,7 +270,7 @@ export interface EditableSurfaceDeps {
 	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the element back as the block's displayed text, with `caret`, counted in the bytes the
 	 *  element shows, moved onto it: a read that drops bytes moves the caret with them. */
-	readInput: (caret: number) => InputRead;
+	readBack: (caret: number) => InputRead;
 	/** Rebuild the element from the block's bytes, for an input the tree took back after the
 	 *  browser had already drawn it. */
 	repaint: () => void;
@@ -390,7 +391,7 @@ export interface EditableSurfaceMethods {
 }
 
 export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurface {
-	const readText = () => deps.readInput(0).text;
+	const readText = () => deps.readBack(0).text;
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
@@ -636,7 +637,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		hasRange: () => deps.backend.getRawSelection() !== null,
 		text: readText,
 		targetRange: (e) => {
-			const target = typeof e.getTargetRanges === 'function' ? e.getTargetRanges()[0] : undefined;
+			const target = targetRange(e);
 			return target ? deps.backend.rawRangeOf(target) : null;
 		},
 		deleteAtCaret: deps.deleteAtCaret
@@ -684,8 +685,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	/** A break input that arrives while its Enter's handler still runs is that key's default, which
 	 *  the handler replaces, so it writes nothing (Playwright's Firefox fires it before the await). */
 	function isEnterDefault(e: InputEvent): boolean {
-		const isBreak = e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph';
-		return isBreak && enterKeydown !== null;
+		return readInput(e).kind === 'break' && enterKeydown !== null;
 	}
 
 	// Synchronous to the block's handler: the block's `preventDefault` only counts inside this
@@ -699,7 +699,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		endsDroppedComposition(e);
 		adoptsComposition(e);
 		// A drop's text lands at the pointer, not at the caret a chord promised its marks to.
-		if (e.inputType === 'insertFromDrop') pendingMarks.end();
+		const read = readInput(e);
+		if (read.kind === 'transfer' && read.via === 'drop') pendingMarks.end();
 		if (isEnterDefault(e)) {
 			e.preventDefault();
 			return;
@@ -715,11 +716,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	/** The browser's own Undo and Redo are the editor's, and a character typed over a range across
 	 *  blocks replaces the range. True when the step took the event. */
 	function runSharedBeforeInput(e: InputEvent): boolean {
-		if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
+		const read = readInput(e);
+		if (read.kind === 'history') {
 			e.preventDefault();
-			void (e.inputType === 'historyUndo'
-				? deps.history.requestUndo()
-				: deps.history.requestRedo());
+			void (read.redo ? deps.history.requestRedo() : deps.history.requestUndo());
 			return true;
 		}
 		if (!crossBlock.claimsBeforeInput(e)) return false;
@@ -731,7 +731,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const verdict = deleteVerdict;
 		deleteVerdict = null;
 		if (e instanceof InputEvent && !e.isComposing && !deps.getComposing()) {
-			assertInvariant('collapsed-delete-decided', () => checkDeleteDecided(e.inputType, verdict));
+			assertInvariant('collapsed-delete-decided', () => checkDeleteDecided(e, verdict));
 		}
 		if (!endsDroppedComposition(e)) commitDomRead(false);
 	}
@@ -747,7 +747,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
 		if (deps.getComposing() || !el) return unwritten();
-		const read = deps.readInput(deps.backend.getRaw() ?? 0);
+		const read = deps.readBack(deps.backend.getRaw() ?? 0);
 		const { text, caret: savedOffset } = keepLineEndingPairs(
 			trimTrailingLineEnding(deps.getNode().raw),
 			read.text,

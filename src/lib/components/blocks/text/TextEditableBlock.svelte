@@ -64,6 +64,7 @@
 	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { readContent } from '../../../browser/block-text';
+	import { readInput } from '../../../browser/input';
 	import { revealsNoMarkers } from '../../../browser/painted';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { type CommandId } from '../../../schema/commands';
@@ -235,7 +236,7 @@
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readInput,
+		readBack,
 		repaint: () => textRender.render({ forceRebuild: true }),
 		compositionSeat,
 		placement: typedPlacement,
@@ -783,7 +784,7 @@
 
 	const onInput = editableSurface.onInput;
 
-	function readInput(caret: number): { text: string; caret: number } {
+	function readBack(caret: number): { text: string; caret: number } {
 		return el ? readContent(el, node.raw, structuralSuffix(node), caret) : { text: '', caret };
 	}
 
@@ -839,7 +840,8 @@
 		if (typedInput(e)) return;
 		// A soft keyboard's line break, with no keydown, is the Shift+Enter command; the browser's
 		// own would put a bare newline in the DOM, and one mid-composition writes nothing.
-		if (e.inputType === 'insertLineBreak') {
+		const read = readInput(e);
+		if (read.kind === 'break' && !read.paragraph) {
 			e.preventDefault();
 			if (composing || e.isComposing) return;
 			// Input, not a key, so it asks for the selection's removal itself.

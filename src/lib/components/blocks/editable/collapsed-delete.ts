@@ -7,13 +7,11 @@
 
 import {
 	characterExtent,
-	decidedDelete,
 	type DeleteAnswer,
 	type DeleteDecline,
-	type DeleteDirection,
-	type DeleteIntent,
 	type DeleteVerdict
 } from '../../../caret/delete-extent';
+import { decidedDelete, type DeleteDirection, type DeleteIntent } from '../../../browser/input';
 import type { RawRange } from '../../../browser/offsets';
 import { isBareKey } from '../text/click-snap-guard';
 
@@ -68,7 +66,8 @@ export function decideCollapsedDelete(
 	keyChord: string | null,
 	reads: CollapsedDeleteReads
 ): DeleteVerdict | null {
-	const intent = decidedDelete(e.inputType);
+	const intent = decidedDelete(e);
+
 	if (!intent) return null;
 	const caret = reads.caret();
 	const decline = declineReason(e, intent, caret, keyChord !== null, reads);

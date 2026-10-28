@@ -9,7 +9,7 @@ import type { NodeView } from '../../../core/node-views';
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { readNativeSelection } from '../../../browser/selection-read';
-import { decidedDelete, isDeleteInput } from '../../../caret/delete-extent';
+import { decidedDelete, isDeleteInput, readInput, targetRange } from '../../../browser/input';
 
 /** The raw-offset lookups a browser range edit needs from the block. */
 export interface LiveEditCursor {
@@ -38,7 +38,7 @@ export function resolveLiveRangeEdit(
 ): LiveRangeEdit | null {
 	if (!store.reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
 	// A delete at a caret is the editor's own delete step's, which decides it after this one.
-	if (decidedDelete(e.inputType) && cursor.getRawSelection() === null) return null;
+	if (decidedDelete(e) && cursor.getRawSelection() === null) return null;
 	const target = pendingEditRange(e, cursor);
 	if (!target) return null;
 	const insert = replacementText(e);
@@ -90,29 +90,27 @@ export function applyLiveRangeEdit(
 
 // ── Reading the event ────────────────────────────────────────────────────────
 
-/** The range the pending edit will rewrite, from `getTargetRanges()`, since a word delete reports
- *  the run rather than the caret. Feature-detected because jsdom has no such method. */
+/** The range a ranged edit will rewrite: the browser's target, since a word delete reports the run
+ *  rather than the caret, else the selection. */
 function pendingEditRange(
 	e: InputEvent,
 	cursor: LiveEditCursor
 ): { start: number; end: number } | null {
-	const targets = typeof e.getTargetRanges === 'function' ? e.getTargetRanges() : [];
-	return targets.length > 0 ? cursor.rawRangeOf(targets[0]) : cursor.getRawSelection();
+	const target = targetRange(e);
+	return target ? cursor.rawRangeOf(target) : cursor.getRawSelection();
 }
 
-/** The inputs that rewrite the range they target. Composition is excluded by name and flag, since
+/** The inputs that rewrite the range they target. Composition is excluded by kind and flag, since
  *  `composition-seat.ts` handles it start to finish and a second write here would double it. */
 function rewritesTargetRange(e: InputEvent): boolean {
-	if (e.isComposing || /composition/i.test(e.inputType)) return false;
-	return (
-		isDeleteInput(e.inputType) ||
-		e.inputType === 'insertText' ||
-		e.inputType === 'insertReplacementText'
-	);
+	const read = readInput(e);
+	if (e.isComposing || read.kind === 'compose') return false;
+	if (read.kind === 'delete') return read.source !== 'ime';
+	return read.kind === 'insert' || read.kind === 'replace';
 }
 
 /** What an input writes over its range, or null for `dataTransfer` text, which would skip the paste
  *  transforms (G4.11); consuming the key beats turning a replacement into a delete. */
 function replacementText(e: InputEvent): string | null {
-	return isDeleteInput(e.inputType) ? '' : e.data;
+	return isDeleteInput(e) ? '' : e.data;
 }

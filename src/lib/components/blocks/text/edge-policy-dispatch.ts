@@ -21,22 +21,15 @@ import { keptBlockText, hidesBlockPrefix, type EditedBlock } from '../../../brow
 import { landableRawBounds, visibleWalkText } from '../../../browser/offsets';
 import { markerPrefixOf, hidingScreenOf } from '../../../browser/painted';
 import type { CaretWriter } from '../../../browser/caret-writer';
-import {
-	deleteExtent,
-	type DeleteAnswer,
-	type DeleteIntent,
-	type DeleteSpan
-} from '../../../caret/delete-extent';
+import { deleteExtent, type DeleteAnswer, type DeleteSpan } from '../../../caret/delete-extent';
+import type { DeleteDirection, DeleteIntent } from '../../../browser/input';
 import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { hasModifier, isBareKey, isPlainTypingKey } from './click-snap-guard';
 import { caretIsInTextContent, readNativeSelection } from '../../../browser/selection-read';
 import { createMarkerCompletion } from './marker-completion';
-import {
-	resolveEdgeDeletion,
-	type DeleteDirection,
-	type EdgeDeletion
-} from './construct-edge-delete';
+import { resolveEdgeDeletion, type EdgeDeletion } from './construct-edge-delete';
+
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { widgetAtCursor, widgetsIn, type WidgetAtCursor } from './widget-adjacency';
 import type { CaretUnitSource } from '../../../selection/shared-keydown';

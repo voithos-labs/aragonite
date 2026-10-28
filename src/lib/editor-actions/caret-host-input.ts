@@ -5,6 +5,7 @@
  */
 
 import { opensComposition, reportDroppedComposition } from './dropped-composition';
+import { readInput } from '../browser/input';
 
 export interface CaretHostInput {
 	onBeforeInput(event: InputEvent): void;
@@ -40,7 +41,7 @@ export function createCaretHostInput(
 			if (composing && !reportDroppedComposition(event, composing)) return;
 			composing = false;
 			event.preventDefault();
-			const typed = event.inputType === 'insertText' ? (event.data ?? '') : '';
+			const typed = readInput(event).kind === 'insert' ? (event.data ?? '') : '';
 			const text = takeHostText() + typed;
 			if (text) insert(text);
 		},

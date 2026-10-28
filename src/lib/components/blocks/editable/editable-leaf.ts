@@ -27,14 +27,15 @@ import {
 	holdsOnlyMarkerChrome
 } from '../../../browser/painted';
 import { clampToLandableRaw, landableRawBounds, type RawRange } from '../../../browser/offsets';
+import { deleteExtent, type DeleteAnswer } from '../../../caret/delete-extent';
 import {
 	decidedDelete,
-	deleteExtent,
 	isDeleteInput,
 	isMoveDelete,
-	type DeleteAnswer,
+	readInput,
+	targetRange,
 	type DeleteIntent
-} from '../../../caret/delete-extent';
+} from '../../../browser/input';
 import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { isAtMostOneCharacter } from '../../../core/text-units';
 import { nativeRangeIn } from '../../../browser/selection-read';
@@ -254,12 +255,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(deps.getEl()).length,
-		readInput: (caret) => ({ text: plainTextOf(deps.getEl()), caret }),
+		readBack: (caret) => ({ text: plainTextOf(deps.getEl()), caret }),
 		repaint: syncSource,
 		handleKeydown,
-		localHistory: (e) =>
-			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
-			stepSourceHistory(e, e.inputType === 'historyUndo'),
+		localHistory: (e) => {
+			const read = readInput(e);
+			return read.kind === 'history' && stepSourceHistory(e, !read.redo);
+		},
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret,
 		commandTarget: () => keyTarget,
@@ -702,16 +704,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	 *  node and its delete cannot see hidden markers. Clamping keeps edits off hidden fence lines. */
 	function onBeforeInput(e: InputEvent): void {
 		// A delete the editor decides is `deleteAtCaret`'s, and reaches the splice only if declined.
-		if (!decidedDelete(e.inputType)) spliceTargetRange(e);
+		if (!decidedDelete(e)) spliceTargetRange(e);
 	}
 
 	function spliceTargetRange(e: InputEvent): void {
 		if (!deps.renderSource || composing || e.isComposing) return;
 		const el = deps.getEl();
 		if (!el) return;
-		const insert = sourceInsertion(e.inputType, e.data);
+		const insert = sourceInsertion(e);
 		if (insert === null) return;
-		const target = e.getTargetRanges()[0];
+		const target = targetRange(e);
 		const range = target ? backend.rawRangeOf(target) : null;
 		if (!range) return;
 		e.preventDefault();
@@ -721,11 +723,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	/** What an input writes over its target range in a painted source; null leaves it alone. */
-	function sourceInsertion(inputType: string, data: string | null): string | null {
-		if (isDeleteInput(inputType)) return isMoveDelete(inputType) ? null : '';
-		if (inputType === 'insertText') return data ?? '';
-		const breaks = inputType === 'insertLineBreak' || inputType === 'insertParagraph';
-		return breaks ? editableSurface.lineEnding() : null;
+	function sourceInsertion(e: InputEvent): string | null {
+		if (isDeleteInput(e)) return isMoveDelete(e) ? null : '';
+		const read = readInput(e);
+		if (read.kind === 'insert') return e.data ?? '';
+		return read.kind === 'break' ? editableSurface.lineEnding() : null;
 	}
 
 	/** A collapsed delete takes what the delete rule names in the DOM's text, which a shown
