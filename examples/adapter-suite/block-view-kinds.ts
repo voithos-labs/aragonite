@@ -1,8 +1,8 @@
 // The kinds the `?block-views` page draws with each framework's own components
 // (`requirements/block-views.md`): a `%% ` memo line, a `@@ ` click-to-edit label, a `:::box`
-// container, a `{{name}}` inline chip, a badge on each memo giving its length, and a ```` ```note ````
-// block focused whole with an edit box of its own. Each app passes its views; the grammar here is
-// shared.
+// container, a `{{name}}` inline chip, a badge on each memo giving its length, a ```` ```note ````
+// block focused whole with an edit box of its own, and a `!! d6` die the component draws whole.
+// Each app passes its views; the grammar here is shared.
 import {
 	activateDirectives,
 	containerClosure,
@@ -46,6 +46,7 @@ export interface BlockViews {
 	label: BlockView;
 	box: BlockView;
 	note: BlockView;
+	dice: BlockView;
 	chip: PluginView<InlineWidgetComponentProps>;
 	/** Shows the `data-memo-length` attribute of the decoration it's given. */
 	memoLength: PluginView<{ decoration: Decoration }>;
@@ -55,6 +56,12 @@ export const MEMO_LENGTH_ATTR = 'data-memo-length';
 
 /** The chip each app's view throws on. */
 export const BOOM = '{{boom}}';
+
+/** The die each app's view throws on. */
+export const DICE_BOOM = '!! boom';
+
+/** A die's sides, from its `!! d<sides>` line. */
+export const diceSides = (node: NodeView): number => Number(/d(\d+)/.exec(node.raw)?.[1] ?? 6);
 
 export function blockViewsPlugin(views: BlockViews): EditorPlugin {
 	return definePlugin({
@@ -70,6 +77,7 @@ export function blockViewsPlugin(views: BlockViews): EditorPlugin {
 			);
 			registerBox(views.box);
 			registerNote(views.note);
+			registerDice(views.dice);
 			registerChip(views.chip);
 			ctx.onEditor((editor) => {
 				const handle = editor.decorations.addSource(memoLengths(views.memoLength));
@@ -295,5 +303,37 @@ function registerNote(view: BlockView): void {
 			clipboard: { mode: 'implemented', via: 'focused-block copy and cut' },
 			simOracle: { mode: 'inherit-default' }
 		}
+	});
+}
+
+// ── The die ──────────────────────────────────────────────────────────────────
+
+function registerDice(view: BlockView): void {
+	const dice = declarePluginKind('dice');
+	registerBlockKind(dice, {
+		view,
+		opener: {
+			priority: 27,
+			interruptsParagraph: (text) => text.startsWith('!! '),
+			tryOpen: (ctx) =>
+				ctx.line.text.startsWith('!! ')
+					? {
+							node: { kind: dice, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
+							consumed: 1
+						}
+					: null
+		},
+		label: 'Die',
+		gapEdges: 'none',
+		mergeRole: 'not-mergeable',
+		editable: false,
+		supportsInline: false,
+		conformanceFixture: '!! d6\n',
+		closure: simpleLeafClosure({
+			focus: { mode: 'implemented', via: 'the component publishes focus through useBlockHandle' },
+			searchPaint: { mode: 'not-supported', reason: 'its drawn buttons hold no source' },
+			undo: { mode: 'not-supported', reason: 'the die writes no bytes' },
+			simOracle: { mode: 'inherit-default' }
+		})
 	});
 }

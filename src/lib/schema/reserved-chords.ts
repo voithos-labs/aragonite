@@ -233,13 +233,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'c',
 			'x'
 		],
-		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too.'
-	},
-	{
-		file: 'editor-actions/plugin/container.ts',
-		chords: [],
-		keys: [],
-		note: 'The arrow exit for a plugin editor declines every modified key rather than claiming one.'
+		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too. The arrow exit for a plugin editor or a hand-built view declines every modified key rather than claiming one.'
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',

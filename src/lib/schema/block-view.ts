@@ -53,10 +53,10 @@ interface ViewSpecBase {
 	watchDocument?: boolean;
 }
 
-/** A block the view draws whole, publishing what the editor calls on it from its handle. */
+/** A block the view draws whole, handing over what the editor calls on it with `ctx.block.publish`. */
 export interface HandBuiltViewSpec extends ViewSpecBase {
 	surface: 'none';
-	mount(target: HTMLElement, ctx: BlockViewContext): HandBuiltViewHandle;
+	mount(target: HTMLElement, ctx: HandBuiltViewContext): BlockViewHandle;
 }
 
 /** A block whose text the editor edits, in the element the view hands to `ctx.leaf.attach`. */
@@ -116,6 +116,10 @@ export interface BlockViewContext {
 	readonly editor: EditorContext;
 }
 
+export interface HandBuiltViewContext extends BlockViewContext {
+	readonly block: HandBuiltSurface;
+}
+
 export interface LeafViewContext extends BlockViewContext {
 	readonly leaf: LeafSurface;
 }
@@ -132,6 +136,12 @@ export interface CommandHooksSurface {
 	/** What a block command running on this block gets as `ctx.hooks` (opening the view's own
 	 *  editor, say); the last value set wins, and a view that never sets one hands `undefined`. */
 	setCommandHooks(hooks: BlockCommandContext['hooks']): void;
+}
+
+export interface HandBuiltSurface {
+	/** What the editor calls on the block from now on, replacing the last. Before the first call
+	 *  and after `null`, the block publishes nothing: it takes no focus, and arrows pass over it. */
+	publish(block: HandBuiltBlock | null): void;
 }
 
 export interface LeafSurface extends CommandHooksSurface {
@@ -186,7 +196,7 @@ export interface LeafViewHandle extends BlockViewHandle {
 
 // ── Where a DOM view's members come from ────────────────────────────────────
 
-/** Who supplies a `BlockComponent` member for a DOM view: its handle, its host (from the kind's
+/** Who supplies a `BlockComponent` member for a DOM view: what it publishes, its host (from the kind's
  *  registration), the leaf or container surface, or nobody outside the editor. */
 export type MemberSource = 'view' | 'host' | 'leaf-surface' | 'container-surface' | 'editor';
 
@@ -228,15 +238,13 @@ type HandBuiltMember = {
 	[K in keyof typeof MEMBER_SOURCES]: (typeof MEMBER_SOURCES)[K] extends 'view' ? K : never;
 }[keyof typeof MEMBER_SOURCES];
 
-/** The members a hand-built view's handle may publish, read off `MEMBER_SOURCES`. */
+/** The members a hand-built view may publish, read off `MEMBER_SOURCES`. */
 export const HAND_BUILT_MEMBERS = (
 	Object.keys(MEMBER_SOURCES) as (keyof typeof MEMBER_SOURCES)[]
 ).filter((key): key is HandBuiltMember => MEMBER_SOURCES[key] === 'view');
 
 /** What the editor calls on a hand-built block; `editable` comes from the kind's registration. */
 export type HandBuiltBlock = Pick<BlockComponent, HandBuiltMember>;
-
-export type HandBuiltViewHandle = BlockViewHandle & HandBuiltBlock;
 
 const SURFACES: readonly BlockSurface[] = ['none', 'leaf', 'render-primary', 'container'];
 

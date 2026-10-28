@@ -9,7 +9,8 @@ import { collectEditorSources } from './scan-source';
 import { SOURCE } from './source-paths';
 
 const FORGET_RE_ALL = /\bcaretMemory\.forget\s*\(/g;
-const NOTE_KEY_RE = /\bcaretMemory\.noteKey\s*\(/;
+// Directly, or through a key tail in `container-block-component.ts` that notes it.
+const NOTE_KEY_RE = /\b(?:caretMemory\.noteKey|handleWholeBlockKeys|moveFocusOutByArrow)\s*\(/;
 
 /** The keydown entry paths, each of which has to go through `noteKey`. Listed by hand, since a
  *  file-name match misses entry paths like the container components' key handling. */
@@ -17,7 +18,8 @@ const KEYDOWN_ENTRY_FILES: string[] = [
 	SOURCE.sharedKeydown,
 	SOURCE.crossBlockKeydown,
 	SOURCE.containerBlockComponent,
-	SOURCE.pluginContainer
+	SOURCE.pluginContainer,
+	SOURCE.domBlockView
 ];
 
 const isKeydownFile = (relPath: string) => /keydown/i.test(relPath);

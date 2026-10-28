@@ -3,6 +3,7 @@ export {
 	vueBlockView,
 	LeafContent,
 	BlockChildren,
+	useBlockHandle,
 	type BlockViewProps,
 	type FrameworkSurface,
 	type VueBlockViewOptions

@@ -92,6 +92,23 @@ test.describe('DOM block views', () => {
 		expect((await viewLog(page)).mounts['dom-badge']).toBe(start.mounts['dom-badge'] + 1);
 	});
 
+	test('ArrowRight out of the badge ends the column the ArrowDown into it kept', async ({
+		page
+	}) => {
+		await editor.loadContent(
+			'abcdefghijklmnop\n\n[[dom-badge]]\n\n0123456789abcdef\n\nzyxwvutsrq\n'
+		);
+		const caret = async () => (await editor.bridge.getSelectionPaths())?.focus ?? null;
+		await editor.focusBlock(0, 10);
+		await page.keyboard.press('ArrowDown');
+		await expect(page.locator('.dom-badge')).toBeFocused();
+
+		await page.keyboard.press('ArrowRight');
+		await expect.poll(caret).toEqual({ path: [2], offset: 0 });
+		await page.keyboard.press('ArrowDown');
+		await expect.poll(caret).toEqual({ path: [3], offset: 0 });
+	});
+
 	test('a dombox’s own children window inside its box, and mount as they scroll in', async ({
 		page
 	}) => {

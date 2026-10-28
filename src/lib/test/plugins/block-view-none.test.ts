@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-// A hand-built DOM view publishes what its handle has, of the members a view may supply, and
-// nothing else; registration refuses a view whose surface disagrees with the kind.
-// Miss-analysis: new surface; a forwarding ref that always had every member would lie to callers.
+// A hand-built DOM view publishes what the editor calls on it through `ctx.block.publish`, of the
+// members a view may supply and nothing else, and a plain arrow pressed in it leaves the block.
+// Miss-analysis: a handle read once at mount could take no members from a component that renders
+// after it, and no row pressed an arrow inside a hand-built block.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -12,11 +13,13 @@ import {
 	typeInto,
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import {
 	defineBlockView,
 	type BlockView,
 	type BlockViewSpec,
-	type HandBuiltViewHandle
+	type HandBuiltBlock,
+	type HandBuiltViewContext
 } from '#lib/plugin.js';
 import type { BlockComponent } from '#lib/block-component.js';
 import { HAND_BUILT_MEMBERS, MEMBER_SOURCES } from '#lib/schema/block-view.js';
@@ -26,6 +29,7 @@ import { markerLeafPlugin, newViewLog, loggedHandle } from './fixtures/dom-views
 type Lookup = { getBlockComponent(path: number[]): BlockComponent | null };
 
 const SOURCE = 'intro\n\n@@ badge\n\noutro\n';
+const BADGE = [1];
 
 beforeEach(installLayoutStubs);
 afterEach(async () => {
@@ -33,30 +37,44 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-function badgeView(extra: Partial<HandBuiltViewHandle> = {}, log = newViewLog()) {
-	const focus = vi.fn();
+/** A badge holding a button and a text field; it publishes `members` from `mount`, or nothing. */
+function badgeView(members: Partial<HandBuiltBlock> | null = {}, log = newViewLog()) {
+	const contexts: HandBuiltViewContext[] = [];
+	let button: HTMLButtonElement | null = null;
+	const focus = vi.fn((_offset: number) => button?.focus());
 	const view = defineBlockView({
 		surface: 'none',
-		mount(target) {
-			target.className = 'badge-block';
-			target.textContent = 'badge';
-			return loggedHandle(log, target, {
-				focus,
-				getCursorOffset: () => null,
-				focusable: true,
-				...extra
-			});
+		mount(target, ctx) {
+			contexts.push(ctx);
+			button = document.createElement('button');
+			button.textContent = 'badge';
+			target.append(button, document.createElement('textarea'));
+			if (members) {
+				ctx.block.publish({
+					focus,
+					getCursorOffset: () => (target.contains(document.activeElement) ? 0 : null),
+					focusable: true,
+					...members
+				});
+			}
+			return loggedHandle(log, target);
 		}
 	});
-	return { view, focus, log };
+	return { view, focus, contexts, button: () => button! };
 }
 
 function mountBadge(view: BlockView): MountedEditor<Lookup> {
 	return mountEditor<Lookup>({ source: SOURCE, plugins: [markerLeafPlugin(view)] });
 }
 
+const refAt = (editor: MountedEditor<Lookup>, path: number[]) =>
+	editor.instance.__test.getBlockComponent(path)!;
+
+const caretIn = (editor: MountedEditor<Lookup>, path: number[]) =>
+	surfaceAt(editor, path).contains(document.activeElement);
+
 describe('a hand-built DOM view', () => {
-	it('publishes its handle’s focus, which the editor calls when the caret arrives', async () => {
+	it('publishes its focus during mount, which the editor calls when the caret arrives', async () => {
 		const { view, focus } = badgeView();
 		const editor = mountBadge(view);
 		await editor.settle();
@@ -64,54 +82,132 @@ describe('a hand-built DOM view', () => {
 		expect(focus).toHaveBeenCalled();
 	});
 
-	it('publishes only the members its handle has, of those a view may supply', async () => {
+	it('publishes only the members it hands over, of those a view may supply', async () => {
 		const rects = () => [new DOMRect(0, 0, 1, 1)];
 		const { view } = badgeView({
 			measurePartialRects: rects,
-			// Editor-internal: a view's handle cannot publish it.
+			// Editor-internal: a view cannot publish it.
 			...({ startDragAtPoint: () => true } as object)
 		});
 		const editor = mountBadge(view);
 		await editor.settle();
-		const ref = editor.instance.__test.getBlockComponent([1])!;
+		const ref = refAt(editor, BADGE);
 		expect(ref.measurePartialRects?.(0, 1)).toEqual(rects());
 		expect('startDragAtPoint' in ref).toBe(false);
 		expect('parkCaret' in ref).toBe(false);
 		expect(ref.focusable).toBe(true);
-		expect(editor.instance.__test.getBlockComponent([1])).toBe(ref);
+		expect(refAt(editor, BADGE)).toBe(ref);
 	});
 
 	it('reports editable from the kind’s registration', async () => {
 		const { view } = badgeView();
 		const editor = mountBadge(view);
 		await editor.settle();
-		expect(editor.instance.__test.getBlockComponent([1])!.editable).toBe(true);
+		expect(refAt(editor, BADGE).editable).toBe(true);
 	});
 
-	it('publishes the new handle once update returns false', async () => {
+	it.each([
+		['before it publishes', null, false],
+		['once it publishes null', {}, true]
+	])('%s, takes no focus and arrows pass over it', async (_name, members, unpublish) => {
+		const { view, contexts } = badgeView(members);
+		const editor = mountBadge(view);
+		await editor.settle();
+		if (unpublish) contexts[0].block.publish(null);
+		await editor.settle();
+		const ref = refAt(editor, BADGE);
+		expect(ref.focusable).toBe(false);
+		expect(ref.getCursorOffset()).toBeNull();
+		expect(() => ref.focus(0)).not.toThrow();
+		await pressKeyAt(editor, [0], 'intro'.length, { key: 'ArrowDown' });
+		await editor.settle();
+		expect(caretIn(editor, [2])).toBe(true);
+	});
+
+	it('answers with a later publication in place of the first', async () => {
+		const { view, focus, contexts } = badgeView();
+		const editor = mountBadge(view);
+		await editor.settle();
+		const later = vi.fn();
+		contexts[0].block.publish({ focus: later, getCursorOffset: () => null, focusable: true });
+		await editor.settle();
+		refAt(editor, BADGE).focus(0);
+		expect(later).toHaveBeenCalledWith(0);
+		expect(focus).not.toHaveBeenCalled();
+	});
+
+	it('keeps its ref when it publishes the same members again', async () => {
+		const members = { focus() {}, getCursorOffset: () => null, focusable: true };
+		const { view, contexts } = badgeView(members);
+		const editor = mountBadge(view);
+		await editor.settle();
+		const ref = refAt(editor, BADGE);
+		contexts[0].block.publish({ ...members });
+		await editor.settle();
+		expect(refAt(editor, BADGE)).toBe(ref);
+	});
+
+	it('publishes the new mount’s members once update returns false, never the old one’s', async () => {
 		const first = vi.fn();
 		const second = vi.fn();
-		let mounts = 0;
+		const stale = vi.fn();
+		const contexts: HandBuiltViewContext[] = [];
 		const view = defineBlockView({
 			surface: 'none',
-			mount() {
-				mounts++;
-				return {
-					focus: mounts === 1 ? first : second,
-					getCursorOffset: () => null,
-					focusable: true,
-					update: () => false
-				};
+			mount(_target, ctx) {
+				contexts.push(ctx);
+				const focus = contexts.length === 1 ? first : second;
+				ctx.block.publish({ focus, getCursorOffset: () => null, focusable: true });
+				return { update: () => false };
 			}
 		});
 		const editor = mountBadge(view);
 		await editor.settle();
 		editor.props.presentationMode = 'live';
 		await editor.settle();
-		editor.instance.__test.getBlockComponent([1])!.focus(0);
-		expect(mounts).toBe(2);
+		// A framework root unmounts a microtask behind the new mount, and may publish on its way out.
+		contexts[0].block.publish({ focus: stale, getCursorOffset: () => null, focusable: true });
+		await editor.settle();
+		refAt(editor, BADGE).focus(0);
+		expect(contexts).toHaveLength(2);
 		expect(second).toHaveBeenCalledWith(0);
 		expect(first).not.toHaveBeenCalled();
+		expect(stale).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		['ArrowDown', [2]],
+		['ArrowRight', [2]],
+		['ArrowUp', [0]],
+		['ArrowLeft', [0]]
+	])('leaves for the neighbour on %s pressed inside it', async (key, to) => {
+		const { view, button } = badgeView();
+		const editor = mountBadge(view);
+		await editor.settle();
+		refAt(editor, BADGE).focus(0);
+		const press = await pressKey(button(), { key });
+		await editor.settle();
+		expect(press.defaultPrevented).toBe(true);
+		expect(caretIn(editor, to)).toBe(true);
+	});
+
+	it.each([
+		['an arrow the view took itself', 'button', {}],
+		['an arrow in its own text field', 'textarea', {}],
+		['a modified arrow', 'button', { shiftKey: true }]
+	])('keeps %s', async (name, selector, modifiers) => {
+		const { view, button } = badgeView();
+		const editor = mountBadge(view);
+		await editor.settle();
+		const host = button().parentElement!;
+		if (name === 'an arrow the view took itself') {
+			button().addEventListener('keydown', (e) => e.preventDefault());
+		}
+		const at = host.querySelector<HTMLElement>(selector)!;
+		at.focus();
+		await pressKey(at, { key: 'ArrowDown', ...modifiers });
+		await editor.settle();
+		expect(document.activeElement).toBe(at);
 	});
 
 	it.each([
@@ -122,12 +218,7 @@ describe('a hand-built DOM view', () => {
 		const view = defineBlockView({
 			surface: 'none',
 			watchDocument: watch,
-			mount: (target) =>
-				loggedHandle<HandBuiltViewHandle>(log, target, {
-					focus() {},
-					getCursorOffset: () => null,
-					focusable: true
-				})
+			mount: (target) => loggedHandle(log, target)
 		});
 		const editor = mountBadge(view);
 		await editor.settle();

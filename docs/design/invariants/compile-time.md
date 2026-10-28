@@ -24,6 +24,7 @@ what the type retired.
 | G3.15 | A block kind registered without the view that draws it                               | T     |
 | G3.18 | A block member with no word on who supplies it for a DOM block view                  | T     |
 | G3.19 | A leaf or container factory input a DOM block view has no way to supply              | T     |
+| G3.20 | A required hand-built block member with no answer before the view publishes          | T     |
 
 ### The entries
 
@@ -116,7 +117,7 @@ For a cast or plain JS, `registerBlockKind` refuses a missing or unbranded view 
 `Record<keyof BlockComponent, MemberSource>`, so a member added to `BlockComponent` fails to compile
 until it says who supplies it for a DOM view: a hand-built view's handle, the view's host, the leaf
 or container surface, or only the editor. `HAND_BUILT_MEMBERS` and `HandBuiltBlock` read off it, so
-the handle's type and the members its ref publishes can't drift apart. `block-view.types.test.ts`,
+the publication's type and the members its ref carries can't drift apart. `block-view.types.test.ts`,
 `block-view-none.test.ts`.
 
 **G3.19 · Every factory input has a DOM route.** `components/dom-block-view/factory-inputs.ts` maps
@@ -125,3 +126,10 @@ each input of `createContainerBlock` and `createEditableLeaf` to where a block d
 kind's descriptor. An input added to either factory fails to compile until it's given one, so a
 feature reached only through Svelte (whole-block focus and the ambient prefix were) can't come
 back. `block-view-whole-block.test.ts`, `block-view-ambient-prefix.test.ts`.
+
+**G3.20 · A hand-built block answers before it publishes.** A `'none'` view hands its members over
+with `ctx.block.publish`, and until it does (or after `publish(null)`) the ref answers from
+`NOTHING_PUBLISHED` in `components/dom-block-view/hand-built-ref.ts`: no focus, no caret, and a
+`focus` that does nothing. The constant `satisfies HandBuiltBlock`, so a new required member fails to
+compile until it has an answer, and focus dispatch never calls a member that isn't there.
+`block-view-none.test.ts`.

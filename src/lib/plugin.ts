@@ -97,16 +97,17 @@ export type {
 	ContainerViewSpec,
 	BlockViewState,
 	BlockViewContext,
+	HandBuiltViewContext,
 	LeafViewContext,
 	RenderPrimaryViewContext,
 	ContainerViewContext,
 	CommandHooksSurface,
+	HandBuiltSurface,
 	LeafSurface,
 	RenderPrimarySurface,
 	ContainerSurface,
 	BlockViewHandle,
 	LeafViewHandle,
-	HandBuiltViewHandle,
 	HandBuiltBlock
 } from './schema/block-view';
 // The editor's plain editable text block, for a kind drawn as plain text; `blockClass` lands on

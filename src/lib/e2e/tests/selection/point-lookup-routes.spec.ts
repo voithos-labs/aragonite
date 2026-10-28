@@ -24,15 +24,16 @@ test.describe('a point resolves to one block whichever gesture asks', () => {
 		await editor.loadContent(DOC);
 	});
 
-	async function sweep(from: Point, to: Point): Promise<Endpoints> {
+	// Drags with the button held, then waits for the range to settle on `expected`: the editor
+	// takes pointer moves one per frame, so a read right after the last move can see an earlier one.
+	async function sweep(from: Point, to: Point, expected: Partial<Endpoints>): Promise<void> {
 		const page = editor.page;
 		await page.mouse.move(from.x, from.y);
 		await page.mouse.down();
 		await page.mouse.move(to.x, to.y, { steps: 12 });
 		await editor.waitForCrossBlock(true);
-		const range = (await editorSelection(page)) as Endpoints;
+		await expect.poll(() => editorSelection(page)).toMatchObject(expected);
 		await page.mouse.up();
-		return range;
 	}
 
 	// The editor's padding left of block `index`, level with `y`.
@@ -46,22 +47,22 @@ test.describe('a point resolves to one block whichever gesture asks', () => {
 
 	test.describe("a press in a container's margin names the child level with it", () => {
 		test('a drag from text into the gutter', async ({ page }) => {
-			const range = await sweep(
-				await textRunStart(page, 'alpha'),
-				await gutterLeftOf(page, 'quoted')
-			);
-			expect(range.focus.path).toEqual([1, 0]);
+			await sweep(await textRunStart(page, 'alpha'), await gutterLeftOf(page, 'quoted'), {
+				focus: { path: [1, 0] }
+			});
 		});
 
 		test('a drag from a cell into the gutter', async ({ page }) => {
-			const range = await sweep(await textRunCenter(page, '1'), await gutterLeftOf(page, 'quoted'));
-			expect(range.focus.path).toEqual([1, 0]);
+			await sweep(await textRunCenter(page, '1'), await gutterLeftOf(page, 'quoted'), {
+				focus: { path: [1, 0] }
+			});
 		});
 
 		test('a margin drag starting level with the quote', async ({ page }) => {
 			const quoted = await textRunCenter(page, 'quoted');
-			const range = await sweep(await leftMargin(1, quoted.y), await textRunCenter(page, 'beta'));
-			expect(range.anchor.path).toEqual([1, 0]);
+			await sweep(await leftMargin(1, quoted.y), await textRunCenter(page, 'beta'), {
+				anchor: { path: [1, 0] }
+			});
 		});
 
 		test('a triple-click in the gutter', async ({ page }) => {
@@ -82,13 +83,17 @@ test.describe('a point resolves to one block whichever gesture asks', () => {
 	test.describe('a drag from the margin into a table ends on a cell', () => {
 		test('a margin drag', async ({ page }) => {
 			const alpha = await textRunCenter(page, 'alpha');
-			const range = await sweep(await leftMargin(0, alpha.y), await textRunCenter(page, '2'));
-			expect(range).toMatchObject({ anchor: { path: [0] }, focus: { path: [2] } });
+			await sweep(await leftMargin(0, alpha.y), await textRunCenter(page, '2'), {
+				anchor: { path: [0] },
+				focus: { path: [2] }
+			});
 		});
 
 		test('a drag from text', async ({ page }) => {
-			const range = await sweep(await textRunStart(page, 'alpha'), await textRunCenter(page, '2'));
-			expect(range).toMatchObject({ anchor: { path: [0] }, focus: { path: [2] } });
+			await sweep(await textRunStart(page, 'alpha'), await textRunCenter(page, '2'), {
+				anchor: { path: [0] },
+				focus: { path: [2] }
+			});
 		});
 	});
 });

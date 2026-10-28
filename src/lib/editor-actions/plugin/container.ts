@@ -45,8 +45,8 @@ import {
 	createContainerBlockComponent,
 	dispatchContainerChord,
 	dispatchWholeBlockGlobalChord,
-	focusAcrossBlockEdge,
-	handleWholeBlockKeys
+	handleWholeBlockKeys,
+	moveFocusOutByArrow
 } from '../container-block-component';
 import {
 	composeWholeBlockFocusSurface,
@@ -437,13 +437,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		if (ownsFocus) handleWholeBlockKeydown(e);
 	};
 
-	const moveFocusOut = (e: KeyboardEvent): boolean => {
-		if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false;
-		// A plugin editor exposes no caret x to measure, so a vertical exit keeps the column it
-		// arrived with, exactly as a whole-block pass-through does.
-		caretMemory.noteKey(e, commandOf(e));
-		return focusAcrossBlockEdge(e.key, { getIndex: deps.getIndex, focus: parentFocus });
-	};
+	const moveFocusOut = (e: KeyboardEvent): boolean =>
+		moveFocusOutByArrow(e, { getIndex: deps.getIndex, focus: parentFocus, caretMemory, commandOf });
 
 	// The three checks keep a focused sibling (a toolbar button would fire its click and an
 	// Enter split) and a plugin's own editor untouched.
