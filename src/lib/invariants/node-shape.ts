@@ -9,6 +9,7 @@ import type { GrammarView } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { describeMetadataDivergence } from '../core/metadata-parity';
+import { firstDisplayLine } from '../core/lines';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
 
@@ -238,11 +239,13 @@ export function checkReservedChromeSlot(node: CstNode): InvariantViolation | nul
 
 	const child0 = node.children?.[0];
 	if (child0?.kind === chromeKind) {
-		if (!rowIsOpenerLine(node.kind) || firstLineOf(node.raw) === child0.raw) return null;
+		const opener = firstDisplayLine(node.raw);
+		const openerLine = opener.text + opener.ending;
+		if (!rowIsOpenerLine(node.kind) || openerLine === child0.raw) return null;
 		return {
 			code: 'reserved-chrome-slot',
-			message: `${node.kind}: child 0 must hold the opener line ${JSON.stringify(firstLineOf(node.raw))}, found ${JSON.stringify(child0.raw)}`,
-			detail: { kind: node.kind, expected: firstLineOf(node.raw), found: child0.raw }
+			message: `${node.kind}: child 0 must hold the opener line ${JSON.stringify(openerLine)}, found ${JSON.stringify(child0.raw)}`,
+			detail: { kind: node.kind, expected: openerLine, found: child0.raw }
 		};
 	}
 	return {
@@ -342,10 +345,4 @@ function holdsListItem(node: NodeView): boolean {
 function soleItem(blocks: readonly NodeView[]): NodeView | null {
 	const list = blocks.length === 1 && blocks[0].kind === 'list' ? blocks[0] : null;
 	return list?.children?.length === 1 ? list.children[0] : null;
-}
-
-/** The first line of `raw` with its line ending. */
-function firstLineOf(raw: string): string {
-	const nl = raw.indexOf('\n');
-	return nl < 0 ? raw : raw.slice(0, nl + 1);
 }

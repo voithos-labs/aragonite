@@ -97,7 +97,7 @@ export function directiveContainerOpener(
 			const closerNewline = closerLine.raw.endsWith('\n');
 
 			const openerLine = makeBlockNode({
-				kind: DIRECTIVE_OPENER_LINE as AnyBlockKind,
+				kind: DIRECTIVE_OPENER_LINE,
 				leadingTrivia: '',
 				raw: ctx.line.raw
 			});

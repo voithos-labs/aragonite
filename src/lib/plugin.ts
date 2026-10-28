@@ -341,9 +341,9 @@ export {
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
 // The `rebuildRaw` for a `:::` container: child 0 is its opener line, which the grammar puts there.
 export { createDirectiveRebuild } from './editor-actions/plugin/directive-container';
-// The wrap every `:::` body parses with; a directive kind declares it as its `container.bodyWrap`
-// so the editor's blank-line fix-up knows the blank line against the fence belongs to the fence.
-export { DIRECTIVE_BODY_WRAP } from './core/directive/container-shape';
+// The wrap every `:::` body parses with (a kind's `container.bodyWrap`), and the kind of every `:::`
+// container's opener-line row (what a folding `:::` kind names as its `reservedChrome.kind`).
+export { DIRECTIVE_BODY_WRAP, DIRECTIVE_OPENER_LINE } from './core/directive/container-shape';
 
 // ── Renderer utilities (pre-freeze) ──────────────────────────────────────────
 // Where an injected renderer is set and cached per theme, with the plugin's own fallback when it's

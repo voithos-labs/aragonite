@@ -17,7 +17,7 @@ import { DIRECTIVE_OPENER_LINE } from '../core/directive/container-shape';
 
 /** The title row kind a container has, or undefined if it has none. */
 export function reservedChromeKindOf(containerKind: AnyBlockKind): AnyBlockKind | undefined {
-	if (isDirectiveContainerKind(containerKind)) return DIRECTIVE_OPENER_LINE as AnyBlockKind;
+	if (isDirectiveContainerKind(containerKind)) return DIRECTIVE_OPENER_LINE;
 	return tryGetBlockKindDescriptor(containerKind)?.reservedChrome?.kind;
 }
 
