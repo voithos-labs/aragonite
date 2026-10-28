@@ -2,6 +2,7 @@
 // mount one block without listing everything the root provides, and only this file changes when a
 // new required context appears. `overrides` takes a per-key value or part of a group's members.
 
+import { createCompositionTracker } from '#lib/browser/composition.js';
 import { vi } from 'vitest';
 import {
 	BLOCK_EDIT_KEY,
@@ -101,6 +102,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		search: {} as EditorServices['search'],
 		caretMemory: makeCaretMemory(),
 		drawnCaret: bareDrawnCaret(),
+		// Real and uninstalled: no root listens for a dropped composition in a bare mount.
+		composition: createCompositionTracker(),
 		autoPairs: createAutoPairRecord(),
 		// Filled in by `editorMountContext`, which builds it over the document group's scroll host.
 		scrollOwner: {} as EditorServices['scrollOwner'],

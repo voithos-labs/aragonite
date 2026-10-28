@@ -140,7 +140,6 @@
 		badgeRefusal: "a table cell's children are its editable text, re-rendered on every edit"
 	});
 
-	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 
 	// The only writer of `pendingCursorOffset` besides the render's clear. The offset counts
@@ -183,10 +182,6 @@
 		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		requestCaret: (at) => parkCursor(at),
 		ownPairs,
 		getFocusOffset: () => getRawFocusOffset(),
@@ -492,7 +487,7 @@
 		const root = el;
 		if (!root) return;
 		const handler = () => {
-			if (composing) return;
+			if (editableSurface.composing()) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 		};
 		document.addEventListener('selectionchange', handler);
@@ -530,7 +525,7 @@
 	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (composing || !el) return;
+		if (editableSurface.composing() || !el) return;
 
 		// Reset before `cellKeydownPlan`: the shared reset runs only for keys the plan leaves to the
 		// browser, so a key the plan takes would leave the select-all run active.

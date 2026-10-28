@@ -9,6 +9,7 @@ import { findSurfacePathForElement } from '../../selection/path-lookup';
 import { readNativeSelection } from '../../browser/selection-read';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { CaretWriter } from '../../browser/caret-writer';
+import type { CompositionTracker } from '../../browser/composition';
 import { TEXT_SURFACE_SELECTOR } from '../../caret/block-content-selector';
 import { BARE_MODIFIER_KEYS } from '../../schema/keybindings';
 
@@ -112,13 +113,13 @@ export interface SelectionChangeBridgeDeps {
 	/** Read for an inline widget selected whole, which owns the keys while it is. */
 	selection: Pick<SelectionState, 'widget'>;
 	caretWriter: CaretWriter;
+	/** A caret moved mid-composition ends the IME's run. */
+	composition: Pick<CompositionTracker, 'live'>;
 }
 
 /** Announces caret motion the editor did not make, after moving a caret the browser left off its
  *  spot onto it, and drops a caret that appears while an inline widget is selected whole. */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
-	// A caret moved mid-composition ends the IME's run.
-	let composing = false;
 	const handler = () => {
 		const live = readNativeSelection();
 		if (!live) return;
@@ -136,7 +137,7 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		// Focus can sit on the editor root or a whole-block proxy, which hold no text to move along.
 		const surface = document.activeElement;
 		if (
-			!composing &&
+			!deps.composition.live() &&
 			surface instanceof HTMLElement &&
 			surface.matches(TEXT_SURFACE_SELECTOR) &&
 			surface.contains(anchorNode)
@@ -146,10 +147,6 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		deps.announceIfMoved();
 	};
 	return removeAll(
-		onRoot(deps.root, 'compositionstart', () => (composing = true)),
-		onRoot(deps.root, 'compositionend', () => (composing = false)),
-		// A browser can drop a composition with no compositionend; the next plain key shows it ended.
-		onRoot<KeyboardEvent>(deps.root, 'keydown', (e) => (composing &&= e.isComposing)),
 		onRoot(document, 'selectionchange', handler),
 		// The browser reports a click's caret on a later task, which a byte typed straight after
 		// beats. On `document` so the block's own click handling refines the caret first.

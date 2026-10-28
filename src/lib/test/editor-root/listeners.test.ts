@@ -11,6 +11,7 @@ import {
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { createCaretWriter } from '#lib/browser/caret-writer.js';
 import { createPressTracker } from '#lib/activation-click.js';
+import { createCompositionTracker } from '#lib/browser/composition.js';
 
 // Teardowns collect here so no test leaks a document-level listener into the next.
 const teardowns: (() => void)[] = [];
@@ -147,6 +148,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		let emits = 0;
 		const teardown = installSelectionChangeBridge({
 			caretWriter: testCaretWriter,
+			composition: { live: () => false },
 			root,
 			isHostChrome: (node) => !!node && header.contains(node),
 			announceIfMoved: () => emits++,
@@ -261,12 +263,15 @@ describe('editor-root listeners: selectionchange bridge', () => {
 			document.body.append(root);
 			surface.focus();
 			let emits = 0;
+			const composition = createCompositionTracker();
+			teardowns.push(composition.install(root));
 			teardowns.push(
 				installSelectionChangeBridge({
 					caretWriter: createCaretWriter(
 						() => {},
 						() => false
 					),
+					composition,
 					root,
 					isHostChrome: () => false,
 					announceIfMoved: () => emits++,
@@ -295,6 +300,18 @@ describe('editor-root listeners: selectionchange bridge', () => {
 			expect(window.getSelection()!.focusNode?.textContent).toBe('2');
 		});
 
+		// Miss-analysis: the bridge kept its own flag and cleared it on any key saying it wasn't
+		// composing, and no row sent the key an IME feeds with code 229 and `isComposing: false`.
+		it('stays put through a key the IME feeds with isComposing false', () => {
+			const b = surfaceBridge();
+			b.surface.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+			const feed = new KeyboardEvent('keydown', { key: 'a', bubbles: true });
+			Object.defineProperty(feed, 'keyCode', { value: 229 });
+			b.surface.dispatchEvent(feed);
+			fire();
+			expect(window.getSelection()!.focusNode?.textContent).toBe('2');
+		});
+
 		it('moves again once a plain key shows a dropped composition ended', () => {
 			const b = surfaceBridge();
 			b.surface.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
@@ -319,6 +336,7 @@ describe('editor-root listeners: selectionchange bridge', () => {
 					() => {},
 					() => false
 				),
+				composition: { live: () => false },
 				root,
 				isHostChrome: () => false,
 				announceIfMoved: () => {},

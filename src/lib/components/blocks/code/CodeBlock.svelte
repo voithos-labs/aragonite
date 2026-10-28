@@ -80,7 +80,6 @@
 	// range asks `editSpan` with it.
 	const fenceLinesShown = $derived(paintsFocusedMarkers(presentationMode));
 	let el: HTMLDivElement | undefined = $state();
-	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
@@ -99,10 +98,6 @@
 		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		requestCaret: (at) => {
 			pendingCursorOffset = at;
 		},
@@ -366,13 +361,13 @@
 		const read = readInput(e);
 		// A soft keyboard's line break, with no keydown, is the Shift+Enter command; an IME emitting
 		// one mid-composition writes nothing.
-		if (read.kind === 'break' && !read.paragraph && !composing && el) {
+		if (read.kind === 'break' && !read.paragraph && !editableSurface.composing() && el) {
 			e.preventDefault();
 			// Input, not a key, so it asks for the selection's removal itself.
 			editableSurface.afterSelectionRemoved(() => runCommand('code.softBreak'));
 			return;
 		}
-		if (composing || read.kind !== 'insert' || !el) return;
+		if (editableSurface.composing() || read.kind !== 'insert' || !el) return;
 		const data = e.data;
 		if (!data || data.length !== 1) return;
 
@@ -424,7 +419,7 @@
 	/** The one check for every browser edit that rewrites a range here. With the fence lines
 	 *  hidden, the block writes the edit over its `editSpan` itself. */
 	function guardFenceRangedEdit(e: InputEvent): boolean {
-		if (composing || !el || fenceLinesShown) return false;
+		if (editableSurface.composing() || !el || fenceLinesShown) return false;
 		const range = pendingEditRange(e);
 		if (!range) return false;
 		const span = editSpan(node, range, fenceLinesShown);
@@ -489,7 +484,7 @@
 	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (composing) return;
+		if (editableSurface.composing()) return;
 		if (!el) return;
 
 		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;

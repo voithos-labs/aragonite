@@ -21,7 +21,8 @@
 		selection,
 		reading,
 		commands,
-		readingFocus
+		readingFocus,
+		composition
 	} = wiring.deps;
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
@@ -37,7 +38,8 @@
 		isReading,
 		getLabel: () => blockAccessibleName(node),
 		holdTabStop: (proxy) => readingFocus.hold(proxy, () => myPath),
-		mint: (text) => void blockEdit.insertParagraph(index + 1, text)
+		mint: (text) => blockEdit.insertParagraph(index + 1, text),
+		composition
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -92,7 +94,8 @@
 			isReading,
 			selection,
 			caretMemory,
-			commandOf: (press) => wiring.resolveChord(press, node.kind)
+			commandOf: (press) => wiring.resolveChord(press, node.kind),
+			mintedBy: inputProxy.mintedBy
 		});
 	}
 </script>

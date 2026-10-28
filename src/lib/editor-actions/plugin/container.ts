@@ -263,8 +263,16 @@ export function buildContainerKindTarget(
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
-	const { caretMemory, caretWriter, selection, scrollOwner, commands, drafts, readingFocus } =
-		getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const {
+		caretMemory,
+		caretWriter,
+		selection,
+		scrollOwner,
+		commands,
+		drafts,
+		readingFocus,
+		composition
+	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = reading.mode;
@@ -331,7 +339,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				isReading: () => isReadingMode(getPresentationMode),
 				getLabel: () => blockAccessibleName(deps.getNode()),
 				holdTabStop: (proxy) => readingFocus.hold(proxy, deps.getPath),
-				mint: (text) => void parentBlockEdit.insertParagraph(deps.getIndex() + 1, text)
+				mint: (text) => parentBlockEdit.insertParagraph(deps.getIndex() + 1, text),
+				composition
 			})
 		: undefined;
 
@@ -464,7 +473,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			isReading: () => isReadingMode(getPresentationMode),
 			selection,
 			caretMemory,
-			commandOf
+			commandOf,
+			mintedBy: (press) => inputProxy?.mintedBy(press) ?? null
 		});
 	}
 

@@ -25,6 +25,10 @@ these rows cover what needs a browser.
   live mode, where the fences hide.
 - An IME composing into the empty block hides the hint and its `aria-placeholder`, since the
   composed text is in the element but not yet in the document.
+- A composition the browser drops (no `compositionend`) ends at the next key, and deleting its
+  text brings the hint back.
+  - Miss-analysis: the hint kept its own composing flag, fed by the block's composition handlers,
+    and no row ended a composition any other way.
 
 ## User interactions
 

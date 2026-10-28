@@ -63,8 +63,8 @@
 	}
 
 	/** `insertParagraph`'s own landing focuses the new block, and that focus ends the gap. */
-	function mint(text: string): void {
-		void blockEdit?.insertParagraph(index, text);
+	function mint(text: string, at = index): Promise<boolean> | undefined {
+		return blockEdit?.insertParagraph(at, text);
 	}
 
 	/** Undo, redo and plugin-global chords run here, since no block has focus and the root answers
@@ -81,9 +81,15 @@
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		switch (event.key) {
-			case 'Enter':
+			case 'Enter': {
 				event.preventDefault();
-				return mint('');
+				// After a dropped composition's paragraph, Enter opens the next one, as at its end.
+				const minted = hostInput.mintedBy(event);
+				const after = composedAt + 1;
+				if (minted) void minted.then(() => mint('', after));
+				else void mint('');
+				return;
+			}
 			// Shift+Arrow is deliberately the plain arrow here: a single block selected whole
 			// is not a representable cross-block state (docs/design/selection.md § The gap caret).
 			case 'ArrowDown':
@@ -102,7 +108,16 @@
 		}
 	}
 
-	const hostInput = createCaretHostInput(() => proxyEl, mint);
+	// Where the composed text's paragraph went, read before the commit moves this gap past it.
+	let composedAt = 0;
+	const hostInput = createCaretHostInput(
+		() => proxyEl,
+		(text) => {
+			composedAt = index;
+			return mint(text);
+		},
+		services!.composition
+	);
 
 	function onFocusOut(event: FocusEvent): void {
 		const next = event.relatedTarget;

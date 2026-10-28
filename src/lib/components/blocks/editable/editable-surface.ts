@@ -121,11 +121,7 @@ import {
 import type { Reading } from '../../../schema/reading';
 import { createPlaceholderHint, type PlaceholderPolicy } from '../placeholder-hint.svelte';
 import type { CompositionSeat } from '../text/composition-seat';
-import {
-	opensComposition,
-	reportDroppedComposition,
-	type CompositionSignal
-} from '../../../editor-actions/dropped-composition';
+import type { CompositionOwner, CompositionTracker } from '../../../browser/composition';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
@@ -206,8 +202,6 @@ export interface EditableSurfaceDeps {
 	getNode: () => NodeView;
 	getMyPath: () => number[];
 	getIndex: () => number;
-	getComposing: () => boolean;
-	setComposing: (value: boolean) => void;
 	/** Puts the caret at `at` once the next render lands, while the block still has focus. */
 	requestCaret: (at: number, opts: { source: string }) => void;
 
@@ -217,6 +211,8 @@ export interface EditableSurfaceDeps {
 	caretWriter: CaretWriter;
 	/** The caret the editor draws, which this surface's element registers with while mounted. */
 	drawnCaret: Pick<DrawnCaret, 'register'>;
+	/** The composition in progress, which this surface's element hosts while the IME types in it. */
+	composition: CompositionTracker;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
@@ -367,6 +363,8 @@ export interface EditableSurface {
 	commitInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
+	/** Whether this block's element hosts the composition in progress. */
+	composing(): boolean;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
 	getPreEditOffset(): number;
 	/** A shown source whose edits reach the node only on blur, for the empty-block hint to judge;
@@ -538,18 +536,21 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── Input and composition ─────────────────────────────────────────────────
 
+	const composing = (): boolean => deps.composition.openIn(deps.getEl());
+
 	const placeholder = createPlaceholderHint({
 		policy: deps.placeholder,
 		getNode: deps.getNode,
 		getPath: deps.getMyPath,
-		reading: deps.reading
+		reading: deps.reading,
+		composition: deps.composition
 	});
 
 	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
 	// its start: Chromium fires the composition's own beforeinput events after that.
 	let preEditOffset = 0;
 	const recordPreEditOffset = (): void => {
-		if (!deps.getComposing()) preEditOffset = deps.backend.getRaw() ?? 0;
+		if (!composing()) preEditOffset = deps.backend.getRaw() ?? 0;
 	};
 
 	// For a typed line break only: a rewrite of the block's own text keeps the ending it has
@@ -632,7 +633,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	let deleteVerdict: DeleteVerdict | null = null;
 
 	const deleteReads: CollapsedDeleteReads = {
-		composing: deps.getComposing,
+		composing,
 		caret: () => deps.backend.getRaw(),
 		hasRange: () => deps.backend.getRawSelection() !== null,
 		text: readText,
@@ -666,7 +667,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// A keydown that writes for itself fires no beforeinput, so the caret is read here too.
 	const onKeyDown = withKeydownVerdict(async (e) => {
-		endsDroppedComposition(e);
 		// A key can outrun the `selectionchange` that moves a caret the browser left off its spot, and
 		// every handler below reads the caret.
 		const el = deps.getEl();
@@ -696,7 +696,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deleteKeydown = null;
 		// A step below that claims the input leaves it this verdict; the delete step overwrites it.
 		deleteVerdict = { decided: false, decline: 'claimed' };
-		endsDroppedComposition(e);
 		adoptsComposition(e);
 		// A drop's text lands at the pointer, not at the caret a chord promised its marks to.
 		const read = readInput(e);
@@ -730,10 +729,11 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function onInput(e: Event): void {
 		const verdict = deleteVerdict;
 		deleteVerdict = null;
-		if (e instanceof InputEvent && !e.isComposing && !deps.getComposing()) {
+		if (e instanceof InputEvent && !e.isComposing && !composing()) {
 			assertInvariant('collapsed-delete-decided', () => checkDeleteDecided(e, verdict));
 		}
-		if (!endsDroppedComposition(e)) commitDomRead(false);
+		// A drop the tracker found at this input already committed what it shows.
+		if (!deps.composition.endedBy(e)) commitDomRead(false);
 	}
 
 	function commitDomRead(fromComposition: boolean): void {
@@ -746,7 +746,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.inputPrelude?.();
 		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
-		if (deps.getComposing() || !el) return unwritten();
+		if (composing() || !el) return unwritten();
 		const read = deps.readBack(deps.backend.getRaw() ?? 0);
 		const { text, caret: savedOffset } = keepLineEndingPairs(
 			trimTrailingLineEnding(deps.getNode().raw),
@@ -792,13 +792,22 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// Held from the composition's opening to its commit.
 	let heldForComposition: HeldInsertion | null = null;
 
+	// The tracker ends a composition the browser dropped, wherever in the editor the signal lands.
+	const owner: CompositionOwner = {
+		get el() {
+			return deps.getEl();
+		},
+		dropped: () => endComposition()
+	};
+
 	function onCompositionStart(): void {
 		if (!deps.getEl()) return;
-		endsDroppedComposition('compositionstart');
 		traceCompositionStart();
 		// A range across blocks goes first, and whichever block its removal leaves the caret in opens
 		// the composition at its first update.
-		if (!crossBlock.handleCompositionStart()) openComposition();
+		if (crossBlock.handleCompositionStart()) return deps.composition.start(null);
+		openComposition();
+		deps.composition.start(owner);
 	}
 
 	// The records the run spends are held before the caret memory forgets.
@@ -808,36 +817,25 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		heldForComposition?.finish(true);
 		heldForComposition = holdInsertion();
 		deps.caretMemory.forget();
-		deps.setComposing(true);
-		placeholder.setComposing(true);
 	}
 
 	// No composition open here means a range across blocks claimed the start. This block holds
 	// the caret its removal left, so it opens the composition before the first run lands.
 	function adoptsComposition(e: InputEvent): void {
-		if (opensComposition(e, deps.getComposing())) openComposition();
+		if (deps.getEl() && deps.composition.adopt(e, owner)) openComposition();
 	}
 
 	function onCompositionEnd(): void {
+		const paired = deps.composition.end(owner);
 		// A composition opens at its start or at its first run, so an unpaired end means a consumer
 		// wired compositionend without compositionstart.
-		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
+		assertInvariant('composition-window', () => checkCompositionEndPaired(paired));
 		endComposition();
-	}
-
-	// Every signal a held composing flag is read at (a key, a beforeinput, an input, a new
-	// composition) asks here first, so a composition the browser dropped ends before it is read.
-	function endsDroppedComposition(signal: CompositionSignal): boolean {
-		if (!reportDroppedComposition(signal, deps.getComposing())) return false;
-		endComposition();
-		return true;
 	}
 
 	// The browser's `compositionend`, or a signal showing the browser dropped the composition.
 	function endComposition(): void {
 		traceCompositionEnd();
-		deps.setComposing(false);
-		placeholder.setComposing(false);
 		commitDomRead(true);
 		crossBlock.handleCompositionEnd();
 		deps.compositionSeat?.noteEnd();
@@ -931,7 +929,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	const caretSource = (el: HTMLElement) =>
 		deps.drawnCaret.register({
 			el,
-			drawable: () => !deps.getComposing() && !deps.isInputSuppressed?.(),
+			drawable: () => !composing() && !deps.isInputSuppressed?.(),
 			widgetEdge: deps.widgetEdge,
 			...(getInlines && {
 				look: (range: Range) => {
@@ -989,6 +987,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		commitInput: () => commitDomRead(false),
 		onCompositionStart,
 		onCompositionEnd,
+		composing,
 		getPreEditOffset: () => preEditOffset,
 		noteShownSource: (read) => {
 			if (!read) placeholder.setShownSource(null);

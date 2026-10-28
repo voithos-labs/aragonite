@@ -103,6 +103,15 @@ const ROUTES: RangeRoute[] = [
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		},
 		after: (text) => `| a | b |\n| - | - |\n| ${text} |  |\n`
+	},
+	{
+		name: 'a code block’s body into the paragraph after it',
+		source: '```\ncode\n```\n\nafter\n',
+		async draw(editor) {
+			await editor.focusBlock(0, '```\nco'.length);
+			await editor.page.keyboard.press(extendKey('docEnd'));
+		},
+		after: (text) => `\`\`\`\nco${text}\n\`\`\`\n`
 	}
 ];
 

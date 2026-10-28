@@ -80,50 +80,66 @@ describe('composing gate', () => {
 	// Miss-analysis: the first fix ended a dropped composition only at `input`, and no row sent a
 	// key, a beforeinput or a second compositionstart first.
 	describe('editable surface: a dropped composition ends at the next signal', () => {
+		// The event reaches the element, where the tracker hears it, and then the surface's listener.
+		function send<E extends Event>(el: HTMLElement, e: E, listener: (e: E) => void): void {
+			el.dispatchEvent(e);
+			listener(e);
+		}
+
+		function startIn(harness: ReturnType<typeof makeSurface>): void {
+			harness.el.dispatchEvent(new CompositionEvent('compositionstart'));
+			harness.surface.onCompositionStart();
+		}
+
 		function dropped() {
 			const harness = makeSurface();
 			harness.el.textContent = 'hello';
-			harness.surface.onCompositionStart();
+			startIn(harness);
 			harness.el.textContent = 'helloか';
 			return harness;
 		}
 
 		it('a non-composing key ends it; the IME’s own key does not', () => {
-			const { surface, commits } = dropped();
-			surface.onKeyDown(new KeyboardEvent('keydown', { key: 'Process', keyCode: 229 }));
+			const { surface, commits, el } = dropped();
+			send(el, new KeyboardEvent('keydown', { key: 'Process', keyCode: 229 }), surface.onKeyDown);
 			expect(commits).toHaveLength(0);
 
-			surface.onKeyDown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+			send(el, new KeyboardEvent('keydown', { key: 'ArrowUp' }), surface.onKeyDown);
 			expect(commits.map((c) => c.text)).toEqual(['helloか']);
 			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
 		});
 
 		it('a non-composing beforeinput ends it before the block hears it', () => {
 			let commitsSeen = -1;
-			const { surface, commits, el } = makeSurface({
-				handleBeforeInput: () => (commitsSeen = commits.length)
+			const harness = makeSurface({
+				handleBeforeInput: () => (commitsSeen = harness.commits.length)
 			});
-			el.textContent = 'hello';
-			surface.onCompositionStart();
-			el.textContent = 'helloか';
+			harness.el.textContent = 'hello';
+			startIn(harness);
+			harness.el.textContent = 'helloか';
 
-			surface.onBeforeInput(new InputEvent('beforeinput', { inputType: 'insertText', data: 'x' }));
+			const typed = new InputEvent('beforeinput', { inputType: 'insertText', data: 'x' });
+			send(harness.el, typed, harness.surface.onBeforeInput);
 			expect(commitsSeen).toBe(1);
 			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
 		});
 
 		// Chromium sends both for a key pressed inside a live composition, which then ends normally.
 		it('a key’s own non-composing beforeinput and input leave it open', () => {
-			const { surface, commits } = dropped();
-			surface.onBeforeInput(new InputEvent('beforeinput', { inputType: 'insertParagraph' }));
-			surface.onInput(new InputEvent('input', { inputType: 'deleteContentBackward' }));
+			const { surface, commits, el } = dropped();
+			send(
+				el,
+				new InputEvent('beforeinput', { inputType: 'insertParagraph' }),
+				surface.onBeforeInput
+			);
+			send(el, new InputEvent('input', { inputType: 'deleteContentBackward' }), surface.onInput);
 			expect(commits).toHaveLength(0);
 		});
 
 		it('a second compositionstart ends the first', () => {
-			const { surface, commits } = dropped();
-			surface.onCompositionStart();
-			expect(commits.map((c) => c.text)).toEqual(['helloか']);
+			const harness = dropped();
+			startIn(harness);
+			expect(harness.commits.map((c) => c.text)).toEqual(['helloか']);
 			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
 		});
 	});

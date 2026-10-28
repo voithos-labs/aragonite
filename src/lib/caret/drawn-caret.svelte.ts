@@ -13,6 +13,7 @@ import { caretHost, chipStopBox, codeChipEdge, hostBox, measureCaret } from './d
 import { caretPositionInElement } from '../browser/point';
 import { clickMovesCaret } from '../browser/offsets';
 import { readNativeSelection } from '../browser/selection-read';
+import type { CompositionTracker } from '../browser/composition';
 import {
 	drawnCaretTarget,
 	hidesBrowserCaret,
@@ -76,6 +77,8 @@ export interface DrawnCaretDeps {
 	selection: Pick<SelectionState, 'isCrossBlock' | 'wholeUnitPath' | 'gapCaret' | 'widget'>;
 	/** The editor's one size observer; its callback only asks for a paint. */
 	watchSize(el: Element, onResize: () => void): () => void;
+	/** A composition hides the bar while it runs, however it ends. */
+	composition: Pick<CompositionTracker, 'subscribe' | 'live'>;
 }
 
 /** The media the drawn caret answers to, each read live. */
@@ -393,8 +396,6 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		const on = { signal: listening.signal };
 		root.addEventListener('focusin', request, on);
 		root.addEventListener('focusout', request, on);
-		root.addEventListener('compositionstart', request, on);
-		root.addEventListener('compositionend', armFrame, on);
 		root.addEventListener('keydown', onKeyDown, on);
 		root.addEventListener('pointerdown', onPointerDown, on);
 		root.addEventListener('pointerup', armFrame, on);
@@ -414,7 +415,11 @@ export function createDrawnCaret(deps: DrawnCaretDeps): DrawnCaret {
 		window.addEventListener('blur', endPress, on);
 		window.addEventListener('focus', armFrame, on);
 		document.addEventListener('selectionchange', onSelectionChange, on);
+		const unsubscribe = deps.composition.subscribe(() =>
+			deps.composition.live() ? request() : armFrame()
+		);
 		return () => {
+			unsubscribe();
 			listening.abort();
 			cancelAnimationFrame(frame);
 			frame = 0;

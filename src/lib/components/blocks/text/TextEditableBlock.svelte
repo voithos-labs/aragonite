@@ -159,7 +159,6 @@
 	// A shared constant keeps an empty decoration list out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
-	let composing = $state(false);
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
 	// The drawn caret holds the widget edge a click meant under this block's own key, which survives
@@ -226,10 +225,6 @@
 		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		requestCaret: (at, { source }) => setPendingCursorOffset(at, source),
 		ownPairs,
 		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
@@ -731,7 +726,7 @@
 		untrack(() => {
 			// It reads the selection, which forces a layout: never in a block the caret has not
 			// been in, since a fling mounts many.
-			if (composing || !caretHasEntered) return;
+			if (editableSurface.composing() || !caretHasEntered) return;
 			constructReveal.update(true);
 		});
 		markKeystrokeSettle();
@@ -770,7 +765,7 @@
 		if (!root) return;
 		const handler = () => {
 			clearSnapTargetIfMoved(root);
-			if (composing) return;
+			if (editableSurface.composing()) return;
 			// The line goes once the caret leaves it, whatever moved the caret.
 			if (pendingBreak.at() !== null && !caretOnPendingBreakLine(root)) pendingBreak.end();
 			widgetInteraction.foldRevealIfSelectionEscaped();
@@ -807,7 +802,7 @@
 	};
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (composing || editableSurface.isDetached()) return;
+		if (editableSurface.composing() || editableSurface.isDetached()) return;
 
 		// Ahead of the shared keymap, which takes ArrowLeft at the text's start to the block above.
 		if (handlePendingBreakKey(e, pendingBreakKeyDeps)) return;
@@ -843,7 +838,7 @@
 		const read = readInput(e);
 		if (read.kind === 'break' && !read.paragraph) {
 			e.preventDefault();
-			if (composing || e.isComposing) return;
+			if (editableSurface.composing() || e.isComposing) return;
 			// Input, not a key, so it asks for the selection's removal itself.
 			editableSurface.afterSelectionRemoved((afterRemoval) =>
 				runCommand('block.hardBreak', undefined, { afterRemoval })

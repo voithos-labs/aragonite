@@ -101,6 +101,9 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	caretMemory: Pick<CaretMemory, 'noteKey'>;
 	/** What the keypress resolves to at this block's kind, overrides included. */
 	commandOf: (e: KeyboardEvent) => AnyCommandId | null;
+	/** The insert of the paragraph below that a composition the browser dropped at the key became;
+	 *  null where the key ended none. */
+	mintedBy: (e: KeyboardEvent) => Promise<unknown> | null;
 }
 
 /**
@@ -114,8 +117,12 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 
 	if (e.key === 'Enter') {
 		e.preventDefault();
-		if (!deps.isReading())
-			void deps.blockEdit.splitBlock(deps.getIndex(), displayLength(deps.getRaw()));
+		if (deps.isReading()) return;
+		// After a dropped composition's paragraph below, Enter opens the next one, as at its end.
+		const minted = deps.mintedBy(e);
+		const after = deps.getIndex() + 2;
+		if (minted) void minted.then(() => deps.blockEdit.insertParagraph(after, ''));
+		else void deps.blockEdit.splitBlock(deps.getIndex(), displayLength(deps.getRaw()));
 		return;
 	}
 	if (e.key === 'Backspace' || e.key === 'Delete') {

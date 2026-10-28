@@ -216,7 +216,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		componentPluginOptions(pluginEditor, deps.getNode().kind) as Options;
 	const isReading = () => getPresentationMode() === 'reading';
 
-	let composing = false;
 	let pendingCursor: number | null = null;
 	/** The open reveal's edit, which writes only over the bytes it opened on; null while folded. */
 	let draft: Draft | null = null;
@@ -244,10 +243,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getNode: deps.getNode,
 		getMyPath: deps.getPath,
 		getIndex: deps.getIndex,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		// render-primary never restores a pending caret: focus has already left on
 		// commit, and a re-render must not pull it back.
 		requestCaret: (at) => {
@@ -461,7 +456,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// report here.
 	function afterNativeEdit(): void {
 		const el = deps.getEl();
-		if (!el || composing || (el.textContent ?? '') === reported) return;
+		if (!el || editableSurface.composing() || (el.textContent ?? '') === reported) return;
 		repaintSource();
 		reportSourceEdit(el.textContent ?? '');
 	}
@@ -485,7 +480,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	function repaintSource(): void {
 		const el = deps.getEl();
-		if (!el || !deps.renderSource || composing) return;
+		if (!el || !deps.renderSource || editableSurface.composing()) return;
 		const offset = backend.getRaw();
 		const text = el.textContent ?? '';
 		// A native edit (an IME commit) reaches the kind's reshape like the leaf's own edits do.
@@ -642,7 +637,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
-		if (composing || !el) return;
+		if (editableSurface.composing() || !el) return;
 
 		// Undo inside a shown painted source steps through its own edits; the document sees them as
 		// one entry written on blur.
@@ -708,7 +703,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	function spliceTargetRange(e: InputEvent): void {
-		if (!deps.renderSource || composing || e.isComposing) return;
+		if (!deps.renderSource || editableSurface.composing() || e.isComposing) return;
 		const el = deps.getEl();
 		if (!el) return;
 		const insert = sourceInsertion(e);
