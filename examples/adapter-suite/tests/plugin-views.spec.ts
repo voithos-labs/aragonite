@@ -1,5 +1,6 @@
 import { test, expect, caretAtEnd, mirror } from './fixtures';
 import { BLOCK_VIEWS_SOURCE } from '../block-views-source';
+import { BOOM } from '../block-view-kinds';
 import { LIVE_VIEWS_ATTR } from '../live-views';
 import type { Locator, Page } from '@playwright/test';
 
@@ -63,6 +64,39 @@ test('typing in the memo redraws the same badge with the new length', async ({
 
 	await expect(badge).toHaveText(`10 by ${framework(testInfo.project.name)}`);
 	expect(await connected()).toBe(true);
+});
+
+test('a widget whose component throws shows its source, reported to the editor alone', async ({
+	page,
+	problems
+}, testInfo) => {
+	await caretAtEnd(page, ' chip');
+	await page.keyboard.type(` ${BOOM}`);
+
+	await expect.poll(() => mirror(page).textContent()).toContain(`chip ${BOOM}`);
+	await expect(page.locator('.editor')).toContainText(`chip ${BOOM}`);
+	await expect(page.locator('.chip')).toHaveCount(1);
+	// React 18 logs every throw it rethrows, and has no option to stop it.
+	if (testInfo.project.name === 'react18') {
+		const logged = problems.findIndex((problem) => problem.startsWith('Error: the chip went boom'));
+		if (logged >= 0) problems.splice(logged, 1);
+	}
+});
+
+test('a widget inside a framework-drawn container draws again when the editor remounts', async ({
+	page
+}, testInfo) => {
+	await caretAtEnd(page, 'inside the box');
+	await page.keyboard.type(' {{pebble}}');
+	await expect(page.locator('.box .chip')).toHaveCount(1);
+
+	const toggle = page.getByTestId('unmount');
+	await toggle.click();
+	await toggle.click();
+	await expect(page.locator('.box .chip')).toHaveText(
+		`pebble by ${framework(testInfo.project.name)}`
+	);
+	await expectLiveViews(page, 3);
 });
 
 test('deleting the widget unmounts its view', async ({ page }) => {

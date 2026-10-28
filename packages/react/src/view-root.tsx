@@ -8,22 +8,42 @@ import type { ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
-export type Wrap = (view: ReactNode) => ReactNode;
-
 export interface ViewRoot {
+	/** Throws what the component threw while rendering, its refs and layout effects included. */
 	render(node: ReactNode): void;
-	/** Settles once the root is gone; a throw while unmounting rejects it. */
+	/** Settles once the root is gone; a throw in a cleanup rejects it. */
 	unmount(): Promise<void>;
 }
 
-export function createViewRoot(target: HTMLElement, wrap: Wrap | undefined): ViewRoot {
-	const root = createRoot(target);
+export function createViewRoot(
+	target: HTMLElement,
+	wrap: ((view: ReactNode) => ReactNode) | undefined
+): ViewRoot {
+	// React 19 reports a throw instead of rethrowing it, so the editor's error event would never
+	// see it; React 18 rethrows on its own and ignores the option.
+	let caught: unknown[] | null = null;
+	const root = createRoot(target, {
+		onUncaughtError(error) {
+			if (caught) caught.push(error);
+			else reportError(error);
+		}
+	});
+	function rethrowing(run: () => void): void {
+		const thrown: unknown[] = [];
+		caught = thrown;
+		try {
+			run();
+		} finally {
+			caught = null;
+		}
+		if (thrown.length > 0) throw thrown[0];
+	}
 	return {
 		render(node) {
-			flushSync(() => root.render(wrap ? wrap(node) : node));
+			rethrowing(() => flushSync(() => root.render(wrap ? wrap(node) : node)));
 		},
 		// React refuses to unmount a root inside its own commit; the editor never reuses `target`,
 		// so a microtask later is safe.
-		unmount: () => Promise.resolve().then(() => root.unmount())
+		unmount: () => Promise.resolve().then(() => rethrowing(() => root.unmount()))
 	};
 }

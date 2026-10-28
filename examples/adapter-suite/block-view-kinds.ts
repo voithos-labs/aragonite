@@ -56,6 +56,9 @@ export interface BlockViews {
 
 export const MEMO_LENGTH_ATTR = 'data-memo-length';
 
+/** The chip each app's view throws on. */
+export const BOOM = '{{boom}}';
+
 export function blockViewsPlugin(views: BlockViews): EditorPlugin {
 	return definePlugin({
 		name: 'block-views',

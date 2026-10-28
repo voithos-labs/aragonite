@@ -1,13 +1,13 @@
 'use client';
 
-import { createElement, type ComponentType } from 'react';
+import { createElement, type ComponentType, type ReactNode } from 'react';
 import type { PluginView } from '@voithos-labs/aragonite/plugin';
-import { createViewRoot, type Wrap } from './view-root.js';
+import { createViewRoot } from './view-root.js';
 
 export interface ReactViewOptions {
 	/** Wraps the component, for providers: the view renders in a React root of its own, which a
 	 *  provider in the host app doesn't reach. */
-	wrap?: Wrap;
+	wrap?: (view: ReactNode) => ReactNode;
 }
 
 /** An inline widget, decoration widget or badge, or menu row drawn by `Component`, with the slot's

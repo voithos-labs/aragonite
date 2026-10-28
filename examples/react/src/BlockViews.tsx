@@ -22,6 +22,7 @@ import {
 import type { Decoration, InlineWidgetComponentProps } from '@voithos-labs/aragonite/plugin';
 import {
 	BLOCK_VIEWS_SOURCE,
+	BOOM,
 	LONG_SOURCE,
 	MEMO_LENGTH_ATTR,
 	blockViewsPlugin,
@@ -145,8 +146,10 @@ const withName = (view: ReactNode) => (
 	<FrameworkName.Provider value="react">{view}</FrameworkName.Provider>
 );
 
+// `{{boom}}` throws, so a spec can see the editor contain a framework view's throw.
 function Chip({ source, inline }: InlineWidgetComponentProps) {
 	useEffect(viewMounted, []);
+	if (source === BOOM) throw new Error('the chip went boom');
 	return (
 		<span className="chip" data-start={inline.start}>
 			{source.slice(2, -2)} by {useContext(FrameworkName)}

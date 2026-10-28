@@ -151,6 +151,22 @@ describe('a DOM leaf view’s lifecycle', () => {
 		expect(editor.source()).toBe(SOURCE.replace('abcd', 'abcd!?'));
 	});
 
+	// Miss-analysis: only a synchronous throw from `destroy` had a row, and a framework's unmount
+	// rejects a promise instead, which went unhandled.
+	it('reports a rejection of the promise its destroy returns', async () => {
+		const editor = mountLeaf(
+			domPlainLeaf(newViewLog(), () => ({
+				destroy: () => Promise.reject(new Error('unmount exploded'))
+			}))
+		);
+		const errors: { origin: string }[] = [];
+		editor.instance.getEvents().on('error', (report) => errors.push(report));
+		await editor.settle();
+		editor.props.source = 'just a paragraph\n';
+		await editor.settle();
+		expect(errors.map((report) => report.origin)).toEqual(['render']);
+	});
+
 	// Miss-analysis: each framework helper guarded its own late `ref(null)`, and a plain DOM view
 	// handing an element back after its own `destroy` had no row at all.
 	it('ignores an element handed back by a mount that already ended', async () => {

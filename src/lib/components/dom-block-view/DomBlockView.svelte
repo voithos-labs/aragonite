@@ -296,7 +296,7 @@
 				renderedEl = null;
 				handBuilt = undefined;
 				try {
-					ending?.destroy?.();
+					ending?.destroy?.()?.catch(report);
 				} catch (error) {
 					report(error);
 				}

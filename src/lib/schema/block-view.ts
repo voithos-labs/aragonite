@@ -174,7 +174,8 @@ export interface ContainerSurface extends CommandHooksSurface {
 export interface BlockViewHandle {
 	/** The block's state changed. Returning false destroys the view and mounts it again. */
 	update?(state: BlockViewState): boolean | void;
-	destroy?(): void;
+	/** A promise it returns (a framework's unmount) is watched for a rejection. */
+	destroy?(): void | Promise<void>;
 }
 
 export interface LeafViewHandle extends BlockViewHandle {

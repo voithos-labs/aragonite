@@ -19,6 +19,13 @@ error or console warning.
 
 ## Edge cases
 
+- A chip whose component throws (`{{boom}}`) shows its source text instead, and the throw goes
+  to the editor's `error` event, not the console (React 18 logs it too, and can't be told not
+  to); the other chip is untouched. Miss: React 19 and a Vue production build report a
+  component's throw themselves instead of rethrowing it, so the editor never saw it, and no row
+  had a view that throws.
+- A chip typed into the box's child paragraph, a view root inside the box's own framework root,
+  draws again with nothing on the console when the editor unmounts and mounts again.
 - Deleting the chip with Backspace unmounts its view: the count drops by one and its element is
   gone.
 - Loading another document unmounts the old views and draws the new one: only the new memo's

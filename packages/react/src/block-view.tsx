@@ -5,7 +5,13 @@
  * `<BlockChildren>`) is in place by the time the editor's `mount` or `update` call returns.
  */
 
-import { createContext, useContext, type ComponentType, type HTMLAttributes } from 'react';
+import {
+	createContext,
+	useContext,
+	type ComponentType,
+	type HTMLAttributes,
+	type ReactNode
+} from 'react';
 import {
 	defineBlockView,
 	type BlockView,
@@ -22,7 +28,7 @@ import {
 	type RenderPrimaryViewContext,
 	type RenderPrimaryViewSpec
 } from '@voithos-labs/aragonite/plugin';
-import { createViewRoot, type Wrap } from './view-root.js';
+import { createViewRoot } from './view-root.js';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -70,7 +76,7 @@ export type ReactBlockViewOptions<S extends FrameworkSurface> = Omit<
 	afterInput?: S extends 'container' ? never : (text: string, ctx: Surfaces[S]['ctx']) => void;
 	/** Wraps the component, for providers: the block renders in a React root of its own, which
 	 *  a provider in the host app doesn't reach. */
-	wrap?: Wrap;
+	wrap?: (block: ReactNode) => ReactNode;
 };
 
 /** A block view drawn by `Component`; a render-primary block's whole element opens its text. */
@@ -105,9 +111,7 @@ export function reactBlockView<S extends FrameworkSurface>(
 					if (spec.surface === 'render-primary') draw(ctx.state(), text);
 					afterInput?.(text, ctx as never);
 				},
-				destroy() {
-					void root.unmount();
-				}
+				destroy: root.unmount
 			};
 		}
 	} as BlockViewSpec);
