@@ -120,7 +120,6 @@ describe('handleSharedKeydown: a span the caret cannot stop inside is crossed in
 			['ArrowRight', { ctrlKey: true }, 1],
 			['ArrowRight', { altKey: true }, 1],
 			['ArrowRight', { metaKey: true }, 1],
-			['ArrowRight', { isComposing: true }, 1],
 			['ArrowRight', {}, 2],
 			['ArrowLeft', {}, 1]
 		];

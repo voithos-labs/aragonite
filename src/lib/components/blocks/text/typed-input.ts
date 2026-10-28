@@ -5,6 +5,7 @@
  * only in how they read their own text.
  */
 
+import { imeOwnsInput } from '../../../browser/composition';
 import type { NodeView } from '../../../core/node-views';
 import type { ContentRange } from '../../../core/inline';
 import type { StoredAs } from '../../../schema/stored-as';
@@ -99,7 +100,7 @@ export function createTypedInput(deps: TypedInputDeps): (e: InputEvent) => boole
 
 	// Firefox drops a native insertion right before an inline widget that ends the block.
 	const beforeClosingWidget = (e: InputEvent): boolean => {
-		if (readInput(e).kind !== 'insert' || e.isComposing || !e.data) return false;
+		if (readInput(e).kind !== 'insert' || imeOwnsInput(e) || !e.data) return false;
 		const caret = deps.cursor.getRaw();
 		if (caret === null || !deps.edges.typeBeforeClosingWidget(caret, e.data)) return false;
 		e.preventDefault();

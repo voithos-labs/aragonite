@@ -18,6 +18,15 @@ plugin's text block has its own rows in `plugins/editable-leaf-plain.md`.
     signals it read, and the gap caret's and the whole-block host's keydown never asked, so no row
     pressed a key there after a drop.
 
+- The key that opens a composition, in each host and over a range across blocks, changes
+  nothing: no key handler takes it, so the IME gets it. Chromium and WebKit send that key with
+  code 229 and `isComposing: false`, named `Process` on Windows and the letter pressed on macOS,
+  and each row sends both names on every engine. The paragraph row puts the caret beside an image,
+  where a typed letter is the block's to write.
+  - Miss-analysis: every key handler asked `isComposing`, which that key doesn't set, and no row
+    sent it, so a letter beside an image and a letter on a block focused whole were written before
+    the composition started.
+
 ## Edge cases
 
 - The composed text appears exactly once in the document after the drop.

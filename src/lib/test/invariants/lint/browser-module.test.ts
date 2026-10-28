@@ -180,6 +180,28 @@ const RULES: FileRule[] = [
 			at(SOURCE.inputRead, 'return INTENTS.get(e.inputType) ?? OTHER;'),
 			at(`${SOURCE_DIR.debug}probe.ts`, 'const type = e.inputType;')
 		]
+	},
+	{
+		id: 'G4.270 whether the IME owns a key or an input is asked only in browser/composition.ts',
+		population: (file) =>
+			notUnder(SOURCE_DIR.debug)(file) && except(SOURCE.compositionTracker)(file),
+		matches: /\bisComposing\b/,
+		mustMatch: [SOURCE.compositionTracker],
+		reaches: [SOURCE.editableSurface, SOURCE.typedInput, SOURCE.delimiterAutopair],
+		reason:
+			'engines disagree about when a key is the IME’s (Chromium and WebKit send the key that opens a composition with `isComposing: false`), so the editor asks in one place: `imeOwnsKey` for a key, `imeOwnsInput` for an input, in browser/composition.ts',
+		hits: [
+			'if (e.isComposing) return;',
+			"e: Pick<KeyboardEvent, 'key' | 'isComposing'>",
+			'const { isComposing } = e;',
+			inBrowser('if (e.isComposing) return;')
+		],
+		misses: [
+			'if (imeOwnsKey(e)) return;',
+			'if (imeOwnsInput(e)) return;',
+			at(SOURCE.compositionTracker, 'return e.isComposing;'),
+			at(`${SOURCE_DIR.debug}probe.ts`, 'const composing = e.isComposing;')
+		]
 	}
 ];
 

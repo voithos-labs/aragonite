@@ -5,6 +5,7 @@
  * unit changes is decided at its keydown, since an engine may send no input for it.
  */
 
+import { imeOwnsInput } from '../../../browser/composition';
 import {
 	characterExtent,
 	type DeleteAnswer,
@@ -44,7 +45,7 @@ export function decideDeleteChord(
 ): 'beside' | 'at-edge' | null {
 	const key = e.key;
 	if (key !== 'Backspace' && key !== 'Delete') return null;
-	if (isBareKey(e) || e.defaultPrevented || e.isComposing || reads.hasRange()) return null;
+	if (isBareKey(e) || e.defaultPrevented || reads.hasRange()) return null;
 	const caret = reads.caret();
 	if (caret === null) return null;
 	const direction = key === 'Backspace' ? 'backward' : 'forward';
@@ -89,7 +90,7 @@ function declineReason(
 	keyed: boolean,
 	reads: CollapsedDeleteReads
 ): DeleteDecline | null {
-	if (e.isComposing || reads.composing()) return 'composing';
+	if (imeOwnsInput(e) || reads.composing()) return 'composing';
 	if (!e.cancelable) return 'not-cancelable';
 	if (reads.hasRange()) return 'range';
 	if (caret === null) return 'no-caret';

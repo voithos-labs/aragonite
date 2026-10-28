@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../../browser/composition';
 	import { keepFlyoutOnScreen } from '../../menu/flyout-placement';
 	import {
 		clampMenuToViewport,
@@ -162,6 +163,7 @@
 	}
 
 	function onMenuKeyDown(e: KeyboardEvent): void {
+		if (imeOwnsKey(e)) return;
 		const stops = focusableStops();
 		if (stops.length === 0) return;
 		const current = activeStopIndex(stops);

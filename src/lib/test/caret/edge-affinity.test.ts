@@ -53,8 +53,7 @@ describe('edgeStepDirection', () => {
 		shiftKey: false,
 		ctrlKey: false,
 		altKey: false,
-		metaKey: false,
-		isComposing: false
+		metaKey: false
 	};
 
 	it('steps on a plain horizontal arrow alone', () => {
@@ -64,7 +63,7 @@ describe('edgeStepDirection', () => {
 		expect(edgeStepDirection({ ...plain, key: 'a' })).toBeNull();
 	});
 
-	it.each(['shiftKey', 'ctrlKey', 'altKey', 'metaKey', 'isComposing'] as const)(
+	it.each(['shiftKey', 'ctrlKey', 'altKey', 'metaKey'] as const)(
 		'never steps with %s held',
 		(flag) => {
 			expect(edgeStepDirection({ ...plain, key: 'ArrowRight', [flag]: true })).toBeNull();

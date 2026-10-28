@@ -5,6 +5,7 @@
 	 * flyout (rows insert Markdown into a new paragraph). Pointer- and keyboard-driven without
 	 * ever taking focus, so the caret it acts on stays exactly where it is.
 	 */
+	import { imeOwnsKey } from '../../browser/composition';
 	import type { MenuIconName } from '../../menu-icons';
 
 	export interface MenuEntry {
@@ -120,6 +121,7 @@
 			e.stopImmediatePropagation();
 		};
 		const onKeyDown = (e: KeyboardEvent) => {
+			if (imeOwnsKey(e)) return;
 			if (e.altKey || e.ctrlKey || e.metaKey) return;
 			const open = flyout;
 			const children = open ? (items[open.row].children ?? []) : [];

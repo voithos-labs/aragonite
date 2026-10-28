@@ -5,6 +5,7 @@
  * synchronously during initialisation. `plugin-guide/editable-content.md` § The editable leaf.
  */
 
+import { imeOwnsInput, imeOwnsKey } from '../../../browser/composition';
 import { onDestroy, tick, untrack } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { EditableLeafBlockApi, StickyColumnDirection } from '../../../block-component';
@@ -637,7 +638,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
-		if (editableSurface.composing() || !el) return;
+		if (!el) return;
 
 		// Undo inside a shown painted source steps through its own edits; the document sees them as
 		// one entry written on blur.
@@ -703,7 +704,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	function spliceTargetRange(e: InputEvent): void {
-		if (!deps.renderSource || editableSurface.composing() || e.isComposing) return;
+		if (!deps.renderSource || editableSurface.composing() || imeOwnsInput(e)) return;
 		const el = deps.getEl();
 		if (!el) return;
 		const insert = sourceInsertion(e);
@@ -782,7 +783,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			if (!isRevealed()) onRenderClick(e);
 		},
 		onkeydown: (e) => {
-			if (!isRevealed()) void dispatchChord(e);
+			if (!isRevealed() && !imeOwnsKey(e)) void dispatchChord(e);
 		}
 	};
 
@@ -793,7 +794,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		oninput: (e: Event) => {
 			editableSurface.onInput(e);
 			noteShownSource();
-			if (!(e as InputEvent).isComposing) afterNativeEdit();
+			if (!imeOwnsInput(e as InputEvent)) afterNativeEdit();
 		},
 		onbeforeinput: editableSurface.onBeforeInput,
 		onkeydown: editableSurface.onKeyDown,

@@ -216,8 +216,7 @@ describe('decideDeleteChord: what a delete chord does at its keydown, whatever i
 		['the plain key, which the block decided', 'Backspace', {}, {}],
 		['another key', 'ArrowLeft', { ctrlKey: true }, {}],
 		['a held range', 'Backspace', { ctrlKey: true }, { hasRange: () => true }],
-		['no caret', 'Backspace', { ctrlKey: true }, { caret: () => null }],
-		['a composition', 'Backspace', { ctrlKey: true, isComposing: true }, {}]
+		['no caret', 'Backspace', { ctrlKey: true }, { caret: () => null }]
 	];
 	for (const [name, keyName, mods, overrides] of passes) {
 		it(`asks nothing for ${name}`, () => {

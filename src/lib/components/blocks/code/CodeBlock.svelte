@@ -484,7 +484,6 @@
 	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (editableSurface.composing()) return;
 		if (!el) return;
 
 		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;

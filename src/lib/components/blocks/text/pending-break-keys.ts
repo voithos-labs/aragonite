@@ -26,7 +26,7 @@ export interface PendingBreakKeyDeps {
  *  default prevented and still goes on. */
 export function handlePendingBreakKey(e: KeyboardEvent, deps: PendingBreakKeyDeps): boolean {
 	const at = deps.pendingBreak.at();
-	if (at === null || e.isComposing || BARE_MODIFIER_KEYS.includes(e.key)) return false;
+	if (at === null || BARE_MODIFIER_KEYS.includes(e.key)) return false;
 	if (deps.opensBreak(e)) return false;
 	if (isPlainTypingKey(e)) {
 		if (deps.getCaret() !== at) {

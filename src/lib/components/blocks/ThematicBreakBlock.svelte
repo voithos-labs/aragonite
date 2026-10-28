@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../browser/composition';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import {
@@ -79,6 +80,7 @@
 	// ── Event Handlers ──────────────────────────────────────────────────
 
 	function onKeyDown(e: KeyboardEvent): void {
+		if (imeOwnsKey(e)) return;
 		// Plugin containers run the same handler for undo and redo while focused as a whole.
 		if (dispatchWholeBlockGlobalChord(e, node.kind, commands)) return;
 

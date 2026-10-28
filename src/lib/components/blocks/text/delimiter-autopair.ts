@@ -5,6 +5,7 @@
  * it no construct. Every prose block runs `applyDelimiterAutoPair` on `beforeinput` (G4.65).
  */
 
+import { imeOwnsInput } from '../../../browser/composition';
 import {
 	constructContentRange,
 	inlineDescendants,
@@ -197,7 +198,7 @@ export function applyDelimiterAutoPair(e: InputEvent, surface: AutoPairSurface):
 	const typing = readInput(e).kind === 'insert';
 	if (!typing && !isCharacterBackspace(e)) return false;
 
-	if (e.isComposing || surface.hasSelection()) return false;
+	if (imeOwnsInput(e) || surface.hasSelection()) return false;
 	const at = surface.caret();
 	if (at === null) return false;
 	const text = surface.text();

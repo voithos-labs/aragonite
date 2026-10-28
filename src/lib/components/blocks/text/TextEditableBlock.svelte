@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsInput } from '../../../browser/composition';
 	import { getContext, onDestroy, untrack } from 'svelte';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { isTaskItemText } from '../list/task-checkbox';
@@ -802,7 +803,7 @@
 	};
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (editableSurface.composing() || editableSurface.isDetached()) return;
+		if (editableSurface.isDetached()) return;
 
 		// Ahead of the shared keymap, which takes ArrowLeft at the text's start to the block above.
 		if (handlePendingBreakKey(e, pendingBreakKeyDeps)) return;
@@ -838,7 +839,7 @@
 		const read = readInput(e);
 		if (read.kind === 'break' && !read.paragraph) {
 			e.preventDefault();
-			if (editableSurface.composing() || e.isComposing) return;
+			if (editableSurface.composing() || imeOwnsInput(e)) return;
 			// Input, not a key, so it asks for the selection's removal itself.
 			editableSurface.afterSelectionRemoved((afterRemoval) =>
 				runCommand('block.hardBreak', undefined, { afterRemoval })

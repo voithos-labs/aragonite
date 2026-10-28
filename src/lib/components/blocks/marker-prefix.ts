@@ -3,6 +3,7 @@
  * draws in front of its first prose child's text. Reading it back is `browser/offsets.ts`.
  */
 
+import { imeOwnsKey } from '../../browser/composition';
 import type { AmbientPrefix } from '../../block-component';
 import { DRAG_ANCHOR_ATTR } from '../../caret/block-content-selector';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
@@ -70,6 +71,7 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 
 // Enter and Space, the keys a link or button answers; the block below must not see them too.
 function activateOnKey(e: KeyboardEvent, onActivate: () => void): void {
+	if (imeOwnsKey(e)) return;
 	if (e.key !== 'Enter' && e.key !== ' ') return;
 	e.preventDefault();
 	e.stopPropagation();

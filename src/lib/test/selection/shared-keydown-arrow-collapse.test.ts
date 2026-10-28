@@ -88,8 +88,7 @@ describe('handleSharedKeydown: a plain arrow over a range collapses it first', (
 		[{ ctrlKey: true }, ALL],
 		[{ altKey: true }, ALL],
 		[{ metaKey: true }, ['ArrowLeft', 'ArrowRight']],
-		[{ shiftKey: true }, ALL],
-		[{ isComposing: true }, ALL]
+		[{ shiftKey: true }, ALL]
 	] as const) {
 		it(`leaves the range to ${JSON.stringify(over)} arrows`, async () => {
 			for (const key of keys) {

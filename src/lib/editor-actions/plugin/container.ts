@@ -5,6 +5,7 @@
  * sets its own.
  */
 
+import { imeOwnsKey } from '../../browser/composition';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
@@ -432,6 +433,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const commandOf = (e: KeyboardEvent) => commandForKey(e, deps.getNode().kind, commands);
 
 	const handleKeydown = (e: KeyboardEvent): void => {
+		if (imeOwnsKey(e)) return;
 		if (e.defaultPrevented) return;
 		// A whole-block kind has no child blocks, so an editable target is the plugin's own editor
 		// (its textarea), and the key is that editor's.

@@ -5,6 +5,7 @@
  * its `beforeinput` through {@link resolveLiveRangeEdit}.
  */
 
+import { imeOwnsInput } from '../../../browser/composition';
 import type { NodeView } from '../../../core/node-views';
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
@@ -104,7 +105,7 @@ function pendingEditRange(
  *  `composition-seat.ts` handles it start to finish and a second write here would double it. */
 function rewritesTargetRange(e: InputEvent): boolean {
 	const read = readInput(e);
-	if (e.isComposing || read.kind === 'compose') return false;
+	if (imeOwnsInput(e) || read.kind === 'compose') return false;
 	if (read.kind === 'delete') return read.source !== 'ime';
 	return read.kind === 'insert' || read.kind === 'replace';
 }

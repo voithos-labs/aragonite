@@ -121,7 +121,12 @@ import {
 import type { Reading } from '../../../schema/reading';
 import { createPlaceholderHint, type PlaceholderPolicy } from '../placeholder-hint.svelte';
 import type { CompositionSeat } from '../text/composition-seat';
-import type { CompositionOwner, CompositionTracker } from '../../../browser/composition';
+import {
+	imeOwnsInput,
+	imeOwnsKey,
+	type CompositionOwner,
+	type CompositionTracker
+} from '../../../browser/composition';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
@@ -667,13 +672,17 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// A keydown that writes for itself fires no beforeinput, so the caret is read here too.
 	const onKeyDown = withKeydownVerdict(async (e) => {
+		if (imeOwnsKey(e)) {
+			deleteKeydown = null;
+			return;
+		}
 		// A key can outrun the `selectionchange` that moves a caret the browser left off its spot, and
 		// every handler below reads the caret.
 		const el = deps.getEl();
-		if (!e.isComposing && el) deps.caretWriter.canonicalizeCaret(el);
-		if (!e.isComposing) recordPreEditOffset();
-		if (e.key === 'Enter' && !e.isComposing) enterKeydown = e;
-		deleteKeydown = !e.isComposing && (e.key === 'Backspace' || e.key === 'Delete') ? e : null;
+		if (el) deps.caretWriter.canonicalizeCaret(el);
+		recordPreEditOffset();
+		if (e.key === 'Enter') enterKeydown = e;
+		deleteKeydown = e.key === 'Backspace' || e.key === 'Delete' ? e : null;
 		try {
 			await deps.handleKeydown(e);
 			if (deleteKeydown === e) decideDeleteChord(e, deleteReads);
@@ -704,7 +713,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			e.preventDefault();
 			return;
 		}
-		if (!e.isComposing) recordPreEditOffset();
+		if (!imeOwnsInput(e)) recordPreEditOffset();
 		if (deps.localHistory?.(e) || runSharedBeforeInput(e)) return;
 		deps.handleBeforeInput?.(e);
 		if (e.defaultPrevented) return;
@@ -729,7 +738,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function onInput(e: Event): void {
 		const verdict = deleteVerdict;
 		deleteVerdict = null;
-		if (e instanceof InputEvent && !e.isComposing && !composing()) {
+		if (e instanceof InputEvent && !imeOwnsInput(e) && !composing()) {
 			assertInvariant('collapsed-delete-decided', () => checkDeleteDecided(e, verdict));
 		}
 		// A drop the tracker found at this input already committed what it shows.

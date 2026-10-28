@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../browser/composition';
 	import { getContext } from 'svelte';
 	import { EDITOR_SERVICES_KEY, type EditorServices } from '../editor-keys';
 	import { keepCornerControlsClear } from './corner-controls';
@@ -73,6 +74,7 @@
 	}
 
 	function onFindKeydown(e: KeyboardEvent) {
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			e.shiftKey ? search.prev() : search.next();
@@ -83,6 +85,7 @@
 	}
 
 	function onReplaceKeydown(e: KeyboardEvent) {
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			search.replaceCurrent();

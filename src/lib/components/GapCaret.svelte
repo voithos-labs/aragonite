@@ -5,6 +5,7 @@
 	 * block, so it adds nothing to any block's text content. Text and Enter create a paragraph at
 	 * the boundary; every other input is refused at `beforeinput`.
 	 */
+	import { imeOwnsKey } from '../browser/composition';
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions } from '../action-contracts';
 	import { GAP_CARET_LABEL } from '../a11y-strings';
@@ -77,6 +78,7 @@
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {
+		if (imeOwnsKey(event)) return;
 		if (handleGlobalChord(event)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;

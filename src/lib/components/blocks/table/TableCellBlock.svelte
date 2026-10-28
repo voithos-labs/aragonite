@@ -525,7 +525,7 @@
 	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (editableSurface.composing() || !el) return;
+		if (!el) return;
 
 		// Reset before `cellKeydownPlan`: the shared reset runs only for keys the plan leaves to the
 		// browser, so a key the plan takes would leave the select-all run active.

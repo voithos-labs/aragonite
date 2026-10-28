@@ -4,6 +4,7 @@
   error boundary, as a Svelte block's does.
 -->
 <script lang="ts">
+	import { imeOwnsKey } from '../../browser/composition';
 	import { getAllContexts, getContext, mount, unmount, untrack } from 'svelte';
 	import { on } from 'svelte/events';
 	import type { FocusActions } from '../../action-contracts';
@@ -283,6 +284,7 @@
 
 	// Keys in the view's own text field stay there; a plain arrow anywhere else in the block leaves it.
 	function handBuiltKeydown(e: KeyboardEvent): void {
+		if (imeOwnsKey(e)) return;
 		if (e.defaultPrevented || isEditableEventTarget(e.target) || !services) return;
 		const { caretMemory, commands } = services;
 		const exit = {

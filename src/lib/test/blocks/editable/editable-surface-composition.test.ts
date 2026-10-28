@@ -77,6 +77,22 @@ describe('composing gate', () => {
 		});
 	});
 
+	// Miss-analysis: each block's key handler asked its own composing flag, which the key that opens
+	// a composition (code 229, no composition flag) arrives before, so it reached the keymap.
+	describe('editable surface: an IME key reaches no key handler', () => {
+		it.each([
+			['inside a composition', { key: 'Enter', isComposing: true }],
+			['opening one, as a letter with code 229', { key: 'q', keyCode: 229 }],
+			['opening one, named Process', { key: 'Process' }]
+		])('%s', async (_name, init) => {
+			const seen: string[] = [];
+			const { surface } = makeSurface({ handleKeydown: async (e) => void seen.push(e.key) });
+			await surface.onKeyDown(new KeyboardEvent('keydown', init));
+			await surface.onKeyDown(new KeyboardEvent('keydown', { key: 'x' }));
+			expect(seen).toEqual(['x']);
+		});
+	});
+
 	// Miss-analysis: the first fix ended a dropped composition only at `input`, and no row sent a
 	// key, a beforeinput or a second compositionstart first.
 	describe('editable surface: a dropped composition ends at the next signal', () => {

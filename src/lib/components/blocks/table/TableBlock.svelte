@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../../browser/composition';
 	import { setContext, getContext, untrack, tick } from 'svelte';
 	import type { CellPosition, TableAxisAction, TableContext } from '../../../action-contracts';
 	import {
@@ -353,6 +354,7 @@
 	// Keyboard equivalent of the cell right-click, bubbling up from the cell;
 	// `preventDefault` suppresses the browser's context menu the key would trigger.
 	function onTableKeyDown(e: KeyboardEvent): void {
+		if (imeOwnsKey(e)) return;
 		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
 		if (readOnly || !opensMenu || !focusedCell) return;
 		e.preventDefault();
