@@ -1,6 +1,6 @@
 // The `?block-views` page's documents, shared by the apps and the spec.
 export const BLOCK_VIEWS_SOURCE =
-	'%% a memo\n\n@@ a label\n\n:::box The box\ninside the box\n:::\n\nafter the blocks\n';
+	'%% a memo\n\n@@ a label\n\n:::box The box\ninside the box\n:::\n\na {{pebble}} chip\n\n```note\nhello note\n```\n\nafter the blocks\n';
 
 // Long enough that scrolling to its end unmounts the blocks at its top.
 export const LONG_SOURCE =

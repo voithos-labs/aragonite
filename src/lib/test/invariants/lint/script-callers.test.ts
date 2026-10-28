@@ -19,7 +19,7 @@ interface CallerFile {
 }
 
 const git = (...args: string[]): string[] =>
-	execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28 })
+	execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28, timeout: 120_000 })
 		.split('\n')
 		.filter((line) => line !== '' && existsSync(line));
 

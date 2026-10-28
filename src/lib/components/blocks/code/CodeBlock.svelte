@@ -12,7 +12,7 @@
 		type DeleteAnswer,
 		type DeleteIntent
 	} from '../../../caret/delete-extent';
-	import { lineEdgeOffset } from '../../../browser/lines';
+	import { lineEdgeOffset } from '../../../browser/visual-lines';
 	import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../browser/painted';
 	import type { RawRange } from '../../../browser/offsets';
 	import { createSurfaceBackend } from '../editable/surface-backend';

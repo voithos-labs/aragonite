@@ -9,7 +9,7 @@ import { isImageOnlyParagraph } from '../core/inline/picture';
 import type { InlineReading } from '../core/inline/inline-cache';
 import { blockPageRole } from '../schema/page-role';
 import { BLOCK_CONTENT_SELECTOR, DRAG_ANCHOR_ATTR } from '../caret/block-content-selector';
-import { lineHeightOf } from '../browser/lines';
+import { lineHeightOf } from '../browser/visual-lines';
 
 /** A picture's handle ignores `blockDragHandles`, since dragging is the only pointer way to
  *  move one. The caller still checks reading mode. */

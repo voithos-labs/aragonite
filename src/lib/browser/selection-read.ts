@@ -8,7 +8,7 @@ import { type DomPosition, rawOffsetAt } from './offsets';
 import type { RawOffset } from '../core/coordinate-spaces';
 import { normalizeLineEndings } from '../core/lines';
 import { placeholderBreakOf } from './placeholder-break';
-import { isBreakAnchor } from './painted';
+import { isBreakAnchor, isInVisibleText } from './painted';
 
 /** One read of the browser's selection; `range` is its first range, still live. */
 export interface NativeSelectionRead {
@@ -112,4 +112,11 @@ export function caretOnPendingBreakLine(el: HTMLElement): boolean {
 		before = before.previousSibling;
 	}
 	return isBreakAnchor(before);
+}
+
+/** Whether the live caret sits in a text node the user can see, where the browser draws a caret,
+ *  so the editor's own indicator is not needed. Hidden marker text renders nothing. */
+export function caretIsInTextContent(el: HTMLElement): boolean {
+	const live = readNativeSelection();
+	return !!live && isInVisibleText(el, live.range.startContainer);
 }

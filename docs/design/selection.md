@@ -37,7 +37,7 @@ At a code chip's edge the bar draws against the chip's own box, since there the 
 
 A click beside a widget hands the drawn caret the edge it meant (`EditorServices.drawnCaret` :: `armWidgetEdge`), keyed by an object the block makes for itself. The editor holds one such edge, and a paint only reads it back through the focused block's own key. Typing, an arrow key or a click elsewhere lets it go.
 
-Some clicks move the caret after the browser put it down on the pointer-down: beside a widget, in hidden marker text, or inside a container's marker prefix (a footnote definition's `[^label]: `, say). For those nothing draws, bar or browser caret, until the click lands, so no frame shows a caret where it won't stay. The drawn caret decides at its own pointer-down (`browser/text-seat.ts :: clickMovesSeat`), so a click handler that starts moving the caret out of some new kind of spot adds that spot there.
+Some clicks move the caret after the browser put it down on the pointer-down: beside a widget, in hidden marker text, or inside a container's marker prefix (a footnote definition's `[^label]: `, say). For those nothing draws, bar or browser caret, until the click lands, so no frame shows a caret where it won't stay. The drawn caret decides at its own pointer-down (`browser/offsets.ts :: clickMovesCaret`), so a click handler that starts moving the caret out of some new kind of spot adds that spot there.
 
 Two things move the caret, and each gets painted its own way:
 

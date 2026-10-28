@@ -216,8 +216,9 @@ unguarded.
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
 | G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
 | G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
-| G4.270 | The selection, `Selection.modify` and the caret at a point are touched only under `browser/`     | L       |
+| G4.270 | The selection, `Selection.modify` and what sits at a point are touched only under `browser/`     | L       |
 | G4.271 | A windowed list hands each child the index and id from its own slice entry                       | L       |
+| G4.272 | Every child process a file under `src/lib` spawns carries a timeout of its own                   | L       |
 
 ### The entries
 
@@ -1189,7 +1190,7 @@ diagnostic-only. `e2e/lint/recordings.test.ts`.
 
 **G4.214 · One measure of a caret.** WebKit and Firefox measure a collapsed range right after a `\n`
 on the line it ends, putting each line start on the line above. `caretRectAt`
-(`browser/lines.ts`) measures the next character instead, and every caret box goes through it
+(`browser/visual-lines.ts`) measures the next character instead, and every caret box goes through it
 (the column search, sticky x, drawn caret, drop caret, `rects.caretRect()` and the rest); the scan
 fails a Range measured elsewhere, bar a few never-collapsed spans. A caret written at a line start
 lands in the next line's text likewise (`findDomTextLanding`). `lint/file-rules.test.ts`.
@@ -1330,7 +1331,7 @@ points say when observing starts. `file-rules.test.ts`.
 
 **G4.243 · One read of the caret's line.** At a soft wrap a caret's one DOM position is on two
 lines, and `caretRectAt` reads one of them whatever the browser shows. So at a wrap the line
-checks in `browser/lines.ts` ask the browser through the caret writer, the one file G4.270 lets
+checks in `browser/visual-lines.ts` ask the browser through the caret writer, the one file G4.270 lets
 call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
 wrong at a wrap is harmless or a known gap. `lint/file-rules.test.ts`.
 
@@ -1414,11 +1415,16 @@ so the suites run without a network. A spec's own route for a made-up host runs 
 
 **G4.270 · The browser is touched in one module.** Only `browser/selection-read.ts` and the caret
 writer read the native selection (`debug/`'s recorder may read what it records), only
-`caret-writer.ts` writes it, `Selection.modify` included, and only `point.ts` asks for a caret at a
-point. The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads too. A directory
-that can't import `browser/` takes the read as a parameter. `lint/browser-module.test.ts`.
+`caret-writer.ts` writes it, `Selection.modify` included, and only `point.ts` asks for a caret or an
+element at a point. The write shapes are in `lint/native-selection-write.ts`, which G4.143 reads
+too. A directory that can't import `browser/` takes the read as a parameter.
+`lint/browser-module.test.ts`.
 
 **G4.271 · A windowed list indexes its children from its slice entries.** A list renders `windowSlicer`'s
 entries and passes each child `entry.index` and `entry.id`. An index added up from the live window start
 runs ahead of the loop's own index as soon as a height write moves the window, so a size report read
 before the next render lands on the wrong block. `lint/window-slice-entries.test.ts`.
+
+**G4.272 · A spawned child process has a timeout.** Every `spawn`, `exec`, `execFile`, `fork` and
+their sync forms under `src/lib`, tests included, passes a `timeout` in its options, so a hung child
+fails its own test instead of holding the whole run. `lint/spawn-timeouts.test.ts`.

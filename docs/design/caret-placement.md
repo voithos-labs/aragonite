@@ -56,7 +56,7 @@ A click inside a text block: the browser already knows (or the editor does, for 
 2. Below the last mounted block while the document's tail is windowed out (not mounted at all), the caret lands at the real last block's end through the caret landing (stage 3), which mounts it first, since a block with no box can't be probed.
 3. Otherwise the point clamps into the nearest block's box.
 
-With a point inside a box, `src/lib/selection/block-hit-test.ts` :: `blockAtPoint` names the block. A container (a quote, a list, an alert) keeps its lines as child blocks, so a point on the container's own box, like a quote's bar, moves down to the child it's level with, however deep (`src/lib/selection/nearest-block.ts` :: `descendToLevelChild`). A drag into the margin takes the same step.
+With a point inside a box, `src/lib/selection/block-hit-test.ts` :: `blockAtPoint` names the block. A container (a quote, a list, an alert) keeps its lines as child blocks, so a point on the container's own box, like a quote's bar, moves down to the child it's level with, however deep (`src/lib/selection/nearest-block.ts` :: `descendToLevelChild`). A drag into the margin takes the same step, with one difference: below a windowed-out tail it follows the last mounted block (`blockNearPoint`), so an autoscrolling drag keeps growing as blocks mount, where a press there names no block (`hitAtDocumentPoint`).
 
 Then the kind names the spot inside the block. A table names a cell through its `caretTargetAtPoint` hook; a block of text (prose, or code, whose box has room around its lines) answers through `src/lib/browser/point.ts` :: `caretOffsetAtPoint`, the nearest offset. Neither does arithmetic of its own: both read the one DOM-to-offset walk in `src/lib/browser/offsets.ts`, so an image or a hidden marker counts the same whether you clicked or arrowed there. The walk also reads a caret that WebKit or Firefox parks between a CRLF line's `\r` and `\n` as the line's end, before the pair, which is where Chromium puts it anyway.
 
@@ -69,7 +69,7 @@ The probe, for the curious:
 - `caretOffsetAtPoint` clamps the point into the element's box and hands it to the exact probe, `offsetFromViewportPoint`. A shift-click and stage 1's two presses call the exact one directly.
 - The exact probe declines a point outside its element without asking the browser, which would answer one beside it with an offset inside.
 - It moves a point in the top or bottom padding level with the nearest line first, because Chromium on Mac and Linux answers a point above the first line with that line's start (below the last, its end). Sideways padding stays put: every OS keeps the column there, and a list item's marker hangs in it.
-- Two lints hold this shape: every call to the browser's point-to-caret lookup stays in `browser/point.ts` (G4.270), and a file that mounts an editable surface calls `handlePointerDown` exactly once from each pointer-down handler it binds.
+- Two lints hold this shape: every call to the browser's point lookups (the caret at a point, the element at a point) stays in `browser/point.ts` (G4.270), and a file that mounts an editable surface calls `handlePointerDown` exactly once from each pointer-down handler it binds.
 
 ## 3. The one way in
 
@@ -149,7 +149,7 @@ If no candidate passes, it declines and the browser's own placement stands. That
 - PageUp, PageDown and a bare modifier tap preserve it;
 - any other key resets it.
 
-Whether the arrow leaves at all is a line question: Up leaves from the block's first visual line, Down from its last (`src/lib/browser/lines.ts` :: `isAtFirstVisualLine`, `isAtLastVisualLine`). Usually that's a measurement. Where a line soft-wraps it can't be, because one spot in the text is both the end of a line and the start of the next. The browser remembers which one it's showing you, but measuring the spot reads the same line either way. So at a wrap that touches the first or last line, the editor asks the browser: the caret writer's `focusEndsLine` moves the caret to its line's end and back, and whether it had to move says which line it was on. The caret's column gets read the same way, so leaving from the start of a line lands near the start of the next block.
+Whether the arrow leaves at all is a line question: Up leaves from the block's first visual line, Down from its last (`src/lib/browser/visual-lines.ts` :: `isAtFirstVisualLine`, `isAtLastVisualLine`). Usually that's a measurement. Where a line soft-wraps it can't be, because one spot in the text is both the end of a line and the start of the next. The browser remembers which one it's showing you, but measuring the spot reads the same line either way. So at a wrap that touches the first or last line, the editor asks the browser: the caret writer's `focusEndsLine` moves the caret to its line's end and back, and whether it had to move says which line it was on. The caret's column gets read the same way, so leaving from the start of a line lands near the start of the next block.
 
 A chord bound to a block move (Alt+ArrowUp, unless a consumer rebinds it) moves no caret, so it leaves the column alone, and the keydown path asks the keymap which chords those are. The column lives in the caret memory with stage 6's side, so a click or an edit that forgets one forgets both. Capture happens in the block you're leaving and consumption in the dispatcher that lands you (stage 9), in separate files on purpose.
 
@@ -171,7 +171,7 @@ A horizontal arrival at a block that starts or ends with a widget enters the wid
 
 Then the landing itself:
 
-- A sticky x, with a block that can take one, goes to `focusAtColumn`: the pixel x on the first or last visual line that can show a caret, which skips a line holding only a widget and a code block's fence lines. The scan behind it (`src/lib/caret/sticky-measure.ts` :: `findOffsetNearestX`) walks in from the edge you arrive at and stops a few lines past it. Each box it reads comes from `src/lib/browser/lines.ts` :: `caretRectAt`, the one measure of a caret, which puts a caret right after a `\n` at the next line's start; WebKit and Firefox measure that spot on the line above, and the scan would land every column at a code body's first offset.
+- A sticky x, with a block that can take one, goes to `focusAtColumn`: the pixel x on the first or last visual line that can show a caret, which skips a line holding only a widget and a code block's fence lines. The scan behind it (`src/lib/caret/sticky-measure.ts` :: `findOffsetNearestX`) walks in from the edge you arrive at and stops a few lines past it. Each box it reads comes from `src/lib/browser/visual-lines.ts` :: `caretRectAt`, the one measure of a caret, which puts a caret right after a `\n` at the next line's start; WebKit and Firefox measure that spot on the line above, and the scan would land every column at a code body's first offset.
 - Otherwise `focus` at the start or the end.
 - A numeric position passes through untouched, since a caller with a byte in hand (a split's second half) knows better than the classifier.
 

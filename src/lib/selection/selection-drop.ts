@@ -12,7 +12,7 @@ import { emitClipboardError, type EditorEvents } from '../editor-events';
 import { rawOffsetAt, rawRangeToDomRange } from '../browser/offsets';
 import { documentLineEnding, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { blockContentElAt } from '../caret/block-el-lookup';
-import { caretRectAt } from '../browser/lines';
+import { caretRectAt } from '../browser/visual-lines';
 import {
 	blockNodeAt,
 	emptyParagraph,

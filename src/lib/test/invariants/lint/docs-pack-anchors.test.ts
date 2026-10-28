@@ -90,7 +90,7 @@ describe('in-pack anchors: the index', () => {
 function packGateOutput(docs: Record<string, string>, others: Record<string, string> = {}): string {
 	const dir = mkdtempSync(path.join(tmpdir(), 'aragonite-pack-'));
 	try {
-		execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore' });
+		execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore', timeout: 120_000 });
 		const files = Object.entries(docs).map(([name, body]) => [`docs/guide/${name}`, body]);
 		for (const [name, body] of [...files, ...Object.entries(others)]) {
 			mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
@@ -100,7 +100,8 @@ function packGateOutput(docs: Record<string, string>, others: Record<string, str
 			return execFileSync('node', [path.join(ROOT, 'scripts/docs/build-docs-pack.mjs')], {
 				cwd: dir,
 				encoding: 'utf8',
-				stdio: ['ignore', 'pipe', 'pipe']
+				stdio: ['ignore', 'pipe', 'pipe'],
+				timeout: 120_000
 			});
 		} catch (err) {
 			const failure = err as { stdout?: string; stderr?: string };

@@ -5,7 +5,7 @@
  * editor place that start itself.
  */
 
-import { isAtFirstVisualLine, type CaretBounds } from '../../../browser/lines';
+import { isAtFirstVisualLine, type CaretBounds } from '../../../browser/visual-lines';
 import { caretEdgeKey } from '../../../schema/keybindings';
 import { landableStartAbutsIsland } from '../../../browser/offsets';
 import { markerPrefixOf } from '../../../browser/painted';

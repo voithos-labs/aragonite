@@ -19,7 +19,8 @@ import {
 	caretAnchorAfter,
 	revealsNoMarkers,
 	type LandingSegment,
-	type OpaqueSegment
+	type OpaqueSegment,
+	isInVisibleText
 } from './painted';
 import {
 	type RawOffset,
@@ -50,6 +51,12 @@ export function markerPrefixLength(container: ParentNode): number {
  *  caret never stays. */
 export function isInMarkerPrefix(container: HTMLElement, node: Node, offset: number): boolean {
 	return domTextOffsetAtNode(container, node, offset) < markerPrefixLength(container);
+}
+
+/** Whether the click ending a press that put the caret at `at` moves it: off a widget's side to
+ *  its edge, or out of the marker prefix to the text's start. */
+export function clickMovesCaret(el: HTMLElement, at: DomPosition): boolean {
+	return !isInVisibleText(el, at.node) || isInMarkerPrefix(el, at.node, at.offset);
 }
 
 /** The raw offset of a live `(node, offset)` DOM position in `el`; a position inside the marker

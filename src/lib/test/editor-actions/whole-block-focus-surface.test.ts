@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { allowDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { createContainerBlockComponent } from '#lib/editor-actions/container-block-component.js';
-import { composeWholeBlockFocusSurface } from '#lib/editor-actions/whole-block-focus-surface.js';
+import { composeWholeBlockFocusSurface } from '#lib/editor-actions/whole-block-focus-surface.svelte.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { makeShimDeps } from '#lib/test/harness/editor-actions.js';
 

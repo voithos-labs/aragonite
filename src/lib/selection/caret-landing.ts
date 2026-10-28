@@ -21,7 +21,7 @@ import { caretTargetFor } from './caret-target';
 import { applySelectionToDom } from './native-bridge';
 import { readNativeSelection } from '../browser/selection-read';
 import type { CaretWriter } from '../browser/caret-writer';
-import { caretRectAt, caretRectAtRaw, lineHeightOf } from '../browser/lines';
+import { caretRectAt, caretRectAtRaw, lineHeightOf } from '../browser/visual-lines';
 import { findBlockPathForElement, findCellPathForElement } from './path-lookup';
 import type { CaretPosition, EditorSelection, SelectionPoint } from './primitives';
 import {

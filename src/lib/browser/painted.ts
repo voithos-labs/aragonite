@@ -400,3 +400,10 @@ function widgetRawLength(el: Element): number {
 	const range = widgetSourceRange(el);
 	return range ? Math.max(0, range.end - range.start) : 0;
 }
+
+/** Whether `node` is text in `el` the user sees and types into: hidden marker text paints
+ *  nothing, and a widget's own text paints but takes no typing. */
+export function isInVisibleText(el: HTMLElement, node: Node): boolean {
+	if (node.nodeType !== Node.TEXT_NODE || !el.contains(node)) return false;
+	return !isHiddenMarkerText(node, el) && !isInsideAtomicWidget(el, node);
+}

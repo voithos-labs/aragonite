@@ -181,7 +181,7 @@ describeManifests(
 
 /** Reads a block's `onClick` may not make: measuring a press against text is the check's job. */
 const MEASURES_TEXT =
-	/\b(?:getClientRects|getBoundingClientRect|caretRangeFromPoint|caretPositionFromPoint|caretSeatInElement|visualLines?\w*)\s*\(/;
+	/\b(?:getClientRects|getBoundingClientRect|caretRangeFromPoint|caretPositionFromPoint|caretPositionInElement|visualLines?\w*)\s*\(/;
 
 /** The body of `function onClick(` in `code`, or null. */
 function onClickBody(code: string): string | null {

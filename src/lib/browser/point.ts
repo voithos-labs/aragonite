@@ -1,10 +1,17 @@
 /**
- * Viewport point to caret offset inside one element. The browser finds the DOM position, and
- * `offsets.ts`'s walk does the arithmetic: this module computes no offset of its own, so
- * an atomic widget and a leading marker prefix count here exactly as they do for a live caret read.
+ * What sits under a viewport point: the element there, and the caret offset inside one element.
+ * The browser finds the DOM position and `offsets.ts`'s walk does the arithmetic, so an atomic
+ * widget and a leading marker prefix count here exactly as they do for a live caret read.
  */
 
 import { rawOffsetAt } from './offsets';
+
+/** The topmost element at a viewport point; null where nothing is there, or where the document
+ *  lays nothing out (jsdom has no `elementFromPoint`). */
+export function elementAtPoint(doc: Document, clientX: number, clientY: number): Element | null {
+	if (typeof doc.elementFromPoint !== 'function') return null;
+	return doc.elementFromPoint(clientX, clientY);
+}
 
 /** The caret offset in `el` nearest a viewport point, clamped into `el`'s box first so a click on
  *  the frame still names one. Null where `el` holds no text. */
@@ -28,19 +35,19 @@ export function offsetFromViewportPoint(
 ): number | null {
 	// The browser answers a point beside an element with an offset inside it, so ask only inside.
 	if (!isInside(blockEl.getBoundingClientRect(), clientX, clientY)) return null;
-	const seat = caretSeatInElement(blockEl, clientX, clientY);
-	if (!seat || !blockEl.contains(seat.node)) return null;
-	return rawOffsetAt(blockEl, seat.node, seat.offset);
+	const at = caretPositionInElement(blockEl, clientX, clientY);
+	if (!at || !blockEl.contains(at.node)) return null;
+	return rawOffsetAt(blockEl, at.node, at.offset);
 }
 
 /** The DOM position a press at this point lands on, asked level with `el`'s lines when the point
  *  is inside it; the position may lie outside `el`. */
-export function caretSeatInElement(
+export function caretPositionInElement(
 	el: HTMLElement,
 	clientX: number,
 	clientY: number
 ): { node: Node; offset: number } | null {
-	return caretSeatFromPoint(el.ownerDocument, clientX, levelWithLines(el, clientX, clientY));
+	return browserCaretAtPoint(el.ownerDocument, clientX, levelWithLines(el, clientX, clientY));
 }
 
 /** Whether a point inside `el`'s box lies above its first line or below its last, in the padding
@@ -54,7 +61,7 @@ export function isInPaddingRow(el: HTMLElement, clientX: number, clientY: number
 
 /** The browser's own hit test: `caretRangeFromPoint` on Chromium and WebKit,
  *  `caretPositionFromPoint` as the Firefox fallback. */
-function caretSeatFromPoint(
+function browserCaretAtPoint(
 	doc: Document,
 	clientX: number,
 	clientY: number

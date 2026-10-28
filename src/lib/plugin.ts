@@ -100,6 +100,7 @@ export type {
 	LeafViewContext,
 	RenderPrimaryViewContext,
 	ContainerViewContext,
+	CommandHooksSurface,
 	LeafSurface,
 	RenderPrimarySurface,
 	ContainerSurface,
@@ -111,7 +112,13 @@ export type {
 // The editor's plain editable text block, for a kind drawn as plain text; `blockClass` lands on
 // its element.
 export { textBlockView } from './components/blocks/text/text-block-view';
-export type { BlockComponent, BlockComponentExports, BlockComponentProps } from './block-component';
+export type {
+	AmbientInteractiveRange,
+	AmbientPrefix,
+	BlockComponent,
+	BlockComponentExports,
+	BlockComponentProps
+} from './block-component';
 
 // ── Parser openers ───────────────────────────────────────────────────────────
 // A registration's `opener`: how the block parser recognizes the kind from a line.

@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorRects } from '../editor-rects';
 import type { PlaceOptions } from '../windowing/scroll-owner';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
-import { caretRectAt } from '../browser/lines';
+import { caretRectAt } from '../browser/visual-lines';
 import { readNativeSelection } from '../browser/selection-read';
 
 installEditorDomStubsForTests();

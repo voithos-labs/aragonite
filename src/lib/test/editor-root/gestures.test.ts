@@ -76,8 +76,8 @@ function harness(opts: { mode?: PresentationMode; linkClick?: LinkClick } = {}) 
 	proxy.setAttribute('data-whole-block-input', '');
 	const widget = document.createElement('div');
 	widget.setAttribute('data-pointer-gesture', '');
-	// What the path lookup answers with: the block a click outside every editable resolves to,
-	// whose own editable child is where a click run there selects.
+	// What the path lookup answers with; a row that gives it a block path makes it the block a
+	// margin click resolves to, whose own text a click run there selects.
 	const nearest = document.createElement('div');
 	// The same box as the rendered block, so a test that gives this one a block path of its own
 	// does not move the band the margin click resolves against.
@@ -189,6 +189,7 @@ function harness(opts: { mode?: PresentationMode; linkClick?: LinkClick } = {}) 
 		proxy,
 		widget,
 		nearest,
+		nearestText,
 		link,
 		strayLink,
 		widgetLink,
@@ -267,27 +268,31 @@ describe('editor-root gestures: the margin drag', () => {
 	it('the second press of a click run hands the gesture to the priority order', () => {
 		const h = harness();
 		h.press(h.root);
+		// Nothing for the click run to claim, so only a margin drag still held could cancel it.
+		document.elementFromPoint = (() => h.root) as typeof document.elementFromPoint;
 		expect(h.mouseDown(h.root, { detail: 2 }).defaultPrevented).toBe(false);
 	});
 
 	// Miss-analysis: only the margin drag's press was tested, not where a dead-space click lands.
-	it('a click run on dead space selects in the nearest block; a plain press does not', () => {
+	it("a click run on dead space selects the nearest block's own text", () => {
 		const h = harness();
+		h.nearest.setAttribute('data-block-path', '[1]');
+		document.elementFromPoint = ((x: number) =>
+			x < BOX.left ? h.root : h.nearestText) as typeof document.elementFromPoint;
 		expect(h.mouseDown(h.root, { detail: 3 }).defaultPrevented).toBe(true);
 		expect(window.getSelection()?.toString()).toBe(NEAREST_TEXT);
+	});
 
-		window.getSelection()?.removeAllRanges();
+	// Miss-analysis: the click-run row's nearest block always had text, so a run beside a table
+	// selecting in some other element's text was never a row.
+	it('beside a block with no text of its own, a click run selects nothing, nor does a press', () => {
+		const h = harness();
+		expect(h.mouseDown(h.root, { detail: 3 }).defaultPrevented).toBe(true);
+		expect(window.getSelection()?.toString()).toBe('');
+
 		h.press(h.root);
 		expect(h.mouseDown(h.root).defaultPrevented).toBe(true);
 		expect(window.getSelection()?.toString()).toBe('');
-	});
-
-	// Miss-analysis: no test gave the landing element a block path a plugin, not a host, wrote.
-	it('a click run still lands where the surface carries a foreign block path', () => {
-		const h = harness();
-		h.nearest.setAttribute('data-block-path', 'not-json');
-		expect(h.mouseDown(h.root, { detail: 3 }).defaultPrevented).toBe(true);
-		expect(window.getSelection()?.toString()).toBe(NEAREST_TEXT);
 	});
 
 	it('a click run on a surface the drag declines selects nothing', () => {

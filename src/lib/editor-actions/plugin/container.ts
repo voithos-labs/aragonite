@@ -53,7 +53,7 @@ import {
 	createWholeBlockInputProxy,
 	holdsWholeBlockFocus,
 	isEditableEventTarget
-} from '../whole-block-focus-surface';
+} from '../whole-block-focus-surface.svelte';
 import type { NestedActionsOverrideFactory } from '../nested/nested-actions';
 import { createContainerActions } from '../nested/container-actions';
 import type { Draft, DraftSpec } from '../../schema/drafts';
@@ -424,6 +424,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
+		// A whole-block kind has no child blocks, so an editable target is the plugin's own editor
+		// (its textarea), and the key is that editor's.
+		if (wholeBlockSurface && isEditableEventTarget(e.target)) return;
 		const ownsFocus = ownsWholeBlockFocus(e);
 		// Only when this block itself holds focus: a chord bubbling from an inner leaf already
 		// met the global chords there, and running it here would fire it twice.

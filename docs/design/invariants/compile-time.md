@@ -23,6 +23,7 @@ what the type retired.
 | G3.14 | A Svelte view whose component wants a prop its slot never passes                     | T     |
 | G3.15 | A block kind registered without the view that draws it                               | T     |
 | G3.18 | A block member with no word on who supplies it for a DOM block view                  | T     |
+| G3.19 | A leaf or container factory input a DOM block view has no way to supply              | T     |
 
 ### The entries
 
@@ -117,3 +118,10 @@ until it says who supplies it for a DOM view: a hand-built view's handle, the vi
 or container surface, or only the editor. `HAND_BUILT_MEMBERS` and `HandBuiltBlock` read off it, so
 the handle's type and the members its ref publishes can't drift apart. `block-view.types.test.ts`,
 `block-view-none.test.ts`.
+
+**G3.19 · Every factory input has a DOM route.** `components/dom-block-view/factory-inputs.ts` maps
+each input of `createContainerBlock` and `createEditableLeaf` to where a block drawn by
+`defineBlockView` gets it: the DOM host, the view's spec, a call on its surface, its handle, or the
+kind's descriptor. An input added to either factory fails to compile until it's given one, so a
+feature reached only through Svelte (whole-block focus and the ambient prefix were) can't come
+back. `block-view-whole-block.test.ts`, `block-view-ambient-prefix.test.ts`.

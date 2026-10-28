@@ -5,7 +5,7 @@
 		dispatchWholeBlockGlobalChord,
 		handleWholeBlockKeys
 	} from '../../editor-actions/container-block-component';
-	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
+	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface.svelte';
 	import { blockAccessibleName } from '../../a11y-strings';
 	import { placeCaret } from '../../selection/place-caret';
 	import { wireSurfaceContexts } from './editable/surface-wiring.svelte';

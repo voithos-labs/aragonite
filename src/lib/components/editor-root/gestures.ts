@@ -265,7 +265,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				lifetimeSignal: deps.getLifetime(),
 				marginBlockAt: (target, x, y) =>
 					deps.reading.mode() !== 'reading' && dragStartsHere(root, target)
-						? deadSpaceCaret.blockPathNearPoint(root, x, y)
+						? deadSpaceCaret.blockNearPress(root, x, y)
 						: null,
 				pressesSelectedWidget: (target) => pressesSelectedWidget(deps.selection, target)
 			}),

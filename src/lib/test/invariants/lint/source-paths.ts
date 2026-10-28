@@ -78,6 +78,8 @@ export const SOURCE = {
 	crossBlockKeydown: 'src/lib/selection/cross-block/keydown.ts',
 	keyboardExtend: 'src/lib/selection/keyboard-extend.ts',
 	pointerPreamble: 'src/lib/selection/cross-block/pointer.ts',
+	blockHitTest: 'src/lib/selection/block-hit-test.ts',
+	editorDomStubs: 'src/lib/testing/mount-dom-stubs.ts',
 	rangeReplace: 'src/lib/selection/cross-block/range-replace.ts',
 
 	// ── Caret geometry and windowing ────────────────────────────────────────
@@ -231,6 +233,8 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	crossBlockKeydown: 'export interface CrossBlockKeydown',
 	keyboardExtend: 'export interface KeyboardExtendContext',
 	pointerPreamble: 'export interface CrossBlockPointer',
+	blockHitTest: 'export function blockAtPoint(',
+	editorDomStubs: 'export function installEditorDomStubsForTests(',
 	rangeReplace: 'export type RangeInsertion',
 
 	// ── Caret geometry and windowing ────────────────────────────────────────

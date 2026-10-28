@@ -27,7 +27,7 @@ import {
 	landableStartAbutsIsland
 } from '../browser/offsets';
 import { markerPrefixOf } from '../browser/painted';
-import { isAtFirstVisualLine, isAtLastVisualLine, lineHeightOf } from '../browser/lines';
+import { isAtFirstVisualLine, isAtLastVisualLine, lineHeightOf } from '../browser/visual-lines';
 import {
 	caretEdgeKey,
 	endsSelectAllRun,
