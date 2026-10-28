@@ -33,6 +33,7 @@ import {
 	holdsWholeBlockFocus,
 	type WholeBlockInputProxy
 } from './whole-block-focus-surface.svelte';
+import type { CaretHostInput } from './caret-host-input';
 
 /** Undo, redo and plugin-global chords for a block focused as a whole, which neither an inner leaf
  *  nor the editor root runs. Consumed in reading mode too, or the browser runs its own undo. */
@@ -101,9 +102,9 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	caretMemory: Pick<CaretMemory, 'noteKey'>;
 	/** What the keypress resolves to at this block's kind, overrides included. */
 	commandOf: (e: KeyboardEvent) => AnyCommandId | null;
-	/** The insert of the paragraph below that a composition the browser dropped at the key became;
-	 *  null where the key ended none. */
-	mintedBy: (e: KeyboardEvent) => Promise<unknown> | null;
+	/** Whether the key ended a composition the browser dropped in the block's hidden host, which
+	 *  spends it (`CaretHostInput.takesKey`). */
+	takesKey: CaretHostInput['takesKey'];
 }
 
 /**
@@ -114,15 +115,14 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	// Before any branch, or a column captured elsewhere survives a horizontal move through this
 	// block. No `measureX`: a block focused whole has no caret to measure.
 	deps.caretMemory.noteKey(e, deps.commandOf(e));
+	// The composed text is the paragraph below, so Enter opens the one after it.
+	const below = deps.getIndex() + 1;
+	if (deps.takesKey(e, () => deps.blockEdit.insertParagraph(below + 1, ''))) return;
 
 	if (e.key === 'Enter') {
 		e.preventDefault();
-		if (deps.isReading()) return;
-		// After a dropped composition's paragraph below, Enter opens the next one, as at its end.
-		const minted = deps.mintedBy(e);
-		const after = deps.getIndex() + 2;
-		if (minted) void minted.then(() => deps.blockEdit.insertParagraph(after, ''));
-		else void deps.blockEdit.splitBlock(deps.getIndex(), displayLength(deps.getRaw()));
+		if (!deps.isReading())
+			void deps.blockEdit.splitBlock(deps.getIndex(), displayLength(deps.getRaw()));
 		return;
 	}
 	if (e.key === 'Backspace' || e.key === 'Delete') {

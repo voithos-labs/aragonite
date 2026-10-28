@@ -97,7 +97,7 @@
 			selection,
 			caretMemory,
 			commandOf: (press) => wiring.resolveChord(press, node.kind),
-			mintedBy: inputProxy.mintedBy
+			takesKey: inputProxy.takesKey
 		});
 	}
 </script>

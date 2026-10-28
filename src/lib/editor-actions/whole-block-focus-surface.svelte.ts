@@ -8,7 +8,7 @@
 
 import { untrack } from 'svelte';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
-import { createCaretHostInput } from './caret-host-input';
+import { createCaretHostInput, type CaretHostInput } from './caret-host-input';
 import type { CompositionTracker } from '../browser/composition';
 import { WHOLE_BLOCK_INPUT_ATTR, isWholeBlockInputProxy } from '../selection/whole-block-input';
 
@@ -100,9 +100,8 @@ export interface WholeBlockInputProxy {
 	/** Put DOM focus for a whole-block entry, falling back to `declared` when the plugin owns
 	 *  the caret or the host has not mounted. */
 	focus(declared: HTMLElement): void;
-	/** The insert of the paragraph below that a composition the browser dropped at `event` became;
-	 *  null where `event` ended none with text. */
-	mintedBy(event: Event): Promise<unknown> | null;
+	/** Whether `event` ended a composition the browser dropped here (`CaretHostInput.takesKey`). */
+	takesKey: CaretHostInput['takesKey'];
 }
 
 export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): WholeBlockInputProxy {
@@ -184,6 +183,6 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 			demoteDeclaredFromTabOrder(declared);
 			focusProxy();
 		},
-		mintedBy: hostInput.mintedBy
+		takesKey: hostInput.takesKey
 	};
 }

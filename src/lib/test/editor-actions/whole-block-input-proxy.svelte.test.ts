@@ -128,7 +128,7 @@ describe('container shim routing through the host', () => {
 		const proxy: WholeBlockInputProxy = {
 			el: () => host,
 			focus: (d) => landed.push(d),
-			mintedBy: () => null
+			takesKey: () => false
 		};
 
 		shim(boxEl, proxy).focus(0);
@@ -146,7 +146,7 @@ describe('container shim routing through the host', () => {
 		const shimApi = shim(boxEl, {
 			el: () => host,
 			focus: () => host.focus(),
-			mintedBy: () => null
+			takesKey: () => false
 		});
 
 		host.focus();

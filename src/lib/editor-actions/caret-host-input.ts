@@ -6,14 +6,15 @@
 
 import { readInput } from '../browser/input';
 import type { CompositionOwner, CompositionTracker } from '../browser/composition';
+import { isCharacterKey } from '../schema/keybindings';
 
 export interface CaretHostInput {
 	onBeforeInput(event: InputEvent): void;
 	onCompositionStart(): void;
 	onCompositionEnd(): void;
-	/** The insert of a composition the browser dropped at `event`, which the key then acts after
-	 *  once it lands; null where `event` ended none with text. */
-	mintedBy(event: Event): Promise<unknown> | null;
+	/** Whether `event` is a plain key that ended a composition the browser dropped here, so it's spent
+	 *  (a character joined the text); Enter runs `openAfter` once the composed paragraph lands. */
+	takesKey(event: KeyboardEvent, openAfter: () => unknown): boolean;
 }
 
 export function createCaretHostInput(
@@ -40,7 +41,8 @@ export function createCaretHostInput(
 			if (signal.type === 'beforeinput') return;
 			const text = takeHostText();
 			if (!text) return;
-			minted = { at: signal, landed: Promise.resolve(insert(text)) };
+			const typed = signal instanceof KeyboardEvent && typesCharacter(signal) ? signal.key : '';
+			minted = { at: signal, landed: Promise.resolve(insert(text + typed)) };
 		}
 	};
 
@@ -64,6 +66,17 @@ export function createCaretHostInput(
 			const text = takeHostText();
 			if (text) insert(text);
 		},
-		mintedBy: (event) => (minted?.at === event ? minted.landed : null)
+		takesKey(event, openAfter) {
+			if (!minted || minted.at !== event || event.ctrlKey || event.metaKey || event.altKey) {
+				return false;
+			}
+			event.preventDefault();
+			if (event.key === 'Enter') void minted.landed.then(openAfter);
+			return true;
+		}
 	};
+}
+
+function typesCharacter(e: KeyboardEvent): boolean {
+	return isCharacterKey(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey;
 }

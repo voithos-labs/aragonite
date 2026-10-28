@@ -79,19 +79,16 @@
 
 	function onKeyDown(event: KeyboardEvent): void {
 		if (imeOwnsKey(event)) return;
+		// The composed text's paragraph sits at this gap, so Enter opens the one after it.
+		const after = composedAt + 1;
+		if (hostInput.takesKey(event, () => mint('', after))) return;
 		if (handleGlobalChord(event)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		switch (event.key) {
-			case 'Enter': {
+			case 'Enter':
 				event.preventDefault();
-				// After a dropped composition's paragraph, Enter opens the next one, as at its end.
-				const minted = hostInput.mintedBy(event);
-				const after = composedAt + 1;
-				if (minted) void minted.then(() => mint('', after));
-				else void mint('');
-				return;
-			}
+				return void mint('');
 			// Shift+Arrow is deliberately the plain arrow here: a single block selected whole
 			// is not a representable cross-block state (docs/design/selection.md § The gap caret).
 			case 'ArrowDown':

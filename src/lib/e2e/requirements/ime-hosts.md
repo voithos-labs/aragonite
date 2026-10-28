@@ -18,6 +18,14 @@ plugin's text block has its own rows in `plugins/editable-leaf-plain.md`.
     signals it read, and the gap caret's and the whole-block host's keydown never asked, so no row
     pressed a key there after a drop.
 
+- A composition the browser drops, then another key, at the gap caret and on a block focused
+  whole: the composed text becomes a paragraph and the caret goes into it, so the key is spent
+  there. A typed letter joins the composed text, as after the same text typed; Backspace and an
+  arrow do nothing else, and every block the host sat beside stays. WebKit and Firefox only.
+  - Miss-analysis: the only key row after a drop pressed Enter, so a letter, Backspace or an
+    arrow on a block focused whole ran its own handler against the index from before the
+    composed paragraph went in: the letter landed before it and Backspace deleted the block.
+
 - The key that opens a composition, in each host and over a range across blocks, changes
   nothing: no key handler takes it, so the IME gets it. Chromium and WebKit send that key with
   code 229 and `isComposing: false`, named `Process` on Windows and the letter pressed on macOS,

@@ -90,6 +90,57 @@ test.describe('a composition the browser drops, then Enter', () => {
 	}
 });
 
+/** The document after `enter` puts `か` in at the caret, then `key`, then a typed `Q`. */
+async function afterKey(
+	editor: EditorPage,
+	host: Host,
+	enter: (editor: EditorPage) => Promise<void>,
+	key: string | null
+): Promise<string> {
+	await editor.loadContent(host.source);
+	await host.arrive(editor);
+	await enter(editor);
+	if (key) await editor.page.keyboard.press(key);
+	await editor.typeSlowly('Q');
+	await editor.bridge.waitForSourceContains('Q');
+	await editor.waitForNoSourceMutation();
+	return editor.bridge.getSource();
+}
+
+// The gap caret and a block focused whole type into a hidden element, whose composed text becomes
+// a new paragraph, so the key that ended the composition is spent there or joins the text.
+const PARAGRAPH_HOSTS = HOSTS.filter((host) => /gap caret|focused whole/.test(host.name));
+
+test.describe('a composition the browser drops, then another key', () => {
+	test.use({ expectWarns: ['composition'] });
+	test.skip(({ browserName }) => browserName === 'chromium', 'Chromium drops only after a <br>');
+
+	for (const host of PARAGRAPH_HOSTS) {
+		test(`${host.name}: a typed letter joins the composed text`, async ({ page }) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			const typed = await afterKey(editor, host, (e) => insertText(e.page, 'か'), 'x');
+			const ime = await attachIme(page);
+			const dropped = await afterKey(editor, host, () => ime.compose('か'), 'x');
+
+			expect(dropped).toBe(typed);
+		});
+
+		test(`${host.name}: Backspace and an arrow only end it, leaving every block`, async ({
+			page
+		}) => {
+			const editor = new EditorPage(page);
+			await editor.goto();
+			const typed = await afterKey(editor, host, (e) => insertText(e.page, 'か'), null);
+			for (const key of ['Backspace', 'ArrowUp']) {
+				// A fresh driver each time: the dropped one still counts its composition as open.
+				const ime = await attachIme(page);
+				expect(await afterKey(editor, host, () => ime.compose('か'), key), key).toBe(typed);
+			}
+		});
+	}
+});
+
 // ── The key that opens a composition ────────────────────────────────────────
 
 const IMAGE = '![pic|120x80](/test-fixtures/sample.png)';

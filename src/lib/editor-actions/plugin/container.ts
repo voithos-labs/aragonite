@@ -476,7 +476,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			selection,
 			caretMemory,
 			commandOf,
-			mintedBy: (press) => inputProxy?.mintedBy(press) ?? null
+			takesKey: (press, openAfter) => inputProxy?.takesKey(press, openAfter) ?? false
 		});
 	}
 

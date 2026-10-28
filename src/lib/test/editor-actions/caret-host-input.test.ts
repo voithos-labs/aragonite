@@ -36,6 +36,8 @@ const beforeInput = (inputType: string, data: string, isComposing: boolean) =>
 	new InputEvent('beforeinput', { inputType, data, isComposing, cancelable: true, bubbles: true });
 const start = () => new CompositionEvent('compositionstart', { bubbles: true });
 const end = () => new CompositionEvent('compositionend', { bubbles: true });
+const keydown = (key: string, init: KeyboardEventInit = {}) =>
+	new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
 
 describe('caret host input', () => {
 	it('ends a dropped composition at the non-composing input, inserting once', () => {
@@ -77,25 +79,59 @@ describe('caret host input', () => {
 
 	// Miss-analysis (#775): the host asked about a drop only at beforeinput and compositionstart, so
 	// the gap caret's Enter after one ran with the composed text still in the host.
-	it('ends a dropped composition at a plain key, and says the key minted a paragraph', () => {
+	it('ends a dropped composition at a plain key, which the host then spends', async () => {
 		const { el, inserted, input } = host();
 		el.dispatchEvent(start());
 		el.textContent = 'か';
-		const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
+		const enter = keydown('Enter');
 		el.dispatchEvent(enter);
+		const opened: string[] = [];
 
 		expect(inserted).toEqual(['か']);
-		expect(input.mintedBy(enter)).not.toBeNull();
+		expect(input.takesKey(enter, () => opened.push('after'))).toBe(true);
+		expect(enter.defaultPrevented).toBe(true);
+		await Promise.resolve();
+		expect(opened).toEqual(['after']);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
+	});
+
+	// Miss-analysis: the only key row after a drop pressed Enter, so a letter there ran the host's
+	// own insert with the composed paragraph not yet in the host's index, landing before it.
+	it('a typed letter that ends a dropped composition joins the composed text', () => {
+		const { el, inserted, input } = host();
+		el.dispatchEvent(start());
+		el.textContent = 'か';
+		const x = keydown('x');
+		el.dispatchEvent(x);
+
+		expect(inserted).toEqual(['かx']);
+		expect(input.takesKey(x, () => {})).toBe(true);
+		takeDevWarns();
+	});
+
+	it('leaves a chord and a key that ended nothing to the host', () => {
+		const { el, input } = host();
+		el.dispatchEvent(start());
+		el.textContent = 'か';
+		const undo = keydown('z', { ctrlKey: true });
+		el.dispatchEvent(undo);
+		const later = keydown('Backspace');
+		el.dispatchEvent(later);
+
+		expect([input.takesKey(undo, () => {}), input.takesKey(later, () => {})]).toEqual([
+			false,
+			false
+		]);
+		takeDevWarns();
 	});
 
 	it('mints nothing at a key inside the composition', () => {
 		const { el, inserted, input } = host();
 		el.dispatchEvent(start());
 		el.textContent = 'か';
-		const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, isComposing: true });
+		const enter = keydown('Enter', { isComposing: true });
 		el.dispatchEvent(enter);
 
-		expect([inserted, input.mintedBy(enter)]).toEqual([[], null]);
+		expect([inserted, input.takesKey(enter, () => {})]).toEqual([[], false]);
 	});
 });

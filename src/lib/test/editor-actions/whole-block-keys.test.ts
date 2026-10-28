@@ -35,7 +35,7 @@ function makeDeps(
 		selection,
 		caretMemory,
 		commandOf: (e) => commandForKey(e, 'thematicBreak', commandContextWith(overrides)),
-		mintedBy: () => null
+		takesKey: () => false
 	};
 	return { deps, splitBlock, deleteBlock, insertParagraph, moveFocus, caretMemory };
 }

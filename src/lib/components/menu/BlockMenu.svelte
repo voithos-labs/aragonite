@@ -5,8 +5,8 @@
 	 * flyout (rows insert Markdown into a new paragraph). Pointer- and keyboard-driven without
 	 * ever taking focus, so the caret it acts on stays exactly where it is.
 	 */
-	import { imeOwnsKey } from '../../browser/composition';
 	import type { MenuIconName } from '../../menu-icons';
+	import { imeOwnsKey } from '../../browser/composition';
 
 	export interface MenuEntry {
 		id: string;

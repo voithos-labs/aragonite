@@ -63,7 +63,7 @@ function wholeBlockKey(t: ReturnType<typeof harness>, key: string, mods = {}): v
 		>,
 		focus: t.focus,
 		isReading: () => false,
-		mintedBy: () => null,
+		takesKey: () => false,
 		selection: { isCrossBlock: false },
 		caretMemory: createCaretMemory(),
 		commandOf: () => null
