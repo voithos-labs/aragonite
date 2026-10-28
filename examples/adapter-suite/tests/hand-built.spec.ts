@@ -49,6 +49,16 @@ test('Enter and Space are the die’s own, and roll it without touching the byte
 	expect(await mirror(page).textContent()).toBe(BLOCK_VIEWS_SOURCE);
 });
 
+test('an arrow the die’s component takes for itself stays in the die', async ({ page }) => {
+	await focusDieFromAbove(page);
+	await page.keyboard.press('ArrowRight');
+	await expect(roll(page)).toHaveText('d6: 1');
+	await expect(roll(page)).toBeFocused();
+
+	await page.keyboard.press('ArrowDown');
+	await expect.poll(() => activeText(page)).toBe('the end');
+});
+
 test('focus goes out and comes back to the die, which keeps what it rolled', async ({ page }) => {
 	await roll(page).click();
 	await expect(roll(page)).toHaveText('d6: 1');

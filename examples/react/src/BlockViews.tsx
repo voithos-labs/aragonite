@@ -144,7 +144,7 @@ function atEdge(box: HTMLTextAreaElement, key: string): boolean {
 }
 
 // A die the component draws whole: its button takes the caret, and it rolls in order, since a fair
-// die would make a flaky test. `!! boom` throws.
+// die would make a flaky test. ArrowRight rolls it too, an arrow the die keeps. `!! boom` throws.
 function Dice({ state }: BlockViewProps<'none'>) {
 	const sides = diceSides(state.node);
 	const [rolled, setRolled] = useState(0);
@@ -158,8 +158,18 @@ function Dice({ state }: BlockViewProps<'none'>) {
 		[]
 	);
 	if (state.node.raw.startsWith(DICE_BOOM)) throw new Error('the die went boom');
+	const next = () => setRolled((n) => (n % sides) + 1);
 	return (
-		<button ref={roll} className="dice-roll" onClick={() => setRolled((n) => (n % sides) + 1)}>
+		<button
+			ref={roll}
+			className="dice-roll"
+			onClick={next}
+			onKeyDown={(e) => {
+				if (e.key !== 'ArrowRight') return;
+				e.preventDefault();
+				next();
+			}}
+		>
 			d{sides}: {rolled || 'roll me'}
 		</button>
 	);

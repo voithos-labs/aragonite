@@ -14,6 +14,9 @@ console warning.
   for `the end`. ArrowUp walks back the same way, and the document is unchanged.
 - Enter and Space at the focused die roll it (`d6: 1`, then `d6: 2`), keep focus on the button and
   leave the document unchanged.
+- ArrowRight at the focused die, which the component handles and prevents, rolls it and keeps focus
+  on the button; ArrowDown still leaves for `the end`. Miss-analysis: the die handled no arrow, so
+  no row checked that the editor's arrow exit runs after the component's own keydown.
 - A roll, a click into `the end` and an ArrowUp back put focus on the die again, still showing the
   roll.
 

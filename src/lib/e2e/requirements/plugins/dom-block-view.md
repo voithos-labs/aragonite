@@ -21,3 +21,12 @@ The harness seed `dom-view` has one of each: an `@@ ` memo with a badge drawn be
   destroys its view once, and scrolling back mounts it again
 - A dombox holding 400 paragraphs mounts only the children near the viewport, with a spacer for
   the rest inside its own box; scrolling to the end mounts the last child and unmounts the first
+
+## User interactions
+
+- ArrowDown from column 10 of a paragraph onto the badge, ArrowRight out to the start of the
+  paragraph below, then ArrowDown: the caret lands at the start of the next paragraph, not back at
+  column 10, since a sideways exit ends the column the vertical run kept. Miss-analysis: the
+  arrow exit a hand-built block shares with a plugin container's `moveFocusOut` tells the caret
+  memory which key left, and no row pressed a second arrow after the exit, so dropping that line
+  kept every suite green.

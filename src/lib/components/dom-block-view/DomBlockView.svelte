@@ -64,6 +64,8 @@
 	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 	const events = services?.events;
+	// Read before the container factory, which sets the focus its children see.
+	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 
 	let leafEl: HTMLElement | null = $state(null);
 	let renderedEl: HTMLElement | null = $state(null);
@@ -279,7 +281,6 @@
 		}
 	};
 
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 	// Keys in the view's own text field stay there; a plain arrow anywhere else in the block leaves it.
 	function handBuiltKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented || isEditableEventTarget(e.target) || !services) return;
