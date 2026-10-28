@@ -184,8 +184,9 @@ describe('the caret writer writes only a caret something shows', () => {
 		const style = vi.spyOn(window, 'getComputedStyle');
 
 		writer.placeCaretAtRaw(el, 11, { clamp: 'exact' });
-		expect(style.mock.calls.filter(([of]) => of === image)).toHaveLength(1);
+		const reads = style.mock.calls.filter(([of]) => of === image).length;
 		style.mockRestore();
+		expect(reads).toBe(1);
 	});
 
 	it('leaves the browser its own caret beside an inline widget and in text', () => {
