@@ -21,7 +21,7 @@ import { checkCaretBeforeBreak } from '../invariants/caret-before-break';
 import { checkCaretOutsideLineEndingPair } from '../invariants/line-ending-pairs';
 import { checkLineReadRestored } from '../invariants/line-read-restores';
 import { checkCaretPaints } from '../invariants/caret-paints';
-import { caretSpotOf, visibleTextAtSameOffset } from './caret-spot';
+import { type CaretSpot, caretSpotOf, visibleTextAtSameOffset } from './caret-spot';
 import { splitsLineEndingPair } from '../core/line-ending-pairs';
 import { hiddenSuffixLength, markerPrefixOf, markerHidingMode, mayBeOffCanonical } from './painted';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
@@ -85,10 +85,19 @@ export function createCaretWriter(
 		focus: DomPosition,
 		el: HTMLElement | null
 	): boolean {
+		let spot: CaretSpot | null = null;
 		if (el && anchor.node === focus.node && anchor.offset === focus.offset) {
-			const shown = shownCaret(el, focus);
-			if (!shown) return false;
-			anchor = focus = shown;
+			spot = caretSpotOf(el, focus);
+			// Focus decides which markers hide (an empty block's chrome); before it, G1.33 judges at focusin.
+			if (spot === 'none' && el.contains(document.activeElement)) {
+				const text = visibleTextAtSameOffset(el, focus);
+				if (!text) {
+					assertInvariant('caret-paints', () => checkCaretPaints(el, focus));
+					return false;
+				}
+				anchor = focus = text;
+				spot = 'text';
+			}
 		}
 		assertInvariant(
 			'caret-before-break',
@@ -108,20 +117,11 @@ export function createCaretWriter(
 		written =
 			sel.isCollapsed && sel.focusNode ? { node: sel.focusNode, offset: sel.focusOffset } : null;
 		// Beside a widget with no line box only the drawn caret's bar shows the caret.
-		if (el && written && caretSpotOf(el, written) === 'widget-block') {
+		if (el && spot === 'widget-block' && written) {
 			showWidgetEdge(el, rawOffsetAt(el, written.node, written.offset));
 		}
 		onWrite();
 		return true;
-	}
-
-	// Focus decides which markers hide (an empty block's chrome), so before it G1.33 judges at focusin.
-	function shownCaret(el: HTMLElement, at: DomPosition): DomPosition | null {
-		if (!el.contains(document.activeElement) || caretSpotOf(el, at) !== 'none') return at;
-		const text = visibleTextAtSameOffset(el, at);
-		if (text) return text;
-		assertInvariant('caret-paints', () => checkCaretPaints(el, at));
-		return null;
 	}
 
 	// The browser finds the line's edge; `writeSelection` checks the landing and repaints.

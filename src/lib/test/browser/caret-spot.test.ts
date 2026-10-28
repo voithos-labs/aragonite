@@ -3,7 +3,7 @@
 // caret's bar beside a widget with no line box; a caret nothing shows is refused (G1.159).
 // Miss-analysis: only the click route asked for the bar beside an image, and no row wrote a caret
 // there through any other route, where nothing drew it and Chromium dropped the next key.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createCaretWriter } from '#lib/browser/caret-writer.js';
 import { caretSpotOf, type CaretSpot } from '#lib/browser/caret-spot.js';
 import { takeDevWarns } from '../support/warn-gate';
@@ -173,6 +173,19 @@ describe('the caret writer writes only a caret something shows', () => {
 		expect(writer.placeCaretAtRaw(el, 12, { clamp: 'exact' })).toBe(true);
 		expect(caret()).toEqual({ node: el, offset: 2 });
 		expect(asks).toEqual([12]);
+	});
+
+	// Miss-analysis: the bar rows counted asks, not reads, so classifying a caret twice per write passed.
+	it('reads the widget’s style once per caret it writes beside it', () => {
+		const image = blockWidget('![x](i.png)');
+		const el = mountBlock({ mode: 'live' }, image);
+		el.focus();
+		const { writer } = recordingWriter();
+		const style = vi.spyOn(window, 'getComputedStyle');
+
+		writer.placeCaretAtRaw(el, 11, { clamp: 'exact' });
+		expect(style.mock.calls.filter(([of]) => of === image)).toHaveLength(1);
+		style.mockRestore();
 	});
 
 	it('leaves the browser its own caret beside an inline widget and in text', () => {
