@@ -66,12 +66,8 @@ const UNFENCED: Record<string, { wirings: number; why: string }> = {
 		why: 'the container factory’s handleKeydown'
 	},
 	'src/lib/plugins/mermaid/MermaidBlock.svelte': {
-		wirings: 3,
-		why: 'the container factory’s handleKeydown, and the source textarea and focus view, which as plugin code reach only the published API'
-	},
-	'src/lib/plugins/footnotes/FootnoteReference.svelte': {
 		wirings: 1,
-		why: 'a plugin’s reference, which reaches only the published API'
+		why: 'the container factory’s handleKeydown'
 	}
 };
 

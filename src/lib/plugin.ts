@@ -432,6 +432,11 @@ export type { CaretTarget } from './schema/block-kind-descriptor';
 export { CURSOR_END } from './block-component';
 export type { CursorEnd } from './block-component';
 
+// ── IME keys (pre-freeze) ────────────────────────────────────────────────────
+// The IME's keys are never commands, so a keydown handler of your own starts with
+// `if (imeOwnsKey(e)) return;`.
+export { imeOwnsKey } from './browser/composition';
+
 // ── Pointer gestures (pre-freeze) ────────────────────────────────────────────
 // Put this attribute on an element whose drags belong to your widget (a pan, a brush) and the
 // editor's pointer handlers leave a click inside it alone: no block range, no click handling.
