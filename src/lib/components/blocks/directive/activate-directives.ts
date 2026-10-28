@@ -22,7 +22,8 @@ export function activateDirectives(): void {
 			container: svelteBlockView(DirectiveContainerBlock),
 			// The leaf's descriptor already drives its dimmed marker and split behavior.
 			leaf: textBlockView({ blockClass: 'directive-leaf' }),
-			openerLine: textBlockView({ blockClass: 'directive-opener-line' })
+			// Live mode shows the line's source while the caret is on it, its container's look otherwise.
+			openerLine: textBlockView({ blockClass: 'directive-opener-line', sourceAtCaret: true })
 		});
 		registerTitleRowPasteSurface(declaredPluginKind(DIRECTIVE_OPENER_LINE));
 	});

@@ -39,14 +39,14 @@ describe('directiveLeaf render descriptor', () => {
 
 	const leaf = () => getBlockKindDescriptor(declaredPluginKind(DIRECTIVE_LEAF));
 
-	it('marks `::name` as the content-range prefix so only the fence dims', () => {
+	it('marks `::name` and its space as the content-range prefix so only the fence dims', () => {
 		const node: CstNode = {
 			kind: declaredPluginKind(DIRECTIVE_LEAF),
 			leadingTrivia: '',
 			raw: '::toc info\n'
 		};
-		// `::toc` (5) dims; ` info` (5..10) is the editable content.
-		expect(leaf().getContentRange!(node)).toEqual({ start: 5, end: 10 });
+		// `::toc ` (6) dims; `info` (6..10) is the editable content.
+		expect(leaf().getContentRange!(node)).toEqual({ start: 6, end: 10 });
 	});
 
 	it('spans the whole line when the info is empty', () => {

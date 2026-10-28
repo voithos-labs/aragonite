@@ -687,6 +687,13 @@
 	initial-value: 0px;
 }
 
+/* A `:::` container's `:::name`, as a CSS string the generic directive draws where the line's own
+   marker is hidden (`DirectiveContainerBlock.svelte`). */
+@property --md-directive-marker {
+	syntax: '*';
+	inherits: true;
+}
+
 /* A container's leading marker takes its line's size, and where it renders, the line's weight
    too, so a heading item's number reads as part of the heading. */
 :where(.editor):is(
@@ -793,10 +800,10 @@
 	display: none;
 }
 
-/* A focused construct whose only bytes are its markers shows them dimmed, since it has nothing
-   else to show and no caret position inside; mirrored in `browser/painted.ts`. */
+/* A focused construct whose only bytes are its markers shows them, having nothing else to show,
+   and so does a source-at-caret row (a `:::` opener line); mirrored in `browser/painted.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
-	[contenteditable][data-content-empty]:focus-within
+	[contenteditable]:is([data-content-empty], [data-source-at-caret]):focus-within
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
 	display: inline;
 }

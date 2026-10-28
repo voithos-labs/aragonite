@@ -141,12 +141,13 @@ const DIRECTIVE_LEAF_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
 ];
 
-/** The `::name` or `:::name` fence of a leaf or an opener line is a dimmed marker prefix, like a
- *  heading's; a line that stops opening a fence has none. */
+/** The `::name` or `:::name` fence of a leaf or an opener line, with the spaces after it, is a
+ *  dimmed marker prefix like a heading's `# `; a line that stops opening a fence has none. */
 export function directiveLineContentRange(node: NodeView): { start: number; end: number } {
 	const fence = matchDirectiveOpener(trimTrailingLineEnding(node.raw));
-	const start = fence ? fence.colonCount + fence.name.length : 0;
-	return { start, end: displayLength(node.raw) };
+	if (!fence) return { start: 0, end: displayLength(node.raw) };
+	const gap = /^[ \t]*/.exec(fence.info)![0].length;
+	return { start: fence.colonCount + fence.name.length + gap, end: displayLength(node.raw) };
 }
 
 /** Writes the opener line (child 0) back as it stands, the body behind it, and the closing line;

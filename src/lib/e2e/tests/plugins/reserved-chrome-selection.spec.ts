@@ -6,7 +6,7 @@ import {
 	capturedErrors,
 	FIXTURE
 } from './reserved-chrome-helpers';
-import { extendKey } from '../../platform-keys';
+import { edgeKey, extendKey } from '../../platform-keys';
 
 /**
  * The `:::callout` callout holds its opener line as child 0, an editable title row (see
@@ -94,7 +94,7 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		// past the `:::callout` name the kept column lands in.
 		await page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
-		await page.keyboard.press('End');
+		await page.keyboard.press(edgeKey('lineEnd'));
 		await editor.typeText('Z');
 		await editor.bridge.waitForSource((s) => /:::callout [^\n]*Z/.test(s));
 

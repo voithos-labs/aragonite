@@ -58,10 +58,7 @@ export function rowMarker(
 	container: NodeView,
 	row: NodeView | undefined = container.children?.[0]
 ): string {
-	if (!row) return '';
-	const start = rowContentRange(container, row).start;
-	const spaces = /^[ \t]*/.exec(row.raw.slice(start))![0].length;
-	return row.raw.slice(0, start + spaces);
+	return row ? row.raw.slice(0, rowContentRange(container, row).start) : '';
 }
 
 /** The title row's text, line ending aside, keeping only the title from offset `from` on: the
@@ -69,7 +66,7 @@ export function rowMarker(
 export function rowKeepingTitleFrom(container: NodeView, row: NodeView, from: number): string {
 	const marker = rowMarker(container, row);
 	const title = trimTrailingLineEnding(row.raw).slice(Math.max(from, marker.length));
-	return title ? marker + title : row.raw.slice(0, rowContentRange(container, row).start);
+	return title ? marker + title : withoutTrailingSpaces(marker);
 }
 
 /** The title row's text, line ending aside, up to offset `to`; a cut inside the marker keeps it. */
@@ -84,12 +81,17 @@ export function titleInsertionPoint(
 	row: NodeView,
 	offset: number
 ): { offset: number; gap: string } {
-	const nameEnd = rowContentRange(container, row).start;
-	const titleStart = rowMarker(container, row).length;
-	if (nameEnd === 0 || offset > titleStart || (offset === titleStart && titleStart > nameEnd)) {
+	const marker = rowMarker(container, row);
+	const nameEnd = withoutTrailingSpaces(marker).length;
+	const spaced = marker.length > nameEnd;
+	if (nameEnd === 0 || offset > marker.length || (offset === marker.length && spaced)) {
 		return { offset, gap: '' };
 	}
-	return { offset: titleStart, gap: titleStart > nameEnd ? '' : ' ' };
+	return { offset: marker.length, gap: spaced ? '' : ' ' };
+}
+
+function withoutTrailingSpaces(text: string): string {
+	return text.replace(/[ \t]+$/, '');
 }
 
 /** True only when the kind declares an `isCollapsed` check and that check reports it collapsed. */

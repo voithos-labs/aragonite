@@ -41,10 +41,10 @@ describe('admonition round-trip (registered)', () => {
 	});
 
 	// Miss-analysis: every title was spaced with ASCII, never a typed non-breaking space.
-	it('keeps the opener line as typed, its title past the name', () => {
+	it('keeps the opener line as typed, its title past the name and its spaces', () => {
 		const spaced = parse(':::tip \tPro tip\t\nBody.\n:::\n').children[0];
 		expect(spaced.children?.[0].raw).toBe(':::tip \tPro tip\t\n');
-		expect(titleOf(spaced)).toBe(' \tPro tip\t');
+		expect(titleOf(spaced)).toBe('Pro tip\t');
 		const nbsp = parse(':::tip\u00a0Pro tip\nBody.\n:::\n').children[0];
 		expect(titleOf(nbsp)).toBe('\u00a0Pro tip');
 	});

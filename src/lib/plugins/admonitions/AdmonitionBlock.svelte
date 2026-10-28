@@ -114,11 +114,11 @@
 	}
 
 	/* Masked, not colored, so one glyph recolors per kind. */
-	.admonition :global(.admonition-title)::before,
+	.admonition :global(.admonition-title::before),
 	.admonition
 		> :global(
-			.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line
-		)::before {
+			.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line::before
+		) {
 		content: '';
 		position: absolute;
 		left: 0;
@@ -132,19 +132,27 @@
 		user-select: none;
 	}
 
-	/* The empty title leaf holds a lone <br>, which pre-wrap paints as a trailing empty
-	   line; capping to one row keeps the title-to-body gap equal to the titled variants. */
+	/* An untitled opener line whose `:::name` is hidden paints nothing but a <br>, which pre-wrap
+	   shows as a second line; capping to one row keeps the gap to the body the titled one's. */
 	.admonition[data-title-empty='true'] :global(.admonition-title),
 	.admonition[data-title-empty='true']
 		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line) {
 		height: 1.4em;
 	}
 
-	/* Absolute, not inline: the empty leaf's <br> would wrap generated content onto a
-	   second row and break titled/untitled geometry parity. */
-	.admonition[data-title-empty='true'] :global(.admonition-title)::after,
-	.admonition[data-title-empty='true']
-		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line)::after {
+	/* The kind's name stands in for a missing title wherever the line's `:::name` is hidden; absolute,
+	   so the leaf's <br> can't wrap it onto a second row. */
+	.admonition :global(.admonition-title::after),
+	:global(.editor[data-presentation='reading'])
+		.admonition[data-title-empty='true']
+		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line::after),
+	:global(.editor[data-presentation])
+		.admonition[data-title-empty='true']
+		> :global(
+			.block-list
+				> [data-block-kind='directiveOpenerLine']
+				.directive-opener-line:not(:focus-within)::after
+		) {
 		content: var(--adm-label);
 		position: absolute;
 		left: 1.7em;

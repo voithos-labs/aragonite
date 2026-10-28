@@ -1,6 +1,6 @@
 # Live Mode
 
-`presentationMode="live"` is the fifth of the five presentation modes, which run from raw source up to fully rendered. It hides every Markdown marker standing over content, and nothing brings one back, not even the caret walking into the construct (that's preview-inline's trick). The document stays editable the whole time. Like every mode it's CSS over the one render path (`editor.md` § The editing surface), so the bytes and the offsets are the source document's. What live changes is editing. A caret next to a marker it can't see needs answers the other modes never had to give, and this doc catalogues them.
+`presentationMode="live"` is the fifth of the five presentation modes, which run from raw source up to fully rendered. It hides every Markdown marker standing over content, and nothing brings one back, not even the caret walking into the construct (that's preview-inline's trick). Well, one thing does: a `:::` container's opener line shows its source while the caret's on it (§ 4.1). The document stays editable the whole time. Like every mode it's CSS over the one render path (`editor.md` § The editing surface), so the bytes and the offsets are the source document's. What live changes is editing. A caret next to a marker it can't see needs answers the other modes never had to give, and this doc catalogues them.
 
 A `live-mode.md § 4.x` citation in source or a test resolves to § 4 below, and those numbers never move. Jump by section:
 
@@ -97,6 +97,8 @@ Two prohibitions, and every rule below applies them:
 - **No unverified drop.** Bytes leave the document only when the painter confirms the reader never saw them (§ 2).
 
 A document can already hold such residue when it loads: a `#` typed before its heading has a word, a fence before its first body line, a loaded `[](url)`. There the prohibition falls on the paint rather than the bytes. Chrome may hide only while it stands over content, so a construct with none shows its markers dimmed, exactly as source mode shows them.
+
+One row gets that look on purpose. A `:::` container's opener line (`:::note Heads up`) is where you type the container's name, so while the caret is on it the line shows its `:::note` dimmed, the way source mode does. Off the line you get the container's own look: an admonition's icon and title (or its kind's name, when it has no title), or a generic directive's `:::name` as a dimmed copy the container draws, so that line looks the same either way. The row's element carries `data-source-at-caret`, and the stylesheet and `browser/painted.ts` read it right next to the content-empty mark.
 
 ```ts
 // opts as in § 2

@@ -85,6 +85,7 @@
 		index,
 		myPath = [],
 		blockClass = 'paragraph-block',
+		sourceAtCaret = false,
 		ambientPrefix = '',
 		rects
 	}: {
@@ -92,6 +93,8 @@
 		index: number;
 		myPath?: number[];
 		blockClass?: string;
+		// Shows the block's markers while the caret is in it, in a mode that hides them.
+		sourceAtCaret?: boolean;
 		ambientPrefix?: AmbientPrefix;
 		// Accepted so the props match `BlockComponentProps`: this block reads the document
 		// from its own context, and binding here would shadow the global `document`.
@@ -920,6 +923,7 @@
 	bind:this={el}
 	class="text-editable-block {blockClass}"
 	contenteditable={readOnly ? 'false' : 'true'}
+	data-source-at-caret={sourceAtCaret ? '' : undefined}
 	{...editableSurface.attributes(combobox)}
 	style:--md-prefix-indent={ambientPrefixText ? ambientIndent : null}
 	style:text-indent={ambientPrefixText ? 'calc(-1 * var(--md-prefix-indent))' : null}

@@ -5,13 +5,14 @@ Markdown marker hidden by CSS scoped to an attribute on the root, the same
 families reading uses, while the document stays editable. Its defining property is
 that nothing is ever shown again: unlike `preview-block` and `preview-inline`, no
 marker un-hides when the caret arrives, so the markers a user never sees are also
-the markers a focused block never shows. The DOM keeps every marker node (offsets
-survive) and reading's read-only restrictions are not inherited: task checkboxes
-toggle, block drag handles stay, and links place a caret on a plain click instead
-of navigating. Driven on `/test/editor` via `?presentationMode=live` and the header
-"Live mode" toggle (a real click), and on `/test/plugins`, the only harness that
-renders directive containers, through the `window.__test` bridge; source is
-asserted through the same bridge.
+the markers a focused block never shows. The one exception is a `:::` container's
+opener line, which shows its source while the caret is on it. The DOM keeps every
+marker node (offsets survive) and reading's read-only restrictions are not
+inherited: task checkboxes toggle, block drag handles stay, and links place a caret
+on a plain click instead of navigating. Driven on `/test/editor` via
+`?presentationMode=live` and the header "Live mode" toggle (a real click), and on
+`/test/plugins`, the only harness that renders directive containers, through the
+`window.__test` bridge; source is asserted through the same bridge.
 
 ## Happy paths
 
@@ -19,9 +20,14 @@ asserted through the same bridge.
   toggle enters and leaves it the same way the query param does
 - inline markers (`**`), block-own prefixes (`# `), code-fence lines, and
   reference labels (`[ref]`) hide from paint (computed `display: none`)
-- a directive container's own fences (`:::foo`) hide too, and stay hidden with the
-  caret in the container's body. Driven on `/test/plugins`, the harness that
-  renders plugin containers, entered through the `window.__test` bridge
+- a generic directive's opener line hides its own `:::foo` with the caret off the
+  line (in the body too) and draws a dimmed copy in its place, so the line looks
+  the same either way; with the caret on the line its own `:::foo` shows and the
+  copy goes. Driven on `/test/plugins`, the harness that renders plugin
+  containers, entered through the `window.__test` bridge
+- an admonition's opener line shows its icon and title off the line, or its kind's
+  name (`Tip`) when untitled; with the caret on the line it shows its `:::tip`
+  source and no stand-in name
 - an angle autolink (`<https://…>`) hides its `<`/`>` and renders the bare url:
   the brackets are construct syntax, so they are marker spans like any other
 - bullet items hide their `- ` and paint a rendered bullet instead; an ordered
