@@ -12,7 +12,7 @@ import {
 import { createAutoPairRecord } from '../../components/blocks/text/auto-pair-record';
 import { isBuiltinBlockKind } from '../../core/nodes';
 import { parse } from '../../core/parser';
-import { defaultGrammarView, waitingReading } from '../../schema/block-openers';
+import { defaultGrammarView } from '../../schema/block-openers';
 import { kitReading } from '../../testing/kit-reading';
 
 /** Kinds whose editable area does no auto-pairing: a typed byte there is literal. */
@@ -43,7 +43,7 @@ export class ExpectationTracker {
 		const edit = this.pairs()
 			? resolveDelimiterAutoPair(line, { start: 0, end: line.length }, caret, ch, kitReading(), {
 					ownPair,
-					keepsKind: (next) => keepsKindOfLine(line, next)
+					keepsKind: (next) => kindOfLine(next) === kindOfLine(line)
 				})
 			: null;
 		if (edit) noteOwnPair(this.ownPairs, line, edit);
@@ -106,12 +106,4 @@ export class ExpectationTracker {
 
 function kindOfLine(line: string): string | undefined {
 	return parse(line + '\n').children[0]?.kind;
-}
-
-// As the editor's `keepsKindAt` asks it: the kind holds, and no closer below could change it.
-function keepsKindOfLine(line: string, next: string): boolean {
-	return (
-		kindOfLine(next) === kindOfLine(line) &&
-		waitingReading(next + '\n', kitReading().grammar) === null
-	);
 }

@@ -10,7 +10,7 @@ import { CONTENT_VISIBILITY, visibleRuns, type VisibleRun } from '../visibility'
 import { landsKeepingMarks, shownSpan, type ShownSpan } from './shown-marks';
 import type { ContentRange } from '../index';
 import type { Reading } from '../../../schema/reading';
-import { waitingReading } from '../../../schema/block-openers';
+import { unfinishedReadings, waitingReading } from '../../../schema/block-openers';
 import { isBlankText, ownTrailingLineEnding, trimTrailingLineEnding } from '../../lines';
 import type { CstNode, InlineNode } from '../../nodes';
 import type { NodeView } from '../../node-views';
@@ -89,7 +89,8 @@ export function keepsKindAt(node: NodeView, line: string, store: StoredAs): bool
 	if (store.surface === 'inline') return true;
 	const block = readBack(line + ownTrailingLineEnding(node.raw), store)?.block;
 	// A lone `$$` reads as a paragraph only until a `$$` line below closes it.
-	return block?.kind === node.kind && waitingReading(block.raw, store.reading.grammar) === null;
+	const readings = unfinishedReadings(store.reading.grammar);
+	return block?.kind === node.kind && waitingReading(block.raw, readings) === null;
 }
 
 /** What `[from, to)` of `raw` shows, its content being `range`: text and each character's marks. */

@@ -82,6 +82,14 @@ describe('whether the auto-pair’s line keeps its kind where it is stored', () 
 		expect(keepsKindAt(node, '$$x', store)).toBe(true);
 	});
 
+	// Miss-analysis: the waiting row typed only openers that have a closer, so none asked of a
+	// `[`-led line, which may become a link definition but closes on no line below.
+	it('a line that waits on no closing line keeps its kind', () => {
+		const { node, store } = at('[see\n', [0]);
+		expect(keepsKindAt(node, '[see ``', store)).toBe(true);
+		expect(keepsKindAt(node, '[see $$', store)).toBe(true);
+	});
+
 	it('a cell keeps its kind whatever its text, since it stores no block', () => {
 		const { node, store } = at('| h |\n| - |\n| a |\n', [0, 1, 0]);
 		expect(keepsKindAt(node, '****', store)).toBe(true);

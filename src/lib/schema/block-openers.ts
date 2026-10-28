@@ -161,9 +161,13 @@ export function unfinishedReadings(grammar: GrammarView): readonly UnfinishedRea
 	return readings;
 }
 
-/** The reading that says a block of these bytes waits on a line below to close it, or null. */
-export function waitingReading(raw: string, grammar: GrammarView): UnfinishedReading | null {
-	return unfinishedReadings(grammar).find((reading) => reading.notFinal(raw)) ?? null;
+/** The reading under which a block of these bytes waits on a line below that closes it, or null:
+ *  a reading with no closing line (a link definition's) never takes in the blocks below. */
+export function waitingReading(
+	raw: string,
+	readings: readonly UnfinishedReading[]
+): UnfinishedReading | null {
+	return readings.find((reading) => reading.closer !== null && reading.notFinal(raw)) ?? null;
 }
 
 /** The topmost of the `count` blocks above that a line of `written` closes by the same reading, the

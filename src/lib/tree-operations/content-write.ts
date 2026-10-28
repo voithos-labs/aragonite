@@ -8,6 +8,7 @@ import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
 	unfinishedReadings,
+	waitingReading,
 	type GrammarView,
 	type UnfinishedReading
 } from '../schema/block-openers';
@@ -239,7 +240,7 @@ function openerCloser(
 	}
 	const parsed = readWritten();
 	const opened = parsed.children[parsed.children.length - 1];
-	const reading = opened && waitingFor(opened, readings);
+	const reading = opened && waitingReading(opened.raw, readings);
 	if (!reading?.closer || !opensOnWrittenLine(children[index].raw, text, parsed)) return null;
 	if (takesCloserBelow(text, opened, next, read, readings)) return null;
 	if (!reading.readsOn && !takesBlocksBelow(children, index, text, parsed, reading, read)) {
@@ -256,10 +257,6 @@ function opensEditableLine(closed: Document, index: number): boolean {
 	return kind !== undefined && !mustHoldChild(kind);
 }
 
-/** The reading a block waits on, when one names the line that would close it. */
-const waitingFor = (block: NodeView, readings: readonly UnfinishedReading[]) =>
-	readings.find((reading) => reading.closer !== null && reading.notFinal(block.raw)) ?? null;
-
 /** Whether the bytes from some line the write changed on wait for a closer, before any parse:
  *  a keystroke in prose is answered here. */
 function waitsOnWrittenLine(
@@ -270,7 +267,7 @@ function waitsOnWrittenLine(
 	const span = writtenSpan(before, text);
 	for (let at = text.lastIndexOf('\n', span.start - 1) + 1; at <= span.end && at < text.length;) {
 		const rest = text.slice(at);
-		if (readings.some((reading) => reading.closer !== null && reading.notFinal(rest))) return true;
+		if (waitingReading(rest, readings) !== null) return true;
 		const lineEnd = text.indexOf('\n', at);
 		if (lineEnd < 0) break;
 		at = lineEnd + 1;
@@ -291,7 +288,7 @@ function takesCloserBelow(
 	if (!hasBody || next.leadingTrivia !== '') return false;
 	const head = read(text + firstDisplayLine(next.raw).text + ownTrailingLineEnding(text));
 	const last = head.children[head.children.length - 1];
-	return !last || waitingFor(last, readings) === null;
+	return !last || waitingReading(last.raw, readings) === null;
 }
 
 /** Whether an opener that only a closer below changes takes blocks in down to one, read at each
