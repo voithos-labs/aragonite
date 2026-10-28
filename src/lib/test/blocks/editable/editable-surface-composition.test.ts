@@ -98,7 +98,10 @@ describe('composing gate', () => {
 			const canonicalized: HTMLElement[] = [];
 			const caretWriter = {
 				...testCaretWriter,
-				canonicalizeCaret: (el: HTMLElement) => void canonicalized.push(el)
+				canonicalizeCaret: (el: HTMLElement) => {
+					canonicalized.push(el);
+					return false;
+				}
 			};
 			const { surface, el } = makeSurface({ overrides: { caretWriter } });
 			await surface.onKeyDown(new KeyboardEvent('keydown', { key: 'q', keyCode: 229 }));
