@@ -14,7 +14,7 @@ import {
 import { readNativeSelection } from '../browser/selection-read';
 import type { CaretWriter } from '../browser/caret-writer';
 import { pageTarget, type PageStepContext } from './page-step';
-import { lineEdgeOffset } from '../browser/lines';
+import { lineEdgeOffset } from '../browser/visual-lines';
 import { offsetFromViewportPoint } from '../browser/point';
 import { tableFocusExtension, type ArrowKey } from './table-rect-extend';
 import { cellPoint } from './primitives';

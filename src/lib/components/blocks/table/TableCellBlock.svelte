@@ -35,7 +35,7 @@
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
 	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
 	import { selectWholeDocument, extendFromCell } from '../../../selection/keyboard-extend';
-	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../browser/lines';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../browser/visual-lines';
 	import {
 		cellCommandPlan,
 		cellKeydownPlan,

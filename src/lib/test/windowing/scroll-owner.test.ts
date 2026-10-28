@@ -26,7 +26,7 @@ import {
 } from '../harness/list-windowing.svelte';
 import { stubScrollOwner, stubScrollport } from '../harness/stub-scrollport';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { caretRectAt } from '../../browser/lines';
+import { caretRectAt } from '../../browser/visual-lines';
 import { readNativeSelection } from '../../browser/selection-read';
 
 const COLUMNS = ['host anchoring holds', 'a held placement is live', 'free'] as const;

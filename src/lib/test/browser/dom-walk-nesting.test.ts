@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { domDescendants } from '../../browser/dom-descendants';
 import { asDomTextOffset } from '../../core/coordinate-spaces';
-import { findFirstTextNode, findLastTextNode } from '../../browser/lines';
+import { findFirstTextNode, findLastTextNode } from '../../browser/visual-lines';
 import {
 	containerDomTextLength,
 	createRangeAtDomTextOffsets,

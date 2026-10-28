@@ -37,3 +37,8 @@ cross-block model for the rest.
   range inside the block, and the release leaves a plain native range
 - double-click a word in a table cell and drag along the cell: the cell's words join, and
   the table's own rectangle drag stays out of it
+- double- or triple-click in the editor's padding beside a table: nothing is selected and a
+  typed key changes nothing, as a single click there focuses nothing
+  (`dead-space-click.md`)
+  - Miss-analysis: the margin rows clicked beside prose and a quote, never beside a table, so
+    the click run selecting in the first cell of the nearest row was never on screen in a spec

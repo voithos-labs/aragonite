@@ -7,7 +7,7 @@
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import type { CaretMemory } from '../caret/caret-memory';
 import { editorXOf, viewportXOf } from '../caret/sticky-measure';
-import { caretRectAtRaw, lineBoxNearest } from '../browser/lines';
+import { caretRectAtRaw, lineBoxNearest } from '../browser/visual-lines';
 import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { CaretLanding } from './caret-landing';
 import { blockNearPoint } from './nearest-block';

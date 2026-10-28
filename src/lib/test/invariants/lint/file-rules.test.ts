@@ -530,7 +530,7 @@ const RULES: FileRule[] = [
 		matches:
 			/(?:\b\w*[rR]ange\??|\bgetRangeAt\([^)]*\))\.get(?:ClientRects|BoundingClientRect)\s*\(/,
 		allowed: {
-			'src/lib/browser/lines.ts':
+			'src/lib/browser/visual-lines.ts':
 				'`caretRectAt`, the one measure of a caret, and the character and line boxes it reads',
 			'src/lib/components/overlays/rects.ts': 'the boxes of a span between two offsets',
 			'src/lib/components/blocks/text/widget-interaction.ts':
@@ -552,7 +552,7 @@ const RULES: FileRule[] = [
 		id: 'G4.243 the caret’s line is decided through the soft-wrap read',
 		matches: /\bcaretRectAt(?:Raw)?\s*\(/,
 		allowed: {
-			'src/lib/browser/lines.ts':
+			'src/lib/browser/visual-lines.ts':
 				'`caretRectAt` itself, and the line decisions, which ask the browser at a soft wrap first',
 			'src/lib/caret/sticky-measure.ts':
 				'the column: the caret’s own x after the soft-wrap read, and the column search over offsets that are no caret',
@@ -2835,8 +2835,8 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		reason: 'with no media queries (jsdom) a recording names its pointer `none`'
 	},
 	'src/lib/testing/mount-dom-stubs.ts :: installEditorDomStubsForTests': {
-		branches: 3,
-		reason: 'with no DOM there is no element, range prototype or document to fill in'
+		branches: 2,
+		reason: 'with no DOM there is no element or range prototype to fill in'
 	}
 };
 

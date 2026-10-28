@@ -68,7 +68,6 @@ beforeEach(() => {
 	installLayoutStubs();
 	Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
 	Range.prototype.getBoundingClientRect ??= () => new DOMRect();
-	document.elementFromPoint ??= () => null;
 });
 afterEach(async () => {
 	await destroyMountedEditors();

@@ -8,7 +8,7 @@ import type { AnyBlockKind } from '../core/nodes';
 import { WHOLE_BLOCK_INPUT_ATTR } from './whole-block-input';
 import { tryGetBlockKindDescriptor, type CaretTarget } from '../schema/block-kind-descriptor';
 import { cellPoint, type SelectionEndpoint } from './primitives';
-import { caretOffsetAtPoint, offsetFromViewportPoint } from '../browser/point';
+import { caretOffsetAtPoint, elementAtPoint, offsetFromViewportPoint } from '../browser/point';
 import { readBlockPath } from './path-lookup';
 import { pathsEqual } from './path-math';
 import { BLOCK_TEXT_SELECTOR } from '../caret/block-content-selector';
@@ -34,7 +34,7 @@ export function blockAtPoint(
 	clientX: number,
 	clientY: number
 ): BlockHit | null {
-	let el: Element | null = document.elementFromPoint(clientX, clientY);
+	let el = elementAtPoint(editorRoot.ownerDocument, clientX, clientY);
 	while (el && el !== editorRoot) {
 		if (el instanceof HTMLElement && el.getAttribute('data-block-path')) {
 			const path = readBlockPath(el);

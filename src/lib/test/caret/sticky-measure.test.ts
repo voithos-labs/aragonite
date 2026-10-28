@@ -11,7 +11,7 @@ import {
 	caretBoxAt,
 	findOffsetNearestX
 } from '../../caret/sticky-measure';
-import type { LineRead } from '../../browser/lines';
+import type { LineRead } from '../../browser/visual-lines';
 
 /** One line of text, so no caret here sits at a soft wrap and the browser is never asked. */
 const OFF_A_WRAP: LineRead = {
