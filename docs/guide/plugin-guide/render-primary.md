@@ -54,6 +54,8 @@ Three gotchas:
 
 Supply a focus element for **every steady state** (error, loading, and static fallbacks included), so a broken render stays keyboard-reachable. If the getter returns null anyway, the editor degrades to focusing your chrome box and warns in dev.
 
+Not drawing it in Svelte? A `defineBlockView({ surface: 'container' })` view gets all of this from the kind's `blockFocus` alone. It never calls `mountChildren`, and instead of a getter it calls `ctx.container.attachFocus(el)` each time it shows a new focus element (the rendered diagram, the edit box), so the same rule holds: one for every state. [React and Vue](react-and-vue.md#a-block-with-its-own-editing-surface) shows one, drawn by a component.
+
 ## What your own editing surface has to do
 
 **First: an arrow that runs off your surface has to leave it.** A textarea swallows every arrow at its own boundaries, so a caret that walks in is stuck there, leaving the mouse as the only way out. Call the factory's `moveFocusOut(event)` when the caret sits at the edge the key points at: first line for ArrowUp, last line for ArrowDown, offset 0 for ArrowLeft, the end for ArrowRight. It returns false for a modified or non-arrow key and moves nothing, so gate your own `preventDefault` on its return value. Logical lines (the newlines around the caret) are enough; you owe an exit, not column-keeping. An exit is a blur, so a surface that commits on `focusout` already commits through it.

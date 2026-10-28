@@ -858,7 +858,7 @@ const RULES: FileRule[] = [
 		allowed: {
 			'src/lib/components/GapCaret.svelte':
 				'the caret between blocks holds no text, so a press there has no line to land on',
-			'src/lib/editor-actions/whole-block-focus-surface.ts':
+			'src/lib/editor-actions/whole-block-focus-surface.svelte.ts':
 				'the hidden editing host behind a whole block takes focus, never a press',
 			'src/lib/plugins/mermaid/MermaidBlock.svelte':
 				'the diagram source is a textarea, a form control that places its own caret, with no DOM text for the probe',
@@ -1619,7 +1619,7 @@ const RULES: FileRule[] = [
 				'a capture listener on the root that ends the undo step and writes nothing',
 			'src/lib/components/GapCaret.svelte':
 				'the gap caret, which is no block’s text and refuses every input but its one character',
-			'src/lib/editor-actions/whole-block-focus-surface.ts':
+			'src/lib/editor-actions/whole-block-focus-surface.svelte.ts':
 				'the proxy a block focused whole types into, which refuses every input but its one character'
 		},
 		reason:

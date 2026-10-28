@@ -9,7 +9,6 @@ import {
 	h,
 	inject,
 	provide,
-	render,
 	type App,
 	type Component,
 	type InjectionKey,
@@ -31,6 +30,7 @@ import {
 	type RenderPrimaryViewContext,
 	type RenderPrimaryViewSpec
 } from '@voithos-labs/aragonite/plugin';
+import { createViewRoot } from './view-root.js';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -103,12 +103,11 @@ export function vueBlockView<S extends FrameworkSurface>(
 					return () => h(component, { state: props.state, ctx, draft: props.draft });
 				}
 			});
+			const root = createViewRoot(target, app);
 			let draft: string | null = null;
 			const draw = (state: BlockViewState, typed = state.revealed ? draft : null) => {
 				draft = typed;
-				const root = h(Root, { state, draft });
-				root.appContext = app?._context ?? null;
-				render(root, target);
+				root.render(h(Root, { state, draft }));
 			};
 			draw(ctx.state());
 			return {
@@ -118,8 +117,7 @@ export function vueBlockView<S extends FrameworkSurface>(
 					afterInput?.(text, ctx as never);
 				},
 				destroy() {
-					handOver.live = false;
-					render(null, target);
+					root.unmount();
 				}
 			};
 		}
@@ -152,10 +150,9 @@ export const BlockChildren = defineComponent({
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** One per mount: it holds the mount's `ctx`, and drops a ref call that lands after `destroy`.
- *  Vue calls a function ref again on each re-render; the editor ignores an element it already has. */
+/** One per mount, holding the mount's `ctx`. Vue calls a function ref again on each re-render; the
+ *  editor ignores an element it already has, and one handed over after `destroy`. */
 interface HandOver {
-	live: boolean;
 	attach(el: unknown): void;
 	mountChildren(el: unknown): void;
 }
@@ -163,20 +160,17 @@ interface HandOver {
 const HAND_OVER: InjectionKey<HandOver> = Symbol('aragonite block view');
 
 function handOverFor(ctx: MountContext): HandOver {
-	const handOver: HandOver = {
-		live: true,
+	return {
 		attach(el) {
-			if (!handOver.live) return;
 			if (!('leaf' in ctx)) throw new Error('<LeafContent> is for a leaf or render-primary block');
 			ctx.leaf.attach(el as HTMLElement | null);
 		},
 		mountChildren(el) {
-			if (!handOver.live || !el) return;
+			if (!el) return;
 			if (!('container' in ctx)) throw new Error('<BlockChildren> is for a container block');
 			ctx.container.mountChildren(el as HTMLElement);
 		}
 	};
-	return handOver;
 }
 
 function useHandOver(name: string): HandOver {

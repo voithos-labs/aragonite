@@ -42,7 +42,7 @@ const shortcodeView: PluginView<InlineWidgetComponentProps> = (span, { inline })
 };
 ```
 
-Both are optional. Leave out `update` and what you drew stays; leave out `destroy` if there's nothing to release. Typing next to a widget keeps its view, which is only mounted again when the widget's own source text changes, so `source` never shifts under it. Already writing Svelte? `view: svelteView(ShortcodeWidget)` (from `@voithos-labs/aragonite/svelte`) mounts the component into the span with these props live, so on `update` it re-renders only what reads a prop that changed. Decoration widgets and inline menu rows take this same shape, so you learn it once.
+Both are optional. Leave out `update` and what you drew stays; leave out `destroy` if there's nothing to release. Typing next to a widget keeps its view, which is only mounted again when the widget's own source text changes, so `source` never shifts under it. Already writing Svelte? `view: svelteView(ShortcodeWidget)` (from `@voithos-labs/aragonite/svelte`) mounts the component into the span with these props live, so on `update` it re-renders only what reads a prop that changed. In React or Vue, `reactView(ShortcodeWidget)` and `vueView(ShortcodeWidget)` do the same from your component ([React and Vue](react-and-vue.md#widgets-decorations-and-menu-rows)). Decoration widgets and inline menu rows take this same shape, so you learn it once.
 
 Beside `{ inline, source }`, a view gets these props, every one of them always passed. A test that mounts your widget by hand passes its own (a fixed mode, a stub `navigateTo`), and the types won't let it forget one.
 

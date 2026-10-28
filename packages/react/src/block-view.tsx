@@ -12,8 +12,6 @@ import {
 	type HTMLAttributes,
 	type ReactNode
 } from 'react';
-import { flushSync } from 'react-dom';
-import { createRoot } from 'react-dom/client';
 import {
 	defineBlockView,
 	type BlockView,
@@ -30,6 +28,7 @@ import {
 	type RenderPrimaryViewContext,
 	type RenderPrimaryViewSpec
 } from '@voithos-labs/aragonite/plugin';
+import { createViewRoot } from './view-root.js';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -94,7 +93,7 @@ export function reactBlockView<S extends FrameworkSurface>(
 				(ctx as RenderPrimaryViewContext).leaf.attachRendered(target);
 			}
 			const handOver = handOverFor(ctx);
-			const root = createRoot(target);
+			const root = createViewRoot(target, wrap);
 			let draft: string | null = null;
 			const draw = (state: BlockViewState, typed = state.revealed ? draft : null) => {
 				draft = typed;
@@ -103,7 +102,7 @@ export function reactBlockView<S extends FrameworkSurface>(
 						<Component state={state} ctx={ctx as Surfaces[S]['ctx']} draft={draft} />
 					</HandOverContext.Provider>
 				);
-				flushSync(() => root.render(wrap ? wrap(block) : block));
+				root.render(block);
 			};
 			draw(ctx.state());
 			return {
@@ -112,12 +111,7 @@ export function reactBlockView<S extends FrameworkSurface>(
 					if (spec.surface === 'render-primary') draw(ctx.state(), text);
 					afterInput?.(text, ctx as never);
 				},
-				destroy() {
-					handOver.live = false;
-					// React refuses to unmount a root inside its own commit, where the host app's
-					// unmount lands; the editor never reuses `target`, so a microtask later is safe.
-					queueMicrotask(() => root.unmount());
-				}
+				destroy: root.unmount
 			};
 		}
 	} as BlockViewSpec);
@@ -142,7 +136,6 @@ export function BlockChildren({ as: Tag = 'div', ...attributes }: ContentProps) 
 /** One per mount, so each ref callback keeps its identity across renders: a new one would be
  *  called with null first, and the editor empties an element handed back to it. */
 interface HandOver {
-	live: boolean;
 	attach(el: HTMLElement | null): void;
 	mountChildren(el: HTMLElement | null): void;
 }
@@ -150,20 +143,17 @@ interface HandOver {
 const HandOverContext = createContext<HandOver | null>(null);
 
 function handOverFor(ctx: MountContext): HandOver {
-	const handOver: HandOver = {
-		live: true,
+	return {
 		attach(el) {
-			if (!handOver.live) return;
 			if (!('leaf' in ctx)) throw new Error('<LeafContent> is for a leaf or render-primary block');
 			ctx.leaf.attach(el);
 		},
 		mountChildren(el) {
-			if (!handOver.live || !el) return;
+			if (!el) return;
 			if (!('container' in ctx)) throw new Error('<BlockChildren> is for a container block');
 			ctx.container.mountChildren(el);
 		}
 	};
-	return handOver;
 }
 
 function useHandOver(name: string): HandOver {

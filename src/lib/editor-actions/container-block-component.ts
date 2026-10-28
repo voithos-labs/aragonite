@@ -32,7 +32,7 @@ import {
 	focusWholeBlockEl,
 	holdsWholeBlockFocus,
 	type WholeBlockInputProxy
-} from './whole-block-focus-surface';
+} from './whole-block-focus-surface.svelte';
 
 /** Undo, redo and plugin-global chords for a block focused as a whole, which neither an inner leaf
  *  nor the editor root runs. Consumed in reading mode too, or the browser runs its own undo. */

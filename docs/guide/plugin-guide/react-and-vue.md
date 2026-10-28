@@ -2,9 +2,9 @@
 
 Part of the [plugin guide](../plugin-guide.md). It assumes you've met `registerBlockKind` in [the quickstart](../plugin-guide.md#the-first-fifteen-minutes), since this page only swaps out the part that draws the block.
 
-If your app is React or Vue, you can draw a plugin block with your own components. The packages that give you the `<Aragonite>` component, `@voithos-labs/aragonite-react` and `@voithos-labs/aragonite-vue`, each carry a helper that turns a component into a block view: `reactBlockView` and `vueBlockView`. Under the hood they're `defineBlockView` with your component rendered into the element the editor makes for the block, so they run wherever the editor runs, the prebuilt copy a React or Vue app installs included.
+If your app is React or Vue, you can draw a plugin block with your own components. The packages that give you the `<Aragonite>` component, `@voithos-labs/aragonite-react` and `@voithos-labs/aragonite-vue`, each carry a helper that turns a component into a block view: `reactBlockView` and `vueBlockView`. Under the hood they're `defineBlockView` with your component rendered into the element the editor makes for the block, so they run wherever the editor runs, the prebuilt copy a React or Vue app installs included. For the smaller things a plugin draws (an inline widget, a decoration, a menu row) there's `reactView` and `vueView`.
 
-Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [the same in Vue](#the-same-in-vue) · [providers and app context](#providers-and-app-context) · [what the helpers don't do](#what-the-helpers-dont-do)
+Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [a block with its own editing surface](#a-block-with-its-own-editing-surface) · [the same in Vue](#the-same-in-vue) · [widgets, decorations and menu rows](#widgets-decorations-and-menu-rows) · [providers and app context](#providers-and-app-context) · [what the helpers don't do](#what-the-helpers-dont-do)
 
 ## A memo in React
 
@@ -124,6 +124,57 @@ export const boxView = reactBlockView(Box, { surface: 'container', className: 'b
 
 `<BlockChildren>` renders empty, like `<LeafContent>`, and the children land in it, so your chrome goes beside it. The kind itself is the container from [the walkthrough](container-walkthrough.md#the-registration-module): its registration doesn't change, only its `view` does.
 
+## A block with its own editing surface
+
+Some blocks don't want the editor's text at all. The bundled diagram block shows a picture, and editing it means a `<textarea>` of its own. A block like that has no caret inside it, so the editor focuses it as a whole: arrows stop on it, Backspace next to it focuses it and a second press deletes it, Enter adds a paragraph below, and a character typed at it starts one. You declare that on the kind, `blockFocus: 'whole-block'`, with `container: { contract: 'opaque', rebuildRaw }` since the block keeps its text in metadata (the [render-primary recipe](render-primary.md#recipe-a-render-primary-block) walks through that registration). Then you draw it on the container surface and skip the children.
+
+What your component hands over is the element that takes focus, through `ctx.container.attachFocus`, as a ref. A note shown as text until a double click opens a textarea:
+
+```tsx
+import { useState } from 'react';
+import { reactBlockView, type BlockViewProps } from '@voithos-labs/aragonite-react';
+import { getPluginMetadata } from '@voithos-labs/aragonite/plugin';
+
+function Note({ state, ctx }: BlockViewProps<'container'>) {
+	const text = getPluginMetadata<{ text: string }>(state.node)?.text ?? '';
+	const [editing, setEditing] = useState(false);
+	ctx.container.setCommandHooks({ openEdit: () => setEditing(true) });
+
+	if (editing) {
+		return (
+			<textarea
+				ref={ctx.container.attachFocus}
+				autoFocus
+				defaultValue={text}
+				onBlur={(e) => {
+					setEditing(false);
+					const next = e.currentTarget.value;
+					if (next !== text) void ctx.container.updateOwnMetadata({ text: next });
+				}}
+			/>
+		);
+	}
+	return (
+		<pre ref={ctx.container.attachFocus} tabIndex={-1} onDoubleClick={() => setEditing(true)}>
+			{text}
+		</pre>
+	);
+}
+
+export const noteView = reactBlockView(Note, { surface: 'container', className: 'note' });
+```
+
+Arrow down onto the note and it's focused whole (a `.note:focus-within` border lights up), double-click and you're typing in the textarea, click away and the text commits as one undo step. A few things make it behave:
+
+- **Attach a focus element for every state**, the textarea included. `attachFocus` keeps its identity for the mount, so passing it straight as a `ref` is fine, and so is React handing it `null` on the way out.
+- **DOM focus goes to a hidden editing host**, not to your `<pre>`. The editor puts it in the block's element, next to what you render, since that's where AltGr and IME input arrive. So style focus with `:focus-within`, and give the block's element `position: relative`.
+- **Keys in your textarea are the textarea's.** The kind's keymap stays out of it, and so do the editor's chords. To leave by arrow key on the first or last line, call `ctx.container.moveFocusOut(e.nativeEvent)` and `preventDefault` when it returns true.
+- **A block command reaches your component through `setCommandHooks`.** Bind a `note.edit` command to `Mod+M` in the kind's keymap, have its handler call `ctx.hooks.openEdit()`, and the key opens the textarea ([commands](commands.md)).
+
+In Vue it's the same component shape, with `:ref="ctx.container.attachFocus"` on the textarea and the `<pre>`.
+
+A container with a marker before its first child's text (a footnote definition's `[^label]: `) gets one more option for that: `ambientPrefix(state, editor)`, beside `surface`, returning the marker ([the container walkthrough](container-walkthrough.md)).
+
 ## The same in Vue
 
 `vueBlockView(component, options)` takes the same options, and the package has its own `LeafContent` and `BlockChildren`. The memo, as a single-file component:
@@ -158,9 +209,57 @@ The click-to-edit label is a `v-if` on `state.revealed`, and the box puts `<Bloc
 </template>
 ```
 
+## Widgets, decorations and menu rows
+
+An inline widget, a decoration's widget or badge, and an inline menu row don't take a block view. They take a `PluginView`, the little `(target, props) => { update, destroy }` function from [inline kinds](inline-kinds.md#rendering-it-as-a-widget). `reactView(Component)` makes one from a component, which gets the slot's props as its own. Here's a chip for every `{{name}}` in the text:
+
+```tsx
+import { reactView } from '@voithos-labs/aragonite-react';
+import { registerInlineWidgetKind, type InlineWidgetComponentProps } from '@voithos-labs/aragonite/plugin';
+
+function Chip({ source }: InlineWidgetComponentProps) {
+	return <span className="chip">{source.slice(2, -2)}</span>;
+}
+
+registerInlineWidgetKind(chip, {
+	isWidget: () => true,
+	view: reactView(Chip),
+	editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
+});
+```
+
+`a {{pebble}} chip` now reads as `a [pebble] chip`, with `pebble` drawn by `Chip`, and the caret steps over it as one character. (The `chip` kind and its trigger are the `:shortcode:` recipe from that page with `{` as the trigger.)
+
+The component re-renders on every `update` with the slot's new props (typing before the chip moves its `inline.start`, say), and its root unmounts when the slot drops it. There's no per-prop tracking like `svelteView` has, so keep the render cheap.
+
+Vue is `vueView(component)`, and it hands the component only the props it declares, so the slot's other props (a widget gets a handful of functions, too) don't land on your root element as attributes. A badge on the first block, as a single-file component:
+
+```vue
+<!-- Pin.vue -->
+<script setup lang="ts">
+import type { Decoration } from '@voithos-labs/aragonite/plugin';
+
+defineProps<{ decoration: Decoration }>();
+</script>
+
+<template>
+	<span class="pin">pinned</span>
+</template>
+```
+
+```ts
+const pin = vueView(Pin, { app });
+editor.decorations.addSource({
+	name: 'pins',
+	provide: () => [{ type: 'block', path: [0], badge: { view: pin } }]
+});
+```
+
+The first block gets a `pinned` badge. A changed decoration at the same spot keeps the badge and re-renders it with the new `decoration`.
+
 ## Providers and app context
 
-Each block renders in a root of its own (a React root, or a Vue render tree outside your app), so a provider in your app (a theme, a store, i18n) doesn't reach it on its own. Each helper has one way to hand it over:
+Each block and view renders in a root of its own (a React root, or a Vue render tree outside your app), so a provider in your app (a theme, a store, i18n) doesn't reach it on its own. Each helper has one way to hand it over, the same on `reactView` and `vueView` as on the block helpers:
 
 - **React: `wrap`.** It gets the block's element tree and returns it wrapped, so `wrap: (block) => <StoreProvider store={store}>{block}</StoreProvider>`. It runs on every render, so hand it something built once (a module-level store), not a fresh object per call.
 - **Vue: `app`.** Pass your app and the block sees everything it set up: `provide`, global components, plugins like Pinia. That means building the view once the app exists, and your plugin from there:
@@ -175,4 +274,3 @@ app.mount('#app');
 ## What the helpers don't do
 
 - **A block you draw entirely yourself** (no editable text, no children, like an embed with its own buttons) publishes `focus` and friends from its view, which a component can't hand over. Use `defineBlockView({ surface: 'none' })` for that one ([Block views](../plugin-api.md#block-views)).
-- **A block with its own editing surface** (the bundled diagram block's textarea, with whole-block focus) still needs `createContainerBlock`, from `@voithos-labs/aragonite/svelte` ([the render-primary recipe](render-primary.md#recipe-a-render-primary-block)).

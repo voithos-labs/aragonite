@@ -373,7 +373,7 @@ showSourceCard();
 await restore(); // ...and after; a no-op when nothing moved
 ```
 
-One more is the Svelte factory's alone for now (a DOM view has no way to ask for it yet). It's a dep, for a container whose first line starts with a marker the way a list item's `- ` does (a footnote definition's `[^label]: `, say): **`getAmbientPrefix`**. Its first child paints that prefix as a dimmed, read-only run before its own bytes, and the caret skips it the way it skips a list marker.
+One more is for a container whose first line starts with a marker the way a list item's `- ` does (a footnote definition's `[^label]: `, say): **`getAmbientPrefix`**, a dep of the Svelte factory, or `ambientPrefix(state, editor)` beside `mount` in a DOM view's spec. Its first child paints that prefix as a dimmed, read-only run before its own bytes, and the caret skips it the way it skips a list marker.
 
 - Return a string, read live, so a marker derived from metadata re-renders after an edit.
 - Or return `{ text, interactive }` to make ranges of it clickable. Each range gets its own span, class and click handler (that's how a footnote definition's `[^label]` takes the click back to its reference).
