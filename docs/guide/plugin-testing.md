@@ -177,6 +177,12 @@ const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, scro
 flushSync(); // the first render has to land before you can assert on it
 ```
 
+The stubs leave `document.elementFromPoint` alone, since the editor copes without it. If your own code asks it what's under a press, stub it yourself before the mount (jsdom lays nothing out, so no point has an element under it anyway):
+
+```ts
+document.elementFromPoint ??= () => null;
+```
+
 `scrollMode: 'host'` is the second thing: it drops the editor's own scroll container and the chrome a jsdom box can't size anyway ([host scroll mode](consumer-guide.md#host-scroll-mode)). And keep the fixture document short. The editor stops mounting blocks past an estimated-height budget in either scroll mode, jsdom reports a zero-height viewport, and a fixture tall enough to trip that unmounts the very block you're asserting on.
 
 From there `target.querySelector` reaches your component's own markup, and `editor.getSource()` hands you the bytes to compare:

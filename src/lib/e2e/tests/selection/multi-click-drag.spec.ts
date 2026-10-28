@@ -181,6 +181,7 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 			await editor.waitForNoSourceMutation();
 
 			expect(await nativeSelectionText(page)).toBe('');
+			expect(await editorSelection(page)).toBeNull();
 			expect(await editor.bridge.getSource()).not.toContain('!');
 		});
 	}
