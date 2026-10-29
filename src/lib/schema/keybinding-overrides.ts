@@ -4,7 +4,8 @@
  * map reaches the resolver as an argument, never through a context read.
  */
 import type { AnyBlockKind } from '../core/nodes';
-import { normalizeChordStrict, type KeyBinding } from './keybindings';
+import { isMotionChord, normalizeChordStrict, type KeyBinding } from './keybindings';
+import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import type { AnyCommandId } from './command-id';
 
 /** A consumer override of the default keymap for one mounted editor (the `keybindings` prop). */
@@ -35,7 +36,8 @@ export interface KeybindingOverrideMap {
 
 const EMPTY: KeybindingOverrideMap = { global: new Map(), byKind: new Map() };
 
-/** Compile the `keybindings` prop into the scoped lookup. Malformed chords are dev-warned and dropped. */
+/** Compile the `keybindings` prop into the scoped lookup. A malformed chord, or a caret key of the
+ *  platform (`isMotionChord`), is dev-warned and dropped. */
 export function normalizeKeybindingOverrides(
 	overrides: KeybindingOverride[] | undefined
 ): KeybindingOverrideMap {
@@ -45,6 +47,10 @@ export function normalizeKeybindingOverrides(
 	for (const o of overrides) {
 		const chord = normalizeChordStrict(o.chord);
 		if (chord === null) continue;
+		if (isMotionChord(chord)) {
+			devWarn('keybindings', `chord "${o.chord}" moves the caret on this platform; entry dropped`);
+			continue;
+		}
 		const value: OverrideValue =
 			o.command === null
 				? 'disabled'

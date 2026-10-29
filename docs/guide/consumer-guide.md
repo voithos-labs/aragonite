@@ -986,11 +986,11 @@ Right-clicking any cell opens the table's action menu: "Edit link" first when yo
 | Next row (or add one)               | `Enter` (from the last cell, appends a row)                                     |
 | Line break in a cell                | `Shift+Enter` (writes a `<br>`)                                                 |
 | Insert row below / above            | `Mod+Enter` / `Mod+Shift+Enter`                                                 |
-| Insert column right / left          | `Alt+Shift+→` / `Alt+Shift+←`                                                   |
+| Insert column right / left          | `Alt+Shift+→` / `Alt+Shift+←` (on a Mac, the cell menu)                         |
 | Delete row                          | `Mod+Shift+Backspace`                                                           |
 | Delete column                       | `Alt+Shift+Backspace`                                                           |
 | Move row up / down                  | `Alt+↑` / `Alt+↓`                                                               |
-| Move column left / right            | `Alt+←` / `Alt+→`                                                               |
+| Move column left / right            | `Alt+←` / `Alt+→` (on a Mac, the cell menu: `Option+←` / `→` move by word)      |
 | Move the whole table up / down      | `Mod+Alt+↑` / `Mod+Alt+↓`                                                       |
 | Cycle column alignment              | `Mod+Shift+A`                                                                   |
 | Create a table                      | type a header row (`\| a \| b \|`), then `Enter`                                |
@@ -1050,6 +1050,8 @@ Two cell gestures sit outside the keymap entirely, because both depend on where 
 Disabling `Tab` or `Enter` for `tableCell` likewise leaves the cell with no way to reach the next cell or append a row, so scope those deliberately.
 
 The Find / replace chords ignore `keybindings` and aren't rebindable today; `searchBar={false}` is the way to free them.
+
+**The caret keys aren't up for grabs.** Left and right arrows, the word keys (`Ctrl+←` / `→`, `Option+←` / `→` on a Mac), `Home` and `End`, each with or without Shift, plus `Mod+Home` and `Mod+End` (on a Mac, `Cmd+←` / `→` with or without Shift, and `Cmd+↑` / `↓`) move the caret, so a `keybindings` entry on one is dropped with a warning in a dev build, and no built-in or plugin chord takes one either. That's why the table's column chords are Windows and Linux only. Up and down aren't on the list, so `Alt+↑` stays a block move and the `ArrowUp` entry above still works.
 
 **Plugin-global chords resolve last.** A plugin's global command (see the [plugin guide](plugin-guide/commands.md#block-commands)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright. So a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 

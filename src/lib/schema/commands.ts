@@ -10,7 +10,7 @@ import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
 import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { eventToChord, registeredChord, type KeyBinding } from './keybindings';
+import { eventToChord, isMotionChord, registeredChord, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
 	overrideDecision,
@@ -442,6 +442,7 @@ export function resolveKindBinding(
 	kind: AnyBlockKind,
 	overrides?: KeybindingOverrideMap
 ): KeyBinding | null {
+	if (isMotionChord(chord)) return null;
 	const override = overrideTier(overrides, kind, chord);
 	if (override !== undefined) return override;
 	return builtinKindBinding(chord, kind);
@@ -457,6 +458,7 @@ export function resolveBinding(
 	overrides: KeybindingOverrideMap | undefined,
 	activation: PluginActivation
 ): KeyBinding | null {
+	if (isMotionChord(chord)) return null;
 	const override = overrideTier(overrides, kind, chord);
 	if (override !== undefined) return override;
 	return builtinKindBinding(chord, kind) ?? builtinGlobalBinding(chord, activation);
@@ -521,6 +523,7 @@ export function resolveGlobalBinding(
 	overrides: KeybindingOverrideMap | undefined,
 	activation: PluginActivation
 ): KeyBinding | null {
+	if (isMotionChord(chord)) return null;
 	const decision = overrideDecision(lookupOverride(overrides, 'global', chord));
 	if (decision !== undefined) return decision;
 	return builtinGlobalBinding(chord, activation);

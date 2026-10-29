@@ -162,6 +162,24 @@ export function motionKey(e: EdgeKeys): MotionKey | null {
 	return { unit: 'character', direction, extend, arrow: false };
 }
 
+/** Whether a normalized chord is a caret key `motionKey` reads on this platform, which no keymap
+ *  entry takes, built-in or a consumer's, so a caret key moves the same in every block. */
+export function isMotionChord(chord: string): boolean {
+	const parts = chord.split('+');
+	const key = parts.pop() ?? '';
+	const mod = parts.includes('Mod');
+	const mac = usesMacEditingConventions();
+	return (
+		motionKey({
+			key,
+			ctrlKey: mod && !mac,
+			metaKey: mod && mac,
+			altKey: parts.includes('Alt'),
+			shiftKey: parts.includes('Shift')
+		}) !== null
+	);
+}
+
 export function normalizeChord(chord: string): string {
 	const parts = chord.split('+');
 	const key = parts.pop() ?? '';

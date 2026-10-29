@@ -585,6 +585,34 @@ for (const span of CASES) {
 	});
 }
 
+// Option+Arrow is a Mac's word key in every block, so the cell's column chords never take it there.
+// Off a Mac, the page reads a Mac platform and the keys are pressed with Alt.
+test.describe('on a Mac, Option+Arrow in a table cell moves by word, not the column', () => {
+	const source = '| a b.c | d |\n| - | - |\n';
+	for (const [key, at, focus] of [
+		['Alt+ArrowRight', 1, 3],
+		['Alt+ArrowLeft', 5, 4],
+		['Alt+Shift+ArrowRight', 1, 3]
+	] as const) {
+		test(`${key} from ${at}`, async ({ page }) => {
+			await page.addInitScript(() =>
+				Object.defineProperty(Navigator.prototype, 'platform', { get: () => 'MacIntel' })
+			);
+			const editor = await open(page, {
+				name: '',
+				source,
+				path: [0, 0, 0],
+				at,
+				gesture: 'wordBack',
+				lands: []
+			});
+			await page.keyboard.press(key);
+			expect((await selection(editor))?.focus).toEqual({ path: [0, 0, 0], offset: focus });
+			expect(await editor.bridge.getSource()).toBe(source);
+		});
+	}
+});
+
 // A key that moves nothing fires no `selectionchange`, so its record is still open when a click
 // moves the caret, and the fixture's console check fails on a G1.163 fire.
 test('a caret key that moves nothing, then a click, is no browser move', async ({ page }) => {

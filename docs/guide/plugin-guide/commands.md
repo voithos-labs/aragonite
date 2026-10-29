@@ -99,10 +99,11 @@ setup(ctx) {
 
 A handler that waits on something before it writes (a fetch, a dialog) should read `editor.documentGeneration` before the wait and compare it after: if the host loaded another note meanwhile, a write through `editor` lands in that one.
 
-The chord binds in the **plugin-global tier**, the last step in the chord priority order [the consumer guide's Rebinding chords](../consumer-guide.md#rebinding-chords) lays out. Three consequences:
+The chord binds in the **plugin-global tier**, the last step in the chord priority order [the consumer guide's Rebinding chords](../consumer-guide.md#rebinding-chords) lays out. Four consequences:
 
 - A plugin chord never shadows a built-in: a built-in kind's own chord beats yours **on that kind, not elsewhere**.
 - A chord the global tier already binds (undo and redo, or another plugin's global chord) or the search bar reserves (`Mod+F` / `Mod+H`) can't be taken, and the collision **throws before the command is created**.
+- A caret key of the platform the editor runs on (an arrow left or right, a word key, `Home`, `End`, the full list's in [the consumer guide](../consumer-guide.md#rebinding-chords)) never reaches the keymap, so a chord on one registers but never fires there.
 - A handler throw is contained the same way a block command's is.
 
 ```ts
