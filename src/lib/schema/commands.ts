@@ -10,7 +10,7 @@ import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
 import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
-import { eventToChord, registeredChord, type KeyBinding } from './keybindings';
+import { eventToChord, isMotionChord, registeredChord, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
 	overrideDecision,
@@ -364,6 +364,12 @@ export function assertPluginGlobalChordAvailable(rawChord: string): string {
 
 export function registerPluginGlobalBinding(binding: KeyBinding): void {
 	const chord = assertPluginGlobalChordAvailable(binding.chord);
+	if (isMotionChord(chord)) {
+		devWarn(
+			'keybindings',
+			`plugin global chord "${binding.chord}" moves the caret on this platform, so it never fires`
+		);
+	}
 	pluginGlobalKeymap.register(chord, { ...binding, chord });
 }
 
@@ -409,8 +415,10 @@ export function kindKeymap(kind: AnyBlockKind): readonly KeyBinding[] {
 	return [...declared, ...WHOLE_BLOCK_KEYMAP.filter((binding) => !bound.has(binding.chord))];
 }
 
+// The built-in and plugin tiers yield a caret key of the platform to the caret; only a consumer's
+// own `keybindings` entry, resolved before them, takes one.
 function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
-	return findByChord(kindKeymap(kind), chord);
+	return isMotionChord(chord) ? null : findByChord(kindKeymap(kind), chord);
 }
 
 /**
@@ -430,6 +438,7 @@ function overrideTier(
 /** The built-in global keymap, then the plugin-global chords: the shared tail of leaf
  *  resolution and both global-only resolvers. */
 function builtinGlobalBinding(chord: string, activation: PluginActivation): KeyBinding | null {
+	if (isMotionChord(chord)) return null;
 	return findByChord(GLOBAL_KEYMAP, chord) ?? pluginGlobalBinding(chord, activation);
 }
 

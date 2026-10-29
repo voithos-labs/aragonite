@@ -20,7 +20,12 @@ import { keptBlockText, hidesBlockPrefix, type EditedBlock } from '../../../brow
 import { landableRawBounds, visibleWalkText } from '../../../browser/offsets';
 import { markerPrefixOf, hidingScreenOf } from '../../../browser/painted';
 import type { CaretWriter } from '../../../browser/caret-writer';
-import { deleteExtent, type DeleteAnswer, type DeleteSpan } from '../../../caret/delete-extent';
+import {
+	deleteExtent,
+	type DeleteAnswer,
+	type DeleteContext,
+	type DeleteSpan
+} from '../../../caret/delete-extent';
 import type { DeleteDirection, DeleteIntent } from '../../../browser/input';
 import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { recordIslandKeyScan } from '../../../perf/instruments';
@@ -31,7 +36,7 @@ import { resolveEdgeDeletion, type EdgeDeletion } from './construct-edge-delete'
 
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { widgetAtCursor, widgetsIn, type WidgetAtCursor } from './widget-adjacency';
-import type { CaretUnitSource } from '../../../selection/shared-keydown';
+import type { CaretUnitSource } from '../../../caret/caret-motion';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../editable/surface-write';
@@ -124,6 +129,9 @@ export interface EdgePolicyDispatch {
 	/** Takes or enters what a delete of any unit facing `direction` meets at `caret`: a widget by
 	 *  its policy, or, outside reading mode, a replace decoration, selected whole. True when it did. */
 	deleteBeside(caret: number, direction: DeleteDirection): boolean;
+	/** What the delete and the caret keys read at `caret` (`caret/caret-motion.ts`); null while a
+	 *  shown source holds bytes the tree hasn't seen. */
+	unitContext(caret: number): DeleteContext | null;
 }
 
 /** One family of gestures, listed in the order the families outrank each other. A family is not a
@@ -559,13 +567,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		landable: DeleteSpan | null
 	): boolean {
 		const text = display();
-		const span = deleteExtent(intent, {
-			text,
-			caret,
-			bounds: landable ?? { start: 0, end: text.length },
-			lineEdge: (side) => lineEdgeOffset(el, caret, side, deps.caretWriter),
-			visible: intent.unit === 'word' ? visibleWalkText(el) : undefined
-		});
+		const span = deleteExtent(intent, contextAt(el, caret, landable));
 		if (!span) return false;
 		deps.setSnapTarget(null);
 		const written = rangeEdit(span, '');
@@ -580,6 +582,24 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				source: 'delete'
 			});
 		return true;
+	}
+
+	/** What the delete rule and the motion rule read at `caret`: the text as the key's write sees
+	 *  it, the offsets a caret reaches, the visual line's edges and the text as the screen shows it. */
+	function contextAt(el: HTMLElement, caret: number, landable: DeleteSpan | null): DeleteContext {
+		const text = display();
+		return {
+			text,
+			caret,
+			bounds: landable ?? { start: 0, end: text.length },
+			lineEdge: (side) => lineEdgeOffset(el, caret, side, deps.caretWriter),
+			visible: () => visibleWalkText(el)
+		};
+	}
+
+	function unitContext(caret: number): DeleteContext | null {
+		const el = deps.getEl();
+		return el && !deps.isRevealing() ? contextAt(el, caret, landableRawBounds(el)) : null;
 	}
 
 	/** The block as `keptBlockText` reads it once `span` is cut from `text`, the parts the input
@@ -639,5 +659,5 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return { unit: 'character', direction: e.key === 'Backspace' ? 'backward' : 'forward' };
 	}
 
-	return { handleKeydown, arms, inlineUnits, typing, deleteAtCaret, deleteBeside };
+	return { handleKeydown, arms, inlineUnits, typing, deleteAtCaret, deleteBeside, unitContext };
 }

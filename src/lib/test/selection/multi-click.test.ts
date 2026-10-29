@@ -32,6 +32,11 @@ describe('wordSpanAt: the segment a press at an offset takes', () => {
 		expect(span('foo,bar', 4)).toBe('bar');
 	});
 
+	it('a full stop between letters ends a word, as the word delete reads it', () => {
+		expect(span('foo.bar', 1)).toBe('foo');
+		expect(span('foo.bar', 5)).toBe('bar');
+	});
+
 	it('inside whitespace takes the whitespace run, as the browser would', () => {
 		expect(span('a  b', 2)).toBe('  ');
 	});

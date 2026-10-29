@@ -121,6 +121,7 @@ export interface SelectionChangeBridgeDeps {
  *  spot onto it, and drops a caret that appears while an inline widget is selected whole. */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
 	const handler = () => {
+		deps.caretWriter.settleDecidedMotion();
 		const live = readNativeSelection();
 		if (!live) return;
 		const anchorNode = live.anchor.node;
@@ -150,7 +151,9 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		onRoot(document, 'selectionchange', handler),
 		// The browser reports a click's caret on a later task, which a byte typed straight after
 		// beats. On `document` so the block's own click handling refines the caret first.
-		onRoot(document, 'click', handler)
+		onRoot(document, 'click', handler),
+		// A press moves the caret itself, which no caret key's record is about.
+		onRoot(document, 'pointerdown', () => deps.caretWriter.forgetDecidedMotion())
 	);
 }
 

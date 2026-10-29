@@ -24,7 +24,14 @@ import { checkCaretPaints } from '../invariants/caret-paints';
 import { caretSpotOf, visibleTextAtSameOffset } from './caret-spot';
 import { checkWidgetLaysOutInline } from '../invariants/widget-lays-out-inline';
 import { splitsLineEndingPair } from '../core/line-ending-pairs';
-import { hiddenSuffixLength, markerPrefixOf, markerHidingMode, mayBeOffCanonical } from './painted';
+import {
+	hiddenSuffixLength,
+	markerPrefixOf,
+	markerHidingMode,
+	mayBeOffCanonical,
+	widgetTouching
+} from './painted';
+import { checkMotionDecided } from '../invariants/motion-decided';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 
 /** How a caret write treats its offset: `reachable` moves it onto a position the mode lets a caret
@@ -39,8 +46,8 @@ export type CaretClamp = 'reachable' | 'exact';
  */
 export interface CaretWriter {
 	/** A collapsed caret at raw `raw` in `el`, past a marker prefix (Chromium bounces one before
-	 *  it). Where `declinesCaret` takes the caret (reading mode) it drops the selection instead. */
-	placeCaretAtRaw(el: HTMLElement, raw: number, placement: { clamp: CaretClamp }): boolean;
+	 *  it); reading mode (`declinesCaret`) drops the selection instead. */
+	placeCaretAtRaw(el: HTMLElement, raw: number, placement: CaretPlacement): boolean;
 	/** Raw `[anchor, focus]` in `el`, backward when the focus comes first; an endpoint at raw 0
 	 *  behind a marker prefix lands after the span, as a caret does. */
 	selectRawRange(el: HTMLElement, anchor: number, focus: number): boolean;
@@ -68,6 +75,20 @@ export interface CaretWriter {
 	focusEndsLine(): boolean | null;
 	/** Drops the native selection: a gap caret, a widget or a whole-block range holds none. */
 	clear(): void;
+	/** A caret key the editor decided wrote its selection; a different one at the next
+	 *  `selectionchange` or keydown means the browser's move ran too (G1.163). */
+	noteDecidedMotion(): void;
+	/** Checks and ends the decided key's record; the `selectionchange` and the next keydown call it. */
+	settleDecidedMotion(): void;
+	/** Ends the record unchecked, for a press, which moves the caret itself. */
+	forgetDecidedMotion(): void;
+}
+
+export interface CaretPlacement {
+	clamp: CaretClamp;
+	/** Writes a spot that ends one line and opens the next (text before a widget opening a wrapped
+	 *  line) on the later line. */
+	line?: 'later';
 }
 
 /** `declinesCaret` answers true where no caret may stand (reading mode), noting the point if it
@@ -78,6 +99,8 @@ export function createCaretWriter(
 ): CaretWriter {
 	// The editor's own caret stands wherever it put it; only a caret the browser moved is moved.
 	let written: DomPosition | null = null;
+	// The selection a decided caret key wrote, as the browser holds it, until it is checked.
+	let decided: { anchor: DomPosition; focus: DomPosition } | null = null;
 
 	// A caret goes only where something shows it (`docs/design/caret-placement.md` § 3).
 	function writeSelection(
@@ -115,23 +138,30 @@ export function createCaretWriter(
 		}
 		written =
 			sel.isCollapsed && sel.focusNode ? { node: sel.focusNode, offset: sel.focusOffset } : null;
+		// A later write of the editor's own supersedes a decided key's record.
+		decided = null;
 		onWrite();
 		return true;
 	}
 
-	// The browser finds the line's edge; `writeSelection` checks the landing and repaints.
+	// The browser finds the line's edge and keeps which side of a soft wrap it shows the caret on,
+	// which writing its landing again would drop, so the landing is only checked and recorded.
 	function modifyToLineEdge(alter: 'move' | 'extend', side: 'start' | 'end'): boolean {
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0) return false;
 		sel.modify(alter, side === 'start' ? 'left' : 'right', 'lineboundary');
 		const { anchorNode, focusNode } = sel;
 		if (!anchorNode || !focusNode) return false;
+		const anchor = { node: anchorNode, offset: sel.anchorOffset };
 		const focus = { node: focusNode, offset: sel.focusOffset };
-		return writeSelection(
-			alter === 'move' ? focus : { node: anchorNode, offset: sel.anchorOffset },
-			focus,
-			editableHolding(focusNode)
-		);
+		// A landing the editor never writes (inside a CRLF pair, past a hidden run) moves to its spot.
+		const el = editableHolding(focusNode);
+		const spot = el && canonicalCaretPoint(el, focus.node, focus.offset);
+		if (spot) return writeSelection(sel.isCollapsed ? spot : anchor, spot, el);
+		written = sel.isCollapsed ? focus : null;
+		decided = null;
+		onWrite();
+		return true;
 	}
 
 	// To the line's end and back: a caret the move left alone already ended its line. A range isn't
@@ -161,17 +191,19 @@ export function createCaretWriter(
 		if (!sel) return;
 		sel.removeAllRanges();
 		written = null;
+		decided = null;
 		onWrite();
 	}
 
 	return {
-		placeCaretAtRaw(el, raw, { clamp }) {
+		placeCaretAtRaw(el, raw, { clamp, line }) {
 			if (declinesCaret(el, raw)) {
 				clear();
 				return false;
 			}
 			const at = clamp === 'reachable' ? clampToLandableRaw(el, Math.max(0, raw)) : raw;
-			const point = caretPointAtRaw(el, at);
+			const text = caretPointAtRaw(el, at);
+			const point = (line === 'later' && beforeWidgetOf(el, text)) || text;
 			return writeSelection(point, point, el);
 		},
 		selectRawRange,
@@ -221,8 +253,39 @@ export function createCaretWriter(
 			return modifyToLineEdge('extend', side);
 		},
 		focusEndsLine,
-		clear
+		clear,
+		noteDecidedMotion() {
+			const sel = window.getSelection();
+			decided =
+				sel?.anchorNode && sel.focusNode
+					? {
+							anchor: { node: sel.anchorNode, offset: sel.anchorOffset },
+							focus: { node: sel.focusNode, offset: sel.focusOffset }
+						}
+					: null;
+		},
+		forgetDecidedMotion() {
+			decided = null;
+		},
+		settleDecidedMotion() {
+			if (!decided) return;
+			const wrote = decided;
+			decided = null;
+			assertInvariant('caret-motion-decided', () =>
+				checkMotionDecided(wrote, window.getSelection())
+			);
+		}
 	};
+}
+
+/** The element position before the widget a text position ends at, the same raw offset on the
+ *  widget's line; null where no widget follows. */
+function beforeWidgetOf(el: HTMLElement, at: DomPosition): DomPosition | null {
+	if (!(at.node instanceof Text) || at.offset !== at.node.length) return null;
+	const widget = widgetTouching(el, at.node, at.offset);
+	const parent = widget?.parentNode;
+	if (!widget || !parent) return null;
+	return { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, widget) };
 }
 
 /** The focused element holding `node`, for a write that names no element: a caret's editable. */

@@ -5,7 +5,7 @@
  * only for a cluster or word longer than it.
  */
 
-import { graphemeSegmenter, wordSegmenter } from '../core/text-units';
+import { graphemeSegmenter, hasWordSegmenter, wordSegments } from '../core/text-units';
 import { recordDeleteWindow } from '../perf/instruments';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
 import { charsEndingBy, visibleIndexAt, type VisibleText } from '../browser/offsets';
@@ -58,8 +58,9 @@ export interface DeleteContext {
 	bounds: DeleteSpan;
 	/** The raw offset at the `side` edge of the caret's visual line; null where nothing is laid out. */
 	lineEdge?: (side: 'start' | 'end') => number | null;
-	/** The text as the screen shows it (hidden markers left out, a widget one character), for words. */
-	visible?: VisibleText;
+	/** The text as the screen shows it (hidden markers left out, a widget one character), read only
+	 *  for a word, since it walks the block. */
+	visible?: () => VisibleText;
 }
 
 /** The raw span a delete of `intent` takes at the caret; null where there's nothing to take. A word
@@ -96,7 +97,7 @@ export function wordExtent(
 	bounds: DeleteSpan,
 	reach: ForwardWordReach
 ): DeleteSpan | null {
-	if (!wordSegmenter()) return null;
+	if (!hasWordSegmenter()) return null;
 	if (direction === 'backward') {
 		if (caret <= bounds.start || isLineBreak(text[caret - 1])) return null;
 		return { start: wordStartBefore(text, caret, bounds.start), end: caret };
@@ -106,7 +107,8 @@ export function wordExtent(
 }
 
 function wordSpan(context: DeleteContext, direction: DeleteDirection): DeleteSpan | null {
-	const { text, caret, bounds, visible } = context;
+	const { text, caret, bounds } = context;
+	const visible = context.visible?.();
 	if (!visible) return wordExtent(text, caret, direction, bounds, forwardWordReach());
 	const at = visibleIndexAt(visible, caret);
 	const within = {
@@ -189,7 +191,7 @@ function runEndAfter(window: string, reach: ForwardWordReach): number {
 }
 
 // `wordExtent` returns before any read where the platform has no segmenter.
-const segmentsOf = (window: string): Intl.Segments => wordSegmenter()!.segment(window);
+const segmentsOf = (window: string) => wordSegments(window)!;
 
 const isSpace = (char: string | undefined) => char !== undefined && /[^\S\r\n]/.test(char);
 const isLineBreak = (char: string | undefined) => char === '\n' || char === '\r';

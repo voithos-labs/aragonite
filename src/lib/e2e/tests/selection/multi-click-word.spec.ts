@@ -115,6 +115,13 @@ const ROWS: WordRow[] = [
 		span: [5, 15]
 	},
 	{
+		name: 'source: a full stop between letters ends a word on every engine',
+		mode: 'source',
+		doc: 'call foo.bar now\n',
+		needle: 'bar',
+		span: [9, 12]
+	},
+	{
 		name: 'source: shown asterisks split words',
 		mode: 'source',
 		doc: 'a**b**c\n',

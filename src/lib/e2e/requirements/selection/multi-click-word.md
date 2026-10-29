@@ -26,6 +26,8 @@ document a double-click and Backspace leaves.
 - double-click a word inside `_ital_` in source mode: `_ital_`, since the underscores are on
   screen and `_` is a word character, as in a code editor
 - double-click a `snake_case` identifier in source mode: the whole identifier
+- double-click `bar` in `call foo.bar now`: just `bar`, on every engine, where Firefox's and
+  WebKit's segmenters alone would take `foo.bar` (the word delete's rule, `core/text-units.ts`)
 - double-click `b` in source `a**b**c`: `b`, since shown asterisks split words
 - double-click the word on either side of an entity, a formula or a picture touching it, in
   source and live mode: the word alone, with the widget left outside the range

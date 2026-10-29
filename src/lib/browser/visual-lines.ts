@@ -5,11 +5,11 @@
  */
 
 import { domDescendants } from './dom-descendants';
-import { caretAnchorAfter, isBlockLineText } from './painted';
+import { caretAnchorAfter, isBlockLineText, widgetTouching } from './painted';
 import { rawRangeToDomRange } from './offsets';
 import { rawSelectionFocus, readNativeSelection } from './selection-read';
 import type { CaretWriter } from './caret-writer';
-import { offsetFromViewportPoint } from './point';
+import { caretOffsetAtPoint, offsetFromViewportPoint } from './point';
 
 // A generic line box for a `normal` computed `lineHeight`, which parses to NaN.
 const FALLBACK_LINE_HEIGHT = 20;
@@ -118,8 +118,58 @@ export function lineEdgeOffset(
 	const y = (caret.top + caret.bottom) / 2;
 	const line = lineBoxNearest(el, y);
 	if (!line) return null;
+	// A point on a widget's box resolves to either side of it by engine, so a widget at the line's
+	// edge decides that edge.
+	const edgeWidget = widgetAtLineEdge(el, line, side);
+	if (edgeWidget !== null) return edgeWidget;
 	// Half a pixel inside the line's box, so the point resolves to its first or last offset.
 	return offsetFromViewportPoint(el, side === 'start' ? line.left + 0.5 : line.right - 0.5, y);
+}
+
+/** The raw edge of the widget or replace decoration that opens or closes `line` in `el`, null with
+ *  none. A `<br>`'s far side is the next line's start, so it never closes one. */
+function widgetAtLineEdge(el: HTMLElement, line: LineBox, side: 'start' | 'end'): number | null {
+	for (const shell of el.querySelectorAll<HTMLElement>(WIDGET_SHELLS)) {
+		const rects = shell.getClientRects();
+		const box = side === 'start' ? rects[0] : rects[rects.length - 1];
+		if (!box || box.bottom <= line.top || box.top >= line.bottom) continue;
+		if (side === 'start' ? box.left > line.left + 1 : box.right < line.right - 1) continue;
+		if (side === 'end' && shell.querySelector('br')) continue;
+		const edge = Number(side === 'start' ? shell.dataset.sourceStart : shell.dataset.sourceEnd);
+		if (Number.isInteger(edge)) return edge;
+	}
+	return null;
+}
+
+/** The elements a widget or a replace decoration draws in a block, each naming its raw span. */
+export const WIDGET_SHELLS = '[data-inline-widget], [data-decoration-island]';
+
+/** Where an arrow lands from a text position touching a widget on another line, else null:
+ *  Chromium reads that spot on the widget's line, so its own arrow there lands a line off. */
+export function lineStepBesideWidget(el: HTMLElement, direction: 'up' | 'down'): number | null {
+	const live = readNativeSelection();
+	const node = live?.collapsed ? live.focus.node : null;
+	if (!(node instanceof Text)) return null;
+	const widget = widgetTouching(el, node, live!.focus.offset);
+	const caret = widget && caretRectAt(el, node, live!.focus.offset);
+	if (!widget || !caret) return null;
+	const after = live!.focus.offset === node.length;
+	const rects = widget.getClientRects();
+	const box = after ? rects[0] : rects[rects.length - 1];
+	if (!box || (box.top < caret.bottom && box.bottom > caret.top)) return null;
+	const towardWidget = after === (direction === 'down');
+	const half = lineHeightOf(el) / 2;
+	const y = towardWidget
+		? (box.top + box.bottom) / 2
+		: direction === 'up'
+			? caret.top - half
+			: caret.bottom + half;
+	const raw = caretOffsetAtPoint(el, caret.left, y);
+	if (raw === null || !towardWidget) return raw;
+	const { sourceStart, sourceEnd } = (widget as HTMLElement).dataset;
+	const [start, end] = [Number(sourceStart), Number(sourceEnd)];
+	// The widget's near edge is the spot the caret leaves, so a column over it takes the far one.
+	return raw >= start && raw <= end ? (after ? end : start) : raw;
 }
 
 /** The box of what `el` draws on the visual line nearest `y`, read as `lineEndNearest` reads it. */
@@ -127,16 +177,24 @@ export function lineBoxNearest(el: HTMLElement, y: number): LineBox | null {
 	const range = document.createRange();
 	range.selectNodeContents(el);
 	const lines: LineBox[] = [];
+	// The bottom of the lowest line but the last: a rect starting below it can overlap only the last
+	// line, so a block's rects in document order join their lines without a scan.
+	let bottomBeforeLast = -Infinity;
 	for (const rect of range.getClientRects()) {
 		if (rect.width === 0 || rect.height === 0) continue;
-		const line = lines.find((each) => rect.top < each.bottom && rect.bottom > each.top);
+		const overlaps = (each: LineBox) => rect.top < each.bottom && rect.bottom > each.top;
+		const last = lines.at(-1);
+		const line =
+			rect.top >= bottomBeforeLast ? (last && overlaps(last) ? last : null) : lines.find(overlaps);
 		if (!line) {
+			if (last) bottomBeforeLast = Math.max(bottomBeforeLast, last.bottom);
 			lines.push({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right });
 		} else {
 			line.top = Math.min(line.top, rect.top);
 			line.bottom = Math.max(line.bottom, rect.bottom);
 			line.left = Math.min(line.left, rect.left);
 			line.right = Math.max(line.right, rect.right);
+			if (line !== last) bottomBeforeLast = Math.max(bottomBeforeLast, line.bottom);
 		}
 	}
 	const distance = (line: LineBox) =>
@@ -234,6 +292,9 @@ export function softWrapAt(
 ): { before: DOMRect; after: DOMRect } | null {
 	const node = at.startContainer;
 	if (!(node instanceof Text)) return null;
+	// A caret touching a widget is on the line its DOM position names (a text position the text's,
+	// an element position the widget's), which no engine agrees on when asked.
+	if (widgetTouching(surface, node, at.startOffset)) return null;
 	const first = nearestLetter(node, at.startOffset, surface, false);
 	if (!first || first.node.data[first.at] === '\n') return null;
 	const before = charRect(first.node, first.at);
@@ -322,7 +383,10 @@ function caretLineBox(el: HTMLElement, raw: number, lineRead: LineRead): CaretRe
 		const atWrap = focusCaretAtWrap(el, focus, lineRead);
 		if (atWrap) return atWrap;
 	}
-	return caretRectAtRaw(el, raw);
+	const at = rawRangeToDomRange(el, raw, raw);
+	if (!at) return null;
+	// Beside a widget no text holds the caret, so it borrows the widget's box.
+	return caretRectAt(el, at.startContainer, at.startOffset) ?? neighbourCaretRect(at);
 }
 
 /** The first rect that can position a caret: the leading client rect when it has real

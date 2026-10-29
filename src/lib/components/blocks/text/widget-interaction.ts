@@ -173,8 +173,6 @@ interface CaretMotion {
 	/** The widget edge the key moves toward. */
 	side: 'start' | 'end';
 	extend: boolean;
-	/** The Cmd+Arrow line-edge spelling, which the browser moves for on macOS only. */
-	lineArrow: boolean;
 }
 
 /** The caret motion a key on a selected widget asks for, or null for any other key; Shift+Left and
@@ -182,24 +180,15 @@ interface CaretMotion {
 function caretMotionOf(e: KeyboardEvent): CaretMotion | null {
 	const edge = caretEdgeKey(e);
 	if (edge) {
-		const line = edge.to === 'line';
-		return {
-			side: edge.side,
-			extend: edge.to === 'doc' || (line && edge.extend),
-			lineArrow: line && edge.arrow
-		};
+		return { side: edge.side, extend: edge.to === 'doc' || (edge.to === 'line' && edge.extend) };
 	}
 	if (hasModifier(e)) return null;
 	const page = pageKey(e);
 	if (page) {
-		return {
-			side: page.direction === 'up' ? 'start' : 'end',
-			extend: page.extend,
-			lineArrow: false
-		};
+		return { side: page.direction === 'up' ? 'start' : 'end', extend: page.extend };
 	}
 	const side = e.key === 'ArrowUp' ? 'start' : e.key === 'ArrowDown' ? 'end' : null;
-	return side && { side, extend: e.shiftKey, lineArrow: false };
+	return side && { side, extend: e.shiftKey };
 }
 
 /** What {@link replaceSelectedWidget} reads. */
@@ -644,14 +633,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			return true;
 		}
 		const motion = caretMotionOf(e);
+		// The key goes on to the shared keydown, which moves the caret from the widget's edge.
 		if (motion) {
 			leaveWidgetBy(motion, widget);
-			// The browser moves for Cmd+Arrow on macOS only, so the line edge is placed here.
-			if (motion.lineArrow) {
-				e.preventDefault();
-				if (motion.extend) deps.caretWriter.extendToLineEdge(motion.side);
-				else deps.caretWriter.moveCaretToLineEdge(motion.side);
-			}
 			return false;
 		}
 		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:

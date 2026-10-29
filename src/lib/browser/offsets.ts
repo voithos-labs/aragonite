@@ -518,32 +518,6 @@ export function clampToLandableRaw(el: HTMLElement, offset: number): number {
 	return Math.min(Math.max(offset, bounds.start), bounds.end);
 }
 
-/** Whether the first caret position abuts an opaque widget rather than sitting in text: no text
- *  node holds it, so the browser's Home skips the widget and the editor places the caret itself. */
-export function landableStartAbutsIsland(container: ParentNode): boolean {
-	for (const seg of landingSegments(container, markerHidingMode(container))) {
-		if (seg.len === 0) continue;
-		if (seg.kind === 'opaque') {
-			if (seg.hidden) continue;
-			return true;
-		}
-		if (inMarkerPrefix(seg.node, container)) continue;
-		return false;
-	}
-	return false;
-}
-
-/** {@link landableStartAbutsIsland} at the other end: the last caret position abuts an opaque
- *  widget, which the browser's Mod+End stops short of. */
-export function landableEndAbutsIsland(container: ParentNode): boolean {
-	let island = false;
-	for (const seg of landingSegments(container, markerHidingMode(container))) {
-		if (seg.len === 0 || (seg.kind === 'opaque' && seg.hidden)) continue;
-		island = seg.kind === 'opaque';
-	}
-	return island;
-}
-
 function snapOutOfRun(
 	container: ParentNode,
 	offset: number,

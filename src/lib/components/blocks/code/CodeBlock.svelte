@@ -4,7 +4,11 @@
 	import type { NodeView } from '../../../core/node-views';
 	import type { CodeRunRequest } from '../../../host-hooks';
 	import { asRawOffset } from '../../../core/coordinate-spaces';
-	import { deleteExtent, type DeleteAnswer } from '../../../caret/delete-extent';
+	import {
+		deleteExtent,
+		type DeleteAnswer,
+		type DeleteContext
+	} from '../../../caret/delete-extent';
 	import {
 		decidedDelete,
 		isDeleteInput,
@@ -108,6 +112,7 @@
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret: deleteCodeAt,
+		unitContext: codeUnitContext,
 		commandTarget: () => keyTarget,
 		handleDeclinedDelete: (e) => void guardFenceRangedEdit(e),
 		removeSelection: (range) => removeRange(range, 'selection-removal') ?? false
@@ -559,17 +564,24 @@
 			void writeCode(text.slice(0, caret - 1) + text.slice(caret + 1), caret - 1, 'pair-delete');
 			return 'taken';
 		}
-		const unit = deleteExtent(intent, {
-			text,
-			caret,
-			bounds: { start: 0, end: text.length },
-			lineEdge: (side) => (el ? lineEdgeOffset(el, caret, side, caretWriter) : null)
-		});
+		const unit = deleteExtent(intent, codeUnitContext(caret));
 		const span = unit && editSpan(node, unit, fenceLinesShown);
 		const edit = span && computeRangedEdit(text, span, '');
 		if (!edit) return 'at-edge';
 		void writeCode(edit.newText, edit.newCursor, 'delete');
 		return 'taken';
+	}
+
+	/** What the code body's delete and its caret keys read at `caret`: the whole raw text, fences
+	 *  included, which a write clamps off the lines the mode hides. */
+	function codeUnitContext(caret: number): DeleteContext {
+		const text = getDisplayText();
+		return {
+			text,
+			caret,
+			bounds: { start: 0, end: text.length },
+			lineEdge: (side) => (el ? lineEdgeOffset(el, caret, side, caretWriter) : null)
+		};
 	}
 
 	function codeDelete(): boolean {

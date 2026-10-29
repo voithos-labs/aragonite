@@ -221,6 +221,7 @@ unguarded.
 | G4.272 | Every child process a file under `src/lib` spawns carries a timeout of its own                   | L       |
 | G4.273 | A keydown handler that runs a command asks `imeOwnsKey` first                                    | L       |
 | G4.274 | A typed insert or a typed key is read only where the editor decides where it lands               | L       |
+| G4.275 | Words are cut by one rule, read only through `wordSegments`                                      | L       |
 
 ### The entries
 
@@ -1443,3 +1444,10 @@ The bundled plugins ask too, through the `imeOwnsKey` the plugin entry point exp
 each with its reason: the delimiter auto-pair, the range edits (live, across blocks, over a widget),
 the caret hosts, the composition tracker, a code body and a painted source, the selected widget's
 splice, the open line and the image dialog's own fields. `lint/typed-insert-home.test.ts`.
+
+**G4.275 · One word rule.** Engines' word segmenters disagree whether a full stop or a colon between
+two letters joins them (Chromium cuts `foo.bar`, Firefox and WebKit join it) and which segments are
+words (Firefox calls some Japanese ones none), so `Intl.Segmenter` is read only in
+`core/text-units.ts`, whose `wordSegments` always cuts there and calls a segment a word when it holds
+a letter or a digit. The word delete, the word keys and the double-click read words through it.
+`lint/file-rules.test.ts`.
