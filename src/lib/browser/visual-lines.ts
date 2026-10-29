@@ -176,16 +176,24 @@ export function lineBoxNearest(el: HTMLElement, y: number): LineBox | null {
 	const range = document.createRange();
 	range.selectNodeContents(el);
 	const lines: LineBox[] = [];
+	// The bottom of the lowest line but the last: a rect starting below it can overlap only the last
+	// line, so a block's rects in document order join their lines without a scan.
+	let bottomBeforeLast = -Infinity;
 	for (const rect of range.getClientRects()) {
 		if (rect.width === 0 || rect.height === 0) continue;
-		const line = lines.find((each) => rect.top < each.bottom && rect.bottom > each.top);
+		const overlaps = (each: LineBox) => rect.top < each.bottom && rect.bottom > each.top;
+		const last = lines.at(-1);
+		const line =
+			rect.top >= bottomBeforeLast ? (last && overlaps(last) ? last : null) : lines.find(overlaps);
 		if (!line) {
+			if (last) bottomBeforeLast = Math.max(bottomBeforeLast, last.bottom);
 			lines.push({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right });
 		} else {
 			line.top = Math.min(line.top, rect.top);
 			line.bottom = Math.max(line.bottom, rect.bottom);
 			line.left = Math.min(line.left, rect.left);
 			line.right = Math.max(line.right, rect.right);
+			if (line !== last) bottomBeforeLast = Math.max(bottomBeforeLast, line.bottom);
 		}
 	}
 	const distance = (line: LineBox) =>
