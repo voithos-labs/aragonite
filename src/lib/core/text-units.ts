@@ -41,39 +41,32 @@ export function hasWordSegmenter(): boolean {
 	return wordSegmenter() !== null;
 }
 
-/** `text` cut into words, the same on every engine: engines' segmenters disagree whether a `.` or a
- *  `:` between two letters joins them (`foo.bar`), so it never does, as in Chromium and Word. */
+/** `text` cut into words the same on every engine: a `.` or `:` between two letters always ends a
+ *  word (`foo.bar`), and any segment with a letter or digit is a word, whatever the engine says. */
 export function wordSegments(text: string): WordSegments | null {
-	const segmenter = wordSegmenter();
-	if (!segmenter) return null;
-	const cut: WordSegment[] = [];
-	for (const { index, segment, isWordLike } of segmenter.segment(text)) {
-		if (isWordLike && JOINER.test(segment)) cutAtJoiners(segment, index, cut);
-		else cut.push({ index, segment, isWordLike: isWordLike === true });
-	}
+	const segments = wordSegmenter()?.segment(text);
+	if (!segments) return null;
 	return {
 		containing: (at) => {
-			if (at < 0 || at >= text.length) return undefined;
-			let low = 0;
-			let high = cut.length - 1;
-			while (low < high) {
-				const mid = (low + high + 1) >> 1;
-				if (cut[mid].index <= at) low = mid;
-				else high = mid - 1;
-			}
-			return cut[low];
+			const found = segments.containing(at);
+			if (!found) return undefined;
+			const { index, segment } = found;
+			if (!WORD_LIKE.test(segment)) return { index, segment, isWordLike: false };
+			return piecesOf(segment, index).find((piece) => at < piece.index + piece.segment.length);
 		}
 	};
 }
 
-// A full stop or colon, ASCII or fullwidth, which some engines read as joining two letters.
-const JOINER = /[.:\uFF0E\uFF1A]/;
+const WORD_LIKE = /[\p{L}\p{Nd}\p{Nl}]/u;
+// A full stop or colon, ASCII, fullwidth or small, which some engines read as joining two letters.
+const JOINER = /[.:\uFE55\uFF0E\uFF1A]/;
 const DIGIT = /\p{Nd}/u;
 const MARK = /\p{M}/u;
 
 /** A word segment cut at each joiner not between two digits (`3.14` stays one), the joiner and any
- *  combining marks after it a segment of their own, appended to `out`. */
-function cutAtJoiners(word: string, start: number, out: WordSegment[]): void {
+ *  combining marks after it a piece of their own. */
+function piecesOf(word: string, start: number): WordSegment[] {
+	const pieces: string[] = [];
 	let from = 0;
 	for (let i = 0; i < word.length; i++) {
 		if (!JOINER.test(word[i]) || (DIGIT.test(word[i - 1] ?? '') && DIGIT.test(word[i + 1] ?? ''))) {
@@ -81,13 +74,19 @@ function cutAtJoiners(word: string, start: number, out: WordSegment[]): void {
 		}
 		let end = i + 1;
 		while (end < word.length && MARK.test(word[end])) end++;
-		if (i > from) out.push({ index: start + from, segment: word.slice(from, i), isWordLike: true });
-		out.push({ index: start + i, segment: word.slice(i, end), isWordLike: false });
+		pieces.push(word.slice(from, i), word.slice(i, end));
 		from = end;
 		i = end - 1;
 	}
-	if (from < word.length)
-		out.push({ index: start + from, segment: word.slice(from), isWordLike: true });
+	pieces.push(word.slice(from));
+	let index = start;
+	return pieces
+		.filter((piece) => piece.length > 0)
+		.map((segment) => {
+			const piece = { index, segment, isWordLike: WORD_LIKE.test(segment) };
+			index += segment.length;
+			return piece;
+		});
 }
 
 /** Whether `text` is empty or one user-perceived character, a code point apiece where the platform

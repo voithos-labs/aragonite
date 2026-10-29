@@ -1446,6 +1446,8 @@ the caret hosts, the composition tracker, a code body and a painted source, the 
 splice, the open line and the image dialog's own fields. `lint/typed-insert-home.test.ts`.
 
 **G4.275 · One word rule.** Engines' word segmenters disagree whether a full stop or a colon between
-two letters joins them (Chromium cuts `foo.bar`, Firefox and WebKit join it), so `Intl.Segmenter`
-is read only in `core/text-units.ts`, whose `wordSegments` always cuts there. The word delete and
-the double-click read words through it. `lint/file-rules.test.ts`.
+two letters joins them (Chromium cuts `foo.bar`, Firefox and WebKit join it) and which segments are
+words (Firefox calls some Japanese ones none), so `Intl.Segmenter` is read only in
+`core/text-units.ts`, whose `wordSegments` always cuts there and calls a segment a word when it holds
+a letter or a digit. The word delete, the word keys and the double-click read words through it.
+`lint/file-rules.test.ts`.

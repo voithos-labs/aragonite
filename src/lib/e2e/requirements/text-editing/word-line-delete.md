@@ -18,6 +18,9 @@ its own, and a widget is one character.
   leaves `foo.baz`
   - Miss-analysis: every row ran words without punctuation inside them, so nothing showed Firefox's
     and WebKit's segmenters joining `foo.bar` where Chromium's cuts it
+- a Japanese word is a word on every engine: word Backspace after `日本語.` takes only the `.`
+  - Miss-analysis: no row deleted CJK text, so nothing showed Firefox's segmenter calling `日本語`
+    no word after a full stop, which ran it into the punctuation the delete takes
 - `a &copy;`, word Backspace after the entity: the entity goes whole, as Backspace takes it
 - live mode, each of these leaves the same bytes as selecting the same visible text with
   Shift+ArrowLeft and pressing Delete:

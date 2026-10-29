@@ -34,6 +34,14 @@ describe('wordSegments', () => {
 		expect(cut('e.g.')).toEqual(['e*', '.', 'g*', '.']);
 		expect(cut('a\uFF0Eb')).toEqual(['a*', '\uFF0E', 'b*']);
 		expect(cut('a.\u0301b')).toEqual(['a*', '.\u0301', 'b*']);
+		// Chromium and Firefox cut a small colon, WebKit and Node join it.
+		expect(cut('a\ufe55b')).toEqual(['a*', '\ufe55', 'b*']);
+	});
+
+	// Firefox calls `〆` no word and `_` one, the other engines the reverse, and Node `々` none.
+	it('a word is any segment holding a letter or a digit, whatever the engine calls it', () => {
+		expect(cut('\u3005 _ \u3006')).toEqual(['\u3005*', ' ', '_', ' ', '\u3006*']);
+		expect(cut('x\u00b2')).toEqual(['x*', '\u00b2']);
 	});
 
 	it('keeps a number, an apostrophe and a middle dot inside their word', () => {

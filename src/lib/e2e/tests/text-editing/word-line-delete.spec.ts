@@ -71,6 +71,14 @@ test.describe('a word delete by key', () => {
 		await expectSource(editor, `.bar, baz\n\n${code.replace('foo.bar baz', 'foo.baz')}`);
 	});
 
+	// Firefox's segmenter calls `日本語` no word here, so it ran into the full stop's run.
+	test('a Japanese word is a word on every engine', async ({ page }) => {
+		await editor.loadContent('日本語.テキスト\n');
+		await editor.focusBlockAtPath([0], 4);
+		await page.keyboard.press(`${WORD_MODIFIER}+Backspace`);
+		await expectSource(editor, '日本語テキスト\n');
+	});
+
 	test('an entity before the caret goes whole, as Backspace takes it', async ({ page }) => {
 		await editor.loadContent('a &copy;\n');
 		await editor.focusBlockAtPath([0], 8);
