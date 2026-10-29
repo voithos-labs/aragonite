@@ -30,6 +30,12 @@ the word's end.
 - a word key over a range in one block moves from the range's edge on its side (Left from its
   start, Right from its end), the way a plain arrow collapses it
 - at the bound a word key faces, the key leaves the block as a plain arrow would
+- on a Mac (faked off one by the page's platform), Option+Right and Option+Left in a table cell move
+  by word (`| a b.c | d |`: from 1 to 3, from 5 to 4) and Option+Shift+Right selects to 3, leaving
+  the columns as they were; a host's own `keybindings` entry binding Option+Right to the column move
+  still moves the column
+  - Miss-analysis: the cell's column chords took Option+Arrow, a Mac's word key, and no row read a
+    cell's keymap against the caret keys of a Mac; only the macOS run saw it
 - End where WebKit and Firefox park the caret between `\r` and `\n`, then Shift+ArrowRight: the
   selection runs across the pair
 

@@ -611,6 +611,31 @@ test.describe('on a Mac, Option+Arrow in a table cell moves by word, not the col
 			expect(await editor.bridge.getSource()).toBe(source);
 		});
 	}
+
+	// The host's own keymap beats the editor's, as a rebound Backspace does.
+	test('a host binding Option+Right to the column move still moves the column', async ({
+		page
+	}) => {
+		await page.addInitScript(() =>
+			Object.defineProperty(Navigator.prototype, 'platform', { get: () => 'MacIntel' })
+		);
+		const editor = await open(page, {
+			name: '',
+			source,
+			path: [0, 0, 0],
+			at: 1,
+			gesture: 'wordBack',
+			lands: []
+		});
+		await page.evaluate(() =>
+			(window as any).__test.setKeybindings([
+				{ kind: 'tableCell', chord: 'Alt+ArrowRight', command: 'table.moveColumnRight' }
+			])
+		);
+		await editor.focusBlockAtPath([0, 0, 0], 1);
+		await page.keyboard.press('Alt+ArrowRight');
+		await expect.poll(() => editor.bridge.getSource()).toBe('| d | a b.c |\n| - | - |\n');
+	});
 });
 
 // A key that moves nothing fires no `selectionchange`, so its record is still open when a click
