@@ -827,9 +827,7 @@ const RULES: FileRule[] = [
 			'src/lib/components/blocks/text/inline-commands.ts':
 				'Edit link puts the caret at a construct’s text end, a CST offset (unbranded model value)',
 			'src/lib/components/blocks/text/typed-input.ts':
-				'the auto-pair’s caret, counted in the block’s displayed text, enters cursor IO',
-			'src/lib/selection/multi-click.ts':
-				'the point probe’s raw offsets and the segmenter’s walk-text indices (both unbranded) cross the walk in each direction'
+				'the auto-pair’s caret, counted in the block’s displayed text, enters cursor IO'
 		},
 		reason:
 			'a boundary conversion is a new declared entry into a coordinate space: add the file with the reason its plain value cannot be branded yet',

@@ -1,19 +1,18 @@
 /**
  * Double and triple click: the second click of a run selects the word under it, the third the
  * whole block's text, and a drag from either grows by that unit. The editor owns the gesture
- * from the second click so the browser paints nothing of its own: its word rule varies by
- * platform, it walks into non-editable widgets, and a marker here never joins a word.
+ * from the second click because the browser's word rule varies by platform and walks into widgets.
+ * The word is a segment of the text the word delete reads, so the two share word boundaries.
  */
 
-import { asDomTextOffset } from '../core/coordinate-spaces';
 import { wordSegmenter } from '../core/text-units';
 import { caretOffsetAtPoint } from '../browser/point';
 import type { UserScrollport } from '../windowing/scroll-ancestors';
 import {
 	containerDomTextLength,
-	maskedWalkText,
 	rawOfWalkOffset,
-	walkOffsetOfRaw
+	visibleIndexAt,
+	visibleWalkText
 } from '../browser/offsets';
 import { isWholeBlockInputProxy } from './whole-block-input';
 import type { BlockElLookup } from '../caret/block-el-lookup';
@@ -62,12 +61,10 @@ function spanAround(
 	if (granularity === 'block') {
 		return { start: 0, end: rawOfWalkOffset(surface, containerDomTextLength(surface)) };
 	}
-	const span = wordSpanAt(maskedWalkText(surface), walkOffsetOfRaw(surface, rawOffset));
+	const visible = visibleWalkText(surface);
+	const span = wordSpanAt(visible.text, visibleIndexAt(visible, rawOffset));
 	if (!span) return null;
-	return {
-		start: rawOfWalkOffset(surface, asDomTextOffset(span.start)),
-		end: rawOfWalkOffset(surface, asDomTextOffset(span.end))
-	};
+	return { start: visible.rawStart[span.start], end: visible.rawEnd[span.end - 1] };
 }
 
 /** The unit a click count selects; a run stays at the block unit past three clicks. */
