@@ -213,6 +213,21 @@ export function isAtomicInlineWidget(node: Node): boolean {
 	return node.nodeType === Node.ELEMENT_NODE && (node as Element).hasAttribute(WIDGET_ATTR);
 }
 
+/** Whether the first thing past the end of text `node` under `root` is an atomic inline widget,
+ *  climbing out of the spans that close there and over empty text. */
+export function widgetFollowsText(root: ParentNode, node: Text): boolean {
+	let at: Node = node;
+	for (;;) {
+		let next = at.nextSibling;
+		while (next?.nodeType === Node.TEXT_NODE && (next.textContent?.length ?? 0) === 0) {
+			next = next.nextSibling;
+		}
+		if (next) return isAtomicInlineWidget(next);
+		if (!at.parentNode || at.parentNode === root) return false;
+		at = at.parentNode;
+	}
+}
+
 const FOCUSED_HOST_SELECTOR = '.block-host[data-focused]';
 
 /** The editor root's mode when it hides markers; null in source mode, which sets no attribute,

@@ -9,7 +9,6 @@ import { imeOwnsInput } from '../../../browser/composition';
 import type { NodeView } from '../../../core/node-views';
 import type { StoredAs } from '../../../schema/stored-as';
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
-import { readNativeSelection } from '../../../browser/selection-read';
 import { decidedDelete, isDeleteInput, readInput, targetRange } from '../../../browser/input';
 
 /** The raw-offset lookups a browser range edit needs from the block. */
@@ -40,35 +39,15 @@ export function resolveLiveRangeEdit(
 	if (!store.reading.hidesDelimitersAtCaret() || !rewritesTargetRange(e)) return null;
 	// A delete at a caret is the editor's own delete step's, which decides it after this one.
 	if (decidedDelete(e) && cursor.getRawSelection() === null) return null;
+	// A collapsed insert is the typed-insert decision's, which runs after this step.
 	const target = pendingEditRange(e, cursor);
-	if (!target) return null;
+	if (!target || target.start === target.end) return null;
 	const insert = replacementText(e);
-	if (target.start === target.end) {
-		return parkedCaretInsertion(node, cursor, target.start, insert, store);
-	}
 	const edit = replaceRangeInLeaf(node, target, insert ?? '', store);
 	if (edit.matchesBrowserEdit) return null;
 	return insert === null
 		? { kind: 'swallow' }
 		: { kind: 'rewrite', range: edit.range, raw: edit.raw, caret: edit.caret };
-}
-
-/** A collapsed insertion Chromium aimed back across a hidden run (just after a typed `)`) goes where
- *  the caret is. A target at or past the caret stands, since a split's reopened run relies on it. */
-function parkedCaretInsertion(
-	node: NodeView,
-	cursor: LiveEditCursor,
-	engineTarget: number,
-	insert: string | null,
-	store: StoredAs
-): LiveRangeEdit | null {
-	if (!insert) return null;
-	const live = readNativeSelection();
-	if (!live?.collapsed) return null;
-	const caret = cursor.rawRangeOf(live.range)?.start ?? null;
-	if (caret === null || engineTarget >= caret) return null;
-	const edit = replaceRangeInLeaf(node, { start: caret, end: caret }, insert, store);
-	return { kind: 'rewrite', range: edit.range, raw: edit.raw, caret: edit.caret };
 }
 
 /** The wrapper every block runs around {@link resolveLiveRangeEdit}, shared so a new precondition
@@ -92,12 +71,13 @@ export function applyLiveRangeEdit(
 // ── Reading the event ────────────────────────────────────────────────────────
 
 /** The range a ranged edit will rewrite: the browser's target, since a word delete reports the run
- *  rather than the caret, else the selection. */
+ *  rather than the caret, else the selection; null for a collapsed target, read no further. */
 function pendingEditRange(
 	e: InputEvent,
 	cursor: LiveEditCursor
 ): { start: number; end: number } | null {
 	const target = targetRange(e);
+	if (target?.collapsed) return null;
 	return target ? cursor.rawRangeOf(target) : cursor.getRawSelection();
 }
 

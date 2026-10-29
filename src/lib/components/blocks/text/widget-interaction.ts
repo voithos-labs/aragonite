@@ -124,6 +124,9 @@ export interface WidgetInteraction {
 	/** Keydown while a widget is selected. Every key is consumed in that state, so a
 	 *  true return must not fall through to the shared pipeline. */
 	handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean>;
+	/** Text typed with no key at a widget selected whole replaces it, as a typed key does; false
+	 *  when no widget in the block is selected. */
+	typeOverSelected(text: string): boolean;
 	/** Enter a widget at a caret edge: show its source or select it, as the kind's policy
 	 *  says. The caret-edge dispatch decides which edge and calls this. */
 	enterWidget(
@@ -578,6 +581,34 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return handled;
 	}
 
+	// Reading mode still takes the text, since a selected widget owns what is typed at it, but
+	// writes nothing.
+	function spliceSelected(
+		widget: { start: number; end: number },
+		selected: { preSelectOffset: number },
+		text: string
+	): void {
+		if (isReading()) return;
+		void replaceSelectedWidget(deps, widget, text, (edit) =>
+			deps.writeText({
+				...rangeWrite(deps.node, edit),
+				intent: 'typed',
+				history: 'join-typing',
+				mode: 'authored',
+				source: 'widget',
+				sessionAnchor: selected.preSelectOffset
+			})
+		);
+	}
+
+	function typeOverSelected(text: string): boolean {
+		const selected = deps.selection.widgetIn(deps.myPath);
+		const widget = selected && widgetNodeIn(deps.node, selected.sourceStart, deps.reading);
+		if (!selected || !widget) return false;
+		spliceSelected(widget, selected, text);
+		return true;
+	}
+
 	async function keydownOnSelectedWidget(e: KeyboardEvent): Promise<boolean> {
 		const node = deps.node;
 		const selectedWidget = deps.selection.widgetIn(deps.myPath);
@@ -647,21 +678,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 			return true;
 		}
-		// Reading mode still consumes the key, since a selected widget owns its keys, but writes
-		// nothing.
-		const spliceWidget = (text: string): void => {
-			if (isReading()) return;
-			void replaceSelectedWidget(deps, widget, text, (edit) =>
-				deps.writeText({
-					...rangeWrite(deps.node, edit),
-					intent: 'typed',
-					history: 'join-typing',
-					mode: 'authored',
-					source: 'widget',
-					sessionAnchor: selectedWidget.preSelectOffset
-				})
-			);
-		};
+		const spliceWidget = (text: string): void => spliceSelected(widget, selectedWidget, text);
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
 			spliceWidget('');
@@ -858,6 +875,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	return {
 		isVerticallyTransparent,
 		handleSelectedWidgetKeydown,
+		typeOverSelected,
 		enterWidget,
 		restoreCaret,
 		enterEdgeWidget,

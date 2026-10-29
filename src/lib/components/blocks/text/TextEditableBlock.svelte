@@ -243,6 +243,12 @@
 		deleteAtCaret: (caret, intent) =>
 			takeBackOpenLine(pendingBreakKeyDeps) ? 'taken' : edgeDispatch.deleteAtCaret(caret, intent),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
+		typedInsert: {
+			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),
+			widgetBeside: (caret) => edgeDispatch.typing.widgetBeside(caret),
+			widgetClosesAt: (caret) => edgeDispatch.typing.widgetClosesAt(caret),
+			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)
+		},
 		commandTarget: () => keyTarget,
 		// After a shown source is written: until then the selected text lives in the DOM only.
 		removeSelection: (range) =>
@@ -359,9 +365,6 @@
 		reading,
 		ownPairs,
 		writeText,
-		edges: {
-			typeBeforeClosingWidget: (caret, typed) => edgeDispatch.typeBeforeClosingWidget(caret, typed)
-		},
 		text: () => getDisplayText(),
 		content: () => getContentRange(node),
 		completesLine

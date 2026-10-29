@@ -557,7 +557,9 @@ function wordDelete(
 		inputType: 'deleteWordBackward',
 		cancelable: true
 	});
-	Object.defineProperty(event, 'getTargetRanges', { value: () => [document.createRange()] });
+	// The word's span, as the stubbed raw read below answers for it.
+	const target = { collapsed: false } as StaticRange;
+	Object.defineProperty(event, 'getTargetRanges', { value: () => [target] });
 	const edit = resolveLiveRangeEdit(
 		event,
 		node,

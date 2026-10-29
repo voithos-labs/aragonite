@@ -220,6 +220,7 @@ unguarded.
 | G4.271 | A windowed list hands each child the index and id from its own slice entry                       | L       |
 | G4.272 | Every child process a file under `src/lib` spawns carries a timeout of its own                   | L       |
 | G4.273 | A keydown handler that runs a command asks `imeOwnsKey` first                                    | L       |
+| G4.274 | A typed insert or a typed key is read only where the editor decides where it lands               | L       |
 
 ### The entries
 
@@ -1436,3 +1437,9 @@ in Chromium and WebKit). The scan counts each file's keydown wirings against its
 calls, and lists a forward to a handler that asks, or a listener that runs no command, with why.
 The bundled plugins ask too, through the `imeOwnsKey` the plugin entry point exports.
 `lint/ime-key-fence.test.ts`.
+
+**G4.274 · One home for where a typed letter lands.** The `insert` intent (off `readInput`) and
+`isPlainTypingKey` are read only in `components/blocks/editable/typed-insert.ts` and a short list,
+each with its reason: the delimiter auto-pair, the range edits (live, across blocks, over a widget),
+the caret hosts, the composition tracker, a code body and a painted source, the selected widget's
+splice and the open line. `lint/typed-insert-home.test.ts`.
