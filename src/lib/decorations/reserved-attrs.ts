@@ -20,6 +20,7 @@ export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 	'data-kind-cue',
 	'data-list-marker',
 	'data-pointer-gesture',
+	'data-picture-line',
 	'data-placeholder',
 	'data-plain-click-follows',
 	'data-presentation',

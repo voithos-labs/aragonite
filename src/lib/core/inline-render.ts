@@ -15,7 +15,7 @@ import {
 import { FRAME_ATTR } from './inline/widget-shell';
 import { codeFenceWidth } from './inline/scan/code-span';
 import { isAllowedHrefScheme } from './url-policy';
-import { firstDisplayLine } from './lines';
+import { firstDisplayLine, isBlankText } from './lines';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
@@ -498,7 +498,7 @@ export function firstLineHoldsOnlyPictures(
 		} else {
 			const text = raw.slice(node.start, node.end);
 			const lineEnd = text.indexOf('\n');
-			if (text.slice(0, lineEnd < 0 ? undefined : lineEnd).trim() !== '') return false;
+			if (!isBlankText(text.slice(0, lineEnd < 0 ? undefined : lineEnd))) return false;
 			if (lineEnd >= 0) break;
 		}
 	}
