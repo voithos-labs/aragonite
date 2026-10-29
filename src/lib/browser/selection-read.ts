@@ -115,6 +115,14 @@ export function caretOnPendingBreakLine(el: HTMLElement): boolean {
 	return isBreakAnchor(before);
 }
 
+/** The live caret's DOM position when the selection is collapsed inside `el`; null for a range or
+ *  a caret elsewhere. Takes no range, so a keystroke can afford it. */
+export function collapsedCaretIn(el: HTMLElement): DomPosition | null {
+	const sel = window.getSelection();
+	if (!sel?.isCollapsed || !sel.focusNode || !el.contains(sel.focusNode)) return null;
+	return { node: sel.focusNode, offset: sel.focusOffset };
+}
+
 /** Whether the live caret sits in a text node the user can see, where the browser draws a caret,
  *  so the editor's own indicator is not needed. Hidden marker text renders nothing. */
 export function caretIsInTextContent(el: HTMLElement): boolean {

@@ -130,7 +130,7 @@ export function makeEdgeDispatch(
 		return dispatch.handleKeydown(e, caret);
 	};
 	// The surface records the caret at `beforeinput`, and at a chord's keydown, before it hands the
-	// delete on.
+	// delete or the typed insert on.
 	const deleteAtCaret: typeof dispatch.deleteAtCaret = (caret, intent) => {
 		keyCaret = caret;
 		return dispatch.deleteAtCaret(caret, intent);
@@ -139,8 +139,15 @@ export function makeEdgeDispatch(
 		keyCaret = caret;
 		return dispatch.deleteBeside(caret, direction);
 	};
+	const typing: typeof dispatch.typing = {
+		...dispatch.typing,
+		typeAt: (caret, text) => {
+			keyCaret = caret;
+			dispatch.typing.typeAt(caret, text);
+		}
+	};
 	return {
-		dispatch: { ...dispatch, deleteAtCaret, deleteBeside },
+		dispatch: { ...dispatch, deleteAtCaret, deleteBeside, typing },
 		handleKeydown,
 		edits,
 		markerWrites

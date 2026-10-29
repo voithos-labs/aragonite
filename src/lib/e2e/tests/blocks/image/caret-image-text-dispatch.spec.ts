@@ -20,8 +20,7 @@ async function setupStaleInlineParagraph(editor: EditorPage, page: Page): Promis
 	const widgetBox = await widget.boundingBox();
 	if (!widgetBox) throw new Error('widget box missing');
 	await page.mouse.click(widgetBox.x + widgetBox.width + 30, widgetBox.y + widgetBox.height / 2);
-	// Key by key: the caret sits at the image's edge, where the block's own keydown places the
-	// byte and `insertText` would land nothing.
+	// Key by key, each letter its own keydown and input, as a person types the text.
 	await editor.typeSlowly(TRAILING);
 	await editor.bridge.waitForSourceContains(`)${TRAILING}`);
 	await editor.focusBlockStart(2);

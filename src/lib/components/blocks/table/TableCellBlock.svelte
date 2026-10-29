@@ -196,6 +196,12 @@
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret: (caret, intent) => edgeDispatch.deleteAtCaret(caret, intent),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
+		typedInsert: {
+			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),
+			widgetBeside: (caret) => edgeDispatch.typing.widgetBeside(caret),
+			widgetClosesAt: (caret) => edgeDispatch.typing.widgetClosesAt(caret),
+			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)
+		},
 		commandTarget: () => keyTarget,
 		removeSelection: (range) =>
 			writeText({
@@ -358,7 +364,6 @@
 		reading,
 		ownPairs,
 		writeText,
-		edges: edgeDispatch,
 		text: () => readCellText(),
 		content: () => ({ start: 0, end: readCellText().length })
 	});

@@ -335,37 +335,22 @@ describe('deferring to the delete rules', () => {
 		});
 	});
 
-	// ── The widget printable insert ──────────────────────────────────────────────
+	// ── The typed insert beside a widget ─────────────────────────────────────────
 
-	describe('the widget printable insert asks the typing caret position', () => {
-		/** `**a&copy;** t` with an element-level caret between the entity widget and the closing run,
-		 *  where Chromium drops the key and this branch writes it through the CST instead. */
-		function withElementCaret(mode: string): Surface {
-			const s = surface('**a&copy;** t\n', { mode, affinity: 'outside' });
-			const widget = document.createElement('span');
-			widget.dataset.inlineWidget = '';
-			widget.textContent = '©';
-			s.el.append(document.createTextNode('**a'), widget, document.createTextNode('** t'));
-			const dom = document.createRange();
-			dom.setStart(s.el, 2);
-			dom.collapse(true);
-			const sel = window.getSelection()!;
-			sel.removeAllRanges();
-			sel.addRange(dom);
-			return s;
-		}
+	describe('a typed insert the block writes beside a widget asks the typing caret position', () => {
+		/** `**a&copy;** t`, the caret between the entity widget and the closing run. */
+		const atWidgetEnd = (mode: string): Surface =>
+			surface('**a&copy;** t\n', { mode, affinity: 'outside' });
 
 		it('writes at the caret position the record names, not at the caret', () => {
-			const s = withElementCaret('live');
-			const e = key('.');
-			expect(s.handleKeydown(e, at(9))).toBe(true);
-			expect(e.defaultPrevented).toBe(true);
+			const s = atWidgetEnd('live');
+			s.dispatch.typing.typeAt(9, '.');
 			expect(s.edits).toEqual([[0, '**a&copy;**. t\n', 9, 12]]);
 		});
 
 		it('writes at the caret where no unpainted run is touched', () => {
-			const s = withElementCaret('source');
-			expect(s.handleKeydown(key('.'), at(9))).toBe(true);
+			const s = atWidgetEnd('source');
+			s.dispatch.typing.typeAt(9, '.');
 			expect(s.edits).toEqual([[0, '**a&copy;.** t\n', 9, 10]]);
 		});
 	});

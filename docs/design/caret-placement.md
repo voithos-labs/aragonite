@@ -130,9 +130,11 @@ A Backspace or Delete at a caret that gets past all of that (and every soft keyb
 
 A chord (Shift+Backspace, a word or line delete) gets the same two answers at its own keydown, since WebKit sometimes sends no input for one: next to a widget it does what the plain key does there, and at the block's edge it runs the plain key's binding (`src/lib/components/blocks/editable/collapsed-delete.ts` :: `decideDeleteChord`). That runs after the keymap, so a host that binds the chord itself still wins. Anything else a chord takes depends on its unit, which only the `beforeinput` names, so it waits for that.
 
+A letter typed at a caret beside a widget is decided at `beforeinput` too, outside the dispatch. Where the browser has no text node to type it into, `src/lib/components/blocks/editable/typed-insert.ts` :: `decideTypedInsert` writes it at the caret, by key or soft keyboard; the dispatch only says which widget faces the caret (its `typing`).
+
 ## 6. Which side of a hidden marker
 
-`src/lib/components/blocks/text/edge-seat.ts` :: `hiddenEdges`. In live mode a construct's markers paint nothing, so one screen position names two raw offsets: just before the `**`, or just after it. The resolver decides which one a typed byte goes to (its symbols call that position a seat). It's asked by the write every insertion ends in (`src/lib/caret/next-insertion.ts`), after the browser or the paste has put the text in, so a key, a soft keyboard, an IME commit and a paste all land the same way.
+`src/lib/components/blocks/text/edge-seat.ts` :: `hiddenEdges`. In live mode a construct's markers paint nothing, so one screen position names two raw offsets: just before the `**`, or just after it. The resolver decides which one a typed byte goes to (its symbols call that position a seat). It's asked by the write every insertion ends in (`src/lib/caret/next-insertion.ts`), after the browser, the typing decision or the paste has put the text in, so a key, a soft keyboard, an IME commit and a paste all land the same way.
 
 The answer is the word processor's: the byte takes the format of the visible character before the position (at a line start, the one after), whichever of the two raw offsets the browser left the caret at. Three things can change that, in order:
 

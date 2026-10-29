@@ -93,6 +93,8 @@ export interface InlineWidgetEditingPolicy {
 	) => number | null;
 	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
+	/** A key pressed while the widget is selected whole: true takes it, and the editor prevents its
+	 *  default. Text a soft keyboard sends with no key replaces the widget without reaching it. */
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
 	/** The widget goes somewhere on a click, as a link does, so the click the host picked for
 	 *  links is its component's to act on and shows no source, which would unmount the widget. */

@@ -114,6 +114,7 @@ These checks run in three kinds of place:
 | G1.158 | A block a commit splices in holds no opener it wrote that a block below would close           | A·N     |
 | G1.159 | The caret writer writes a caret only where something shows it                                 | A·N     |
 | G1.160 | A widget beside a caret the writer puts down lays out inline                                  | A·N     |
+| G1.161 | A typed letter the editor leaves to the browser lands at its caret                            | A·N     |
 
 ### The entries
 
@@ -685,3 +686,10 @@ line beside it: a letter typed there lands on another line, Chromium starts no c
 and nothing draws the caret. It fires whether or not the kind declares `frame`, since a plugin's
 widget sets its own `display`. `checkWidgetLaysOutInline` · `browser/caret-writer.ts` ·
 `caret-spot.test.ts`.
+
+**G1.161 · A typed letter lands at its caret** (`typed-insert-at-caret`). A collapsed typed insert
+the editor leaves to the browser (a caret in a text node, where the typing decision in
+`components/blocks/editable/typed-insert.ts` keeps the browser's insert) reads back at the caret it
+started at, or across hidden marker text from it, where placement picks the side. Anywhere else is
+an engine insert the decision has to take. `checkTypedInsertAtCaret` ·
+`components/blocks/editable/editable-surface.ts` · `typed-insert.test.ts`, `typed-insert-at-caret.test.ts`.
