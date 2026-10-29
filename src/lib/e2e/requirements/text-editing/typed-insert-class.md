@@ -39,8 +39,11 @@ so it says what the editor does with the event, not what the engine would.
 The browser's own insert lands right at most of these spots, so turning the editor's decision off
 leaves those rows green; a write that lands somewhere else (the typed write aimed at offset 0) reds
 them. The rows that red with the decision off are the selected picture by soft keyboard (Chromium
-writes at the block's start, Firefox writes nothing), the line break that ends a paragraph or a
-cell on Firefox, and the link typed to completion on Chromium and WebKit.
+writes at the block's start, Firefox writes nothing) and the line break that ends a paragraph or a
+cell on Firefox. The link typed to completion stays green with it off too: Chromium and WebKit aim
+the letter inside the link text, and the read-back still lands it after the `)`. The unit rows in
+`test/blocks/editable/typed-insert.test.ts` for a target aimed away from the caret are the ones that
+red there.
 
 ## Miss-analysis
 
