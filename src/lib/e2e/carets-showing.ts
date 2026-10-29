@@ -110,8 +110,12 @@ export async function expectBarBesideWidget(
 		return;
 	}
 	close('left', bar.left, side === 'after' ? w.x + w.width + 1 - 1.5 : w.x - 1);
-	close('top', bar.top, w.y, 1);
-	close('height', bar.height, w.height, 1);
+	// The bar covers every device row the widget touches, as the text bar does for its line.
+	const dpr = await page.evaluate(() => devicePixelRatio);
+	const top = Math.floor(w.y * dpr + 1e-3) / dpr;
+	const bottom = Math.ceil((w.y + w.height) * dpr - 1e-3) / dpr;
+	close('top', bar.top, top, 1);
+	close('height', bar.height, bottom - top, 1);
 }
 
 /** The live collapsed range's box: its first rect with height, else the box of the node it sits

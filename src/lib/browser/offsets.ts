@@ -13,7 +13,6 @@ import {
 	type WalkSegment,
 	isBreakAnchor,
 	landingSegments,
-	markerRootOf,
 	BLOCK_SUFFIX_ATTR,
 	inMarkerPrefix,
 	caretAnchorAfter,
@@ -343,17 +342,6 @@ export function widgetsIntersectingRange(
 	return out;
 }
 
-/** The walk's text with marker text and widget bytes blanked to spaces, at the walk's own
- *  offsets: what a rule that reads words (double- and triple-click) sees as content. */
-export function maskedWalkText(container: ParentNode): string {
-	let out = '';
-	for (const seg of walkSegments(container, null)) {
-		const content = seg.kind === 'text' && markerRootOf(seg.node, container) === null;
-		out += content ? (seg.node.textContent ?? '') : ' '.repeat(seg.len);
-	}
-	return out;
-}
-
 /** A block's text as the screen shows it, each character with the raw span it stands for. */
 export interface VisibleText {
 	text: string;
@@ -384,6 +372,18 @@ export function visibleWalkText(container: ParentNode): VisibleText {
 		}
 	}
 	return visible;
+}
+
+/** The first visible character at or after raw `raw`. */
+export function visibleIndexAt(visible: VisibleText, raw: number): number {
+	const i = visible.rawStart.findIndex((start) => start >= raw);
+	return i === -1 ? visible.text.length : i;
+}
+
+/** How many visible characters end at or before raw `raw`. */
+export function charsEndingBy(visible: VisibleText, raw: number): number {
+	const i = visible.rawEnd.findIndex((end) => end > raw);
+	return i === -1 ? visible.text.length : i;
 }
 
 /** Whether any visible text in `container` ends past `from`: a caret there has a box of its own,
