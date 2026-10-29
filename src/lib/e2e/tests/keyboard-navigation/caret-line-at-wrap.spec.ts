@@ -177,7 +177,7 @@ test.describe('asking the browser where the line ends', () => {
 		}) => {
 			test.fixme(
 				asked && browserName === 'chromium',
-				'#ISSUE: Chromium’s line start skips a picture opening a wrapped line, so the way back lands after it'
+				'#803: Chromium’s line start skips a picture opening a wrapped line, so the way back lands after it'
 			);
 			await editor.page.addStyleTag({ content: EDITOR_WIDTH });
 			await editor.loadContent(`before\n\nalpha beta gamma ${IMAGE} tail\n\nafter\n`);
@@ -204,7 +204,7 @@ test.describe('asking the browser where the line ends', () => {
 		}) => {
 			test.fixme(
 				browserName === 'chromium',
-				'#ISSUE: Chromium’s line start skips a picture opening a wrapped line, so the way back lands after it'
+				'#803: Chromium’s line start skips a picture opening a wrapped line, so the way back lands after it'
 			);
 			await editor.page.addStyleTag({ content: EDITOR_WIDTH });
 			const lead = 'alpha beta gamma ';
