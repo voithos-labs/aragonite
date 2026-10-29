@@ -7,9 +7,9 @@ into whatever non-editable widget sits beside it (a formula, an entity glyph), a
 its range before anything could correct it. The word is read off the text the word delete
 reads, as the screen shows it: a hidden marker isn't there, so letters on both sides of one are
 one word, and a widget is a character of its own, so it never joins the word beside it. The
-two share word boundaries; the word delete adds its own reach (the spaces before the word).
-A double-click on an inline widget is the widget's own gesture (`plugins/latex-inline.md`),
-not this handler's.
+two share word boundaries; the word delete adds its own reach (the spaces between the caret and
+the word). A double-click on an inline widget is the widget's own gesture
+(`plugins/latex-inline.md`), not this handler's.
 
 ## Happy paths
 
