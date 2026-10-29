@@ -326,6 +326,25 @@ for (const shape of SHAPES) {
 	});
 }
 
+test('past the space after a picture opening line 2, ArrowUp: line 1, nothing asked', async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await page.addStyleTag({ content: EDITOR_WIDTH });
+	const lead = 'alpha beta gamma ';
+	await editor.loadContent(`before\n\n${lead}${IMAGE} tail\n\nafter\n`);
+	await waitForImagesDecoded(page.locator('.editor img'));
+	const line1 = await textRunRect(page, 'alpha', { path: [1] });
+	const image = (await page.locator('[data-image-widget]').boundingBox())!;
+	expect(image.y, 'the image starts line 2').toBeGreaterThanOrEqual(line1.bottom - 1);
+	await editor.focusBlock(1, `${lead}${IMAGE} `.length);
+	await page.keyboard.press('ArrowUp');
+	const focus = await focusOf(editor);
+	expect(focus?.path).toEqual([1]);
+	expect(focus!.offset).toBeLessThanOrEqual(lead.length);
+});
+
 // ── With Shift ─────────────────────────────────────────────────────────
 
 for (const shape of [...SHAPES, CELL]) {

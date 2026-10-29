@@ -42,6 +42,8 @@ Beside a space, the caret is on one line only, so nothing is asked (and no dev c
   the caret leaves for the block before
 - End, then ArrowLeft on the second-to-last line, ArrowDown: the caret moves to the last line,
   inside the block
+- after the space past a picture that opens line 2, ArrowUp: the caret moves to line 1, inside the
+  block (the letters either side of it sit on two lines, but the space puts it on line 2 alone)
 
 ## With Shift
 
@@ -80,7 +82,6 @@ The Mac's Cmd line delete, sent the way `collapsed-delete-class.spec.ts` sends i
   so no row ever stood on the one spot where a measured caret and the browser's disagree.
 - The run of ArrowDown through a short line's end (Firefox landed at the short line's column): every
   row pressed one arrow after the question, so none watched the browser's own column across a run.
-- The caret beside a space (before a wrap's space; once also after one opening the line after an
-  image, a line pictures laid out as blocks made and inline ones don't):
+- The caret beside a space (before a wrap's space, or after one past a picture opening a line):
   every row stood on the wrap itself, so none checked that a spot on one line only isn't read as a
   wrap; there Up and Down left from the wrong line, and asking fired the dev check.
