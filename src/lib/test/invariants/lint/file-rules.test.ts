@@ -576,6 +576,8 @@ const RULES: FileRule[] = [
 				'the drawn caret’s box, which steps aside for the browser’s own caret at a soft wrap',
 			'src/lib/selection/caret-landing.ts':
 				'the box scrolled into view, where a line off at a soft wrap still shows the caret',
+			'src/lib/selection/show-caret.ts':
+				'the box a caret key the editor landed is scrolled into view by, where a line off at a soft wrap still shows the caret',
 			'src/lib/selection/selection-drop.ts':
 				'the drop caret, at a point the pointer chose, not the caret',
 			'src/lib/selection/page-step.ts':
