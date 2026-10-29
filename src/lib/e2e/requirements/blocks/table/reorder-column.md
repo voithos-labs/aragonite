@@ -1,8 +1,8 @@
-# Feature: Keyboard table column reorder
+# Feature: Table column reorder
 
 Covers moving a table column left/right with `Alt+ArrowLeft` / `Alt+ArrowRight`. The
 shortcut acts on the focused cell's column; columns have no fixed header, so every
-index can be moved. Focus follows the moved column.
+index can be moved. Focus follows the moved column. On a Mac, where Option+Arrow moves by word, the same commands go through the cell menu's Column flyout, and every column scenario runs them the platform's way (`e2e/table-columns.ts` :: `runColumnCommand`).
 
 ## Happy paths
 

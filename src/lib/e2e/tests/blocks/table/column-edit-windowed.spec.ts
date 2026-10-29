@@ -2,6 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
 import { clickInPlace } from '../../../click-in-place';
+import { runColumnCommand } from '../../../table-columns';
 
 // Column edits on a tall table whose top rows mounted once and then left the window: those rows
 // hold ids with no mounted state, and each edit's cell splice must carry their ids along.
@@ -39,7 +40,7 @@ test.describe('table block: column edits on a row-windowed table', () => {
 		await editor.bridge.waitForSourceMatches(/^\| val \|\n/);
 		expect(await getContainerParityMismatches(page)).toEqual([]);
 
-		await page.keyboard.press('Alt+Shift+ArrowRight');
+		await runColumnCommand(page, 'Insert column right');
 		await editor.bridge.waitForSourceMatches(/^\| val \| {2}\|\n/);
 		expect(await getContainerParityMismatches(page)).toEqual([]);
 

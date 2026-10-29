@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { skipUnlessSupported } from '../../browser-engine';
 import { listEdgeKey } from '../../platform-keys';
+import { runColumnCommand } from '../../table-columns';
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
@@ -137,7 +138,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 
 	test('inserting a column announces it in the live region', async ({ page }) => {
 		await page.locator('.table-cell').nth(0).click();
-		await page.keyboard.press('Alt+Shift+ArrowRight');
+		await runColumnCommand(page, 'Insert column right');
 
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(/insert/i);
 	});

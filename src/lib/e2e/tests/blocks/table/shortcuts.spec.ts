@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
+import { runColumnCommand } from '../../../table-columns';
 
 const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 const TABLE_3ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
@@ -47,7 +48,7 @@ test.describe('table block: keyboard vocabulary', () => {
 			await page.keyboard.press('Alt+Shift+Backspace');
 			await editor.bridge.waitForSourceEquals(TABLE_ALIGNED_LESS_A);
 			await page.locator('.table-cell').nth(0).click();
-			await page.keyboard.press('Alt+Shift+ArrowRight');
+			await runColumnCommand(page, 'Insert column right');
 			await editor.bridge.waitForSourceContains('| B |  | C | D |');
 		});
 

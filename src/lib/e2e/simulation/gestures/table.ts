@@ -1,5 +1,6 @@
 import { type SimContext, actThenResync } from '../invariants';
 import { edgeKey } from '../../platform-keys';
+import { runColumnCommand } from '../../table-columns';
 
 // Table gestures resync rather than predict: a row the editor adds takes the padded spelling, and
 // a cell edit lands mid-source, neither being the append the expected answer predicts. Typed pipe
@@ -27,7 +28,7 @@ export async function editCell(ctx: SimContext, cellIndex: number, text: string)
  */
 export async function insertColumnRight(ctx: SimContext, cellIndex: number): Promise<void> {
 	await clickCell(ctx, cellIndex);
-	await actThenResync(ctx, () => ctx.page.keyboard.press('Alt+Shift+ArrowRight'));
+	await actThenResync(ctx, () => runColumnCommand(ctx.page, 'Insert column right'));
 }
 
 /** Delete the column containing the cell at `cellIndex` (Alt+Shift+Backspace). */
