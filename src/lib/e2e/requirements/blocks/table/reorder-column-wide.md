@@ -3,11 +3,11 @@
 Extends `reorder-column.md` to wide tables whose columns overflow `.table-block`'s
 `overflow-x` and are partly scrolled off the right edge. Columns are never windowed, only
 clipped, so the move itself is the ordinary one; what the wide case adds is that the caret
-follows the column into the clipped region and the grid scrolls to keep it in view.
+follows the column into the clipped region and the grid scrolls to keep it in view. On a Mac, where Option+Arrow moves by word, the same commands go through the cell menu's Column flyout, and every column scenario runs them the platform's way (`e2e/table-columns.ts` :: `runColumnCommand`).
 
 ## Happy paths
 
-- Alt+ArrowRight on the rightmost fully-visible column moves it past its clipped neighbour, the moved column's cell holds the caret, and the grid has scrolled so that cell is inside the table's visible box; a typed character lands in it.
+- Move column right (Alt+ArrowRight) on the rightmost fully-visible column moves it past its clipped neighbour, the moved column's cell holds the caret, and the grid has scrolled so that cell is inside the table's visible box; a typed character lands in it.
 
 ## Edge cases
 

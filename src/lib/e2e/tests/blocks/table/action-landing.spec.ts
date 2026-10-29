@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { clickInPlace } from '../../../click-in-place';
+import { runColumnCommand } from '../../../table-columns';
 
 // Where the caret lands after each table edit, read by typing into it.
 // Requirements: `requirements/blocks/table/action-landing.md`.
@@ -48,7 +49,7 @@ test.describe('table block: the caret after a table edit', () => {
 	test('insert column right lands in the new column, on the same row', async ({ page }) => {
 		await editor.loadContent(TABLE_3ROW);
 		await clickInPlace(cell(4)); // "3": row 2, col 0
-		await page.keyboard.press('Alt+Shift+ArrowRight');
+		await runColumnCommand(page, 'Insert column right');
 		await typeX();
 		await editor.bridge.waitForSourceContains('| 3 | x | 4 |');
 	});
@@ -64,7 +65,7 @@ test.describe('table block: the caret after a table edit', () => {
 	test('move column right lands at the start of the moved cell', async ({ page }) => {
 		await editor.loadContent(TABLE_3COL);
 		await clickInPlace(cell(3)); // "1": row 1, col 0
-		await page.keyboard.press('Alt+ArrowRight');
+		await runColumnCommand(page, 'Move column right');
 		await typeX();
 		await editor.bridge.waitForSourceContains('| 2 | x1 | 3 |');
 	});
