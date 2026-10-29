@@ -2,6 +2,10 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { isMacOS, WORD_MODIFIER } from '../../platform-keys';
+import { waitForImagesDecoded } from '../blocks/image/helpers';
+import { addReplaceIsland } from '../../decoration-sources';
+
+const PICTURE = '![x](/test-fixtures/sample.png)';
 
 /**
  * A word or line delete at a caret takes what the editor names, the same bytes on every engine
@@ -139,6 +143,33 @@ test.describe('a line delete', () => {
 		await editor.focusBlockAtPath([0], 4);
 		await sendKeylessDelete(page, 'deleteHardLineForward');
 		await expectSource(editor, '```\n\ncd\n```\n');
+	});
+
+	test('to the line end takes a picture closing the line', async ({ page }) => {
+		await editor.loadContent(`lead ${PICTURE}\n`);
+		await waitForImagesDecoded(page.locator('.editor img'));
+		await editor.focusBlockAtPath([0], 1);
+		await sendKeylessDelete(page, 'deleteSoftLineForward');
+		await expectSource(editor, 'l\n');
+	});
+
+	test('to the line end takes a replace decoration closing the line', async ({ page }) => {
+		await editor.loadContent('lead HIDDEN\n');
+		await addReplaceIsland(page, [0], 5, 11);
+		await expect(page.locator('[data-decoration-island]')).toHaveCount(1);
+		await editor.focusBlockAtPath([0], 1);
+		await sendKeylessDelete(page, 'deleteSoftLineForward');
+		await expectSource(editor, 'l\n');
+	});
+
+	test('to the line start takes a picture opening the line, and stops at the break', async ({
+		page
+	}) => {
+		await editor.loadContent(`first\\\n${PICTURE} second\\\nthird\n`);
+		await waitForImagesDecoded(page.locator('.editor img'));
+		await editor.focusBlockAtPath([0], `first\\\n${PICTURE} second`.length);
+		await sendKeylessDelete(page, 'deleteSoftLineBackward');
+		await expectSource(editor, 'first\\\n\\\nthird\n');
 	});
 
 	test('a wrapped paragraph loses only its last visual line', async ({ page }) => {

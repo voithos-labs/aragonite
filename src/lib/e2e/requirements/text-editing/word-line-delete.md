@@ -33,6 +33,11 @@ its own, and a widget is one character.
   paragraph empties it; to the line end on a code block's first line takes that line's text and
   leaves the next line; to the line start at the end of a paragraph that wraps leaves the lines
   above, never all of it
+- a line delete to the line end past a widget or a replace decoration closing the line takes it
+  (`lead ![x]`, `lead HIDDEN` under a replace decoration), and one to the line start of a line a
+  picture opens after a hard break takes the picture and stops at the break
+  - Miss-analysis: no line-delete row ended at a widget, and a point on a widget's box resolves
+    before it on Firefox (a picture) and on every engine (a replace decoration)
 
 ## Error cases
 

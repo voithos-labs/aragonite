@@ -5,11 +5,11 @@
  */
 
 import { domDescendants } from './dom-descendants';
-import { caretAnchorAfter, isBlockLineText } from './painted';
+import { caretAnchorAfter, isBlockLineText, widgetTouching } from './painted';
 import { rawRangeToDomRange } from './offsets';
 import { rawSelectionFocus, readNativeSelection } from './selection-read';
 import type { CaretWriter } from './caret-writer';
-import { offsetFromViewportPoint } from './point';
+import { caretOffsetAtPoint, offsetFromViewportPoint } from './point';
 
 // A generic line box for a `normal` computed `lineHeight`, which parses to NaN.
 const FALLBACK_LINE_HEIGHT = 20;
@@ -118,8 +118,56 @@ export function lineEdgeOffset(
 	const y = (caret.top + caret.bottom) / 2;
 	const line = lineBoxNearest(el, y);
 	if (!line) return null;
+	// A point on the right half of a widget's box resolves before it on some engines, so a widget
+	// closing the line decides its end.
+	const closing = side === 'end' ? widgetClosingLine(el, line) : null;
+	if (closing !== null) return closing;
 	// Half a pixel inside the line's box, so the point resolves to its first or last offset.
 	return offsetFromViewportPoint(el, side === 'start' ? line.left + 0.5 : line.right - 0.5, y);
+}
+
+/** The raw end of the widget or replace decoration that closes `line` in `el`; null with none. A
+ *  `<br>`'s far side is the next line's start, so it never closes one. */
+function widgetClosingLine(el: HTMLElement, line: LineBox): number | null {
+	for (const shell of el.querySelectorAll<HTMLElement>(LINE_EDGE_SPANS)) {
+		const rects = shell.getClientRects();
+		const box = rects[rects.length - 1];
+		if (!box || box.bottom <= line.top || box.top >= line.bottom) continue;
+		if (box.right < line.right - 1 || shell.querySelector('br')) continue;
+		const end = Number(shell.dataset.sourceEnd);
+		if (Number.isInteger(end)) return end;
+	}
+	return null;
+}
+
+const LINE_EDGE_SPANS = '[data-inline-widget], [data-decoration-island]';
+
+/** Where an arrow lands from a text position touching a widget on another line, else null:
+ *  Chromium reads that spot on the widget's line, so its own arrow there lands a line off. */
+export function lineStepBesideWidget(el: HTMLElement, direction: 'up' | 'down'): number | null {
+	const live = readNativeSelection();
+	const node = live?.collapsed ? live.focus.node : null;
+	if (!(node instanceof Text)) return null;
+	const widget = widgetTouching(el, node, live!.focus.offset);
+	const caret = widget && caretRectAt(el, node, live!.focus.offset);
+	if (!widget || !caret) return null;
+	const after = live!.focus.offset === node.length;
+	const rects = widget.getClientRects();
+	const box = after ? rects[0] : rects[rects.length - 1];
+	if (!box || (box.top < caret.bottom && box.bottom > caret.top)) return null;
+	const towardWidget = after === (direction === 'down');
+	const half = lineHeightOf(el) / 2;
+	const y = towardWidget
+		? (box.top + box.bottom) / 2
+		: direction === 'up'
+			? caret.top - half
+			: caret.bottom + half;
+	const raw = caretOffsetAtPoint(el, caret.left, y);
+	if (raw === null || !towardWidget) return raw;
+	const start = Number(widget.getAttribute('data-source-start'));
+	const end = Number(widget.getAttribute('data-source-end'));
+	// The widget's near edge is the spot the caret leaves, so a column over it takes the far one.
+	return raw >= start && raw <= end ? (after ? end : start) : raw;
 }
 
 /** The box of what `el` draws on the visual line nearest `y`, read as `lineEndNearest` reads it. */
@@ -234,6 +282,9 @@ export function softWrapAt(
 ): { before: DOMRect; after: DOMRect } | null {
 	const node = at.startContainer;
 	if (!(node instanceof Text)) return null;
+	// A caret touching a widget is on the line its DOM position names (a text position the text's,
+	// an element position the widget's), which no engine agrees on when asked.
+	if (widgetTouching(surface, node, at.startOffset)) return null;
 	const first = nearestLetter(node, at.startOffset, surface, false);
 	if (!first || first.node.data[first.at] === '\n') return null;
 	const before = charRect(first.node, first.at);

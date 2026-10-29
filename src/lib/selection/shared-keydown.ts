@@ -27,7 +27,12 @@ import {
 	landableStartAbutsIsland
 } from '../browser/offsets';
 import { markerPrefixOf } from '../browser/painted';
-import { isAtFirstVisualLine, isAtLastVisualLine, lineHeightOf } from '../browser/visual-lines';
+import {
+	isAtFirstVisualLine,
+	isAtLastVisualLine,
+	lineHeightOf,
+	lineStepBesideWidget
+} from '../browser/visual-lines';
 import {
 	caretEdgeKey,
 	endsSelectAllRun,
@@ -162,6 +167,8 @@ export async function handleSharedKeydown(
 			e.preventDefault();
 			void ctx.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
 			return true;
+		} else if (!e.altKey && stepBesideWidget(e, ctx, el, 'up')) {
+			return true;
 		}
 	}
 
@@ -180,6 +187,8 @@ export async function handleSharedKeydown(
 			e.preventDefault();
 			if (offset === null && scrollsThroughBlock(ctx, el)) return true;
 			void ctx.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+			return true;
+		} else if (!e.altKey && stepBesideWidget(e, ctx, el, 'down')) {
 			return true;
 		}
 	}
@@ -232,6 +241,22 @@ function collapseRangeForArrow(
 	if (at === null) return false;
 	// Reading mode declines the caret and drops the range, leaving the arrow at the block's edge.
 	return ctx.caretWriter.placeCaretAtRaw(el, at, { clamp: 'reachable' });
+}
+
+/** A plain vertical arrow from a caret touching a widget on another line, which the editor places
+ *  since an engine can read that spot on the wrong line. True if it did. */
+function stepBesideWidget(
+	e: KeyboardEvent,
+	ctx: SharedKeydownContext,
+	el: HTMLElement,
+	direction: 'up' | 'down'
+): boolean {
+	if (e.ctrlKey || e.metaKey) return false;
+	const target = lineStepBesideWidget(el, direction);
+	if (target === null) return false;
+	e.preventDefault();
+	ctx.caretWriter.placeCaretAtRaw(el, target, { clamp: 'reachable' });
+	return true;
 }
 
 /** ArrowDown with no caret in a block running past the editor's bottom edge scrolls one line

@@ -170,57 +170,46 @@ test.describe('asking the browser where the line ends', () => {
 			await page.keyboard.press('ArrowDown');
 			expect(await focusOf(editor)).toEqual({ path: [1], offset: starts[2] });
 		});
-
-		test(`an image starting the next line, ${label}: the caret stays put`, async ({
-			page,
-			browserName
-		}) => {
-			test.fixme(
-				asked && browserName === 'chromium',
-				'#803: Chromium’s line start skips a picture opening a wrapped line, so the way back lands after it'
-			);
-			await editor.page.addStyleTag({ content: EDITOR_WIDTH });
-			await editor.loadContent(`before\n\nalpha beta gamma ${IMAGE} tail\n\nafter\n`);
-			await waitForImagesDecoded(page.locator('.editor img'));
-			const line1 = await textRunRect(page, 'alpha', { path: [1] });
-			const image = (await page.locator('[data-image-widget]').boundingBox())!;
-			expect(image.y, 'the image starts line 2').toBeGreaterThanOrEqual(line1.bottom - 1);
-			await editor.focusBlock(1, 'alpha beta gamma '.length);
-			const at = await selectionOf(editor);
-			if (asked) expect((await askLineEnd(page)).back).toBe(true);
-			expect(await selectionOf(editor)).toEqual(at);
-		});
 	}
 
-	// Before a picture opening line 2 with no space after it, the editor asks, and the way back
-	// skips the picture the same way.
-	for (const [key, landing] of [
-		['ArrowUp', 'the block before'],
-		['ArrowDown', 'line 2']
-	] as const) {
-		test(`before an image starting the next line, ${key}: ${landing}`, async ({
-			page,
-			browserName
-		}) => {
-			test.fixme(
-				browserName === 'chromium',
-				'#803: Chromium’s line start skips a picture opening a wrapped line, so the way back lands after it'
-			);
+	// A caret touching a picture that opens line 2 is on line 1 by its DOM position, which the
+	// editor reads without asking: Chromium's own line read there says line 2.
+	for (const space of [' ', '']) {
+		const lead = 'alpha beta gamma ';
+		const shape = space ? 'with a space after it' : 'with no space after it';
+		const loadImageWrap = async (page: Page) => {
 			await editor.page.addStyleTag({ content: EDITOR_WIDTH });
-			const lead = 'alpha beta gamma ';
-			await editor.loadContent(`before\n\n${lead}${IMAGE}tail\n\nafter\n`);
+			await editor.loadContent(`before\n\n${lead}${IMAGE}${space}tail\n\nafter\n`);
 			await waitForImagesDecoded(page.locator('.editor img'));
 			const line1 = await textRunRect(page, 'alpha', { path: [1] });
 			const image = (await page.locator('[data-image-widget]').boundingBox())!;
 			expect(image.y, 'the image starts line 2').toBeGreaterThanOrEqual(line1.bottom - 1);
 			await editor.focusBlock(1, lead.length);
-			await page.keyboard.press(key);
-			const focus = await focusOf(editor);
-			if (key === 'ArrowUp') expect(focus?.path).toEqual([0]);
-			else {
-				expect(focus?.path).toEqual([1]);
-				expect(focus!.offset).toBeGreaterThanOrEqual(lead.length);
-			}
+		};
+
+		test(`before an image starting the next line ${shape}, ArrowUp: the block before`, async ({
+			page
+		}) => {
+			await loadImageWrap(page);
+			await page.keyboard.press('ArrowUp');
+			expect((await focusOf(editor))?.path).toEqual([0]);
+		});
+
+		test(`before an image starting the next line ${shape}, ArrowDown: line 2, past the image`, async ({
+			page
+		}) => {
+			await loadImageWrap(page);
+			await page.keyboard.press('ArrowDown');
+			expect(await focusOf(editor)).toEqual({ path: [1], offset: lead.length + IMAGE.length });
+		});
+
+		test(`before an image starting the next line ${shape}, a soft-line delete: line 1's run`, async ({
+			page
+		}) => {
+			await loadImageWrap(page);
+			await sendLineDelete(page, 'Backspace');
+			await editor.waitForRenderFlush();
+			expect(await editor.bridge.getSource()).toBe(`before\n\n${IMAGE}${space}tail\n\nafter\n`);
 		});
 	}
 

@@ -216,14 +216,35 @@ export function isAtomicInlineWidget(node: Node): boolean {
 /** Whether the first thing past the end of text `node` under `root` is an atomic inline widget,
  *  climbing out of the spans that close there and over empty text. */
 export function widgetFollowsText(root: ParentNode, node: Text): boolean {
+	return widgetBesideNode(root, node, true) !== null;
+}
+
+/** The atomic inline widget a collapsed caret at `(node, offset)` under `root` touches: the one
+ *  past a text's end or before its start, or a child beside an element position. */
+export function widgetTouching(root: ParentNode, node: Node, offset: number): Element | null {
+	if (node.nodeType === Node.TEXT_NODE) {
+		if (offset === (node as Text).length) {
+			const after = widgetBesideNode(root, node, true);
+			if (after) return after;
+		}
+		return offset === 0 ? widgetBesideNode(root, node, false) : null;
+	}
+	const kids = node.childNodes;
+	const kid = [kids[offset], kids[offset - 1]].find(
+		(n) => n !== undefined && isAtomicInlineWidget(n)
+	);
+	return (kid as Element | undefined) ?? null;
+}
+
+function widgetBesideNode(root: ParentNode, node: Node, forward: boolean): Element | null {
 	let at: Node = node;
 	for (;;) {
-		let next = at.nextSibling;
+		let next = forward ? at.nextSibling : at.previousSibling;
 		while (next?.nodeType === Node.TEXT_NODE && (next.textContent?.length ?? 0) === 0) {
-			next = next.nextSibling;
+			next = forward ? next.nextSibling : next.previousSibling;
 		}
-		if (next) return isAtomicInlineWidget(next);
-		if (!at.parentNode || at.parentNode === root) return false;
+		if (next) return isAtomicInlineWidget(next) ? (next as Element) : null;
+		if (!at.parentNode || at.parentNode === root) return null;
 		at = at.parentNode;
 	}
 }
