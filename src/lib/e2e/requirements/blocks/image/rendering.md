@@ -15,7 +15,7 @@
 
 - Image with broken URL (404 fixture) renders the widget with `md-image-broken` class after load fails
 - Image that _succeeds_ with no intrinsic size (zero-dimension SVG) gets the same placeholder from the load alone: no edit, no mode switch, and the widget's box has a real size
-- Broken image preserves the block-level visual rule: its trailing text wraps below, same as a successfully-loaded image. The error styling overlays the widget without changing its display mode.
+- Broken image keeps the line layout: its trailing text sits beside it, same as a successfully-loaded image. The error styling overlays the widget without changing how it lays out.
 - Keystroke-rebuilt widget keeps `md-image-broken` at insertion time (no async re-add flicker)
 
 ## Pinned below the browser

@@ -41,8 +41,8 @@ test.describe('image popover portal isolation', () => {
 		await expect(page.locator('.md-image-properties input')).toBeFocused();
 	});
 
-	// Moving the overlay inside the widget carries Svelte's whitespace text nodes along, which on a
-	// `display: block` widget grow it by one line height on open.
+	// Moving the overlay inside the widget carries Svelte's whitespace text nodes along, which grow
+	// the widget by one line height on open.
 	test('opening popover does not shift the widget or the block below it', async ({ page }) => {
 		await editor.loadContent('intro\n\n![cat|400x200](/test-fixtures/sample.png)\n\nfollowing.\n');
 		const widget = page.locator('[data-image-widget]').first();

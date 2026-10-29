@@ -278,10 +278,11 @@
 	translate: 0 var(--md-find-bar-clearance);
 }
 
+/* A picture sits in its line, as Markdown means it, so a letter typed beside it lands on that line.
+   Aligned to the line's bottom, a picture alone in its paragraph leaves no gap under it. */
 :where(.editor) .md-image-widget {
-	display: block;
-	/* Shrink to fit, so the widget matches the image rather than its line box. */
-	width: fit-content;
+	display: inline-block;
+	vertical-align: bottom;
 	margin: 0.5em 0;
 	user-select: none;
 }
@@ -326,39 +327,6 @@
 	position: absolute;
 	max-width: none;
 	object-fit: cover;
-}
-
-/* A paragraph holding a picture: the block-level widget would push an in-flow marker onto a line of
-   its own, so the container's marker sits out of flow at the paragraph's top-left, on its first line. */
-:where(.editor)
-	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
-		.md-image-widget
-	) {
-	position: relative;
-	text-indent: 0 !important;
-}
-
-:where(.editor)
-	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
-		.md-image-widget
-	)
-	> .md-marker[contenteditable='false'] {
-	position: absolute;
-	left: 0;
-	top: 0;
-}
-
-/* Drop the trailing empty line-box the contenteditable keeps after a block-level child,
-   which otherwise leaves dead vertical space below every image-only item. */
-:where(.editor) .text-editable-block.paragraph-block:has(.md-image-widget:last-child) {
-	min-height: 0;
-}
-
-/* An image wrapped in a link: left inline, the anchor stretches to full content width and its
-   `title` tooltip hovers beside the image. Hug the widget so the tooltip covers only it. */
-:where(.editor) a.md-link-content:has(.md-image-widget) {
-	display: inline-block;
-	width: fit-content;
 }
 
 /* An image with no pixels (broken, scheme-refused, or a `'placeholder'` load policy) would lay out

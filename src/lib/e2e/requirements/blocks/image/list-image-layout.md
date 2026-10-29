@@ -2,9 +2,8 @@
 
 A list item's marker (`- `, `1. `) beside a paragraph that contains an image
 widget sits at the paragraph's top, on its first line (at a leading picture's top,
-the way Docs and Notion place it), and image-only paragraphs avoid the empty
-trailing line box that contenteditables would otherwise leave below a block-level
-child.
+the way Docs and Notion place it), and an image-only paragraph leaves no empty
+line below its picture.
 
 ## Happy paths
 
