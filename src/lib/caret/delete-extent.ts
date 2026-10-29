@@ -8,7 +8,7 @@
 import { graphemeSegmenter, wordSegmenter } from '../core/text-units';
 import { recordDeleteWindow } from '../perf/instruments';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
-import type { VisibleText } from '../browser/offsets';
+import { charsEndingBy, visibleIndexAt, type VisibleText } from '../browser/offsets';
 import type { DeleteDirection, DeleteIntent } from '../browser/input';
 
 export interface DeleteSpan {
@@ -118,18 +118,6 @@ function wordSpan(context: DeleteContext, direction: DeleteDirection): DeleteSpa
 	return direction === 'backward'
 		? { start: visible.rawStart[span.start], end: caret }
 		: { start: caret, end: visible.rawEnd[span.end - 1] };
-}
-
-/** The first visible character at or after raw `raw`. */
-function visibleIndexAt(visible: VisibleText, raw: number): number {
-	const i = visible.rawStart.findIndex((start) => start >= raw);
-	return i === -1 ? visible.text.length : i;
-}
-
-/** How many visible characters end at or before raw `raw`. */
-function charsEndingBy(visible: VisibleText, raw: number): number {
-	const i = visible.rawEnd.findIndex((end) => end > raw);
-	return i === -1 ? visible.text.length : i;
 }
 
 function wordStartBefore(text: string, caret: number, floor: number): number {
