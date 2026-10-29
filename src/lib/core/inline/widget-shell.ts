@@ -16,6 +16,10 @@ export function mintWidgetShell(node: InlineNode, className?: string): HTMLSpanE
 	return shell;
 }
 
+/** On a widget whose kind declares `frame`: a picture-like box the caret beside draws at the
+ *  line's text height for. Stamped at render, since layout can't be read there. */
+export const FRAME_ATTR = 'data-widget-frame';
+
 /** The raw byte range a shell carries, or null when the attributes are absent or malformed:
  *  {@link mintWidgetShell}'s inverse, kept beside it so the two move together. */
 export function widgetSourceRange(el: Element): { start: number; end: number } | null {

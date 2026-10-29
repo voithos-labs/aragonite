@@ -91,7 +91,8 @@ export function drawnCaretTarget(reads: DrawnCaretReads): DrawnCaretTarget {
 	if (reads.pressed) return { state: 'pressed' };
 	if (!host) return { state: 'native' };
 	if (widgetEdge) {
-		const rect = inHost(widgetEdge.left, widgetEdge, host);
+		const rows = onDeviceGrid(widgetEdge, host, dpr);
+		const rect = { ...rows, x: (widgetEdge.left - host.left) / host.scale };
 		return { state: 'widget', rect: { ...rect, width: widgetEdge.width / host.scale } };
 	}
 	if (reads.chip) return { state: 'chip', rect: onDeviceGrid(reads.chip, host, dpr) };

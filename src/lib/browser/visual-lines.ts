@@ -382,8 +382,8 @@ function isAtEdgeVisualLine(
 
 	if (cursorTop === null) {
 		// A caret beside an atomic widget sits at an element-level position and measures to no rect
-		// of its own: it borrows the widget's box, and is at the edge line when nothing reaches past.
-		const band = neighbourCaretRect(cursorRange);
+		// of its own: it borrows its neighbours' boxes, and is at the edge line when nothing reaches past.
+		const band = neighbourBand(cursorRange);
 		const contents = contentsRect(el);
 		if (!band || !contents) return fallback();
 		return edge.toStart
@@ -394,6 +394,23 @@ function isAtEdgeVisualLine(
 	const edgeTop = edge.boundaryTop();
 	if (edgeTop === null) return fallback();
 	return Math.abs(cursorTop - edgeTop) < tolerance;
+}
+
+// Both neighbours where they share a line: beside a picture one is the picture, as tall as the
+// line, and the other the text-height anchor at its foot. At a wrap they don't, and the next wins.
+function neighbourBand(range: Pick<Range, 'startContainer' | 'startOffset'>): CaretRect | null {
+	if (range.startContainer.nodeType !== Node.ELEMENT_NODE) return null;
+	const children = range.startContainer.childNodes;
+	const after = nodeCaretRect(children[range.startOffset], false);
+	const before = nodeCaretRect(children[range.startOffset - 1], true);
+	if (!after || !before || after.top >= before.bottom || before.top >= after.bottom) {
+		return after ?? before;
+	}
+	return {
+		left: after.left,
+		top: Math.min(after.top, before.top),
+		bottom: Math.max(after.bottom, before.bottom)
+	};
 }
 
 function nodeCaretRect(node: Node | undefined, fromEnd: boolean): CaretRect | null {

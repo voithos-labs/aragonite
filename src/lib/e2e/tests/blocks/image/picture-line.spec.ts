@@ -123,13 +123,41 @@ test.describe('a picture sits in its line', () => {
 				const paragraph = document
 					.querySelector('[data-image-widget]')!
 					.closest('[contenteditable="true"]');
-				return (
-					!!sel && sel.rangeCount > 0 && sel.isCollapsed && !!paragraph?.contains(sel.focusNode)
-				);
+				if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return 'no caret';
+				const at = sel.focusNode!;
+				if (!paragraph?.contains(at)) return 'outside the paragraph';
+				if (at.nodeType === Node.TEXT_NODE) return 'in text';
+				const next = at.childNodes[sel.focusOffset];
+				return next instanceof HTMLBRElement && 'caretAnchor' in next.dataset
+					? 'before an anchor'
+					: `beside ${next?.nodeName ?? 'nothing'}`;
 			});
-			expect(caret).toBe(true);
+			expect(['in text', 'before an anchor']).toContain(caret);
 		});
 	}
+
+	test('Backspace at a lone picture’s start joins it to the paragraph above', async ({ page }) => {
+		await editor.loadContent(`above\n\n${IMG}\n`);
+		await editor.focusBlockStart(1);
+		await page.keyboard.press('Backspace');
+		await expect.poll(() => editor.bridge.getSource()).toBe(`above${IMG}\n`);
+	});
+
+	test('Delete at a lone picture’s end joins the paragraph below to it', async ({ page }) => {
+		await editor.loadContent(`${IMG}\n\nbelow\n`);
+		await editor.focusBlockEnd(0);
+		await page.keyboard.press('Delete');
+		await expect.poll(() => editor.bridge.getSource()).toBe(`${IMG}below\n`);
+	});
+
+	test('the line a picture ends adds nothing a screen reader reads', async ({ page }) => {
+		await editor.loadContent(`${IMG}\n`);
+		await waitForAllImagesLoaded(page);
+		const paragraph = page
+			.locator('[data-image-widget]')
+			.locator('xpath=ancestor::*[@contenteditable="true"]');
+		expect(await paragraph.ariaSnapshot()).toBe('- textbox "Paragraph":\n  - img "x"');
+	});
 
 	const COMPOSE_ROWS = [
 		{ name: 'after a lone picture (backspace)', arrive: 'backspace', typed: `${IMG}你` },
@@ -157,4 +185,18 @@ test.describe('a picture sits in its line', () => {
 			expect(await page.evaluate(() => (window as any).__started)).toBe(1);
 		});
 	}
+});
+
+// The anchor after a picture is a line for the caret, not content: the block reads as the picture,
+// never as an empty block.
+test('a lone picture’s paragraph shows no empty-block hint', async ({ page }) => {
+	const editor = new EditorPage(page);
+	await editor.goto(`?placeholder=${encodeURIComponent('Type here')}`);
+	await editor.setPresentationMode('live');
+	await editor.loadContent(`${IMG}\n`);
+	await editor.focusBlockEnd(0);
+	const paragraph = page
+		.locator('[data-image-widget]')
+		.locator('xpath=ancestor::*[@contenteditable="true"]');
+	await expect(paragraph).not.toHaveAttribute('data-placeholder');
 });

@@ -34,7 +34,7 @@ empty block and let ArrowUp leave from anywhere.
 - For an inline (mid-paragraph) image, ArrowUp from the line after the image lands at the line
   before it: the surrounding paragraph has text positions, so nothing here applies.
 - Two adjacent images wrapped onto two lines, caret at the paragraph's end beside the second:
-  ArrowUp stays in the paragraph, since the first line is still above it.
-  - Chromium marks the row `fixme` against #574: it drops the caret placed after the trailing image
+  ArrowUp stays in the paragraph, since the first line is still above it. Pictures sit side by
+  side now, so the two are each wider than half the column.
 - Live mode, a block holding only a picture inside a link (`[![cat](…)](https://x)`): ArrowDown from the block above, or ArrowUp from the block below, selects the picture, the same as a bare one, and a key typed then replaces it inside the link. The link's markers are hidden there, so the picture is the first and last thing the block draws.
   - Miss-analysis (#771): every stop here was a bare picture, so nothing asked the edge reading about a picture a link wraps, which it read as no picture at all, dropping the caret and the next key. The fix left these rows marked fixme, since nothing re-ran a fixme row until the release recheck

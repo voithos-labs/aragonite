@@ -212,7 +212,7 @@ describe('the widget edge a click meant', () => {
 		const unregister = caret.register({
 			el: document.createElement('div'),
 			drawable: () => true,
-			widgetEdge: { owner, box: () => null }
+			widgetEdgeOwner: owner
 		});
 		caret.armWidgetEdge(owner, 3);
 		unregister();
@@ -227,7 +227,7 @@ describe('the widget edge a click meant', () => {
 		const owner = {};
 		const held = document.createElement('div');
 		editor.target.append(held);
-		caret.register({ el: held, drawable: () => true, widgetEdge: { owner, box: () => null } });
+		caret.register({ el: held, drawable: () => true, widgetEdgeOwner: owner });
 
 		caret.armWidgetEdge(owner, 3);
 		window.getSelection()!.removeAllRanges();

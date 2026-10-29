@@ -21,6 +21,7 @@ import {
 } from '../../../core/inline';
 import type { Reading } from '../../../schema/reading';
 import {
+	FRAME_LINE_ANCHOR,
 	PENDING_BREAK_START,
 	renderInlineNodes,
 	type ImageLoadPolicy
@@ -219,9 +220,13 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (suffix) {
 			const span = markerSpan(suffix);
 			span.setAttribute(BLOCK_SUFFIX_ATTR, blockOwnPrefix ? 'after-prefix' : '');
-			// A closing run on the text's own line stays there when a pending break draws a new one.
+			// A closing run on the text's own line stays there when a pending break draws a new one,
+			// and every suffix goes before the anchor a picture ending the content leaves.
 			const onTextLine = sameLineSuffix(node) === suffix;
-			frag.insertBefore(span, onTextLine ? frag.querySelector(PENDING_BREAK_START) : null);
+			const before =
+				frag.querySelector(FRAME_LINE_ANCHOR) ??
+				(onTextLine ? frag.querySelector(PENDING_BREAK_START) : null);
+			frag.insertBefore(span, before);
 		}
 		return frag;
 	}

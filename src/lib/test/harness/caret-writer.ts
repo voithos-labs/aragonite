@@ -4,6 +4,5 @@ import { createCaretWriter } from '#lib/browser/caret-writer.js';
 
 export const testCaretWriter = createCaretWriter(
 	() => {},
-	() => false,
 	() => false
 );
