@@ -15,8 +15,11 @@ and WebKit.
   back on the same line's start (Shift+Home after it selects nothing), and ArrowDown goes where it
   would have gone without the question
 - the same in a list item, and with an image starting the next line (a picture wider than what
-  line 1 leaves). Chromium marks the asked row `fixme` against #574: its line start skips a picture
-  opening a wrapped line, so the way back lands after the picture
+  line 1 leaves). Chromium marks the asked row `fixme` against #ISSUE: its line start skips a
+  picture opening a wrapped line, so the way back lands after the picture
+- before an image starting the next line with no space after it, where the editor asks: ArrowUp
+  leaves for the block before, and ArrowDown moves to line 2, inside the block. Chromium marks both
+  `fixme` against #ISSUE, since the way back skips the picture there too
 - End on a short line 1 of a two-line paragraph, ArrowDown: the caret lands on line 2 at line 1's
   column, inside the block, so the question left the caret on line 1's end
 - End on a long line, then ArrowDown twice, through a short line that ends at a wrap: the second
