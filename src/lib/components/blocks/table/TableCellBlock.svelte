@@ -195,6 +195,7 @@
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret: (caret, intent) => edgeDispatch.deleteAtCaret(caret, intent),
+		unitContext: (caret) => edgeDispatch.unitContext(caret),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
 		typedInsert: {
 			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),

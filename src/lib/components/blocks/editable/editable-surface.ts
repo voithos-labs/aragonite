@@ -92,11 +92,8 @@ import {
 import { revealsNoMarkers } from '../../../browser/painted';
 import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
 import type { InputRead } from '../../../browser/block-text';
-import {
-	caretLandableBounds,
-	type CaretUnitSource,
-	type SharedKeydownContext
-} from '../../../selection/shared-keydown';
+import { caretLandableBounds, type SharedKeydownContext } from '../../../selection/shared-keydown';
+import type { CaretUnitSource } from '../../../caret/caret-motion';
 import {
 	isInteractionTraceEnabled,
 	traceCompositionEnd,
@@ -108,7 +105,7 @@ import { checkRepaintReadsTree } from '../../../invariants/repaint-reads-tree';
 import { checkCompositionEndPaired } from '../../../invariants/inline-transitions';
 import { checkDeleteDecided } from '../../../invariants/collapsed-delete';
 import { checkTypedInsertAtCaret } from '../../../invariants/typed-insert-at-caret';
-import type { DeleteAnswer, DeleteVerdict } from '../../../caret/delete-extent';
+import type { DeleteAnswer, DeleteContext, DeleteVerdict } from '../../../caret/delete-extent';
 import {
 	readInput,
 	targetRange,
@@ -309,6 +306,9 @@ export interface EditableSurfaceDeps {
 	/** Takes what a collapsed delete at raw `caret` aims at, through the block's own text. Omitted
 	 *  where the browser's delete is read back. */
 	deleteAtCaret?: (caret: number, intent: DeleteIntent) => DeleteAnswer;
+	/** What that delete reads at `caret`, which a word or edge key lands by too
+	 *  (`caret/caret-motion.ts`); omitted, or null, leaves those keys to the browser. */
+	unitContext?: (caret: number) => DeleteContext | null;
 	/** Takes or enters the widget or decoration a delete of any unit facing `direction` meets at raw
 	 *  `caret`; true when it did. Omitted, like `deleteAtCaret`, where the block draws no widgets. */
 	deleteBeside?: (caret: number, direction: DeleteDirection) => boolean;
@@ -447,6 +447,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getTextLen: deps.getTextLen,
 		stepEdge: deps.stepEdge,
 		caretUnits,
+		unitContext: (caret) => deps.unitContext?.(caret) ?? null,
 		getMyPath: deps.getMyPath,
 		getIndex: deps.getIndex,
 		crossBlock,
@@ -708,6 +709,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// A key can outrun the `selectionchange` that moves a caret the browser left off its spot, and
 		// every handler below reads the caret; the IME's opening key composes there too.
 		const el = deps.getEl();
+		deps.caretWriter.settleDecidedMotion();
 		if (el && !deps.composition.live()) deps.caretWriter.canonicalizeCaret(el);
 		if (imeOwnsKey(e)) {
 			deleteKeydown = null;
@@ -734,6 +736,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// Synchronous to the block's handler: the block's `preventDefault` only counts inside this
 	// listener's microtask checkpoint.
 	function onBeforeInput(e: InputEvent): void {
+		// An edit moves the caret for its own reason, so a decided key's record ends before it.
+		deps.caretWriter.settleDecidedMotion();
 		const keyChord =
 			deleteKeydown && !deleteKeydown.defaultPrevented ? eventToChord(deleteKeydown) : null;
 		deleteKeydown = null;
@@ -861,6 +865,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	};
 
 	function onCompositionStart(): void {
+		deps.caretWriter.settleDecidedMotion();
 		if (!deps.getEl()) return;
 		traceCompositionStart();
 		// A range across blocks goes first, and whichever block its removal leaves the caret in opens

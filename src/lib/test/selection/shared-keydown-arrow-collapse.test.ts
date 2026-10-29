@@ -45,6 +45,7 @@ function mount() {
 		history: {} as SharedKeydownContext['history'],
 		focus: { moveFocus: vi.fn(async () => {}) } as unknown as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,
+		unitContext: () => null,
 		caretUnits: { beside: () => null, crossed: () => {} }
 	};
 	const select = (anchor: number, focus: number) =>

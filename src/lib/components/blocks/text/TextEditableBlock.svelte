@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { imeOwnsInput } from '../../../browser/composition';
 	import { getContext, onDestroy, untrack } from 'svelte';
-	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
+	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import { isTaskItemText } from '../list/task-checkbox';
 	import { defaultPrefixIndent } from '../marker-prefix';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
@@ -45,7 +45,6 @@
 		handlePendingBreakKey,
 		type PendingBreakKeyDeps
 	} from './pending-break-keys';
-	import { handleHomeKey, type HomeKeyDeps } from './home-key';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 	import { createCompositionSeat } from './composition-seat';
@@ -121,8 +120,7 @@
 		getDoc,
 		getEditorRoot,
 		events: editorEvents,
-		reading,
-		caretLanding
+		reading
 	} = wiring.deps;
 	const { grammar } = reading;
 	// Made per gesture, never derived: a derived value would subscribe the block to the tree.
@@ -243,6 +241,7 @@
 		deleteAtCaret: (caret, intent) =>
 			takeBackOpenLine(pendingBreakKeyDeps) ? 'taken' : edgeDispatch.deleteAtCaret(caret, intent),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
+		unitContext: (caret) => edgeDispatch.unitContext(caret),
 		typedInsert: {
 			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),
 			widgetBeside: (caret) => edgeDispatch.typing.widgetBeside(caret),
@@ -777,15 +776,6 @@
 		writeText,
 		requestCaret: (at) => setPendingCursorOffset(at, 'pending-break')
 	};
-	const homeKeyDeps: HomeKeyDeps = {
-		getEl: () => el ?? null,
-		caretBounds,
-		getFocusOffset: () => cursor.getFocusOffset(),
-		// Not offset 0: the start value is the one a caret placement clamps past hidden markers.
-		focusContentStart: () => focus(CURSOR_START),
-		extend: { caretWriter, caretLanding }
-	};
-
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (editableSurface.isDetached()) return;
 
@@ -810,8 +800,6 @@
 		// Every caret-edge construct goes through this one dispatch, keeping contenteditable
 		// from corrupting the atomic bytes each stands for.
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
-
-		if (handleHomeKey(e, homeKeyDeps)) return;
 
 		if (wiring.dispatchChord(e, keyTarget)) return;
 	}

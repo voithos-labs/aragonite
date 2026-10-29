@@ -118,24 +118,25 @@ export function lineEdgeOffset(
 	const y = (caret.top + caret.bottom) / 2;
 	const line = lineBoxNearest(el, y);
 	if (!line) return null;
-	// A point on the right half of a widget's box resolves before it on some engines, so a widget
-	// closing the line decides its end.
-	const closing = side === 'end' ? widgetClosingLine(el, line) : null;
-	if (closing !== null) return closing;
+	// A point on a widget's box resolves to either side of it by engine, so a widget at the line's
+	// edge decides that edge.
+	const edgeWidget = widgetAtLineEdge(el, line, side);
+	if (edgeWidget !== null) return edgeWidget;
 	// Half a pixel inside the line's box, so the point resolves to its first or last offset.
 	return offsetFromViewportPoint(el, side === 'start' ? line.left + 0.5 : line.right - 0.5, y);
 }
 
-/** The raw end of the widget or replace decoration that closes `line` in `el`; null with none. A
- *  `<br>`'s far side is the next line's start, so it never closes one. */
-function widgetClosingLine(el: HTMLElement, line: LineBox): number | null {
+/** The raw edge of the widget or replace decoration that opens or closes `line` in `el`, null with
+ *  none. A `<br>`'s far side is the next line's start, so it never closes one. */
+function widgetAtLineEdge(el: HTMLElement, line: LineBox, side: 'start' | 'end'): number | null {
 	for (const shell of el.querySelectorAll<HTMLElement>(LINE_EDGE_SPANS)) {
 		const rects = shell.getClientRects();
-		const box = rects[rects.length - 1];
+		const box = side === 'start' ? rects[0] : rects[rects.length - 1];
 		if (!box || box.bottom <= line.top || box.top >= line.bottom) continue;
-		if (box.right < line.right - 1 || shell.querySelector('br')) continue;
-		const end = Number(shell.dataset.sourceEnd);
-		if (Number.isInteger(end)) return end;
+		if (side === 'start' ? box.left > line.left + 1 : box.right < line.right - 1) continue;
+		if (side === 'end' && shell.querySelector('br')) continue;
+		const edge = Number(side === 'start' ? shell.dataset.sourceStart : shell.dataset.sourceEnd);
+		if (Number.isInteger(edge)) return edge;
 	}
 	return null;
 }
@@ -373,7 +374,10 @@ function caretLineBox(el: HTMLElement, raw: number, lineRead: LineRead): CaretRe
 		const atWrap = focusCaretAtWrap(el, focus, lineRead);
 		if (atWrap) return atWrap;
 	}
-	return caretRectAtRaw(el, raw);
+	const at = rawRangeToDomRange(el, raw, raw);
+	if (!at) return null;
+	// Beside a widget no text holds the caret, so it borrows the widget's box.
+	return caretRectAt(el, at.startContainer, at.startOffset) ?? neighbourCaretRect(at);
 }
 
 /** The first rect that can position a caret: the leading client rect when it has real

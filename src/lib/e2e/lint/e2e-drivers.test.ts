@@ -21,6 +21,7 @@ const MULTI_CLICK_HELPER = 'src/lib/e2e/multi-click.ts';
 const INSERT_TEXT_HELPER = 'src/lib/e2e/insert-text.ts';
 const PLATFORM_KEYS = 'src/lib/e2e/platform-keys.ts';
 const EDGE_CHORDS_SPEC = 'src/lib/e2e/tests/keyboard-navigation/edge-chords.spec.ts';
+const MOTION_CLASS_SPEC = 'src/lib/e2e/tests/caret/motion-class.spec.ts';
 const IN_PLACE_HELPER = 'src/lib/e2e/click-in-place.ts';
 const TYPING_BATCH_HELPER = 'src/lib/e2e/typing-batch.ts';
 const TYPING_PAUSE_SPEC = 'src/lib/e2e/tests/undo-typing-pause.spec.ts';
@@ -210,7 +211,9 @@ describeManifests(
 			declared: {
 				[PLATFORM_KEYS]: 'edgeKey and extendKey, the one spelling per platform',
 				[EDGE_CHORDS_SPEC]:
-					"sends both platforms' literal chords on every engine, so the Cmd+Arrow reading runs on every Linux push"
+					"sends both platforms' literal chords on every engine, so the Cmd+Arrow reading runs on every Linux push",
+				[MOTION_CLASS_SPEC]:
+					'sends both spellings of each edge key on every engine, so where Cmd+Arrow lands is checked on every Linux push'
 			},
 			reason: `press edgeKey or extendKey (${PLATFORM_KEYS}): on macOS Home and End scroll the page`,
 			hits: [

@@ -7,10 +7,9 @@
 
 import type { InlineNode } from '../../../core/nodes';
 import type { CaretMemory } from '../../../caret/caret-memory';
-import type { CaretWriter } from '../../../browser/caret-writer';
 import { chipArrivalKey, edgeStepDirection } from '../../../caret/edge-affinity';
 import { hidingScreenOf } from '../../../browser/painted';
-import { caretEdgeKey } from '../../../schema/keybindings';
+import { lineEdgeOffset, type LineRead } from '../../../browser/visual-lines';
 import type { Reading } from '../../../schema/reading';
 import { hiddenEdges, type HiddenEdges } from './edge-seat';
 
@@ -26,7 +25,8 @@ export interface EdgeStepDeps {
 	/** The reading `getInlines` was read with, so a reference link reads as one. */
 	reading: Reading;
 	caretMemory: Pick<CaretMemory, 'side' | 'pin' | 'pinOnArrival'>;
-	caretWriter: Pick<CaretWriter, 'moveCaretToLineEdge'>;
+	/** The line read the line-end key lands by, the motion home's (`caret/caret-motion.ts`). */
+	caretWriter: LineRead;
 }
 
 export interface EdgeStep {
@@ -48,13 +48,13 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	}
 
 	/** Where ArrowLeft or the line-end key will land the caret, in raw offsets: one character left,
-	 *  or the end of the caret's raw line, which is past a chip ending that line. */
+	 *  or the end of its visual line, read as the motion home reads it. */
 	function landing(e: KeyboardEvent, caret: number): number | null {
 		const key = chipArrivalKey(e);
 		const raw = deps.getRaw();
 		if (key === 'lineEnd') {
-			const end = raw.indexOf('\n', caret);
-			return end === -1 ? raw.length : end;
+			const el = deps.getEl();
+			return el && lineEdgeOffset(el, caret, 'end', deps.caretWriter);
 		}
 		if (key !== 'ArrowLeft' || caret === 0) return null;
 		const low = raw.charCodeAt(caret - 1);
@@ -78,11 +78,6 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 		// mean the right-hand stop, decided here so no paint shows the other.
 		const stops = edges && at !== null ? edges.chipStops(at) : null;
 		deps.caretMemory.pinOnArrival(e, stops && Math.max(stops.inside, stops.outside));
-		// Only macOS moves the caret for Cmd+Right, so the arrival it pinned is placed here.
-		if (stops && chipArrivalKey(e) === 'lineEnd' && caretEdgeKey(e)?.arrow) {
-			e.preventDefault();
-			deps.caretWriter.moveCaretToLineEdge('end');
-		}
 		return false;
 	}
 

@@ -115,6 +115,7 @@ These checks run in three kinds of place:
 | G1.159 | The caret writer writes a caret only where something shows it                                 | A·N     |
 | G1.160 | A widget beside a caret the writer puts down lays out inline                                  | A·N     |
 | G1.161 | A typed letter the editor leaves to the browser lands at its caret                            | A·N     |
+| G1.163 | A caret key the editor decided leaves the selection it wrote                                  | A·N     |
 
 ### The entries
 
@@ -543,8 +544,8 @@ without rebuilding the list. A failed commit restores them with its bytes
 
 **G1.119 · No caret inside a CRLF pair** (`caret-in-line-ending-pair`). A caret written between
 `\r` and `\n` would edit inside the pair in WebKit and Firefox, so every selection write checks both
-endpoints. Arrows cross a pair in one press (`handleUnitStep`), and a Shift+Arrow moves an anchor
-the browser parked inside one to before it (`extendSelectionToRaw`).
+endpoints. Arrows cross a pair in one press (`caret/caret-motion.ts` :: `motionTarget`), and a
+Shift+Arrow moves an anchor the browser parked inside one to before it (`extendSelectionToRaw`).
 `checkCaretOutsideLineEndingPair` · `line-ending-pairs.test.ts`.
 
 **G1.121 · A menu asked to close is gone** (`menu-closes`). Each menu closes through its own
@@ -693,3 +694,9 @@ the editor leaves to the browser (a caret in a text node, where the typing decis
 started at, or across hidden marker text from it, where placement picks the side. Anywhere else is
 an engine insert the decision has to take. `checkTypedInsertAtCaret` ·
 `components/blocks/editable/editable-surface.ts` · `typed-insert.test.ts`, `typed-insert-at-caret.test.ts`.
+
+**G1.163 · A decided caret key moves the caret once** (`caret-motion-decided`). A caret key the
+motion home lands (`caret/caret-motion.ts`, written from `selection/shared-keydown.ts`) records the
+selection the browser holds after its write; at the next `selectionchange` or keydown a different
+live selection means the browser's own move ran as well, a default left unprevented.
+`checkMotionDecided` · `browser/caret-writer.ts` · `caret-motion-decided.test.ts`.

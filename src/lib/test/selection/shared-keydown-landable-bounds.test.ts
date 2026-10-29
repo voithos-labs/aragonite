@@ -75,6 +75,7 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			history: {} as SharedKeydownContext['history'],
 			focus: { moveFocus } as unknown as SharedKeydownContext['focus'],
 			getDoc: () => doc,
+			unitContext: () => null,
 			caretUnits: { beside: () => null, crossed: () => {} }
 		}
 	};

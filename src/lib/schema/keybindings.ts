@@ -5,6 +5,7 @@
  */
 import type { AnyCommandId } from './command-id';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { usesMacEditingConventions } from './platform-conventions';
 
 export interface KeyBinding {
 	chord: string;
@@ -127,6 +128,38 @@ export function pageKey(e: EdgeKeys): PageKey | null {
 	if (e.key !== 'PageUp' && e.key !== 'PageDown') return null;
 	if (e.ctrlKey || e.metaKey || e.altKey) return null;
 	return { direction: e.key === 'PageUp' ? 'up' : 'down', extend: e.shiftKey === true };
+}
+
+/** A key that moves the caret along the text, and whether Shift grows a selection with it. */
+export interface MotionKey {
+	readonly unit: 'character' | 'word' | 'line-edge' | 'block-edge';
+	readonly direction: 'backward' | 'forward';
+	readonly extend: boolean;
+	/** The Cmd+Arrow spelling of a line or block edge, which the browser moves for on macOS only. */
+	readonly arrow: boolean;
+}
+
+/** The one reading of a horizontal caret key: an arrow, the word chord (Option on a Mac, Ctrl
+ *  elsewhere), or a line or block edge; null for any other key, a document edge included. */
+export function motionKey(e: EdgeKeys): MotionKey | null {
+	const edge = caretEdgeKey(e);
+	if (edge) {
+		if (edge.to === 'doc') return null;
+		return {
+			unit: edge.to === 'line' ? 'line-edge' : 'block-edge',
+			direction: edge.side === 'start' ? 'backward' : 'forward',
+			extend: edge.to === 'line' && edge.extend,
+			arrow: edge.arrow
+		};
+	}
+	if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return null;
+	const direction = e.key === 'ArrowLeft' ? 'backward' : 'forward';
+	const extend = e.shiftKey === true;
+	const word = usesMacEditingConventions() ? e.altKey && !e.ctrlKey : e.ctrlKey && !e.altKey;
+	if (e.metaKey) return null;
+	if (word) return { unit: 'word', direction, extend, arrow: false };
+	if (e.ctrlKey || e.altKey) return null;
+	return { unit: 'character', direction, extend, arrow: false };
 }
 
 export function normalizeChord(chord: string): string {

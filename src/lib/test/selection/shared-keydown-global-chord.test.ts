@@ -47,6 +47,7 @@ function makeCtx(): SharedKeydownContext {
 		history: { requestUndo() {}, requestRedo() {} } as unknown as SharedKeydownContext['history'],
 		focus: {} as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,
+		unitContext: () => null,
 		caretUnits: { beside: () => null, crossed: () => {} }
 	};
 }

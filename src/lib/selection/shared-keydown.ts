@@ -21,12 +21,12 @@ import {
 	extendWithinBlock
 } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../caret/sticky-measure';
-import {
-	landableEndAbutsIsland,
-	landableRawBounds,
-	landableStartAbutsIsland
-} from '../browser/offsets';
-import { markerPrefixOf } from '../browser/painted';
+import { landableRawBounds } from '../browser/offsets';
+import { widgetTouching } from '../browser/painted';
+import { readNativeSelection } from '../browser/selection-read';
+import { motionTarget, type CaretUnitSource } from '../caret/caret-motion';
+import type { DeleteContext } from '../caret/delete-extent';
+import { hasWordSegmenter } from '../core/text-units';
 import {
 	isAtFirstVisualLine,
 	isAtLastVisualLine,
@@ -37,7 +37,8 @@ import {
 	caretEdgeKey,
 	endsSelectAllRun,
 	eventToChord,
-	type CaretEdgeKey
+	motionKey,
+	type MotionKey
 } from '../schema/keybindings';
 import { isDefaultGlobalChord } from '../schema/commands';
 import type { ScrollOwner } from '../windowing/scroll-owner';
@@ -73,20 +74,9 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	stepEdge?(e: KeyboardEvent): boolean;
 	/** The spans in this block a caret can't stop inside, which a horizontal arrow crosses whole. */
 	caretUnits: CaretUnitSource;
-}
-
-/** A raw `[start, end)` a caret can't stop inside: a widget, a replace decoration, a CRLF pair. */
-export interface CaretUnit {
-	start: number;
-	end: number;
-}
-
-export interface CaretUnitSource {
-	/** The span `offset` sits against or inside, on the side `direction` names. A plain arrow
-	 *  crosses only the spans that read as one character; `extending`, every span. */
-	beside(offset: number, direction: 'forward' | 'backward', extending: boolean): CaretUnit | null;
-	/** Called once a press crossed a span: the widget edge a click held stops naming the caret. */
-	crossed(): void;
+	/** What the block's delete reads at `caret`, which a word or edge key lands by too; null where
+	 *  the block leaves those keys to the browser. */
+	unitContext(caret: number): DeleteContext | null;
 }
 
 /** True when the event was fully handled; the caller must skip its block-specific branches. */
@@ -126,17 +116,16 @@ export async function handleSharedKeydown(
 		return false;
 	}
 
-	// Cmd+Arrow is a caret-edge key, never a step: only the edge sites read it.
-	const edge = caretEdgeKey(e);
-	if (handleBlockEdgeChord(e, edge, ctx, el)) return true;
-	if (edge) return false;
-
-	// The moving end, read once for the span step and the boundary check: with Shift the focus, since
-	// a forward range's start is its anchor, which extends across blocks while the focus contracts.
-	const stepOffset = !horizontal ? null : e.shiftKey ? ctx.getFocusOffset() : ctx.getCursorOffset();
-
 	// After the key note, so the press still resets the sticky column as any horizontal step does.
-	if (horizontal && handleUnitStep(e, ctx, el, stepOffset)) return true;
+	const motion = motionKey(e);
+	if (motion && handleMotion(e, motion, ctx, el)) return true;
+	// A caret-edge key the editor left alone (Cmd+Up and Down, a line nothing lays out) is the
+	// browser's, never a step across blocks.
+	if (caretEdgeKey(e)) return false;
+
+	// The moving end, read for the boundary check: with Shift the focus, since a forward range's
+	// start is its anchor, which extends across blocks while the focus contracts.
+	const stepOffset = !horizontal ? null : e.shiftKey ? ctx.getFocusOffset() : ctx.getCursorOffset();
 
 	// ── Arrow boundary navigation ─────────────────────────────────────────
 	const index = ctx.getIndex();
@@ -256,6 +245,7 @@ function stepBesideWidget(
 	if (target === null) return false;
 	e.preventDefault();
 	ctx.caretWriter.placeCaretAtRaw(el, target, { clamp: 'reachable' });
+	ctx.caretWriter.noteDecidedMotion();
 	return true;
 }
 
@@ -292,46 +282,110 @@ export function handleEdgeStep(
 // A table cell asks ahead of its navigation plan as well as here, so each event is read once.
 const edgeStepByEvent = new WeakMap<KeyboardEvent, boolean>();
 
-/** A horizontal arrow beside a span the caret can't stop inside lands at its far edge in one press,
- *  decided here because WebKit and Firefox step natively into or past one. True if claimed. */
-function handleUnitStep(
+/** A horizontal caret key the editor lands itself (`caret/caret-motion.ts`), the same on every
+ *  engine, its Shift twin selecting what the matching delete takes. True if it did. */
+function handleMotion(
 	e: KeyboardEvent,
-	ctx: SharedKeydownContext,
-	el: HTMLElement,
-	offset: number | null
-): boolean {
-	if (e.ctrlKey || e.metaKey || e.altKey || ctx.selection.isCrossBlock) return false;
-	const extending = e.shiftKey;
-	if (offset === null) return false;
-	const direction = e.key === 'ArrowRight' ? 'forward' : 'backward';
-	const unit = ctx.caretUnits.beside(offset, direction, extending);
-	if (!unit) return false;
-	e.preventDefault();
-	const target = direction === 'forward' ? unit.end : unit.start;
-	if (extending) extendWithinBlock(ctx, el, target);
-	else ctx.caretWriter.placeCaretAtRaw(el, target, { clamp: 'exact' });
-	ctx.caretUnits.crossed();
-	return true;
-}
-
-/** A block-edge key lands on the text's edge wherever the browser's own wouldn't: past a marker or
- *  a widget at that end (Firefox stops short of one), and for Cmd+Arrow, which only macOS moves. */
-function handleBlockEdgeChord(
-	e: KeyboardEvent,
-	edge: CaretEdgeKey | null,
+	key: MotionKey,
 	ctx: SharedKeydownContext,
 	el: HTMLElement
 ): boolean {
-	if (edge?.to !== 'block' || ctx.selection.isCrossBlock) return false;
-	const toEnd = edge.side === 'end';
-	const guarded = toEnd
-		? landableEndAbutsIsland(el)
-		: markerPrefixOf(el) !== null || landableStartAbutsIsland(el);
-	if (!guarded && !edge.arrow) return false;
+	if (ctx.selection.isCrossBlock) return false;
+	if (key.unit === 'word' && !hasWordSegmenter()) return false;
+	const from = motionStart(key, ctx, el);
+	if (from === null) return false;
+	const context = key.unit === 'character' ? null : ctx.unitContext(from);
+	if (key.unit !== 'character' && (!context || readsRightToLeft(context.text, from))) return false;
+	const target = motionTarget(key, {
+		caret: from,
+		units: ctx.caretUnits,
+		extending: key.extend,
+		block: context
+	});
+	if (target === null) return false;
 	e.preventDefault();
-	const bounds = caretLandableBounds(ctx, el);
-	ctx.caretWriter.placeCaretAtRaw(el, toEnd ? bounds.end : bounds.start, { clamp: 'reachable' });
+	if (key.unit === 'line-edge') moveToLineEdge(key, ctx, el, from, target);
+	else if (key.extend) extendWithinBlock(ctx, el, target);
+	else
+		ctx.caretWriter.placeCaretAtRaw(el, target, {
+			clamp: key.unit === 'character' ? 'exact' : 'reachable'
+		});
+	if (key.unit === 'character') ctx.caretUnits.crossed();
+	ctx.caretWriter.noteDecidedMotion();
 	return true;
+}
+
+/** Where a caret key moves from: with Shift the moving end; over a range, its edge on the key's
+ *  side, as a plain arrow collapses it; else the caret. */
+function motionStart(key: MotionKey, ctx: SharedKeydownContext, el: HTMLElement): number | null {
+	if (key.extend) return ctx.getFocusOffset();
+	const range = holdsNativeRange() ? rawSelectionIn(el) : null;
+	if (range && !range.collapsed && range.start !== null && range.end !== null) {
+		return key.direction === 'backward' ? range.start : range.end;
+	}
+	return ctx.getCursorOffset();
+}
+
+/** The line's edge by the browser's own line move, which keeps the side of a soft wrap the caret
+ *  shows on; the editor's where a widget stands between the two or touches the caret. */
+function moveToLineEdge(
+	key: MotionKey,
+	ctx: SharedKeydownContext,
+	el: HTMLElement,
+	from: number,
+	target: number
+): void {
+	const side = key.direction === 'backward' ? 'start' : 'end';
+	const writer = ctx.caretWriter;
+	const asked = !caretTouchesWidget(el);
+	if (key.extend) {
+		if (asked) writer.extendToLineEdge(side);
+		const landed = asked ? ctx.getFocusOffset() : null;
+		if (landed === null || widgetBetween(el, landed, target)) extendWithinBlock(ctx, el, target);
+		return;
+	}
+	// A range collapses first; a caret is left as it stands, since writing it drops its side.
+	if (from !== ctx.getCursorOffset()) writer.placeCaretAtRaw(el, from, { clamp: 'reachable' });
+	if (asked) writer.moveCaretToLineEdge(side);
+	const landed = asked ? ctx.getCursorOffset() : null;
+	const keep = landed !== null && !widgetBetween(el, landed, target);
+	// A line start before a widget is written on the widget's line, which a text position isn't.
+	if (keep && !(side === 'start' && caretTouchesWidget(el))) return;
+	writer.placeCaretAtRaw(el, target, {
+		clamp: 'reachable',
+		line: side === 'start' ? 'later' : undefined
+	});
+}
+
+/** Whether the live caret is a collapsed position touching a widget, which can name two lines. */
+function caretTouchesWidget(el: HTMLElement): boolean {
+	const live = readNativeSelection();
+	return !!live?.collapsed && widgetTouching(el, live.focus.node, live.focus.offset) !== null;
+}
+
+/** Whether a widget or a decoration sits between raw offsets `a` and `b` in `el`. */
+function widgetBetween(el: HTMLElement, a: number, b: number): boolean {
+	if (a === b) return false;
+	const [low, high] = a < b ? [a, b] : [b, a];
+	for (const shell of el.querySelectorAll<HTMLElement>(WIDGET_SHELLS)) {
+		const start = Number(shell.dataset.sourceStart);
+		if (start >= low && start < high) return true;
+	}
+	return false;
+}
+
+const WIDGET_SHELLS = '[data-inline-widget], [data-decoration-island]';
+
+// Hebrew, Arabic and the scripts beside them, whose arrows move visually; nothing reads direction yet.
+const RIGHT_TO_LEFT = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;
+const RTL_WINDOW = 256;
+
+/** Whether the caret's line, within a window around it, holds right-to-left text. */
+function readsRightToLeft(text: string, caret: number): boolean {
+	const from = Math.max(text.lastIndexOf('\n', caret - 1) + 1, caret - RTL_WINDOW);
+	const lineEnd = text.indexOf('\n', caret);
+	const to = Math.min(lineEnd === -1 ? text.length : lineEnd, caret + RTL_WINDOW);
+	return RIGHT_TO_LEFT.test(text.slice(from, to));
 }
 
 // ── Block bounds ───────────────────────────────────────────────────────────

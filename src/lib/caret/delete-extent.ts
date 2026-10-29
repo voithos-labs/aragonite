@@ -58,8 +58,9 @@ export interface DeleteContext {
 	bounds: DeleteSpan;
 	/** The raw offset at the `side` edge of the caret's visual line; null where nothing is laid out. */
 	lineEdge?: (side: 'start' | 'end') => number | null;
-	/** The text as the screen shows it (hidden markers left out, a widget one character), for words. */
-	visible?: VisibleText;
+	/** The text as the screen shows it (hidden markers left out, a widget one character), read only
+	 *  for a word, since it walks the block. */
+	visible?: () => VisibleText;
 }
 
 /** The raw span a delete of `intent` takes at the caret; null where there's nothing to take. A word
@@ -106,7 +107,8 @@ export function wordExtent(
 }
 
 function wordSpan(context: DeleteContext, direction: DeleteDirection): DeleteSpan | null {
-	const { text, caret, bounds, visible } = context;
+	const { text, caret, bounds } = context;
+	const visible = context.visible?.();
 	if (!visible) return wordExtent(text, caret, direction, bounds, forwardWordReach());
 	const at = visibleIndexAt(visible, caret);
 	const within = {

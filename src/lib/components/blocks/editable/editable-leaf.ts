@@ -28,7 +28,7 @@ import {
 	holdsOnlyMarkerChrome
 } from '../../../browser/painted';
 import { clampToLandableRaw, landableRawBounds, type RawRange } from '../../../browser/offsets';
-import { deleteExtent, type DeleteAnswer } from '../../../caret/delete-extent';
+import { deleteExtent, type DeleteAnswer, type DeleteContext } from '../../../caret/delete-extent';
 import {
 	decidedDelete,
 	isDeleteInput,
@@ -260,6 +260,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret,
+		unitContext,
 		commandTarget: () => keyTarget,
 		handleDeclinedDelete: spliceTargetRange,
 		removeSelection: (range) => {
@@ -730,17 +731,26 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	 *  render-primary source reaches the node with only on blur, kept off the lines the mode hides. */
 	function deleteAtCaret(caret: number, intent: DeleteIntent): DeleteAnswer {
 		const el = deps.getEl();
-		if (!el) return 'declined';
+		const context = unitContext(caret);
+		if (!el || !context) return 'declined';
+		const span = deleteExtent(intent, context);
+		if (!span) return 'at-edge';
+		spliceSourceText(el, span.start, span.end, '');
+		return 'taken';
+	}
+
+	/** What the delete and the caret keys read at `caret`: the DOM's text, which a shown source
+	 *  reaches the node with only on blur. */
+	function unitContext(caret: number): DeleteContext | null {
+		const el = deps.getEl();
+		if (!el) return null;
 		const text = el.textContent ?? '';
-		const span = deleteExtent(intent, {
+		return {
 			text,
 			caret,
 			bounds: landableRawBounds(el) ?? { start: 0, end: text.length },
 			lineEdge: (side) => lineEdgeOffset(el, caret, side, caretWriter)
-		});
-		if (!span) return 'at-edge';
-		spliceSourceText(el, span.start, span.end, '');
-		return 'taken';
+		};
 	}
 
 	function onPointerDown(e: PointerEvent): void {
