@@ -13,6 +13,11 @@ its own, and a widget is one character.
 
 ## Edge cases
 
+- a full stop between letters ends a word on every engine: word Delete at the start of
+  `foo.bar, baz` leaves `.bar, baz`, and word Backspace before `baz` in a code body's `foo.bar baz`
+  leaves `foo.baz`
+  - Miss-analysis: every row ran words without punctuation inside them, so nothing showed Firefox's
+    and WebKit's segmenters joining `foo.bar` where Chromium's cuts it
 - `a &copy;`, word Backspace after the entity: the entity goes whole, as Backspace takes it
 - live mode, each of these leaves the same bytes as selecting the same visible text with
   Shift+ArrowLeft and pressing Delete:

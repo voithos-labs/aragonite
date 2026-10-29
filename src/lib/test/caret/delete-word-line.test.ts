@@ -58,6 +58,17 @@ describe('wordExtent: a word delete', () => {
 		expect(word(marked, 'forward', 'word-end')).toBe(left);
 	});
 
+	// Miss-analysis: every row ran on Node's segmenter, which joins `foo.bar` as Firefox's and WebKit's
+	// do, so nothing showed Chromium cutting it and the three engines' deletes taking different text.
+	it.each([
+		['foo.bar|', 'foo.|'],
+		['|foo.bar', '|.bar'],
+		['a:b|', 'a:|'],
+		['pi 3.14|', 'pi |']
+	])('a full stop or colon between letters ends a word: %j leaves %j', (marked, left) => {
+		expect(word(marked, marked.startsWith('|') ? 'forward' : 'backward')).toBe(left);
+	});
+
 	it('takes nothing at a line break, which a character delete takes instead', () => {
 		expect(word('a\n|b', 'backward')).toBeNull();
 		expect(word('a|\nb', 'forward')).toBeNull();

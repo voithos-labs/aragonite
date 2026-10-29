@@ -55,6 +55,18 @@ test.describe('a word delete by key', () => {
 		await expectSource(editor, '```\nlet \n```\n');
 	});
 
+	// Firefox's and WebKit's segmenters join `foo.bar`, Chromium's cuts it.
+	test('a full stop between letters ends a word, in prose and code', async ({ page }) => {
+		const code = '```\nfoo.bar baz\n```\n';
+		await editor.loadContent(`foo.bar, baz\n\n${code}`);
+		await editor.focusBlockAtPath([0], 0);
+		await page.keyboard.press(`${WORD_MODIFIER}+Delete`);
+		await expectSource(editor, `.bar, baz\n\n${code}`);
+		await editor.focusBlockAtPath([1], 12);
+		await page.keyboard.press(`${WORD_MODIFIER}+Backspace`);
+		await expectSource(editor, `.bar, baz\n\n${code.replace('foo.bar baz', 'foo.baz')}`);
+	});
+
 	test('an entity before the caret goes whole, as Backspace takes it', async ({ page }) => {
 		await editor.loadContent('a &copy;\n');
 		await editor.focusBlockAtPath([0], 8);

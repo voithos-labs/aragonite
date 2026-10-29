@@ -5,7 +5,7 @@
  * only for a cluster or word longer than it.
  */
 
-import { graphemeSegmenter, wordSegmenter } from '../core/text-units';
+import { graphemeSegmenter, hasWordSegmenter, wordSegments } from '../core/text-units';
 import { recordDeleteWindow } from '../perf/instruments';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
 import { charsEndingBy, visibleIndexAt, type VisibleText } from '../browser/offsets';
@@ -96,7 +96,7 @@ export function wordExtent(
 	bounds: DeleteSpan,
 	reach: ForwardWordReach
 ): DeleteSpan | null {
-	if (!wordSegmenter()) return null;
+	if (!hasWordSegmenter()) return null;
 	if (direction === 'backward') {
 		if (caret <= bounds.start || isLineBreak(text[caret - 1])) return null;
 		return { start: wordStartBefore(text, caret, bounds.start), end: caret };
@@ -189,7 +189,7 @@ function runEndAfter(window: string, reach: ForwardWordReach): number {
 }
 
 // `wordExtent` returns before any read where the platform has no segmenter.
-const segmentsOf = (window: string): Intl.Segments => wordSegmenter()!.segment(window);
+const segmentsOf = (window: string) => wordSegments(window)!;
 
 const isSpace = (char: string | undefined) => char !== undefined && /[^\S\r\n]/.test(char);
 const isLineBreak = (char: string | undefined) => char === '\n' || char === '\r';

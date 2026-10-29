@@ -5,7 +5,7 @@
  * The word is a segment of the text the word delete reads, so the two share word boundaries.
  */
 
-import { wordSegmenter } from '../core/text-units';
+import { wordSegments, type WordSegment } from '../core/text-units';
 import { caretOffsetAtPoint } from '../browser/point';
 import type { UserScrollport } from '../windowing/scroll-ancestors';
 import {
@@ -35,9 +35,8 @@ export interface Span {
 /** The segment at `offset`: the word ending there if there is one, else the segment starting
  *  there, as the browser takes it. Null on a platform with no segmenter. */
 export function wordSpanAt(text: string, offset: number): Span | null {
-	const seg = wordSegmenter();
-	if (!seg || text.length === 0) return null;
-	const segments = seg.segment(text);
+	const segments = text.length === 0 ? null : wordSegments(text);
+	if (!segments) return null;
 	const at = Math.max(0, Math.min(offset, text.length));
 	const left = at > 0 ? segments.containing(at - 1) : undefined;
 	const right = at < text.length ? segments.containing(at) : undefined;
@@ -47,7 +46,7 @@ export function wordSpanAt(text: string, offset: number): Span | null {
 	return pick ? spanOf(pick) : null;
 }
 
-function spanOf(segment: Intl.SegmentData): Span {
+function spanOf(segment: WordSegment): Span {
 	return { start: segment.index, end: segment.index + segment.segment.length };
 }
 

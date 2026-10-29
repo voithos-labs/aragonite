@@ -549,6 +549,22 @@ const RULES: FileRule[] = [
 		misses: ['const box = el.getBoundingClientRect();', 'const rects = block.getClientRects();']
 	},
 	{
+		id: 'G4.275 words are cut by one rule',
+		matches: /\bIntl\s*\.\s*Segmenter\b|\bgranularity\s*:\s*['"]word['"]/,
+		allowed: {
+			'src/lib/core/text-units.ts':
+				'`wordSegments`, which cuts a full stop or colon between letters the same on every engine'
+		},
+		reason:
+			'engines’ word segmenters disagree (Chromium cuts `foo.bar`, Firefox and WebKit join it), so a word read straight off `Intl.Segmenter` takes different text on each: read words through `wordSegments` in `core/text-units.ts`',
+		hits: [
+			"const s = new Intl.Segmenter(undefined, { granularity: 'word' });",
+			'if (typeof Intl.Segmenter === "function") {}',
+			"create('word', { granularity: 'word' })"
+		],
+		misses: ['const segments = wordSegments(text);', 'const unit = graphemeSegmenter();']
+	},
+	{
 		id: 'G4.243 the caret’s line is decided through the soft-wrap read',
 		matches: /\bcaretRectAt(?:Raw)?\s*\(/,
 		allowed: {
