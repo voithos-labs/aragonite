@@ -25,6 +25,7 @@ import { landableRawBounds } from '../browser/offsets';
 import { widgetTouching } from '../browser/painted';
 import { readNativeSelection } from '../browser/selection-read';
 import { motionTarget, type CaretUnitSource } from '../caret/caret-motion';
+import { showCaret } from './show-caret';
 import type { DeleteContext } from '../caret/delete-extent';
 import { hasWordSegmenter } from '../core/text-units';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
@@ -247,7 +248,7 @@ function stepBesideWidget(
 	if (target === null) return false;
 	e.preventDefault();
 	ctx.caretWriter.placeCaretAtRaw(el, target, { clamp: 'reachable' });
-	ctx.caretWriter.noteDecidedMotion();
+	decided(ctx, el);
 	return true;
 }
 
@@ -313,7 +314,7 @@ function handleMotion(
 		if (el.getClientRects().length === 0) return false;
 		e.preventDefault();
 		moveToLineEdge(key, ctx, el, from, context.text, () => motionTarget(key, motion));
-		ctx.caretWriter.noteDecidedMotion();
+		decided(ctx, el);
 		return true;
 	}
 	const target = motionTarget(key, motion);
@@ -325,8 +326,15 @@ function handleMotion(
 			clamp: key.unit === 'character' ? 'exact' : 'reachable'
 		});
 	if (key.unit === 'character') ctx.caretUnits.crossed();
-	ctx.caretWriter.noteDecidedMotion();
+	decided(ctx, el);
 	return true;
+}
+
+/** A caret key the editor landed: the check that the browser's own move didn't run as well, and
+ *  the scroll that move would have made to show the caret. */
+function decided(ctx: SharedKeydownContext, el: HTMLElement): void {
+	ctx.caretWriter.noteDecidedMotion();
+	showCaret(el, ctx.scroll);
 }
 
 /** The range the selection holds in `el`; null for a caret, which costs no walk of the block. */
