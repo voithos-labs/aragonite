@@ -307,16 +307,19 @@ function handleMotion(
 	if (from === null) return false;
 	const context = key.unit === 'character' ? null : ctx.unitContext(from);
 	if (key.unit !== 'character' && (!context || readsRightToLeft(context.text, from))) return false;
-	const target = motionTarget(key, {
-		caret: from,
-		units: ctx.caretUnits,
-		extending: key.extend,
-		block: context
-	});
+	const motion = { caret: from, units: ctx.caretUnits, extending: key.extend, block: context };
+	if (key.unit === 'line-edge' && context) {
+		// A block nothing lays out has no line to find the edge of, so the key stays the browser's.
+		if (el.getClientRects().length === 0) return false;
+		e.preventDefault();
+		moveToLineEdge(key, ctx, el, from, context.text, () => motionTarget(key, motion));
+		ctx.caretWriter.noteDecidedMotion();
+		return true;
+	}
+	const target = motionTarget(key, motion);
 	if (target === null) return false;
 	e.preventDefault();
-	if (key.unit === 'line-edge') moveToLineEdge(key, ctx, el, from, target);
-	else if (key.extend) extendWithinBlock(ctx, el, target);
+	if (key.extend) extendWithinBlock(ctx, el, target);
 	else
 		ctx.caretWriter.placeCaretAtRaw(el, target, {
 			clamp: key.unit === 'character' ? 'exact' : 'reachable'
@@ -332,35 +335,49 @@ function heldRange(el: HTMLElement): ReturnType<typeof rawSelectionIn> {
 	return range && !range.collapsed ? range : null;
 }
 
-/** The line's edge by the browser's own line move, which keeps the side of a soft wrap the caret
- *  shows on; the editor's where a widget stands between the two or touches the caret. */
+/** The line's edge by the browser's own move, which keeps a soft wrap's side; `target` (a layout
+ *  read, so asked only with a widget drawn) where a widget or line break parts them. */
 function moveToLineEdge(
 	key: MotionKey,
 	ctx: SharedKeydownContext,
 	el: HTMLElement,
 	from: number,
-	target: number
+	text: string,
+	target: () => number | null
 ): void {
 	const side = key.direction === 'backward' ? 'start' : 'end';
 	const writer = ctx.caretWriter;
 	const asked = !caretTouchesWidget(el);
+	const drawsWidget = el.querySelector(WIDGET_SHELLS) !== null;
+	const strays = (landed: number | null, at: number) =>
+		landed === null || widgetBetween(el, landed, at) || breakBetween(text, landed, at);
 	if (key.extend) {
 		if (asked) writer.extendToLineEdge(side);
-		const landed = asked ? ctx.getFocusOffset() : null;
-		if (landed === null || widgetBetween(el, landed, target)) extendWithinBlock(ctx, el, target);
+		if (!drawsWidget) return;
+		const at = target();
+		if (at !== null && strays(asked ? ctx.getFocusOffset() : null, at)) {
+			extendWithinBlock(ctx, el, at);
+		}
 		return;
 	}
 	// A range collapses first; a caret is left as it stands, since writing it drops its side.
 	if (from !== ctx.getCursorOffset()) writer.placeCaretAtRaw(el, from, { clamp: 'reachable' });
 	if (asked) writer.moveCaretToLineEdge(side);
-	const landed = asked ? ctx.getCursorOffset() : null;
-	const keep = landed !== null && !widgetBetween(el, landed, target);
+	if (!drawsWidget) return;
+	const at = target();
+	if (at === null) return;
+	const keep = !strays(asked ? ctx.getCursorOffset() : null, at);
 	// A line start before a widget is written on the widget's line, which a text position isn't.
 	if (keep && !(side === 'start' && caretTouchesWidget(el))) return;
-	writer.placeCaretAtRaw(el, target, {
+	writer.placeCaretAtRaw(el, at, {
 		clamp: 'reachable',
 		line: side === 'start' ? 'later' : undefined
 	});
+}
+
+/** Whether a hard line break sits between raw offsets `a` and `b` of `text`. */
+function breakBetween(text: string, a: number, b: number): boolean {
+	return /[\r\n]/.test(text.slice(Math.min(a, b), Math.max(a, b)));
 }
 
 /** Whether the live caret is a collapsed position touching a widget, which can name two lines. */
