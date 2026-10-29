@@ -298,10 +298,11 @@ function handleMotion(
 	if (key.unit === 'word' && !hasWordSegmenter()) return false;
 	// With Shift the moving end; over a range, its edge on the key's side, as a plain arrow collapses it.
 	const held = key.extend ? null : heldRange(el);
+	const edges = held && held.start !== null && held.end !== null ? held : null;
 	const from = key.extend
 		? ctx.getFocusOffset()
-		: held
-			? held[key.direction === 'backward' ? 'start' : 'end']
+		: edges
+			? edges[key.direction === 'backward' ? 'start' : 'end']
 			: ctx.getCursorOffset();
 	if (from === null) return false;
 	const context = key.unit === 'character' ? null : ctx.unitContext(from);
@@ -326,10 +327,9 @@ function handleMotion(
 }
 
 /** The range the selection holds in `el`; null for a caret, which costs no walk of the block. */
-function heldRange(el: HTMLElement): { start: number; end: number } | null {
+function heldRange(el: HTMLElement): ReturnType<typeof rawSelectionIn> {
 	const range = holdsNativeRange() ? rawSelectionIn(el) : null;
-	if (!range || range.collapsed || range.start === null || range.end === null) return null;
-	return { start: range.start, end: range.end };
+	return range && !range.collapsed ? range : null;
 }
 
 /** The line's edge by the browser's own line move, which keeps the side of a soft wrap the caret
