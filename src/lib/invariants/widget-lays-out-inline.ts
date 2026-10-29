@@ -6,6 +6,7 @@
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { widgetsBeside } from '../browser/caret-spot';
+import { widgetSourceRange } from '../core/inline/widget-shell';
 
 export function checkWidgetLaysOutInline(
 	el: HTMLElement,
@@ -17,7 +18,7 @@ export function checkWidgetLaysOutInline(
 		return {
 			code: 'widget-lays-out-inline',
 			message: `a caret was written beside a widget laid out as \`display: ${display}\`, where it has no line: lay the widget out inline (\`inline-block\` for a box), and declare \`frame\` on a box taller than its text`,
-			detail: { display, widget: widget.className }
+			detail: { display, source: widgetSourceRange(widget) }
 		};
 	}
 	return null;
