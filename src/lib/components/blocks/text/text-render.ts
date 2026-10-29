@@ -21,7 +21,6 @@ import {
 } from '../../../core/inline';
 import type { Reading } from '../../../schema/reading';
 import {
-	FRAME_LINE_ANCHOR,
 	PENDING_BREAK_START,
 	renderInlineNodes,
 	type ImageLoadPolicy
@@ -223,9 +222,9 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			// A closing run on the text's own line stays there when a pending break draws a new one,
 			// and every suffix goes before the anchor a picture ending the content leaves.
 			const onTextLine = sameLineSuffix(node) === suffix;
-			const before =
-				frag.querySelector(FRAME_LINE_ANCHOR) ??
-				(onTextLine ? frag.querySelector(PENDING_BREAK_START) : null);
+			const last = frag.lastChild;
+			const frameLine = last instanceof HTMLElement && last.dataset.caretAnchor === 'frame';
+			const before = frameLine ? last : onTextLine ? frag.querySelector(PENDING_BREAK_START) : null;
 			frag.insertBefore(span, before);
 		}
 		return frag;

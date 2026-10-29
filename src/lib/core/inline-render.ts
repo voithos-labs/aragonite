@@ -451,9 +451,6 @@ function paintPendingBreak(lines: number, frag: DocumentFragment): void {
 	}
 }
 
-/** The line anchor after a frame that ends the content, where a block's trailing markers go before. */
-export const FRAME_LINE_ANCHOR = 'br[data-caret-anchor="frame"]';
-
 /** Marks a widget whose kind declares `frame`, which the caret beside it reads. */
 function stampFrame<T extends Node>(widget: T, node: InlineNode, opts: RenderInlineOptions): T {
 	if (widget instanceof Element && isFrameWidget(node.kind, opts.grammar)) {
@@ -462,8 +459,8 @@ function stampFrame<T extends Node>(widget: T, node: InlineNode, opts: RenderInl
 	return widget;
 }
 
-/** A caret anchor after a frame that ends the content, so the line holds a text-height box for the
- *  bar beside the frame to stand at, where no text is. It holds no text, so offsets skip it. */
+/** A caret anchor after a frame that ends the content, last in the fragment, so the line holds a
+ *  text-height box for the bar beside the frame where no text is. It holds no text; offsets skip it. */
 function anchorFrameLine(nodes: InlineNode[], frag: DocumentFragment, opts: RenderInlineOptions) {
 	let last = nodes[nodes.length - 1];
 	while (last?.children?.length && !isFrameWidget(last.kind, opts.grammar)) {
