@@ -14,7 +14,9 @@ and WebKit.
 - Home on the next line, then asking where the line ends and going back to its start: the caret is
   back on the same line's start (Shift+Home after it selects nothing), and ArrowDown goes where it
   would have gone without the question
-- the same in a list item, and with an image starting the next line
+- the same in a list item, and with an image starting the next line (a picture wider than what
+  line 1 leaves). Chromium marks the asked row `fixme` against #574: its line start skips a picture
+  opening a wrapped line, so the way back lands after the picture
 - End on a short line 1 of a two-line paragraph, ArrowDown: the caret lands on line 2 at line 1's
   column, inside the block, so the question left the caret on line 1's end
 - End on a long line, then ArrowDown twice, through a short line that ends at a wrap: the second
@@ -40,7 +42,6 @@ Beside a space, the caret is on one line only, so nothing is asked (and no dev c
   the caret leaves for the block before
 - End, then ArrowLeft on the second-to-last line, ArrowDown: the caret moves to the last line,
   inside the block
-- after the space that opens the line after an image, ArrowUp: the caret moves up, inside the block
 
 ## With Shift
 
@@ -79,6 +80,7 @@ The Mac's Cmd line delete, sent the way `collapsed-delete-class.spec.ts` sends i
   so no row ever stood on the one spot where a measured caret and the browser's disagree.
 - The run of ArrowDown through a short line's end (Firefox landed at the short line's column): every
   row pressed one arrow after the question, so none watched the browser's own column across a run.
-- The caret beside a space (before a wrap's space, or after one opening the line after an image):
+- The caret beside a space (before a wrap's space; once also after one opening the line after an
+  image, a line pictures laid out as blocks made and inline ones don't):
   every row stood on the wrap itself, so none checked that a spot on one line only isn't read as a
   wrap; there Up and Down left from the wrong line, and asking fired the dev check.
