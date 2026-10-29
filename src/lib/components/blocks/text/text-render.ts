@@ -22,9 +22,11 @@ import {
 import type { Reading } from '../../../schema/reading';
 import {
 	PENDING_BREAK_START,
+	firstLineHoldsOnlyPictures,
 	renderInlineNodes,
 	type ImageLoadPolicy
 } from '../../../core/inline-render';
+import { PICTURE_LINE_ATTR } from '../../../core/inline/widget-shell';
 import type { RawOffset } from '../../../core/coordinate-spaces';
 import {
 	BLOCK_PREFIX_ATTR,
@@ -297,6 +299,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
 		let carriedCaret: RawOffset | null = null;
+		let pictureLine = false;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) {
@@ -320,6 +323,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			destroyIslands();
 			el.replaceChildren(buildInlineDOM(content, pendingBreaks, shown));
 			washShownSource(el, shown);
+			pictureLine = firstLineHoldsOnlyPictures(content, node.raw, deps.reading, el);
 			rendered = { content, raw: node.raw };
 			widgets = null;
 			islandViews = applyIslandDecorations(el, node.raw, islands, {
@@ -364,6 +368,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		ensureBr(el);
 		// This attribute decides which spans the caret can land in, so it is set first.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
+		el.toggleAttribute(PICTURE_LINE_ATTR, pictureLine);
 		if (carriedCaret !== null) restoreCaret(el, carriedCaret);
 	}
 

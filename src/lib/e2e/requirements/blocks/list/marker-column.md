@@ -15,8 +15,8 @@ A list item draws its marker (`-`, `1.`, a checkbox) in a column of its own, and
 - A nested ordered or to-do item inside a bullet item, or a nested bullet inside an ordered item: the nested item paints only its own marker (no `•` beside its number or box, no `- ` bytes beside its bullet), in live and reading modes
   - Miss-analysis: every presentation row ran on a flat list, and the marker rules reached any marker under an item of their kind, so the outer item's paint leaked onto nested items of another kind.
 - An item whose first line is a picture (`1. ![pic](x)`): the marker's top sits at the picture's top, not at its bottom, in source, live and reading modes
-- A picture with a caption after it (`1. ![pic](x) caption`): the marker sits at the picture's top, not on the caption line below it
-- Text first, a picture later in the same paragraph (`1. lead ![pic](x)`): the marker sits on the text line, not at the picture's bottom
+- A picture with a caption after it on its line (`1. ![pic](x) caption`): the marker sits beside the caption, on its baseline, not at the picture's top
+- Text first, a picture later on the same line (`1. lead ![pic](x)`): the marker sits beside the text, not at the picture's top
 - A text item: the marker sits on the first line
 
 ## User interactions

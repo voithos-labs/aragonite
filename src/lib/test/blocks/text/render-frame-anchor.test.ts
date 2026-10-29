@@ -5,7 +5,11 @@
 // sits after a picture that ends its block.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { parseInline } from '#lib/core/inline/index.js';
-import { renderInlineNodes, type RenderInlineOptions } from '#lib/core/inline-render.js';
+import {
+	firstLineHoldsOnlyPictures,
+	renderInlineNodes,
+	type RenderInlineOptions
+} from '#lib/core/inline-render.js';
 import { FRAME_ATTR } from '#lib/core/inline/widget-shell.js';
 import { buildImageWidget } from '#lib/components/image/widget-dom.js';
 import { renderOptions } from '../../harness/fixture-grammar';
@@ -78,6 +82,40 @@ describe('the render', () => {
 		const frag = render(`a &copy; ${IMG}`);
 		expect(frag.querySelector('.md-entity-widget')?.hasAttribute(FRAME_ATTR)).toBe(false);
 		expect(frag.querySelector('[data-image-widget]')?.hasAttribute(FRAME_ATTR)).toBe(true);
+	});
+});
+
+// A container's marker sits at the top beside a first line of pictures alone, on the text's
+// baseline otherwise; the render tells the two apart, since CSS can't see text nodes.
+describe('a first line of pictures alone', () => {
+	const holds = (raw: string, opts: Partial<RenderInlineOptions> = {}) =>
+		firstLineHoldsOnlyPictures(
+			parseInline(raw, 0, raw.length),
+			raw,
+			renderOptions(),
+			render(raw, opts)
+		);
+
+	it.each([
+		['a lone picture', IMG],
+		['two pictures and the space between', `${IMG} ${IMG}`],
+		['a picture in a link', `[${IMG}](https://x.y)`],
+		['a picture in strong and strikethrough', `**~~${IMG}~~**`],
+		['a picture with text on the next source line', `${IMG}\nnext line`],
+		['a picture before a hard break', `${IMG}\\\nnext line`]
+	])('holds for %s', (_, raw) => {
+		expect(holds(raw)).toBe(true);
+	});
+
+	it.each([
+		['text before the picture', `lead ${IMG}`],
+		['text after the picture', `${IMG} tail`],
+		['a link labelled with text and a picture', `[see ${IMG}](https://x.y)`],
+		['a text-height widget beside it', `${IMG} &copy;`],
+		['no picture at all', 'plain'],
+		['a picture drawn as its source', IMG, { renderImagesAsWidgets: false }]
+	] as const)('fails for %s', (_, raw, opts: Partial<RenderInlineOptions> = {}) => {
+		expect(holds(raw, opts)).toBe(false);
 	});
 });
 

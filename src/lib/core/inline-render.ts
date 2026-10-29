@@ -474,6 +474,37 @@ function anchorFrameLine(nodes: InlineNode[], frag: DocumentFragment, opts: Rend
 	frag.appendChild(br);
 }
 
+/** Whether the content's first source line holds only pictures drawn in `drawn` and whitespace,
+ *  seen through wrappers (a link, emphasis): a container's marker beside it sits at its top. */
+export function firstLineHoldsOnlyPictures(
+	nodes: readonly InlineNode[],
+	raw: string,
+	opts: Pick<RenderInlineOptions, 'grammar'>,
+	drawn: ParentNode
+): boolean {
+	const stack = [...nodes].reverse();
+	let pictures = 0;
+	while (stack.length > 0) {
+		const node = stack.pop()!;
+		if (isFrameWidget(node.kind, opts.grammar)) {
+			if (!drawn.querySelector(`[${FRAME_ATTR}][data-source-start="${node.start}"]`)) return false;
+			pictures++;
+		} else if (node.kind === 'hardLineBreak') {
+			break;
+		} else if (node.children?.length) {
+			for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]);
+		} else if (node.kind !== 'text') {
+			return false;
+		} else {
+			const text = raw.slice(node.start, node.end);
+			const lineEnd = text.indexOf('\n');
+			if (text.slice(0, lineEnd < 0 ? undefined : lineEnd).trim() !== '') return false;
+			if (lineEnd >= 0) break;
+		}
+	}
+	return pictures > 0;
+}
+
 // ── Cursor mapping ───────────────────────────────────────────────────────────
 
 export interface OffsetResult {

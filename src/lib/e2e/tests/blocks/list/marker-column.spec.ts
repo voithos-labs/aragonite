@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { textRunRect } from '../../../text-runs';
 import { waitForAllImagesLoaded } from '../image/helpers';
 import type { PresentationMode } from '../../../../presentation-mode';
 import { edgeKey } from '../../../platform-keys';
@@ -197,11 +198,12 @@ test.describe('a heading item draws its marker as part of the heading', () => {
 
 test.describe('the marker sits beside the first line', () => {
 	const PICTURE = '![pic|300x200](/test-fixtures/sample.png)';
+	// Beside text the marker reads on the text's baseline, so a word on the picture's line is the mark.
 	const FIRST_LINES = {
 		text: { md: `1. ${LONG}\n`, line: 'text' },
 		'picture only': { md: `1. ${PICTURE}\n`, line: 'image' },
-		'picture then caption': { md: `1. ${PICTURE} caption\n`, line: 'image' },
-		'text then picture': { md: `1. lead ${PICTURE}\n`, line: 'text' }
+		'picture then caption': { md: `1. ${PICTURE} caption\n`, line: 'caption' },
+		'text then picture': { md: `1. lead ${PICTURE}\n`, line: 'lead' }
 	} as const;
 
 	for (const mode of ['source', 'live', 'reading'] as const) {
@@ -210,7 +212,12 @@ test.describe('the marker sits beside the first line', () => {
 				await openIn(page, mode, md);
 				await waitForAllImagesLoaded(page);
 				const geometry = await blockGeometry(page, [0, 0, 0]);
-				const first = line === 'image' ? geometry.image : geometry.lines[0];
+				const first =
+					line === 'image'
+						? geometry.image
+						: line === 'text'
+							? geometry.lines[0]
+							: await textRunRect(page, line, { path: [0, 0, 0] });
 				if (!first || !geometry.marker) throw new Error('layout boxes missing');
 				// Within half a line of the first line's top: a marker on any later line is a line off.
 				expect(Math.abs(geometry.marker.top - first.top)).toBeLessThanOrEqual(

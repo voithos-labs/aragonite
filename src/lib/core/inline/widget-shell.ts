@@ -20,6 +20,10 @@ export function mintWidgetShell(node: InlineNode, className?: string): HTMLSpanE
  *  height. Stamped at render, since layout can't be read there. */
 export const FRAME_ATTR = 'data-widget-frame';
 
+/** On a block's editable whose first line holds only pictures, which `styles/editor.css` reads to
+ *  put a container's marker beside it at the picture's top. */
+export const PICTURE_LINE_ATTR = 'data-picture-line';
+
 /** The raw byte range a shell carries, or null when the attributes are absent or malformed:
  *  {@link mintWidgetShell}'s inverse, kept beside it so the two move together. */
 export function widgetSourceRange(el: Element): { start: number; end: number } | null {

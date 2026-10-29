@@ -329,6 +329,24 @@
 	object-fit: cover;
 }
 
+/* A container's marker drawn inside a paragraph whose first line holds only pictures (a footnote's
+   `[^1]: `) sits at the paragraph's top-left, beside the pictures' top, as a list item's does. */
+:where(.editor)
+	.text-editable-block.paragraph-block[data-picture-line]:has(
+		> .md-marker[contenteditable='false']
+	) {
+	position: relative;
+	text-indent: 0 !important;
+}
+
+:where(.editor)
+	.text-editable-block.paragraph-block[data-picture-line]
+	> .md-marker[contenteditable='false'] {
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+
 /* An image with no pixels (broken, scheme-refused, or a `'placeholder'` load policy) would lay out
    0×0 without this floor, unless a `|WxH` hint reserves its box. */
 :where(.editor) .md-image-broken,
@@ -631,11 +649,11 @@
 	font-weight: var(--md-heading-weight);
 }
 
-/* A picture's baseline is its bottom edge, so an item that opens with one puts its marker at the
-   top instead. */
+/* A picture's baseline is its bottom edge, so an item whose first line holds only pictures puts
+   its marker at their top; text on that line keeps the marker on its baseline. */
 :where(.editor)
 	.list-item-block:has(
-		> .list-item-content > .block-list > .block-host:first-child .md-image-widget
+		> .list-item-content > .block-list > .block-host:first-child [data-picture-line]
 	)
 	> .list-item-marker {
 	align-self: flex-start;
