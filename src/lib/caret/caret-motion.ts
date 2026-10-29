@@ -5,6 +5,7 @@
  */
 
 import { deleteExtent, type DeleteContext } from './delete-extent';
+import type { MotionKey } from '../schema/keybindings';
 
 /** A raw `[start, end)` a caret can't stop inside: a widget, a replace decoration, a CRLF pair. */
 export interface CaretUnit {
@@ -20,12 +21,8 @@ export interface CaretUnitSource {
 	crossed(): void;
 }
 
-/** What a caret key asks for: a character (a span the caret can't stop inside, crossed whole), a
- *  word, the edge of the caret's visual line, or the edge of the block's text. */
-export interface MotionIntent {
-	readonly unit: 'character' | 'word' | 'line-edge' | 'block-edge';
-	readonly direction: 'backward' | 'forward';
-}
+/** What a caret key asks for; a `character` step moves only across a span the caret can't stop in. */
+export type MotionIntent = Pick<MotionKey, 'unit' | 'direction'>;
 
 /** What a block hands the motion rule. */
 export interface MotionContext {

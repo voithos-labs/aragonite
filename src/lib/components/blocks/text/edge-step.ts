@@ -25,7 +25,7 @@ export interface EdgeStepDeps {
 	/** The reading `getInlines` was read with, so a reference link reads as one. */
 	reading: Reading;
 	caretMemory: Pick<CaretMemory, 'side' | 'pin' | 'pinOnArrival'>;
-	/** The line read the line-end key lands by, the motion home's (`caret/caret-motion.ts`). */
+	/** The line read the line-end key lands by, the same one `caret/caret-motion.ts` lands it by. */
 	caretWriter: LineRead;
 }
 
@@ -48,7 +48,7 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	}
 
 	/** Where ArrowLeft or the line-end key will land the caret, in raw offsets: one character left,
-	 *  or the end of its visual line, read as the motion home reads it. */
+	 *  or the end of its visual line. */
 	function landing(e: KeyboardEvent, caret: number): number | null {
 		const key = chipArrivalKey(e);
 		const raw = deps.getRaw();
@@ -64,9 +64,11 @@ export function createEdgeStep(deps: EdgeStepDeps): EdgeStep {
 	function step(e: KeyboardEvent): boolean {
 		const caret = deps.getCaret();
 		const direction = edgeStepDirection(e);
-		const at = caret === null ? null : landing(e, caret);
 		// Only an arrow or the line-end key asks the edge anything, so a typed key reads no runs.
-		const edges = caret !== null && (direction !== null || at !== null) ? edgesNow() : null;
+		const asks = direction !== null || chipArrivalKey(e) !== null;
+		const edges = caret !== null && asks ? edgesNow() : null;
+		// After the runs, so a block with no hidden markers never reads where End lands.
+		const at = edges && caret !== null ? landing(e, caret) : null;
 		if (direction !== null && edges && caret !== null) {
 			const target = edges.edgeStep(caret, deps.caretMemory.side(), direction);
 			if (target !== null) {

@@ -585,6 +585,24 @@ for (const span of CASES) {
 	});
 }
 
+// A key that moves nothing fires no `selectionchange`, so its record is still open when a click
+// moves the caret, and the fixture's console check fails on a G1.163 fire.
+test('a caret key that moves nothing, then a click, is no browser move', async ({ page }) => {
+	const editor = await editorWith(page, 'alpha beta\n\nsecond block\n');
+	for (const [key, at] of [
+		[edgeKey('lineStart'), 0],
+		[edgeKey('lineEnd'), 10],
+		[edgeKey('blockStart'), 0]
+	] as const) {
+		await editor.focusBlockAtPath([0], at);
+		await page.keyboard.press(key);
+		await clickWordSettled(editor, page, 'second');
+		await expect
+			.poll(async () => (await editor.bridge.getSelectionPaths())?.focus.path)
+			.toEqual([1]);
+	}
+});
+
 test.describe('one press crosses a CRLF pair from a caret the browser parked', () => {
 	test('End, then Shift+ArrowRight, selects the pair from the line end', async ({ page }) => {
 		const editor = await editorWith(page, 'abc\r\nAfter\r\n');

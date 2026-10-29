@@ -32,7 +32,8 @@ import {
 	isAtFirstVisualLine,
 	isAtLastVisualLine,
 	lineHeightOf,
-	lineStepBesideWidget
+	lineStepBesideWidget,
+	WIDGET_SHELLS
 } from '../browser/visual-lines';
 import {
 	caretEdgeKey,
@@ -293,9 +294,15 @@ function handleMotion(
 ): boolean {
 	if (ctx.selection.isCrossBlock) return false;
 	// Over a range a Mac's Cmd+Shift+Arrow grows the range's own end, the platform's way, left to it.
-	if (key.arrow && key.extend && usesMacEditingConventions() && heldRangeIn(el)) return false;
+	if (key.arrow && key.extend && usesMacEditingConventions() && heldRange(el)) return false;
 	if (key.unit === 'word' && !hasWordSegmenter()) return false;
-	const from = motionStart(key, ctx, el);
+	// With Shift the moving end; over a range, its edge on the key's side, as a plain arrow collapses it.
+	const held = key.extend ? null : heldRange(el);
+	const from = key.extend
+		? ctx.getFocusOffset()
+		: held
+			? held[key.direction === 'backward' ? 'start' : 'end']
+			: ctx.getCursorOffset();
 	if (from === null) return false;
 	const context = key.unit === 'character' ? null : ctx.unitContext(from);
 	if (key.unit !== 'character' && (!context || readsRightToLeft(context.text, from))) return false;
@@ -318,20 +325,11 @@ function handleMotion(
 	return true;
 }
 
-function heldRangeIn(el: HTMLElement): boolean {
+/** The range the selection holds in `el`; null for a caret, which costs no walk of the block. */
+function heldRange(el: HTMLElement): { start: number; end: number } | null {
 	const range = holdsNativeRange() ? rawSelectionIn(el) : null;
-	return !!range && !range.collapsed;
-}
-
-/** Where a caret key moves from: with Shift the moving end; over a range, its edge on the key's
- *  side, as a plain arrow collapses it; else the caret. */
-function motionStart(key: MotionKey, ctx: SharedKeydownContext, el: HTMLElement): number | null {
-	if (key.extend) return ctx.getFocusOffset();
-	const range = holdsNativeRange() ? rawSelectionIn(el) : null;
-	if (range && !range.collapsed && range.start !== null && range.end !== null) {
-		return key.direction === 'backward' ? range.start : range.end;
-	}
-	return ctx.getCursorOffset();
+	if (!range || range.collapsed || range.start === null || range.end === null) return null;
+	return { start: range.start, end: range.end };
 }
 
 /** The line's edge by the browser's own line move, which keeps the side of a soft wrap the caret
@@ -381,8 +379,6 @@ function widgetBetween(el: HTMLElement, a: number, b: number): boolean {
 	}
 	return false;
 }
-
-const WIDGET_SHELLS = '[data-inline-widget], [data-decoration-island]';
 
 // Hebrew, Arabic and the scripts beside them, whose arrows move visually; nothing reads direction yet.
 const RIGHT_TO_LEFT = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;

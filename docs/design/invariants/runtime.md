@@ -696,7 +696,7 @@ an engine insert the decision has to take. `checkTypedInsertAtCaret` ·
 `components/blocks/editable/editable-surface.ts` · `typed-insert.test.ts`, `typed-insert-at-caret.test.ts`.
 
 **G1.163 · A decided caret key moves the caret once** (`caret-motion-decided`). A caret key the
-motion home lands (`caret/caret-motion.ts`, written from `selection/shared-keydown.ts`) records the
-selection the browser holds after its write; at the next `selectionchange` or keydown a different
-live selection means the browser's own move ran as well, a default left unprevented.
+editor lands (`caret/caret-motion.ts`) records the selection the browser holds after its write; a
+different one at the next `selectionchange`, keydown, `beforeinput` or `compositionstart` means the
+browser's own move ran too. An editor write or a pointer press ends the record unchecked.
 `checkMotionDecided` · `browser/caret-writer.ts` · `caret-motion-decided.test.ts`.

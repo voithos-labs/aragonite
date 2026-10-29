@@ -129,7 +129,7 @@ export function lineEdgeOffset(
 /** The raw edge of the widget or replace decoration that opens or closes `line` in `el`, null with
  *  none. A `<br>`'s far side is the next line's start, so it never closes one. */
 function widgetAtLineEdge(el: HTMLElement, line: LineBox, side: 'start' | 'end'): number | null {
-	for (const shell of el.querySelectorAll<HTMLElement>(LINE_EDGE_SPANS)) {
+	for (const shell of el.querySelectorAll<HTMLElement>(WIDGET_SHELLS)) {
 		const rects = shell.getClientRects();
 		const box = side === 'start' ? rects[0] : rects[rects.length - 1];
 		if (!box || box.bottom <= line.top || box.top >= line.bottom) continue;
@@ -141,7 +141,8 @@ function widgetAtLineEdge(el: HTMLElement, line: LineBox, side: 'start' | 'end')
 	return null;
 }
 
-const LINE_EDGE_SPANS = '[data-inline-widget], [data-decoration-island]';
+/** The elements a widget or a replace decoration draws in a block, each naming its raw span. */
+export const WIDGET_SHELLS = '[data-inline-widget], [data-decoration-island]';
 
 /** Where an arrow lands from a text position touching a widget on another line, else null:
  *  Chromium reads that spot on the widget's line, so its own arrow there lands a line off. */
@@ -165,8 +166,8 @@ export function lineStepBesideWidget(el: HTMLElement, direction: 'up' | 'down'):
 			: caret.bottom + half;
 	const raw = caretOffsetAtPoint(el, caret.left, y);
 	if (raw === null || !towardWidget) return raw;
-	const start = Number(widget.getAttribute('data-source-start'));
-	const end = Number(widget.getAttribute('data-source-end'));
+	const { sourceStart, sourceEnd } = (widget as HTMLElement).dataset;
+	const [start, end] = [Number(sourceStart), Number(sourceEnd)];
 	// The widget's near edge is the spot the caret leaves, so a column over it takes the far one.
 	return raw >= start && raw <= end ? (after ? end : start) : raw;
 }

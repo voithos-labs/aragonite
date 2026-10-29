@@ -50,6 +50,10 @@ the word's end.
 
 - zero `[invariant:…]` console fires across every row, G1.163 (`caret-motion-decided`) included,
   which fires when the browser's own move runs after the editor's
+- Home at a line's start, End at its end and Ctrl+Home at the block's start move nothing, so no
+  `selectionchange` checks them; a click elsewhere after each is the click's move, not a G1.163 fire
+  - Miss-analysis: every row's key moved the caret, so no run kept a record open until a press, and
+    dropping the press's end of the record stayed green across every caret and selection spec
 
 ## Miss-analysis
 

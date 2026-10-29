@@ -156,10 +156,8 @@ export function createCaretWriter(
 		const focus = { node: focusNode, offset: sel.focusOffset };
 		// A landing the editor never writes (inside a CRLF pair, past a hidden run) moves to its spot.
 		const el = editableHolding(focusNode);
-		const spot = el && sel.isCollapsed ? canonicalCaretPoint(el, focus.node, focus.offset) : null;
-		if (spot) return writeSelection(spot, spot, el);
-		const end = el && !sel.isCollapsed ? canonicalCaretPoint(el, focus.node, focus.offset) : null;
-		if (end) return writeSelection(anchor, end, el);
+		const spot = el && canonicalCaretPoint(el, focus.node, focus.offset);
+		if (spot) return writeSelection(sel.isCollapsed ? spot : anchor, spot, el);
 		written = sel.isCollapsed ? focus : null;
 		decided = null;
 		onWrite();

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// A long code block's Home and End read every rect of the block, so grouping them into lines must not
-// grow with the line count per rect. jsdom lays nothing out, so a range's rects are a list set here.
+// Miss-analysis: the line read ran only under the soft-line delete, which no perf row presses, so
+// nothing timed a long code block's Home. jsdom lays nothing out, so a range's rects are set here.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { lineBoxNearest } from '../../browser/visual-lines';
@@ -45,6 +45,17 @@ describe('lineBoxNearest', () => {
 			new DOMRect(60, 20, 10, 20)
 		];
 		expect(lineBoxNearest(el, 5)).toEqual({ top: 0, bottom: 40, left: 0, right: 70 });
+	});
+
+	it('a line a tall rect grew down still takes a rect that also overlaps the last line', () => {
+		rects = [
+			new DOMRect(0, 0, 10, 20),
+			new DOMRect(0, 20, 10, 20),
+			new DOMRect(0, 40, 10, 20),
+			new DOMRect(20, 10, 10, 35),
+			new DOMRect(50, 42, 10, 16)
+		];
+		expect(lineBoxNearest(el, 5)).toEqual({ top: 0, bottom: 58, left: 0, right: 60 });
 	});
 
 	it('skips a rect with no width or height', () => {

@@ -130,7 +130,7 @@ A Backspace or Delete at a caret that gets past all of that (and every soft keyb
 
 A chord (Shift+Backspace, a word or line delete) gets the same two answers at its own keydown, since WebKit sometimes sends no input for one: next to a widget it does what the plain key does there, and at the block's edge it runs the plain key's binding (`src/lib/components/blocks/editable/collapsed-delete.ts` :: `decideDeleteChord`). That runs after the keymap, so a host that binds the chord itself still wins. Anything else a chord takes depends on its unit, which only the `beforeinput` names, so it waits for that.
 
-A caret key never reaches the dispatch as a move: an arrow, a word key, Home and End land where `src/lib/caret/caret-motion.ts` :: `motionTarget` says, decided in the shared keydown before it, so the caret only ever stands where the editor wrote it.
+Most caret keys never get this far. The shared keydown runs first and lands a word key, Home, End, Mod+Home and Mod+End, and an arrow next to something the caret can't stop inside, where `src/lib/caret/caret-motion.ts` :: `motionTarget` says. Any other plain arrow still comes through here (entry 2 is where it enters a widget), and past that the browser moves it.
 
 A letter typed at a caret beside a widget is decided at `beforeinput` too, outside the dispatch. Where the browser has no text node to type it into, `src/lib/components/blocks/editable/typed-insert.ts` :: `decideTypedInsert` writes it at the caret, by key or soft keyboard; the dispatch only says which widget faces the caret (its `typing`).
 
