@@ -27,6 +27,7 @@ import { readNativeSelection } from '../browser/selection-read';
 import { motionTarget, type CaretUnitSource } from '../caret/caret-motion';
 import type { DeleteContext } from '../caret/delete-extent';
 import { hasWordSegmenter } from '../core/text-units';
+import { usesMacEditingConventions } from '../schema/platform-conventions';
 import {
 	isAtFirstVisualLine,
 	isAtLastVisualLine,
@@ -291,6 +292,8 @@ function handleMotion(
 	el: HTMLElement
 ): boolean {
 	if (ctx.selection.isCrossBlock) return false;
+	// Over a range a Mac's Cmd+Shift+Arrow grows the range's own end, the platform's way, left to it.
+	if (key.arrow && key.extend && usesMacEditingConventions() && heldRangeIn(el)) return false;
 	if (key.unit === 'word' && !hasWordSegmenter()) return false;
 	const from = motionStart(key, ctx, el);
 	if (from === null) return false;
@@ -313,6 +316,11 @@ function handleMotion(
 	if (key.unit === 'character') ctx.caretUnits.crossed();
 	ctx.caretWriter.noteDecidedMotion();
 	return true;
+}
+
+function heldRangeIn(el: HTMLElement): boolean {
+	const range = holdsNativeRange() ? rawSelectionIn(el) : null;
+	return !!range && !range.collapsed;
 }
 
 /** Where a caret key moves from: with Shift the moving end; over a range, its edge on the key's
