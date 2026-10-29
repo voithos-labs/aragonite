@@ -638,7 +638,11 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 					leavesCaret: true
 				})
 		});
-		if (consumed) return true;
+		// Prevented here, so no step after the block's keydown writes the key again.
+		if (consumed) {
+			e.preventDefault();
+			return true;
+		}
 		const motion = caretMotionOf(e);
 		if (motion) {
 			leaveWidgetBy(motion, widget);

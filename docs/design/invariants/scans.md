@@ -1442,4 +1442,4 @@ The bundled plugins ask too, through the `imeOwnsKey` the plugin entry point exp
 `isPlainTypingKey` are read only in `components/blocks/editable/typed-insert.ts` and a short list,
 each with its reason: the delimiter auto-pair, the range edits (live, across blocks, over a widget),
 the caret hosts, the composition tracker, a code body and a painted source, the selected widget's
-splice and the open line. `lint/typed-insert-home.test.ts`.
+splice, the open line and the image dialog's own fields. `lint/typed-insert-home.test.ts`.

@@ -37,8 +37,10 @@ so it says what the editor does with the event, not what the engine would.
 ## What a reverted fix reds
 
 The browser's own insert lands right at most of these spots, so turning the editor's decision off
-leaves those rows green; a write that lands somewhere else (the typed write aimed at offset 0) reds
-them. The rows that red with the decision off are the selected picture by soft keyboard (Chromium
+leaves those rows green; a write that lands somewhere else (the typed write aimed at offset 0, or
+one past the caret for the picture that opens the block) reds the rows the editor writes itself. On
+Chromium the replace decoration's rows never reach that write, since the caret there sits in text.
+The rows that red with the decision off are the selected picture by soft keyboard (Chromium
 writes at the block's start, Firefox writes nothing) and the line break that ends a paragraph or a
 cell on Firefox. The link typed to completion stays green with it off too: Chromium and WebKit aim
 the letter inside the link text, and the read-back still lands it after the `)`. The unit rows in

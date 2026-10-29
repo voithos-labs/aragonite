@@ -58,7 +58,7 @@ export function decideTypedInsert(e: InputEvent, reads: TypedInsertReads): Typed
 }
 
 /** The same decision at a typed key's keydown, for an engine that sends no `beforeinput` beside a
- *  widget with no text node to type into (every engine measured sends one). True when taken. */
+ *  widget with no text node to type into. True when taken. */
 export function decideTypedKey(e: KeyboardEvent, reads: TypedInsertReads): boolean {
 	if (e.defaultPrevented || !isPlainTypingKey(e) || reads.composing()) return false;
 	if (typeAtCaret(e.key, reads, null)) return false;
@@ -66,8 +66,8 @@ export function decideTypedKey(e: KeyboardEvent, reads: TypedInsertReads): boole
 	return true;
 }
 
-/** Writes `text` at the editor's caret where the browser's insert could miss it, else says why it
- *  left the insert to the browser. A keydown (`e` null) decides only the caret beside a widget. */
+/** Writes `text` at the editor's caret where the browser's insert could miss it, else says why not.
+ *  A keydown (`e` null) decides only beside a widget: a selected widget's keydown took the rest. */
 function typeAtCaret(
 	text: string,
 	reads: TypedInsertReads,
@@ -75,7 +75,7 @@ function typeAtCaret(
 ): TypedDecline | null {
 	const writes = reads.writes;
 	if (!writes) return 'surface';
-	if (writes.typeOverSelected(text)) return null;
+	if (e && writes.typeOverSelected(text)) return null;
 	if (reads.onOpenLine()) return 'open-line';
 	const at = reads.caretPosition();
 	const el = reads.el();

@@ -17,6 +17,8 @@ import {
 	type TypedInsertReads
 } from '#lib/components/blocks/editable/typed-insert.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
+import { augmentInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
+import { imageWidgetOnSelectedKey } from '#lib/components/image/image-widget-editing.js';
 import { cellAt, installTableLayoutStubs } from '../table/mount-table';
 import { takeDevWarns } from '../../support/warn-gate';
 
@@ -92,6 +94,26 @@ describe('a caret beside a widget, with no text node to type into', () => {
 		const event = typeKeyless(el, 'Q');
 		await editor.settle();
 		expect(event.defaultPrevented).toBe(false);
+	});
+});
+
+describe('a widget selected whole', () => {
+	afterEach(() => augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey }));
+
+	// Miss-analysis: no row had a kind take a plain letter, so the typed key's step after the
+	// block's keydown spliced a widget whose kind had already handled the key.
+	it('leaves a letter its kind took to the kind', async () => {
+		const { editor, el } = mountAt('lead ![x](u)\n', 12);
+		const taken: string[] = [];
+		augmentInlineWidgetKind('image', {
+			onSelectedKey: (e) => e.key === 'q' && taken.push(e.key) > 0
+		});
+		await pressKey(el, { key: 'ArrowLeft', bubbles: true, cancelable: true });
+		const event = await pressKey(el, { key: 'q', bubbles: true, cancelable: true });
+		await editor.settle();
+		expect(taken).toEqual(['q']);
+		expect(event.defaultPrevented).toBe(true);
+		expect(editor.source()).toBe('lead ![x](u)\n');
 	});
 });
 
