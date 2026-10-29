@@ -249,8 +249,8 @@ test.describe('the bar a click past a text-height widget asks for', () => {
 			const bar = await theBar(page, 'widget');
 			await page.keyboard.type('Q');
 			await expect.poll(() => editor.bridge.getSource()).toContain(`${widget.source}Q`);
-			const q = await textRunRect(page, 'Q', { path: [0] });
-			await expectBarAtQ(page, bar, [0], q.height);
+			// The caret after Q is the engine's own text bar on that line, drawn on the same rows.
+			await expectBarAtQ(page, bar, [0], (await theBar(page, 'text')).box.height);
 		});
 	}
 });
