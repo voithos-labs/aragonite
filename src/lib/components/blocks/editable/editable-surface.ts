@@ -44,7 +44,7 @@ import { placeCaret, selectInBlock } from '../../../selection/place-caret';
 import { deleteSnapshot } from '../../../selection/primitives';
 import { asEditorX, asRawOffset, type RawOffset } from '../../../core/coordinate-spaces';
 import type { SurfaceBackend } from './surface-backend';
-import type { DrawnCaret, WidgetEdgeSource } from '../../../caret/drawn-caret.svelte';
+import type { DrawnCaret } from '../../../caret/drawn-caret.svelte';
 import type { HeldInsertion } from '../../../caret/next-insertion';
 import type { TypedPlacement } from '../text/edge-seat';
 import { caretLook, type NextByte } from '../../../caret/caret-look';
@@ -286,8 +286,8 @@ export interface EditableSurfaceDeps {
 	getInlines?: () => readonly InlineNode[];
 	/** Runs before the shared input commit (the text block lets go of its widget edge here). */
 	inputPrelude?: () => void;
-	/** How the drawn caret draws beside this editable's inline widgets; absent where it has none. */
-	widgetEdge?: WidgetEdgeSource;
+	/** The key a click's widget edge in this editable is held under; absent where it holds none. */
+	widgetEdgeOwner?: object;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
 	/** Deletes `range` of the block's own text, leaving the caret at its start. */
@@ -939,7 +939,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.drawnCaret.register({
 			el,
 			drawable: () => !composing() && !deps.isInputSuppressed?.(),
-			widgetEdge: deps.widgetEdge,
+			widgetEdgeOwner: deps.widgetEdgeOwner,
 			...(getInlines && {
 				look: (range: Range) => {
 					recordCaretLook('caretLookOffsetWalks');

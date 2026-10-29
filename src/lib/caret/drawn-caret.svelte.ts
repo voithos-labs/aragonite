@@ -9,7 +9,16 @@
 import { tick, untrack } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import { caretHost, chipStopBox, codeChipEdge, hostBox, measureCaret } from './drawn-caret-measure';
+import {
+	caretHost,
+	chipStopBox,
+	codeChipEdge,
+	hostBox,
+	measureCaret,
+	widgetEdgeAt,
+	widgetEdgeBox
+} from './drawn-caret-measure';
+import { frameBeside } from '../browser/caret-spot';
 import { caretPositionInElement } from '../browser/point';
 import { clickMovesCaret } from '../browser/offsets';
 import { readNativeSelection } from '../browser/selection-read';
@@ -19,8 +28,7 @@ import {
 	hidesBrowserCaret,
 	type DrawnCaretReads,
 	type DrawnCaretRect,
-	type DrawnCaretTarget,
-	type WidgetEdgeBox
+	type DrawnCaretTarget
 } from './drawn-caret-target';
 import {
 	countCaretPaint,
@@ -42,19 +50,12 @@ export interface CaretSource {
 	readonly el: HTMLElement;
 	/** False while a composition or a leaf's painted source owns the caret: the native one shows. */
 	drawable(): boolean;
-	/** How an editable with inline widgets draws the caret beside one; absent where it has none. */
-	readonly widgetEdge?: WidgetEdgeSource;
+	/** The key a click's widget edge in this editable is held under; absent where it holds none. */
+	readonly widgetEdgeOwner?: object;
 	/** Set by the gap caret's proxy: the element the bar lies across, between two blocks. */
 	readonly gapHost?: HTMLElement;
 	/** The look of a text caret at `range`, a collapsed range inside `el`; absent draws the plain bar. */
 	look?(range: Range): CaretLook;
-}
-
-/** The widget edges an editable can draw at, keyed by the owner object it made at construction. */
-export interface WidgetEdgeSource {
-	readonly owner: object;
-	/** The bar beside the widget at `offset`, or null when no widget sits there. */
-	box(offset: number): WidgetEdgeBox | null;
 }
 
 export interface DrawnCaret {
@@ -68,11 +69,8 @@ export interface DrawnCaret {
 	widgetEdgeFor(owner: object): number | null;
 }
 
-/** The editor's own handle on the drawn caret: what the caret writer asks of it too. */
+/** The editor's own handle on the drawn caret. */
 export interface EditorDrawnCaret extends DrawnCaret {
-	/** Holds the widget edge at `offset` for the editable `el`, the writer's ask beside a widget
-	 *  with no line box; false where `el` draws no bar there. */
-	showWidgetEdge(el: HTMLElement, offset: number): boolean;
 	/** Shows the bar for each even span of `spans` and hides it for each odd one, in ms, then
 	 *  goes back to its usual look; nothing under reduced motion. */
 	pulse(spans: readonly number[]): void;
@@ -224,7 +222,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 		const draws = drawsCaret(deps.caretMode(), media);
 		const drawable = owned?.drawable() ?? false;
 		const gapHost = owned?.gapHost ?? null;
-		const edge = owned && !gapHost ? readWidgetEdge(owned) : null;
+		const edge = owned && !gapHost ? (readWidgetEdge(owned) ?? frameEdge(owned.el, range)) : null;
 		const atText = owned && range?.collapsed && drawable && !edge && !gapHost;
 		// The browser can't draw a chip's outside stop, so a chip edge is measured whatever the prop.
 		const measured =
@@ -271,10 +269,17 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 	}
 
 	function readWidgetEdge(source: CaretSource): DrawnCaretReads['widgetEdge'] {
-		const edges = source.widgetEdge;
-		if (!edges) return null;
-		const offset = widgetEdge.heldFor(edges.owner);
-		return offset === null ? null : edges.box(offset);
+		const owner = source.widgetEdgeOwner;
+		const offset = owner ? widgetEdge.heldFor(owner) : null;
+		return offset === null ? null : widgetEdgeAt(source.el, offset);
+	}
+
+	// Beside a picture the browser paints its caret the line box tall, so the bar draws there on
+	// every route that put the caret down.
+	function frameEdge(el: HTMLElement, range: Range | null): DrawnCaretReads['widgetEdge'] {
+		if (!range?.collapsed) return null;
+		const beside = frameBeside(el, { node: range.startContainer, offset: range.startOffset });
+		return beside && widgetEdgeBox(beside.frame, beside.side, el);
 	}
 
 	function draw(target: DrawnCaretTarget, read: CaretRead, color: string, atFrame: boolean): void {
@@ -400,7 +405,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 		const at = readNativeSelection()?.anchor.node;
 		if (!at) return;
 		for (const source of sources.values()) {
-			if (source.widgetEdge?.owner !== owner) continue;
+			if (source.widgetEdgeOwner !== owner) continue;
 			if (!source.el.contains(at)) widgetEdge.arm(owner, null);
 			return;
 		}
@@ -488,17 +493,11 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 			sources.set(source.el, source);
 			return () => {
 				if (sources.get(source.el) === source) sources.delete(source.el);
-				if (source.widgetEdge) widgetEdge.release(source.widgetEdge.owner);
+				if (source.widgetEdgeOwner) widgetEdge.release(source.widgetEdgeOwner);
 			};
 		},
 		armWidgetEdge: widgetEdge.arm,
 		widgetEdgeFor: widgetEdge.heldFor,
-		showWidgetEdge(el, offset) {
-			const edges = sources.get(el)?.widgetEdge;
-			if (!edges?.box(offset)) return false;
-			widgetEdge.arm(edges.owner, offset);
-			return true;
-		},
 		pulse(spans) {
 			const total = spans.reduce((sum, span) => sum + span, 0);
 			if (!bar || bar.hidden || total <= 0 || typeof bar.animate !== 'function') return;

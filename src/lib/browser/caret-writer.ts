@@ -21,7 +21,8 @@ import { checkCaretBeforeBreak } from '../invariants/caret-before-break';
 import { checkCaretOutsideLineEndingPair } from '../invariants/line-ending-pairs';
 import { checkLineReadRestored } from '../invariants/line-read-restores';
 import { checkCaretPaints } from '../invariants/caret-paints';
-import { type CaretSpot, caretSpotOf, visibleTextAtSameOffset } from './caret-spot';
+import { caretSpotOf, visibleTextAtSameOffset } from './caret-spot';
+import { checkWidgetLaysOutInline } from '../invariants/widget-lays-out-inline';
 import { splitsLineEndingPair } from '../core/line-ending-pairs';
 import { hiddenSuffixLength, markerPrefixOf, markerHidingMode, mayBeOffCanonical } from './painted';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
@@ -70,11 +71,10 @@ export interface CaretWriter {
 }
 
 /** `declinesCaret` answers true where no caret may stand (reading mode), noting the point if it
- *  wants it; `showWidgetEdge` asks the drawn caret for its bar beside the widget at raw `raw`. */
+ *  wants it. */
 export function createCaretWriter(
 	onWrite: () => void,
-	declinesCaret: (el: HTMLElement, raw: number) => boolean,
-	showWidgetEdge: (el: HTMLElement, raw: number) => boolean
+	declinesCaret: (el: HTMLElement, raw: number) => boolean
 ): CaretWriter {
 	// The editor's own caret stands wherever it put it; only a caret the browser moved is moved.
 	let written: DomPosition | null = null;
@@ -85,9 +85,9 @@ export function createCaretWriter(
 		focus: DomPosition,
 		el: HTMLElement | null
 	): boolean {
-		let spot: CaretSpot | null = null;
 		if (el && anchor.node === focus.node && anchor.offset === focus.offset) {
-			spot = caretSpotOf(el, focus);
+			const spot = caretSpotOf(el, focus);
+			assertInvariant('widget-lays-out-inline', () => checkWidgetLaysOutInline(el, focus));
 			// Focus decides which markers hide (an empty block's chrome); before it, G1.33 judges at focusin.
 			if (spot === 'none' && el.contains(document.activeElement)) {
 				const text = visibleTextAtSameOffset(el, focus);
@@ -96,7 +96,6 @@ export function createCaretWriter(
 					return false;
 				}
 				anchor = focus = text;
-				spot = 'text';
 			}
 		}
 		assertInvariant(
@@ -116,10 +115,6 @@ export function createCaretWriter(
 		}
 		written =
 			sel.isCollapsed && sel.focusNode ? { node: sel.focusNode, offset: sel.focusOffset } : null;
-		// Beside a widget with no line box only the drawn caret's bar shows the caret.
-		if (el && spot === 'widget-block' && written) {
-			showWidgetEdge(el, rawOffsetAt(el, written.node, written.offset));
-		}
 		onWrite();
 		return true;
 	}

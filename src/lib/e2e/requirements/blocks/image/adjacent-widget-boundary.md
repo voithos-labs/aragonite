@@ -22,7 +22,9 @@ widget in one keypress with no select step first.
 ## User interactions
 
 - Place the caret between two adjacent image widgets, press Delete / ArrowRight /
-  Backspace, check the selected widget and the surviving source.
+  Backspace, check the selected widget and the surviving source. The pictures sit side
+  by side on one line, so no click lands between them; the caret starts there through
+  the editor's own placement.
 
 ## Error cases
 

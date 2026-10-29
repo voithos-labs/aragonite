@@ -87,8 +87,8 @@ export function drawnBar(page: Page): Promise<DrawnBar | null> {
 	});
 }
 
-/** The bar beside a widget, where its click put the caret: 1.5px wide, its outer side 1px past a
- *  text-height widget at the widget's full height, or 4px past an image and 4px short at each end. */
+/** The 1.5px bar a click put beside a widget: 1px past a text-height one, its full height; at a
+ *  picture's edge, on its line (`caret/caret-shows.spec.ts` pins its height to the line's text). */
 export async function expectBarBesideWidget(
 	page: Page,
 	widget: Locator,
@@ -98,17 +98,20 @@ export async function expectBarBesideWidget(
 	await expect.poll(async () => (await drawnBar(page))?.state).toBe('widget');
 	const bar = (await drawnBar(page))!.box;
 	const w = (await widget.boundingBox())!;
-	const inset = look === 'image' ? 4 : 0;
-	const past = look === 'image' ? 4 : 1;
-	const want = {
-		left: side === 'after' ? w.x + w.width + past - 1.5 : w.x - past,
-		top: w.y + inset,
-		height: w.height - 2 * inset,
-		width: 1.5
-	};
-	for (const key of ['left', 'top', 'height', 'width'] as const) {
-		expect(Math.abs(bar[key] - want[key]), `${key} ${bar[key]} vs ${want[key]}`).toBeLessThan(0.5);
+	// The bar's rows sit on whole device pixels, so its top and height round by up to a pixel.
+	const close = (key: string, got: number, want: number, slack = 0.5) =>
+		expect(Math.abs(got - want), `${key} ${got} vs ${want}`).toBeLessThanOrEqual(slack);
+	close('width', bar.width, 1.5);
+	if (look === 'image') {
+		close('left', bar.left, side === 'after' ? w.x + w.width : w.x);
+		const middle = bar.top + bar.height / 2;
+		expect(middle, 'the bar sits on the picture’s line').toBeGreaterThan(w.y);
+		expect(middle).toBeLessThan(w.y + w.height);
+		return;
 	}
+	close('left', bar.left, side === 'after' ? w.x + w.width + 1 - 1.5 : w.x - 1);
+	close('top', bar.top, w.y, 1);
+	close('height', bar.height, w.height, 1);
 }
 
 /** The live collapsed range's box: its first rect with height, else the box of the node it sits

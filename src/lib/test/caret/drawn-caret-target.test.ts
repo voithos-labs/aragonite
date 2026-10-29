@@ -139,11 +139,21 @@ describe('the drawn caret draws a chip stop', () => {
 });
 
 describe('the drawn caret draws where the browser can’t', () => {
-	it('at the widget edge a click meant, in the host’s units, unsnapped', () => {
+	it('at the widget edge a click meant, in the host’s units, its column unsnapped', () => {
 		expect(drawnCaretTarget(read({ ...BESIDE, widgetEdge: EDGE }))).toEqual({
 			state: 'widget',
 			rect: { x: 42.5, y: 4, height: 20, width: 1.5 }
 		});
+	});
+
+	// A picture's bar takes the box of the text on its line, so its rows land where a text bar's would.
+	it('at a widget edge, on the device rows a text caret of that box covers', () => {
+		const edge = { left: 52.5, top: 24.4, bottom: 44.4, width: 1.5 };
+		const text = drawnCaretTarget(read({ caret: edge }));
+		const widget = drawnCaretTarget(read({ ...BESIDE, widgetEdge: edge }));
+		if (!('rect' in text) || !('rect' in widget)) throw new Error('no bar');
+		expect([widget.rect.y, widget.rect.height]).toEqual([text.rect.y, text.rect.height]);
+		expect(widget.rect.x).toBe(42.5);
 	});
 
 	it.each([

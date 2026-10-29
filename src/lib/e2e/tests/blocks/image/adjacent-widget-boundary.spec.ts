@@ -1,32 +1,20 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { waitForFirstImageLoaded } from './helpers';
-import { expectBarBesideWidget } from '../../../carets-showing';
 
 /**
  * Two image widgets sitting flush share a boundary (A.end === B.start) with no text node, so the
- * caret is the editor's own bar after A and the caret-edge dispatch must resolve it by
- * which key was pressed: document order always answers A. The direction logic is unit-tested in
- * `widget-adjacency.test.ts`.
+ * caret-edge dispatch must resolve the caret between them by which key was pressed: document
+ * order always answers A. The direction logic is unit-tested in `widget-adjacency.test.ts`.
  */
 
-const TWO_IMAGES = '![a](/test-fixtures/sample.png)![b](/test-fixtures/sample.png)\n';
+const A = '![a](/test-fixtures/sample.png)';
+const TWO_IMAGES = `${A}![b](/test-fixtures/sample.png)\n`;
 
-// Snap to the A|B boundary the way a user reaches it: click just right of the first image, which
-// snaps to its trailing edge (no text node lives there, so the editor draws its own caret there).
-async function snapAfterFirstWidget(editor: EditorPage): Promise<void> {
-	const point = await editor.page.evaluate(() => {
-		const a = document.querySelectorAll('[data-image-widget]')[0].getBoundingClientRect();
-		return { x: a.right + 2, y: a.top + a.height / 2 };
-	});
-	await editor.page.mouse.click(point.x, point.y);
-	// Assert the edge, not just "some drawn caret exists": every key test below depends on the caret
-	// at A's trailing edge, so a wrong landing must fail here rather than downstream.
-	await expectBarBesideWidget(
-		editor.page,
-		editor.page.locator('[data-image-widget]').first(),
-		'image'
-	);
+// Pictures sit side by side, so no click lands between them; the keys under test start there.
+async function caretAtBoundary(editor: EditorPage): Promise<void> {
+	await editor.focusBlock(0, A.length);
+	await editor.waitForRenderFlush();
 }
 
 test.describe('caret at a shared adjacent-widget boundary', () => {
@@ -43,7 +31,7 @@ test.describe('caret at a shared adjacent-widget boundary', () => {
 	});
 
 	test('Delete selects the following widget instead of deleting it', async ({ page }) => {
-		await snapAfterFirstWidget(editor);
+		await caretAtBoundary(editor);
 		await page.keyboard.press('Delete');
 
 		// B survives: the forward key selected it rather than being consumed by a native delete.
@@ -55,7 +43,7 @@ test.describe('caret at a shared adjacent-widget boundary', () => {
 	test('ArrowRight selects the following widget rather than skipping its entry', async ({
 		page
 	}) => {
-		await snapAfterFirstWidget(editor);
+		await caretAtBoundary(editor);
 		await page.keyboard.press('ArrowRight');
 
 		await expect(page.locator('[data-image-overlay]')).toBeVisible();
@@ -65,7 +53,7 @@ test.describe('caret at a shared adjacent-widget boundary', () => {
 	test('Backspace selects the preceding widget (backward direction unchanged)', async ({
 		page
 	}) => {
-		await snapAfterFirstWidget(editor);
+		await caretAtBoundary(editor);
 		await page.keyboard.press('Backspace');
 
 		await expect(page.locator('[data-image-overlay]')).toBeVisible();

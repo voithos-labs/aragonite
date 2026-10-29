@@ -134,6 +134,9 @@ export interface InlineWidgetDescriptor {
 	/** Draws the widget into the shell the editor makes for it, the element that carries its bytes. */
 	view: PluginView<InlineWidgetComponentProps>;
 	editing?: InlineWidgetEditingPolicy;
+	/** The widget stands in its line as a picture does, its box taller than the text beside it;
+	 *  a caret beside it draws at that text's height. */
+	frame?: boolean;
 }
 
 /** The editor's own kinds draw without a view: a builder here, or none for the image, which the
@@ -169,7 +172,8 @@ export function registerInlineWidgetKind(
 	registerWidgetEntry(kind, {
 		isWidget: (node, raw) => descriptor.isWidget(node, raw),
 		view: descriptor.view,
-		editing: descriptor.editing
+		editing: descriptor.editing,
+		frame: descriptor.frame
 	});
 }
 
@@ -245,6 +249,11 @@ export function isCharacterLikeWidget(kind: AnyInlineKind, grammar: GrammarView)
 	return getInlineWidgetEditing(kind, grammar)?.onEdge === 'step-over';
 }
 
+/** Whether the kind's widget stands in its line as a picture does (its descriptor's `frame`). */
+export function isFrameWidget(kind: AnyInlineKind, grammar: GrammarView): boolean {
+	return widgetOf(kind, grammar)?.frame === true;
+}
+
 export function getInlineWidgetView(
 	kind: AnyInlineKind,
 	grammar: GrammarView
@@ -312,6 +321,7 @@ export function buildCoreInlineWidget(
 
 registerCoreInlineWidget('image', {
 	isWidget: () => true,
+	frame: true,
 	// Empty because the image's edge behavior is the dispatch's default; the editor layer
 	// augments this with the resize `onSelectedKey` (components/built-in-blocks.ts).
 	editing: {}

@@ -812,9 +812,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		el.focus({ preventScroll: true });
 		deps.cursor.setRaw(asRawOffset(seat.offset), { clamp: 'reachable' });
-		// Text shows its own caret, and beside a picture the caret writer already asked for the bar.
-		const spot = liveCaretSpot(el);
-		if (spot !== 'text' && spot !== 'widget-block') deps.setSnapTarget(seat.offset);
+		// Text shows its own caret; beside a widget the held edge outlives a range the browser drops.
+		if (liveCaretSpot(el) !== 'text') deps.setSnapTarget(seat.offset);
 	}
 
 	/** Select the whole shown token, decided from the press: the editor root's word-select runs

@@ -22,9 +22,11 @@ import {
 import type { Reading } from '../../../schema/reading';
 import {
 	PENDING_BREAK_START,
+	firstLineHoldsOnlyPictures,
 	renderInlineNodes,
 	type ImageLoadPolicy
 } from '../../../core/inline-render';
+import { PICTURE_LINE_ATTR } from '../../../core/inline/widget-shell';
 import type { RawOffset } from '../../../core/coordinate-spaces';
 import {
 	BLOCK_PREFIX_ATTR,
@@ -219,9 +221,13 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (suffix) {
 			const span = markerSpan(suffix);
 			span.setAttribute(BLOCK_SUFFIX_ATTR, blockOwnPrefix ? 'after-prefix' : '');
-			// A closing run on the text's own line stays there when a pending break draws a new one.
+			// A closing run on the text's own line stays there when a pending break draws a new one,
+			// and every suffix goes before the anchor a picture ending the content leaves.
 			const onTextLine = sameLineSuffix(node) === suffix;
-			frag.insertBefore(span, onTextLine ? frag.querySelector(PENDING_BREAK_START) : null);
+			const last = frag.lastChild;
+			const frameLine = last instanceof HTMLElement && last.dataset.caretAnchor === 'frame';
+			const before = frameLine ? last : onTextLine ? frag.querySelector(PENDING_BREAK_START) : null;
+			frag.insertBefore(span, before);
 		}
 		return frag;
 	}
@@ -293,6 +299,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
 		let carriedCaret: RawOffset | null = null;
+		let pictureLine = false;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) {
@@ -316,6 +323,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			destroyIslands();
 			el.replaceChildren(buildInlineDOM(content, pendingBreaks, shown));
 			washShownSource(el, shown);
+			pictureLine = firstLineHoldsOnlyPictures(content, node.raw, deps.reading, el);
 			rendered = { content, raw: node.raw };
 			widgets = null;
 			islandViews = applyIslandDecorations(el, node.raw, islands, {
@@ -360,6 +368,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		ensureBr(el);
 		// This attribute decides which spans the caret can land in, so it is set first.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
+		el.toggleAttribute(PICTURE_LINE_ATTR, pictureLine);
 		if (carriedCaret !== null) restoreCaret(el, carriedCaret);
 	}
 

@@ -18,8 +18,6 @@
 	import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { trimTrailingLineEnding } from '../../../core/lines';
-	import { widgetEdgeBox } from '../../../caret/drawn-caret-measure';
-	import type { WidgetEdgeBox } from '../../../caret/drawn-caret-target';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
 	import {
@@ -52,8 +50,6 @@
 	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
-	import { widgetsIn } from './widget-adjacency';
-	import { widgetElByStart } from '../../../core/inline/inline-widgets';
 	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		rawSelectionIn,
@@ -241,10 +237,7 @@
 			markKeystrokeStart();
 			holdWidgetEdge(null);
 		},
-		widgetEdge: {
-			owner: widgetEdgeOwner,
-			box: (offset) => widgetEdgeBoxAt(offset)
-		},
+		widgetEdgeOwner,
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret: (caret, intent) =>
@@ -745,17 +738,6 @@
 		if (!live) return;
 		// A range starting outside the block reads null, which no held edge equals.
 		if (live.start !== held) holdWidgetEdge(null);
-	}
-
-	/** The drawn caret's bar beside the widget that starts or ends at `offset`. */
-	function widgetEdgeBoxAt(offset: number): WidgetEdgeBox | null {
-		if (!el) return null;
-		for (const inline of widgetsIn(node, reading)) {
-			if (inline.end !== offset && inline.start !== offset) continue;
-			const widget = widgetElByStart(el, inline.start);
-			return widget && widgetEdgeBox(widget, inline.end === offset ? 'after' : 'before');
-		}
-		return null;
 	}
 
 	// The widget edge is cleared even during composition, since an IME caret move invalidates it;

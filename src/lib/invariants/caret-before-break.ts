@@ -1,7 +1,7 @@
 /**
- * G1.75: a selection endpoint the editor writes never sits after an empty block's placeholder
- * `<br>`. Chromium drops a composition started there after its first update and never sends
- * `compositionend`, so the composed text is lost or doubled.
+ * G1.75: a selection endpoint the editor writes never sits after the `<br>` closing a block (an
+ * empty block's placeholder, a picture's line anchor). After a placeholder, Chromium drops a
+ * composition after its first update and never sends `compositionend`, losing or doubling it.
  */
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
@@ -17,6 +17,6 @@ export function checkCaretBeforeBreak(position: {
 	}
 	return {
 		code: 'caret-before-break',
-		message: `a selection endpoint was written at offset ${position.offset}, after an empty block's placeholder <br>: write it before the <br>`
+		message: `a selection endpoint was written at offset ${position.offset}, after the <br> closing its block: write it before the <br>`
 	};
 }

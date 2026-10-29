@@ -91,17 +91,10 @@ test.describe('vertical arrow traversal around image widgets', () => {
 // Two adjacent images too wide for one line: the paragraph holds no text at all, so its first
 // line cannot be found by looking for text.
 const WRAPPED_IMAGES_DOC =
-	'before paragraph.\n\n![a|500x60](/test-fixtures/sample.png)![b|500x60](/test-fixtures/sample.png)\n\nafter paragraph.\n';
+	'before paragraph.\n\n![a|700x60](/test-fixtures/sample.png)![b|700x60](/test-fixtures/sample.png)\n\nafter paragraph.\n';
 
 test.describe('vertical arrows inside a wrapped image-only paragraph', () => {
-	test('ArrowUp from beside the second-line image stays in the paragraph', async ({
-		page,
-		browserName
-	}) => {
-		test.fixme(
-			browserName === 'chromium',
-			'#574: Chromium drops the caret beside the trailing image; ArrowUp reads it as raw 0'
-		);
+	test('ArrowUp from beside the second-line image stays in the paragraph', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
 		await editor.loadContent(WRAPPED_IMAGES_DOC);

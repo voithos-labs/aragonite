@@ -1,31 +1,21 @@
-# Caret: a caret the editor writes beside a picture shows
+# Caret: the caret beside a picture shows where the next letter lands
 
-A picture is laid out as a block, so a caret beside it has no line of its own and no browser draws
-one there. Whichever route puts the caret beside a picture, the drawn caret's bar shows it at the
-picture's edge, on any pointer, and the next typed letter lands at that edge. Beside a widget that
-sits in a line (a decoded entity, a formula), the browser's own caret already shows, so the bar stays away.
-Each row runs in live mode.
+A picture sits in its line, and beside it the browser paints its caret the line box tall (or not at all), so the drawn caret's bar shows the caret there, on any pointer. Whichever route put the caret beside a picture, the bar stands at the picture's edge where the next typed letter lands: its left and middle within 1px of that letter's box, and as tall as the bar the same engine draws for that line's text: at the text where the line holds some, else in an empty paragraph (Firefox draws an empty line's bar the line box tall, the others the text's height). Beside a widget that sits in its line at the text's height (a decoded entity, an emoji, a formula), the browser's own caret shows unless a click asked for the bar. Each row runs in live mode, and each measures that reference bar in the same document.
 
-Miss-analysis: only a click asked for the bar beside a picture, and every bar row was a click, so
-no row wrote the caret there by a key, a merge or an undo, where nothing drew it and Chromium
-dropped the selection, or the typed letter beside a linked picture.
+Miss-analysis: every bar row read the bar against the picture's own box, never against the letter typed next, so a bar standing 60px above the letter, or on another line, passed.
 
 ## Happy paths
 
-- `![x](…)` alone, caret put at its start: the bar stands before the picture, and `Q` lands at 0
-- the same, caret put at its end: the bar stands after it, and `Q` lands at the end
-- `[![alt](…)](https://x.y)` alone, caret put at its start and at its end: the bar stands at that
-  edge, and `Q` lands outside the link on that side
-
-## User interactions
-
-- Backspace on an empty paragraph below a picture: the bar stands after the picture, and `Q` lands
-  after it
-- Backspace on an empty paragraph below a linked picture: the same, `Q` after the link
-- `Q` typed after a picture, then undo: the bar stands after the picture again, and `Q` lands there
-- Enter after a picture, then Backspace: the bar stands after the picture, and `Q` lands there
+- `![x](…)` alone, after it, by Backspace on the empty paragraph below, a click past it, a caret put at its end, an undo of a letter typed there, and Enter then Backspace: the bar stands where `Q` then lands, after the picture on its line
+- `![x](…)` alone, before it, by a caret put at its start and by Home from its end: the bar stands where `Q` lands, before the picture on its line
+- `[![alt](…)](https://x.y)` alone, after it (Backspace from below, a caret put at its end) and before it: the same, `Q` outside the link on that side
+- a picture in a list item, after it (a click past) and before it: the same
+- a picture in a quote, after it (a click past): the same
+- `lead ![x](…)`, a caret put at its end: the bar stands after the picture, where `Q` lands
+- two pictures side by side, the caret between them: the bar stands after the first, where `Q` lands
+- `![x](…) trail`, a caret put at its start: the bar stands before the picture, at the height of the text beside it
 
 ## Edge cases
 
-- `lead &copy;`, caret put at its end: the browser's own caret shows beside the ©, no bar, and
-  `Q` lands at the end
+- `lead &copy;`, caret put at its end: the browser's own caret shows beside the ©, no bar, and `Q` lands at the end
+- a click past a decoded entity, an emoji and a formula: the bar the click asks for stands where `Q` then lands

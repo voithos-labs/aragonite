@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * The container marker's placement beside an image is pure CSS, so this checks it holds for every
- * inline wrapper that puts the widget one level deeper than a plain `![img](x)`.
+ * A picture lays out inline in its line whatever inline wrapper holds it, so a letter typed beside
+ * it lands on that line; the layout is pure CSS, so this checks every wrapper shape the render makes.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -43,62 +43,25 @@ function renderListParagraph(content: string): HTMLElement {
 	return paragraph;
 }
 
-function ambientMarkerOf(paragraph: HTMLElement): Element {
-	const marker = paragraph.querySelector(':scope > .md-marker[contenteditable="false"]');
-	if (!marker) throw new Error('no ambient marker rendered');
-	return marker;
-}
-
-// Every wrapper shape `renderInlineNodes` can put between the paragraph and the widget. The
-// plain case is the control that already worked; a tightened selector turns the other five red.
+// Every wrapper shape `renderInlineNodes` can put between the paragraph and the widget.
 const WRAPPED_IMAGES: Array<[string, string]> = [
-	['bare (control — already worked)', '![b](i.png)'],
+	['bare', '![b](i.png)'],
 	['emphasis', '*![b](i.png)*'],
 	['strong', '**![b](i.png)**'],
 	['strikethrough', '~~![b](i.png)~~'],
-	['link', '[![b](i.png)](https://x.com)'],
+	['link', '[![b](i.png)](https://x.com "t")'],
 	['link with a blocked scheme', '[![b](i.png)](javascript:alert(1))'],
 	['nested wrappers', '[*![b](i.png)*](https://x.com)']
 ];
 
-describe('image-bearing list paragraph: ambient marker pin', () => {
-	it.each(WRAPPED_IMAGES)('pins the marker out of flow for %s', (_label, content) => {
+describe('a picture keeps its line in every wrapper', () => {
+	it.each(WRAPPED_IMAGES)('%s', (_label, content) => {
 		const paragraph = renderListParagraph(content);
-		expect(getComputedStyle(paragraph).position).toBe('relative');
-		expect(getComputedStyle(ambientMarkerOf(paragraph)).position).toBe('absolute');
-	});
-
-	it('leaves the marker in flow when the paragraph holds no image', () => {
-		const paragraph = renderListParagraph('just *text* and [a link](https://x.com)');
-		expect(getComputedStyle(paragraph).position).toBe('static');
-		expect(getComputedStyle(ambientMarkerOf(paragraph)).position).toBe('static');
-	});
-});
-
-describe('image-bearing list paragraph, trailing line-box', () => {
-	it.each(WRAPPED_IMAGES)('drops the dead line-box for %s', (_label, content) => {
-		expect(getComputedStyle(renderListParagraph(content)).minHeight).toBe('0px');
-	});
-
-	it('keeps the line-box when the paragraph holds no image', () => {
-		expect(getComputedStyle(renderListParagraph('just text')).minHeight).not.toBe('0px');
-	});
-});
-
-describe('image-bearing link anchor: tooltip hugs the image', () => {
-	it.each([
-		['direct child', '[![b](i.png)](https://x.com "t")'],
-		['nested in emphasis', '[*![b](i.png)*](https://x.com "t")']
-	])('shrink-wraps the anchor when the image is a %s', (_label, content) => {
-		const anchor = renderListParagraph(content).querySelector('a.md-link-content');
-		expect(anchor).not.toBeNull();
-		expect(getComputedStyle(anchor!).display).toBe('inline-block');
-	});
-
-	it('leaves a text-only anchor inline', () => {
-		const anchor = renderListParagraph('[text](https://x.com "t")').querySelector(
-			'a.md-link-content'
-		);
-		expect(getComputedStyle(anchor!).display).toBe('inline');
+		const widget = paragraph.querySelector<HTMLElement>('[data-image-widget]')!;
+		expect(getComputedStyle(widget).display).toBe('inline-block');
+		expect(getComputedStyle(widget).verticalAlign).toBe('bottom');
+		for (let el = widget.parentElement; el && el !== paragraph; el = el.parentElement) {
+			expect(getComputedStyle(el).display, el.className).toMatch(/^inline/);
+		}
 	});
 });

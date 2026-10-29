@@ -179,14 +179,14 @@ describe('createHeightOracle', () => {
 		expect(o.estimate(ref, 800)).toBe(200);
 	});
 
-	it('sums the floor across multiple images in one paragraph', () => {
+	// Pictures lay out inline, so a source line of them stands as tall as its tallest, and each
+	// source line starts a line of its own.
+	it('takes the tallest picture on each source line, and sums the lines', () => {
 		const o = createHeightOracle(opts);
-		const three: CstNode = {
-			kind: 'paragraph',
-			leadingTrivia: '',
-			raw: '![one][a] ![two][b] ![three][c]'
-		};
-		expect(o.estimate(three, 800)).toBe(3 * 200); // image count, not a single floor
+		const oneLine = para('![one][a] ![two|100x300][b] ![three][c]');
+		expect(o.estimate(oneLine, 800)).toBe(300);
+		const twoLines = para('![one][a]\n![two|100x300][b]');
+		expect(o.estimate(twoLines, 800)).toBe(200 + 300);
 	});
 
 	it('uses an explicit `|WxH` height hint over the floor; width-only falls back', () => {

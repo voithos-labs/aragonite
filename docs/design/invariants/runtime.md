@@ -71,7 +71,7 @@ These checks run in three kinds of place:
 | G1.58  | An indent key over a range keeps every word it holds, in order                                | A·N     |
 | G1.61  | A list move keeps the order its text reads in                                                 | A·P·N   |
 | G1.71  | A command key over a range runs in the kind of block whose keymap claimed it                  | A·N     |
-| G1.75  | No selection endpoint the editor writes sits after an empty block's placeholder `<br>`        | A·N     |
+| G1.75  | No selection endpoint the editor writes sits after the `<br>` closing a block                 | A·N     |
 | G1.76  | The drawn caret sits on its caret until the caret moves                                       | A       |
 | G1.77  | The mark hiding the browser's caret is on exactly the editable the drawn caret draws for      | A       |
 | G1.87  | Nothing an editor started before it unmounted writes, reports or reads its tree after         | N       |
@@ -113,6 +113,7 @@ These checks run in three kinds of place:
 | G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs    | A·N     |
 | G1.158 | A block a commit splices in holds no opener it wrote that a block below would close           | A·N     |
 | G1.159 | The caret writer writes a caret only where something shows it                                 | A·N     |
+| G1.160 | A widget beside a caret the writer puts down lays out inline                                  | A·N     |
 
 ### The entries
 
@@ -410,9 +411,10 @@ the removal the command must run in a block of that kind (kinds only, since a jo
 offset). Predicate `invariants/command-key-landing.ts :: checkCommandLanding` ·
 `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
 
-**G1.75 · The caret goes before an empty block's `<br>`** (`caret-before-break`). An empty editable
-holds one `<br>`, and a caret looks the same on either side, but in Chromium a composition started
-after it is dropped after its first update, losing or doubling the text. Every caret and range the
+**G1.75 · The caret goes before a block's closing `<br>`** (`caret-before-break`). An empty editable
+holds one `<br>`, and so does a block whose content ends on a picture (the anchor its line's text
+height comes from). A caret looks the same on either side, but after an empty block's, Chromium
+drops a composition after its first update, losing or doubling the text. Every caret and range the
 editor writes passes `browser/caret-writer.ts :: writeSelection`, which checks both ends in dev (G4.270
 keeps every selection write there). `checkCaretBeforeBreak` · `caret-before-break.test.ts`.
 
@@ -671,8 +673,15 @@ asked, and a range delete's survivor lands outside a commit's list, where the ro
 `checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.
 
 **G1.159 · A written caret shows** (`caret-paints`). The caret writer writes a caret only where
-something shows it: text or a line the browser paints, or a picture's edge, where it asks the drawn
-caret for its bar. A spot with only hidden marker runs beside it, in a block holding focus (focus
-decides what hides), moves to visible text at the same offset, or is refused (no write, a false
-return); only a plugin block drawing nothing but markers gets there. `checkCaretPaints` ·
+something shows it: text, a line the browser paints, or a widget's side (beside a picture, the drawn
+caret's bar). A spot with only hidden marker runs beside it, in a block holding focus (focus decides
+what hides), moves to visible text at the same offset, or is refused (no write, a false return);
+only a plugin block drawing nothing but markers gets there. `checkCaretPaints` ·
 `browser/caret-writer.ts` · `caret-spot.test.ts`, `caret-shows`.
+
+**G1.160 · Widgets lay out inline** (`widget-lays-out-inline`). A widget beside a caret the writer
+puts down computes an inline-level display (`inline-block` for a box). Laid out as a block it has no
+line beside it: a letter typed there lands on another line, Chromium starts no composition there,
+and nothing draws the caret. It fires whether or not the kind declares `frame`, since a plugin's
+widget sets its own `display`. `checkWidgetLaysOutInline` · `browser/caret-writer.ts` ·
+`caret-spot.test.ts`.
