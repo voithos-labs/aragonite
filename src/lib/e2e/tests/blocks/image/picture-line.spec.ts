@@ -150,7 +150,7 @@ test.describe('a picture sits in its line', () => {
 		await expect.poll(() => editor.bridge.getSource()).toBe(`${IMG}below\n`);
 	});
 
-	test('the line a picture ends adds nothing a screen reader reads', async ({ page }) => {
+	test('the line a picture ends adds nothing to the aria snapshot', async ({ page }) => {
 		await editor.loadContent(`${IMG}\n`);
 		await waitForAllImagesLoaded(page);
 		const paragraph = page

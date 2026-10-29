@@ -20,4 +20,4 @@ A picture lays out inline in its paragraph, the way Markdown means it: a letter 
 
 - A lone picture's paragraph shows no empty-block hint: the anchor isn't content
 - Backspace at a lone picture's start joins it to the paragraph above, and Delete at its end joins the paragraph below to it, as for any paragraph with content
-- The paragraph's accessibility tree holds the picture and nothing for the anchor
+- The paragraph's aria snapshot holds the picture and nothing for the anchor (Chromium's full tree still gives the anchor a line break node, which the snapshot leaves out)
