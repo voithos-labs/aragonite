@@ -15,7 +15,14 @@
 			"@voithos-labs/aragonite/*": [
 				"./node_modules/@voithos-labs/aragonite/dist/*",
 				"./node_modules/@voithos-labs/aragonite/dist/*/index"
-			]
+			],
+			"@voithos-labs/aragonite-latex/renderer": [
+				"./node_modules/@voithos-labs/aragonite-latex/dist/renderer.d.ts"
+			],
+			"@voithos-labs/aragonite-mermaid/renderer": [
+				"./node_modules/@voithos-labs/aragonite-mermaid/dist/renderer.d.ts"
+			],
+			"@voithos-labs/aragonite-*": ["./node_modules/@voithos-labs/aragonite-*/dist/index.d.ts"]
 		}
 	},
 	"include": ["src", "vite.config.ts"]

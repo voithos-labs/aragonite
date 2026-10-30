@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The mermaid adapter behind `@voithos-labs/aragonite/plugins/mermaid/renderer`. Mermaid is
+// The mermaid adapter behind `@voithos-labs/aragonite-mermaid/renderer`. Mermaid is
 // stubbed at its module boundary because the adapter's `import('mermaid')` is the only place
 // it enters, and the real thing draws through SVG layout that jsdom cannot do.
 

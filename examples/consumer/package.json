@@ -26,6 +26,14 @@
 		"vite": "^8.2.2"
 	},
 	"dependencies": {
-		"@voithos-labs/aragonite": "file:../.."
+		"@voithos-labs/aragonite": "file:../..",
+		"@voithos-labs/aragonite-admonitions": "file:../../packages/admonitions",
+		"@voithos-labs/aragonite-details": "file:../../packages/details",
+		"@voithos-labs/aragonite-emoji": "file:../../packages/emoji",
+		"@voithos-labs/aragonite-footnotes": "file:../../packages/footnotes",
+		"@voithos-labs/aragonite-highlight-occurrences": "file:../../packages/highlight-occurrences",
+		"@voithos-labs/aragonite-latex": "file:../../packages/latex",
+		"@voithos-labs/aragonite-mermaid": "file:../../packages/mermaid",
+		"@voithos-labs/aragonite-toc": "file:../../packages/toc"
 	}
 }
