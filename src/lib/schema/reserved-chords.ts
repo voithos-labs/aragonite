@@ -188,6 +188,11 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow, a line-edge key or a page key places a caret and declines.'
 	},
 	{
+		file: 'components/image/ImageProperties.svelte',
+		keys: ['Backspace', 'Delete', 'Enter', 'Escape', 'Tab'],
+		note: 'A crop swallows the keys that would write over the image, which are the editor’s own; Shift reads whether a caret key resizes it: no keystroke is claimed here.'
+	},
+	{
 		file: 'components/image/ImageResizeHandles.svelte',
 		keys: [],
 		note: 'Shift locks the aspect ratio during a pointer drag.'
