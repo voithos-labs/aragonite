@@ -556,7 +556,7 @@
 
 		const caretBeforeKey = cursor.getRaw();
 
-		// Before the plan, whose edge branches ignore modifiers and would eat a column move. A move
+		// Before the plan, whose vertical branches ignore modifiers and would eat a row move. A move
 		// from a cell moves the whole table, since a table's grid rows are not reorderable children.
 		if (wiring.dispatchChord(e, keyTarget)) return;
 
