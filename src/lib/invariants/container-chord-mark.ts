@@ -12,7 +12,7 @@ export function checkContainerChordMark(
 	if (markedKind === kind) return null;
 	return {
 		code: 'container-chords-unmarked',
-		message: `a ${kind} container took a chord from an element claimsChord cannot see: bind handleKeydown on the box the factory was given, or install it with listenForContainerChords`,
+		message: `the ${kind} container took a chord from an element claimsChord cannot see: bind handleKeydown on the box the factory was given, or install it with listenForContainerChords`,
 		detail: { kind, markedKind }
 	};
 }

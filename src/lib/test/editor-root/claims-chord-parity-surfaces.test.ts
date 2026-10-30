@@ -132,6 +132,7 @@ const CONTEXTS: ClaimContext[] = [
 		name: 'paragraph in a plugin container',
 		source: ':::note\n\nTip text here\n\n:::\n',
 		plugins: [admonitionsPlugin()],
+		pluginChords: ['Mod+7'],
 		enter: async (editor) => {
 			const leaves = editor.target.querySelectorAll<HTMLElement>('[contenteditable]');
 			const tip = [...leaves].find((el) => el.textContent === 'Tip text here');
@@ -157,5 +158,6 @@ const CONTEXTS: ClaimContext[] = [
 ];
 
 describe.each(CONTEXTS)('claimsChord agrees with the keydown: $name', (context) => {
-	it.each(keysToProbe())('%s', (chord) => expectParity(context, chord));
+	const keys = [...keysToProbe(), ...(context.pluginChords ?? [])];
+	it.each(keys)('%s', (chord) => expectParity(context, chord));
 });
