@@ -7,9 +7,9 @@
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// A plain container with a left border: `createContainerBlock` wires it end to end.
-	// `handleKeydown` is deliberately left unwired, since a blockquote takes no chords.
-	const { blockListProps, containerApi } = createContainerBlock({
+	// A plain container with a left border: `createContainerBlock` wires it end to end. Its keymap
+	// is empty, so `handleKeydown` runs only a consumer's `blockquote`-scoped binding.
+	const { blockListProps, containerApi, handleKeydown } = createContainerBlock({
 		getNode: () => node,
 		getIndex: () => index,
 		getPath: () => myPath,
@@ -19,7 +19,8 @@
 	export { containerApi };
 </script>
 
-<div class="blockquote-block" bind:this={boxEl}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="blockquote-block" bind:this={boxEl} onkeydown={handleKeydown}>
 	<BlockList {...blockListProps} />
 </div>
 

@@ -15,7 +15,9 @@ describe('stored chords are normalized', () => {
 	});
 
 	it('the hardcoded-chord manifest', () => {
-		expect(denormal(HARDCODED_CHORD_SITES.flatMap((site) => site.chords))).toEqual([]);
+		expect(denormal(HARDCODED_CHORD_SITES.flatMap((site) => site.claims?.chords ?? []))).toEqual(
+			[]
+		);
 	});
 
 	it('every registered kind keymap, whole-block defaults included', () => {

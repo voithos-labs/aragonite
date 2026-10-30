@@ -150,7 +150,8 @@ export async function handleSharedKeydown(
 		}
 	}
 
-	if (e.key === 'ArrowLeft') {
+	// Only a caret key steps out sideways: off a Mac, Alt+Arrow is the page's Back and Forward.
+	if (e.key === 'ArrowLeft' && motion) {
 		const offset = e.shiftKey ? (stepOffset ?? bounds().start) : stepOffset;
 		if (offset === null || offset <= bounds().start) {
 			if (e.shiftKey) {
@@ -164,7 +165,7 @@ export async function handleSharedKeydown(
 		}
 	}
 
-	if (e.key === 'ArrowRight') {
+	if (e.key === 'ArrowRight' && motion) {
 		const offset = e.shiftKey ? (stepOffset ?? bounds().end) : stepOffset;
 		if (offset === null || offset >= bounds().end) {
 			if (e.shiftKey) {

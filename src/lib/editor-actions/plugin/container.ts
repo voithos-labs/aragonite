@@ -5,6 +5,7 @@
  * sets its own.
  */
 
+import { markContainerChords } from '../container-chords.svelte';
 import { imeOwnsKey } from '../../browser/composition';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { getContext } from 'svelte';
@@ -277,6 +278,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = reading.mode;
+	// The plugin contract binds `handleKeydown` on the box.
+	markContainerChords(deps.getBoxEl, () => deps.getNode().kind);
 
 	const getEditor = (): EditorContext | undefined =>
 		componentPluginEditor(pluginEditor, deps.getNode().kind);

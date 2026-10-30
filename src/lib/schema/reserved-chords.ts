@@ -1,16 +1,14 @@
 /**
- * Which modifier chords a mounted editor consumes. Keymap chords come from the registries; chords
- * taken by hand-written keydown branches are listed in `HARDCODED_CHORD_SITES`, and a source scan
- * fails until a new such file is added there (G4.29). A listed file keeps its literal key
- * comparisons and modifier reads, the scan's evidence. Bare keys are out of scope: the document
- * owns them.
+ * Which modifier chords a mounted editor consumes anywhere. Keymap chords come from the
+ * registries; chords taken by hand-written keydown branches are listed in `HARDCODED_CHORD_SITES`
+ * with where each is taken, and a source scan fails until a new such file is added there (G4.29).
+ * A listed file keeps its literal key comparisons and modifier reads, the scan's evidence.
  */
 import { getAllRegisteredKinds } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, kindKeymap, pluginGlobalChords, reservedUiChords } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 import type { PluginActivation } from './plugin-activation';
 import { kindEnablementFor } from './registry-view';
-import { caretEdgeKey, eventToChord } from './keybindings';
 import { usesMacEditingConventions } from './platform-conventions';
 
 // ── The hardcoded-chord list ─────────────────────────────────────────────────
@@ -19,60 +17,67 @@ import { usesMacEditingConventions } from './platform-conventions';
 export interface HardcodedChordSite {
 	/** Path under `src/lib`, as the source scan reports it. */
 	file: string;
-	/** Modifier chords the file consumes outside every keymap. */
-	chords: readonly string[];
+	/** Chords the file consumes outside every keymap, where focus is when it does, and whether
+	 *  reading mode keeps the branch. */
+	claims?: {
+		readonly scope: ChordSiteScope;
+		readonly chords: readonly string[];
+		readonly inReading?: true;
+	};
 	/** Key literals the file compares — the scan's evidence that `chords` is still current. */
 	keys: readonly string[];
 	/** Why the chord list is what it is, where the branches alone don't say. */
 	note?: string;
 }
 
+/** Where a hardcoded chord is taken: every text block, a block focused whole, a range across
+ *  blocks, the find bar, an open link card or menu, or within a block of one of the listed kinds. */
+export type ChordSiteScope =
+	'leaf' | 'whole-block' | 'range' | 'find-bar' | 'menu' | readonly string[];
+
 export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'activation-click.ts',
-		chords: [],
 		keys: [],
 		note: 'Ctrl/Cmd on a click that may follow a link or a widget, read for every such route: no keystroke is consumed.'
 	},
 	{
 		file: 'components/editor-root/gestures.ts',
-		chords: [],
 		keys: [],
 		note: 'A modified press declines the margin drag, and a live-mode Mod-click skips the link card: no keystroke is consumed.'
 	},
 	{
+		file: 'components/editor-root/key-claims.ts',
+		keys: ['Arrow*', 'Backspace', 'Delete', 'Enter', 'Escape'],
+		note: 'Answers `claimsChord` by asking what each handler on the key’s way asks; it consumes nothing itself.'
+	},
+	{
 		file: 'components/editor-root/keydown.ts',
-		chords: [],
 		keys: ['Backspace', 'Escape', 'H'],
 		note: "Escape closes the find bar, and Mod+H picks the replace row as the bar opens (reserved UI chords, enumerated). Backspace outside a text field only loses the browser's own default (a step back in history, in some engines) and still reaches every handler. The modifier read is a refusal: an unchorded character over a live range is written as text, a chorded one goes to the handlers below it."
 	},
 	{
 		file: 'debug/input-recorder.ts',
-		chords: [],
 		keys: ['Process'],
 		note: 'An input recording copies the modifier flags of every key it records, and reads an IME keydown (`Process`) to group a composition: no keystroke is consumed.'
 	},
 	{
 		file: 'selection/selection-drop.ts',
-		chords: [],
 		keys: [],
 		note: 'Ctrl/Alt at the drop is the platform copy modifier, read off a DragEvent: no keystroke is consumed.'
 	},
 	{
 		file: 'selection/multi-click.ts',
-		chords: [],
 		keys: [],
 		note: 'A modified multi-click is left to the browser (Shift extends, Mod activates): no keystroke is consumed.'
 	},
 	{
 		file: 'selection/widget-press.ts',
-		chords: [],
 		keys: [],
 		note: "Control with the primary button is a Mac's right-click, read off a press: no keystroke is consumed."
 	},
 	{
 		file: 'components/GapCaret.svelte',
-		chords: [],
 		keys: [
 			'ArrowDown',
 			'ArrowLeft',
@@ -87,85 +92,89 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/SearchBar.svelte',
-		chords: ['Shift+Enter'],
+		claims: { scope: 'find-bar', chords: ['Shift+Enter'] },
 		keys: ['Enter', 'Escape'],
 		note: 'Previous match from the find input. Reachable only with the bar open, and the prose keymap binds the same chord anyway.'
 	},
 	{
 		file: 'components/blocks/editable/editable-leaf.ts',
-		chords: [],
 		keys: ['Backspace', 'Enter'],
 		note: "Shift-click gate on the rendered surface, a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does. The reveal's own undo resolves its chord through the keymap, so it claims none here."
 	},
 	{
 		file: 'components/link-card/LinkCard.svelte',
-		chords: ['Shift+Tab'],
+		claims: { scope: 'menu', chords: ['Shift+Tab'] },
 		keys: ['Enter', 'Tab'],
 		note: "Backwards step of the open card's focus trap. The chord that opens the card is swallowed there too, resolved through the keymap like everywhere else. Escape is the menu presence's, which also closes a card the document still holds the caret for."
 	},
 	{
 		file: 'components/menu/BlockMenu.svelte',
-		chords: [],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter'],
 		note: 'The open block menu steps and picks; the modifier read is the guard that leaves every chord to the editor. Escape is the menu presence’s.'
 	},
 	{
 		file: 'components/blocks/table/TableActionMenu.svelte',
-		chords: ['Shift+Tab'],
+		claims: { scope: 'menu', chords: ['Shift+Tab'] },
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Home', 'Tab'],
 		note: "Backwards step of the open menu's focus trap."
 	},
 	{
 		file: 'components/blocks/table/TableBlock.svelte',
-		chords: ['Shift+F10'],
+		claims: { scope: ['tableCell'], chords: ['Shift+F10', 'ContextMenu'] },
 		keys: ['ContextMenu', 'F10'],
-		note: 'The keyboard route to the cell action menu.'
+		note: 'The keyboard routes to the cell action menu.'
 	},
 	{
 		file: 'components/blocks/table/TableCellBlock.svelte',
-		chords: ['Shift+ArrowUp', 'Shift+ArrowDown'],
+		claims: { scope: ['tableCell'], chords: ['Shift+ArrowUp', 'Shift+ArrowDown'] },
 		keys: ['ArrowDown', 'ArrowUp', 'Enter'],
 		note: 'Starts the intra-table rectangle before the prose extend can walk the next leaf.'
 	},
 	{
 		file: 'components/blocks/table/cell-keydown-plan.ts',
-		chords: [],
+		claims: {
+			scope: ['tableCell'],
+			chords: [
+				'Mod+ArrowUp',
+				'Mod+ArrowDown',
+				'Alt+ArrowUp',
+				'Alt+ArrowDown',
+				'Mod+Alt+ArrowUp',
+				'Mod+Alt+ArrowDown'
+			],
+			inReading: true
+		},
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backspace', 'Delete'],
-		note: 'Arrows and Backspace or Delete at a cell edge move between cells, Shift declining; Tab and Enter are the keymap’s.'
+		note: 'Arrows and Backspace or Delete at a cell edge move between cells. Up and Down move with any modifier but Shift, so an unbound Alt+ArrowUp still moves a row up; Tab and Enter are the keymap’s.'
 	},
 	{
 		file: 'components/blocks/text/TextEditableBlock.svelte',
-		chords: [],
 		keys: [],
 		note: 'Its modifier read is on a pointer event (Shift extends a selection instead of dragging a widget), so it consumes no keystroke.'
 	},
 	{
 		file: 'components/blocks/text/click-snap-guard.ts',
-		chords: [],
 		keys: [],
 		note: 'The `hasModifier` predicate itself.'
 	},
 	{
 		file: 'components/blocks/text/construct-reveal.ts',
-		chords: [],
 		keys: ['ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'],
 		note: 'Declines every modified key rather than claiming one.'
 	},
 	{
 		file: 'components/blocks/text/edge-policy-dispatch.ts',
-		chords: [],
 		keys: [' ', 'ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'],
 		note: 'The caret-edge policy runs on plain keys; the modifier read is its gate. The bare space is container marker completion, consumed rather than claimed as a chord.'
 	},
 	{
 		file: 'components/blocks/text/pending-break-keys.ts',
-		chords: [],
 		keys: ['ArrowLeft', 'Backspace', 'Delete'],
 		note: 'A plain Backspace or ArrowLeft, and any Delete, ends the pending break and stops there; Backspace or ArrowLeft with a modifier ends it and runs as usual.'
 	},
 	{
 		file: 'components/blocks/text/widget-interaction.ts',
-		chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
+		claims: { scope: 'leaf', chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'] },
 		keys: [
 			'Arrow*',
 			'ArrowDown',
@@ -180,31 +189,27 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/image/ImageResizeHandles.svelte',
-		chords: [],
 		keys: [],
 		note: 'Shift locks the aspect ratio during a pointer drag.'
 	},
 	{
 		file: 'components/image/image-press.ts',
-		chords: [],
 		keys: [],
 		note: 'A Shift-press on a block is left to that block, which grows a range from the image.'
 	},
 	{
 		file: 'components/image/image-widget-editing.ts',
-		chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
+		claims: { scope: 'leaf', chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'] },
 		keys: ['ArrowLeft', 'ArrowRight'],
 		note: 'Keyboard resize of the selected image.'
 	},
 	{
 		file: 'components/image/widget-dom.ts',
-		chords: [],
 		keys: [],
 		note: 'Shift-click declines, so the block keeps cross-block extension.'
 	},
 	{
 		file: 'caret/edge-affinity.ts',
-		chords: [],
 		keys: [
 			'ArrowDown',
 			'ArrowLeft',
@@ -221,13 +226,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'editor-actions/caret-host-input.ts',
-		chords: [],
 		keys: ['Enter'],
 		note: 'A plain key that ended a composition the browser dropped in the gap caret or a block focused whole is spent there, Enter opening the paragraph after the composed one; a chord goes on to the host.'
 	},
 	{
 		file: 'editor-actions/container-block-component.ts',
-		chords: ['Mod+C', 'Mod+X'],
+		claims: { scope: 'whole-block', chords: ['Mod+C', 'Mod+X'] },
 		keys: [
 			'ArrowDown',
 			'ArrowLeft',
@@ -243,45 +247,46 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',
-		chords: ['Mod+Enter'],
+		claims: { scope: ['mermaid'], chords: ['Mod+Enter'] },
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape', 'Tab'],
-		note: 'Commits the diagram edit; the arrows are the edit box’s boundary exits, and a modified one is declined rather than claimed. Bundled-plugin chord, listed unconditionally: it coincides with the table keymap, so gating it on the install would change no answer.'
+		note: 'Commits the diagram edit; the arrows are the edit box’s boundary exits, and a modified one is declined rather than claimed. Taken only in a diagram block, which exists only where the plugin is listed, so `reservedChords()` lists it unconditionally: the table keymap binds it anyway.'
 	},
 	{
 		file: 'schema/keybindings.ts',
-		chords: [
-			'Mod+A',
-			'Shift+Home',
-			'Mod+Home',
-			'Mod+End',
-			'Mod+Shift+Home',
-			'Mod+Shift+End',
-			'Mod+ArrowLeft',
-			'Mod+ArrowRight',
-			'Mod+ArrowUp',
-			'Mod+ArrowDown',
-			'Mod+Shift+ArrowLeft',
-			'Mod+Shift+ArrowUp',
-			'Mod+Shift+ArrowDown',
-			'Shift+PageUp',
-			'Shift+PageDown'
-		],
+		claims: {
+			scope: 'leaf',
+			chords: [
+				'Mod+A',
+				'Shift+Home',
+				'Mod+Home',
+				'Mod+End',
+				'Mod+Shift+Home',
+				'Mod+Shift+End',
+				'Shift+PageUp',
+				'Shift+PageDown'
+			]
+		},
 		keys: [
 			'A',
 			'ArrowDown',
 			'ArrowLeft',
 			'ArrowRight',
 			'ArrowUp',
+			'Backspace',
+			'Delete',
 			'End',
 			'Home',
 			'PageDown',
 			'PageUp'
 		],
-		note: "The normalizer every other site reads, the select-all predicate every block asks, the caret-edge reader every edge site asks, and the page-key reader, which leaves Ctrl, Cmd and Alt with a page key to the browser. Its sites take Shift+Home and Mod+Home behind a marker or a leading widget, Mod+End before a trailing widget, Cmd+Right past a code chip and Cmd+Left from a selected widget; Mod+Shift+Home and Mod+Shift+End always extend to the document's edge. The Arrow chords are Cmd's alone (macOS's Home and End), which the chord form cannot tell from Ctrl."
+		note: "The normalizer every other site reads, the select-all predicate every block asks, the caret-edge reader every edge site asks, and the page-key reader, which leaves Ctrl, Cmd and Alt with a page key to the browser. Its sites take Shift+Home and Mod+Home behind a marker or a leading widget, Mod+End before a trailing widget, Cmd+Right past a code chip and Cmd+Left from a selected widget; Mod+Shift+Home and Mod+Shift+End always extend to the document's edge. Its Cmd+Arrow chords (macOS's Home and End) are `CMD_EDGE_CHORDS` below, since the chord form cannot tell Cmd from Ctrl."
 	},
 	{
 		file: 'selection/cross-block/keydown.ts',
-		chords: ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'],
+		claims: {
+			scope: 'range',
+			chords: ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight']
+		},
 		keys: [
 			'ArrowDown',
 			'ArrowLeft',
@@ -306,25 +311,25 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'selection/cross-block/pointer.ts',
-		chords: [],
 		keys: [],
 		note: 'Shift-click anchoring.'
 	},
 	{
 		file: 'selection/dead-space-caret.ts',
-		chords: [],
 		keys: [],
 		note: 'A modified click is a platform command, so the dead-space caret declines it.'
 	},
 	{
 		file: 'selection/motion-keys.ts',
-		chords: [],
 		keys: [],
-		note: 'Its caret keys are read by motionKey (schema/keybindings.ts); a vertical arrow with Ctrl or Cmd is left to the browser, never claimed.'
+		note: 'Its caret keys are read by motionKey (schema/keybindings.ts); a vertical arrow with Ctrl or Cmd is left to the browser’s own move.'
 	},
 	{
 		file: 'selection/shared-keydown.ts',
-		chords: ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'],
+		claims: {
+			scope: 'leaf',
+			chords: ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight']
+		},
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp'],
 		note: 'Extends across a block boundary once the native extend runs out of room. Its block-edge chords are read by caretEdgeKey (schema/keybindings.ts).'
 	}
@@ -343,7 +348,7 @@ const CMD_EDGE_CHORDS: ReadonlySet<string> = new Set([
 ]);
 
 const HARDCODED_CHORDS: ReadonlySet<string> = new Set(
-	HARDCODED_CHORD_SITES.flatMap((site) => site.chords).filter((c) => !CMD_EDGE_CHORDS.has(c))
+	HARDCODED_CHORD_SITES.flatMap((site) => site.claims?.chords ?? [])
 );
 
 // ── Composition ──────────────────────────────────────────────────────────────
@@ -357,9 +362,6 @@ export interface ReservedChordOptions {
 	/** The plugins this instance activated: a chord another editor's plugin bound is not this
 	 *  editor's. */
 	activation: PluginActivation;
-	/** Whether the set holds the Cmd+Arrow edge chords; by default where Cmd is the platform's
-	 *  command key (macOS, iOS), the one platform read here. */
-	cmdEdgeChords?: boolean;
 }
 
 /**
@@ -382,17 +384,21 @@ export function collectReservedChords(options: ReservedChordOptions): ReadonlySe
 	for (const chord of globallyDisabledChords(options.keybindings)) {
 		if (!HARDCODED_CHORDS.has(chord)) claimed.delete(chord);
 	}
-	if (options.cmdEdgeChords ?? usesMacEditingConventions())
-		for (const chord of CMD_EDGE_CHORDS) claimed.add(chord);
+	// Where Cmd is the command key; elsewhere the same chord form is Ctrl+Arrow, word motion.
+	if (usesMacEditingConventions()) for (const chord of CMD_EDGE_CHORDS) claimed.add(chord);
 	return claimed;
 }
 
-/** True when `chords` holds this keystroke, Ctrl and Cmd both read as `Mod`; a Cmd+Arrow edge
- *  chord is read off the keystroke, so pass a set built with `cmdEdgeChords: false`. */
-export function chordIsClaimed(event: KeyboardEvent, chords: ReadonlySet<string>): boolean {
-	const chord = eventToChord(event);
-	if (chord === null) return false;
-	return chords.has(chord) || (CMD_EDGE_CHORDS.has(chord) && caretEdgeKey(event)?.arrow === true);
+/** Whether a hand-written branch takes `chord` where `inScope` says focus is. */
+export function hardcodedChordTaken(
+	chord: string,
+	inScope: (scope: ChordSiteScope) => boolean,
+	reading: boolean
+): boolean {
+	return HARDCODED_CHORD_SITES.some(({ claims }) => {
+		if (!claims || !claims.chords.includes(chord) || (reading && !claims.inReading)) return false;
+		return inScope(claims.scope);
+	});
 }
 
 /** Modifier-carrying, so the fixed-order normal form puts something before the key. */

@@ -485,18 +485,26 @@ export function dispatchKeyCommand(
 	run: CommandRun = AT_CARET
 ): boolean {
 	const binding = resolveBinding(chord, target.kind, ctx.keybindingOverrides(), ctx.activation);
-	if (!binding || leftUnderLiveRange(binding.command, target, ctx)) return false;
+	if (!binding || leftUnderLiveRange(binding.command, target.kind, ctx)) return false;
 	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord', run);
+}
+
+/** Whether the focused leaf's chord dispatch would run `id` at `kind` now, short of running it. */
+export function leafKeyCommandRuns(id: AnyCommandId, kind: AnyBlockKind, gates: CommandGates) {
+	if (isReadingMode(gates.getPresentationMode) || leftUnderLiveRange(id, kind, gates)) return false;
+	return rangeRouteFor(id, gates).kind !== 'decline';
+}
+
+/** The same for a chord bubbled to a container: only a command that runs on the block itself. */
+export function containerKeyCommandRuns(id: AnyCommandId, kind: AnyBlockKind, gates: CommandGates) {
+	if (isReadingMode(gates.getPresentationMode) || leftUnderLiveRange(id, kind, gates)) return false;
+	return rangeRouteFor(id, gates).kind === 'block-local';
 }
 
 /** A command meant to run once a range is removed, reached by a key the range didn't claim (the
  *  block it would land in binds the key otherwise): run here, it would write under the live range. */
-function leftUnderLiveRange(
-	id: AnyCommandId,
-	target: KindCommandTarget,
-	ctx: CommandDispatchContext
-): boolean {
-	return ctx.isCrossBlockRange() && commandOverRange(target.kind, id, ctx.activation) !== undefined;
+function leftUnderLiveRange(id: AnyCommandId, kind: AnyBlockKind, gates: CommandGates): boolean {
+	return gates.isCrossBlockRange() && commandOverRange(kind, id, gates.activation) !== undefined;
 }
 
 /** Dispatch for a chord at a container: kind commands only, since undo/redo and the range
@@ -507,9 +515,7 @@ export function dispatchKindCommand(
 	ctx: CommandDispatchContext
 ): boolean {
 	const binding = resolveKindBinding(chord, target.kind, ctx.keybindingOverrides());
-	if (!binding || isReadingMode(ctx.getPresentationMode)) return false;
-	if (rangeRouteFor(binding.command, ctx).kind !== 'block-local') return false;
-	if (leftUnderLiveRange(binding.command, target, ctx)) return false;
+	if (!binding || !containerKeyCommandRuns(binding.command, target.kind, ctx)) return false;
 	const resolved = resolveBlockLocalCommand(binding.command, target, ctx.activation);
 	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx, AT_CARET);
 }

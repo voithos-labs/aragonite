@@ -116,6 +116,7 @@ These checks run in three kinds of place:
 | G1.160 | A widget beside a caret the writer puts down lays out inline                                  | A·N     |
 | G1.161 | A typed letter the editor leaves to the browser lands at its caret                            | A·N     |
 | G1.163 | A caret key the editor decided leaves the selection it wrote                                  | A·N     |
+| G1.165 | A container takes its kind chords only from an element `claimsChord` can see                  | A·N     |
 
 ### The entries
 
@@ -700,3 +701,10 @@ editor lands (`caret/caret-motion.ts`) records the selection the browser holds a
 different one at the next `selectionchange`, keydown, `beforeinput` or `compositionstart` means the
 browser's own move ran too. An editor write or a pointer press ends the record unchecked.
 `checkMotionDecided` · `browser/caret-writer.ts` · `caret-motion-decided.test.ts`.
+
+**G1.165 · A container's chords are visible** (`container-chord-mark`). `claimsChord` finds the
+containers a key bubbles through by the kind each one's keydown element is marked with: the
+container factory marks the box its `handleKeydown` is bound on, and a block binding its own handler
+installs it through `listenForContainerChords`. A container that takes a chord from an unmarked
+element would leave a host believing the chord is free there. `checkContainerChordMark` ·
+`editor-actions/container-block-component.ts` · `claims-chord-parity-surfaces.test.ts`.

@@ -11,8 +11,8 @@ import type { AnyCommandId } from './command-id';
 export interface KeybindingOverride {
 	/** Chord string in the public format (Mod/Alt/Shift + key). See keybindings.ts. */
 	chord: string;
-	/** A command to bind (built-in or plugin id), or `null` to disable the chord. A disabled chord
-	 *  leaves `reservedChords()` but is still consumed, so the browser's own default never runs. */
+	/** A command to bind (built-in or plugin id), or `null` to disable the chord, which then reaches
+	 *  the page; a disabled undo or redo is still swallowed, so the browser's own undo never runs. */
 	command: AnyCommandId | null;
 	/** One block kind's keymap, a plugin kind named by its exported (branded) constant. Omit for
 	 *  the editor-global scope. */

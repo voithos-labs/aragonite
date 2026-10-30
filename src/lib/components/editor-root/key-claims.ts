@@ -1,0 +1,220 @@
+/**
+ * Whether the editor takes a keystroke where it lands, the answer behind `claimsChord`. It asks
+ * the questions each keydown handler on the key's way asks, through the resolvers those handlers
+ * call, so a host's own shortcut runs exactly where the editor would do nothing with the key.
+ */
+
+import { imeOwnsKey } from '../../browser/composition';
+import type { AnyBlockKind, Document } from '../../core/nodes';
+import { containerChordKinds } from '../../editor-actions/container-chords.svelte';
+import { isEditableEventTarget } from '../../editor-actions/whole-block-focus-surface.svelte';
+import { isReadingMode } from '../../presentation-mode';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import {
+	containerKeyCommandRuns,
+	leafKeyCommandRuns,
+	type CommandDispatchContext
+} from '../../schema/block-commands';
+import {
+	isDefaultGlobalChord,
+	isReservedUiChord,
+	resolveBinding,
+	resolveKindBinding,
+	takesGlobalChord,
+	takesGlobalChordOnKind
+} from '../../schema/commands';
+import { eventToChord, isCharacterKey, textKeyRole } from '../../schema/keybindings';
+import { hardcodedChordTaken, type ChordSiteScope } from '../../schema/reserved-chords';
+import { rangeOwnsKey } from '../../selection/cross-block/keydown';
+import { findSurfacePathForElement } from '../../selection/path-lookup';
+import type { SelectionState } from '../../selection/selection-state.svelte';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
+import {
+	chromeHoldsFocus,
+	focusInEditor,
+	keepsPageOnBackspace,
+	keyTargetOf,
+	ownsWindowedOutCaret,
+	searchChordsReach,
+	type KeyFocusDeps
+} from './key-focus';
+
+export interface KeyClaimsDeps extends KeyFocusDeps {
+	/** Getters, never values: each reads the live instance. */
+	root(): HTMLElement | undefined;
+	searchBarEnabled(): boolean;
+	searchOpen(): boolean;
+	/** An open block menu, context menu or link card, which takes Escape and its focus trap. */
+	menusOpen(): boolean;
+	/** The chord an open link card swallows: the one that opens it. */
+	opensLinkCard(e: KeyboardEvent): boolean;
+	selection: Pick<SelectionState, 'gapCaret' | 'isCrossBlock' | 'anchor' | 'focus'>;
+	getDoc(): Document;
+	commands: CommandDispatchContext;
+}
+
+export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => boolean {
+	const reading = () => isReadingMode(deps.commands.getPresentationMode);
+	const rangeTakes = (e: KeyboardEvent) =>
+		deps.selection.isCrossBlock && rangeOwnsKey(e, { ...deps, commands: deps.commands });
+
+	/** A chord the focused block's keymap, or a container's it bubbles through, runs here. */
+	function keymapTakes(chord: string, kind: AnyBlockKind, el: Element, leaf: boolean): boolean {
+		const { commands } = deps;
+		const overrides = commands.keybindingOverrides();
+		const bound = leaf ? resolveBinding(chord, kind, overrides, commands.activation) : null;
+		if (bound && leafKeyCommandRuns(bound.command, kind, commands)) return true;
+		return containerChordKinds(el).some((at) => {
+			const binding = resolveKindBinding(chord, at, overrides);
+			return !!binding && containerKeyCommandRuns(binding.command, at, commands);
+		});
+	}
+
+	function sitedTakes(chord: string, where: ChordSiteScope, kinds: readonly string[]): boolean {
+		return hardcodedChordTaken(
+			chord,
+			(scope) => scope === where || (Array.isArray(scope) && scope.some((k) => kinds.includes(k))),
+			reading()
+		);
+	}
+
+	/** The editor root's own keys, which reach it from wherever focus is in the editor. */
+	function rootTakes(
+		e: KeyboardEvent,
+		chord: string | null,
+		root: HTMLElement,
+		el: Element | null
+	) {
+		if (e.key === 'Backspace' && keepsPageOnBackspace(root, el, deps)) return true;
+		if (searchChordsReach(root, el, deps)) {
+			if (deps.searchBarEnabled() && chord && isReservedUiChord(chord)) return true;
+			if (e.key === 'Escape' && deps.searchOpen()) return true;
+		}
+		const ownsCaret = ownsWindowedOutCaret(root, el);
+		if (!ownsCaret && !chromeHoldsFocus(root, el, deps)) return false;
+		if (chord && takesGlobalChord(chord, deps.commands)) return true;
+		if (!ownsCaret || !deps.selection.isCrossBlock) return false;
+		return (isCharacterKey(e.key) && !e.ctrlKey && !e.metaKey) || rangeTakes(e);
+	}
+
+	function leafTakes(e: KeyboardEvent, chord: string | null, kind: AnyBlockKind, el: Element) {
+		if (rangeTakes(e)) return true;
+		const role = textKeyRole(e);
+		if (role === 'reads' || (role === 'writes' && !reading())) return true;
+		if (chord === null) return false;
+		if (isDefaultGlobalChord(chord, deps.commands.activation)) return true;
+		if (keymapTakes(chord, kind, el, true)) return true;
+		return sitedTakes(chord, 'leaf', [kind, ...containerChordKinds(el)]);
+	}
+
+	function wholeBlockTakes(
+		e: KeyboardEvent,
+		chord: string | null,
+		kind: AnyBlockKind,
+		el: Element
+	) {
+		if (chord && takesGlobalChordOnKind(chord, kind, deps.commands)) return true;
+		if (chord && keymapTakes(chord, kind, el, true)) return true;
+		if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') return true;
+		if (chord && !deps.selection.isCrossBlock && sitedTakes(chord, 'whole-block', [kind]))
+			return true;
+		if (e.ctrlKey || e.metaKey || e.altKey) return false;
+		return isCharacterKey(e.key) || e.key.startsWith('Arrow');
+	}
+
+	function gapTakes(e: KeyboardEvent, chord: string | null) {
+		if (chord && takesGlobalChord(chord, deps.commands)) return true;
+		if (e.ctrlKey || e.metaKey || e.altKey) return false;
+		if (GAP_KEYS.has(e.key)) return true;
+		return isCharacterKey(e.key) && !reading();
+	}
+
+	/** A text field the editor shows (a link card's URL, a plugin's own editor): its own editing
+	 *  keys, and an open card's focus trap. */
+	function fieldTakes(e: KeyboardEvent, chord: string | null, el: Element, kinds: string[]) {
+		if (textKeyRole(e) !== null) return true;
+		if (deps.menusOpen() && FIELD_MENU_KEYS.has(e.key)) return true;
+		if (el.closest('[data-link-card]') && deps.opensLinkCard(e)) return true;
+		return !!chord && sitedTakes(chord, deps.menusOpen() ? 'menu' : 'leaf', kinds);
+	}
+
+	/** A control the editor shows (a menu item, a button in a block): an open menu's keys, and a
+	 *  plain arrow out of a block, which every block takes as its exit. */
+	function controlTakes(
+		e: KeyboardEvent,
+		chord: string | null,
+		el: Element,
+		kind: AnyBlockKind | null
+	) {
+		if (menuTakes(e, MENU_KEYS) || (chord && deps.menusOpen() && sitedTakes(chord, 'menu', [])))
+			return true;
+		if (el.closest('[data-link-card]') && deps.opensLinkCard(e)) return true;
+		if (kind === null) return false;
+		if (chord && keymapTakes(chord, kind, el, false)) return true;
+		const plain = !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey;
+		return plain && e.key.startsWith('Arrow');
+	}
+
+	/** An open menu reads its keys unmodified, Shift+Tab aside. */
+	function menuTakes(e: KeyboardEvent, keys: ReadonlySet<string>): boolean {
+		return deps.menusOpen() && !e.ctrlKey && !e.metaKey && !e.altKey && keys.has(e.key);
+	}
+
+	return (e) => {
+		const root = deps.root();
+		if (!root) return false;
+		const el = keyTargetOf(e, root, deps);
+		if (deps.isHostChrome(el)) return false;
+		if (imeOwnsKey(e)) return focusInEditor(root, el, deps);
+		const chord = eventToChord(e);
+		if (rootTakes(e, chord, root, el)) return true;
+		if (!el || el === root || !focusInEditor(root, el, deps)) return false;
+		if (deps.isFindBar(el)) {
+			return textKeyRole(e) !== null || e.key === 'Enter' || e.key === 'Escape';
+		}
+		if (deps.selection.gapCaret && el.closest('[data-gap-caret]')) return gapTakes(e, chord);
+
+		const path = findSurfacePathForElement(el);
+		const kind = (path && blockNodeAt(deps.getDoc(), path)?.kind) ?? null;
+		const field = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+		if (kind === null) {
+			return field ? fieldTakes(e, chord, el, []) : controlTakes(e, chord, el, null);
+		}
+		if (tryGetBlockKindDescriptor(kind)?.blockFocus === 'whole-block') {
+			return isEditableEventTarget(el)
+				? fieldTakes(e, chord, el, [kind])
+				: wholeBlockTakes(e, chord, kind, el);
+		}
+		if (field) return fieldTakes(e, chord, el, [kind]);
+		if (el.hasAttribute('contenteditable')) return leafTakes(e, chord, kind, el);
+		return controlTakes(e, chord, el, kind);
+	};
+}
+
+// The gap caret's own exits and the Enter that opens a block there.
+const GAP_KEYS = new Set([
+	'Enter',
+	'ArrowDown',
+	'ArrowRight',
+	'ArrowUp',
+	'ArrowLeft',
+	'Backspace',
+	'Delete',
+	'Escape'
+]);
+
+// An open card's field takes its focus trap, its Enter and the Escape that closes it, modified or not.
+const FIELD_MENU_KEYS = new Set(['Enter', 'Tab', 'Escape']);
+
+// An open menu steps, picks and closes.
+const MENU_KEYS = new Set([
+	'ArrowDown',
+	'ArrowUp',
+	'ArrowLeft',
+	'ArrowRight',
+	'Home',
+	'End',
+	'Enter',
+	'Tab',
+	'Escape'
+]);

@@ -79,7 +79,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 	});
 
 	it.each(HARDCODED_CHORD_SITES)('$file: every claimed chord is evidenced', (site) => {
-		for (const chord of site.chords) {
+		for (const chord of site.claims?.chords ?? []) {
 			expect(
 				() => registeredChord(chord, site.file),
 				`${site.file}: malformed chord`

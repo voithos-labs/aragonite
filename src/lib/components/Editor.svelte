@@ -112,7 +112,9 @@
 		removeAll
 	} from './editor-root/listeners';
 	import { createRootEffect } from './editor-root/root-effect.svelte';
-	import { collectReservedChords, chordIsClaimed } from '../schema/reserved-chords';
+	import { collectReservedChords } from '../schema/reserved-chords';
+	import { createKeyClaims } from './editor-root/key-claims';
+	import { opensLinkCard } from './link-card/opens-card';
 	import { portalInto } from './portal';
 	import {
 		registerEditor,
@@ -471,6 +473,10 @@
 	 *  Focus tracking uses `contains` instead, since the header counts as part of the editor. */
 	function isHostChrome(node: Node | null): boolean {
 		return !!node && !!headerEl && headerEl.contains(node);
+	}
+
+	function isFindBar(node: Node | null): boolean {
+		return !!node && !!findBarEl?.contains(node);
 	}
 
 	// ── Block menu ──────────────────────────────────────────────────────
@@ -1078,7 +1084,7 @@
 		commands,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
-		isFindBar: (node) => !!node && !!findBarEl?.contains(node),
+		isFindBar,
 		saveSearchCaret: searchCaret.saveCurrent,
 		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
 	});
@@ -1334,14 +1340,21 @@
 		});
 	}
 
+	const keyClaims = createKeyClaims({
+		root: () => editorEl,
+		searchBarEnabled: () => searchBar,
+		searchOpen: () => searchState.isOpen,
+		menusOpen: () => menuPresence.isOpen,
+		opensLinkCard: (e) => opensLinkCard(e, linkCard, getDoc(), commands),
+		selection: selectionState,
+		getDoc,
+		commands,
+		isHostChrome,
+		isFindBar
+	});
+
 	export function claimsChord(event: KeyboardEvent): boolean {
-		const chords = collectReservedChords({
-			searchBar,
-			keybindings: overridesMap,
-			activation: activePlugins,
-			cmdEdgeChords: false
-		});
-		return chordIsClaimed(event, chords);
+		return keyClaims(event);
 	}
 
 	const diagnostics = createEditorDiagnostics({

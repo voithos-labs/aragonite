@@ -325,7 +325,7 @@ function boundClaims(): BoundClaim[] {
 }
 
 const hardcodedClaims = HARDCODED_CHORD_SITES.flatMap((site) =>
-	site.chords.map((chord) => claimKey(chord, site.file))
+	(site.claims?.chords ?? []).map((chord) => claimKey(chord, site.file))
 );
 
 /** Whether some row lists the claim's chord for its command: the row's chord cell and its target
@@ -424,39 +424,30 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 	...unlisted(['Shift+Tab'], 'components/link-card/LinkCard.svelte', FOCUS_TRAP),
 	...unlisted(['Shift+Tab'], 'components/blocks/table/TableActionMenu.svelte', FOCUS_TRAP),
 	...unlisted(
-		['Shift+F10'],
+		['Shift+F10', 'ContextMenu'],
 		'components/blocks/table/TableBlock.svelte',
-		'the Tables preamble documents it in prose as the keyboard route to the cell menu'
+		'the Tables preamble documents both in prose as the keyboard routes to the cell menu'
 	),
 	...unlisted(
 		[
-			'Mod+A',
-			'Mod+Shift+Home',
-			'Mod+Shift+End',
-			'Mod+Shift+ArrowUp',
-			'Mod+Shift+ArrowDown',
-			'Shift+PageUp',
-			'Shift+PageDown'
+			'Mod+ArrowUp',
+			'Mod+ArrowDown',
+			'Alt+ArrowUp',
+			'Alt+ArrowDown',
+			'Mod+Alt+ArrowUp',
+			'Mod+Alt+ArrowDown'
 		],
+		'components/blocks/table/cell-keydown-plan.ts',
+		'arrow navigation between cells, which § Rebinding chords says sits outside the keymap'
+	),
+	...unlisted(
+		['Mod+A', 'Mod+Shift+Home', 'Mod+Shift+End', 'Shift+PageUp', 'Shift+PageDown'],
 		'schema/keybindings.ts',
 		SELECTION_PREAMBLE
 	),
 	...unlisted(SHIFT_ARROWS, 'selection/cross-block/keydown.ts', SELECTION_PREAMBLE),
 	...unlisted(SHIFT_ARROWS, 'selection/shared-keydown.ts', SELECTION_PREAMBLE),
-	...unlisted(
-		[
-			'Shift+Home',
-			'Mod+Home',
-			'Mod+End',
-			'Mod+ArrowLeft',
-			'Mod+ArrowRight',
-			'Mod+ArrowUp',
-			'Mod+ArrowDown',
-			'Mod+Shift+ArrowLeft'
-		],
-		'schema/keybindings.ts',
-		CARET_MOTION
-	),
+	...unlisted(['Shift+Home', 'Mod+Home', 'Mod+End'], 'schema/keybindings.ts', CARET_MOTION),
 	...unlisted(
 		['Shift+ArrowUp', 'Shift+ArrowDown'],
 		'components/blocks/table/TableCellBlock.svelte',

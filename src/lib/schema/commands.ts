@@ -558,8 +558,39 @@ export function runGlobalChordOnKind(
 	return runClaimedGlobalChord(binding, chord, context, true);
 }
 
+/** Whether `runGlobalChord` takes `chord` here, without running it. */
+export function takesGlobalChord(
+	chord: string,
+	context: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+): boolean {
+	const binding = resolveGlobalBinding(chord, context.keybindingOverrides(), context.activation);
+	return consumesGlobalChord(binding, chord, context.activation);
+}
+
+/** Whether `runGlobalChordOnKind` takes `chord` at `kind`, without running it. */
+export function takesGlobalChordOnKind(
+	chord: string,
+	kind: AnyBlockKind,
+	context: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+): boolean {
+	const binding = resolveBinding(chord, kind, context.keybindingOverrides(), context.activation);
+	return consumesGlobalChord(binding, chord, context.activation);
+}
+
 /** A chord the built-in tables bind is consumed whatever an override resolves it to, since the
- *  browser's own undo would bypass the CST undo stack; reading mode consumes it, runs nothing. */
+ *  browser's own undo would bypass the CST undo stack. */
+function consumesGlobalChord(
+	binding: KeyBinding | null,
+	chord: string,
+	activation: PluginActivation
+): boolean {
+	return (
+		(binding !== null && !!getCommand(binding.command, activation)) ||
+		isDefaultGlobalChord(chord, activation)
+	);
+}
+
+/** Reading mode consumes a taken chord and runs nothing. */
 function runClaimedGlobalChord(
 	binding: KeyBinding | null,
 	chord: string,
@@ -567,7 +598,7 @@ function runClaimedGlobalChord(
 	kindDispatchBelow: boolean
 ): boolean {
 	const run = binding ? getCommand(binding.command, context.activation) : undefined;
-	const consumed = !!run || isDefaultGlobalChord(chord, context.activation);
+	const consumed = consumesGlobalChord(binding, chord, context.activation);
 	// A binding no global command backs is dead only where nothing else can answer it; a kind
 	// keymap chord declining into the block's own dispatch is the normal handoff.
 	if (binding && !run && (consumed || !kindDispatchBelow)) {

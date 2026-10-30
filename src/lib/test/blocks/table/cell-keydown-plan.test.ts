@@ -49,12 +49,6 @@ describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 		['Alt+ArrowUp', key('ArrowUp', { altKey: true }), {}, cell(0, 1, 'start')],
 		['Mod+ArrowDown', key('ArrowDown', { ctrlKey: true }), {}, cell(2, 1, 'start')],
 		[
-			'Alt+ArrowLeft at the left edge',
-			key('ArrowLeft', { altKey: true }),
-			{ offset: 0 },
-			cell(1, 0, 'end')
-		],
-		[
 			'Mod+ArrowRight at the right edge',
 			key('ArrowRight', { ctrlKey: true }),
 			{ offset: 3 },
@@ -66,6 +60,16 @@ describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 			expect(cellKeydownPlan(input, state(over))).toEqual(plan);
 		});
 	}
+});
+
+// Miss-analysis: the rows above read any modified arrow as navigation, and none asked what a
+// host's Alt+← (Back, off a Mac) does with the caret at a cell's edge or in reading mode.
+describe('cellKeydownPlan: a sideways step takes only a caret key', () => {
+	it('leaves Alt+ArrowLeft at the left edge to the page', () => {
+		expect(cellKeydownPlan(key('ArrowLeft', { altKey: true }), state({ offset: 0 }))).toEqual({
+			kind: 'native'
+		});
+	});
 });
 
 describe('cellKeydownPlan: ctrl+a select-all stepping', () => {

@@ -18,7 +18,7 @@
 	import type { CaretWriter } from '../../browser/caret-writer';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
-	import { eventToChord } from '../../schema/keybindings';
+	import { eventToChord, textKeyRole } from '../../schema/keybindings';
 	import { isReservedUiChord } from '../../schema/commands';
 	import { isPlainTypingKey } from '../blocks/text/click-snap-guard';
 
@@ -56,8 +56,8 @@
 		caretWriter: CaretWriter;
 		/** The alt field borrows focus from the image's paragraph and gives it back through here. */
 		fieldCaret: CaretRestore;
-		/** Whether the editor acts on this chord itself (`claimsChord`): during a crop, those are the
-		 *  chords that would write over the image. */
+		/** Whether the editor acts on this keystroke where it lands (`claimsChord`): during a crop,
+		 *  the ones that write would write over the image. */
 		editorTakesChord: (e: KeyboardEvent) => boolean;
 		cropping?: boolean;
 	} = $props();
@@ -337,11 +337,13 @@
 		const aimedAtEditor = (t: EventTarget | null): boolean =>
 			t === document.body ||
 			(t instanceof Node && !!getWidgetEl()?.closest('.editor')?.contains(t));
-		// Typing and deleting over the selected image, and the editor's own chords, minus the find bar's.
+		// Typing and deleting over the selected image, and the editor's own chords, minus the find
+		// bar's and the caret keys, which move without writing.
 		const writes = (e: KeyboardEvent): boolean => {
 			if (isPlainTypingKey(e) || e.key === 'Backspace' || e.key === 'Delete') return true;
 			const chord = eventToChord(e);
-			return chord !== null && !isReservedUiChord(chord) && editorTakesChord(e);
+			if (chord === null || isReservedUiChord(chord) || textKeyRole(e) === 'reads') return false;
+			return editorTakesChord(e);
 		};
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === 'Escape' || e.key === 'Tab' || !aimedAtEditor(e.target)) return;

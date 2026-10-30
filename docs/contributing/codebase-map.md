@@ -180,8 +180,10 @@ of those, your file claims a chord by hand, and it has to join the manifest.
 
 **The manifest** is `src/lib/schema/reserved-chords.ts` :: `HARDCODED_CHORD_SITES`: one entry per
 library file that reads a modifier flag, listing the chords it claims outside every keymap and the
-key literals it compares. It's what keeps `reservedChords()` honest (the public set of chord
-strings a host page reads to avoid colliding with the editor).
+key literals it compares, and where focus is when it does (a table cell, the find bar, any text
+block). It's what keeps `reservedChords()` honest (the public set of chord strings a host page reads
+to avoid colliding with the editor), and it's how `claimsChord` knows which of those chords apply
+to the key in hand.
 
 **And here's the one place the codebase's instinct is inverted.** A listed file keeps its literal
 key comparisons. Pulling four `e.key === 'ArrowUp'` checks behind a shared `isVerticalArrow()`
