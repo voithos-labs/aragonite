@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { EditorPluginEntry } from '#lib/plugin.js';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
-import { tocPlugin } from '#lib/plugins/toc/toc-plugin.js';
+import { tocPlugin } from '#packages/toc/src/toc-plugin.js';
 import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
 
 const SOURCE = '# One\n\n## Two\n\n### Three\n\n#### Four\n\n[[toc]]\n';

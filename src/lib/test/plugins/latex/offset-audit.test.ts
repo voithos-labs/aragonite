@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse, serialize, type InlineNode } from '#lib';
 import { computeInlineContent } from '#lib/plugin.js';
 import { rawTextOfNode } from '#lib/browser/block-text.js';
-import { registerMathInline, MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathInline, MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 
 // The render layer's wrapper span around a component widget, with glyph-like text in place of
 // KaTeX's; the traversal reads only its attributes, so the real component is left to the e2e.

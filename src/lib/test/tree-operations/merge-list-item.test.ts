@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { mergeListItemIntoPrevious } from '#lib/test/harness/list-merge.js';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import type { CstNode } from '../../core/nodes';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';

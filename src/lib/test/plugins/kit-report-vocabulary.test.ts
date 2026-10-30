@@ -9,7 +9,7 @@ import {
 	runKindConformance,
 	type CellReport
 } from '#lib/testing.js';
-import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
+import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 const STATUSES = ['asserted', 'exempt', 'boundary'];

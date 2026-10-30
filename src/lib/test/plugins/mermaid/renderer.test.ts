@@ -2,8 +2,8 @@
 // the injected renderer, the SVG wrapped as a result, and a rejection or no renderer as an error.
 import { describe, it, expect, vi } from 'vitest';
 import { installPlugins } from '#lib';
-import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
-import { mermaidSlot, type MermaidRenderer } from '#lib/plugins/mermaid/mermaid-renderer.js';
+import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { mermaidSlot, type MermaidRenderer } from '#packages/mermaid/src/mermaid-renderer.js';
 
 function install(renderer?: MermaidRenderer): void {
 	installPlugins([mermaidPlugin({ renderer })]);

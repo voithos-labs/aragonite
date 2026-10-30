@@ -919,10 +919,10 @@ holds `clampRangeToBody(` to there and `code-indent.ts`, and `fenceLinesShown` t
 a block's syntax drift apart, so each syntax gets one module, and `lint/file-rules.test.ts` keeps a
 row per syntax (`SYNTAX_MODULES`) that fails a copy elsewhere:
 
-- **`$$` math.** `src/lib/plugins/latex/math-shape.ts` (`readMathSource`, `mathCloserLine`,
+- **`$$` math.** `packages/latex/src/math-shape.ts` (`readMathSource`, `mathCloserLine`,
   `mathBlockLines`); `math-source.ts` :: `sliceMathSource` picks between it and the ` ```math ` fence
   form. The row fails `$$` spellings (strings, regexes, the fence constant, line splits) under
-  `src/lib/plugins/latex/` outside that module. `test/plugins/latex/math-shape-parity.test.ts`,
+  `packages/latex/src/` outside that module. `test/plugins/latex/math-shape-parity.test.ts`,
   `math-block-writers.test.ts`.
 - **Table rows.** `src/lib/core/parsers/table-line.ts` reads rows (`rowCellSpans`, `opensOnPipe`,
   `wrappedInPipes`, `boundaryPipeAt`) and writes them (`tableRowLine`, `tableDelimiterLine`,

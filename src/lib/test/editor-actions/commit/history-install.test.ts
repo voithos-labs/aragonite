@@ -13,8 +13,8 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { endTypingBatchesForTests } from '#lib/editor-actions/commit/text-batch.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);

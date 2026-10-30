@@ -14,11 +14,11 @@ import {
 import { checkDeclarationSanity } from '#lib/testing/container-conformance.js';
 import { testClosure } from '#lib/test/harness/closure.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
-import { registerGithubAlert } from '#lib/plugins/admonitions/github-alert-kind.js';
-import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
-import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
-import { FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/constants.js';
+import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
+import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
+import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
+import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
+import { FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/constants.js';
 import { parse } from '#lib/core/parser.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { childHoldingLastLine } from '#lib/schema/container-raw.js';

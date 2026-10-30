@@ -11,7 +11,8 @@ import path from 'node:path';
 import {
 	importedFile,
 	isAliasSpelling,
-	publishedEntries
+	pluginPackages,
+	workspaceSources
 } from '../../../../../scripts/lib-alias.mjs';
 import { ignoredPaths, isIgnoredBy } from '../../../../../scripts/docs/doc-corpus.mjs';
 export { aliasPath, aliasSpecifier, isAliasSpelling } from '../../../../../scripts/lib-alias.mjs';
@@ -22,10 +23,16 @@ export const EDITOR_SRC = path.resolve(SOURCE_DIR.library);
 /** The demo/dev harness tree. Reachable only with `includeTests`: most of it sits under `test`. */
 export const ROUTES_SRC = path.resolve(SOURCE_DIR.routes);
 
+/** Each bundled plugin's source directory, `packages/<name>/src`. */
+export const PLUGIN_SOURCE_ROOTS = pluginPackages().map(({ dir }) => path.resolve(dir, 'src'));
+
+/** The library and the bundled plugins: the source the published packages build from. */
+export const LIBRARY_ROOTS = [EDITOR_SRC, ...PLUGIN_SOURCE_ROOTS];
+
 /** The library plus the reference plugins and the consumer example, which stand in for an outside
- *  author and must not model a violation. A library-only lint passes `EDITOR_SRC` and says why. */
+ *  author and must not model a violation. A library-only lint passes `LIBRARY_ROOTS` and says why. */
 export const REPO_WIDE_ROOTS = [
-	EDITOR_SRC,
+	...LIBRARY_ROOTS,
 	path.resolve(SOURCE_DIR.referencePlugins),
 	path.resolve(SOURCE_DIR.consumerExample)
 ];
@@ -93,12 +100,12 @@ export function fileClasses(file: SourceFile): Uint8Array {
 /** Every `.ts`/`.svelte` file under `dir` (default `REPO_WIDE_ROOTS`) but `.d.ts`, and `test`/`e2e`
  *  unless `includeTests`; `.css` too with `includeStyles`. */
 export function collectEditorSources(
-	dir?: string,
+	dir?: string | readonly string[],
 	options: { includeTests?: boolean; includeStyles?: boolean } = {}
 ): SourceFile[] {
 	const extensions = options.includeStyles ? ['.ts', '.svelte', '.css'] : ['.ts', '.svelte'];
 	const skip = options.includeTests ? [] : ['test', 'e2e'];
-	const roots = dir === undefined ? REPO_WIDE_ROOTS : [dir];
+	const roots = dir === undefined ? REPO_WIDE_ROOTS : typeof dir === 'string' ? [dir] : dir;
 	// A gitignored file is a generated copy (the consumer's synced plugins), never the source.
 	const ignored = ignoredPaths([...roots]);
 	return roots
@@ -107,11 +114,10 @@ export function collectEditorSources(
 		.map(readSource);
 }
 
-/** The bundled plugins, by directory name. */
+/** The bundled plugins, by directory name under `packages/`. */
 export function bundledPluginDirs(): string[] {
-	return readdirSync(path.resolve(SOURCE_DIR.plugins), { withFileTypes: true })
-		.filter((entry) => entry.isDirectory())
-		.map((entry) => entry.name)
+	return pluginPackages()
+		.map(({ dir }) => path.posix.basename(dir))
 		.sort();
 }
 
@@ -915,10 +921,10 @@ export function quotedSpecifierEnding(modulePath: string): string {
 	return `['"\`](?:[^'"\`]*/)?${literal}(?:\\.js)?['"\`]`;
 }
 
-/** The source file of every entry point package.json `exports` publishes, so a new subpath falls
- *  under each rule keyed on the published entry points unasked. */
+/** The source file of every entry point the core's and each plugin package's `exports` publish,
+ *  so a new subpath falls under each rule keyed on the published entry points unasked. */
 export function publishedEntrySources(): Set<string> {
-	const sources = [...publishedEntries().keys()].map((built) => built.replace(/\.js$/, '.ts'));
+	const sources = [...workspaceSources().values()];
 	return new Set(sources.filter((source) => existsSync(path.resolve(source))));
 }
 

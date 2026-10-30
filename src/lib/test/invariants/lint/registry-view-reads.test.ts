@@ -22,6 +22,7 @@ import { pluginContextDeps } from '../../harness/plugin-context-deps';
 import {
 	callArguments,
 	collectEditorSources,
+	LIBRARY_ROOTS,
 	enclosingFunction,
 	isLibrarySpecifier,
 	languageOf,
@@ -41,11 +42,11 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 const DEFAULTED_READER_IMPORTERS: Record<string, string> = {
 	'src/lib/index.ts': 'the public barrel publishes parse and parseInline',
 	'src/lib/plugin.ts': 'the plugin barrel publishes parse and its no-editor computeInlineContent',
-	'src/lib/plugins/admonitions/convert-document.ts':
+	'packages/admonitions/src/convert-document.ts':
 		'a published whole-document conversion that runs with no editor',
-	'src/lib/plugins/footnotes/footnote-numbering.ts':
+	'packages/footnotes/src/footnote-numbering.ts':
 		'the published numbering reads every plugin with no editor; a mounted widget passes its own reader',
-	'src/lib/plugins/toc/heading-outline.ts':
+	'packages/toc/src/heading-outline.ts':
 		'the outline reads every plugin with no editor; the toc block passes its editor reader'
 };
 const mayImportDefaulted = (relPath: string): boolean =>
@@ -75,9 +76,7 @@ function defaultedReaderImports(relPath: string, code: string): string[] {
 }
 
 describe('G4.69 only the barrels, the kits and no-editor code import the defaulted readers', () => {
-	const sources = collectEditorSources().filter((file) =>
-		file.relPath.startsWith(SOURCE_DIR.library)
-	);
+	const sources = collectEditorSources(LIBRARY_ROOTS);
 
 	it('finds none elsewhere in the library', () => {
 		const offenders = sources

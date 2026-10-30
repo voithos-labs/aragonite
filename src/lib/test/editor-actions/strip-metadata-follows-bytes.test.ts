@@ -3,8 +3,8 @@
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';

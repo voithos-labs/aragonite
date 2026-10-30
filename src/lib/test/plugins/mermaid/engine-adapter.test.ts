@@ -4,7 +4,7 @@
 // it enters, and the real thing draws through SVG layout that jsdom cannot do.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { MermaidRenderer } from '#lib/plugins/mermaid/mermaid-renderer.js';
+import type { MermaidRenderer } from '#packages/mermaid/src/mermaid-renderer.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 
 const engine = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn() }));
@@ -24,7 +24,7 @@ const BASE_CONFIG = { startOnLoad: false, securityLevel: 'strict', suppressError
 /** The remembered theme and the render queue are module-wide, so each case starts fresh. */
 async function freshAdapter(): Promise<MermaidRenderer> {
 	vi.resetModules();
-	return (await import('#lib/plugins/mermaid/renderer.js')).mermaidRenderer;
+	return (await import('#packages/mermaid/src/renderer.js')).mermaidRenderer;
 }
 
 beforeEach(() => {

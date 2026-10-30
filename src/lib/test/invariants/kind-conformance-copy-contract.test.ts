@@ -35,7 +35,7 @@ vi.mock('#lib/selection/clipboard-text.js', async (importOriginal) => {
 
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { checkCopyIsRawByteSlice } from '#lib/testing.js';
-import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';

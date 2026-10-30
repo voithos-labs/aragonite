@@ -2,8 +2,8 @@
 // Miss-analysis: no toggle test ran over latex or emoji syntax in an editor drawing it as text.
 import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { EMOJI_KIND, emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { MATH_INLINE, latexPlugin } from '#lib/plugins/latex/index.js';
+import { EMOJI_KIND, emojiPlugin } from '#packages/emoji/src/index.js';
+import { MATH_INLINE, latexPlugin } from '#packages/latex/src/index.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { toggleInlineFormat } from '#lib/core/inline/format-toggle.js';
 import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';

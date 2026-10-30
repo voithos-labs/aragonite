@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createNavigationQueue } from '#lib/plugins/toc/navigation-queue.js';
+import { createNavigationQueue } from '#packages/toc/src/navigation-queue.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 
 // A navigation that leaves each call waiting on a promise the test resolves by hand, so the

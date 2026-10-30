@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { publishedEntryPoints } from './scripts/lib-alias.mjs';
+import { pluginPackages, publishedEntryPoints } from './scripts/lib-alias.mjs';
 import { prebuiltExternals } from './scripts/pack/pack-manifest.mjs';
 import { runtimeEntriesExportWhatPluginsUse } from './scripts/pack/svelte-runtime-names.mjs';
 
@@ -41,7 +41,7 @@ const noticeEveryBundledPackage = {
 
 export default defineConfig({
 	plugins: [
-		runtimeEntriesExportWhatPluginsUse(() => ['src/lib/plugins']),
+		runtimeEntriesExportWhatPluginsUse(() => pluginPackages().map(({ dir }) => `${dir}/src`)),
 		svelte({ configFile: false, compilerOptions: { runes: true } }),
 		noticeEveryBundledPackage
 	],

@@ -1,0 +1,57 @@
+/**
+ * `katexRenderer` is the one-import way to supply `renderer`; without one, each formula shows its
+ * source. The plugin installs this setup once per process, so it runs unguarded.
+ */
+
+import {
+	definePlugin,
+	registerInsertEntry,
+	type EditorPlugin
+} from '@voithos-labs/aragonite/plugin';
+import { svelteBlockView } from '@voithos-labs/aragonite/svelte';
+import { registerMathInline, registerMathBlock } from './latex-kind';
+import { mathSlot, type MathRenderer } from './math-renderer';
+import { isMathBlockLayout, type MathBlockLayout } from './math-layout';
+import { mathBlockLines } from './math-shape';
+import BlockMath from './BlockMath.svelte';
+
+export interface LatexPluginOptions {
+	renderer?: MathRenderer;
+	/** How a `$$` block opens for editing (`math-layout.ts`); an editor's
+	 *  `{ plugin, options: { blockLayout } }` entry overrides it. */
+	blockLayout?: MathBlockLayout;
+}
+
+/** What one editor reads: the renderer is process-wide, so only the layout varies per editor. */
+export interface LatexEditorOptions {
+	blockLayout: MathBlockLayout;
+}
+
+export function latexPlugin(options: LatexPluginOptions = {}): EditorPlugin {
+	const { renderer } = options;
+	return definePlugin<LatexEditorOptions>({
+		name: 'latex',
+		defaults: {
+			blockLayout: isMathBlockLayout(options.blockLayout) ? options.blockLayout : 'split'
+		},
+		// An unknown layout keeps the default rather than breaking the block.
+		parseOptions(raw) {
+			const blockLayout = (raw as LatexPluginOptions | null)?.blockLayout;
+			return isMathBlockLayout(blockLayout) ? { blockLayout } : {};
+		},
+		setup() {
+			mathSlot.set(
+				renderer ? ({ source, display }, { theme }) => renderer(source, { display, theme }) : null
+			);
+			registerMathInline();
+			registerMathBlock(svelteBlockView(BlockMath));
+			registerInsertEntry({
+				id: 'math',
+				label: 'Math block',
+				icon: 'sigma',
+				keywords: ['math', 'latex', 'equation', 'tex'],
+				markdown: `${mathBlockLines('').join('\n')}\n`
+			});
+		}
+	});
+}

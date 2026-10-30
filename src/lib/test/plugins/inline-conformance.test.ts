@@ -11,10 +11,10 @@ import { INLINE_PRIORITIES } from '#lib/plugin.js';
 import { declaredPluginInlineKind } from '#lib/plugin.js';
 import { runInlineKindConformance } from '#lib/testing.js';
 import type { InlineConformanceProfile } from '#lib/testing.js';
-import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
-import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/index.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
+import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 const MINTS_ONLY_ITS_OWN_KIND =

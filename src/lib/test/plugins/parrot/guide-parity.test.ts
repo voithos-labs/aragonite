@@ -2,15 +2,14 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { aliasSpecifier, pluginGuidePages } from '../../invariants/lint/scan-source';
-import { SOURCE } from '../../invariants/lint/source-paths';
+import { pluginGuidePages } from '../../invariants/lint/scan-source';
 
 /**
- * The shipped parrot is the plugin guide's quickstart compiled with two adaptations, derived
- * from the docs so either side drifting fails here rather than in a reader's editor.
+ * The shipped parrot is the plugin guide's quickstart with its frames swapped for the canonical
+ * ten, derived from the docs so either side drifting fails here rather than in a reader's editor.
  */
 
-const PLUGIN_DIR = 'src/lib/plugins/parrot';
+const PLUGIN_DIR = 'packages/parrot/src';
 
 const PLUGIN_MARKER = '// parrot-plugin.ts';
 const COMPONENT_MARKER = '<!-- ParrotBlock.svelte -->';
@@ -88,25 +87,15 @@ function nestOneLevel(block: string[]): string[] {
 	});
 }
 
-/** Adaptation (a): a bundled plugin imports only the in-repo barrel aliases (G4.16). */
-const toLibImport = (code: string) =>
-	code
-		.replaceAll("'@voithos-labs/aragonite/plugin'", `'${aliasSpecifier(SOURCE.pluginBarrel)}'`)
-		.replaceAll("'@voithos-labs/aragonite/svelte'", `'${aliasSpecifier(SOURCE.svelteBarrel)}'`);
-
-function derivePluginModule(): string {
-	return toLibImport(fenceIn(PLUGIN_MARKER));
-}
-
 /**
- * Adaptation (b): the guide's two sample frames, comment included, become the frames doc's
- * canonical ten under that doc's own comment, so the shipped file never claims to hold two.
+ * The guide's two sample frames, comment included, become the frames doc's canonical ten under
+ * that doc's own comment, so the shipped file never claims to hold two.
  */
 const SAMPLE_COMMENT =
 	'\t// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;';
 
 function deriveComponent(): string {
-	const component = toLibImport(fenceIn(COMPONENT_MARKER)).split('\n');
+	const component = fenceIn(COMPONENT_MARKER).split('\n');
 	const frames = fenceIn(FRAMES_MARKER).split('\n');
 
 	const canonical = spanBetween(frames, FRAMES_MARKER, '];');
@@ -121,8 +110,8 @@ function deriveComponent(): string {
 // ── The drift gate ───────────────────────────────────────────────────────────
 
 describe('the bundled parrot is the plugin guide, compiled', () => {
-	it('matches the guide fence byte for byte, barrel import aside', () => {
-		expect(read(`${PLUGIN_DIR}/parrot-plugin.ts`)).toBe(derivePluginModule());
+	it('matches the guide fence byte for byte', () => {
+		expect(read(`${PLUGIN_DIR}/parrot-plugin.ts`)).toBe(fenceIn(PLUGIN_MARKER));
 	});
 
 	it('matches the component fence byte for byte, with the canonical ten spliced in', () => {
@@ -130,20 +119,11 @@ describe('the bundled parrot is the plugin guide, compiled', () => {
 	});
 });
 
-// ── Non-vacuity: the derivation really does both adaptations ────────────────
-// Two byte-equal sides prove nothing about which bytes, and the splice is the half that can
-// be wrong in the file and in the derivation at once.
+// ── Non-vacuity: the derivation really does the splice ──────────────────────
+// Two byte-equal sides prove nothing about which bytes, and the splice can be wrong in the file
+// and in the derivation at once.
 
-describe('the derivation performs both adaptations', () => {
-	it('rewrites the published specifier to the in-repo barrel', () => {
-		const derived = derivePluginModule();
-		expect(fenceIn(PLUGIN_MARKER)).toContain("'@voithos-labs/aragonite/plugin'");
-		expect(derived).toContain("from '#lib/plugin.js'");
-		expect(fenceIn(PLUGIN_MARKER)).toContain("'@voithos-labs/aragonite/svelte'");
-		expect(derived).toContain("from '#lib/svelte.js'");
-		expect(derived).not.toContain('@voithos-labs/aragonite');
-	});
-
+describe('the derivation performs the splice', () => {
 	it('splices ten frames where the guide shows two', () => {
 		expect(fenceIn(COMPONENT_MARKER).match(/String\.raw`/g)).toHaveLength(2);
 		expect(deriveComponent().match(/String\.raw`/g)).toHaveLength(10);

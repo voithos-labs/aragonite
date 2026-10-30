@@ -73,7 +73,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 ## gemoji (MIT)
 
-`src/lib/plugins/emoji/emoji-table.ts` is generated from gemoji's `db/emoji.json` (<https://github.com/github/gemoji>), pinned to commit `0eca75db9301421efc8710baf7a7576793ae452a` by `scripts/vendor/generate-emoji-table.mjs`.
+`packages/emoji/src/emoji-table.ts` is generated from gemoji's `db/emoji.json` (<https://github.com/github/gemoji>), pinned to commit `0eca75db9301421efc8710baf7a7576793ae452a` by `scripts/vendor/generate-emoji-table.mjs`.
 
 ```
 The MIT License (MIT)
@@ -135,7 +135,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ## terminal-parrot (MIT)
 
-`src/lib/plugins/parrot/ParrotBlock.svelte` and `docs/guide/plugin-guide/parrot-frames.md` carry the ten ASCII party-parrot frames from terminal-parrot (<https://github.com/jmhobbs/terminal-parrot>), the art `curl parrot.live` serves.
+`packages/parrot/src/ParrotBlock.svelte` and `docs/guide/plugin-guide/parrot-frames.md` carry the ten ASCII party-parrot frames from terminal-parrot (<https://github.com/jmhobbs/terminal-parrot>), the art `curl parrot.live` serves.
 
 ```
 MIT License

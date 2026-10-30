@@ -23,17 +23,17 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { ADMONITION } from '#lib/plugins/admonitions/kinds.js';
-import { detailsPlugin, DETAILS_SUMMARY } from '#lib/plugins/details/index.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
-import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { mermaidPlugin, MERMAID } from '#lib/plugins/mermaid/index.js';
-import { parrotPlugin } from '#lib/plugins/parrot/index.js';
-import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '#lib/plugins/slash-commands/index.js';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { ADMONITION } from '#packages/admonitions/src/kinds.js';
+import { detailsPlugin, DETAILS_SUMMARY } from '#packages/details/src/index.js';
+import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
+import { parrotPlugin } from '#packages/parrot/src/index.js';
+import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '#packages/slash-commands/src/index.js';
+import { tocPlugin } from '#packages/toc/src/index.js';
 import { readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
@@ -351,8 +351,9 @@ function rowCoversKind(rowKind: AnyBlockKind, ownerKind: AnyBlockKind | undefine
  */
 export function familyRowFor(docRows: DocRow[], key: ClaimKey): string | null {
 	const [chord, owner] = key.split(' @ ');
-	// A file owner is named from the library root, as the chord manifest names it.
-	const file = `${SOURCE_DIR.library}${owner}`;
+	// A file owner is named as the chord manifest names it: from the library root, or a plugin's
+	// from the repo root.
+	const file = owner.startsWith(SOURCE_DIR.plugins) ? owner : `${SOURCE_DIR.library}${owner}`;
 	const row = docRows.find(
 		(candidate) =>
 			TOKEN_FAMILIES[candidate.family]?.files.includes(file) && candidate.chords.includes(chord)
@@ -600,7 +601,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 
 	// Miss-analysis: a file-owned exemption was checked against the claim list, never the rows.
 	it('rows a keydown claim through the token family that reads its file, and only that one', () => {
-		expect(familyRowFor(rows, 'Mod+Enter @ plugins/mermaid/MermaidBlock.svelte')).toBe(
+		expect(familyRowFor(rows, 'Mod+Enter @ packages/mermaid/src/MermaidBlock.svelte')).toBe(
 			'Finish editing a diagram'
 		);
 		expect(familyRowFor(rows, 'Mod+Enter @ components/blocks/table/TableBlock.svelte')).toBeNull();

@@ -4,7 +4,7 @@
 import { beforeAll, describe, it, expect } from 'vitest';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
-import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 

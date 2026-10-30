@@ -5,7 +5,7 @@ import {
 	registerMermaidKind,
 	rebuildMermaidRaw,
 	type MermaidMetadata
-} from '#lib/plugins/mermaid/mermaid-kind.js';
+} from '#packages/mermaid/src/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // An opaque container serializes `raw` verbatim, so the byte round trip passes even when the

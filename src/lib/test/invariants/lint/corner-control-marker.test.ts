@@ -99,9 +99,9 @@ describe('G4.180 every top-right hover control opts in to moving below the find 
 
 	it('finds the corner controls the editor and its bundled plugins ship', () => {
 		expect(withControls.map((f) => f.rel).sort()).toEqual([
-			'src/lib/components/blocks/code/CodeBlockRail.svelte',
-			'src/lib/plugins/latex/BlockMath.svelte',
-			'src/lib/plugins/mermaid/MermaidBlock.svelte'
+			'packages/latex/src/BlockMath.svelte',
+			'packages/mermaid/src/MermaidBlock.svelte',
+			'src/lib/components/blocks/code/CodeBlockRail.svelte'
 		]);
 	});
 

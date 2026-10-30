@@ -1,15 +1,15 @@
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { detailsPlugin } from '#lib/plugins/details/index.js';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { katexRenderer } from '#lib/plugins/latex/renderer.js';
-import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
-import { parrotPlugin } from '#lib/plugins/parrot/index.js';
-import { mermaidRenderer } from '#lib/plugins/mermaid/renderer.js';
-import { slashCommandsPlugin } from '#lib/plugins/slash-commands/index.js';
+import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+import { detailsPlugin } from '@voithos-labs/aragonite-details';
+import { tocPlugin } from '@voithos-labs/aragonite-toc';
+import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
+import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-occurrences';
+import { latexPlugin } from '@voithos-labs/aragonite-latex';
+import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
+import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
+import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
+import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer';
+import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
 import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
 
 // The one place the demo routes create their plugins: definitions are process-global and the

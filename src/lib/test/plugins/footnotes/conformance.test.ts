@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { runKindConformance } from '#lib/testing.js';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 
 const ALL_CELLS = [
 	'roundTrip',

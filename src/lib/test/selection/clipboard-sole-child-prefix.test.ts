@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // A partial slice from the sole child of a strip container (a list item, a blockquote) must keep

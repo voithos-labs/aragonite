@@ -11,12 +11,12 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { latexPlugin, MATH_BLOCK } from '#lib/plugins/latex/index.js';
-import { parrotPlugin } from '#lib/plugins/parrot/index.js';
+import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
+import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { revealLeafPlugin } from './fixtures/reveal-leaf';
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import type { AnyBlockKind } from '#lib/core/nodes.js';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 

@@ -9,7 +9,7 @@ import {
 	balancedBlock,
 	callsTo,
 	collectEditorSources,
-	EDITOR_SRC,
+	LIBRARY_ROOTS,
 	handRolledLexing,
 	balancedRegion,
 	literalSpans,
@@ -44,7 +44,7 @@ const lexCall = (verb: 'lexical' | 'strip', args: string) =>
 const HOOKS = ['beforeEach', 'afterEach', 'beforeAll', 'afterAll'];
 const PUBLIC_RESET = ['reset', 'PluginPlatformForTests'].join('');
 const SCHEMA_RESET = ['__reset', 'SchemaRegistriesForTests'].join('');
-const SOURCES = collectEditorSources(EDITOR_SRC, { includeTests: true });
+const SOURCES = collectEditorSources(LIBRARY_ROOTS, { includeTests: true });
 
 /** The resets library modules enroll by name into the plugin platform reset, so one enrolled
  *  later joins the scan below with no edit here. */

@@ -2,7 +2,7 @@
 // The hover drag handle is on by default, and `false` turns it off.
 // Miss-analysis: every e2e case passed `blockDragHandles` explicitly, so none asserted the default.
 import { describe, it, expect, afterEach } from 'vitest';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import {
 	installLayoutStubs,
 	mountEditor,

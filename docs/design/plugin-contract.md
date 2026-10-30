@@ -535,7 +535,7 @@ The decisions riding this surface:
 
 The blocks the insert menus offer, as data: an id, a label, a menu glyph name, keywords, and the Markdown the block inserts. The built-ins come first in a fixed order, then each entry a plugin registered with `registerInsertEntry` from its `setup`, listed only in an editor that activated that plugin. The right-click "Insert block" rows, `getInsertCatalogue()` on the instance and `editor.insertCatalogue` on the context read this one list, so a host's own `+` button and the editor's menu can't disagree.
 
-An entry can also take an argument, a word typed after it in the slash list (`/table 3x4`): its `withArgument` gets the word and returns the Markdown to insert, plus the dimmed text the row shows to say how it read the word. Which row a typed query hands its word to is `src/lib/plugins/slash-commands/filter.ts` :: `readQuery`.
+An entry can also take an argument, a word typed after it in the slash list (`/table 3x4`): its `withArgument` gets the word and returns the Markdown to insert, plus the dimmed text the row shows to say how it read the word. Which row a typed query hands its word to is `packages/slash-commands/src/filter.ts` :: `readQuery`.
 
 Every block kind a bundled plugin installs can be inserted from the insert menus, or has a written reason it can't (G4.157). A footnote definition, say, is made by typing `[^x]:` under its reference, and the GitHub alert already has the note entry's admonition spelling.
 

@@ -27,9 +27,9 @@ import {
 	joinMermaidBody,
 	registerMermaidKind,
 	type MermaidMetadata
-} from '#lib/plugins/mermaid/mermaid-kind.js';
-import { registerGithubAlert } from '#lib/plugins/admonitions/github-alert-kind.js';
-import MermaidBlock from '#lib/plugins/mermaid/MermaidBlock.svelte';
+} from '#packages/mermaid/src/mermaid-kind.js';
+import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
+import MermaidBlock from '#packages/mermaid/src/MermaidBlock.svelte';
 
 const SOURCE = 'above\n\n```mermaid\ngraph TD\n```\n\nbelow\n';
 const DIAGRAM = [1];

@@ -4,9 +4,9 @@ import fc from 'fast-check';
 import type { InlineNode, InlineNodeKind } from '#lib';
 import { isInlineKindDeclared } from '../../schema/plugin-kind';
 import { installPlugins, parseInline } from '#lib';
-import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/index.js';
-import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
-import { latexPlugin, MATH_INLINE } from '#lib/plugins/latex/index.js';
+import { footnotesPlugin, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
+import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
+import { latexPlugin, MATH_INLINE } from '#packages/latex/src/index.js';
 import {
 	arbInlineSource,
 	arbLargeDoc,

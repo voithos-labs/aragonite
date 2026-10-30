@@ -11,14 +11,14 @@ import {
 	type InlineNode
 } from '#lib/core/nodes.js';
 import { computeInlineContent, isProseKind } from '#lib/plugin.js';
-import { ADMONITION, GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
-import { DETAILS } from '#lib/plugins/details/index.js';
-import { EMOJI_KIND } from '#lib/plugins/emoji/index.js';
-import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/index.js';
-import { MATH_BLOCK, MATH_INLINE } from '#lib/plugins/latex/index.js';
-import { MERMAID } from '#lib/plugins/mermaid/index.js';
-import { PARROT } from '#lib/plugins/parrot/index.js';
-import { TOC_BLOCK } from '#lib/plugins/toc/index.js';
+import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
+import { DETAILS } from '#packages/details/src/index.js';
+import { EMOJI_KIND } from '#packages/emoji/src/index.js';
+import { FOOTNOTE_DEF_KIND, FOOTNOTE_REF_KIND } from '#packages/footnotes/src/index.js';
+import { MATH_BLOCK, MATH_INLINE } from '#packages/latex/src/index.js';
+import { MERMAID } from '#packages/mermaid/src/index.js';
+import { PARROT } from '#packages/parrot/src/index.js';
+import { TOC_BLOCK } from '#packages/toc/src/index.js';
 import { DEMO_PLUGINS } from '../../../routes/demo-plugins';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 

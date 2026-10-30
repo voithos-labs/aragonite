@@ -129,28 +129,34 @@ export function selfImportSpecifiers() {
 const isValidMatch = (/** @type {string} */ middle) =>
 	middle.split(/[/\\]/).every((part) => !['.', '..', 'node_modules'].includes(part.toLowerCase()));
 
+/** @type {Map<string, string> | undefined} */
+let sourcesByName;
+/** A published entry point's source, by the name a host imports it by. @param {string} specifier */
+const workspaceSource = (specifier) => (sourcesByName ??= workspaceSources()).get(specifier);
+
 /**
  * Whether a specifier names library source: a package.json `imports` key, whether or not it maps
- * to a file (`#lib/x.js` is, `#fff` isn't), or a subpath the library imports by its own name.
+ * to a file (`#lib/x.js` is, `#fff` isn't), a subpath the library imports by its own name, or a
+ * published entry point of this workspace by its package name.
  * @param {string} specifier
  * @returns {boolean}
  */
 export function isAliasSpelling(specifier) {
-	if (SELF_IMPORTS.has(specifier)) return true;
+	if (SELF_IMPORTS.has(specifier) || workspaceSource(specifier) !== undefined) return true;
 	return Object.keys(IMPORTS).some((key) =>
 		key.includes('*') ? specifier.startsWith(key.split('*')[0]) : specifier === key
 	);
 }
 
 /**
- * The repo path a `#` specifier or a self-import names (`#lib/core/parser.js` names
- * `src/lib/core/parser.js`), or null when no `imports` key matches it Node's way or its `*` part
- * has a segment Node refuses.
+ * The repo path a `#` specifier, a self-import or a workspace package name names
+ * (`#lib/core/parser.js` names `src/lib/core/parser.js`), or null when no `imports` key matches
+ * it Node's way or its `*` part has a segment Node refuses.
  * @param {string} specifier
  * @returns {string | null}
  */
 export function aliasPath(specifier) {
-	const selfImport = SELF_IMPORTS.get(specifier);
+	const selfImport = SELF_IMPORTS.get(specifier) ?? workspaceSource(specifier);
 	if (selfImport !== undefined) return selfImport;
 	if (!specifier.startsWith('#')) return null;
 	if (!specifier.includes('*') && Object.hasOwn(IMPORTS, specifier)) {

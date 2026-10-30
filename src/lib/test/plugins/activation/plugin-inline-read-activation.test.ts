@@ -5,15 +5,15 @@ import { parse, type DocumentView } from '#lib';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import {
 	assignFootnoteNumbers,
 	collectFootnoteReferences,
 	footnoteNumbersFor
-} from '#lib/plugins/footnotes/footnote-numbering.js';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
-import { collectHeadings } from '#lib/plugins/toc/heading-outline.js';
+} from '#packages/footnotes/src/footnote-numbering.js';
+import { tocPlugin } from '#packages/toc/src/index.js';
+import { collectHeadings } from '#packages/toc/src/heading-outline.js';
 import type { EditorContext } from '#lib/plugin.js';
 import { inlineReaderFor } from '#lib/core/inline/index.js';
 import { definitionsOf } from '#lib/core/inline/scan/definitions.js';

@@ -5,7 +5,7 @@ import {
 	registerDetailsKind,
 	rebuildDetailsRaw,
 	type DetailsMetadata
-} from '#lib/plugins/details/details-kind.js';
+} from '#packages/details/src/details-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // Without edits an opaque container emits its `raw` verbatim, so only `rebuildDetailsRaw`

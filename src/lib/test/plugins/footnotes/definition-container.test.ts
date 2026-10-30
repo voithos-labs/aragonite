@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { getPluginMetadata } from '#lib/plugin.js';
 import {
 	rebuildFootnoteDefRaw,
 	type FootnoteDefMetadata
-} from '#lib/plugins/footnotes/footnote-definition.js';
+} from '#packages/footnotes/src/footnote-definition.js';
 
 // The definition is a strip container shaped like a list item: its `[^label]: ` marker is
 // syntax living only in the container's own raw, never in a child, which is what makes

@@ -3,9 +3,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, type EditorContext } from '#lib/plugin.js';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
-import { collectHeadings } from '#lib/plugins/toc/heading-outline.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { tocPlugin } from '#packages/toc/src/index.js';
+import { collectHeadings } from '#packages/toc/src/heading-outline.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import {
 	destroyMountedEditors,
 	mountEditor,

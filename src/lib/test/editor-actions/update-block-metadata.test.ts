@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { configureEditorEnv } from '@voithos-labs/aragonite/dev-checks';

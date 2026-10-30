@@ -7,8 +7,8 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,

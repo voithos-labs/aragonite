@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { admonitionsPlugin, convertGithubAlerts } from '#lib/plugins/admonitions/index.js';
-import { stripQuoteMarker } from '#lib/plugins/admonitions/gh-alert.js';
+import { admonitionsPlugin, convertGithubAlerts } from '#packages/admonitions/src/index.js';
+import { stripQuoteMarker } from '#packages/admonitions/src/gh-alert.js';
 
 // The plugin's quote grammar is capped at CommonMark's 0 to 3 space block indent,
 // like the built-in blockquote's. Over-accepting strips a `>` the built-in keeps

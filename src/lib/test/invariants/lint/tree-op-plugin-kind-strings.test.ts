@@ -6,10 +6,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { collectEditorSources, type SourceFile } from './scan-source';
+import { collectEditorSources, PLUGIN_SOURCE_ROOTS, type SourceFile } from './scan-source';
 import { SOURCE_DIR } from './source-paths';
 
-const PLUGIN_SRC = path.resolve(SOURCE_DIR.plugins);
 const DISPATCH_SRCS = [
 	path.resolve(SOURCE_DIR.treeOperations),
 	path.resolve(SOURCE_DIR.editorActions),
@@ -75,7 +74,7 @@ function violations(
 // ── The scan ──────────────────────────────────────────────────────────────────
 
 describe('G4.x no plugin kind name in a core dispatch layer', () => {
-	const pluginSources = collectEditorSources(PLUGIN_SRC);
+	const pluginSources = collectEditorSources(PLUGIN_SOURCE_ROOTS);
 	const dispatchSources = DISPATCH_SRCS.flatMap((dir) => collectEditorSources(dir));
 	const forbidden = pluginBlockKindLiterals(pluginSources);
 	const layerSizes = DISPATCH_SRCS.map((dir) => collectEditorSources(dir).length);
@@ -109,7 +108,7 @@ describe('G4.x no plugin kind name in a core dispatch layer', () => {
 // ── Non-vacuity ───────────────────────────────────────────────────────────────
 
 describe('G4.x no plugin kind name in a core dispatch layer: non-vacuity', () => {
-	const forbidden = pluginBlockKindLiterals(collectEditorSources(PLUGIN_SRC));
+	const forbidden = pluginBlockKindLiterals(collectEditorSources(PLUGIN_SOURCE_ROOTS));
 
 	it('resolves a const-defined plugin kind and a directly-quoted one', () => {
 		const sources: SourceFile[] = [

@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { EditorPluginEntry } from '#lib/plugin.js';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
 import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';
 
 type Probe = { getBlockComponent(path: number[]): { parkCaret?(offset: number): void } | null };

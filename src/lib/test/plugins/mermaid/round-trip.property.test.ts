@@ -3,7 +3,7 @@ import fc from 'fast-check';
 import { freshOrFixedSeed } from '../../invariants/arbitraries';
 import { parse, serialize, type CstNode } from '#lib';
 import { getPluginMetadata } from '#lib/plugin.js';
-import { registerMermaidKind, type MermaidMetadata } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerMermaidKind, type MermaidMetadata } from '#packages/mermaid/src/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // Awkward fence shapes for serialize(parse(src)) === src, run in both install states so

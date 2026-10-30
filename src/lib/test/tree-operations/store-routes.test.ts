@@ -6,7 +6,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
 import { installPlugins } from '#lib';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
@@ -50,7 +50,7 @@ import {
 	mountSurface
 } from '../blocks/text/edge-policy-fixture';
 import { registerCalloutForTests } from '../selection/chrome-plugins';
-import { collectEditorSources, EDITOR_SRC } from '../invariants/lint/scan-source';
+import { collectEditorSources, LIBRARY_ROOTS } from '../invariants/lint/scan-source';
 import { replaceSelectedWidget } from '#lib/components/blocks/text/widget-interaction.js';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
@@ -889,7 +889,7 @@ function handsOnAStore(code: string): boolean {
 }
 
 describe('the route list', () => {
-	const sources = collectEditorSources(EDITOR_SRC);
+	const sources = collectEditorSources(LIBRARY_ROOTS);
 	const inLib = (relPath: string) => relPath.replace(/^src\/lib\//, '');
 
 	it('matches a store made or fetched, never a definition or a reference', () => {

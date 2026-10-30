@@ -6,11 +6,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
-import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
-import { registerTocBlock } from '#lib/plugins/toc/toc-plugin.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerTocBlock } from '#packages/toc/src/toc-plugin.js';
 import { gapEligibleAt } from '#lib/selection/gap-caret.js';
 import { testView } from '#lib/test/harness/test-view.js';
 

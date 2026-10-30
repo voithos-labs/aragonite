@@ -224,7 +224,7 @@ describeFileRules(
 			matches: LINE_SPLIT,
 			allowed: {
 				'src/lib/debug/dump-tree.ts': "a debug dump prints each line's bytes, a `\\r` included",
-				'src/lib/plugins/parrot/ParrotBlock.svelte': 'splits a constant animation frame',
+				'packages/parrot/src/ParrotBlock.svelte': 'splits a constant animation frame',
 				'src/lib/tree-operations/table-grid-clipboard.ts':
 					'splits clipboard text normalized to LF on the same line'
 			},

@@ -7,8 +7,8 @@ import { flushSync } from 'svelte';
 import type { CstNode, Document } from '#lib';
 import { setPluginMetadata } from '#lib/plugin.js';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
-import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
-import { rebuildMermaidRaw, type MermaidMetadata } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { rebuildMermaidRaw, type MermaidMetadata } from '#packages/mermaid/src/mermaid-kind.js';
 import {
 	destroyMountedEditors,
 	mountEditor,

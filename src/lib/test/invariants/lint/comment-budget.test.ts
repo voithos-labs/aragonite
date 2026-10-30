@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, EDITOR_SRC, ROUTES_SRC } from './scan-source';
+import { collectEditorSources, LIBRARY_ROOTS, ROUTES_SRC } from './scan-source';
 import { findCommentBlocks, isOverBudget } from './comment-lines';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
@@ -17,7 +17,7 @@ export function overBudgetLines(relPath: string, code: string): string[] {
 
 describe('G4.26 comment blocks stay inside the budget', () => {
 	const sources = [
-		...collectEditorSources(EDITOR_SRC, { includeTests: true, includeStyles: true }),
+		...collectEditorSources(LIBRARY_ROOTS, { includeTests: true, includeStyles: true }),
 		...collectEditorSources(ROUTES_SRC, { includeTests: true, includeStyles: true })
 	];
 

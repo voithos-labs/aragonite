@@ -13,6 +13,7 @@ import {
 	collectEditorSources,
 	collectFiles,
 	EDITOR_SRC,
+	LIBRARY_ROOTS,
 	enclosingFunction,
 	fileClasses,
 	importSpecifiers,
@@ -38,18 +39,17 @@ describe('repo-wide scan roots', () => {
 	const sources = collectEditorSources();
 	const paths = sources.map((f) => f.relPath);
 
-	it('reaches all three roots, none of them empty', () => {
+	it('reaches every root, none of them empty', () => {
 		const byRoot = {
 			library: paths.filter((p) => p.startsWith(SOURCE_DIR.library)),
+			bundledPlugins: paths.filter((p) => p.startsWith(SOURCE_DIR.plugins)),
 			referencePlugins: paths.filter((p) => p.startsWith(SOURCE_DIR.referencePlugins)),
 			consumerExample: paths.filter((p) => p.startsWith(SOURCE_DIR.consumerExample))
 		};
 		for (const [root, hits] of Object.entries(byRoot)) {
 			expect(hits.length, `repo-wide scan reached no file under ${root}`).toBeGreaterThan(0);
 		}
-		expect(
-			byRoot.library.length + byRoot.referencePlugins.length + byRoot.consumerExample.length
-		).toBe(paths.length);
+		expect(Object.values(byRoot).flat()).toHaveLength(paths.length);
 	});
 
 	it('sees the reference plugin the external-author rules are modelled on', () => {
@@ -63,11 +63,17 @@ describe('repo-wide scan roots', () => {
 		expect(new Set(paths).size).toBe(paths.length);
 	});
 
-	const libraryOnly = collectEditorSources(EDITOR_SRC).map((f) => f.relPath);
+	const libraryOnly = collectEditorSources(LIBRARY_ROOTS).map((f) => f.relPath);
 
 	it('an explicit root narrows the scan (the opt-out lints rely on this)', () => {
 		expect(libraryOnly.length).toBeLessThan(paths.length);
-		expect(libraryOnly.every((p) => p.startsWith(SOURCE_DIR.library))).toBe(true);
+		expect(
+			libraryOnly.every((p) => p.startsWith(SOURCE_DIR.library) || p.startsWith(SOURCE_DIR.plugins))
+		).toBe(true);
+	});
+
+	it('the library roots hold the bundled plugins, which left src/lib for their own packages', () => {
+		expect(libraryOnly).toContain(SOURCE.mathShape);
 	});
 
 	it('excludes test, e2e, and declaration files from every root', () => {
@@ -81,7 +87,7 @@ describe('repo-wide scan roots', () => {
 	});
 
 	it('REPO_WIDE_ROOTS is the declared set the default scan walks', () => {
-		expect(REPO_WIDE_ROOTS).toHaveLength(3);
+		expect(REPO_WIDE_ROOTS).toHaveLength(LIBRARY_ROOTS.length + 2);
 		expect(REPO_WIDE_ROOTS[0]).toBe(EDITOR_SRC);
 	});
 });

@@ -2,10 +2,10 @@
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { computeInlineContent } from '#lib/plugin.js';
 import { buildCoreInlineWidget, getInlineWidgetEditing } from '#lib/core/inline/inline-widgets.js';
-import { registerMathInline, MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathInline, MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 
 const isMath = (n: InlineNode) => n.kind === MATH_INLINE;
 const mathNodesIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isMath);

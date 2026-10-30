@@ -6,7 +6,7 @@
  */
 
 export interface HardcodedChordSite {
-	/** Path under `src/lib`, as the source scan reports it. */
+	/** Path under `src/lib`, or from the repo root for a bundled plugin's file. */
 	file: string;
 	/** Key literals the file compares. */
 	keys: readonly string[];
@@ -215,7 +215,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Whole-block copy/cut reads its chord off `eventToChord`, a keydown carrying no ClipboardEvent, and `claimsChord` asks the same predicate. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too. The arrow exit for a plugin editor or a hand-built view declines every modified key rather than claiming one.'
 	},
 	{
-		file: 'plugins/mermaid/MermaidBlock.svelte',
+		file: 'packages/mermaid/src/MermaidBlock.svelte',
 		takes: ['Mod+Enter'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape', 'Tab'],
 		note: 'Commits the diagram edit; the arrows are the edit box’s boundary exits, and a modified one is declined rather than claimed. Taken only in a diagram block, which exists only where the plugin is listed, so `reservedChords()` lists it unconditionally: the table keymap binds it anyway.'

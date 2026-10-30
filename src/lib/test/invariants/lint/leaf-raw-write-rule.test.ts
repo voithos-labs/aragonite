@@ -30,7 +30,7 @@ const ESCALATION_SITES: Record<string, string> = {
 	[FENCE_HOME]: 'the fencedCode write rule',
 	'src/lib/debug/diagnostics-report.ts':
 		'sizes the section fences of a field report whose bodies routinely carry fences of their own',
-	'src/lib/plugins/mermaid/mermaid-kind.ts':
+	'packages/mermaid/src/mermaid-kind.ts':
 		'sizes the fence its metadata body is rebuilt inside — the body is never re-parsed here',
 	'src/lib/plugin.ts': 'the author barrel: a plugin rebuilding its own raw needs the same rule'
 };
@@ -74,15 +74,15 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild, the whole-body fallback, and the opener line set aside and put back around them'
 	},
 	'src/lib/core/directive/kinds.ts': { count: 1, why: 'the rebuildRaw every `:::` container uses' },
-	'src/lib/plugins/admonitions/github-alert-kind.ts': {
+	'packages/admonitions/src/github-alert-kind.ts': {
 		count: 1,
 		why: "the alert's own rebuildRaw for an empty body; a filled one rebuilds through `rebuildStripRaw`"
 	},
-	'src/lib/plugins/details/details-kind.ts': {
+	'packages/details/src/details-kind.ts': {
 		count: 1,
 		why: "the details container's rebuildRaw"
 	},
-	'src/lib/plugins/mermaid/mermaid-kind.ts': {
+	'packages/mermaid/src/mermaid-kind.ts': {
 		count: 1,
 		why: 'the mermaid leaf re-emits its fence from its own metadata: for its bytes, the kind is itself the rule'
 	},

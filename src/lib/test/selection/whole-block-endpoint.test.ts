@@ -7,7 +7,7 @@ import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { deleteRange } from '../harness/range-delete';
