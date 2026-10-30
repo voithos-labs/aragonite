@@ -28,7 +28,12 @@ import {
 	holdsOnlyMarkerChrome
 } from '../../../browser/painted';
 import { clampToLandableRaw, landableRawBounds, type RawRange } from '../../../browser/offsets';
-import { deleteExtent, type DeleteAnswer, type DeleteContext } from '../../../caret/delete-extent';
+import {
+	deleteExtent,
+	unitContextAt,
+	type DeleteAnswer,
+	type DeleteContext
+} from '../../../caret/delete-extent';
 import {
 	decidedDelete,
 	isDeleteInput,
@@ -37,7 +42,6 @@ import {
 	targetRange,
 	type DeleteIntent
 } from '../../../browser/input';
-import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { isAtMostOneCharacter } from '../../../core/text-units';
 import { nativeRangeIn } from '../../../browser/selection-read';
 import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
@@ -745,12 +749,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const el = deps.getEl();
 		if (!el) return null;
 		const text = el.textContent ?? '';
-		return {
-			text,
-			caret,
-			bounds: landableRawBounds(el) ?? { start: 0, end: text.length },
-			lineEdge: (side) => lineEdgeOffset(el, caret, side, caretWriter)
-		};
+		return unitContextAt({ el, text, caret, bounds: landableRawBounds(el), lineRead: caretWriter });
 	}
 
 	function onPointerDown(e: PointerEvent): void {

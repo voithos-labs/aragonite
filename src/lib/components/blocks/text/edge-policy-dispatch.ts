@@ -23,12 +23,12 @@ import { markerPrefixOf, hidingScreenOf } from '../../../browser/painted';
 import type { CaretWriter } from '../../../browser/caret-writer';
 import {
 	deleteExtent,
+	unitContextAt,
 	type DeleteAnswer,
 	type DeleteContext,
 	type DeleteSpan
 } from '../../../caret/delete-extent';
 import type { DeleteDirection, DeleteIntent } from '../../../browser/input';
-import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { hasModifier, isBareKey, isPlainTypingKey } from './click-snap-guard';
 import { caretIsInTextContent, readNativeSelection } from '../../../browser/selection-read';
@@ -587,14 +587,14 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	/** What the delete rule and the motion rule read at `caret`: the text as the key's write sees
 	 *  it, the offsets a caret reaches, the visual line's edges and the text as the screen shows it. */
 	function contextAt(el: HTMLElement, caret: number, landable: DeleteSpan | null): DeleteContext {
-		const text = display();
-		return {
-			text,
+		return unitContextAt({
+			el,
+			text: display(),
 			caret,
-			bounds: landable ?? { start: 0, end: text.length },
-			lineEdge: (side) => lineEdgeOffset(el, caret, side, deps.caretWriter),
+			bounds: landable,
+			lineRead: deps.caretWriter,
 			visible: () => visibleWalkText(el)
-		};
+		});
 	}
 
 	function unitContext(caret: number): DeleteContext | null {
