@@ -271,7 +271,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		markActivation: { canActivate: () => false, activate: () => false },
 		// Answers yes, as a mounted editor does once something has been edited.
 		undoStack: { canUndo: true, canRedo: true },
-		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
+		keybindingOverrides: () => ({ global: new Map(), byKind: new Map(), chords: new Set() }),
 		onCommandError: (report) => emitCommandError(services.events, report),
 		reorder: services.reorder,
 		...overrides.commands

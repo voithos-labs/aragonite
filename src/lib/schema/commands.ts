@@ -464,7 +464,6 @@ export function resolveKindBinding(
 // Rebuilt when a kind registers, so a plugin's container keymap is never missed.
 let containerKeymapChords: ReadonlySet<string> | null = null;
 onBlockKindChange(() => (containerKeymapChords = null));
-const overrideChordSets = new WeakMap<KeybindingOverrideMap, ReadonlySet<string>>();
 
 /** Whether any container could bind `chord`: a container kind's keymap, or any `keybindings`
  *  override. False means no container walk can find it, so none is made. */
@@ -477,17 +476,7 @@ export function containerMayBind(
 			.filter((kind) => tryGetBlockKindDescriptor(kind)?.containerContract !== undefined)
 			.flatMap((kind) => kindKeymap(kind).map((binding) => binding.chord))
 	);
-	if (containerKeymapChords.has(chord)) return true;
-	if (!overrides) return false;
-	let bound = overrideChordSets.get(overrides);
-	if (!bound) {
-		bound = new Set([
-			...overrides.global.keys(),
-			...[...overrides.byKind.values()].flatMap((m) => [...m.keys()])
-		]);
-		overrideChordSets.set(overrides, bound);
-	}
-	return bound.has(chord);
+	return containerKeymapChords.has(chord) || !!overrides?.chords.has(chord);
 }
 
 /**

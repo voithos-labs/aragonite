@@ -31,9 +31,11 @@ export type OverrideValue = KeyBinding | 'disabled';
 export interface KeybindingOverrideMap {
 	global: Map<string, OverrideValue>;
 	byKind: Map<AnyBlockKind, Map<string, OverrideValue>>;
+	/** Every chord an entry names, in either scope. */
+	chords: ReadonlySet<string>;
 }
 
-const EMPTY: KeybindingOverrideMap = { global: new Map(), byKind: new Map() };
+const EMPTY: KeybindingOverrideMap = { global: new Map(), byKind: new Map(), chords: new Set() };
 
 /** Compile the `keybindings` prop into the scoped lookup. Malformed chords are dev-warned and dropped. */
 export function normalizeKeybindingOverrides(
@@ -42,9 +44,11 @@ export function normalizeKeybindingOverrides(
 	if (!overrides || overrides.length === 0) return EMPTY;
 	const global = new Map<string, OverrideValue>();
 	const byKind = new Map<AnyBlockKind, Map<string, OverrideValue>>();
+	const chords = new Set<string>();
 	for (const o of overrides) {
 		const chord = normalizeChordStrict(o.chord);
 		if (chord === null) continue;
+		chords.add(chord);
 		const value: OverrideValue =
 			o.command === null
 				? 'disabled'
@@ -60,7 +64,7 @@ export function normalizeKeybindingOverrides(
 			kindMap.set(chord, value);
 		}
 	}
-	return { global, byKind };
+	return { global, byKind, chords };
 }
 
 /** Look up a single override for a (scope, chord). undefined when no entry exists. */
