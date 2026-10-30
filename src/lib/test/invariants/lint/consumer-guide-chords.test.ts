@@ -20,7 +20,7 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { normalizeChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { HARDCODED_CHORD_SITES } from '#lib/schema/reserved-chords.js';
+import { HARDCODED_CHORD_CLAIMS } from '#lib/schema/reserved-chords.js';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
@@ -324,8 +324,8 @@ function boundClaims(): BoundClaim[] {
 	return [...kindClaims, ...globalClaims, ...pluginClaims];
 }
 
-const hardcodedClaims = HARDCODED_CHORD_SITES.flatMap((site) =>
-	(site.claims?.chords ?? []).map((chord) => claimKey(chord, site.file))
+const hardcodedClaims = HARDCODED_CHORD_CLAIMS.flatMap((claim) =>
+	claim.chords.map((chord) => claimKey(chord, claim.file))
 );
 
 /** Whether some row lists the claim's chord for its command: the row's chord cell and its target
