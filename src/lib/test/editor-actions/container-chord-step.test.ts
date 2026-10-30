@@ -29,6 +29,9 @@ import {
 	resetPerfInstruments
 } from '#lib/perf/instruments.js';
 import KeylessContainerBlock from '../plugins/fixtures/KeylessContainerBlock.svelte';
+import { createContainerChords } from '#lib/editor-actions/container-chords.js';
+import { parse } from '#lib/core/parser.js';
+import { commandContext } from '../harness/command-context';
 
 beforeEach(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -112,6 +115,18 @@ describe('the container walk', () => {
 		expect(perfSnapshot().containerChordWalks).toBe(0);
 		await pressKeyAt(editor, [0], 2, { key: 'Tab', shiftKey: true });
 		expect(perfSnapshot().containerChordWalks).toBe(1);
+	});
+
+	// The editor root asks this before reading where a key landed, on every key in the document.
+	it('is ruled out for a letter before anything reads where the key landed', () => {
+		const chords = createContainerChords({
+			commands: commandContext(),
+			getBlockComponent: () => null,
+			selection: { isCrossBlock: false, anchor: null, focus: null },
+			getDoc: () => parse('')
+		});
+		expect(chords.mayTake(new KeyboardEvent('keydown', { key: 'x' }))).toBe(false);
+		expect(chords.mayTake(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true }))).toBe(true);
 	});
 });
 

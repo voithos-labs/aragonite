@@ -31,6 +31,8 @@ export interface ContainerChords {
 	take(e: KeyboardEvent, from: readonly number[]): boolean;
 	/** Whether `take` would run one, without running it: what `claimsChord` reads. */
 	takes(e: KeyboardEvent, from: readonly number[]): boolean;
+	/** Whether `take` could run one from anywhere, asked before finding where the key landed. */
+	mayTake(e: KeyboardEvent): boolean;
 }
 
 export function createContainerChords(deps: ContainerChordDeps): ContainerChords {
@@ -39,7 +41,6 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 	/** The containers holding a key in the block at `from`, that block first, as the targets their
 	 *  chords run against. A leaf publishes no target, so for a leaf the walk starts above it. */
 	function* targetsAround(chord: string, from: readonly number[]): Generator<KindCommandTarget> {
-		if (!containerMayBind(chord, deps.commands.keybindingOverrides())) return;
 		recordContainerChordWalk();
 		for (let depth = from.length; depth >= 1; depth--) {
 			const target = deps.getBlockComponent(from.slice(0, depth))?.containerChordTarget?.(from);
@@ -47,16 +48,21 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 		}
 	}
 
-	// A live range takes the keys its own handler claims, which no container may run too.
-	const rangeOwns = (e: KeyboardEvent) =>
-		deps.selection.isCrossBlock && rangeOwnsKey(e, { ...deps, commands: deps.commands });
+	/** The chord a container could bind, or null; a live range keeps the keys its own handler
+	 *  claims, which no container may run too. */
+	function containerChordOf(e: KeyboardEvent): string | null {
+		const chord = eventToChord(e);
+		if (!chord || !containerMayBind(chord, deps.commands.keybindingOverrides())) return null;
+		const rangeOwns = deps.selection.isCrossBlock && rangeOwnsKey(e, deps);
+		return rangeOwns ? null : chord;
+	}
 
 	return {
 		take(e, from) {
 			if (e.defaultPrevented || attempted.has(e)) return false;
 			attempted.add(e);
-			const chord = eventToChord(e);
-			if (!chord || rangeOwns(e)) return false;
+			const chord = containerChordOf(e);
+			if (!chord) return false;
 			for (const target of targetsAround(chord, from)) {
 				if (dispatchKindCommand(chord, target, deps.commands)) {
 					e.preventDefault();
@@ -66,12 +72,13 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 			return false;
 		},
 		takes(e, from) {
-			const chord = eventToChord(e);
-			if (!chord || rangeOwns(e)) return false;
+			const chord = containerChordOf(e);
+			if (!chord) return false;
 			for (const target of targetsAround(chord, from)) {
 				if (kindChordRuns(chord, target, deps.commands)) return true;
 			}
 			return false;
-		}
+		},
+		mayTake: (e) => !e.defaultPrevented && !attempted.has(e) && containerChordOf(e) !== null
 	};
 }

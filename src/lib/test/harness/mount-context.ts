@@ -236,7 +236,8 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	// A bare block mount has no container around it to take a chord.
 	services.containerChords = overrides.services?.containerChords ?? {
 		take: () => false,
-		takes: () => false
+		takes: () => false,
+		mayTake: () => false
 	};
 	services.readingFocus =
 		overrides.services?.readingFocus ??
