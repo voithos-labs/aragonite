@@ -968,7 +968,7 @@ A few chords aren't in the table because no keymap holds them, so they aren't re
   - `Mod+Home` and `Mod+End` go to the start and end of the block's text (the cell's, in a table).
   - Shift plus a word key, `Home` or `End` selects exactly what the matching delete would take.
 
-  On a Mac, where Home and End scroll the page, the same moves are `Cmd+←` / `→` (with or without Shift) and `Cmd+↑` / `↓`. No built-in or plugin chord takes a caret key ([Rebinding chords](#rebinding-chords) has what that means for a table's column chords).
+  On a Mac, where Home and End scroll the page, the same moves are `Cmd+←` / `→` (with or without Shift) and `Cmd+↑` / `↓`. No built-in or plugin chord takes a caret key, though your own `keybindings` entry can ([Rebinding chords](#rebinding-chords) has how, and what it means for a table's column chords).
 
 - **`PageUp` and `PageDown`.** They move the caret a screen up or down at its column, into whichever block is there, and over a selection they drop it where its moving end would go. On a Mac they scroll and leave the caret alone, like every other Mac text box.
 
@@ -1088,7 +1088,7 @@ Every modifier chord this instance consumes, normalized.
 
 The same question for one keystroke, answered with the editor's own normalization, so a host key handler doesn't re-derive the platform rule: Ctrl and Cmd both fold to `Mod` (a macOS `Ctrl+B` and a `Cmd+B` give the same answer), and a CapsLock-uppercased letter matches its lowercase binding.
 
-One exception to the fold: `Cmd+Left`, `Cmd+Right`, `Cmd+Up` and `Cmd+Down` (and `Cmd+Shift+Left`, `Up` and `Down`) are how a Mac spells Home, End, `Mod+Home` and `Mod+End`, and the editor takes them wherever it takes those. `Ctrl+Arrow` folds to the same `Mod+Arrow`, but it's the word key on Windows and Linux, and the word keys stay out of the answer the way the bare arrows do (the caret in a block still moves on them). So the set holds those `Mod+Arrow` chords only on a Mac, and `claimsChord` claims `Cmd+Arrow` and leaves `Ctrl+Arrow` alone on every platform.
+One exception to the fold: `Cmd+Left`, `Cmd+Right`, `Cmd+Up` and `Cmd+Down` (and `Cmd+Shift+Left`, `Up` and `Down`) are how a Mac spells Home, End, `Mod+Home` and `Mod+End`, and the editor takes them wherever it takes those. `Ctrl+Arrow` folds to the same `Mod+Arrow`, but it's the word key on Windows and Linux, and like a bare arrow it isn't in the set (the caret in a block still moves on it). So the set holds those `Mod+Arrow` chords only on a Mac, and `claimsChord` claims `Cmd+Arrow` and leaves `Ctrl+Arrow` alone on every platform.
 
 ```ts
 editor.reservedChords();
