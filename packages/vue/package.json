@@ -1,6 +1,6 @@
 {
 	"name": "@voithos-labs/aragonite-vue",
-	"version": "0.11.3",
+	"version": "0.11.4",
 	"description": "vue component for aragonite, the cute markdown editor lib",
 	"keywords": [
 		"markdown-editor",
@@ -42,7 +42,7 @@
 		"prepack": "npm run build"
 	},
 	"peerDependencies": {
-		"@voithos-labs/aragonite": "0.11.3",
+		"@voithos-labs/aragonite": "0.11.4",
 		"vue": "^3.3.0"
 	},
 	"devDependencies": {
