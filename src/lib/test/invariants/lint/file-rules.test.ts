@@ -1139,8 +1139,6 @@ const RULES: FileRule[] = [
 			PLUGIN_GRAMMAR_DIRS.some((dir) => under(dir)(file)),
 		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
 		allowed: {
-			'src/lib/plugins/latex/flanking.ts':
-				'the `$` flanking rule reads Unicode whitespace, as emphasis does',
 			'src/lib/plugins/latex/renderer.ts': 'the text of a KaTeX error message',
 			'src/lib/plugins/latex/BlockMath.svelte': SHOWS_INK,
 			'src/lib/plugins/mermaid/MermaidBlock.svelte': SHOWS_INK,

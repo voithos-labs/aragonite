@@ -56,6 +56,17 @@ describe('$ flanking recognition', () => {
 		expect(mathNodesIn('$x\u00a0$')).toHaveLength(0);
 	});
 
+	// Miss-analysis: the cases drew only ASCII and the non-breaking space, never a character where
+	// JS `\s` and Markdown's Unicode whitespace disagree.
+	for (const ch of [' ', ' ', '　', '\u000b', ' ', '﻿', '​']) {
+		const code = `U+${ch.codePointAt(0)?.toString(16).padStart(4, '0')}`;
+		it(`reads ${code} beside a delimiter as emphasis does`, () => {
+			const emphasis = parseInline(`*${ch}x*`, 0, 3 + ch.length).some((n) => n.kind === 'emphasis');
+			expect(mathNodesIn(`$${ch}x$`).length > 0).toBe(emphasis);
+			expect(mathNodesIn(`$x${ch}$`).length > 0).toBe(emphasis);
+		});
+	}
+
 	it('spans the full $…$ with start at the open $', () => {
 		const [node] = mathNodesIn('a $x^2$ b');
 		expect(node).toMatchObject({ start: 2, end: 7 });

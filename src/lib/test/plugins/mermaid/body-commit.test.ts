@@ -18,6 +18,11 @@ describe('joinMermaidBody rejoins the draft with the authored line ending', () =
 		expect(joinMermaidBody('graph TD\n\tA --> B', '\n')).toBe('graph TD\n\tA --> B\n');
 	});
 
+	// An opener on the document's last line has no ending of its own to copy.
+	it('joins with LF when the opener line has no ending', () => {
+		expect(joinMermaidBody('graph TD\n\tA --> B', '')).toBe('graph TD\n\tA --> B\n');
+	});
+
 	it('commits an emptied body as the empty string (no stray line)', () => {
 		expect(joinMermaidBody('', '\r\n')).toBe('');
 	});

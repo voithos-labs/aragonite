@@ -26,10 +26,8 @@ export interface TocEntry {
 	label: string;
 }
 
-/**
- * Plain-text projection: markers drop with their wrapper, value nodes show what they
- * render to, and anything unrecognized falls back to its source bytes.
- */
+/** A label's plain text without a DOM: markers drop, value nodes show what they render to, and
+ *  anything else its bytes. The editor's visible text renders through the DOM and draws widgets. */
 export function projectInlineText(nodes: readonly InlineNode[], raw: string): string {
 	let text = '';
 	for (const node of nodes) {

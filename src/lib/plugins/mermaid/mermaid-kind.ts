@@ -18,6 +18,7 @@ import {
 	fenceShapeOfRaw,
 	scanFence,
 	OPENER_PRIORITIES,
+	withLineEnding,
 	type BlockView,
 	type CstNode
 } from '#lib/plugin.js';
@@ -49,9 +50,10 @@ const matchMermaidFence = matchFenceInfo(MERMAID);
  * The edit textarea normalizes to LF, so a CRLF-authored diagram needs its authored
  * ending put back on every body line. An emptied body commits as `''`, no stray line.
  */
-export function joinMermaidBody(draft: string, lineEnding: string): string {
+export function joinMermaidBody(draft: string, openerLineEnding: string): string {
 	if (draft.length === 0) return '';
-	return draft.replaceAll('\n', lineEnding) + lineEnding;
+	const ending = openerLineEnding === '\r\n' ? '\r\n' : '\n';
+	return withLineEnding(draft, ending) + ending;
 }
 
 /** The opener's inverse, which every code edit goes through; the fence is sized against the body

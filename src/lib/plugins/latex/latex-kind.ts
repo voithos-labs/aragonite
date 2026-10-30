@@ -23,6 +23,7 @@ import {
 	trimTrailingLineEnding,
 	ownTrailingLineEnding,
 	trailingLineEnding,
+	isUnicodeWhitespace,
 	type BlockView,
 	type CaretTarget,
 	type PluginInlineKind,
@@ -33,7 +34,6 @@ import {
 } from '#lib/plugin.js';
 import { svelteView } from '#lib/svelte.js';
 import MathInline from './MathInline.svelte';
-import { isFlankingSpace } from './flanking';
 import { registerMathBlockCompleter } from './math-completion';
 import {
 	awaitsMathCloser,
@@ -66,6 +66,9 @@ function indexDollars(raw: string): Int32Array {
 // Indexed once per block, not searched per consultation: a paragraph of shell prose
 // (`$HOME $PATH $USER …`) would otherwise cost a full block scan at every `$`.
 const nextDollarFrom = createScanIndex(indexDollars);
+
+/** Markdown's Unicode whitespace beside a `$`, read as emphasis reads it beside a `*`. */
+const isFlankingSpace = (ch: string | undefined) => ch !== undefined && isUnicodeWhitespace(ch);
 
 /** Money, written the way prose writes it: a whole number between the delimiters. */
 const isPriceSpan = (body: string) => /^\d[\d.,]*$/.test(body);
