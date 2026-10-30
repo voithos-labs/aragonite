@@ -1014,6 +1014,7 @@ Right-clicking any cell opens the table's action menu: "Edit link" first when yo
 | Move column left / right            | `Alt+←` / `Alt+→` (on a Mac, the cell menu: `Option+←` / `→` move by word)      |
 | Move the whole table up / down      | `Mod+Alt+↑` / `Mod+Alt+↓`                                                       |
 | Cycle column alignment              | `Mod+Shift+A`                                                                   |
+| Open the cell menu                  | `Shift+F10` / `ContextMenu`                                                     |
 | Create a table                      | type a header row (`\| a \| b \|`), then `Enter`                                |
 | **Clipboard**                       |                                                                                 |
 | Copy / cut a focused block          | `Mod+C` / `Mod+X`                                                               |
@@ -1101,16 +1102,14 @@ window.addEventListener(
 
 `reservedChords(): ReadonlySet<string>`
 
-Every modifier chord this instance takes somewhere, normalized. It's the union over every block kind, so a chord only a table binds is in it even if your document has no table. That makes it the input for an accelerator table or a settings screen that warns about clashes; for the keystroke in hand, ask `claimsChord`.
+Every modifier chord `claimsChord` can answer `true` for somewhere, normalized. It's the union over every block kind, so a chord only a table binds is in it even if your document has no table, and it holds the text keys too (`Ctrl+←`, `Shift+Home`, `Mod+V` and the like). That makes it the input for an accelerator table or a settings screen that warns about clashes; for the keystroke in hand, ask `claimsChord`.
 
 ```ts
 editor.reservedChords();
 // Set { 'Mod+B', 'Mod+I', 'Mod+Shift+X', 'Mod+E', 'Mod+K', 'Mod+Z', 'Mod+Y', 'Mod+Shift+Z', 'Alt+ArrowUp', 'Mod+F', 'Mod+H', ... }
 ```
 
-The set is built on each call, so it reflects the plugins this editor listed and the `keybindings` you passed: a chord you disabled globally drops out, one you bound appears, and turning `searchBar` off drops `Mod+F` and `Mod+H`. A per-kind disable doesn't drop a chord from the set (other kinds still take it), and neither does disabling one the editor handles outside the keymaps, like `Shift+Tab` or `Shift+ArrowUp`. `claimsChord` follows a per-kind disable to the kind it's about.
-
-One Mac quirk: `Cmd+←` and `Cmd+→` (with or without Shift) are how a Mac spells Home and End. The chord form can't tell them from `Ctrl+←` and `Ctrl+→`, which are the word key everywhere else, so the set holds `Mod+ArrowLeft` and `Mod+ArrowRight` only on a Mac.
+The set is built on each call, so it reflects the plugins this editor listed and the `keybindings` you passed: a keymap chord you disabled globally drops out, one you bound appears, and turning `searchBar` off drops `Mod+F` and `Mod+H`. A per-kind disable doesn't drop a chord from the set (other kinds still take it), and neither does disabling a text key like `Mod+Z` or `Shift+ArrowUp`, which the editor takes anyway. `claimsChord` follows a per-kind disable to the kind it's about.
 
 **Modifier chords only, in the set.** Bare keys (`Enter`, `Tab`, `Escape`, the arrows, `Backspace`) never appear in it: a focused document owns them (except Tab in reading mode, which is the page's), and an accelerator table has no use for them. For a "what can I press here" help sheet, use the [shortcut table](#keyboard-shortcuts).
 

@@ -433,9 +433,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (imeOwnsKey(e) || e.defaultPrevented) return;
+		// A whole-block kind has no child blocks, so an editable target is the plugin's own
+		// editor (its textarea), and the key is that editor's.
+		if (wholeBlockSurface && isEditableEventTarget(e.target)) return;
 		if (!ownsWholeBlockFocus(e)) {
-			// A key from a block inside ran this step there; one from the plugin's own editor or
-			// controls goes to the containers around this block from here.
+			// A key from a block inside ran this step there; one from this block's own controls
+			// goes to the containers around it from here.
 			const at = findBlockPathForElement(e.target instanceof Element ? e.target : null);
 			containerChords.take(e, at ?? deps.getPath());
 			return;

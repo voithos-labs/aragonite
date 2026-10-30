@@ -59,17 +59,15 @@ describe('a keybindings override reaches a table structural chord', () => {
 		expect(document.activeElement).toBe(cellAt(mounted!, 0, 1));
 	});
 
-	// A disable with no `kind` must reach the cell too: an override is what this editor wants,
-	// so it means the same wherever the chord resolves.
+	// A disable with no `kind` reaches the cell too, and a disabled chord does nothing: the row
+	// stays and so does the caret.
 	it('honors a global-scope disable of the row-reorder chord', async () => {
 		mountWith([{ chord: 'Alt+ArrowDown', command: null }]);
 
 		await pressInCell(mounted!, 1, 0, { key: 'ArrowDown', altKey: true });
 
 		expect(mounted!.source()).toBe(GRID);
-		// An unbound modified arrow navigates rather than doing nothing, so the row is intact
-		// and the caret moved down a row.
-		expect(document.activeElement).toBe(cellAt(mounted!, 2, 0));
+		expect(document.activeElement).toBe(cellAt(mounted!, 1, 0));
 	});
 
 	// The other way round: an override for a different kind must not free the cell's chord,

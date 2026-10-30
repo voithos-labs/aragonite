@@ -21,7 +21,7 @@ import {
 	takesGlobalChordOnKind
 } from '../../schema/commands';
 import { eventToChord, isCharacterKey, textKeyRole } from '../../schema/keybindings';
-import { hardcodedChordTaken, type ChordSiteScope } from '../../schema/reserved-chords';
+import { wholeBlockClipboardKey } from '../../editor-actions/container-block-component';
 import { rangeOwnsKey } from '../../selection/cross-block/keydown';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
 import type { SelectionState } from '../../selection/selection-state.svelte';
@@ -76,14 +76,6 @@ export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => 
 		return deps.containerChords.takes(e, path);
 	}
 
-	function sitedTakes(chord: string, where: ChordSiteScope, kinds: readonly string[]): boolean {
-		return hardcodedChordTaken(
-			chord,
-			(scope) => scope === where || (Array.isArray(scope) && scope.some((k) => kinds.includes(k))),
-			reading()
-		);
-	}
-
 	/** The editor root's own keys, which reach it from wherever focus is in the editor. */
 	function rootTakes(
 		e: KeyboardEvent,
@@ -113,8 +105,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => 
 		if (role === 'reads' || (role === 'writes' && !reading())) return true;
 		if (chord === null) return false;
 		if (isDefaultGlobalChord(chord, deps.commands.activation)) return true;
-		if (keymapTakes(e, chord, kind, path, true)) return true;
-		return sitedTakes(chord, 'leaf', [kind]);
+		return keymapTakes(e, chord, kind, path, true);
 	}
 
 	function wholeBlockTakes(
@@ -126,8 +117,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => 
 		if (chord && takesGlobalChordOnKind(chord, kind, deps.commands)) return true;
 		if (chord && keymapTakes(e, chord, kind, path, true)) return true;
 		if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') return true;
-		if (chord && !deps.selection.isCrossBlock && sitedTakes(chord, 'whole-block', [kind]))
-			return true;
+		if (wholeBlockClipboardKey(e) && !deps.selection.isCrossBlock) return true;
 		if (e.ctrlKey || e.metaKey || e.altKey) return false;
 		return isCharacterKey(e.key) || e.key.startsWith('Arrow');
 	}
@@ -140,20 +130,19 @@ export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => 
 		return isCharacterKey(e.key) && !reading();
 	}
 
-	/** A text field the editor shows (a link card's URL, a plugin's own editor): its own editing
-	 *  keys, and an open card's focus trap. */
-	function fieldTakes(
-		e: KeyboardEvent,
-		chord: string | null,
-		el: Element,
-		kinds: string[],
-		path: number[] | null
-	) {
+	/** A text field the editor shows (a link card's URL, a hand-built view's own field): its own
+	 *  editing keys, an open card's focus trap, and the chords of the containers around it. */
+	function fieldTakes(e: KeyboardEvent, el: Element, path: number[] | null) {
 		if (textKeyRole(e) !== null) return true;
 		if (path && deps.containerChords.takes(e, path)) return true;
 		if (deps.menusOpen() && FIELD_MENU_KEYS.has(e.key)) return true;
-		if (el.closest('[data-link-card]') && deps.opensLinkCard(e)) return true;
-		return !!chord && sitedTakes(chord, deps.menusOpen() ? 'menu' : 'leaf', kinds);
+		return !!el.closest('[data-link-card]') && deps.opensLinkCard(e);
+	}
+
+	/** The editor of a plugin's block focused as a whole (a diagram's source box), which keeps
+	 *  every key it reads to itself: its text keys, and Enter, Tab and Escape however modified. */
+	function pluginEditorTakes(e: KeyboardEvent) {
+		return textKeyRole(e) !== null || PLUGIN_EDITOR_KEYS.has(e.key);
 	}
 
 	/** A control the editor shows (a menu item, a button in a block): an open menu's keys, and a
@@ -165,8 +154,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => 
 		kind: AnyBlockKind | null,
 		path: number[] | null
 	) {
-		if (menuTakes(e, MENU_KEYS) || (chord && deps.menusOpen() && sitedTakes(chord, 'menu', [])))
-			return true;
+		if (menuTakes(e, MENU_KEYS)) return true;
 		if (el.closest('[data-link-card]') && deps.opensLinkCard(e)) return true;
 		if (kind === null || path === null) return false;
 		if (chord && keymapTakes(e, chord, kind, path, false)) return true;
@@ -198,14 +186,14 @@ export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => 
 		const kind = (path && blockNodeAt(deps.getDoc(), path)?.kind) ?? null;
 		const field = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
 		if (path === null || kind === null) {
-			return field ? fieldTakes(e, chord, el, [], null) : controlTakes(e, chord, el, null, null);
+			return field ? fieldTakes(e, el, null) : controlTakes(e, chord, el, null, null);
 		}
 		if (tryGetBlockKindDescriptor(kind)?.blockFocus === 'whole-block') {
 			return isEditableEventTarget(el)
-				? fieldTakes(e, chord, el, [kind], path)
+				? pluginEditorTakes(e)
 				: wholeBlockTakes(e, chord, kind, path);
 		}
-		if (field) return fieldTakes(e, chord, el, [kind], path);
+		if (field) return fieldTakes(e, el, path);
 		if (el.hasAttribute('contenteditable')) return leafTakes(e, chord, kind, path);
 		return controlTakes(e, chord, el, kind, path);
 	};
@@ -222,6 +210,9 @@ const GAP_KEYS = new Set([
 	'Delete',
 	'Escape'
 ]);
+
+// A plugin's own editor reads these itself, modified or not.
+const PLUGIN_EDITOR_KEYS = new Set(['Enter', 'Tab', 'Escape']);
 
 // An open card's field takes its focus trap and its Enter, modified or not.
 const FIELD_MENU_KEYS = new Set(['Enter', 'Tab']);

@@ -57,6 +57,7 @@ export const BLOCK_COMMAND_IDS = [
 	'list.toggleTask',
 	'cell.enter',
 	'cell.lineBreak',
+	'cell.openMenu',
 	'cell.tab',
 	'cell.shiftTab',
 	// Bound on `tableCell` (the block that holds the caret) but named for their subject: each takes

@@ -84,12 +84,13 @@ describe('collectReservedChords: per-instance overrides', () => {
 
 	// Disabling Mod+Z releases it to the host while focus is outside the editor; inside the editor
 	// the keypress is still swallowed.
-	it('drops a disabled global chord even though the branches still consume it', () => {
-		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(false);
+	it('drops a disabled keymap chord', () => {
+		expect(withOverrides([{ chord: 'Mod+B', command: null }]).has('Mod+B')).toBe(false);
 	});
 
-	it('keeps a hardcoded chord a global disable cannot reach', () => {
-		// Mod+C is read straight off the keydown, so unbinding it in the keymap changes nothing.
+	it('keeps a text key a global disable cannot reach', () => {
+		// The browser's own undo and copy would run on them, so the editor still takes them.
+		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(true);
 		expect(withOverrides([{ chord: 'Mod+C', command: null }]).has('Mod+C')).toBe(true);
 	});
 
@@ -102,12 +103,20 @@ describe('collectReservedChords: per-instance overrides', () => {
 
 // Cmd+Arrow is macOS's Home and End, which the edge sites take; the chord form folds Ctrl+Arrow, the
 // word motion of Windows and Linux, into the same `Mod+Arrow`.
-describe('the Cmd+Arrow edge chords', () => {
+describe('the text keys', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
-	it('are listed only where Cmd is the command key', () => {
-		expect(chords().has('Mod+ArrowLeft')).toBe(false);
+	// Ctrl+← is the word key off a Mac and Cmd+← a line edge on one: either way the caret's.
+	it('list the caret keys on every platform, read off the platform', () => {
+		expect(chords().has('Mod+ArrowLeft')).toBe(true);
 		vi.stubGlobal('navigator', { platform: 'MacIntel' });
 		expect(chords().has('Mod+ArrowLeft')).toBe(true);
+		expect(chords().has('Alt+Shift+ArrowRight')).toBe(true);
+	});
+
+	it('list the clipboard chords', () => {
+		for (const chord of ['Mod+C', 'Mod+X', 'Mod+V', 'Shift+Insert']) {
+			expect(chords().has(chord), chord).toBe(true);
+		}
 	});
 });

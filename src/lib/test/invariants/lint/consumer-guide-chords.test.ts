@@ -20,7 +20,7 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { normalizeChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { HARDCODED_CHORD_CLAIMS } from '#lib/schema/reserved-chords.js';
+import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
@@ -191,6 +191,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		commands: ['block.moveUp', 'block.moveDown']
 	},
 	'Cycle column alignment': { kind: 'tableCell', commands: ['table.cycleAlignment'] },
+	'Open the cell menu': { kind: 'tableCell', commands: ['cell.openMenu'] },
 	// The header-row completion rides the paragraph's own Enter, which is why it is a row here.
 	'Create a table': { kind: 'paragraph', commands: ['block.split'] },
 	// A plugin-global chord resolves on any kind that binds nothing of its own.
@@ -253,12 +254,8 @@ const TOKEN_FAMILIES: Record<string, TokenFamily> = {
 	Clipboard: {
 		files: [SOURCE.containerBlockComponent, SOURCE.textClipboard],
 		tokens: {
-			'Mod+C': ['(e.ctrlKey || e.metaKey)', "e.key === 'c'", 'widget.inline.start'],
-			'Mod+X': [
-				'(e.ctrlKey || e.metaKey)',
-				"e.key === 'x'",
-				"replaceSelectedWidget(deps, inline, ''"
-			]
+			'Mod+C': ["chord === 'Mod+C'", 'widget.inline.start'],
+			'Mod+X': ["chord === 'Mod+X'", "replaceSelectedWidget(deps, inline, ''"]
 		}
 	},
 	Images: {
@@ -324,8 +321,8 @@ function boundClaims(): BoundClaim[] {
 	return [...kindClaims, ...globalClaims, ...pluginClaims];
 }
 
-const hardcodedClaims = HARDCODED_CHORD_CLAIMS.flatMap((claim) =>
-	claim.chords.map((chord) => claimKey(chord, claim.file))
+const hardcodedClaims = HARDCODED_CHORD_SITES.flatMap((site) =>
+	(site.takes ?? []).map((chord) => claimKey(chord, site.file))
 );
 
 /** Whether some row lists the claim's chord for its command: the row's chord cell and its target
@@ -424,19 +421,7 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 	...unlisted(['Shift+Tab'], 'components/link-card/LinkCard.svelte', FOCUS_TRAP),
 	...unlisted(['Shift+Tab'], 'components/blocks/table/TableActionMenu.svelte', FOCUS_TRAP),
 	...unlisted(
-		['Shift+F10', 'ContextMenu'],
-		'components/blocks/table/TableBlock.svelte',
-		'the Tables preamble documents both in prose as the keyboard routes to the cell menu'
-	),
-	...unlisted(
-		[
-			'Mod+ArrowUp',
-			'Mod+ArrowDown',
-			'Alt+ArrowUp',
-			'Alt+ArrowDown',
-			'Mod+Alt+ArrowUp',
-			'Mod+Alt+ArrowDown'
-		],
+		['Mod+ArrowUp', 'Mod+ArrowDown'],
 		'components/blocks/table/cell-keydown-plan.ts',
 		'arrow navigation between cells, which § Rebinding chords says sits outside the keymap'
 	),
@@ -619,7 +604,7 @@ describe('consumer-guide chord coherence: self-tests', () => {
 			'Finish editing a diagram'
 		);
 		expect(familyRowFor(rows, 'Mod+Enter @ components/blocks/table/TableBlock.svelte')).toBeNull();
-		expect(familyRowFor(rows, 'Shift+F10 @ components/blocks/table/TableBlock.svelte')).toBeNull();
+		expect(familyRowFor(rows, 'Shift+Tab @ components/link-card/LinkCard.svelte')).toBeNull();
 	});
 
 	// Miss-analysis: chords were keyed by string alone, and no case held one chord with two meanings.

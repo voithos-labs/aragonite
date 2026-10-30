@@ -60,6 +60,13 @@ export function dispatchOwnKindChord(
 	return true;
 }
 
+/** Mod+C or Mod+X on a block focused as a whole, which copies its own Markdown through writeText:
+ *  a keydown carries no ClipboardEvent. `claimsChord` asks the same. */
+export function wholeBlockClipboardKey(e: KeyboardEvent): 'copy' | 'cut' | null {
+	const chord = eventToChord(e);
+	return chord === 'Mod+C' ? 'copy' : chord === 'Mod+X' ? 'cut' : null;
+}
+
 export interface BlockEdgeExitDeps {
 	getIndex: () => number;
 	focus: Pick<FocusActions, 'moveFocus'>;
@@ -129,12 +136,12 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 		return;
 	}
 
-	// Mod+C and Mod+X copy the block's own Markdown through writeText, since a keydown carries no
-	// ClipboardEvent; a range across blocks is left to the copy event the editor's handlers take.
-	if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'x')) {
+	// A range across blocks is left to the copy event the editor's handlers take.
+	const clipboard = wholeBlockClipboardKey(e);
+	if (clipboard) {
 		if (deps.selection.isCrossBlock) return;
 		e.preventDefault();
-		void copyFocusedWholeBlock(deps, e.key === 'x');
+		void copyFocusedWholeBlock(deps, clipboard === 'cut');
 		return;
 	}
 

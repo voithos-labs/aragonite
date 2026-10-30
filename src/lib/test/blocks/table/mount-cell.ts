@@ -35,6 +35,7 @@ function makeStubTableContext(): StubTableContext {
 		revealColumn: vi.fn(),
 		exitUpward: vi.fn(),
 		exitDownward: vi.fn(),
+		openCellMenu: vi.fn(),
 		notifyCellFocused: vi.fn(),
 		notifyCellBlurred: vi.fn(),
 		insertRowAbove: vi.fn(),

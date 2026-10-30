@@ -103,6 +103,9 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowLeft', command: 'table.moveColumnLeft' },
 	{ chord: 'Alt+ArrowRight', command: 'table.moveColumnRight' },
 	{ chord: 'Mod+Shift+A', command: 'table.cycleAlignment' },
+	// The keyboard's right-click: the browser's own context menu would open over the cell.
+	{ chord: 'Shift+F10', command: 'cell.openMenu' },
+	{ chord: 'ContextMenu', command: 'cell.openMenu' },
 	// Moves the whole table among its siblings, since Alt+Arrow, the reorder chord every other
 	// kind uses, moves the row the caret is in.
 	{ chord: 'Mod+Alt+ArrowUp', command: 'block.moveUp' },
