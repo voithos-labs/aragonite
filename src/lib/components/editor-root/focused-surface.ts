@@ -88,11 +88,17 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 	const insertAtFocus = (md: string, madeFor: DocumentStamp): Promise<boolean> =>
 		aimAtFocus(madeFor)?.markdown(md) ?? Promise.resolve(false);
 
-	async function insertBelow(topIndex: number, md: string, madeFor: DocumentStamp) {
+	/** Pastes into the paragraph `mint` opens, one undo entry with it; reading mode opens none. */
+	async function insertIntoNew(
+		mint: () => Promise<boolean>,
+		md: string,
+		at: number[],
+		madeFor: DocumentStamp
+	): Promise<boolean> {
+		if (deps.isReading()) return false;
 		let inserted = false;
-		await deps.undoStep([topIndex], 0, async () => {
-			await deps.insertParagraph(topIndex + 1, '');
-			inserted = await insertAtFocus(md, madeFor);
+		await deps.undoStep(at, 0, async () => {
+			if (await mint()) inserted = await insertAtFocus(md, madeFor);
 		});
 		return inserted;
 	}
@@ -121,19 +127,11 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 			const madeFor = deps.stamps.current();
 			if (options?.placement !== 'below') return insertAtFocus(md, madeFor);
 			const at = path();
-			if (!at || deps.isReading() || !deps.getBlockComponent(at)?.insertMarkdown) {
-				return Promise.resolve(false);
-			}
-			return insertBelow(at[0], md, madeFor);
+			if (!at || !deps.getBlockComponent(at)?.insertMarkdown) return Promise.resolve(false);
+			const topIndex = at[0];
+			return insertIntoNew(() => deps.insertParagraph(topIndex + 1, ''), md, [topIndex], madeFor);
 		},
 		aimInsertAtFocus: () => aimAtFocus(deps.stamps.current()),
-		async pasteAsBlocks(mint, md, at) {
-			const madeFor = deps.stamps.current();
-			let inserted = false;
-			await deps.undoStep(at, 0, async () => {
-				if (await mint()) inserted = await insertAtFocus(md, madeFor);
-			});
-			return inserted;
-		}
+		pasteAsBlocks: (mint, md, at) => insertIntoNew(mint, md, at, deps.stamps.current())
 	};
 }

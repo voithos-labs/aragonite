@@ -80,6 +80,20 @@ describe('a paste on a block focused whole', () => {
 	});
 });
 
+// Miss-analysis: every boundary-paste row mounted an editable document, so none saw the reading-mode
+// check that the paste route skipped.
+describe('a paste on a block focused whole in reading mode', () => {
+	it('writes nothing', async () => {
+		const source = 'a\n\n---\n\nb\n';
+		const editor = mountEditor<Lookup>({ source, presentationMode: 'reading' });
+		await editor.settle();
+		editor.instance.__test.getBlockComponent([1])!.focus?.(0);
+		await editor.settle();
+		await paste('PASTED');
+		expect(editor.source()).toBe(source);
+	});
+});
+
 describe('claimsChord at a gap and on a block focused whole', () => {
 	it('takes the paste chord at both', async () => {
 		const press = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true });
