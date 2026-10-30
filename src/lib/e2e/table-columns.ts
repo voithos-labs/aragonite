@@ -25,7 +25,7 @@ export async function runColumnCommand(page: Page, command: ColumnCommand): Prom
 	const cell = page.locator('.table-cell:focus-within');
 	await expect(cell).toHaveCount(1);
 	await openFlyout(page, cell, 'Column');
-	await page.getByRole('menuitem', { name: command }).click();
+	await clickInPlace(page.getByRole('menuitem', { name: command }));
 }
 
 /** Whether the page reads its platform as a Mac's, as the editor's conventions do. */
