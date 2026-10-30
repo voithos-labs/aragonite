@@ -1455,5 +1455,5 @@ a letter or a digit. The word delete, the word keys and the double-click read wo
 
 **G4.276 · One reader for a widget's raw span.** A widget or a decoration says which raw bytes it
 stands for in `data-source-start` and `data-source-end`, and only
-`core/inline/widget-shell.ts :: widgetSourceRange` reads them back. It answers null unless both
+`core/inline/widget-shell.ts :: widgetSourceRange` parses them back. It answers null unless both
 parse, so no reader trusts half a span. Writing them is fine anywhere. `lint/file-rules.test.ts`.
