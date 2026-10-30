@@ -10,6 +10,7 @@ import { rawRangeToDomRange } from './offsets';
 import { rawSelectionFocus, readNativeSelection } from './selection-read';
 import type { CaretWriter } from './caret-writer';
 import { caretOffsetAtPoint, offsetFromViewportPoint } from './point';
+import { widgetSourceRange } from '../core/inline/widget-shell';
 
 // A generic line box for a `normal` computed `lineHeight`, which parses to NaN.
 const FALLBACK_LINE_HEIGHT = 20;
@@ -135,8 +136,8 @@ function widgetAtLineEdge(el: HTMLElement, line: LineBox, side: 'start' | 'end')
 		if (!box || box.bottom <= line.top || box.top >= line.bottom) continue;
 		if (side === 'start' ? box.left > line.left + 1 : box.right < line.right - 1) continue;
 		if (side === 'end' && shell.querySelector('br')) continue;
-		const edge = Number(side === 'start' ? shell.dataset.sourceStart : shell.dataset.sourceEnd);
-		if (Number.isInteger(edge)) return edge;
+		const span = widgetSourceRange(shell);
+		if (span) return span[side];
 	}
 	return null;
 }
@@ -166,10 +167,9 @@ export function lineStepBesideWidget(el: HTMLElement, direction: 'up' | 'down'):
 			: caret.bottom + half;
 	const raw = caretOffsetAtPoint(el, caret.left, y);
 	if (raw === null || !towardWidget) return raw;
-	const { sourceStart, sourceEnd } = (widget as HTMLElement).dataset;
-	const [start, end] = [Number(sourceStart), Number(sourceEnd)];
+	const span = widgetSourceRange(widget);
 	// The widget's near edge is the spot the caret leaves, so a column over it takes the far one.
-	return raw >= start && raw <= end ? (after ? end : start) : raw;
+	return span && raw >= span.start && raw <= span.end ? (after ? span.end : span.start) : raw;
 }
 
 /** The box of what `el` draws on the visual line nearest `y`, read as `lineEndNearest` reads it. */

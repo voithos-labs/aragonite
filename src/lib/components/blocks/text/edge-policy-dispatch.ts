@@ -10,6 +10,7 @@ import type { NodeView } from '../../../core/node-views';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import { widgetSourceRange } from '../../../core/inline/widget-shell';
 import { getContentRange, structuralSuffix } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
@@ -343,9 +344,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		recordIslandKeyScan();
 		const out: IslandSpan[] = [];
 		for (const node of el.querySelectorAll<HTMLElement>('[data-decoration-island]')) {
-			const start = Number(node.dataset.sourceStart);
-			const end = Number(node.dataset.sourceEnd);
-			if (Number.isInteger(start) && Number.isInteger(end)) out.push({ start, end, el: node });
+			const span = widgetSourceRange(node);
+			if (span) out.push({ ...span, el: node });
 		}
 		return out;
 	}

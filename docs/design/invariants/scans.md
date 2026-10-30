@@ -222,6 +222,7 @@ unguarded.
 | G4.273 | A keydown handler that runs a command asks `imeOwnsKey` first                                    | L       |
 | G4.274 | A typed insert or a typed key is read only where the editor decides where it lands               | L       |
 | G4.275 | Words are cut by one rule, read only through `wordSegments`                                      | L       |
+| G4.276 | A widget's raw span is read only through `widgetSourceRange`                                     | L       |
 
 ### The entries
 

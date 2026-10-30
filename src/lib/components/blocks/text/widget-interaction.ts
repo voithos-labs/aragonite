@@ -25,6 +25,7 @@ import {
 	widgetElByStart
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
+import { widgetSourceRange } from '../../../core/inline/widget-shell';
 import { asRawOffset } from '../../../core/coordinate-spaces';
 import { rawRangeToDomRange, type RawRange } from '../../../browser/offsets';
 import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
@@ -384,8 +385,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			at instanceof Element ? at.closest('[data-inline-widget][data-source-start]') : null;
 		// The point may sit over another block's widget entirely.
 		if (!island || !el.contains(island)) return null;
-		const start = Number(island.getAttribute('data-source-start'));
-		if (!Number.isInteger(start)) return null;
+		const start = widgetSourceRange(island)?.start;
+		if (start === undefined) return null;
 		const inline = widgetsOf().find(
 			(n) => n.start === start && widgetEditing(n.kind)?.revealSource
 		);

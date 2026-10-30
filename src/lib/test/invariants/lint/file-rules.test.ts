@@ -565,6 +565,28 @@ const RULES: FileRule[] = [
 		misses: ['const segments = wordSegments(text);', 'const unit = graphemeSegmenter();']
 	},
 	{
+		id: 'G4.276 a widget’s raw span is read only through `widgetSourceRange`',
+		matches:
+			/\bdataset\.source(?:Start|End)\b(?!\s*=[^=])|getAttribute\(\s*['"]data-source-(?:start|end)['"]/,
+		allowed: {
+			'src/lib/core/inline/widget-shell.ts': '`widgetSourceRange` itself',
+			'src/lib/components/blocks/widget-portal.ts':
+				'compares the stamped span with the node’s before writing it again'
+		},
+		reason:
+			'a widget or decoration names its raw span in `data-source-start` and `data-source-end`, and a reader that parses them by hand drifts on a missing or partial span: read it through `widgetSourceRange` in `core/inline/widget-shell.ts`',
+		hits: [
+			'const start = Number(shell.dataset.sourceStart);',
+			"const end = el.getAttribute('data-source-end');",
+			'if (a.dataset.sourceEnd === b) {}'
+		],
+		misses: [
+			'shell.dataset.sourceStart = String(node.start);',
+			'const span = widgetSourceRange(shell);',
+			"el.querySelector('[data-source-start]')"
+		]
+	},
+	{
 		id: 'G4.243 the caret’s line is decided through the soft-wrap read',
 		matches: /\bcaretRectAt(?:Raw)?\s*\(/,
 		allowed: {
