@@ -13,14 +13,17 @@ const PREBUILT_DIR = 'dist/prebuilt';
 
 // Gzipped bytes per entry, each a little above what it measured, and 23,656 of CSS. A group owns
 // the files its entry loads that no earlier group does. Measured: index 482,984, plugin 9,470,
-// svelte 634, admonitions 4,392, details 3,983, emoji 16,354, footnotes 4,330, highlight-occurrences
-// 1,573, latex 7,474, mermaid 6,916, parrot 4,315, slash-commands 1,962, toc 2,828, testing 18,601.
+// svelte 634, runtime/svelte 152, runtime/svelte/internal/client 339, admonitions 4,392, details
+// 3,983, emoji 16,354, footnotes 4,330, highlight-occurrences 1,573, latex 7,474, mermaid 6,916,
+// parrot 4,315, slash-commands 1,962, toc 2,828, testing 18,601.
 /** @type {{ js: Record<string, number>, css: number }} */
 const BUDGET = {
 	js: {
 		index: 483_400,
 		plugin: 9_600,
 		svelte: 750,
+		'runtime/svelte': 250,
+		'runtime/svelte/internal/client': 450,
 		'plugins/admonitions': 4_650,
 		'plugins/details': 4_100,
 		'plugins/emoji': 16_500,
@@ -187,6 +190,8 @@ function budgetGroups(files) {
 		['index', [at('index.js')]],
 		['plugin', [at('plugin.js')]],
 		['svelte', [at('svelte.js')]],
+		['runtime/svelte', [at('runtime/svelte.js')]],
+		['runtime/svelte/internal/client', [at('runtime/svelte/internal/client.js')]],
 		...plugins.map(
 			(name) =>
 				/** @type {[string, string[]]} */ ([

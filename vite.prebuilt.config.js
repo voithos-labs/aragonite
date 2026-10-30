@@ -7,6 +7,7 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { publishedEntryPoints } from './scripts/lib-alias.mjs';
 import { prebuiltExternals } from './scripts/pack/pack-manifest.mjs';
+import { runtimeEntriesExportWhatPluginsUse } from './scripts/pack/svelte-runtime-names.mjs';
 
 const entry = Object.fromEntries(
 	publishedEntryPoints().map(({ source, prebuilt }) => [
@@ -40,6 +41,7 @@ const noticeEveryBundledPackage = {
 
 export default defineConfig({
 	plugins: [
+		runtimeEntriesExportWhatPluginsUse(() => ['src/lib/plugins']),
 		svelte({ configFile: false, compilerOptions: { runes: true } }),
 		noticeEveryBundledPackage
 	],
