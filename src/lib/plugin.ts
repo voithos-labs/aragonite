@@ -269,6 +269,7 @@ export { blockquoteExtent } from './core/parsers/blockquote';
 // A container whose every line carries a prefix rebuilds through `rebuildStripRaw`, which keeps
 // every line an edit didn't touch; a `LineCodec` (`quoteLines`, `hangingIndentLines`) is the prefix.
 export { rebuildStripRaw } from './schema/strip-rebuild';
+export type { StripRebuild, StripRebuildOptions } from './schema/strip-rebuild';
 export { quoteLines } from './core/parsers/blockquote';
 export { hangingIndentLines } from './core/strip-lines';
 export type { LineCodec, LinePlace, BodyLine } from './core/strip-lines';
