@@ -2,13 +2,14 @@
 // the entry points its `exports` publishes, and the subpaths the library imports by its own name.
 // The source scans and the consumer plugin sync read all three through here, so each is spelled in
 // package.json alone.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // A path, not a URL: under a jsdom test the global URL is jsdom's, which `fs` refuses.
-const PACKAGE_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), '../package.json');
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PACKAGE_JSON = path.join(ROOT, 'package.json');
 
 const PACKAGE = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8'));
 /** @type {Record<string, string>} */
@@ -33,16 +34,90 @@ const SELF_IMPORTS = new Map(
 	})
 );
 
-/** Make this Node process resolve the source condition too, so a test runner that loads library
- *  source outside Vite (Playwright) reaches the self-imports' source files. */
+/** Make this Node process resolve the self-imports and the workspace's published entry points to
+ *  this checkout's source, so a test runner that loads library source outside Vite (Playwright)
+ *  runs the files Vite does. */
 export function resolveSelfImportsFromSource() {
 	// Vitest resolves the condition through its own config and refuses Node's hooks. A process it
 	// spawns inherits VITEST, so the check asks whether this process is a Vitest worker.
 	if ('__vitest_worker__' in globalThis) return;
+	const sources = workspaceSources();
 	registerHooks({
-		resolve: (specifier, context, nextResolve) =>
-			nextResolve(specifier, { ...context, conditions: [...context.conditions, SOURCE_CONDITION] })
+		resolve: (specifier, context, nextResolve) => {
+			const source = sources.get(specifier);
+			if (source !== undefined) {
+				return { url: pathToFileURL(path.join(ROOT, source)).href, shortCircuit: true };
+			}
+			return nextResolve(specifier, {
+				...context,
+				conditions: [...context.conditions, SOURCE_CONDITION]
+			});
+		}
 	});
+}
+
+// ── Workspace packages ───────────────────────────────────────────────────────
+
+/** The npm keyword that marks a package as an aragonite plugin. */
+export const PLUGIN_KEYWORD = 'aragonite-plugin';
+
+/**
+ * @typedef {object} WorkspacePackage
+ * @property {string} dir Its directory from the repo root, e.g. `packages/latex`.
+ * @property {Record<string, any>} manifest Its package.json.
+ */
+
+/** Every package the root's `workspaces` globs (each `<dir>/*`) name. */
+export function workspacePackages() {
+	/** @type {WorkspacePackage[]} */
+	const found = [];
+	for (const glob of PACKAGE.workspaces ?? []) {
+		const parent = glob.replace(/\/\*$/, '');
+		for (const entry of readdirSync(path.join(ROOT, parent), { withFileTypes: true })) {
+			const manifest = path.join(ROOT, parent, entry.name, 'package.json');
+			if (!entry.isDirectory() || !existsSync(manifest)) continue;
+			found.push({
+				dir: `${parent}/${entry.name}`,
+				manifest: JSON.parse(readFileSync(manifest, 'utf8'))
+			});
+		}
+	}
+	return found.sort((a, b) => a.dir.localeCompare(b.dir));
+}
+
+/** The workspace packages carrying the plugin keyword. */
+export function pluginPackages() {
+	return workspacePackages().filter(({ manifest }) =>
+		(manifest.keywords ?? []).includes(PLUGIN_KEYWORD)
+	);
+}
+
+/**
+ * Each published entry point in this checkout, the core's and every plugin package's, from the
+ * specifier a host imports it by to its source file. The repo's toolchain resolves these itself,
+ * since a nested worktree's `node_modules` links the package names to another checkout.
+ * @returns {Map<string, string>}
+ */
+export function workspaceSources() {
+	const core = publishedEntryPoints().map(({ subpath, source }) => [
+		`${PACKAGE.name}${subpath.slice(1)}`,
+		source
+	]);
+	const plugins = pluginPackages().flatMap(({ dir, manifest }) =>
+		publishedEntryPoints(manifest, `${dir}/src`).map(({ subpath, source }) => [
+			`${manifest.name}${subpath.slice(1)}`,
+			source
+		])
+	);
+	return new Map(/** @type {[string, string][]} */ ([...core, ...plugins]));
+}
+
+/** `workspaceSources` as Vite aliases, each matching its specifier exactly. */
+export function workspaceSourceAliases() {
+	return [...workspaceSources()].map(([specifier, source]) => ({
+		find: new RegExp(`^${specifier.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}$`),
+		replacement: path.join(ROOT, source)
+	}));
 }
 
 /** The specifiers the library imports itself by (`@voithos-labs/aragonite/dev-checks`). */
@@ -150,9 +225,10 @@ export function importedFile(importer, specifier, isFile, bare = aliasPath) {
  * self-import subpath is not one). Throws on an entry whose `default` is not its `svelte` path
  * moved under `dist/prebuilt/` (G4.174).
  * @param {{ exports?: Record<string, any> }} [pkg] The manifest to read, this repo's by default.
+ * @param {string} [sourceDir] The directory its entry points are built from, from the repo root.
  * @returns {EntryPoint[]}
  */
-export function publishedEntryPoints(pkg = PACKAGE) {
+export function publishedEntryPoints(pkg = PACKAGE, sourceDir = 'src/lib') {
 	/** @type {EntryPoint[]} */
 	const out = [];
 	for (const [subpath, target] of Object.entries(pkg.exports ?? {})) {
@@ -166,7 +242,7 @@ export function publishedEntryPoints(pkg = PACKAGE) {
 					`"./dist/prebuilt/<path>.js", but has "${svelte}" and "${prebuilt}"`
 			);
 		}
-		out.push({ subpath, source: `src/lib/${built[1]}.ts`, svelte, prebuilt });
+		out.push({ subpath, source: `${sourceDir}/${built[1]}.ts`, svelte, prebuilt });
 	}
 	return out;
 }

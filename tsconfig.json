@@ -5,6 +5,33 @@
 		"allowImportingTsExtensions": false,
 		// Resolves `@voithos-labs/aragonite/dev-checks` to its source file (package.json `exports`).
 		"customConditions": ["aragonite-source"],
+		// The package names reach this checkout's source (`scripts/lib-alias.mjs :: workspaceSources`).
+		"paths": {
+			"@voithos-labs/aragonite": ["./src/lib/index.ts"],
+			"@voithos-labs/aragonite/plugin": ["./src/lib/plugin.ts"],
+			"@voithos-labs/aragonite/svelte": ["./src/lib/svelte.ts"],
+			"@voithos-labs/aragonite/runtime/svelte": ["./src/lib/runtime/svelte.ts"],
+			"@voithos-labs/aragonite/runtime/svelte/internal/client": [
+				"./src/lib/runtime/svelte/internal/client.ts"
+			],
+			"@voithos-labs/aragonite/plugins/admonitions": ["./src/lib/plugins/admonitions/index.ts"],
+			"@voithos-labs/aragonite/plugins/details": ["./src/lib/plugins/details/index.ts"],
+			"@voithos-labs/aragonite/plugins/emoji": ["./src/lib/plugins/emoji/index.ts"],
+			"@voithos-labs/aragonite/plugins/footnotes": ["./src/lib/plugins/footnotes/index.ts"],
+			"@voithos-labs/aragonite/plugins/latex": ["./src/lib/plugins/latex/index.ts"],
+			"@voithos-labs/aragonite/plugins/latex/renderer": ["./src/lib/plugins/latex/renderer.ts"],
+			"@voithos-labs/aragonite/plugins/mermaid": ["./src/lib/plugins/mermaid/index.ts"],
+			"@voithos-labs/aragonite/plugins/mermaid/renderer": ["./src/lib/plugins/mermaid/renderer.ts"],
+			"@voithos-labs/aragonite/plugins/parrot": ["./src/lib/plugins/parrot/index.ts"],
+			"@voithos-labs/aragonite/plugins/toc": ["./src/lib/plugins/toc/index.ts"],
+			"@voithos-labs/aragonite/plugins/highlight-occurrences": [
+				"./src/lib/plugins/highlight-occurrences/index.ts"
+			],
+			"@voithos-labs/aragonite/plugins/slash-commands": [
+				"./src/lib/plugins/slash-commands/index.ts"
+			],
+			"@voithos-labs/aragonite/testing": ["./src/lib/testing.ts"]
+		},
 		"sourceMap": true,
 		"strict": true
 	},
