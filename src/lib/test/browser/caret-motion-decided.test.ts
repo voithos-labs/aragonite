@@ -29,7 +29,7 @@ describe('caret-motion-decided (G1.163)', () => {
 		w.placeCaretAtRaw(el, 5, { clamp: 'exact' });
 		w.noteDecidedMotion();
 		window.getSelection()!.collapse(el.firstChild, 7);
-		w.settleDecidedMotion();
+		w.checkDecidedMotion();
 		expect(takeDevWarns().map((each) => each.tag)).toEqual(['invariant:caret-motion-decided']);
 	});
 
@@ -37,9 +37,9 @@ describe('caret-motion-decided (G1.163)', () => {
 		const { el, writer: w } = writer();
 		w.placeCaretAtRaw(el, 5, { clamp: 'exact' });
 		w.noteDecidedMotion();
-		w.settleDecidedMotion();
+		w.checkDecidedMotion();
 		window.getSelection()!.collapse(el.firstChild, 7);
-		w.settleDecidedMotion();
+		w.checkDecidedMotion();
 		expect(takeDevWarns()).toEqual([]);
 	});
 });

@@ -4,7 +4,6 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { domDescendants } from '../../browser/dom-descendants';
 import { asDomTextOffset } from '../../core/coordinate-spaces';
-import { findFirstTextNode, findLastTextNode } from '../../browser/visual-lines';
 import {
 	containerDomTextLength,
 	createRangeAtDomTextOffsets,
@@ -64,10 +63,12 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 		expect(range?.toString()).toBe(LEAF);
 	}, 120_000);
 
-	it('finds the first and last measurable text under the chain', () => {
+	it('finds the first and last text under the chain from either end', () => {
 		const chain = root.childNodes[1];
-		expect(findFirstTextNode(chain)?.textContent).toBe(LEAF[0]);
-		expect(findLastTextNode(chain)?.textContent).toBe(LEAF[1]);
+		const firstText = (fromEnd: boolean) =>
+			[...domDescendants(chain, undefined, { fromEnd })].find((n) => n instanceof Text);
+		expect(firstText(false)?.textContent).toBe(LEAF[0]);
+		expect(firstText(true)?.textContent).toBe(LEAF[1]);
 	}, 120_000);
 
 	// Descending into the container's marker prefix asks a different question from the search for

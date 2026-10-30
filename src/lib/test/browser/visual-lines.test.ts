@@ -6,14 +6,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	caretRectAt,
-	getCharRangeTop,
-	findFirstTextNode,
-	findLastTextNode,
 	isAtFirstVisualLine,
 	isAtLastVisualLine,
 	softWrapAt,
 	type LineRead
 } from '../../browser/visual-lines';
+import { edgeLineIsOn } from '#lib/test/harness/edge-line-measure.js';
 
 /** Every row here but the wrap's measures a caret off a soft wrap, where the browser is never asked. */
 const OFF_A_WRAP: LineRead = {
@@ -22,49 +20,22 @@ const OFF_A_WRAP: LineRead = {
 	}
 };
 
-describe('findFirstTextNode / findLastTextNode', () => {
-	it('returns the node itself when it is a non-empty text node', () => {
-		const text = document.createTextNode('hi');
-		expect(findFirstTextNode(text)).toBe(text);
-		expect(findLastTextNode(text)).toBe(text);
-	});
+describe('the edge line is measured on the first and last text the block lays out', () => {
+	afterEach(() => document.body.replaceChildren());
 
-	it('returns null for an empty container', () => {
-		const el = document.createElement('div');
-		expect(findFirstTextNode(el)).toBeNull();
-		expect(findLastTextNode(el)).toBeNull();
-	});
-
-	it('skips empty text nodes', () => {
-		const el = document.createElement('div');
-		el.appendChild(document.createTextNode(''));
-		const real = document.createTextNode('x');
-		el.appendChild(real);
-		expect(findFirstTextNode(el)).toBe(real);
-		expect(findLastTextNode(el)).toBe(real);
-	});
-
-	it('descends into nested elements and respects document order', () => {
-		const el = document.createElement('div');
-		el.innerHTML = '<span>a</span>mid<b><i>z</i></b>';
-		const first = findFirstTextNode(el);
-		const last = findLastTextNode(el);
-		expect(first?.textContent).toBe('a');
-		expect(last?.textContent).toBe('z');
-	});
-
-	it('finds the descendant text node when children are element-only', () => {
-		const el = document.createElement('div');
-		el.innerHTML = '<span><b>deep</b></span>';
-		expect(findFirstTextNode(el)?.textContent).toBe('deep');
-		expect(findLastTextNode(el)?.textContent).toBe('deep');
-	});
-
-	it('returns null when only empty text and marker elements are present', () => {
-		const el = document.createElement('div');
-		el.innerHTML = '<span class="md-marker"></span>';
-		expect(findFirstTextNode(el)).toBeNull();
-		expect(findLastTextNode(el)).toBeNull();
+	it('skips empty text and descends into nested elements, in document order', () => {
+		const block = document.createElement('div');
+		const [a, mid, z] = ['a', 'mid', 'z'].map((t) => document.createTextNode(t));
+		const nested = document.createElement('span');
+		nested.appendChild(document.createElement('b')).append(a);
+		const tail = document.createElement('b');
+		tail.appendChild(document.createElement('i')).append(z);
+		block.append(document.createTextNode(''), nested, mid, tail, document.createTextNode(''));
+		document.body.append(block);
+		expect(edgeLineIsOn(block, a, 'first')).toBe(true);
+		expect(edgeLineIsOn(block, mid, 'first')).toBe(false);
+		expect(edgeLineIsOn(block, z, 'last')).toBe(true);
+		expect(edgeLineIsOn(block, mid, 'last')).toBe(false);
 	});
 });
 
@@ -155,38 +126,6 @@ describe('caretRectAt', () => {
 			stubEngine((node) => (node === body ? 40 : 0));
 			expect(caretRectAt(document.body, fence.firstChild!, 6)?.top).toBe(40);
 		});
-	});
-});
-
-describe('getCharRangeTop', () => {
-	let text: Text;
-	const original = Range.prototype.getClientRects;
-
-	beforeEach(() => {
-		text = document.createTextNode('abcdef');
-		document.body.appendChild(text);
-	});
-
-	afterEach(() => {
-		Range.prototype.getClientRects = original;
-		text.remove();
-	});
-
-	it('returns null for an out-of-bounds offset', () => {
-		Range.prototype.getClientRects = () => rectListOf(rectAt(10));
-		expect(getCharRangeTop(text, 999, false)).toBeNull();
-	});
-
-	it('measures the char range top for a forward (not-at-end) range', () => {
-		Range.prototype.getClientRects = function (this: Range) {
-			return rectListOf(rectAt(this.startContainer === text ? 17 : 0));
-		} as typeof Range.prototype.getClientRects;
-		expect(getCharRangeTop(text, 0, false)).toBe(17);
-	});
-
-	it('measures the char range top for an at-end range', () => {
-		Range.prototype.getClientRects = () => rectListOf(rectAt(33));
-		expect(getCharRangeTop(text, 6, true)).toBe(33);
 	});
 });
 

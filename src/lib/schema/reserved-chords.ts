@@ -317,6 +317,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'A modified click is a platform command, so the dead-space caret declines it.'
 	},
 	{
+		file: 'selection/motion-keys.ts',
+		chords: [],
+		keys: [],
+		note: 'Its caret keys are read by motionKey (schema/keybindings.ts); a vertical arrow with Ctrl or Cmd is left to the browser, never claimed.'
+	},
+	{
 		file: 'selection/shared-keydown.ts',
 		chords: ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp'],

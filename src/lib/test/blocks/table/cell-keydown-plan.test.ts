@@ -126,13 +126,13 @@ describe('cellKeydownPlan: arrow boundary moves', () => {
 		// A cell that opens or closes with a run the mode draws nothing for: the move fires at
 		// the offsets the caret can reach, not at raw 0 and the raw length.
 		[
-			'ArrowLeft at a landable start short of 0',
+			'ArrowLeft at a reachable start short of 0',
 			key('ArrowLeft'),
 			{ offset: 1, contentStart: 1 },
 			cell(1, 0, 'end')
 		],
 		[
-			'ArrowRight at a landable end short of the raw length',
+			'ArrowRight at a reachable end short of the raw length',
 			key('ArrowRight'),
 			{ offset: 5, contentEnd: 5 },
 			cell(1, 2, 'start')
@@ -208,13 +208,13 @@ describe('cellKeydownPlan: backspace, delete, and native fallthrough', () => {
 		],
 		['Backspace mid-text', key('Backspace'), {}, { kind: 'native' }],
 		[
-			'Backspace at a landable start short of 0',
+			'Backspace at a reachable start short of 0',
 			key('Backspace'),
 			{ offset: 1, contentStart: 1 },
 			cell(1, 0, 'end')
 		],
 		[
-			'Delete at a landable end short of the raw length',
+			'Delete at a reachable end short of the raw length',
 			key('Delete'),
 			{ offset: 5, contentEnd: 5 },
 			cell(1, 2, 'start')

@@ -117,7 +117,7 @@ describe('G1.33 fires from the focus boundary', () => {
 		blockComponentAt(editor, [0]).parkCaret?.(0);
 		await editor.settle();
 
-		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:landable-caret']);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:caret-can-land']);
 	});
 
 	// Source mode paints every byte, so the same call over the same markers traps nothing.
@@ -161,7 +161,7 @@ describe('G1.33 fires from the focus boundary', () => {
 
 		// Through the caret writer, which refuses the caret as well (G1.159).
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([
-			'invariant:landable-caret',
+			'invariant:caret-can-land',
 			'invariant:caret-paints'
 		]);
 	});
@@ -179,7 +179,7 @@ describe('G1.33 fires from the focus boundary', () => {
 
 		// Through the caret writer, which refuses the caret as well (G1.159).
 		expect(takeDevWarns().map((w) => w.tag)).toEqual([
-			'invariant:landable-caret',
+			'invariant:caret-can-land',
 			'invariant:caret-paints'
 		]);
 	});

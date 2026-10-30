@@ -9,6 +9,7 @@ import { graphemeSegmenter, hasWordSegmenter, wordSegments } from '../core/text-
 import { recordDeleteWindow } from '../perf/instruments';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
 import { charsEndingBy, visibleIndexAt, type VisibleText } from '../browser/offsets';
+import { lineEdgeOffset, type LineRead } from '../browser/visual-lines';
 import type { DeleteDirection, DeleteIntent } from '../browser/input';
 
 export interface DeleteSpan {
@@ -61,6 +62,26 @@ export interface DeleteContext {
 	/** The text as the screen shows it (hidden markers left out, a widget one character), read only
 	 *  for a word, since it walks the block. */
 	visible?: () => VisibleText;
+}
+
+/** The context a block's delete and caret keys read at `caret` in `el`, its visual line's edges
+ *  measured there; `bounds` null where every offset of `text` is one a caret reaches. */
+export function unitContextAt(at: {
+	el: HTMLElement;
+	text: string;
+	caret: number;
+	bounds: DeleteSpan | null;
+	lineRead: LineRead;
+	visible?: () => VisibleText;
+}): DeleteContext {
+	const { el, text, caret, lineRead } = at;
+	return {
+		text,
+		caret,
+		bounds: at.bounds ?? { start: 0, end: text.length },
+		lineEdge: (side) => lineEdgeOffset(el, caret, side, lineRead),
+		visible: at.visible
+	};
 }
 
 /** The raw span a delete of `intent` takes at the caret; null where there's nothing to take. A word

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: the caret checks asked where a caret went, never whether its block paints at all.
 import { describe, it, expect, afterEach } from 'vitest';
-import { checkLandableCaret } from '../../invariants/landable-caret';
+import { checkCaretCanLand } from '../../invariants/caret-can-land';
 import { CONTENT_EMPTY_ATTR } from '../../browser/painted';
 
 function block(mode: string | undefined, marker: string, stamped = false): HTMLElement {
@@ -24,31 +24,31 @@ function block(mode: string | undefined, marker: string, stamped = false): HTMLE
 
 afterEach(() => document.body.replaceChildren());
 
-describe('checkLandableCaret (G1.33)', () => {
+describe('checkCaretCanLand (G1.33)', () => {
 	it('fires on a block whose every byte is a hidden marker run', () => {
-		const violation = checkLandableCaret(block('live', '# '), 'live', [2]);
-		expect(violation?.code).toBe('landable-caret');
+		const violation = checkCaretCanLand(block('live', '# '), 'live', [2]);
+		expect(violation?.code).toBe('caret-can-land');
 		expect(violation?.detail).toMatchObject({ path: [2], mode: 'live' });
 	});
 
 	it('accepts the same block once its chrome paints', () => {
-		expect(checkLandableCaret(block('live', '# ', true), 'live', [2])).toBeNull();
+		expect(checkCaretCanLand(block('live', '# ', true), 'live', [2])).toBeNull();
 	});
 
 	// Reading takes no keystrokes and source paints every byte, so neither can trap a caret.
 	it('does nothing in reading and in source', () => {
-		expect(checkLandableCaret(block('reading', '# '), 'reading', [0])).toBeNull();
-		expect(checkLandableCaret(block(undefined, '# '), 'source', [0])).toBeNull();
+		expect(checkCaretCanLand(block('reading', '# '), 'reading', [0])).toBeNull();
+		expect(checkCaretCanLand(block(undefined, '# '), 'source', [0])).toBeNull();
 	});
 
 	// The caller hands it whatever took focus, which need not be the traversal container itself.
 	it('resolves the surface from a landing inside it', () => {
 		const marker = block('live', '# ').querySelector('span');
-		expect(checkLandableCaret(marker as HTMLElement, 'live', [2])?.code).toBe('landable-caret');
+		expect(checkCaretCanLand(marker as HTMLElement, 'live', [2])?.code).toBe('caret-can-land');
 	});
 
 	it('does nothing for a landing outside any editable surface', () => {
 		const host = block('live', '# ').parentElement;
-		expect(checkLandableCaret(host as HTMLElement, 'live', [2])).toBeNull();
+		expect(checkCaretCanLand(host as HTMLElement, 'live', [2])).toBeNull();
 	});
 });

@@ -15,7 +15,7 @@ function paragraph(text: string): HTMLElement {
 
 /** The writer's read and its record of a decided key, which leave the selection as it stood. */
 type WriterRead =
-	'focusEndsLine' | 'noteDecidedMotion' | 'settleDecidedMotion' | 'forgetDecidedMotion';
+	'focusEndsLine' | 'noteDecidedMotion' | 'checkDecidedMotion' | 'forgetDecidedMotion';
 
 /** One call per writer method; typed over every key, so a new method cannot skip its row. A row
  *  that needs the writer's own caret first calls `fresh` after placing it, to count only its call. */
@@ -65,7 +65,7 @@ describe('every caret writer method requests one paint', () => {
 		const read: WriterRead[] = [
 			'focusEndsLine',
 			'noteDecidedMotion',
-			'settleDecidedMotion',
+			'checkDecidedMotion',
 			'forgetDecidedMotion'
 		];
 		expect(Object.keys(writer).sort()).toEqual([...Object.keys(CALLS), ...read].sort());

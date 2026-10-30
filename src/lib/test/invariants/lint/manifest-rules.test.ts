@@ -424,17 +424,17 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ["import { focusAtColumn } from '../../selection/place-caret';"]
 	},
 	{
-		id: 'G4.36 the files naming checkLandableCaret are the definition and its one caller',
-		matches: namesToken('checkLandableCaret'),
+		id: 'G4.36 the files naming checkCaretCanLand are the definition and its one caller',
+		matches: namesToken('checkCaretCanLand'),
 		declared: {
-			'src/lib/invariants/landable-caret.ts': 'defines the predicate',
+			'src/lib/invariants/caret-can-land.ts': 'defines the predicate',
 			'src/lib/components/editor-root/focus.ts':
 				'the editor root focusin listener: the one place the question is asked'
 		},
 		reason:
 			'G1.33 fires once at the focus boundary every caret writer crosses; a per-writer copy re-opens the class',
-		hits: ['checkLandableCaret(root);'],
-		misses: ['// checkLandableCaret asks once']
+		hits: ['checkCaretCanLand(root);'],
+		misses: ['// checkCaretCanLand asks once']
 	},
 	{
 		id: 'G4.83 every plain read of bytes into block nodes outside the parser is declared, with why its nodes need no fill-in',

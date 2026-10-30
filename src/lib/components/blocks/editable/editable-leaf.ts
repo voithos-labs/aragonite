@@ -27,8 +27,13 @@ import {
 	chromeFreeText,
 	holdsOnlyMarkerChrome
 } from '../../../browser/painted';
-import { clampToLandableRaw, landableRawBounds, type RawRange } from '../../../browser/offsets';
-import { deleteExtent, type DeleteAnswer, type DeleteContext } from '../../../caret/delete-extent';
+import { clampToReachableRaw, reachableRawBounds, type RawRange } from '../../../browser/offsets';
+import {
+	deleteExtent,
+	unitContextAt,
+	type DeleteAnswer,
+	type DeleteContext
+} from '../../../caret/delete-extent';
 import {
 	decidedDelete,
 	isDeleteInput,
@@ -37,7 +42,6 @@ import {
 	targetRange,
 	type DeleteIntent
 } from '../../../browser/input';
-import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { isAtMostOneCharacter } from '../../../core/text-units';
 import { nativeRangeIn } from '../../../browser/selection-read';
 import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
@@ -714,8 +718,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const range = target ? backend.rawRangeOf(target) : null;
 		if (!range) return;
 		e.preventDefault();
-		const start = clampToLandableRaw(el, range.start);
-		const end = Math.max(start, clampToLandableRaw(el, range.end));
+		const start = clampToReachableRaw(el, range.start);
+		const end = Math.max(start, clampToReachableRaw(el, range.end));
 		spliceSourceText(el, start, end, insert);
 	}
 
@@ -745,12 +749,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const el = deps.getEl();
 		if (!el) return null;
 		const text = el.textContent ?? '';
-		return {
+		return unitContextAt({
+			el,
 			text,
 			caret,
-			bounds: landableRawBounds(el) ?? { start: 0, end: text.length },
-			lineEdge: (side) => lineEdgeOffset(el, caret, side, caretWriter)
-		};
+			bounds: reachableRawBounds(el),
+			lineRead: caretWriter
+		});
 	}
 
 	function onPointerDown(e: PointerEvent): void {

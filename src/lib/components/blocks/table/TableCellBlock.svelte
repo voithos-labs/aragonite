@@ -17,7 +17,7 @@
 	import { rawTextOfNode } from '../../../browser/block-text';
 	import {
 		containerDomTextLength,
-		landableDomTextBounds,
+		reachableDomTextBounds,
 		type RawRange
 	} from '../../../browser/offsets';
 	import { rawSelectionFocus } from '../../../browser/selection-read';
@@ -516,7 +516,7 @@
 	function cellPlanState(offset: number | null): CellKeyState {
 		// A cell has no marker prefix, so these are raw offsets; they follow what is on screen,
 		// not the mode, since a cell's move follows what the user sees.
-		const bounds = landableDomTextBounds(el!);
+		const bounds = reachableDomTextBounds(el!);
 		return {
 			rowIdx,
 			colIdx,
@@ -625,7 +625,7 @@
 	// as prose does. False falls through.
 	function startIntraTableRect(key: 'ArrowUp' | 'ArrowDown', offset: number): boolean {
 		if (!el) return false;
-		const bounds = landableDomTextBounds(el);
+		const bounds = reachableDomTextBounds(el);
 		const atEdge =
 			key === 'ArrowDown'
 				? isAtLastVisualLine(el, offset, bounds, caretWriter)

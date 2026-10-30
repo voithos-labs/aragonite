@@ -14,6 +14,7 @@ import type { BlockElLookup } from '../../caret/block-el-lookup';
 import { surfaceHolding } from '../../selection/path-lookup';
 import { comparePaths } from '../../selection/path-math';
 import { readNativeSelection } from '../../browser/selection-read';
+import { widgetSourceRange } from '../../core/inline/widget-shell';
 import { onRoot, removeAll } from './listeners';
 
 export interface ReadingFocus {
@@ -70,8 +71,9 @@ export function createReadingFocus(deps: ReadingFocusDeps): ReadingFocus {
 		const surface = el?.isConnected ? surfaceHolding(el, deps.getBlockElByPath) : null;
 		if (!el || !surface) return null;
 		const { path, contentEl } = surface;
-		const widgetEnd = el.closest('[data-inline-widget]')?.getAttribute('data-source-end');
-		if (widgetEnd) return { path, offset: Number(widgetEnd) };
+		const widget = el.closest('[data-inline-widget]');
+		const span = widget && widgetSourceRange(widget);
+		if (span) return { path, offset: span.end };
 		const focus = readNativeSelection()?.focus;
 		if (focus && contentEl.contains(focus.node))
 			return { path, offset: rawOffsetAt(contentEl, focus.node, focus.offset) };

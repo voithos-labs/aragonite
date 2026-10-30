@@ -10,6 +10,7 @@ import type { NodeView } from '../../../core/node-views';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import { widgetSourceRange } from '../../../core/inline/widget-shell';
 import { getContentRange, structuralSuffix } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
@@ -17,17 +18,17 @@ import { type RawOffset } from '../../../core/coordinate-spaces';
 import type { BlockPendingMarks } from '../../../caret/pending-marks';
 import type { InsideCloserView } from '../../../caret/inside-closer';
 import { keptBlockText, hidesBlockPrefix, type EditedBlock } from '../../../browser/block-text';
-import { landableRawBounds, visibleWalkText } from '../../../browser/offsets';
+import { reachableRawBounds, visibleWalkText } from '../../../browser/offsets';
 import { markerPrefixOf, hidingScreenOf } from '../../../browser/painted';
 import type { CaretWriter } from '../../../browser/caret-writer';
 import {
 	deleteExtent,
+	unitContextAt,
 	type DeleteAnswer,
 	type DeleteContext,
 	type DeleteSpan
 } from '../../../caret/delete-extent';
 import type { DeleteDirection, DeleteIntent } from '../../../browser/input';
-import { lineEdgeOffset } from '../../../browser/visual-lines';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { hasModifier, isBareKey, isPlainTypingKey } from './click-snap-guard';
 import { caretIsInTextContent, readNativeSelection } from '../../../browser/selection-read';
@@ -343,9 +344,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		recordIslandKeyScan();
 		const out: IslandSpan[] = [];
 		for (const node of el.querySelectorAll<HTMLElement>('[data-decoration-island]')) {
-			const start = Number(node.dataset.sourceStart);
-			const end = Number(node.dataset.sourceEnd);
-			if (Number.isInteger(start) && Number.isInteger(end)) out.push({ start, end, el: node });
+			const span = widgetSourceRange(node);
+			if (span) out.push({ ...span, el: node });
 		}
 		return out;
 	}
@@ -440,10 +440,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	/** A one-character delete at a widget decoration, which stands for no bytes, takes what is
 	 *  beside it, as if the decoration were not there; false at the block's edge. */
 	function deletePastIsland(el: HTMLElement, caret: number, intent: DeleteIntent): boolean {
-		const landable = landableRawBounds(el);
-		if (facesEdge(landable, caret, intent.direction)) return false;
+		const reachable = reachableRawBounds(el);
+		if (facesEdge(reachable, caret, intent.direction)) return false;
 		// This branch outranks the construct-edge rule beside a hidden run, so it asks that rule.
-		if (!hiddenRunDelete(el, caret, intent)) void deleteSpan(el, caret, intent, landable);
+		if (!hiddenRunDelete(el, caret, intent)) void deleteSpan(el, caret, intent, reachable);
 		return true;
 	}
 
@@ -536,13 +536,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	/** Whether `caret` is the first or last offset the caret can sit at, on the side `direction`
-	 *  faces; `landable` null is a block that draws its markers, every offset reachable. */
+	 *  faces; `reachable` null is a block that draws its markers, every offset reachable. */
 	function facesEdge(
-		landable: DeleteSpan | null,
+		reachable: DeleteSpan | null,
 		caret: number,
 		direction: DeleteDirection
 	): boolean {
-		const bounds = landable ?? { start: 0, end: display().length };
+		const bounds = reachable ?? { start: 0, end: display().length };
 		return direction === 'backward' ? caret <= bounds.start : caret >= bounds.end;
 	}
 
@@ -552,10 +552,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!el || deps.isRevealing()) return 'declined';
 		// At the first or last offset the caret can sit at the delete is the block's merge, never
 		// the first visible character past a hidden run.
-		const landable = landableRawBounds(el);
-		if (facesEdge(landable, caret, intent.direction)) return 'at-edge';
+		const reachable = reachableRawBounds(el);
+		if (facesEdge(reachable, caret, intent.direction)) return 'at-edge';
 		if (hiddenRunDelete(el, caret, intent)) return 'taken';
-		return deleteSpan(el, caret, intent, landable) ? 'taken' : 'at-edge';
+		return deleteSpan(el, caret, intent, reachable) ? 'taken' : 'at-edge';
 	}
 
 	/** The delete rule's span through the in-leaf range replace, a word read as the screen shows it;
@@ -564,10 +564,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		el: HTMLElement,
 		caret: number,
 		intent: DeleteIntent,
-		landable: DeleteSpan | null
+		reachable: DeleteSpan | null
 	): boolean {
 		const text = display();
-		const span = deleteExtent(intent, contextAt(el, caret, landable));
+		const span = deleteExtent(intent, contextAt(el, caret, reachable));
 		if (!span) return false;
 		deps.setSnapTarget(null);
 		const written = rangeEdit(span, '');
@@ -586,20 +586,20 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	/** What the delete rule and the motion rule read at `caret`: the text as the key's write sees
 	 *  it, the offsets a caret reaches, the visual line's edges and the text as the screen shows it. */
-	function contextAt(el: HTMLElement, caret: number, landable: DeleteSpan | null): DeleteContext {
-		const text = display();
-		return {
-			text,
+	function contextAt(el: HTMLElement, caret: number, reachable: DeleteSpan | null): DeleteContext {
+		return unitContextAt({
+			el,
+			text: display(),
 			caret,
-			bounds: landable ?? { start: 0, end: text.length },
-			lineEdge: (side) => lineEdgeOffset(el, caret, side, deps.caretWriter),
+			bounds: reachable,
+			lineRead: deps.caretWriter,
 			visible: () => visibleWalkText(el)
-		};
+		});
 	}
 
 	function unitContext(caret: number): DeleteContext | null {
 		const el = deps.getEl();
-		return el && !deps.isRevealing() ? contextAt(el, caret, landableRawBounds(el)) : null;
+		return el && !deps.isRevealing() ? contextAt(el, caret, reachableRawBounds(el)) : null;
 	}
 
 	/** The block as `keptBlockText` reads it once `span` is cut from `text`, the parts the input

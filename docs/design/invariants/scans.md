@@ -222,6 +222,7 @@ unguarded.
 | G4.273 | A keydown handler that runs a command asks `imeOwnsKey` first                                    | L       |
 | G4.274 | A typed insert or a typed key is read only where the editor decides where it lands               | L       |
 | G4.275 | Words are cut by one rule, read only through `wordSegments`                                      | L       |
+| G4.276 | A widget's raw span is read only through `widgetSourceRange`                                     | L       |
 
 ### The entries
 
@@ -1451,3 +1452,8 @@ words (Firefox calls some Japanese ones none), so `Intl.Segmenter` is read only 
 `core/text-units.ts`, whose `wordSegments` always cuts there and calls a segment a word when it holds
 a letter or a digit. The word delete, the word keys and the double-click read words through it.
 `lint/file-rules.test.ts`.
+
+**G4.276 · One reader for a widget's raw span.** A widget or a decoration says which raw bytes it
+stands for in `data-source-start` and `data-source-end`, and only
+`core/inline/widget-shell.ts :: widgetSourceRange` parses them back. It answers null unless both
+parse, so no reader trusts half a span. Writing them is fine anywhere. `lint/file-rules.test.ts`.

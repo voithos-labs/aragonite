@@ -540,7 +540,7 @@ const RULES: FileRule[] = [
 				'whether a selected range covers a right-click; a collapsed one is never measured'
 		},
 		reason:
-			'WebKit and Firefox measure a caret right after a `\\n` on the line the `\\n` ends, so a caret measured anywhere else reads the wrong line at every line start: call `caretRectAt`, or `charRect` for one character',
+			'WebKit and Firefox measure a caret right after a `\\n` on the line the `\\n` ends, so a caret measured anywhere else reads the wrong line at every line start: call `caretRectAt`',
 		hits: [
 			'const rects = range.getClientRects();',
 			'return sel.getRangeAt(0).getBoundingClientRect();',
@@ -563,6 +563,28 @@ const RULES: FileRule[] = [
 			"create('word', { granularity: 'word' })"
 		],
 		misses: ['const segments = wordSegments(text);', 'const unit = graphemeSegmenter();']
+	},
+	{
+		id: 'G4.276 a widget’s raw span is read only through `widgetSourceRange`',
+		matches:
+			/\bdataset\.source(?:Start|End)\b(?!\s*=[^=])|\{[^{}]*\bsource(?:Start|End)\b[^{}]*\}\s*=[^;]*\.dataset\b|getAttribute\(\s*['"]data-source-(?:start|end)['"]/,
+		allowed: {
+			'src/lib/core/inline/widget-shell.ts': '`widgetSourceRange` itself'
+		},
+		reason:
+			'a widget or decoration names its raw span in `data-source-start` and `data-source-end`, and a reader that parses them by hand drifts on a missing or partial span: read it through `widgetSourceRange` in `core/inline/widget-shell.ts`',
+		hits: [
+			'const start = Number(shell.dataset.sourceStart);',
+			"const end = el.getAttribute('data-source-end');",
+			'if (a.dataset.sourceEnd === b) {}',
+			'const { sourceStart, sourceEnd } = (widget as HTMLElement).dataset;'
+		],
+		misses: [
+			'shell.dataset.sourceStart = String(node.start);',
+			'const span = widgetSourceRange(shell);',
+			"el.querySelector('[data-source-start]')",
+			'function f(el: HTMLElement, sourceStart: number) {\n\tconst { id } = el.dataset;\n}'
+		]
 	},
 	{
 		id: 'G4.243 the caret’s line is decided through the soft-wrap read',
@@ -1035,7 +1057,7 @@ const RULES: FileRule[] = [
 		matches: (file) => !HOST_AWARE_RE.test(file.code),
 		allowed: {
 			'src/lib/active-editor.ts': 'the host IS a text-entry surface: a focus move must yield to it',
-			'src/lib/invariants/landable-caret.ts':
+			'src/lib/invariants/caret-can-land.ts':
 				'G1.33 resolves the host as the focused editable and does nothing on its emptiness'
 		},
 		reason:

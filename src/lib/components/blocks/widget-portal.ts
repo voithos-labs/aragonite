@@ -14,7 +14,7 @@ import {
 	widgetActivates,
 	type InlineWidgetComponentProps
 } from '../../core/inline/inline-widgets';
-import { mintWidgetShell } from '../../core/inline/widget-shell';
+import { mintWidgetShell, widgetSourceRange } from '../../core/inline/widget-shell';
 import type { ActivationClick, ClickInput } from '../../activation-click';
 import type { Reading } from '../../schema/reading';
 import { tracePoolPass } from '../../debug/interaction-trace';
@@ -92,11 +92,10 @@ export function createWidgetPool<H>(adapter: WidgetPoolAdapter<H>): WidgetPool {
 			// Source and rendered body are identical by key; only the widget's position may have
 			// shifted, and the offsets the cursor and selection read follow it.
 			const el = adapter.element(reused.handle);
-			const start = String(inline.start);
-			const end = String(inline.end);
-			if (el.dataset.sourceStart !== start || el.dataset.sourceEnd !== end) {
-				el.dataset.sourceStart = start;
-				el.dataset.sourceEnd = end;
+			const stamped = widgetSourceRange(el);
+			if (stamped?.start !== inline.start || stamped?.end !== inline.end) {
+				el.dataset.sourceStart = String(inline.start);
+				el.dataset.sourceEnd = String(inline.end);
 				if (!adapter.move(reused.handle, inline)) {
 					adapter.destroy(reused.handle);
 					reused.handle = null;

@@ -14,20 +14,14 @@ import { isBlankText, displayLength } from '../core/lines';
 import { domDescendants } from './dom-descendants';
 import { widgetSourceRange } from '../core/inline/widget-shell';
 
-/** The raw bytes `el` shows, its marker prefix left out: what a prose block reads back as its text.
- *  `suffix` is the block's structural suffix as rendered; empty when only hidden markers are left. */
-export function rawTextOfContent(el: HTMLElement, raw: string, suffix: string): string {
-	return readContent(el, raw, suffix, 0).text;
-}
-
 /** A block's text read back from its element, and a caret moved onto that text. */
 export interface InputRead {
 	text: string;
 	caret: number;
 }
 
-/** `rawTextOfContent` with a caret at `caret` in the bytes `el` shows moved onto the text read, so
- *  a read that drops a hidden marker drops it from the caret's offset too. */
+/** The raw bytes `el` shows, its marker prefix left out, and `caret` moved onto them; empty when
+ *  only hidden markers are left. `suffix` is the block's structural suffix as rendered. */
 export function readContent(
 	el: HTMLElement,
 	raw: string,
