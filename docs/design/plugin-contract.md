@@ -28,7 +28,7 @@ The contract freezes in two stages, because the two halves grew up at different 
 
 The authoring surface stays labeled unstable until the release cut, and the cut has preconditions: validation by at least two real container consumers, the in-repo dogfood extensions, an internal limestone integration, and at least one genuinely external author. External means a developer who isn't the project owner, building from the tarball and the docs pack unassisted, with their friction log treated as blocking input (everything that has validated the API so far was written by the owner, which says nothing about the API in outside hands). Until then the surface may change without notice.
 
-The rest of the DX system (declarative manifest, scaffold, hot-reload dev loop, packaged reference fleet) sits outside the freeze entirely and ships after it.
+The rest of the DX system (declarative manifest, scaffold, hot-reload dev loop) sits outside the freeze entirely. The first-party plugins don't wait for it: each already ships as a package of its own (`@voithos-labs/aragonite-latex` and so on), and until the freeze every one carries the core's version and peers on exactly that version, so they all release together. `scripts/release/check-lockstep.mjs` fails a release that drifts.
 
 ## What earns a freeze
 

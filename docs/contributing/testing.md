@@ -380,8 +380,8 @@ both ride `npm test`.
 
 The plugin specs drive `/test/plugins` (`src/routes/test/plugins/+page.svelte`), the editor
 route's sibling with a set of plugins installed that exist to be tested against. None of them
-ship: the package's own plugins live in `src/lib/plugins/`, and these install on this route and
-nowhere else. `?seed=<name>` picks the document and, for some seeds, adds a plugin that only
+ship: the first-party plugins are packages of their own under `packages/`, and these install on
+this route and nowhere else. `?seed=<name>` picks the document and, for some seeds, adds a plugin that only
 installs under that seed (callout is the default). The always-on set is callout, memo, and
 doc-stats, plus the bundled details, latex, admonitions, mermaid, and toc. The rest are scoped
 to their seed because they'd change what every other seed's test sees: by claiming a common
@@ -963,13 +963,16 @@ from the packed tarball, importing only published entry points. It's a test, not
 1. builds and packs `dist/`, and checks the tarball holds every published path and no test file.
    It checks the prebuilt build too (`dist/prebuilt/`, what a bundler with no Svelte plugin gets):
    no Svelte import of its own, every entry loads in Node, one plugin registry across entries, and
-   a size budget (`scripts/pack/verify-prebuilt.mjs`)
-2. installs the tarball into the example with `--no-save`
+   a size budget (`scripts/pack/verify-prebuilt.mjs`). Each plugin package gets the same, plus a
+   check that its prebuilt installs into the core's as one copy of the core
+   (`scripts/pack/verify-plugin-package.mjs`)
+2. packs every workspace package and installs the ones the example depends on (the core and
+   eight plugins) with `--no-save`
 3. typechecks and builds the example, where an import cycle through a published entry point is
    a build error
 4. runs the example's own Playwright specs: the page server-renders without a 5xx, hydrates with
    no console errors and takes a keystroke, the editor's text has readable contrast against the
-   page on every route, the plugins page mounts the bundled plugins through their subpaths plus a
+   page on every route, the plugins page mounts the bundled plugins from their packages plus a
    copy of the callout fixture, and the editor's dev-only warnings still fire under a consumer's
    `vite dev`
 
@@ -984,8 +987,8 @@ npm install        # links the local library + the example's own deps
 npm run dev        # http://localhost:5173
 ```
 
-Locally the example depends on `@voithos-labs/aragonite` as `file:../..`, a link to the working
-tree you cloned, so there's no tarball to refresh; after a library change, `npm run package`
+Locally the example depends on `@voithos-labs/aragonite` as `file:../..` and on each plugin as
+`file:../../packages/<name>`, links to the working tree you cloned, so there's no tarball to refresh; after a library change, `npm run package`
 again and the example sees it. Don't edit `examples/consumer/src/plugins/`: it's a git-ignored
 copy of the callout fixture (`src/routes/test/plugins/callout/`) that
 `scripts/smoke/sync-consumer-plugins.mjs` regenerates before every `dev`, `build`, `check`, and `test`,

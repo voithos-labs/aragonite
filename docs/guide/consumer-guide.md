@@ -120,7 +120,7 @@ Two things hold for all three:
   import '@voithos-labs/aragonite/styles/editor-theme.css';
   ```
 
-- **Plugins go in `plugins` as usual.** Every bundled plugin runs here, and so does any plugin that draws with plain DOM. One that ships Svelte components of its own (any plugin with a custom block, for now) needs a bundler that compiles Svelte; [the plugin guide](plugin-guide.md#what-draws-your-plugin-and-where-it-runs) says which plugins those are.
+- **Plugins go in `plugins` as usual.** Every bundled plugin runs here (import its `style.css` too, if it has one: admonitions, details, footnotes, latex, mermaid, parrot and toc do), and so does any plugin that draws with plain DOM. One that ships Svelte components of its own (any plugin with a custom block, for now) needs a bundler that compiles Svelte; [the plugin guide](plugin-guide.md#what-draws-your-plugin-and-where-it-runs) says which plugins those are.
 
 ### React
 
@@ -798,19 +798,25 @@ The same rule covers [directive](directives.md) names. A plugin that claims an a
 
 ### Bundled plugins
 
-Ten first-party plugins ship in the package as subpath exports. Install them like any other plugin:
+Ten first-party plugins ship as packages of their own, one per plugin, named `@voithos-labs/aragonite-<plugin>`. Install the ones you want next to the editor:
+
+```powershell
+npm install @voithos-labs/aragonite @voithos-labs/aragonite-latex @voithos-labs/aragonite-toc
+```
+
+Each one releases with the editor and asks for exactly its version, so bump them together; npm refuses a mismatch. If a plugin still ends up with a copy of the editor of its own (a bundler that didn't dedupe, say), a dev build warns about it, since that plugin's blocks would quietly parse as plain Markdown. Then import them like any other plugin:
 
 ```ts
-import { admonitionsPlugin } from '@voithos-labs/aragonite/plugins/admonitions';
-import { detailsPlugin } from '@voithos-labs/aragonite/plugins/details';
-import { tocPlugin } from '@voithos-labs/aragonite/plugins/toc';
-import { footnotesPlugin } from '@voithos-labs/aragonite/plugins/footnotes';
-import { emojiPlugin } from '@voithos-labs/aragonite/plugins/emoji';
-import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite/plugins/highlight-occurrences';
-import { latexPlugin } from '@voithos-labs/aragonite/plugins/latex';
-import { mermaidPlugin } from '@voithos-labs/aragonite/plugins/mermaid';
-import { parrotPlugin } from '@voithos-labs/aragonite/plugins/parrot';
-import { slashCommandsPlugin } from '@voithos-labs/aragonite/plugins/slash-commands';
+import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+import { detailsPlugin } from '@voithos-labs/aragonite-details';
+import { tocPlugin } from '@voithos-labs/aragonite-toc';
+import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
+import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-occurrences';
+import { latexPlugin } from '@voithos-labs/aragonite-latex';
+import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
+import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
+import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
 ```
 
 | Plugin                                        | What it teaches the editor                                                                                                                                                                                                                                                                                                                              |
@@ -833,7 +839,7 @@ A few of them take options or need a word more.
 **Table of contents.** The walk descends into containers, so headings inside blockquotes, lists, and callouts are listed too, and navigation is view-only, so entries work in every presentation mode. `{ maxDepth }` (1 through 6, default 6) lists only the top levels, and it's read per instance:
 
 ```ts
-import { tocPlugin, type TocOptions } from '@voithos-labs/aragonite/plugins/toc';
+import { tocPlugin, type TocOptions } from '@voithos-labs/aragonite-toc';
 
 const plugins = [{ plugin: tocPlugin(), options: { maxDepth: 3 } satisfies TocOptions }];
 ```
@@ -851,11 +857,11 @@ The two options:
 
 Options passed to the factory are every editor's defaults, and an editor's `{ plugin, options }` entry swaps out only the fields it names. So an entry of `{ exclude: ['table'] }` still lists the factory's `entries`, and `{ entries: [] }` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the factory throws, and in an editor's entry the editor reports it on the `error` event and keeps the factory's options.
 
-**Math and diagrams.** latex and mermaid render through injected engines that never ride the main bundle: each has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
+**Math and diagrams.** latex and mermaid render through injected engines that never ride the main bundle: each package has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 
 ```ts
-import { katexRenderer } from '@voithos-labs/aragonite/plugins/latex/renderer'; // imports katex + its CSS
-import { mermaidRenderer } from '@voithos-labs/aragonite/plugins/mermaid/renderer'; // dynamic-imports mermaid
+import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer'; // imports katex + its CSS
+import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer'; // dynamic-imports mermaid
 
 latexPlugin({ renderer: katexRenderer });
 mermaidPlugin({ renderer: mermaidRenderer });
@@ -867,7 +873,7 @@ Both renderers are optional; without one, each formula or diagram shows its sour
 
 The module owns its CSS. Two stylesheets ship under `styles/`:
 
-- **`editor.css`**: the structural rules. In a Svelte app the component imports it itself, so there's nothing to do. Anywhere else it comes inside the prebuilt `style.css` ([Mounting without Svelte](#mounting-without-svelte) has the import), along with every component's own styles.
+- **`editor.css`**: the structural rules. In a Svelte app the component imports it itself, so there's nothing to do. Anywhere else it comes inside the prebuilt `style.css` ([Mounting without Svelte](#mounting-without-svelte) has the import), along with every component's own styles. A bundled plugin's styles ship in its own package's `style.css`.
 - **`editor-theme.css`**: the default token palette, light and dark. Import it for the default look, or replace it wholesale to retheme. It's the authoritative manifest, so read it for the exact token set and values rather than trusting a copy in a doc. This one included. Forget it on a page that declares no colors of its own and a dev build says so in the console.
 
 No font ships, so the `--font-*` tokens resolve to whatever your page provides, or to their fallback stacks. (The showcase at aragonite.dev loads Inter and JetBrains Mono itself, in case you're wondering why it looks nicer than your first mount.)
