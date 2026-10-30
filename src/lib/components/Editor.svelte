@@ -1096,7 +1096,13 @@
 		isHostChrome,
 		isFindBar,
 		saveSearchCaret: searchCaret.saveCurrent,
-		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
+		setReplaceExpanded: (expanded) => (replaceExpanded = expanded),
+		takeContainerChord: (e) => {
+			const focus = keyClaims.readKeyFocus(e);
+			if ((focus.at === 'control' || focus.at === 'field') && focus.path) {
+				containerChords.take(e, focus.path);
+			}
+		}
 	});
 
 	rootEffect((root) => {

@@ -85,7 +85,7 @@
 		if (handleGlobalChord(event)) return;
 		// The gap sits in its container's list, so the chords that container binds apply here too.
 		const gap = selection?.gapCaret;
-		if (gap && services?.containerChords.take(event, [...gap.parentPath, gap.index])) return;
+		if (gap && services?.containerChords.take(event, gap.parentPath)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		switch (event.key) {

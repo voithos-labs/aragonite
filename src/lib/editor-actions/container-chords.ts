@@ -1,7 +1,7 @@
 /**
- * The chords the containers around a block take, run from the block's own keydown as its last
- * step rather than from each container's element, so no container's handler, or lack of one, or
- * a plugin's `stopPropagation` decides whether a container chord runs. One attempt per keystroke.
+ * The chords the containers holding a key take, run from the keydown of the block the key is in as
+ * its last step rather than from each container's element, so no container's handler, or lack of
+ * one, or a plugin's `stopPropagation` decides whether a container chord runs. One attempt per key.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -26,7 +26,8 @@ export interface ContainerChordDeps {
 }
 
 export interface ContainerChords {
-	/** Runs the chord the nearest container around `from` binds; true when one ran. */
+	/** Runs the chord the nearest container holding the block at `from`, or that block itself,
+	 *  binds; true when one ran. */
 	take(e: KeyboardEvent, from: readonly number[]): boolean;
 	/** Whether `take` would run one, without running it: what `claimsChord` reads. */
 	takes(e: KeyboardEvent, from: readonly number[]): boolean;
@@ -35,11 +36,12 @@ export interface ContainerChords {
 export function createContainerChords(deps: ContainerChordDeps): ContainerChords {
 	const attempted = new WeakSet<KeyboardEvent>();
 
-	/** The containers around `from`, nearest first, as the targets their chords run against. */
+	/** The containers holding a key in the block at `from`, that block first, as the targets their
+	 *  chords run against. A leaf publishes no target, so for a leaf the walk starts above it. */
 	function* targetsAround(chord: string, from: readonly number[]): Generator<KindCommandTarget> {
 		if (!containerMayBind(chord, deps.commands.keybindingOverrides())) return;
 		recordContainerChordWalk();
-		for (let depth = from.length - 1; depth >= 1; depth--) {
+		for (let depth = from.length; depth >= 1; depth--) {
 			const target = deps.getBlockComponent(from.slice(0, depth))?.containerChordTarget?.(from);
 			if (target) yield target;
 		}

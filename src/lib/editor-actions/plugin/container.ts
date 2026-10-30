@@ -142,8 +142,8 @@ export interface ContainerBlock {
 		patch: Record<string, unknown>,
 		options?: { caret?: { path: number[]; offset: number } }
 	): void | Promise<void>;
-	/** Attach to the block's box, for its keys focused as a whole and its own editor's. A chord this
-	 *  kind binds, pressed in a block inside, runs from that block whether or not this is attached. */
+	/** Attach to the box, for its keys focused whole. Its kind's chords run from a block inside or
+	 *  its own controls without it; a block focused whole inside keeps its own editor's keys. */
 	handleKeydown(e: KeyboardEvent): void;
 	/** Hand the caret, through the editor's focus traversal, to the neighbour a plain arrow points
 	 *  at once a plugin editor's caret reaches its edge. False for a modified or non-arrow key. */
@@ -366,7 +366,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	};
 
 	const containerApi = createContainerBlockComponent({
-		containerChordTarget: (from) => bubbledTarget(from),
+		// A block focused as a whole holds no blocks, and runs its own chords as it holds focus.
+		containerChordTarget: wholeBlockSurface ? undefined : (from) => bubbledTarget(from),
 		// The kind's descriptor is the declaration; the mounted component only reports it.
 		get editable() {
 			return getBlockKindDescriptor(deps.getNode().kind).editable;
@@ -444,10 +445,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		// editor (its textarea), and the key is that editor's.
 		if (wholeBlockSurface && isEditableEventTarget(e.target)) return;
 		if (!ownsWholeBlockFocus(e)) {
-			// A key from a block inside ran this step there; one from this block's own controls
-			// goes to the containers around it from here.
+			// A key from a block inside is that block's to hand on, a plugin editor's included; one
+			// from this block's own controls runs this container's chords and those around it.
 			const at = findBlockPathForElement(e.target instanceof Element ? e.target : null);
-			containerChords.take(e, at ?? deps.getPath());
+			if (!at || at.length === deps.getPath().length) containerChords.take(e, deps.getPath());
 			return;
 		}
 		if (dispatchWholeBlockGlobalChord(e, deps.getNode().kind, commands)) return;

@@ -2,7 +2,10 @@
 // Miss-analysis: a container's chords ran only from its own keydown handler, so a container that
 // bound none lost them, and every suite's container bound one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin } from '#lib/plugin.js';
+import { defineBlockView, definePlugin } from '#lib/plugin.js';
+import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
 import {
@@ -13,7 +16,12 @@ import {
 	pressKeyAt,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { probe, type ClaimContext } from '../editor-root/claims-parity';
+import {
+	expectFocusAgrees,
+	expectParity,
+	probe,
+	type ClaimContext
+} from '../editor-root/claims-parity';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -27,14 +35,37 @@ afterEach(destroyMountedEditors);
 
 const NOTE = ':::note\nbody\n:::\n';
 
-function mountNote(stops: boolean) {
+function notePlugin(stops: boolean) {
 	const view = svelteBlockView(KeylessContainerBlock, () => ({ stops }));
-	const plugin = definePlugin({
+	return definePlugin({
 		name: stops ? 'stopping-note' : 'keyless-note',
 		setup: () => registerAdmonitions(view)
 	});
-	return mountEditor({ source: NOTE, plugins: [plugin] });
 }
+
+const mountNote = (stops: boolean) => mountEditor({ source: NOTE, plugins: [notePlugin(stops)] });
+
+// A diagram whose source box is always open and lets every key bubble, inside an admonition.
+const DIAGRAM_IN_NOTE = ':::note\n\n```mermaid\ngraph TD\n```\n\n:::\n';
+const DIAGRAM_PLUGINS = [
+	admonitionsPlugin(),
+	definePlugin({
+		name: 'box-diagram',
+		setup: () =>
+			registerMermaidKind(
+				defineBlockView({
+					surface: 'container',
+					mount(target, ctx) {
+						const box = document.createElement('textarea');
+						box.className = 'diagram-source';
+						target.append(box);
+						ctx.container.attachFocus(box);
+						return {};
+					}
+				})
+			)
+	})
+];
 
 describe('a container’s kind chord pressed in a block inside it', () => {
 	it.each([
@@ -101,4 +132,68 @@ describe('a container chord bound to a command the container cannot run', () => 
 		const { claimed, prevented } = await probe(context, 'Mod+Shift+J');
 		expect([claimed, prevented]).toEqual([false, false]);
 	});
+});
+
+// Miss-analysis: every container-chord row pressed its key in a leaf, never in the container's own
+// control, a plugin's own editor inside it, or a built-in block's button inside a list item.
+describe('a container chord pressed outside any block inside the container', () => {
+	it('runs from the container’s own button', async () => {
+		const editor = mountNote(true);
+		await editor.settle();
+		const button = editor.target.querySelector<HTMLElement>('.container-chrome')!;
+		button.focus();
+		const event = await pressKey(button, { key: '7', ctrlKey: true });
+		expect([editor.source(), event.defaultPrevented]).toEqual([':::tip\nbody\n:::\n', true]);
+	});
+
+	it('never runs from a plugin’s own editor inside it', async () => {
+		const editor = mountEditor({ source: DIAGRAM_IN_NOTE, plugins: DIAGRAM_PLUGINS });
+		await editor.settle();
+		const box = editor.target.querySelector<HTMLElement>('textarea.diagram-source')!;
+		box.focus();
+		await pressKey(box, { key: '7', ctrlKey: true });
+		expect(editor.source()).toBe(DIAGRAM_IN_NOTE);
+	});
+});
+
+const focusOn =
+	(selector: string): ClaimContext['enter'] =>
+	async (editor) => {
+		const el = editor.target.querySelector<HTMLElement>(selector);
+		if (!el) throw new Error(`nothing matches ${selector}`);
+		el.focus();
+		return el;
+	};
+
+// A plugin's own editor is claimed Enter, Tab and Escape whatever it does with them, so its row
+// asks only the chords a container could take from it.
+const OFF_LEAF: (ClaimContext & { keys: string[] })[] = [
+	{
+		name: 'the container’s own button',
+		source: NOTE,
+		plugins: [notePlugin(true)],
+		focus: { at: 'control', path: [0] },
+		enter: focusOn('.container-chrome'),
+		keys: ['Mod+7', 'Tab', 'Mod+Z', 'A']
+	},
+	{
+		name: 'a plugin’s own editor inside a container',
+		source: DIAGRAM_IN_NOTE,
+		plugins: DIAGRAM_PLUGINS,
+		focus: { at: 'plugin-editor', path: [0, 1] },
+		enter: focusOn('textarea.diagram-source'),
+		keys: ['Mod+7', 'Mod+Z', 'A']
+	},
+	{
+		name: 'a table’s button in a task item',
+		source: '- [ ] one\n- [ ] two\n\n  | A |\n  | - |\n  | 1 |\n',
+		focus: { at: 'control' },
+		enter: focusOn('button[class*="table"]'),
+		keys: ['Tab', 'Shift+Tab', 'Mod+Enter', 'Mod+Z', 'A']
+	}
+];
+
+describe.each(OFF_LEAF)('claimsChord agrees with the keydown: $name', (context) => {
+	it('reads the focus its handler stands at', () => expectFocusAgrees(context));
+	it.each(context.keys)('%s', (chord) => expectParity(context, chord));
 });

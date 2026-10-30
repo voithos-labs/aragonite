@@ -1,5 +1,5 @@
-<!-- A plugin container that binds no keydown of its own, and one that stops every key it sees:
-     its kind's chords must still run from a block inside. -->
+<!-- A plugin container that binds no keydown of its own, and one that binds it and stops every key
+     it sees: its kind's chords must still run from a block inside, and from its own button. -->
 <script lang="ts">
 	import type { NodeView } from '#lib/plugin.js';
 	import { BlockList, createContainerBlock } from '#lib/svelte.js';
@@ -29,5 +29,6 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="keyless-container" bind:this={boxEl} onkeydown={stops ? stopEveryKey : undefined}>
+	<button class="container-chrome">kind</button>
 	<BlockList {...blockListProps} />
 </div>

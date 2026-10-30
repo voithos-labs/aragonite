@@ -143,7 +143,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 
 	function gapTakes(e: KeyboardEvent, chord: string | null, gap: GapCaretPosition) {
 		if (chord && takesGlobalChord(chord, deps.commands)) return true;
-		if (deps.containerChords.takes(e, [...gap.parentPath, gap.index])) return true;
+		if (deps.containerChords.takes(e, gap.parentPath)) return true;
 		if (isPasteKey(e)) return !reading();
 		if (e.ctrlKey || e.metaKey || e.altKey) return false;
 		if (GAP_KEYS.has(e.key)) return true;

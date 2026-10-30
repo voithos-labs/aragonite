@@ -262,7 +262,7 @@ export interface BlockComponent {
 	 */
 	runCommand?(id: AnyCommandId, arg?: unknown, run?: CommandRun): boolean;
 	/** What a chord this container's kind binds runs against when it's pressed in the block at
-	 *  `from`, inside it; null or absent, the container takes none from there. */
+	 *  `from`, inside it or in this block's own controls; null or absent, it takes none from there. */
 	containerChordTarget?(from: readonly number[]): KindCommandTarget | null;
 	/** What a plugin's block command runs against at this block, for a command the editor runs
 	 *  here itself (a key over a selection, after the selection's removal). Its `replaceRaw`
