@@ -121,6 +121,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		menuPresence: {} as EditorServices['menuPresence'],
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
 		readingFocus: {} as EditorServices['readingFocus'],
+		containerChords: {} as EditorServices['containerChords'],
 		stamps,
 		drafts: createDraftRegistry(stamps),
 		shownSource: createShownSourceState(),
@@ -231,6 +232,11 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	services.menuPresence =
 		overrides.services?.menuPresence ??
 		createMenuPresence({ isReading: () => doc.reading.mode() === 'reading' });
+	// A bare block mount has no container around it to take a chord.
+	services.containerChords = overrides.services?.containerChords ?? {
+		take: () => false,
+		takes: () => false
+	};
 	services.readingFocus =
 		overrides.services?.readingFocus ??
 		createReadingFocus({

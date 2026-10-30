@@ -10,7 +10,6 @@ import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 	'data-block-kind',
 	'data-block-path',
-	'data-container-chords',
 	'data-content-empty',
 	'data-decoration-island',
 	'data-focused',

@@ -114,6 +114,7 @@
 	import { createRootEffect } from './editor-root/root-effect.svelte';
 	import { collectReservedChords } from '../schema/reserved-chords';
 	import { createKeyClaims } from './editor-root/key-claims';
+	import { createContainerChords } from '../editor-actions/container-chords';
 	import { opensLinkCard } from './link-card/opens-card';
 	import { portalInto } from './portal';
 	import {
@@ -836,6 +837,13 @@
 	setContext(HISTORY_KEY, history);
 	setContext(CONTAINER_EDIT_KEY, containerEdit);
 
+	const containerChords = createContainerChords({
+		commands,
+		getBlockComponent,
+		selection: selectionState,
+		getDoc
+	});
+
 	setContext(EDITOR_SERVICES_KEY, {
 		events,
 		decorations: decorationEngine,
@@ -865,7 +873,8 @@
 		stamps,
 		kindCue,
 		textMoves,
-		readingFocus
+		readingFocus,
+		containerChords
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
@@ -1348,6 +1357,7 @@
 		menuTakesEscape: () => menuPresence.takesEscape,
 		inlineMenu,
 		opensLinkCard: (e) => opensLinkCard(e, linkCard, getDoc(), commands),
+		containerChords,
 		selection: selectionState,
 		getDoc,
 		commands,

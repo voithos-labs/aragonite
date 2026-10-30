@@ -5,6 +5,7 @@
  * handling. Each block supplies a SurfaceBackend for its offsets; live state comes as functions.
  */
 
+import type { ContainerChords } from '../../../editor-actions/container-chords';
 import { tick } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type {
@@ -262,6 +263,7 @@ export interface EditableSurfaceDeps {
 	/** What the editor shows, for an arrow in a block taller than that with no caret, and where a
 	 *  page key steps to. */
 	scrollOwner: Pick<ScrollOwner, 'port' | 'visibleBand' | 'showRect' | 'pathAt'>;
+	containerChords: Pick<ContainerChords, 'take'>;
 
 	// ── The per-block reads `SharedKeydownContext` needs ──────────────────────
 	/** The selection's focus endpoint as a raw offset; each block converts its own DOM read. */
@@ -716,10 +718,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			return;
 		}
 		recordPreEditOffset();
+		// Read before the handler, which may unmount this block.
+		const from = deps.getMyPath();
 		if (e.key === 'Enter') enterKeydown = e;
 		deleteKeydown = e.key === 'Backspace' || e.key === 'Delete' ? e : null;
 		try {
 			await deps.handleKeydown(e);
+			// Last, once the block's own keys passed: what the containers around it bind.
+			deps.containerChords.take(e, from);
 			if (deleteKeydown === e) decideDeleteChord(e, deleteReads);
 			else decideTypedKey(e, typedReads);
 		} finally {

@@ -843,8 +843,8 @@ and the block's own edit actions in `editable-surface.ts`, which `writeText` wri
 **G4.112 · An indent key over a range has one route.** Over a range, Tab, Shift+Tab and any key
 bound to an indent command nest or lift every list item it reaches once, through
 `range-indent.ts :: indentRange`. Three rows: the item moves (`nestListItem`, `liftNestedItem`) are
-called only from a caret's Tab in `list-context.ts` and the range indent; `dispatchContainerChord`
-leaves a key a live range owns to the range; and a range replace's command insertion is built only
+called only from a caret's Tab in `list-context.ts` and the range indent; the container step
+(`editor-actions/container-chords.ts`) leaves a key a live range owns to the range; and a range replace's command insertion is built only
 in `cross-block/keydown.ts`, which leaves Tab out. `lint/file-rules.test.ts`.
 
 **G4.114 · One paint decision under a range.** Whether a block under a cross-block range paints one

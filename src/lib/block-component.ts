@@ -9,7 +9,7 @@ import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
 import type { ChildList } from './block-lists/child-list';
 import type { AnyCommandId } from './schema/command-id';
-import type { BlockCommandTarget, CommandRun } from './schema/block-commands';
+import type { BlockCommandTarget, CommandRun, KindCommandTarget } from './schema/block-commands';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -261,6 +261,9 @@ export interface BlockComponent {
 	 * through to later keydown branches.
 	 */
 	runCommand?(id: AnyCommandId, arg?: unknown, run?: CommandRun): boolean;
+	/** What a chord this container's kind binds runs against when it's pressed in the block at
+	 *  `from`, inside it; null or absent, the container takes none from there. */
+	containerChordTarget?(from: readonly number[]): KindCommandTarget | null;
 	/** What a plugin's block command runs against at this block, for a command the editor runs
 	 *  here itself (a key over a selection, after the selection's removal). Its `replaceRaw`
 	 *  rewrites the block's bytes in the block's own list. */

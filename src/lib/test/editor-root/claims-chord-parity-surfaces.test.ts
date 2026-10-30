@@ -160,7 +160,6 @@ const CONTEXTS: ClaimContext[] = [
 			const tip = [...leaves].find((el) => el.textContent === 'Tip text here');
 			if (!tip) throw new Error('no paragraph inside the admonition');
 			placeCaret(tip, 4);
-			expect(tip.closest('[data-container-chords]')).not.toBeNull();
 			return tip;
 		}
 	},

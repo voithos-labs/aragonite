@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { imeOwnsKey } from '../../../browser/composition';
 	import { getContext, setContext, untrack } from 'svelte';
 	import type { ListContext } from '../../../action-contracts';
 	import type { BlockComponent } from '../../../block-component';
@@ -24,11 +23,9 @@
 	import { useMountGauge } from '../../../perf/use-mount-gauge.svelte';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
 	import { createListItemOverrides } from '../../../editor-actions/list-overrides';
-	import {
-		createContainerBlockComponent,
-		dispatchContainerChord
-	} from '../../../editor-actions/container-block-component';
-	import { listenForContainerChords } from '../../../editor-actions/container-chords.svelte';
+	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
+	import type { KindCommandTarget } from '../../../schema/block-commands';
+	import { blockNodeAt } from '../../../tree-operations/node-primitives';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
 	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
@@ -56,7 +53,7 @@
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
-	const { selection, caretWriter, decorations, events, commands } =
+	const { selection, caretWriter, decorations, events } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { blockDragHandles: getDragHandles } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -194,6 +191,7 @@
 	// ── BlockComponent interface ────────────────────────────────────────
 
 	export const containerApi = createContainerBlockComponent({
+		containerChordTarget: (from) => chordTargetFor(from),
 		selection,
 		caretWriter,
 		reading,
@@ -230,14 +228,13 @@
 		}
 	}
 
-	// Tab, Shift+Tab and Mod+Enter bubble up from the inner paragraph. Only kind commands run here:
-	// the paragraph has already dispatched the global ones, so undo would otherwise fire twice.
-	function handleKeydown(e: KeyboardEvent): void {
-		if (imeOwnsKey(e)) return;
-		// A key a nested item declined is still that item's: the task toggle must not reach the
-		// task it sits in.
-		if (!(e.target instanceof Element) || e.target.closest('.list-item-block') !== boxEl) return;
-		dispatchContainerChord(e, { kind: node.kind, runCommand }, commands, { selection, getDoc });
+	// Tab, Shift+Tab and Mod+Enter from the inner paragraph. A key a nested item declined is still
+	// that item's: the task toggle must not reach the task it sits in.
+	function chordTargetFor(from: readonly number[]): KindCommandTarget | null {
+		for (let depth = myPath.length + 1; depth < from.length; depth++) {
+			if (blockNodeAt(getDoc(), from.slice(0, depth))?.kind === 'listItem') return null;
+		}
+		return { kind: node.kind, runCommand };
 	}
 </script>
 
@@ -254,16 +251,7 @@
 	bind:this={boxEl}
 >
 	<span class="list-item-marker" data-heading={firstHeadingLevel} {@attach drawMarker}></span>
-	<div
-		class="list-item-content"
-		{@attach (el) =>
-			listenForContainerChords(
-				el,
-				untrack(() => node.kind),
-				handleKeydown
-			)}
-		bind:this={contentEl}
-	>
+	<div class="list-item-content" bind:this={contentEl}>
 		<BlockList
 			children={node.children ?? []}
 			blockIds={listState.innerBlockIds}

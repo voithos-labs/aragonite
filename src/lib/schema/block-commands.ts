@@ -29,6 +29,7 @@ import {
 	type GlobalCommandRun
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
+import type { KeyBinding } from './keybindings';
 import { pluginEditorFor, type EditorContext } from './plugin-install';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 import type { MarkActivation } from '../decorations/mark-activation';
@@ -507,6 +508,16 @@ function leftUnderLiveRange(id: AnyCommandId, kind: AnyBlockKind, gates: Command
 	return gates.isCrossBlockRange() && commandOverRange(kind, id, gates.activation) !== undefined;
 }
 
+/** The binding a container of `kind` runs for `chord` now, or null: what its dispatch runs. */
+export function containerBindingFor(
+	chord: string,
+	kind: AnyBlockKind,
+	gates: CommandGates & Pick<CommandDispatchContext, 'keybindingOverrides'>
+): KeyBinding | null {
+	const binding = resolveKindBinding(chord, kind, gates.keybindingOverrides());
+	return binding && containerKeyCommandRuns(binding.command, kind, gates) ? binding : null;
+}
+
 /** Dispatch for a chord at a container: kind commands only, since undo/redo and the range
  *  commands belong to the focused leaf and would otherwise fire twice. */
 export function dispatchKindCommand(
@@ -514,8 +525,8 @@ export function dispatchKindCommand(
 	target: KindCommandTarget,
 	ctx: CommandDispatchContext
 ): boolean {
-	const binding = resolveKindBinding(chord, target.kind, ctx.keybindingOverrides());
-	if (!binding || !containerKeyCommandRuns(binding.command, target.kind, ctx)) return false;
+	const binding = containerBindingFor(chord, target.kind, ctx);
+	if (!binding) return false;
 	const resolved = resolveBlockLocalCommand(binding.command, target, ctx.activation);
 	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx, AT_CARET);
 }

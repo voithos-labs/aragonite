@@ -66,7 +66,9 @@ function wholeBlockKey(t: ReturnType<typeof harness>, key: string, mods = {}): v
 		takesKey: () => false,
 		selection: { isCrossBlock: false },
 		caretMemory: createCaretMemory(),
-		commandOf: () => null
+		commandOf: () => null,
+		getPath: () => [0],
+		containerChords: { take: () => false }
 	});
 }
 
