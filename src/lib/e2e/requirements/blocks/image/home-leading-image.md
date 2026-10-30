@@ -2,11 +2,11 @@
 
 A block whose text opens with an inline image has a position the caret can sit at
 before the widget, where typing puts the byte ahead of `![...]`, but no text node
-holds it, so the browser's Home puts the caret past the image and that position
-could not be reached from the keyboard in any mode (GH #115). The rule: a bare
-Home puts the caret at the block's start through the sentinel position, and a typed
-byte lands before the image's bytes. Driven on `/test/editor`; the source read back
-through the test hooks is the expected answer.
+holds it, so the browser's own Home puts the caret past the image (GH #115). The
+rule: Home lands before an image that opens the line, and a typed byte lands before
+the image's bytes. The editor decides that landing for every line and engine
+(`caret/motion-class.md`); these rows pin the first line. Driven on `/test/editor`;
+the source read back through the test hooks is the expected answer.
 
 ## Happy paths
 
@@ -16,9 +16,8 @@ through the test hooks is the expected answer.
 
 ## Edge cases
 
-- a list item opening with an image sends Home through the sentinel of the branch
-  that handles the container's leading marker (GH #110); the clamp lands it before
-  the image all the same
+- a list item opening with an image: Home lands past the item's marker and before
+  the image, the same spot as in a paragraph (GH #110)
 
 ## User interactions
 

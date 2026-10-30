@@ -18,7 +18,7 @@ delete scenario below is what proves that policy value is honored rather than ig
 
 ## User interactions
 
-- one arrow press crosses the entity each way, with or without Shift: `caret/unit-step.md`
+- one arrow press crosses the entity each way, with or without Shift: `caret/motion-class.md`
 - two adjacent entities (`&copy;&reg;`), no cushioning text: the caret steps over
   each in one keypress, landing at the boundary between them
 - caret adjacent to the entity, one Backspace: the whole reference is removed in a
