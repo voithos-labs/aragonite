@@ -6,8 +6,8 @@ import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { rebuildDirectiveContainerRaw } from '#lib/core/directive/kinds.js';
 import { registerDirective } from '#lib/core/directive/registry.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
-import { roundTripCases } from '#lib/test/support/round-trip.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { roundTripCases } from '#lib/test/harness/round-trip.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => activateDirectiveGrammar(testDirectiveViews()));
 

@@ -52,7 +52,7 @@ unguarded.
 | G4.33  | Live-mode byte candidates verify against what actually paints                                    | L       |
 | G4.34  | Link bytes are written only through the one link byte module                                     | L       |
 | G4.35  | A construct stamps its markers exactly when its policy row says revealable                       | L       |
-| G4.36  | The native selection is written only by the editor's caret writer in `widget-offset.ts`          | L       |
+| G4.36  | A DOM position from walk offsets, a raw range and a public focus are built only in listed files  | L       |
 | G4.37  | Every surface rendering into a caret-walk container stamps content-empty                         | L       |
 | G4.38  | Every editable surface publishes each of `EDITABLE_SURFACE_MEMBERS`                              | L       |
 | G4.39  | Every text-surface component publishes `runCommand`                                              | L       |
@@ -147,7 +147,7 @@ unguarded.
 | G4.150 | One placer for a hidden edge: no other file reads the caret's side or how it arrived             | L       |
 | G4.151 | One click-side check, called from the click entry both prose blocks share                        | L       |
 | G4.152 | Every rendered link has an Edit link target, and only the root click follows one                 | T·L     |
-| G4.155 | Every composing-flag holder asks both composition questions: a drop, and an opening              | L       |
+| G4.155 | A composition event goes to one of the two composition hosts, which keep it in the one tracker   | L       |
 | G4.157 | Every block kind a bundled plugin installs has an insert entry, or says why it has none          | harness |
 | G4.159 | An emptied quote, list item or bundled strip container keeps bytes that reload as it             | harness |
 | G4.163 | A mark's own handlers are called only by the hover lifecycle, activation and the click           | L       |
@@ -184,7 +184,7 @@ unguarded.
 | G4.219 | No popover closes on focus leaving; every focus-loss listener serves a listed need               | L       |
 | G4.220 | A clipboard read or write outside a clipboard event goes through `system-clipboard.ts`           | L       |
 | G4.221 | No constructed `ClipboardEvent`; a selection's shown text is read in one place                   | L       |
-| G4.222 | The browser's selection is read through the bridge readers                                       | L       |
+| G4.222 | _Retired upward_: the selection is read only under `browser/` (G4.270)                           | L       |
 | G4.223 | The library names no browser engine in code                                                      | L       |
 | G4.224 | A press on editor chrome takes no focus, unless its file is listed as owning focus               | L       |
 | G4.225 | The drag session is the first listener to hear a release                                         | L       |
@@ -195,13 +195,13 @@ unguarded.
 | G4.230 | Editor chrome runs no undo or redo of its own; the root answers them there                       | L       |
 | G4.231 | A right-click menu listens for `contextmenu` only where it is declared                           | L       |
 | G4.232 | An e2e spec splits undo steps with `endTypingBatch`, never a fixed wait                          | L       |
-| G4.234 | Delete input types live in `delete-extent.ts`; blocks hear `beforeinput` via their surface       | L       |
+| G4.234 | Delete input types live in `browser/input.ts`; blocks hear `beforeinput` via their surface       | L       |
 | G4.235 | In reading mode the page owns Tab: no block reads the key by hand or sets its own tab stop       | L       |
 | G4.237 | A test never navigates a page its `beforeEach` already navigated                                 | L       |
 | G4.239 | No block runs a merge by its id; a delete at an edge runs the plain key's binding                | L       |
 | G4.240 | Every `ResizeObserver` is made in `windowing/observe-resize.ts`                                  | L       |
 | G4.241 | _Retired upward_: the run layout and the joins are the commit’s own steps (G4.258)               | L       |
-| G4.243 | Only the caret writer calls `Selection.modify`; a caret's line is read through one step          | L       |
+| G4.243 | A caret's line is read through one step; `Selection.modify` is the caret writer's (G4.270)       | L       |
 | G4.245 | A kind's write rule is run through `kindWriteRule`                                               | L       |
 | G4.247 | A production build of the published package carries no dev check                                 | harness |
 | G4.248 | Dev-only code reads one switch, in `dev-checks.ts`, imported by its package name                 | L       |
@@ -214,6 +214,15 @@ unguarded.
 | G4.260 | A step before the render and its step after are paired through `aroundRender`                    | L       |
 | G4.262 | The fix-up package loads nothing that parses or writes the tree                                  | L       |
 | G4.265 | A production build carries no invariant module and no tree dump                                  | harness |
+| G4.268 | Every file under `scripts/` has a caller, or sits in the hand-run list with a reason             | L       |
+| G4.269 | An e2e page requests no host but the app server, and an e2e route never calls `continue`         | L       |
+| G4.270 | The selection, the point lookups, `inputType` and `isComposing` are read only under `browser/`   | L       |
+| G4.271 | A windowed list hands each child the index and id from its own slice entry                       | L       |
+| G4.272 | Every child process a file under `src/lib` spawns carries a timeout of its own                   | L       |
+| G4.273 | A keydown handler that runs a command asks `imeOwnsKey` first                                    | L       |
+| G4.274 | A typed insert or a typed key is read only where the editor decides where it lands               | L       |
+| G4.275 | Words are cut by one rule, read only through `wordSegments`                                      | L       |
+| G4.276 | A widget's raw span is read only through `widgetSourceRange`                                     | L       |
 
 ### The entries
 
@@ -268,7 +277,7 @@ exemption fails. `lint/consumer-guide-chords.test.ts`.
 `lint/theme-token-manifest.test.ts`.
 
 **G4.10 · Plugin package and pack parity.** Every `src/lib/plugins/<name>` directory is exported as
-`./plugins/<name>`, and verify-pack derives its required files from that (`scripts/pack-manifest.mjs`);
+`./plugins/<name>`, and verify-pack derives its required files from that (`scripts/pack/pack-manifest.mjs`);
 a plugin module with a top-level CSS import is declared in `sideEffects`. The `/renderer` subpaths
 are extra. `lint/plugin-pack-parity.test.ts`.
 
@@ -293,7 +302,7 @@ owned view. `lint/file-rules.test.ts`; type pins in `test/core/node-views.test.t
 Only `Editor.svelte` holds a mutable `Document`. `lint/file-rules.test.ts`.
 
 **G4.15 · Coordinate-brand creation.** `as <Brand>` casts and the `as*` boundary constructors appear
-only in `caret/coordinate-spaces.ts` and the allowlisted public-entry files; everything else gets a
+only in `core/coordinate-spaces.ts` and the allowlisted public-entry files; everything else gets a
 brand through those or a named conversion. G3.7's runtime-source complement.
 `lint/file-rules.test.ts`.
 
@@ -372,7 +381,7 @@ is structural, so a shared helper fails it until the scan learns that helper.
 `lint/reserved-chord-manifest.test.ts`.
 
 **G4.30 · Hidden-run classification.** `core/inline/visibility.ts` states the marker families and
-the hiding rule, and `caret/widget-offset.ts` applies it where there's a caret; a third copy would
+the hiding rule, and `browser/painted.ts` applies it where there's a caret; a third copy would
 disagree the day a mode moves, and a caret placed in unpainted text corrupts silently. A property
 test holds the two answers together. The scans allowlist resolving hiding state to those homes and
 readers asking another question, and manifest every file naming a marker class. Dev backstop:
@@ -404,16 +413,15 @@ nothing, and a row without a stamp addresses nothing. An absent row reads as `re
 `lint/stamp-revealable-parity.test.ts`.
 
 **G4.36 · Caret-write sites.** Every native selection write goes through the editor's caret writer,
-`caret/widget-offset.ts :: createCaretWriter` (`EditorServices.caretWriter`), which asks the drawn
-caret to repaint after it (G4.143). A caret goes through `placeCaretAtRaw`, which skips the marker
-prefix, never lands behind a hidden marker run, and takes a required `clamp` (`reachable` or
-`exact`); a range through `selectRawRange`, `extendSelectionToRaw`, `selectSurfaceContent`, or
-`selectDomRange` for nodes in hand. The scan pins four file lists, each with per-file reasons:
+`browser/caret-writer.ts :: createCaretWriter` (`EditorServices.caretWriter`), which asks the drawn
+caret to repaint after it (G4.143), and G4.270 fails a write anywhere else. A caret goes through
+`placeCaretAtRaw`, which skips the marker prefix, never lands behind a hidden marker run, and takes
+a required `clamp` (`reachable` or `exact`); a range through `selectRawRange`,
+`extendSelectionToRaw`, `selectSurfaceContent`, or `selectDomRange` for nodes in hand. The scan
+pins three file lists, each with per-file reasons:
 
-- the files calling a native selection writer, which is `widget-offset.ts` alone (the shapes are
-  in `lint/native-selection-write.ts`, which G4.143 reads too);
-- the files building a DOM position from a DOM-walk offset (`widget-offset.ts` and the readers
-  that measure with it);
+- the files building a DOM position from a DOM-walk offset (`browser/offsets.ts` and the readers
+  that measure with it), so no hand-built range reaches `selectDomRange`;
 - the files naming `rawRangeToDomRange` (measuring and decorating only);
 - the surfaces building `focus` from `placeCaret` (`selection/place-caret.ts`).
 
@@ -517,7 +525,7 @@ the consumer example's build fails on such a cycle too (`examples/consumer/vite.
 `aragonite`, which belongs to an unrelated npm package. `docs/changelog/` is exempt, since it
 records what shipped under the name of the day. `lint/doc-package-name.test.ts`.
 
-**G4.56 · Iterative walks.** No function under `core/inline/`, `caret/`, `windowing/`, `ambient/` or
+**G4.56 · Iterative walks.** No function under `core/inline/`, `caret/`, `windowing/`, the marker prefix builder or
 `components/blocks/text/` that reads a node's `children` or `childNodes` sits on a call cycle, even
 through helpers. Nesting depth is up to the input, so recursion overflows the stack and strands the
 block in the failed-block fallback; write the walk with an explicit stack. A call counts against
@@ -863,7 +871,7 @@ fails when `TextEditableBlock.svelte`'s keydown calls the shared keymap first.
 of top-level directories (root files as their own nodes), runtime and type-only edges apart, that
 must match `lint/directory-layering-baseline.ts`: a new edge fails naming its imports, a gone one
 until its line is deleted. The scan can't refuse an added line, so a new one gets a reviewer's eye.
-Two runtime cycles are still listed. Always: nothing in `tree-operations/` imports `editor-actions/`
+One runtime cycle is still listed. Always: nothing in `tree-operations/` imports `editor-actions/`
 or `components/`, and an unresolvable import fails. `lint/directory-layering.test.ts`.
 
 **G4.123 · An item's children leave it under the order check.** Backspace's unwrap of a first list
@@ -942,7 +950,7 @@ attribute and the bar change in one paint and there's one bar per editor.
 caret's proxy, each with its reason, and nothing else: another rule would hide or recolor the
 browser's caret behind the drawn caret's back. `lint/drawn-caret-guards.test.ts`.
 
-**G4.143 · Every caret write asks for a paint.** `caret/widget-offset.ts` writes the native selection
+**G4.143 · Every caret write asks for a paint.** `browser/caret-writer.ts` writes the native selection
 only inside `createCaretWriter`, whose writes and clears call `drawnCaret.request`;
 `test/caret/caret-writer-request.test.ts` calls every writer method and counts one request each (its
 table typed over the writer's keys). The frame callback in `caret/drawn-caret.svelte.ts` calls
@@ -1006,12 +1014,12 @@ inline kind and the other link shapes, and each `a[href]` must resolve to such a
 live edit target. `lint/file-rules.test.ts` keeps following a link (`window.open`, `activateLink`,
 `closest('a[href]')`) to the root click in `gestures.ts`, after `clickFollowsAt`.
 
-**G4.155 · Every composing-flag holder asks both composition questions.** A holder of a composing
-flag (the editable surface, the caret host) asks `dropped-composition.ts` whether the browser
-dropped its composition (`reportDroppedComposition`) and whether a composed run opens one
-(`opensComposition`). A range across blocks claims a composition's start, so the block its removal
-leaves the caret in only sees the runs. The scan finds a holder by its `reportDroppedComposition`
-call, so a new holder asks that one too. `lint/composition-holders.test.ts`.
+**G4.155 · One composition tracker.** `browser/composition.ts :: createCompositionTracker` holds
+the composition in progress and ends one the browser dropped at any key or input in the editor. A
+file wiring `compositionstart` or `compositionend` hands it to a host (the editable surface, the
+caret host), both open, adopt and end through the tracker (a range claims a start, so the block its
+removal leaves the caret in adopts the runs), and no file keeps a composing flag of its own.
+`lint/composition-holders.test.ts`.
 
 **G4.157 · Every bundled block kind can be inserted.** `test/plugins/insertable-kinds.test.ts`
 installs every plugin under `src/lib/plugins/` from its zero-argument factory and reads the kinds
@@ -1054,7 +1062,7 @@ be first. `lint/table-header-flag.test.ts` fails a file other than the table par
 names its source build under `svelte` and the prebuilt one under `default`, at the same path below
 `dist/prebuilt/`; `publishedEntryPoints` throws on a broken pair, so all its readers stop together.
 `sideEffects` covers the whole prebuilt, since a bundler dropping a chunk it thinks pure loses its
-registrations. `lint/plugin-pack-parity.test.ts`; `scripts/verify-prebuilt.mjs` checks the output's
+registrations. `lint/plugin-pack-parity.test.ts`; `scripts/pack/verify-prebuilt.mjs` checks the output's
 imports, Node load, a `/plugin` kind's parse and the size budget.
 
 **G4.175 · Runes mode only.** A component with no rune compiles in legacy mode, which turns on the
@@ -1077,12 +1085,12 @@ carries `data-corner-control`, so the open find bar moves it below itself when i
 **G4.181 · Wrappers release in lockstep.** Each package under `packages/` (the framework wrappers)
 has the root's version and peers `@voithos-labs/aragonite` at exactly that version, so an app can
 only ever install one core next to them; `src/lib/version.ts`, which an input recording names,
-carries that version too. `scripts/check-lockstep.mjs` holds the rule;
+carries that version too. `scripts/release/check-lockstep.mjs` holds the rule;
 `npm run release:publish` runs it before publishing every package together, and
 `lint/lockstep-versions.test.ts` runs it on the tree.
 
 **G4.183 · No Svelte in a non-Svelte app.** The prebuilt build carries its own Svelte, so the core
-declares `svelte` an optional peer. `scripts/adapter-smoke.mjs` installs the packed tarballs into
+declares `svelte` an optional peer. `scripts/smoke/adapter-smoke.mjs` installs the packed tarballs into
 each framework example and fails if `node_modules/svelte` shows up there.
 
 **G4.184 · The editor brings its reset.** `editor.css` opens with a margin, padding and box-sizing
@@ -1094,8 +1102,8 @@ under a `data-host-content` element and keeps the page's styles. `lint/editor-re
 
 **G4.185 · Published types name no Svelte outside `/svelte`.** A React or Vue app type-checks the
 package's declarations with no Svelte installed, so only `@voithos-labs/aragonite/svelte` may reach
-a `svelte` import, and no entry a stylesheet import (`scripts/prune-dist.mjs` strips them).
-`scripts/verify-types.mjs`, run by verify-pack, walks each entry's declarations and names the chain
+a `svelte` import, and no entry a stylesheet import (`scripts/pack/prune-dist.mjs` strips them).
+`scripts/pack/verify-types.mjs`, run by verify-pack, walks each entry's declarations and names the chain
 to any it finds, and fails when `/svelte` reaches no `svelte` (a blind walk).
 `lint/published-types.test.ts` holds the walk to every import shape.
 
@@ -1106,14 +1114,14 @@ either field, or on a local named `view` or `row`, anywhere under `src/lib`; a l
 name gets past it.
 
 **G4.187 · Every framework app is tested.** `examples/adapter-suite/apps.mjs` lists the suite's
-projects, and `scripts/adapter-smoke.mjs` builds and installs whatever it lists. An app under
+projects, and `scripts/smoke/adapter-smoke.mjs` builds and installs whatever it lists. An app under
 `examples/` with no entry there is never installed from the tarballs or tested, and a spec no
 project names never runs. `lint/adapter-apps.test.ts` fails on either.
 
 **G4.188 · Wrappers import on a server.** A server render imports a wrapper before any browser
 exists, so each JS entry a wrapper's `exports` names must load in plain Node without touching the
-DOM or reading a value declared further down the file. `scripts/node-import.mjs ::
-nodeImportFailures` imports each one in a child Node process, and `scripts/verify-pack.mjs` runs it
+DOM or reading a value declared further down the file. `scripts/pack/node-import.mjs ::
+nodeImportFailures` imports each one in a child Node process, and `scripts/pack/verify-pack.mjs` runs it
 on every wrapper after the build. `lint/wrapper-node-import.test.ts` feeds it a clean entry and two
 broken ones.
 
@@ -1140,7 +1148,7 @@ registers them on the first grammar read, through `registerBuiltInDescriptors` u
 
 **G4.200 · One read of a block's hidden screen.** The rules for a construct's hidden edge only
 apply where the block hides markers at the caret, and they need the screen it hides them on.
-`caret/widget-offset.ts :: hidingScreenOf` answers both at once. `lint/edge-rule-guards.test.ts`
+`browser/painted.ts :: hidingScreenOf` answers both at once. `lint/edge-rule-guards.test.ts`
 fails any other file that calls `screenVisibilityOf`, except the dev check that compares it with
 the stylesheet.
 
@@ -1186,7 +1194,7 @@ diagnostic-only. `e2e/lint/recordings.test.ts`.
 
 **G4.214 · One measure of a caret.** WebKit and Firefox measure a collapsed range right after a `\n`
 on the line it ends, putting each line start on the line above. `caretRectAt`
-(`caret/visual-lines.ts`) measures the next character instead, and every caret box goes through it
+(`browser/visual-lines.ts`) measures the next character instead, and every caret box goes through it
 (the column search, sticky x, drawn caret, drop caret, `rects.caretRect()` and the rest); the scan
 fails a Range measured elsewhere, bar a few never-collapsed spans. A caret written at a line start
 lands in the next line's text likewise (`findDomTextLanding`). `lint/file-rules.test.ts`.
@@ -1227,15 +1235,8 @@ same text. `lint/system-clipboard-calls.test.ts`.
 **G4.221 · Clipboard text the engines agree on.** A paste with no paste event of its own (the
 menus' Paste rows) hands its text to the focused block's `insertMarkdown` or `insertPlainText`,
 since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The selection's shown text is read only through
-`shownSelectionText` (`clipboard-step.ts`), which reads LF where Firefox on Windows writes CRLF,
+`shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF,
 and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
-
-**G4.222 · The selection is read in one place.** Engines differ in what the selection reports (a
-caret inside a widget, an anchor inside a CRLF pair), so every file reads it through
-`selection/native-bridge.ts` (`readNativeSelection`, `rawSelectionIn`, `nativeRangeIn`,
-`holdsNativeRange`) or `rawSelectionFocus`. The raw readers left (`caret/`, which the bridge
-imports, two files the selection layer imports, and G4.221's `shownSelectionText`) are listed with
-their reason, and the list only shrinks. `lint/native-selection-reads.test.ts`.
 
 **G4.223 · No engine sniffing.** `src/lib` outside `debug/` names no engine in script (`isFirefox`,
 a user-agent read, `Edg/`): an engine bug is fixed where the editor reads or decides, the same way
@@ -1301,7 +1302,7 @@ A `waitForTimeout` within three lines of an undo, or on a line naming undo group
 does a reach for the real pause or the page handle outside `e2e/typing-batch.ts` and `tests/undo-typing-pause.spec.ts`.
 `e2e/lint/e2e-drivers.test.ts`.
 
-**G4.234 · One list of which deletes the editor writes.** `caret/delete-extent.ts` names every
+**G4.234 · One list of which deletes the editor writes.** `browser/input.ts` names every
 delete input type and what each takes, so one spelled out anywhere else (a string, a
 `startsWith('delete')`, a regex) fails: ask `decidedDelete`, `isDeleteInput` or `isMoveDelete`. A
 `beforeinput` binding other than `editableSurface.onBeforeInput`, whose last step writes the delete,
@@ -1314,10 +1315,11 @@ first. And an element that writes itself a tabindex of 0 fails unless it's a con
 reading-mode stop, so a new block can't add a stop of its own.
 `lint/reading-keyboard-sites.test.ts`; every engine in `plugins/reading-keyboard.spec.ts`.
 
-**G4.237 · One navigation per test.** A test navigating a page its `beforeEach` already loaded
-has had that second navigation interrupted in CI's Firefox, and it's never needed: a test wanting
-another URL gets its own describe. The scan walks each describe chain, outer hooks included, and
-fails a test reaching `gotoReady` or `reloadReady` (through any e2e helper) at its `path:line`.
+**G4.237 · One navigation per test.** A test gets its page from its describe's `beforeEach`, and
+every navigation's readiness rules live in `e2e/goto-ready.ts` (the page it leaves has finished
+loading, the route it reaches has hydrated), so a fix to how specs navigate lands in one place. The
+scan walks each describe chain, outer hooks included, and fails a test reaching `gotoReady` or
+`reloadReady` (through any e2e helper) at its `path:line`.
 `e2e/lint/one-navigation-per-test.test.ts`.
 
 **G4.239 · A delete at a block's edge runs the plain key.** A Backspace or Delete of any unit
@@ -1333,8 +1335,8 @@ points say when observing starts. `file-rules.test.ts`.
 
 **G4.243 · One read of the caret's line.** At a soft wrap a caret's one DOM position is on two
 lines, and `caretRectAt` reads one of them whatever the browser shows. So at a wrap the line
-checks in `caret/visual-lines.ts` ask the browser, through the caret writer, the one file allowed
-to call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
+checks in `browser/visual-lines.ts` ask the browser through the caret writer, the one file G4.270 lets
+call `Selection.modify`. Every other `caretRectAt` caller is listed with why getting the line
 wrong at a wrap is harmless or a known gap. `lint/file-rules.test.ts`.
 
 **G4.245 · One way to run a write rule.** A kind's `rawWrite` is read only by
@@ -1344,7 +1346,7 @@ leaf-text reader (it reads the rule's `text`) and the conformance kit are the li
 
 **G4.247 · A production build carries no dev check.** Under the `production` condition the editor's
 dev-checks import gets `dev-checks-stripped.ts`: a constant-`false` switch and empty reporters.
-`scripts/verify-dev-strip.mjs` (run by verify-pack) builds a page through both builds with Vite and
+`scripts/pack/verify-dev-strip.mjs` (run by verify-pack) builds a page through both builds with Vite and
 fails on any check tag the production build keeps; the page imports `configureEditorEnv`, so only
 the swap can prove the switch off. `test/dev-checks-stripped.test.ts` holds the copy to the real
 module's names and to the side-effect annotations esbuild needs.
@@ -1397,8 +1399,61 @@ own files, `core/lines.ts` and `tree-operations/splice-many.ts`. The package rea
 through the host it's handed and returns a patch, so it can't parse on its own or write a list
 it was handed; the writer is the one place a patch lands. `lint/fix-up-package-pure.test.ts`.
 
-**G4.265 · A production build carries no dev-only module.** `scripts/verify-dev-strip.mjs` builds
+**G4.265 · A production build carries no dev-only module.** `scripts/pack/verify-dev-strip.mjs` builds
 the Svelte page for production with source maps and fails on any byte owned by a file under
 `invariants/` or by `debug/dump-tree.ts`. A predicate is reached only inside `assertInvariant` or
 behind `devChecksOn`; code production runs (the commit scope, a list move's wrapper) lives elsewhere.
 The prebuilt page's maps name its chunks, not the modules, so only the Svelte page is read.
+
+**G4.268 · Every script has a caller.** A file under `scripts/` is run by an npm script, a workflow step,
+a git hook, or another script (an import, or a spawned path), or it is imported by a root config or by
+`src/`. A doc mention, a test that only reads the file and an error message naming it don't count: a
+script reached only that way is hand-run, and is listed with its reason in the test. A listed script
+that gains a caller, or goes away, fails too, so the list can't rot. `lint/script-callers.test.ts`.
+
+**G4.269 · An e2e page reaches only the app server.** The shared fixture (`e2e/fixtures.ts`) blocks
+every request a test's pages make to another host and fails the spec at teardown, naming each URL,
+so the suites run without a network. A spec's own route for a made-up host runs before the block.
+`route.continue()` would send a request straight past it, so a route passes requests on with
+`route.fallback()`. `e2e/lint/e2e-drivers.test.ts`.
+
+**G4.270 · The browser is touched in one module.** Only `browser/selection-read.ts` and the caret
+writer read the native selection, only `caret-writer.ts` writes it (`Selection.modify` included),
+`point.ts` asks for a caret or element at a point, `input.ts` reads `inputType` and
+`getTargetRanges`, and `composition.ts` reads `isComposing`. `debug/`'s recorder may read what it
+records; a directory that can't import `browser/` takes the read as a parameter. The write shapes
+are in `lint/native-selection-write.ts` (G4.143 reads it too). `lint/browser-module.test.ts`.
+
+**G4.271 · A windowed list indexes its children from its slice entries.** A list renders `windowSlicer`'s
+entries and passes each child `entry.index` and `entry.id`. An index added up from the live window start
+runs ahead of the loop's own index as soon as a height write moves the window, so a size report read
+before the next render lands on the wrong block. `lint/window-slice-entries.test.ts`.
+
+**G4.272 · A spawned child process has a timeout.** Every `spawn`, `exec`, `execFile`, `fork` and
+their sync forms under `src/lib`, tests included, passes a `timeout` in its options, so a hung child
+fails its own test instead of holding the whole run. `lint/spawn-timeouts.test.ts`.
+
+**G4.273 · An IME key is never a command.** A keydown handler that runs a command starts with
+`imeOwnsKey(e)`, which also catches the key opening a composition (code 229, `isComposing: false`
+in Chromium and WebKit). The scan counts each file's keydown wirings against its `imeOwnsKey`
+calls, and lists a forward to a handler that asks, or a listener that runs no command, with why.
+The bundled plugins ask too, through the `imeOwnsKey` the plugin entry point exports.
+`lint/ime-key-fence.test.ts`.
+
+**G4.274 · One home for where a typed letter lands.** The `insert` intent (off `readInput`) and
+`isPlainTypingKey` are read only in `components/blocks/editable/typed-insert.ts` and a short list,
+each with its reason: the delimiter auto-pair, the range edits (live, across blocks, over a widget),
+the caret hosts, the composition tracker, a code body and a painted source, the selected widget's
+splice, the open line and the image dialog's own fields. `lint/typed-insert-home.test.ts`.
+
+**G4.275 · One word rule.** Engines' word segmenters disagree whether a full stop or a colon between
+two letters joins them (Chromium cuts `foo.bar`, Firefox and WebKit join it) and which segments are
+words (Firefox calls some Japanese ones none), so `Intl.Segmenter` is read only in
+`core/text-units.ts`, whose `wordSegments` always cuts there and calls a segment a word when it holds
+a letter or a digit. The word delete, the word keys and the double-click read words through it.
+`lint/file-rules.test.ts`.
+
+**G4.276 · One reader for a widget's raw span.** A widget or a decoration says which raw bytes it
+stands for in `data-source-start` and `data-source-end`, and only
+`core/inline/widget-shell.ts :: widgetSourceRange` parses them back. It answers null unless both
+parse, so no reader trusts half a span. Writing them is fine anywhere. `lint/file-rules.test.ts`.

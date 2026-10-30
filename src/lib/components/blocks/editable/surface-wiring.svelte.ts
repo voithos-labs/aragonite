@@ -31,6 +31,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'selection'
 	| 'caretWriter'
 	| 'drawnCaret'
+	| 'composition'
 	| 'getDoc'
 	| 'getBlockElByPath'
 	| 'focusActions'
@@ -81,6 +82,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		caretMemory,
 		caretWriter,
 		drawnCaret,
+		composition,
 		selection,
 		activePlugins,
 		events,
@@ -103,6 +105,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		selection,
 		caretWriter,
 		drawnCaret,
+		composition,
 		getDoc,
 		getBlockElByPath,
 		focusActions,

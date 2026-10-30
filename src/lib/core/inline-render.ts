@@ -2,15 +2,20 @@
  * DOM renderer for inline node trees. Over a widget-free range the fragment's textContent equals
  * raw.slice. Widgets break that by design, contributing their own text or none and carrying their
  * source bytes on `data-source-*`, so a raw offset is recovered only through the shared DOM
- * traversal (caret/widget-offset.ts), never by counting textContent (G2.4). Which of the spans
+ * traversal (browser/offsets.ts), never by counting textContent (G2.4). Which of the spans
  * built here a mode leaves on screen is `inline/visibility.ts`.
  */
 
 import type { InlineNode } from './nodes';
-import { buildCoreInlineWidget, type WidgetBuildOptions } from './inline/inline-widgets';
+import {
+	buildCoreInlineWidget,
+	isFrameWidget,
+	type WidgetBuildOptions
+} from './inline/inline-widgets';
+import { FRAME_ATTR } from './inline/widget-shell';
 import { codeFenceWidth } from './inline/scan/code-span';
 import { isAllowedHrefScheme } from './url-policy';
-import { firstDisplayLine } from './lines';
+import { firstDisplayLine, isBlankText } from './lines';
 
 // ── Render options ──────────────────────────────────────────────────────────
 
@@ -339,10 +344,14 @@ function renderNode(
 			const renderWidgets = opts.renderImagesAsWidgets ?? true;
 			if (renderWidgets && opts.buildImageWidget) {
 				container.appendChild(
-					opts.buildImageWidget(node, raw, {
-						resolveImageUrl: opts.resolveImageUrl ?? ((u) => u),
-						imageLoadPolicy: opts.imageLoadPolicy ?? 'auto'
-					})
+					stampFrame(
+						opts.buildImageWidget(node, raw, {
+							resolveImageUrl: opts.resolveImageUrl ?? ((u) => u),
+							imageLoadPolicy: opts.imageLoadPolicy ?? 'auto'
+						}),
+						node,
+						opts
+					)
 				);
 			} else {
 				appendImageSource(node, raw, opts, container);
@@ -373,7 +382,7 @@ function renderNode(
 
 		case 'entityReference':
 		case 'rawHtml':
-		default:
+		default: {
 			if (overlapsShownSource(node, opts.shownSource)) {
 				opts.retainViewWidget?.(node, raw);
 				container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
@@ -381,8 +390,9 @@ function renderNode(
 			}
 			// An invisible entity renders no widget and keeps its literal-source span, as does any
 			// kind the registry does not own, so every byte round-trips.
+			const widget = buildCoreInlineWidget(node, raw, opts);
 			container.appendChild(
-				buildCoreInlineWidget(node, raw, opts) ??
+				(widget && stampFrame(widget, node, opts)) ??
 					sourceSpan(
 						raw,
 						node,
@@ -394,6 +404,7 @@ function renderNode(
 					)
 			);
 			return null;
+		}
 	}
 }
 
@@ -422,6 +433,7 @@ export function renderInlineNodes(
 		if (child !== null) stack.push(child);
 	}
 	paintPendingBreak(opts.pendingBreaks ?? 0, root.content);
+	if (!opts.pendingBreaks) anchorFrameLine(nodes, root.content, opts);
 	return root.content;
 }
 
@@ -439,6 +451,60 @@ function paintPendingBreak(lines: number, frag: DocumentFragment): void {
 	}
 }
 
+/** Marks a widget whose kind declares `frame`, which the caret beside it reads. */
+function stampFrame<T extends Node>(widget: T, node: InlineNode, opts: RenderInlineOptions): T {
+	if (widget instanceof Element && isFrameWidget(node.kind, opts.grammar)) {
+		widget.setAttribute(FRAME_ATTR, '');
+	}
+	return widget;
+}
+
+/** A caret anchor after a frame that ends the content, last in the fragment, so the line holds a
+ *  text-height box for the bar beside the frame where no text is. It holds no text; offsets skip it. */
+function anchorFrameLine(nodes: InlineNode[], frag: DocumentFragment, opts: RenderInlineOptions) {
+	let last = nodes[nodes.length - 1];
+	while (last?.children?.length && !isFrameWidget(last.kind, opts.grammar)) {
+		last = last.children[last.children.length - 1];
+	}
+	if (!last || !isFrameWidget(last.kind, opts.grammar)) return;
+	// A frame drawn as its source (a shown source, a block that renders none) needs no line.
+	if (!frag.querySelector(`[${FRAME_ATTR}][data-source-start="${last.start}"]`)) return;
+	const br = document.createElement('br');
+	br.dataset.caretAnchor = 'frame';
+	frag.appendChild(br);
+}
+
+/** Whether the content's first source line holds only pictures drawn in `drawn` and whitespace,
+ *  seen through wrappers (a link, emphasis): a container's marker beside it sits at its top. */
+export function firstLineHoldsOnlyPictures(
+	nodes: readonly InlineNode[],
+	raw: string,
+	opts: Pick<RenderInlineOptions, 'grammar'>,
+	drawn: ParentNode
+): boolean {
+	const stack = [...nodes].reverse();
+	let pictures = 0;
+	while (stack.length > 0) {
+		const node = stack.pop()!;
+		if (isFrameWidget(node.kind, opts.grammar)) {
+			if (!drawn.querySelector(`[${FRAME_ATTR}][data-source-start="${node.start}"]`)) return false;
+			pictures++;
+		} else if (node.kind === 'hardLineBreak') {
+			break;
+		} else if (node.children?.length) {
+			for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]);
+		} else if (node.kind !== 'text') {
+			return false;
+		} else {
+			const text = raw.slice(node.start, node.end);
+			const lineEnd = text.indexOf('\n');
+			if (!isBlankText(text.slice(0, lineEnd < 0 ? undefined : lineEnd))) return false;
+			if (lineEnd >= 0) break;
+		}
+	}
+	return pictures > 0;
+}
+
 // ── Cursor mapping ───────────────────────────────────────────────────────────
 
 export interface OffsetResult {
@@ -447,7 +513,7 @@ export interface OffsetResult {
 }
 
 /** The leaf containing `offset`, preferring the right node at a boundary; `offset === end` matches
- *  only the last node. The DOM side is `findDomTextOffsetTarget` in `caret/widget-offset.ts`. */
+ *  only the last node. The DOM side is `findDomTextOffsetTarget` in `browser/offsets.ts`. */
 export function findNodeAtOffset(nodes: InlineNode[], offset: number): OffsetResult | null {
 	// Descent never backtracks, the first containing sibling winning its level, so the answer is
 	// the deepest containing node.

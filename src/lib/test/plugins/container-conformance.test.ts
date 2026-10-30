@@ -12,7 +12,7 @@ import {
 	type ContainerConformanceProfile
 } from '#lib/testing.js';
 import { checkDeclarationSanity } from '#lib/testing/container-conformance.js';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
 import { registerGithubAlert } from '#lib/plugins/admonitions/github-alert-kind.js';
@@ -23,7 +23,7 @@ import { parse } from '#lib/core/parser.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { childHoldingLastLine } from '#lib/schema/container-raw.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // The container conformance kit pointed at real plugin containers, the audience it is for.
 // Unlike the built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its
@@ -93,6 +93,7 @@ describe('G4.3 conformance kit: plugin containers', () => {
 			'focusBubble:asserted',
 			'terminatorCollision:asserted',
 			'titleRow:asserted',
+			'openerLine:asserted',
 			'declarations:asserted'
 		]);
 		expect(report.cells.find((c) => c.cell === 'multiScope')?.detail).toBe(NO_MULTI_SCOPE_OP);
@@ -110,6 +111,7 @@ describe('G4.3 conformance kit: plugin containers', () => {
 			'focusBubble',
 			'terminatorCollision',
 			'titleRow',
+			'openerLine',
 			'declarations'
 		]);
 	});

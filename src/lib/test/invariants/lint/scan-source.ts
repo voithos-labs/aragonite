@@ -13,7 +13,7 @@ import {
 	isAliasSpelling,
 	publishedEntries
 } from '../../../../../scripts/lib-alias.mjs';
-import { ignoredPaths, isIgnoredBy } from '../../../../../scripts/doc-corpus.mjs';
+import { ignoredPaths, isIgnoredBy } from '../../../../../scripts/docs/doc-corpus.mjs';
 export { aliasPath, aliasSpecifier, isAliasSpelling } from '../../../../../scripts/lib-alias.mjs';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 

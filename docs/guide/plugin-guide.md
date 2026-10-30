@@ -511,7 +511,7 @@ function rebuildBoxRaw(node: CstNode): void {
 // the editor calls it after a child edit; node.raw now reads ':::box\nedited line\n:::\n'
 ```
 
-A directive container with a title line doesn't hand-write this at all: `createDirectiveRebuild` in the walkthrough does the same job with the fence bytes, the line ending and the title handled for you.
+A `:::` directive container doesn't hand-write this at all: `createDirectiveRebuild` in the walkthrough does the same job with the opener line, the closing line and the line ending handled for you.
 
 The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw }`) is a performance opt-in for a container big enough that re-reading every child on every keystroke costs real time (the built-in list and quote use it). It names the one child whose raw just changed and the bytes it held before, so you can re-emit that child's region alone. If you take it:
 
@@ -547,12 +547,13 @@ Most of that is enforced by **shape**: the factories never hand you a way to mak
 
 What each mistake does in each build:
 
-| Misuse                                    | Dev build                                                                                                               | Production build                                    |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `rebuildRaw` writes the wrong bytes       | Warns at edit time, naming the kind                                                                                     | Silent until the bytes surface in a round-trip      |
-| A component throws while rendering        | Contained as a failed-block fallback plus an `error` event, by path                                                     | Same containment (the boundary ships in production) |
-| `rebuildRaw` throws                       | The edit rolls back, a typed key included (its character goes away), fires an `error` of origin `commit`, then rethrows | Same rollback and `error`; nothing rethrown         |
-| An opener claims no line (`consumed < 1`) | Warns, naming the kind, and declines the opener                                                                         | Declines the same way, silently; no hang            |
-| An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                                                                            | Silent round-trip break                             |
-| An opener throws                          | Propagates uncaught (parse runs at init and on every edit)                                                              | Same; uncaught                                      |
-| A register call outside a plugin's setup  | Throws, naming `definePlugin`                                                                                           | Runs, unchecked and unsupported                     |
+| Misuse                                    | Dev build                                                                                                                                                         | Production build                                    |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `rebuildRaw` writes the wrong bytes       | Warns at edit time, naming the kind                                                                                                                               | Silent until the bytes surface in a round-trip      |
+| A component throws while rendering        | Contained as a failed-block fallback plus an `error` event, by path                                                                                               | Same containment (the boundary ships in production) |
+| `rebuildRaw` throws                       | The edit rolls back, a typed key included (its character goes away), fires an `error` of origin `commit`, then rethrows                                           | Same rollback and `error`; nothing rethrown         |
+| An opener claims no line (`consumed < 1`) | Warns, naming the kind, and declines the opener                                                                                                                   | Declines the same way, silently; no hang            |
+| An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                                                                                                                      | Silent round-trip break                             |
+| An opener throws                          | Propagates uncaught (parse runs at init and on every edit)                                                                                                        | Same; uncaught                                      |
+| A register call outside a plugin's setup  | Throws, naming `definePlugin`                                                                                                                                     | Runs, unchecked and unsupported                     |
+| `attachFocus` on a kind not focused whole | Throws, naming `blockFocus: 'whole-block'`; from a view's `mount` or `update` (a framework's ref included) that's the failed-block fallback plus an `error` event | Same                                                |

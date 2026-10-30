@@ -1,5 +1,5 @@
 /**
- * Checks that the stylesheet and `caret/widget-offset.ts` agree on which marker runs are hidden:
+ * Checks that the stylesheet and `browser/painted.ts` agree on which marker runs are hidden:
  * the TypeScript side mirrors the stylesheet by hand, since `getComputedStyle` per keystroke is
  * too slow. Once per mode change it compares, per marker family, the stylesheet, the DOM-to-offset
  * traversal and the node-space rule both are stated over. Where no stylesheet hides anything
@@ -8,7 +8,12 @@
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { familyHidesText, markerFamilyOf, type VisibilityContext } from '../core/inline/visibility';
-import { CONTENT_EMPTY_ATTR, isHiddenMarkerRoot, screenVisibilityOf } from '../caret/widget-offset';
+import {
+	CONTENT_EMPTY_ATTR,
+	SOURCE_AT_CARET_ATTR,
+	isHiddenMarkerRoot,
+	screenVisibilityOf
+} from '../browser/painted';
 
 interface ProbeCase {
 	name: string;
@@ -18,6 +23,8 @@ interface ProbeCase {
 	reveal?: boolean;
 	/** The block holds only markers, so two of the three families paint (a ref label does not). */
 	contentEmpty?: boolean;
+	/** The block shows its source while focused, which an unfocused probe must still hide. */
+	sourceAtCaret?: boolean;
 }
 
 const FAMILIES = ['md-marker', 'md-fence-line', 'md-ref-label'];
@@ -28,6 +35,7 @@ const CASES: ProbeCase[] = /* @__PURE__ */ FAMILIES.flatMap((family) => [
 	{ name: family, family, focusedHost: false },
 	{ name: `${family} (focused host)`, family, focusedHost: true },
 	{ name: `${family} (content-empty block)`, family, focusedHost: false, contentEmpty: true },
+	{ name: `${family} (source-at-caret row)`, family, focusedHost: false, sourceAtCaret: true },
 	...(family === 'md-marker'
 		? [
 				{
@@ -68,7 +76,7 @@ export function checkMarkerCssParity(editorRoot: HTMLElement): InvariantViolatio
 		if (!diverged) return null;
 		return {
 			code: 'marker-css-parity',
-			message: `the hidden-run answers disagree about "${diverged.name}": the families in core/inline/visibility.ts, the walk in caret/widget-offset.ts and styles/editor.css moved apart`,
+			message: `the hidden-run answers disagree about "${diverged.name}": the families in core/inline/visibility.ts, the walk in browser/painted.ts and styles/editor.css moved apart`,
 			detail: read
 		};
 	} finally {
@@ -89,6 +97,7 @@ function mountProbe(
 	const block = document.createElement('div');
 	block.setAttribute('contenteditable', 'true');
 	if (probe.contentEmpty) block.setAttribute(CONTENT_EMPTY_ATTR, '');
+	if (probe.sourceAtCaret) block.setAttribute(SOURCE_AT_CARET_ATTR, '');
 	const span = document.createElement('span');
 	span.className = probe.reveal ? `${probe.family} md-construct-reveal` : probe.family;
 	for (const [name, value] of Object.entries(probe.attrs ?? {})) span.setAttribute(name, value);

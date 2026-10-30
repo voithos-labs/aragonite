@@ -14,7 +14,7 @@ import { replacePreservingFirst, type StructuralChange } from './structural-chan
 import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
 import type { GrammarView } from '../schema/block-openers';
 import { firstLine, followBytes, lastLine } from '../schema/container-raw';
-import { reservedChromeKindOf } from '../schema/reserved-chrome';
+import { reservedChromeKindOf, rowMarker } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
 import { mergeJoinsAt, type TrackedPosition } from './fix-up/apply';
@@ -126,7 +126,7 @@ export function rebuildUnsharedChain(
 		if (!siblings || index < 0) continue;
 
 		const reading = followBytes(node, rawBefore, grammar, {
-			titleRowOnly: changed !== undefined && isChromeSlot(node, changed.index),
+			titleRowOnly: changed !== undefined && onlyTitleChanged(node, changed),
 			whole
 		});
 		const replacement = installReading({ children: siblings }, index, reading, grammar);
@@ -215,10 +215,13 @@ function childRawChange(
 	return index < 0 ? undefined : { index, previousRaw };
 }
 
-/** Whether child `index` is the container's title row, which no metadata comes from. */
-function isChromeSlot(node: CstNode, index: number): boolean {
+/** Whether the write changed only the title on the container's title row, which no metadata comes
+ *  from; a change to the row's marker (the `:::name` of an opener line) can change the kind. */
+function onlyTitleChanged(node: CstNode, changed: ChildRawChange): boolean {
 	const chromeKind = reservedChromeKindOf(node.kind);
-	return index === 0 && chromeKind !== undefined && node.children?.[0]?.kind === chromeKind;
+	const row = node.children?.[0];
+	if (changed.index !== 0 || chromeKind === undefined || row?.kind !== chromeKind) return false;
+	return rowMarker(node, row) === rowMarker(node, { ...row, raw: changed.previousRaw });
 }
 
 /** `indexOf` with a guess first: the scan is O(children) through the `$state` proxy. */

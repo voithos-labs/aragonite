@@ -6,7 +6,7 @@ import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { testContainer } from '#lib/test/harness/test-kinds.js';
@@ -42,7 +42,7 @@ async function seedUndoUnit(h: ReturnType<typeof makeDoc>): Promise<void> {
 		scopes: [{ node: h.directive(), path: [0], state: createBlockListState(h.directive) }],
 		snapshot: { path: asDocPath([0, 0]), offset: 0 },
 		mutate: ([scope]) => {
-			scope.children[0].raw = 'hidden\n';
+			scope.children[1].raw = 'hidden\n';
 			return [{ op: 'noop' }];
 		}
 	});
@@ -64,7 +64,7 @@ describe('a commit that unwinds after a fence was lengthened (#640)', () => {
 				],
 				snapshot: { path: asDocPath([0, 0]), offset: 0 },
 				mutate: ([scope]) => {
-					scope.children[0].raw = 'hidden\n:::\n';
+					scope.children[1].raw = 'hidden\n:::\n';
 					return [{ op: 'noop' }, { op: 'noop' }];
 				}
 			})

@@ -5,68 +5,16 @@
  * only for a cluster or word longer than it.
  */
 
-import { graphemeSegmenter, wordSegmenter } from '../core/text-units';
+import { graphemeSegmenter, hasWordSegmenter, wordSegments } from '../core/text-units';
 import { recordDeleteWindow } from '../perf/instruments';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
-import type { VisibleText } from './widget-offset';
-
-export type DeleteDirection = 'backward' | 'forward';
+import { charsEndingBy, visibleIndexAt, type VisibleText } from '../browser/offsets';
+import { lineEdgeOffset, type LineRead } from '../browser/visual-lines';
+import type { DeleteDirection, DeleteIntent } from '../browser/input';
 
 export interface DeleteSpan {
 	start: number;
 	end: number;
-}
-
-/** How much a delete takes, before the bounds of the line cut it short: a soft line ends where the
- *  text wraps on screen, a hard line at the line ending. */
-export type DeleteUnit = 'character' | 'word' | 'soft-line' | 'hard-line';
-
-export interface DeleteIntent {
-	unit: DeleteUnit;
-	direction: DeleteDirection;
-}
-
-/** The delete inputs the editor writes itself, each with what it takes and from which side. */
-export const DECIDED_DELETES: Readonly<Record<string, DeleteIntent>> = {
-	deleteContentBackward: { unit: 'character', direction: 'backward' },
-	deleteContentForward: { unit: 'character', direction: 'forward' },
-	deleteWordBackward: { unit: 'word', direction: 'backward' },
-	deleteWordForward: { unit: 'word', direction: 'forward' },
-	deleteSoftLineBackward: { unit: 'soft-line', direction: 'backward' },
-	deleteSoftLineForward: { unit: 'soft-line', direction: 'forward' },
-	deleteHardLineBackward: { unit: 'hard-line', direction: 'backward' },
-	deleteHardLineForward: { unit: 'hard-line', direction: 'forward' }
-};
-
-/** The delete inputs left to the browser and read back on `input`: the ones that are another
- *  gesture's (a cut, a drag, an IME), and the two that name no side of the caret. */
-export const DECLINED_DELETES: ReadonlySet<string> = new Set([
-	'deleteEntireSoftLine',
-	'deleteContent',
-	'deleteByCut',
-	'deleteByDrag',
-	'deleteCompositionText'
-]);
-
-/** What a delete input takes when the editor decides it; null for every other input. */
-export function decidedDelete(inputType: string): DeleteIntent | null {
-	return Object.hasOwn(DECIDED_DELETES, inputType) ? DECIDED_DELETES[inputType] : null;
-}
-
-/** Whether `inputType` is a one-character Backspace, by key or soft keyboard. */
-export function isCharacterBackspace(inputType: string): boolean {
-	const intent = decidedDelete(inputType);
-	return intent?.unit === 'character' && intent.direction === 'backward';
-}
-
-/** Whether `inputType` deletes anything, a cut's or a drag's own delete included. */
-export function isDeleteInput(inputType: string): boolean {
-	return inputType.startsWith('delete');
-}
-
-/** Whether `inputType` is the delete half of a cut or a drag, which the clipboard or drop owns. */
-export function isMoveDelete(inputType: string): boolean {
-	return inputType === 'deleteByCut' || inputType === 'deleteByDrag';
 }
 
 /** Why a delete the editor decides went to the browser after all, read back on `input` instead.
@@ -111,8 +59,29 @@ export interface DeleteContext {
 	bounds: DeleteSpan;
 	/** The raw offset at the `side` edge of the caret's visual line; null where nothing is laid out. */
 	lineEdge?: (side: 'start' | 'end') => number | null;
-	/** The text as the screen shows it (hidden markers left out, a widget one character), for words. */
-	visible?: VisibleText;
+	/** The text as the screen shows it (hidden markers left out, a widget one character), read only
+	 *  for a word, since it walks the block. */
+	visible?: () => VisibleText;
+}
+
+/** The context a block's delete and caret keys read at `caret` in `el`, its visual line's edges
+ *  measured there; `bounds` null where every offset of `text` is one a caret reaches. */
+export function unitContextAt(at: {
+	el: HTMLElement;
+	text: string;
+	caret: number;
+	bounds: DeleteSpan | null;
+	lineRead: LineRead;
+	visible?: () => VisibleText;
+}): DeleteContext {
+	const { el, text, caret, lineRead } = at;
+	return {
+		text,
+		caret,
+		bounds: at.bounds ?? { start: 0, end: text.length },
+		lineEdge: (side) => lineEdgeOffset(el, caret, side, lineRead),
+		visible: at.visible
+	};
 }
 
 /** The raw span a delete of `intent` takes at the caret; null where there's nothing to take. A word
@@ -149,7 +118,7 @@ export function wordExtent(
 	bounds: DeleteSpan,
 	reach: ForwardWordReach
 ): DeleteSpan | null {
-	if (!wordSegmenter()) return null;
+	if (!hasWordSegmenter()) return null;
 	if (direction === 'backward') {
 		if (caret <= bounds.start || isLineBreak(text[caret - 1])) return null;
 		return { start: wordStartBefore(text, caret, bounds.start), end: caret };
@@ -159,7 +128,8 @@ export function wordExtent(
 }
 
 function wordSpan(context: DeleteContext, direction: DeleteDirection): DeleteSpan | null {
-	const { text, caret, bounds, visible } = context;
+	const { text, caret, bounds } = context;
+	const visible = context.visible?.();
 	if (!visible) return wordExtent(text, caret, direction, bounds, forwardWordReach());
 	const at = visibleIndexAt(visible, caret);
 	const within = {
@@ -171,18 +141,6 @@ function wordSpan(context: DeleteContext, direction: DeleteDirection): DeleteSpa
 	return direction === 'backward'
 		? { start: visible.rawStart[span.start], end: caret }
 		: { start: caret, end: visible.rawEnd[span.end - 1] };
-}
-
-/** The first visible character at or after raw `raw`. */
-function visibleIndexAt(visible: VisibleText, raw: number): number {
-	const i = visible.rawStart.findIndex((start) => start >= raw);
-	return i === -1 ? visible.text.length : i;
-}
-
-/** How many visible characters end at or before raw `raw`. */
-function charsEndingBy(visible: VisibleText, raw: number): number {
-	const i = visible.rawEnd.findIndex((end) => end > raw);
-	return i === -1 ? visible.text.length : i;
 }
 
 function wordStartBefore(text: string, caret: number, floor: number): number {
@@ -254,7 +212,7 @@ function runEndAfter(window: string, reach: ForwardWordReach): number {
 }
 
 // `wordExtent` returns before any read where the platform has no segmenter.
-const segmentsOf = (window: string): Intl.Segments => wordSegmenter()!.segment(window);
+const segmentsOf = (window: string) => wordSegments(window)!;
 
 const isSpace = (char: string | undefined) => char !== undefined && /[^\S\r\n]/.test(char);
 const isLineBreak = (char: string | undefined) => char === '\n' || char === '\r';

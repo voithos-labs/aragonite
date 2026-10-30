@@ -11,7 +11,7 @@ import type { MultiScopeTarget } from '#lib/action-contracts.js';
 import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { makeListItem } from '#lib/test/harness/list-fixtures.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 
 function harness(scopePath: number[]) {
 	const { deps, events } = makeEditorActionsDeps(parse('- a\n- b\n').children);

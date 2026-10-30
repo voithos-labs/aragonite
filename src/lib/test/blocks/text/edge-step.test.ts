@@ -157,7 +157,7 @@ describe('what an arrow press reads of the hidden runs', () => {
 			isReading: () => false,
 			reading: fixtureReading(),
 			caretMemory: { side: () => record, pin: () => {}, pinOnArrival: () => {} },
-			caretWriter: { moveCaretToLineEdge: () => true }
+			caretWriter: { focusEndsLine: () => null }
 		});
 		edge.step(new KeyboardEvent('keydown', { key }));
 		return perfSnapshot().markerRunReads;

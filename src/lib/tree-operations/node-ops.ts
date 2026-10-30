@@ -47,7 +47,12 @@ import { mergeJoinsAt, type TrackedPosition } from './fix-up/apply';
 import { cutKeepingStructure } from './structural-suffix';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
-import { adoptReparsedFields, legalizeWrite, probeLineOpensAsProse } from './content-write';
+import {
+	adoptReparsedFields,
+	closeWrittenOpeners,
+	legalizeWrite,
+	probeLineOpensAsProse
+} from './content-write';
 import { writeKeepingTaskMarker } from './list/reconcile-task';
 import { fragmentReaderAt, type FragmentReader } from './list/task-paragraph';
 import { storedAsIn } from './stored-as';
@@ -156,10 +161,11 @@ export function splitNode(
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
 	}
 
-	const nodes = [...first.nodes, ...second.nodes];
+	const halves = [...first.nodes, ...second.nodes];
 	// The blank line split off the second half has no follower inside the splice, so it stays
 	// in raw.
-	nodes[nodes.length - 1].raw += second.suffix;
+	halves[halves.length - 1].raw += second.suffix;
+	const nodes = closeWrittenOpeners(holder, blockIndex, node.raw, halves, grammar);
 	const splitTail = blockIndex === parent.children.length - 1;
 	parent.children.splice(blockIndex, 1, ...nodes);
 	// Asked here, not at the commit, which loses sight of this join once a list item's split moves the
@@ -309,7 +315,7 @@ export function joinIntoLeaf(
 	// The decision is read off the live tree before any copy-on-write: copying the ancestors is
 	// a write, and a refused join must leave the pair exactly as it stands.
 	const holder = {
-		children: holderChildrenAt(parent.children, path),
+		children: withoutAbsorbed(holderChildrenAt(parent.children, path), slot, absorbed),
 		owner: ownerAt(parent, path),
 		lineEnding: parentLineEnding(parent)
 	};
@@ -321,7 +327,7 @@ export function joinIntoLeaf(
 		storedAsIn(holder, slot, reading),
 		holder.lineEnding
 	);
-	const legal = legalizeWrite(holder, slot, raw, 'literal');
+	const legal = legalizeWrite(holder, slot, raw, 'literal', reading.grammar);
 	const merged = mergedLeafFor(
 		target,
 		legal.text,
@@ -339,6 +345,12 @@ export function joinIntoLeaf(
 	);
 	if (path.length > 1) rebuildAncestryRaw(parent.children[path[0]], path.slice(1), reading.grammar);
 	return { joinOffset: legal.storedOffset(seam) };
+}
+
+/** The leaf's siblings as they stand once the join lands, without the block it absorbs. */
+function withoutAbsorbed(children: CstNode[], slot: number, absorbed: NodeView): CstNode[] {
+	if (children[slot + 1] !== absorbed) return children;
+	return children.filter((_, i) => i !== slot + 1);
 }
 
 /** Merge `curr` into `prev`'s deepest prose leaf, which keeps its component and IME state; null

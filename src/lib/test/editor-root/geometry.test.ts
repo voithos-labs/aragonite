@@ -49,9 +49,6 @@ function boxed(width: number, height: number) {
 	return { el, setWidth: (w: number) => (width = w), setHeight: (h: number) => (height = h) };
 }
 
-const borderBox = (blockSize: number) =>
-	[{ borderBoxSize: [{ blockSize, inlineSize: 0 }] }] as unknown as ResizeObserverEntry[];
-
 describe('editor-root geometry: width watcher', () => {
 	it('fires on a width change only, and disconnects on teardown', () => {
 		const box = boxed(400, 300);
@@ -99,7 +96,13 @@ describe('editor-root geometry: type-scale probe', () => {
 		teardowns.push(
 			installTypeScaleProbe(box.el, { getScale: () => scale, onScale: (s) => reported.push(s) })
 		);
-		return { reported };
+		return {
+			reported,
+			layOutAt: (height: number) => {
+				box.setHeight(height);
+				observer().trigger();
+			}
+		};
 	}
 
 	it('seeds from the probe box at install, relative to the calibration size', () => {
@@ -109,13 +112,13 @@ describe('editor-root geometry: type-scale probe', () => {
 
 	it('a sub-percent move and an empty box are both ignored', () => {
 		const p = probe(ESTIMATE_BASE_FONT_SIZE * 1.005, 1);
-		observer().trigger(borderBox(0));
+		p.layOutAt(0);
 		expect(p.reported).toEqual([]);
 	});
 
-	it('a later report reads the border box', () => {
+	it('a later report reads the laid-out box', () => {
 		const p = probe(ESTIMATE_BASE_FONT_SIZE, 1);
-		observer().trigger(borderBox(ESTIMATE_BASE_FONT_SIZE * 2));
+		p.layOutAt(ESTIMATE_BASE_FONT_SIZE * 2);
 		expect(p.reported).toEqual([2]);
 	});
 });
@@ -139,7 +142,10 @@ describe('editor-root geometry: header slot compensation', () => {
 			installHeaderSlotCompensation({ el: box.el, port: owner.port, compensate: root.compensate })
 		);
 		return {
-			grow: (by: number) => observer().trigger(borderBox(40 + by)),
+			grow: (by: number) => {
+				box.setHeight(40 + by);
+				observer().trigger();
+			},
 			top: () => port.scrollTop()
 		};
 	}

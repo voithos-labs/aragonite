@@ -7,7 +7,7 @@
 
 import { CURSOR_END } from '../../../block-component';
 import type { CaretTarget } from '../../../schema/block-kind-descriptor';
-import { caretOffsetAtPoint } from '../../../caret/point-offset';
+import { caretOffsetAtPoint } from '../../../browser/point';
 import { mountedRowEls, rowCellEls } from './cell-pointer';
 
 export function tableCaretAtPoint(

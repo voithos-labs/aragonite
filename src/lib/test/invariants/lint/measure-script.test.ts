@@ -5,8 +5,8 @@ import {
 	countScans,
 	measureTree,
 	workingTree
-} from '../../../../../scripts/measure.mjs';
-import { checkBudgets } from '../../../../../scripts/measure-baseline.mjs';
+} from '../../../../../scripts/measure/measure.mjs';
+import { checkBudgets } from '../../../../../scripts/pack/size-budget.mjs';
 
 const PACKAGE = {
 	name: '@voithos-labs/aragonite',
@@ -169,7 +169,7 @@ describe('measure: lines and scans', () => {
 	}, 30_000);
 });
 
-describe('measure: budgets', () => {
+describe('size budget: checkBudgets', () => {
 	const rows = { lines: { baseline: 100, tolerance: 5, unit: 'lines' } };
 
 	it.each([

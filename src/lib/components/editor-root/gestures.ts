@@ -6,7 +6,7 @@
 
 import type { BlockComponent } from '../../block-component';
 import type { CaretMemory } from '../../caret/caret-memory';
-import type { CaretWriter } from '../../caret/widget-offset';
+import type { CaretWriter } from '../../browser/caret-writer';
 import type { CaretLanding } from '../../selection/caret-landing';
 import type { UserScrollport } from '../../windowing/scroll-ancestors';
 import type { DocumentGetter } from '../../editor-keys';
@@ -17,7 +17,7 @@ import {
 	rangeCoversPoint,
 	resetForPointerDown
 } from '../../selection/cross-block/pointer';
-import { nativeRangeIn } from '../../selection/native-bridge';
+import { nativeRangeIn } from '../../browser/selection-read';
 import { createDeadSpaceCaret } from '../../selection/dead-space-caret';
 import { installDragListener } from '../../selection/drag-pointer';
 import { installMultiClickSelect } from '../../selection/multi-click';
@@ -32,7 +32,7 @@ import {
 	resolveLinkAtPoint,
 	type LinkPointQuery
 } from '../blocks/text/link-at-point';
-import { rawOffsetAt } from '../../caret/widget-offset';
+import { rawOffsetAt } from '../../browser/offsets';
 import { onRoot, removeAll } from './listeners';
 import type { LinkCardState } from '../link-card/link-card-state.svelte';
 import type { Reading } from '../../schema/reading';
@@ -265,7 +265,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 				lifetimeSignal: deps.getLifetime(),
 				marginBlockAt: (target, x, y) =>
 					deps.reading.mode() !== 'reading' && dragStartsHere(root, target)
-						? deadSpaceCaret.blockPathNearPoint(root, x, y)
+						? deadSpaceCaret.blockNearPress(root, x, y)
 						: null,
 				pressesSelectedWidget: (target) => pressesSelectedWidget(deps.selection, target)
 			}),

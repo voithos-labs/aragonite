@@ -14,7 +14,7 @@ import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { lineOpensAs } from '#lib/schema/container-raw.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // The container kind check skips a reparse when the rewritten opener line, read alone,
 // still opens as the kind the node already is. That partition over every registered

@@ -15,8 +15,8 @@ import {
 	pasteContext,
 	registerStubBlockListState
 } from '#lib/test/harness/editor-actions.js';
-import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
-import { rangeSelectionOf } from '#lib/test/support/undo-entry.js';
+import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
+import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 
 interface Bench {
 	deps: EditorActionsDeps;

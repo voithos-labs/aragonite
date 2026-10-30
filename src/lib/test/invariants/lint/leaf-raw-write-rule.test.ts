@@ -25,10 +25,9 @@ const FENCE_HOME = SOURCE.fenceRule;
 
 /** Every site sizing a fence run over a body, which is a wider set than the write rule. */
 const ESCALATION_SITES: Record<string, string> = {
-	'src/lib/core/parsers/fence-syntax.ts': 'the grammar leaf that defines it',
+	'src/lib/core/parsers/fence-syntax.ts':
+		'the grammar leaf that defines it, and the closer the fence reading gives a write that left one open',
 	[FENCE_HOME]: 'the fencedCode write rule',
-	'src/lib/tree-operations/content-write.ts':
-		'sizes the terminator the content write mints for a construct it left open (GH #180)',
 	'src/lib/debug/diagnostics-report.ts':
 		'sizes the section fences of a field report whose bodies routinely carry fences of their own',
 	'src/lib/plugins/mermaid/mermaid-kind.ts':
@@ -74,11 +73,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 4,
 		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild, the whole-body fallback, and the opener line set aside and put back around them'
 	},
-	'src/lib/core/directive/kinds.ts': { count: 1, why: "the directive container's own rebuildRaw" },
-	'src/lib/editor-actions/plugin/directive-container.ts': {
-		count: 1,
-		why: 'the titled-directive rebuildRaw factory'
-	},
+	'src/lib/core/directive/kinds.ts': { count: 1, why: 'the rebuildRaw every `:::` container uses' },
 	'src/lib/plugins/admonitions/github-alert-kind.ts': {
 		count: 1,
 		why: "the alert's own rebuildRaw for an empty body; a filled one rebuilds through `rebuildStripRaw`"
@@ -91,10 +86,6 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 1,
 		why: 'the mermaid leaf re-emits its fence from its own metadata: for its bytes, the kind is itself the rule'
 	},
-	'examples/consumer/src/routes/dev-guard/dev-probe.ts': {
-		count: 1,
-		why: "the reference plugin's own rebuildRaw"
-	},
 	'src/lib/editor-actions/search-replace.ts': {
 		count: 1,
 		why: 'find and replace installs the bytes `legalizeWrite` returned into a private copy, which it then reparses whole'
@@ -103,11 +94,11 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 1,
 		why: 'a rollback restores raws the tree already held; nothing new is created'
 	},
-	'src/lib/selection/range-delete-ceremony.ts': {
+	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts': {
 		count: 4,
 		why: 'the chrome-clear and the truncation atoms’ two chrome-endpoint branches, reserved-chrome slots no leaf kind declaring a rule can occupy; and the endpoint reparse re-attaching the blank line that parse stripped (GH #97)'
 	},
-	'src/lib/selection/range-delete-table.ts': {
+	'src/lib/selection/cross-block/range-delete/range-delete-table.ts': {
 		count: 1,
 		why: 'a cell clear; a cleared cell is empty, which `tableCell`’s own rule already returns unchanged'
 	},

@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { holdFixturePhotos } from '../../page-probes';
 import { count, openFind, typeQuery } from './helpers';
 
 const prevButton = (page: Page) => page.getByRole('button', { name: 'Previous match' });
@@ -26,9 +27,8 @@ function activeOverlayInView(page: Page): Promise<{ painted: boolean; inView: bo
 test('search Previous to a far match past undecoded images keeps the active highlight in view', async ({
 	page
 }) => {
-	// The picsum requests hang for the whole test, so the `<img>`s keep measuring ~0 and the document
-	// shrink clamps the scroll. Set before goto so the mount's own requests catch it.
-	await page.route('https://picsum.photos/**', () => {});
+	// Set before goto, so the mount's own image requests are held too.
+	const held = await holdFixturePhotos(page);
 
 	const editor = new EditorPage(page);
 	await editor.goto(); // default HARNESS_SHOWCASE_CONTENT
@@ -47,4 +47,5 @@ test('search Previous to a far match past undecoded images keeps the active high
 	// Poll the paint and scroll outcome directly: the active match's block must mount,
 	// paint, and stay on screen rather than being clamped away.
 	await expect.poll(() => activeOverlayInView(page)).toEqual({ painted: true, inView: true });
+	expect(held(), 'the photos the scroll passed stayed undecoded').toBeGreaterThan(0);
 });

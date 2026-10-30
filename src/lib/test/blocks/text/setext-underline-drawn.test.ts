@@ -13,7 +13,7 @@ import {
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { landableRawBounds } from '#lib/caret/widget-offset.js';
+import { reachableRawBounds } from '#lib/browser/offsets.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -41,10 +41,10 @@ describe('the underline is on the page', () => {
 	// Source mode paints the underline, so the caret may go there to edit it, as it may into a `#`.
 	it('keeps the caret out of the underline only where markers hide', () => {
 		const live = mountEditor({ source: 'Plan\n===\n', presentationMode: 'live' });
-		expect(landableRawBounds(surfaceAt(live, [0]))).toEqual({ start: 0, end: 4 });
+		expect(reachableRawBounds(surfaceAt(live, [0]))).toEqual({ start: 0, end: 4 });
 
 		const source = mountEditor({ source: 'Plan\n===\n', presentationMode: 'source' });
-		expect(landableRawBounds(surfaceAt(source, [0]))).toBeNull();
+		expect(reachableRawBounds(surfaceAt(source, [0]))).toBeNull();
 	});
 });
 

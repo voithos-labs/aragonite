@@ -14,7 +14,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchKey } from '#lib/test/harness/settle.js';
-import { newestEntryCaret } from '../support/undo-entry';
+import { newestEntryCaret } from '../harness/undo-entry';
 import { definePlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';

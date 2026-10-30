@@ -10,14 +10,14 @@ import {
 	type CellSelectionPoint,
 	type SelectionEndpoint
 } from '../../../selection/primitives';
-import { rowMajorCellIndex } from '../../../caret/coordinate-spaces';
+import { rowMajorCellIndex } from '../../../core/coordinate-spaces';
 import { createPointerDragSession } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';
 import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
-import { caretOffsetAtPoint } from '../../../caret/point-offset';
+import { caretOffsetAtPoint, elementAtPoint } from '../../../browser/point';
 import { applySingleBlockRange } from '../../../selection/native-bridge';
-import type { CaretWriter } from '../../../caret/widget-offset';
+import type { CaretWriter } from '../../../browser/caret-writer';
 import type { PaddingPress } from '../../../selection/cross-block/pointer';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ export function installCellDragListener(
 
 		// Inside the table but not over a cell (a padding gap): hold the current focus,
 		// so crossing a cell border doesn't flicker.
-		const target = document.elementFromPoint(clientX, clientY);
+		const target = elementAtPoint(anchor.tableEl.ownerDocument, clientX, clientY);
 		if (target && anchor.tableEl.contains(target)) return;
 
 		extendToForeignBlock(clientX, clientY);
@@ -177,7 +177,7 @@ export function cellAtPoint(
 	clientY: number,
 	tableEl: HTMLElement
 ): { rowIdx: number; colIdx: number; cellEl: HTMLElement } | null {
-	return cellCoordsOfElement(document.elementFromPoint(clientX, clientY), tableEl);
+	return cellCoordsOfElement(elementAtPoint(tableEl.ownerDocument, clientX, clientY), tableEl);
 }
 
 /** The cell of `tableEl` an element sits in; the owning table is compared by identity, so a

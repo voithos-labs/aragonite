@@ -1,0 +1,188 @@
+/**
+ * The focus element of a block that is focused as a whole, and the hidden editing host beside
+ * it. Such a block has no editable element of its own, so `beforeinput` and `compositionend`,
+ * the only events AltGr characters and IME composition arrive through, fire nowhere. The
+ * proxy is that host. It mounts in the block's box, never in the declared focus element,
+ * which a render swap replaces.
+ */
+
+import { untrack } from 'svelte';
+import { devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { createCaretHostInput, type CaretHostInput } from './caret-host-input';
+import type { CompositionTracker } from '../browser/composition';
+import { WHOLE_BLOCK_INPUT_ATTR, isWholeBlockInputProxy } from '../selection/whole-block-input';
+
+// ── Editable-target guards ───────────────────────────────────────────────────
+
+/** A key pressed in a plugin's own text editor belongs to that editor (Backspace in a textarea
+ *  edits text). The hidden host is excluded here, so no caller can forget it. */
+export function isEditableEventTarget(target: EventTarget | null): boolean {
+	if (!(target instanceof HTMLElement)) return false;
+	if (isWholeBlockInputProxy(target)) return false;
+	const tag = target.tagName;
+	return tag === 'TEXTAREA' || tag === 'INPUT' || target.isContentEditable;
+}
+
+// ── Tab order ────────────────────────────────────────────────────────────────
+
+/** The hidden host is the block's one tab stop, so a declared element that is not an editor
+ *  leaves the tab order. Applied on every read, since a later render state supplies a new one. */
+function demoteDeclaredFromTabOrder(declared: HTMLElement | null): HTMLElement | null {
+	if (declared && declared.tabIndex >= 0 && !isEditableEventTarget(declared)) {
+		declared.tabIndex = -1;
+	}
+	return declared;
+}
+
+/** A missing declared element falls back to the focusable box, so the caret is never stranded;
+ *  null only while a plugin-owned editable inside the box holds focus. */
+export function composeWholeBlockFocusSurface(
+	getFocusEl: () => HTMLElement | null | undefined,
+	getBoxEl: () => HTMLElement | null | undefined,
+	getKind: () => string
+): () => HTMLElement | null {
+	let warned = false;
+	return () => {
+		const declared = getFocusEl();
+		if (declared) return demoteDeclaredFromTabOrder(declared);
+		const box = getBoxEl();
+		if (!box) return null;
+		const active = document.activeElement;
+		if (isEditableEventTarget(active) && box.contains(active)) return null;
+		if (!warned) {
+			warned = true;
+			devWarn(
+				'container-block',
+				`whole-block kind "${getKind()}" supplied no focus element for this state; falling back to the box`
+			);
+		}
+		return box;
+	};
+}
+
+// The fallback box is a plain div, focusable only with a tabindex; an element already focusable
+// keeps what it has, so this only ever adds reachability. The caller that moved the caret scrolls.
+export function focusWholeBlockEl(el: HTMLElement): void {
+	if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.tabIndex = -1;
+	el.focus({ preventScroll: true });
+}
+
+/** Whole-block focus sits on the declared element or on the hidden host beside it. */
+export function holdsWholeBlockFocus(
+	declared: HTMLElement | null | undefined,
+	proxy: HTMLElement | null | undefined
+): boolean {
+	const active = document.activeElement;
+	return !!(declared?.contains(active) || (proxy && proxy === active));
+}
+
+// ── Hidden editing host ──────────────────────────────────────────────────────
+
+export interface WholeBlockInputProxyDeps {
+	/** The block's box: stable across the render swaps that replace a declared focus element. */
+	getBoxEl: () => HTMLElement | null | undefined;
+	/** The kind's declared focus element. An editable one is the plugin's own caret host and
+	 *  keeps focus for itself. */
+	getFocusEl: () => HTMLElement | null | undefined;
+	isReading: () => boolean;
+	/** The block's accessible name: the host is the block's tab stop, so it names the block. */
+	getLabel: () => string;
+	/** Holds the host's tabindex for the reading-mode tab stop; returns the release. */
+	holdTabStop: (el: HTMLElement) => () => void;
+	/** Commit the bytes the host produced: the same paragraph the keydown path creates. */
+	mint: (text: string) => unknown;
+	composition: CompositionTracker;
+}
+
+export interface WholeBlockInputProxy {
+	/** The mounted host, or null while the block has no box. */
+	el(): HTMLElement | null;
+	/** Put DOM focus for a whole-block entry, falling back to `declared` when the plugin owns
+	 *  the caret or the host has not mounted. */
+	focus(declared: HTMLElement): void;
+	/** Whether `event` ended a composition the browser dropped here (`CaretHostInput.takesKey`). */
+	takesKey: CaretHostInput['takesKey'];
+}
+
+export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): WholeBlockInputProxy {
+	let proxy: HTMLElement | null = null;
+	const hostInput = createCaretHostInput(() => proxy, deps.mint, deps.composition);
+
+	/** Every read of the declared element inside the proxy goes through the demotion, so a kind
+	 *  supplying its own `getFocusEl` (without the composed fallback) is held to the rule too. */
+	const declaredSurface = (): HTMLElement | null =>
+		demoteDeclaredFromTabOrder(deps.getFocusEl() ?? null);
+
+	// A click or a Tab lands natively on the kind's own element, where no beforeinput fires;
+	// without this hand-off the first character after a click goes through keydown again.
+	function onFocusIn(event: FocusEvent): void {
+		// A Tab lands on the host without passing `focusProxy`, so the name is refreshed here too.
+		if (proxy && event.target === proxy) syncProxyState();
+		// Before the identity test, so focus arriving anywhere in the box takes the current render
+		// state's declared element out of the tab order before the next keypress.
+		if (!proxy || event.target !== declaredSurface()) return;
+		if (isEditableEventTarget(event.target)) return;
+		// The host's own Shift+Tab passes here on its way out, and bouncing it would trap focus. Any
+		// other arrival (a toolbar button too) moves on, or the declared element keeps focus without IME.
+		if (event.relatedTarget === proxy) return;
+		focusProxy();
+	}
+
+	function focusProxy(): void {
+		if (!proxy) return;
+		syncProxyState();
+		proxy.focus({ preventScroll: true });
+	}
+
+	// Read per focus, not per mount: reading mode makes the host inert, and a kind's name can
+	// change while the block stays mounted. Reading, it's a named block rather than a field.
+	function syncProxyState(): void {
+		if (!proxy) return;
+		const reading = deps.isReading();
+		proxy.setAttribute('contenteditable', reading ? 'false' : 'true');
+		proxy.setAttribute('role', reading ? 'group' : 'textbox');
+		proxy.setAttribute('aria-label', deps.getLabel());
+	}
+
+	// Follows the box, which a DOM block view replaces when its view is mounted again.
+	$effect(() => {
+		const box = deps.getBoxEl();
+		if (box) return untrack(() => mountIn(box));
+	});
+
+	function mountIn(box: HTMLElement): () => void {
+		proxy = document.createElement('div');
+		proxy.setAttribute(WHOLE_BLOCK_INPUT_ATTR, '');
+		proxy.className = 'whole-block-input';
+		syncProxyState();
+		proxy.spellcheck = false;
+		// The block's tab stop, because focus belongs here: a declared element left in the tab
+		// order is a second stop Shift+Tab lands on, where no input can arrive.
+		const releaseTabStop = deps.holdTabStop(proxy);
+		declaredSurface();
+		proxy.addEventListener('beforeinput', hostInput.onBeforeInput as EventListener);
+		proxy.addEventListener('compositionstart', hostInput.onCompositionStart);
+		proxy.addEventListener('compositionend', hostInput.onCompositionEnd);
+		box.addEventListener('focusin', onFocusIn);
+		box.appendChild(proxy);
+		return () => {
+			releaseTabStop();
+			box.removeEventListener('focusin', onFocusIn);
+			proxy?.remove();
+			proxy = null;
+		};
+	}
+
+	return {
+		el: () => proxy,
+		focus(declared: HTMLElement) {
+			if (!proxy || isEditableEventTarget(declared)) {
+				focusWholeBlockEl(declared);
+				return;
+			}
+			demoteDeclaredFromTabOrder(declared);
+			focusProxy();
+		},
+		takesKey: hostInput.takesKey
+	};
+}

@@ -1,11 +1,12 @@
 // The copied chain must be as deep as the leaf path, or the write lands on a node the undo
 // snapshot shares and corrupts history at a later undo.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, vi } from 'vitest';
 import * as unshare from '#lib/tree-operations/unshare.js';
 import { serialize } from '#lib/core/serializer.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
@@ -20,7 +21,7 @@ const SOURCE = '- a\n';
 function typeAt(path: number[]) {
 	const { deps } = makeEditorActionsDeps(SOURCE);
 	const typing = createUndoController(deps);
-	const write = legalizeWrite(documentBody(deps.doc), 0, '- ab\n', 'authored');
+	const write = legalizeWrite(documentBody(deps.doc), 0, '- ab\n', 'authored', defaultGrammarView);
 	return { deps, result: typing.typeLeaf(docPathFrom(path), write, 1) };
 }
 

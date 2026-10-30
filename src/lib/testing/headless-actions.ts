@@ -10,9 +10,9 @@ import type { CstNode, Document } from '../core/nodes';
 import { parse } from '../core/parser';
 import type { CaretMemory } from '../caret/caret-memory';
 import { createInsertionRecords } from '../caret/next-insertion';
-import { createCaretWriter } from '../caret/widget-offset';
+import { createCaretWriter } from '../browser/caret-writer';
 import type { EditorActionsDeps } from '../editor-actions/deps';
-import { withStoredCaret } from '../editor-actions/stored-caret';
+import { refusedWrite, withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
@@ -83,7 +83,7 @@ export function stubBlockEdit(): BlockEditActions {
 		deleteBlock: wroteNothing,
 		updateBlockContent: (_index, _text, _mode, _history, preEditOffset, postEditFocusOffset) =>
 			withStoredCaret(Promise.resolve(false), postEditFocusOffset ?? preEditOffset),
-		completeLineOnType: wroteNothing,
+		completeLineOnType: () => refusedWrite(),
 		completeMarker: wroteNothing,
 		updateBlockMetadata: wroteNothing,
 		replaceRaw: wroteNothing,

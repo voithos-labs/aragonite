@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Mod+Home and Mod+End land on the text's edge where a marker or a widget sits at that end, in a
-// prose block and a table cell alike, and are the browser's everywhere else.
+// Mod+Home and Mod+End land on the text's edge, past a marker or a widget at that end, in a prose
+// block and a table cell alike, every press the editor's.
 // Miss-analysis: Mod+Home was decided only in a prose block, and no row pressed Mod+End beside a
 // widget, which Firefox's own stops short of.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
@@ -13,7 +13,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt, installTableLayoutStubs } from '../blocks/table/mount-table';
-import { rawSelectionFocus } from '#lib/caret/widget-offset.js';
+import { rawSelectionFocus } from '#lib/browser/selection-read.js';
 
 let restoreTableLayout: () => void;
 beforeAll(() => {
@@ -45,12 +45,13 @@ describe.each(['prose', 'cell'] as const)('%s', (surface) => {
 		expect(rawSelectionFocus(el)).toBe(to);
 	});
 
-	it('Mod+End with text at the end is the browser’s', async () => {
+	it('Mod+End with text at the end lands there too', async () => {
 		const el = mountText(surface, 'Left');
 		placeCaret(el, 0);
 
 		const event = await pressKey(el, { key: 'End', ctrlKey: true });
 
-		expect(event.defaultPrevented).toBe(false);
+		expect(event.defaultPrevented).toBe(true);
+		expect(rawSelectionFocus(el)).toBe(4);
 	});
 });

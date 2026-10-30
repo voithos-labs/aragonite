@@ -49,7 +49,7 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildContainerRaw: 1 },
 		why: 'rebuilds a scratch clone to read the replacement back before any commit'
 	},
-	'src/lib/selection/range-delete-table.ts': {
+	'src/lib/selection/cross-block/range-delete/range-delete-table.ts': {
 		calls: { rebuildTableRowRaw: 1 },
 		why: 'the rows a pair inside one table clears, below the table the delete owns and the commit rebuilds'
 	},
@@ -135,7 +135,9 @@ const REASON =
 function rebuildNames(sources: SourceFile[]): string[] {
 	const names = new Set(KIND_FREE);
 	for (const file of sources) {
-		for (const m of file.code.matchAll(/\brebuildRaw\s*:\s*([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+		// A factory called in place (`rebuildRaw: createDirectiveRebuild()`) builds a rebuilder; it isn't one.
+		for (const m of file.code.matchAll(/\brebuildRaw\s*:\s*([A-Za-z_$][\w$]*)(?![\w$]|\s*[(<])/g))
+			names.add(m[1]);
 	}
 	return [...names];
 }

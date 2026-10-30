@@ -121,7 +121,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/details/terminator-collision-structural.test.ts': {
 		specifiers: [
 			'#lib/invariants/node-shape.js',
-			'#lib/selection/range-delete.js',
+			'#lib/selection/cross-block/range-delete/range-delete.js',
 			'#lib/selection/range-coverage.js',
 			'#lib/tree-operations/node-ops.js',
 			'#lib/tree-operations/sharing.js'
@@ -227,7 +227,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'reads a kind’s rule back to ask it for the block’s text'
 	},
 	'src/lib/test/plugins/latex/offset-audit.test.ts': {
-		specifiers: ['#lib/caret/widget-offset.js'],
+		specifiers: ['#lib/browser/block-text.js'],
 		reason: "no published read of an inline node's raw text out of its parent's bytes"
 	},
 	'src/lib/test/plugins/latex/typed-completion.test.ts': {
@@ -247,7 +247,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/mermaid/raw-write-rule.test.ts': {
 		specifiers: [
 			'#lib/tree-operations/node-primitives.js',
-			'#lib/selection/range-delete.js',
+			'#lib/selection/cross-block/range-delete/range-delete.js',
 			'#lib/selection/range-coverage.js'
 		],
 		reason: 'nothing published applies a kind’s rawWrite or range-deletes a parsed document'
@@ -404,7 +404,7 @@ describe('G4.63 classifier non-vacuity', () => {
 	});
 
 	it('allows the copyable test support and any npm package', () => {
-		expect(isAllowedSpecifier(file, '#lib/test/support/round-trip.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#lib/test/support/warn-gate.js')).toBe(true);
 		expect(isAllowedSpecifier(file, '#lib/test/harness/editor-actions.js')).toBe(true);
 		expect(isAllowedSpecifier(file, 'vitest')).toBe(true);
 		expect(isAllowedSpecifier(file, 'fast-check')).toBe(true);

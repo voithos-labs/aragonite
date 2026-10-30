@@ -5,6 +5,7 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { augmentBlockKind } from '../../schema/block-kind-descriptor';
+import { rowContentRange } from '../../schema/reserved-chrome';
 import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { CALLOUT, rebuildCalloutRaw } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerChromePluginsForTests } from './chrome-plugins';
@@ -22,7 +23,8 @@ function point(path: number[], offset: number): SelectionPoint {
 }
 
 const bodies = (node: CstNode) => node.children!.slice(1).map((c) => trimTrailingLineEnding(c.raw));
-const title = (node: CstNode) => trimTrailingLineEnding(node.children![0].raw);
+const title = (node: CstNode) =>
+	trimTrailingLineEnding(node.children![0].raw.slice(rowContentRange(node).start)).trim();
 
 describe('cross-block copy starting in reserved chrome', () => {
 	beforeEach(registerChromePluginsForTests);
@@ -31,7 +33,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const doc = parse(':::callout Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(
 			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([1], 3))),
+			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([1], 3))),
 			SOURCE_READING
 		);
 
@@ -46,7 +48,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const doc = parse(':::callout Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(
 			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([0, 2], 3))),
+			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([0, 2], 3))),
 			SOURCE_READING
 		);
 
@@ -59,12 +61,12 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const doc = parse(':::callout Title\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(
 			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([1], 3))),
+			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([1], 3))),
 			SOURCE_READING
 		);
 
 		expect(text).toBe(':::callout tle\n:::\n\nBel');
-		expect(parse(text).children[0].children!.map((c) => c.kind)).toEqual(['callout-title']);
+		expect(parse(text).children[0].children!.map((c) => c.kind)).toEqual(['directiveOpenerLine']);
 	});
 
 	// The closer's line ending comes off the live container's raw, not a default: a
@@ -73,7 +75,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const doc = parse(':::callout Title\r\n\r\nBody\r\n\r\n:::\r\n\r\nBelow\r\n');
 		const text = collectCrossBlockText(
 			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([1], 3))),
+			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([1], 3))),
 			SOURCE_READING
 		);
 
@@ -104,12 +106,12 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const doc = parse(':::callout Title\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(
 			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([1], 3))),
+			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([1], 3))),
 			SOURCE_READING
 		);
 
 		const note = parse(text).children[0];
-		expect(note.children!.map((c) => c.kind)).toEqual(['callout-title', 'table']);
+		expect(note.children!.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'table']);
 		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 	});
 
@@ -123,7 +125,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(
 				doc,
-				rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([1], 3))),
+				rangeCoverage(doc, coverRange(doc, point([0, 0], 14), point([1], 3))),
 				SOURCE_READING
 			);
 
@@ -131,7 +133,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 			const outer = parse(text).children[0];
 			expect(title(outer)).toBe('ter');
 			expect(outer.children!.map((c) => c.kind)).toEqual([
-				'callout-title',
+				'directiveOpenerLine',
 				'paragraph',
 				'callout',
 				'paragraph'
@@ -145,12 +147,16 @@ describe('cross-block copy starting in reserved chrome', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(
 				doc,
-				rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([0, 2, 0], 3))),
+				rangeCoverage(doc, coverRange(doc, point([0, 0], 14), point([0, 2, 0], 14))),
 				SOURCE_READING
 			);
 
 			const outer = parse(text).children[0];
-			expect(outer.children!.map((c) => c.kind)).toEqual(['callout-title', 'paragraph', 'callout']);
+			expect(outer.children!.map((c) => c.kind)).toEqual([
+				'directiveOpenerLine',
+				'paragraph',
+				'callout'
+			]);
 			expect(title(outer.children![2])).toBe('Inn');
 			expect(bodies(outer.children![2])).toEqual([]);
 		});
@@ -161,7 +167,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(
 				doc,
-				rangeCoverage(doc, coverRange(doc, point([0, 2, 0], 2), point([1], 3))),
+				rangeCoverage(doc, coverRange(doc, point([0, 2, 0], 13), point([1], 3))),
 				SOURCE_READING
 			);
 
@@ -182,14 +188,14 @@ describe('cross-block copy starting in reserved chrome', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(
 				doc,
-				rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([0, 2, 1], 1))),
+				rangeCoverage(doc, coverRange(doc, point([0, 0], 14), point([0, 2, 1], 1))),
 				SOURCE_READING
 			);
 
 			const outer = parse(text).children[0];
 			expect(outer.kind).toBe('callout');
 			expect(title(outer)).toBe('ter');
-			expect(bodies(outer)).toEqual(['O1\nInner\nI']);
+			expect(bodies(outer)).toEqual(['O1', ':::callout Inner\nI']);
 		});
 	});
 
@@ -202,7 +208,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 
 		const text = collectCrossBlockText(
 			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 2), point([1], 3))),
+			rangeCoverage(doc, coverRange(doc, point([0, 0], 14), point([1], 3))),
 			SOURCE_READING
 		);
 
@@ -222,7 +228,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 			doc,
 			rangeCoverage(
 				doc,
-				coverRange(doc, point([0, 0], 2), {
+				coverRange(doc, point([0, 0], 13), {
 					path: [0, 1],
 					offset: 2,
 					cellCoordinate: true
@@ -234,7 +240,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 		const note = parse(text).children[0];
 		expect(note.kind).toBe('callout');
 		expect(title(note)).toBe('tle');
-		expect(note.children!.map((c) => c.kind)).toEqual(['callout-title', 'table']);
+		expect(note.children!.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'table']);
 		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 	});
 
@@ -246,18 +252,18 @@ describe('cross-block copy starting in reserved chrome', () => {
 			container: { contract: 'strip', rebuildRaw: rebuildBlockquoteRaw }
 		});
 
-		// An unchecked end branch would emit "ove\n> Tit", a blockquote wrapper on a note.
+		// An unchecked end branch would emit a blockquote wrapper on a note.
 		expect(
 			collectCrossBlockText(
 				doc,
-				rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3))),
+				rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 14))),
 				SOURCE_READING
 			)
-		).toBe('ove\nTit');
+		).toBe('ove\n:::callout Tit');
 		expect(
 			collectCrossBlockText(
 				doc,
-				rangeCoverage(doc, coverRange(doc, point([1, 0], 2), point([2], 3))),
+				rangeCoverage(doc, coverRange(doc, point([1, 0], 13), point([2], 3))),
 				SOURCE_READING
 			)
 		).toBe('tle\nBody\n\nBel');

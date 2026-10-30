@@ -3,11 +3,19 @@
 // Miss-analysis: the closer two blocks below (#684) needed a walk up the body, and no row said
 // which keystrokes pay for it.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
-import { unfinishedReadings, type UnfinishedReading } from '#lib/schema/block-openers.js';
+import {
+	defaultGrammarView,
+	unfinishedReadings,
+	type UnfinishedReading
+} from '#lib/schema/block-openers.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
+import { readBack } from '#lib/core/inline/live-edit/read-back.js';
+import { storedAsAt } from '#lib/tree-operations/stored-as.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { installPlugins } from '#lib';
 import { latexPlugin } from '#lib/plugins/latex/index.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
@@ -25,9 +33,17 @@ const BODY = Array.from({ length: BLOCKS }, (_, i) => `paragraph ${i}\n`).join('
 /** What the openers' declarations were asked when `text` is written in place over block `index`:
  *  the blocks asked whether they wait, and how many questions of either kind were asked. */
 function walkOf(text: string, index = BLOCKS - 1, body = BODY) {
+	return asking(body, (deps) => {
+		const typing = createUndoController(deps);
+		// Made legal inside the count, since the closer it may add reads the body below.
+		const write = legalizeWrite(deps.doc, index, text, 'authored', defaultGrammarView);
+		expect(typing.typeLeaf(docPathFrom([index]), write, 0).wrote).toBe(true);
+	});
+}
+
+/** What the openers' declarations were asked while `run` ran over `body`. */
+function asking(body: string, run: (deps: EditorActionsDeps) => void) {
 	const { deps } = makeEditorActionsDeps(body);
-	const typing = createUndoController(deps);
-	const write = legalizeWrite(deps.doc, index, text, 'authored');
 	const readings = unfinishedReadings(deps.reading.grammar) as UnfinishedReading[];
 	const saved = readings.map((reading) => ({ ...reading }));
 	const blocks = new Set<string>();
@@ -37,7 +53,7 @@ function walkOf(text: string, index = BLOCKS - 1, body = BODY) {
 		reading.mayClose = (line) => (asked++, saved[k].mayClose(line));
 	});
 	try {
-		expect(typing.typeLeaf(docPathFrom([index]), write, 0).wrote).toBe(true);
+		run(deps);
 	} finally {
 		readings.forEach((reading, k) => Object.assign(reading, saved[k]));
 	}
@@ -73,12 +89,25 @@ describe('the walk for a construct a keystroke could finish, over a 5,000-block 
 		expect(askedNear(walkOf('paragraph 0x\n', 0).blocks, 0)).toBe(true);
 	});
 
-	// The one keystroke that pays for the body: a first line left waiting reads down to a closer.
-	it('a first line left waiting on a closer reads every block below once', () => {
+	// Live mode reads each keystroke's candidate back through the slot's store, which makes it legal.
+	it('a live-mode keystroke in prose reads no block below its read-back', () => {
+		const { blocks } = asking(BODY, (deps) => {
+			const store = storedAsAt(deps.doc, [0], fixtureReading({}, 'live'));
+			enablePerfInstruments();
+			resetPerfInstruments();
+			readBack('paragraph 0x\n', store);
+		});
+		expect(askedNear(blocks, 0)).toBe(true);
+		expect(perfSnapshot().parseBytes).toBeLessThan(BODY.length / 10);
+	});
+
+	// The one keystroke that pays for the body: a first line left waiting reads down for a closer,
+	// once for the closer the write would give it and once for the walk.
+	it('a first line left waiting on a closer reads every block below twice', () => {
 		const { asked } = walkOf('$$\n', 0, `x$$\n\n${BODY}`);
-		// Each block below holds one line, asked once by the one declaration waiting on it.
-		expect(asked).toBeGreaterThanOrEqual(BLOCKS);
-		expect(asked).toBeLessThan(2 * BLOCKS);
+		// Each block below holds one line, asked once a pass by the one declaration waiting on it.
+		expect(asked).toBeGreaterThanOrEqual(2 * BLOCKS);
+		expect(asked).toBeLessThan(3 * BLOCKS);
 	});
 
 	// An unclosed fence takes every line below it, so none stands above the line a keystroke wrote.
@@ -90,7 +119,7 @@ describe('the walk for a construct a keystroke could finish, over a 5,000-block 
 		const source = `\`\`\`js\ncode\n\`\`\`\n\n${BODY}`;
 		const { deps } = makeEditorActionsDeps(source);
 		const typing = createUndoController(deps);
-		const write = legalizeWrite(deps.doc, 0, '``js\ncode\n```\n', 'authored');
+		const write = legalizeWrite(deps.doc, 0, '``js\ncode\n```\n', 'authored', defaultGrammarView);
 		enablePerfInstruments();
 		resetPerfInstruments();
 		typing.typeLeaf(docPathFrom([0]), write, 0);

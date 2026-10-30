@@ -10,7 +10,7 @@ import type { CstNode } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import type { NodeView } from '../../core/node-views';
 import type { RevealPolicy } from '../../selection/caret-landing';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { isUnmountedBlockListState } from '../../block-lists/state-registry';

@@ -5,8 +5,8 @@ The `:::callout` callout registers a `callout.setKind` block command on the publ
 callout descriptor's `keymap`. It is the end-to-end proof for plugin-registered commands: a real
 keypress on an inner leaf is declined there without `preventDefault`, bubbles to the container's
 `handleKeydown`, resolves against the callout kind's keymap, runs the registered handler, and
-commits the new type through the container's metadata update (`rebuildCalloutRaw`, then the
-existing `metadataUpdate` op). No new op kind. The checks read behavior: they read the tree and
+writes the new name into the opener line through `ctx.replaceRaw`, the existing `updateContent`
+op. No new op kind. The checks read behavior: they read the tree and
 the source through `window.__test`, never visuals.
 
 The bound chords are `Mod+7` (argument `'callout'`) and `Mod+8` (argument `'aside'`). The
@@ -23,8 +23,8 @@ past the `Mod+0–6` heading range and survive a real keypress.
 
 ## Edge cases
 
-- exactly one edit event: the type change fires a single `metadataUpdate` op and nothing else
-  (no split, no input op), the same event the checkbox toggle emits
+- exactly one edit event: the type change fires a single `updateContent` op and nothing else
+  (no split, no metadata op)
 - undo restores the prior type: after `Mod+8` sets `:::aside`, one `Ctrl+Z` returns the source
   to `:::callout`
 - a non-string argument does nothing: the handler type-guards `ctx.arg` and declines any value
@@ -35,7 +35,7 @@ past the `Mod+0–6` heading range and survive a real keypress.
 
 - click or focus the callout body, then press `Mod+8`: a real keypress on the body leaf bubbles
   to the container and commits the type, asserted against the source
-- focus the reserved `callout-title` leaf (child 0), then press `Mod+8`: the chord bubbles from
+- focus the opener line (child 0), then press `Mod+8`: the chord bubbles from
   that leaf too, so the container handler is reached from both editable areas inside the
   callout, not just the body
 - `Ctrl+Z` is a real keystroke; the restored source is asserted, not the DOM

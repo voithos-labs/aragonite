@@ -22,11 +22,10 @@ export interface PendingBreakKeyDeps {
 	requestCaret(at: number): void;
 }
 
-/** True when the key was handled here, its default prevented; a line-edge Cmd+Arrow has its
- *  default prevented and still goes on. */
+/** True when the key was handled here, its default prevented. */
 export function handlePendingBreakKey(e: KeyboardEvent, deps: PendingBreakKeyDeps): boolean {
 	const at = deps.pendingBreak.at();
-	if (at === null || e.isComposing || BARE_MODIFIER_KEYS.includes(e.key)) return false;
+	if (at === null || BARE_MODIFIER_KEYS.includes(e.key)) return false;
 	if (deps.opensBreak(e)) return false;
 	if (isPlainTypingKey(e)) {
 		if (deps.getCaret() !== at) {
@@ -46,11 +45,10 @@ export function handlePendingBreakKey(e: KeyboardEvent, deps: PendingBreakKeyDep
 		return true;
 	}
 	const edge = caretEdgeKey(e);
-	// The open line is empty, so Cmd+Left and Cmd+Right keep the caret where it is, which only macOS
-	// does natively; the key then goes on to the other handlers, as Home does.
-	if (edge?.to === 'line' && edge.arrow && !edge.extend) {
+	// The open line holds no text, so its line's edges are where the caret already is.
+	if (edge?.to === 'line') {
 		e.preventDefault();
-		return false;
+		return true;
 	}
 	const stepsBack = e.key === 'Backspace' || (e.key === 'ArrowLeft' && edge === null);
 	if (!stepsBack && e.key !== 'Delete') return false;

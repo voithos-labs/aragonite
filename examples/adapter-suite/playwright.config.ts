@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 import { APPS } from './apps.mjs';
 
 // One project per framework app, every app serving the same page contract
-// (`requirements/page-contract.md`). `scripts/adapter-smoke.mjs` builds the apps first and names
+// (`requirements/page-contract.md`). `scripts/smoke/adapter-smoke.mjs` builds the apps first and names
 // the projects in ADAPTER_PROJECTS, since a server starts only for a project that runs.
 type AppName = keyof typeof APPS;
 const chosen = (process.env.ADAPTER_PROJECTS ?? Object.keys(APPS).join(','))

@@ -1,13 +1,14 @@
-import { test as base, expect, type ConsoleMessage } from '@playwright/test';
+import { relative } from 'node:path';
+import { test as base, expect, type BrowserContext, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
 import { warnTagOfLine } from '../warn-tags';
 import { installClipboard } from './clipboard-arm';
 import { withFixmeRerun } from './fixme-rerun';
 
-// The shared e2e `test`, with two checks at teardown. Every tagged console warning or uncaught
-// page error must be one the spec declares below, and each declared one must fire. The
-// container-parity check covers what the console cannot: BlockHost's error boundary swallows
-// `each_key_duplicate` silently.
+// The shared e2e `test`, with three checks at teardown. No request left for a host other than the
+// app server. Every tagged console warning or uncaught page error must be one the spec declares
+// below, and each declared one must fire. The container-parity check covers what the console
+// cannot: BlockHost's error boundary swallows `each_key_duplicate` silently.
 
 interface WarnFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */
@@ -64,14 +65,28 @@ function fireOf(m: ConsoleMessage): { tag: string; text: string } | null {
 	return { tag, text: `${text}${origin}` };
 }
 
+/** Blocks and records every request for another origin than `appOrigin`, in every page of the
+ *  context. A spec's own route for a test-only host runs first, so a request it answers passes. */
+async function blockOffHost(context: BrowserContext, appOrigin: string): Promise<string[]> {
+	const blocked: string[] = [];
+	const escaped = appOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	// A RegExp, not a function, so Playwright matches it without a round trip to the worker.
+	await context.route(new RegExp(`^(?!${escaped}/)https?://`), (route) => {
+		blocked.push(`${route.request().resourceType()} ${route.request().url()}`);
+		return route.abort('blockedbyclient');
+	});
+	return blocked;
+}
+
 const watchedTest = base.extend<WarnFixtures>({
 	expectInvariants: [[], { option: true }],
 	expectWarns: [[], { option: true }],
 	expectSvelteWarns: [[], { option: true }],
 	expectPageErrors: [[], { option: true }],
 	page: async (
-		{ page, expectInvariants, expectWarns, expectSvelteWarns, expectPageErrors },
-		use
+		{ page, baseURL, expectInvariants, expectWarns, expectSvelteWarns, expectPageErrors },
+		use,
+		testInfo
 	) => {
 		const namespaced = expectWarns.filter((tag) => NAMESPACED.test(tag));
 		expect(
@@ -95,9 +110,17 @@ const watchedTest = base.extend<WarnFixtures>({
 			});
 		page.on('console', onConsole);
 		page.on('pageerror', onPageError);
+		const offHost = await blockOffHost(page.context(), new URL(baseURL!).origin);
 		await page.addInitScript(relayWindowErrors);
 		await installClipboard(page);
 		await use(page);
+
+		expect(
+			offHost,
+			`${relative(process.cwd(), testInfo.file)} requested a host other than the app server. ` +
+				'Serve the file from static/test-fixtures/, or answer a test-only host with a route ' +
+				`in the spec:\n${offHost.join('\n')}`
+		).toEqual([]);
 
 		// Each declared list carries its own prefix, so all four share one tag space and one watch.
 		const expected = new Set([

@@ -11,7 +11,12 @@ import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { SurfaceBackend } from '../editable/surface-backend';
 import { selectWidgetWhole } from '../../../selection/place-caret';
-import { rawSelectionIn } from '../../../selection/native-bridge';
+import {
+	rawSelectionIn,
+	rawSelectionFocus,
+	caretIsInTextContent,
+	liveCaretSpot
+} from '../../../browser/selection-read';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	getInlineWidgetEditing,
@@ -20,14 +25,10 @@ import {
 	widgetElByStart
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
-import { asRawOffset } from '../../../caret/coordinate-spaces';
-import {
-	rawRangeToDomRange,
-	rawSelectionFocus,
-	type CaretClamp,
-	type CaretWriter,
-	type RawRange
-} from '../../../caret/widget-offset';
+import { widgetSourceRange } from '../../../core/inline/widget-shell';
+import { asRawOffset } from '../../../core/coordinate-spaces';
+import { rawRangeToDomRange, type RawRange } from '../../../browser/offsets';
+import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
 import { createSourceReveal, type SourceReveal } from '../../../caret/reveal-source';
 import {
 	nearestWidgetEdgeSeat,
@@ -48,7 +49,7 @@ import { checkMotionLeftWidget } from '../../../invariants/selected-widget-motio
 import type { RevealFold } from '../editable/surface-clipboard';
 import { hasModifier, isPlainTypingKey, surfaceHoldsRange } from './click-snap-guard';
 import { caretEdgeKey, pageKey } from '../../../schema/keybindings';
-import { caretIsInTextContent } from '../../../caret/text-seat';
+import { elementAtPoint } from '../../../browser/point';
 import {
 	findFirstEdgeWidget,
 	findLastEdgeWidget,
@@ -124,6 +125,9 @@ export interface WidgetInteraction {
 	/** Keydown while a widget is selected. Every key is consumed in that state, so a
 	 *  true return must not fall through to the shared pipeline. */
 	handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean>;
+	/** Text typed with no key at a widget selected whole replaces it, as a typed key does; false
+	 *  when no widget in the block is selected. */
+	typeOverSelected(text: string): boolean;
 	/** Enter a widget at a caret edge: show its source or select it, as the kind's policy
 	 *  says. The caret-edge dispatch decides which edge and calls this. */
 	enterWidget(
@@ -170,8 +174,6 @@ interface CaretMotion {
 	/** The widget edge the key moves toward. */
 	side: 'start' | 'end';
 	extend: boolean;
-	/** The Cmd+Arrow line-edge spelling, which the browser moves for on macOS only. */
-	lineArrow: boolean;
 }
 
 /** The caret motion a key on a selected widget asks for, or null for any other key; Shift+Left and
@@ -179,24 +181,15 @@ interface CaretMotion {
 function caretMotionOf(e: KeyboardEvent): CaretMotion | null {
 	const edge = caretEdgeKey(e);
 	if (edge) {
-		const line = edge.to === 'line';
-		return {
-			side: edge.side,
-			extend: edge.to === 'doc' || (line && edge.extend),
-			lineArrow: line && edge.arrow
-		};
+		return { side: edge.side, extend: edge.to === 'doc' || (edge.to === 'line' && edge.extend) };
 	}
 	if (hasModifier(e)) return null;
 	const page = pageKey(e);
 	if (page) {
-		return {
-			side: page.direction === 'up' ? 'start' : 'end',
-			extend: page.extend,
-			lineArrow: false
-		};
+		return { side: page.direction === 'up' ? 'start' : 'end', extend: page.extend };
 	}
 	const side = e.key === 'ArrowUp' ? 'start' : e.key === 'ArrowDown' ? 'end' : null;
-	return side && { side, extend: e.shiftKey, lineArrow: false };
+	return side && { side, extend: e.shiftKey };
 }
 
 /** What {@link replaceSelectedWidget} reads. */
@@ -380,22 +373,20 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		})();
 	}
 
-	/** The widget under the pointer, asked of the DOM rather than of a rectangle: a KaTeX render
-	 *  draws past its own border box, and `elementFromPoint` counts that overflow. */
+	/** The widget under the pointer, asked of the DOM since a KaTeX render draws past its box;
+	 *  jsdom finds no element, and the rectangle scan in `hitTestRevealWidget` answers there. */
 	function revealWidgetFromDom(
 		el: HTMLElement,
 		x: number,
 		y: number
 	): { inline: InlineNode } | null {
-		// jsdom has no hit testing; the rectangle scan in `hitTestRevealWidget` answers there.
-		if (typeof document.elementFromPoint !== 'function') return null;
-		const at = document.elementFromPoint(x, y);
+		const at = elementAtPoint(el.ownerDocument, x, y);
 		const island =
 			at instanceof Element ? at.closest('[data-inline-widget][data-source-start]') : null;
 		// The point may sit over another block's widget entirely.
 		if (!island || !el.contains(island)) return null;
-		const start = Number(island.getAttribute('data-source-start'));
-		if (!Number.isInteger(start)) return null;
+		const start = widgetSourceRange(island)?.start;
+		if (start === undefined) return null;
 		const inline = widgetsOf().find(
 			(n) => n.start === start && widgetEditing(n.kind)?.revealSource
 		);
@@ -580,6 +571,34 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return handled;
 	}
 
+	// Reading mode still takes the text, since a selected widget owns what is typed at it, but
+	// writes nothing.
+	function spliceSelected(
+		widget: { start: number; end: number },
+		selected: { preSelectOffset: number },
+		text: string
+	): void {
+		if (isReading()) return;
+		void replaceSelectedWidget(deps, widget, text, (edit) =>
+			deps.writeText({
+				...rangeWrite(deps.node, edit),
+				intent: 'typed',
+				history: 'join-typing',
+				mode: 'authored',
+				source: 'widget',
+				sessionAnchor: selected.preSelectOffset
+			})
+		);
+	}
+
+	function typeOverSelected(text: string): boolean {
+		const selected = deps.selection.widgetIn(deps.myPath);
+		const widget = selected && widgetNodeIn(deps.node, selected.sourceStart, deps.reading);
+		if (!selected || !widget) return false;
+		spliceSelected(widget, selected, text);
+		return true;
+	}
+
 	async function keydownOnSelectedWidget(e: KeyboardEvent): Promise<boolean> {
 		const node = deps.node;
 		const selectedWidget = deps.selection.widgetIn(deps.myPath);
@@ -609,16 +628,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 					leavesCaret: true
 				})
 		});
-		if (consumed) return true;
+		// Prevented here, so no step after the block's keydown writes the key again.
+		if (consumed) {
+			e.preventDefault();
+			return true;
+		}
 		const motion = caretMotionOf(e);
+		// The key goes on to the shared keydown, which moves the caret from the widget's edge.
 		if (motion) {
 			leaveWidgetBy(motion, widget);
-			// The browser moves for Cmd+Arrow on macOS only, so the line edge is placed here.
-			if (motion.lineArrow) {
-				e.preventDefault();
-				if (motion.extend) deps.caretWriter.extendToLineEdge(motion.side);
-				else deps.caretWriter.moveCaretToLineEdge(motion.side);
-			}
 			return false;
 		}
 		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:
@@ -649,21 +667,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			}
 			return true;
 		}
-		// Reading mode still consumes the key, since a selected widget owns its keys, but writes
-		// nothing.
-		const spliceWidget = (text: string): void => {
-			if (isReading()) return;
-			void replaceSelectedWidget(deps, widget, text, (edit) =>
-				deps.writeText({
-					...rangeWrite(deps.node, edit),
-					intent: 'typed',
-					history: 'join-typing',
-					mode: 'authored',
-					source: 'widget',
-					sessionAnchor: selectedWidget.preSelectOffset
-				})
-			);
-		};
+		const spliceWidget = (text: string): void => spliceSelected(widget, selectedWidget, text);
 		if (e.key === 'Backspace' || e.key === 'Delete') {
 			e.preventDefault();
 			spliceWidget('');
@@ -814,8 +818,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		el.focus({ preventScroll: true });
 		deps.cursor.setRaw(asRawOffset(seat.offset), { clamp: 'reachable' });
-		// `setRaw` may have landed in a trailing text node, where the browser draws a caret.
-		if (!caretIsInTextContent(el)) deps.setSnapTarget(seat.offset);
+		// Text shows its own caret; beside a widget the held edge outlives a range the browser drops.
+		if (liveCaretSpot(el) !== 'text') deps.setSnapTarget(seat.offset);
 	}
 
 	/** Select the whole shown token, decided from the press: the editor root's word-select runs
@@ -860,6 +864,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	return {
 		isVerticallyTransparent,
 		handleSelectedWidgetKeydown,
+		typeOverSelected,
 		enterWidget,
 		restoreCaret,
 		enterEdgeWidget,

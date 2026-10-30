@@ -48,8 +48,6 @@ const input = (inputType: string, isComposing = false) =>
 
 beforeEach(() => {
 	installEditorDomStubsForTests();
-	// A press runs the editor root's hit test, which jsdom lacks.
-	document.elementFromPoint ??= () => null;
 });
 afterEach(async () => {
 	await destroyMountedEditors();

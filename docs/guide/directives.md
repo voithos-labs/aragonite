@@ -107,17 +107,15 @@ registerDirective('container', 'note', {
 			leadingTrivia: parsed.leadingTrivia,
 			raw: parsed.raw,
 			innerPrefix: parsed.body?.prefix ?? '',
-			// the title rides as child 0 (a chrome leaf; see the plugin guide)
-			children: [chromeChild(NOTE_TITLE, trimWhitespace(parsed.fence.info)), ...(parsed.body?.children ?? [])],
+			// just the body; the grammar adds the opener line (see The opener line)
+			children: parsed.body?.children ?? [],
 			innerSuffix: parsed.body?.suffix ?? ''
 		};
 		setPluginMetadata(node, {
 			name: parsed.fence.name,
-			// the four fence fields (the end of this page says why)
-			colonCount: parsed.fence.colonCount,
+			// how the closing line looked (the end of this page says why)
 			closerColonCount: parsed.closerColonCount,
-			closerNewline: parsed.closerNewline,
-			lineEnding: parsed.lineEnding
+			closerNewline: parsed.closerNewline
 		});
 		return node;
 	}
@@ -133,6 +131,20 @@ registerDirective('container', 'tip',     { kind: CALLOUT, fromDirective: build 
 ```
 
 The factory (broadly, a function that takes the parsed pieces of a fence (its name, info string, body, etc.) and builds the corresponding block's node) (aka fromDirective in this case) just keeps the name in the node's metadata so the component knows which one it is.
+
+### The opener line
+
+You don't build the first line. The grammar takes `:::note Heads up` verbatim and puts it in front of whatever your factory returns, as child 0 of kind `directiveOpenerLine`. It's a line you type in, with `:::note` drawn dimmed while you edit it, so the title is just the text after the name. Three things follow from that:
+
+- **Reading the title.** `rowContentRange(node)` says where it sits on that line, past the name and the spaces after it:
+
+  ```ts
+  const { start, end } = rowContentRange(node);
+  node.children[0].raw.slice(start, end); // 'Heads up'
+  ```
+
+- **Styling it.** The line draws as `.directive-opener-line` inside `[data-block-kind='directiveOpenerLine']`. Put a `>` between your box, its `.block-list` and that row, the way [the walkthrough's CSS](plugin-guide/container-walkthrough.md#the-component) does, or a box nested in yours picks up the style too.
+- **Renaming the box.** The name lives on that line too, so a command that switches `:::note` to `:::tip` rewrites the line: `ctx.replaceRaw(withDirectiveName(ctx.node.raw, 'tip'))`. That's one undo entry, and the container is read again under its new name, metadata and all. Same thing when someone types over the name by hand.
 
 ### When is `fromDirective` required?
 
@@ -160,7 +172,7 @@ parseDirectiveAttributes(' Heads up');
 // { classes: [], properties: {} }
 ```
 
-One limitation though: the helper goes one way, info to structure, not the inverse. A directive that edits its attributes rewrites its own info string (through its metadata and `rebuildRaw`, the same path a title edit takes). If a real plugin needs the inverse, it is an additive addition; raise an issue and present your case.
+One limitation though: the helper goes one way, info to structure, not the inverse. A directive that edits its attributes rewrites its own opener line with `replaceRaw`, the same way a rename does. If a real plugin needs the inverse, it is an additive addition; raise an issue and present your case.
 
 ## Switching it on
 
@@ -174,13 +186,13 @@ Everything here is marked pre-freeze, meaning it may still change shape until 1.
 
 The ones you will actually use:
 
-| Entry                    | When you reach for it                                                                                                                                                      |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activateDirectives`     | once, at startup, to turn directives on at all                                                                                                                             |
-| `registerDirective`      | to claim a name for your kind (this whole page)                                                                                                                            |
-| `isDirectiveRegistered`  | to check whether a name is already taken, if you want first-wins instead of a throw                                                                                        |
-| `createDirectiveRebuild` | to get a `rebuildRaw` for your container without writing one (the thing you were told not to hand-write); it assumes your child 0 is the editable title on the opener line |
-| `DIRECTIVE_BODY_WRAP`    | put it in your container kind's `bodyWrap`; it tells the parser how a `:::` body is wrapped in blank lines                                                                 |
+| Entry                    | When you reach for it                                                                                                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activateDirectives`     | once, at startup, to turn directives on at all                                                                                                                                            |
+| `registerDirective`      | to claim a name for your kind (this whole page)                                                                                                                                           |
+| `isDirectiveRegistered`  | to check whether a name is already taken, if you want first-wins instead of a throw                                                                                                       |
+| `createDirectiveRebuild` | to get a `rebuildRaw` for your container without writing one (the thing you were told not to hand-write); it writes the opener line back as it stands, then the body and the closing line |
+| `DIRECTIVE_BODY_WRAP`    | put it in your container kind's `bodyWrap`; it tells the parser how a `:::` body is wrapped in blank lines                                                                                |
 
 The ones you probably won't:
 
@@ -220,4 +232,4 @@ For the `:::note Heads up` fence at the top of this page, your factory gets:
 }
 ```
 
-One thing to know before you write your metadata type: `createDirectiveRebuild` needs it to carry `colonCount`, `closerColonCount`, `closerNewline` and `lineEnding`, under exactly those names. Those four are how it writes the fence back identical to the one it read. The compiler will tell you if one is missing; now you also know why.
+One thing to know before you write your metadata type: keep `closerColonCount` and `closerNewline` in it, under exactly those names. The closing line belongs to no child, so those two are how `createDirectiveRebuild` writes it back the way it was read (a `::::` closer under a `:::` opener, say, or a file that ends without a newline). Leave them out and you get a plain `:::` and a newline, which is a byte off for those files. The opener line needs nothing from metadata, since it's child 0 and goes back as it stands.

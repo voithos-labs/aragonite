@@ -4,20 +4,18 @@
  */
 import {
 	activateDirectives,
-	chromeChild,
 	containerClosure,
 	createDirectiveRebuild,
 	declarePluginKind,
 	DIRECTIVE_BODY_WRAP,
 	registerBlockKind,
 	registerBlockCommand,
-	registerChromeLeaf,
 	registerDirective,
 	registerPasteTransform,
 	isDirectiveRegistered,
 	setPluginMetadata,
 	getPluginMetadata,
-	trimWhitespace,
+	withDirectiveName,
 	type BlockView,
 	type CstNode,
 	type ParsedDirective,
@@ -26,7 +24,6 @@ import {
 import {
 	ADMONITION,
 	ADMONITION_KINDS,
-	ADMONITION_TITLE,
 	coerceAdmonitionName,
 	type AdmonitionMetadata
 } from './kinds';
@@ -41,40 +38,34 @@ export interface AdmonitionsOptions {
 	convertAlertsOnPaste?: boolean;
 }
 
-/** Child 0 is the title (the opener line's info, editable); children 1+ are the body. */
-function admonitionFromDirective(kind: PluginBlockKind, titleKind: PluginBlockKind) {
+/** The body's blocks; the grammar puts the opener line, which holds the title, in front of them. */
+function admonitionFromDirective(kind: PluginBlockKind) {
 	return (parsed: ParsedDirective): CstNode => {
-		const title = trimWhitespace(parsed.fence.info);
 		const node: CstNode = {
 			kind,
 			leadingTrivia: parsed.leadingTrivia,
 			raw: parsed.raw,
 			innerPrefix: parsed.body?.prefix ?? '',
-			children: [chromeChild(titleKind, title), ...(parsed.body?.children ?? [])],
+			children: parsed.body?.children ?? [],
 			innerSuffix: parsed.body?.suffix ?? ''
 		};
 		setPluginMetadata<AdmonitionMetadata>(node, {
 			name: parsed.fence.name,
-			colonCount: parsed.fence.colonCount,
 			closerColonCount: parsed.closerColonCount,
-			closerNewline: parsed.closerNewline,
-			lineEnding: parsed.lineEnding
+			closerNewline: parsed.closerNewline
 		});
 		return node;
 	};
 }
 
-const rebuildAdmonitionRaw = createDirectiveRebuild<AdmonitionMetadata>((meta) =>
-	coerceAdmonitionName(meta?.name)
-);
+const rebuildAdmonitionRaw = createDirectiveRebuild();
 
 /** `view` draws both the admonition and the GitHub alert. */
 export function registerAdmonitions(view: BlockView, options?: AdmonitionsOptions): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
 
 	const admonition = declarePluginKind(ADMONITION);
-	const title = declarePluginKind(ADMONITION_TITLE);
-	const build = admonitionFromDirective(admonition, title);
+	const build = admonitionFromDirective(admonition);
 
 	// Every name resolves to one kind, which reads its variant back from metadata. A name
 	// something else claimed first stays theirs.
@@ -84,13 +75,13 @@ export function registerAdmonitions(view: BlockView, options?: AdmonitionsOption
 		}
 	}
 
-	// A container's metadata patch: `rebuildRaw` writes it into the bytes as one undoable edit.
+	// The name lives on the opener line, so the cycle rewrites that line as one undoable edit.
 	const cycleKind = registerBlockCommand(admonition, 'admonition.cycleKind', (ctx) => {
 		const meta = getPluginMetadata<AdmonitionMetadata>(ctx.node);
 		const dir = ctx.arg === 'prev' ? -1 : 1;
 		const from = ADMONITION_KINDS.indexOf(coerceAdmonitionName(meta?.name));
 		const next = ADMONITION_KINDS[(from + dir + ADMONITION_KINDS.length) % ADMONITION_KINDS.length];
-		ctx.updateMetadata({ name: next });
+		ctx.replaceRaw(withDirectiveName(ctx.node.raw, next));
 		return true;
 	});
 
@@ -106,26 +97,24 @@ export function registerAdmonitions(view: BlockView, options?: AdmonitionsOption
 		// edges take the gap caret.
 		gapEdges: 'both',
 		container: {
-			// The title lives in the opener line, so raw is not a strip of the children.
+			// The fence lines frame the children, so raw is not a strip of them.
 			contract: 'opaque',
 			rebuildRaw: rebuildAdmonitionRaw,
-			bodyWrap: DIRECTIVE_BODY_WRAP,
-			reservedChrome: { kind: title },
-			unwrapRole: { middleChildBackspace: 'default-merge' }
+			bodyWrap: DIRECTIVE_BODY_WRAP
 		},
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
 		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n',
 		closure: containerClosure({
 			roundTripVia: 'container contract=opaque — rebuildAdmonitionRaw (directive)',
-			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
+			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: {
 				mode: 'implemented',
-				via: 'updateMetadata — the kind cycle commits as one undoable metadataUpdate'
+				via: 'replaceRaw: the kind cycle rewrites the opener line as one undoable edit'
 			},
 			clipboard: {
 				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the title re-emits the callout — a mid-title start reopens it around the collected body, a mid-title end yields a title-only callout'
+				via: 'byte-slice copy; a slice touching the opener line re-emits the admonition: a mid-title start reopens it around the collected body, a mid-title end yields a title-only admonition'
 			},
 			simOracle: {
 				mode: 'implemented',
@@ -133,8 +122,6 @@ export function registerAdmonitions(view: BlockView, options?: AdmonitionsOption
 			}
 		})
 	});
-
-	registerChromeLeaf(title, { label: 'Title', blockClass: 'admonition-title' });
 
 	if (options?.convertAlertsOnPaste) {
 		registerPasteTransform(githubAlertsPasteTransform);

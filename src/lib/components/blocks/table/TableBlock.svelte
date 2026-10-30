@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../../browser/composition';
 	import { setContext, getContext, untrack, tick } from 'svelte';
 	import type { CellPosition, TableAxisAction, TableContext } from '../../../action-contracts';
 	import {
@@ -17,7 +18,7 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { asEditorX, docPathFrom } from '../../../caret/coordinate-spaces';
+	import { asEditorX, docPathFrom } from '../../../core/coordinate-spaces';
 	import { observeResize } from '../../../windowing/observe-resize';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/place-caret';
@@ -26,7 +27,7 @@
 	import { tableCaretAtPoint } from './table-caret-at-point';
 	import { selectedCells } from './selected-cells';
 	import { useContainerWindowing } from '../../../windowing/use-container-windowing.svelte';
-	import { sliceWindow } from '../../../windowing/window-slice';
+	import { windowSlicer } from '../../../windowing/window-slice';
 	import { useWindowFloor } from '../../../windowing/use-window-floor.svelte';
 	import { componentAt, type ChildList } from '../../../block-lists/child-list';
 	import { createContainerActions } from '../../../editor-actions/nested/container-actions';
@@ -116,7 +117,8 @@
 		() => tableEl,
 		() => win
 	);
-	let bounds = $derived(sliceWindow((node.children ?? []).length, win));
+	const sliceWindow = windowSlicer<NodeView>();
+	let slice = $derived(sliceWindow(node.children ?? [], rowsState.innerBlockIds, win));
 
 	const rowList: ChildList = {
 		count: () => rowCount,
@@ -352,6 +354,7 @@
 	// Keyboard equivalent of the cell right-click, bubbling up from the cell;
 	// `preventDefault` suppresses the browser's context menu the key would trigger.
 	function onTableKeyDown(e: KeyboardEvent): void {
+		if (imeOwnsKey(e)) return;
 		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
 		if (readOnly || !opensMenu || !focusedCell) return;
 		e.preventDefault();
@@ -575,21 +578,18 @@
 	onkeydown={onTableKeyDown}
 >
 	<!-- No whitespace between the blocks: a stray text node joins the raw-offset traversal
-	     and shifts a remembered caret (caret/widget-offset.ts). -->
+	     and shifts a remembered caret (browser/offsets.ts). -->
 	{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
-	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
-		<!-- `index`, `myPath` and the key all carry the absolute row index
-		     (bounds.start + localIndex), never the local loop index. -->
-		{@const rowIdx = bounds.start + localIndex}
+	{/if}{#each slice.entries as entry (entry.id)}
 		<TableRowBlock
-			node={rowNode}
-			index={rowIdx}
-			id={rowsState.innerBlockIds[rowIdx]}
+			node={entry.node}
+			index={entry.index}
+			id={entry.id}
 			{columnCount}
 			{rowCount}
 			alignments={meta.alignments ?? []}
-			myPath={[...myPath, rowIdx]}
+			myPath={[...myPath, entry.index]}
 			slots={rowsState.refSlots}
 		/>
 	{/each}{#if win.active}

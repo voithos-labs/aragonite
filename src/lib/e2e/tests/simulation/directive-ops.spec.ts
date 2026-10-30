@@ -89,7 +89,7 @@ test.describe('directive-ops simulation', () => {
 
 		// ── Container, unregistered: edit the body, then split it ─────────────────
 		let tipIndex = await topLevelIndexOf(page, 'directiveContainer');
-		await g.editContainerBody([tipIndex, 0], ' extra');
+		await g.editContainerBody([tipIndex, 1], ' extra');
 		expect(await editor.bridge.getSource()).toContain('Generic body. extra');
 		await assertCheckpoint(ctx, 'tip-body-edit');
 

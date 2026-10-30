@@ -7,8 +7,10 @@
 import { escalateTerminatorRun } from '../terminator-escalation';
 import type { UnfinishedReading } from '../../schema/block-openers';
 import {
+	displayLines,
 	firstDisplayLine,
 	isBlankLine,
+	joinDisplayLines,
 	OPTIONAL_LINE_ENDING,
 	splitLines,
 	trimWhitespace,
@@ -157,8 +159,18 @@ export function fenceLanguage(info: string): string {
 export const fenceReading: UnfinishedReading = {
 	notFinal: awaitsFenceCloser,
 	mayClose: (text) => matchFenceClose(text, '`', 3) || matchFenceClose(text, '~', 3),
+	closer: fenceCloser,
 	readsOn: true
 };
+
+/** The run that closes the fence `raw` opens, one longer than any run its body holds. */
+function fenceCloser(raw: string): string {
+	const [openerLine, ...bodyLines] = displayLines(raw);
+	const opener = matchFenceOpen(openerLine.text);
+	if (!opener) return '';
+	const run = escalatedFenceLength(joinDisplayLines(bodyLines), opener.marker, opener.length);
+	return opener.indent + opener.marker.repeat(run);
+}
 
 /** Whether `raw` opens a fence on its first line and its last non-blank line doesn't close it. */
 function awaitsFenceCloser(raw: string): boolean {

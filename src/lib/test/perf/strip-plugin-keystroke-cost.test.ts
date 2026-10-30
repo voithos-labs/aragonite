@@ -2,11 +2,12 @@
 // length: the bundled strip containers rebuild through the quote's and list item's line pairing.
 // Miss-analysis: no perf row types inside an alert or a footnote, so a rebuild that fell back to
 // writing every line per key would have passed every gate.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installPlugins } from '#lib';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
@@ -49,7 +50,13 @@ function linesRead(source: string): number {
 		const raw = owner.children![TARGET].raw;
 		const at = raw.indexOf('\n');
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
-		const write = legalizeWrite(body, TARGET, raw.slice(0, at) + 'Q' + raw.slice(at), 'authored');
+		const write = legalizeWrite(
+			body,
+			TARGET,
+			raw.slice(0, at) + 'Q' + raw.slice(at),
+			'authored',
+			defaultGrammarView
+		);
 		expect(typing.typeLeaf(docPathFrom([0, TARGET]), write, at + 1).wrote).toBe(true);
 	}
 	return perfSnapshot().stripLinesRead;

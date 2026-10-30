@@ -6,7 +6,7 @@ import type { FullConfig, Reporter, Suite, TestCase, TestResult } from '@playwri
 /**
  * Writes a GitHub job's e2e counts and failing tests to its job summary, and the same rows as
  * `test-results/ci-summary.json` for the job's artifact. Counts are per test, not per attempt, so
- * a retried test counts once, under its final outcome. A shard cut by `scripts/e2e-shards.mjs`
+ * a retried test counts once, under its final outcome. A shard cut by `scripts/ci/e2e-shards.mjs`
  * names itself in `E2E_SHARD` and carries its plan from `E2E_SHARD_PLAN`, which the census reads.
  */
 

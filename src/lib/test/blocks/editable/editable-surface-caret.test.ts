@@ -4,7 +4,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { makeSurface, type SurfaceHarness } from '../../harness/editable-surface';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
-import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { asEditorX } from '#lib/core/coordinate-spaces.js';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../../block-component';
 import { consumePendingRestore } from '../../../components/blocks/editable/editable-surface';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
@@ -132,7 +132,7 @@ describe('the input read', () => {
 
 	it('writes the caret the block read moved along with its text', () => {
 		const { surface, commits, el, setCaret } = makeSurface({
-			overrides: { readInput: (caret) => ({ text: ' ', caret: caret - 2 }) }
+			overrides: { readBack: (caret) => ({ text: ' ', caret: caret - 2 }) }
 		});
 		el.textContent = '#  ';
 		setCaret(3);

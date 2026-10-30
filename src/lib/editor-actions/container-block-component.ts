@@ -25,14 +25,15 @@ import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { CaretMemory } from '../caret/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import type { CaretWriter } from '../caret/widget-offset';
+import type { CaretWriter } from '../browser/caret-writer';
 import { placeCaret } from '../selection/place-caret';
 import { rangeOwnsKey, type RangeKeyReads } from '../selection/cross-block/keydown';
 import {
 	focusWholeBlockEl,
 	holdsWholeBlockFocus,
 	type WholeBlockInputProxy
-} from './whole-block-focus-surface';
+} from './whole-block-focus-surface.svelte';
+import type { CaretHostInput } from './caret-host-input';
 
 /** Undo, redo and plugin-global chords for a block focused as a whole, which neither an inner leaf
  *  nor the editor root runs. Consumed in reading mode too, or the browser runs its own undo. */
@@ -80,6 +81,19 @@ export function focusAcrossBlockEdge(key: string, deps: BlockEdgeExitDeps): bool
 	return true;
 }
 
+/** A plain arrow pressed in a block's own editor or controls, a plugin container's or a
+ *  hand-built view's, hands the caret to the neighbour it points at. False for any other key. */
+export function moveFocusOutByArrow(
+	e: KeyboardEvent,
+	deps: Pick<WholeBlockKeyDeps, 'getIndex' | 'focus' | 'caretMemory' | 'commandOf'>
+): boolean {
+	if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false;
+	// The block exposes no caret x to measure, so a vertical exit keeps the column it arrived
+	// with, exactly as a whole-block pass-through does.
+	deps.caretMemory.noteKey(e, deps.commandOf(e));
+	return focusAcrossBlockEdge(e.key, deps);
+}
+
 export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	getRaw: () => string;
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock' | 'insertParagraph'>;
@@ -88,6 +102,9 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	caretMemory: Pick<CaretMemory, 'noteKey'>;
 	/** What the keypress resolves to at this block's kind, overrides included. */
 	commandOf: (e: KeyboardEvent) => AnyCommandId | null;
+	/** Whether the key ended a composition the browser dropped in the block's hidden host, which
+	 *  spends it (`CaretHostInput.takesKey`). */
+	takesKey: CaretHostInput['takesKey'];
 }
 
 /**
@@ -98,6 +115,9 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	// Before any branch, or a column captured elsewhere survives a horizontal move through this
 	// block. No `measureX`: a block focused whole has no caret to measure.
 	deps.caretMemory.noteKey(e, deps.commandOf(e));
+	// The composed text is the paragraph below, so Enter opens the one after it.
+	const below = deps.getIndex() + 1;
+	if (deps.takesKey(e, () => deps.blockEdit.insertParagraph(below + 1, ''))) return;
 
 	if (e.key === 'Enter') {
 		e.preventDefault();
@@ -122,7 +142,7 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 
 	// A typed character has nowhere to land on a block focused as a whole, so it creates the
 	// paragraph below carrying it (`editor-actions/block-edit-core.ts :: insertParagraph`).
-	if (isCharacterKey(e.key) && !e.isComposing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+	if (isCharacterKey(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
 		if (!deps.isReading()) void deps.blockEdit.insertParagraph(deps.getIndex() + 1, e.key);
 		return;

@@ -12,8 +12,8 @@ import {
 	INCOHERENT_REGISTRATION_PAIRS,
 	type IncoherentPairId
 } from '#lib/schema/registration-pairs.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const leaf = {
 	gapEdges: 'none',

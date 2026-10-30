@@ -13,29 +13,13 @@ const lines = (node: CstNode): string[] => splitLines(node.raw).map((line) => li
 /** Re-reads around the blocks `[from, from + count)`: up from them when one of their lines may
  *  close a construct above, else down from any of them (or the block above) left waiting. */
 export function rereadUnfinished(work: Work, from: number, count: number, host: Host): void {
-	const readings = host.readingsThatMayChange();
-	if (!lookUp(work, from, count, readings, host))
-		lookDown(work, Math.max(from - 1, 0), from + count, readings, host);
+	if (!lookUp(work, from, count, host))
+		lookDown(work, Math.max(from - 1, 0), from + count, host.readingsThatMayChange(), host);
 }
 
-function lookUp(
-	work: Work,
-	from: number,
-	count: number,
-	readings: readonly UnfinishedReading[],
-	host: Host
-): boolean {
-	const closing = readings.filter((reading) => !reading.readsOn);
-	const written = work.blocks.slice(from, from + count);
-	if (
-		!written.some((node) =>
-			lines(node).some((line) => closing.some((reading) => reading.mayClose(line)))
-		)
-	)
-		return false;
-	let top = -1;
-	for (let i = from - 1; i >= 0; i--)
-		if (closing.some((reading) => reading.notFinal(work.blocks.at(i).raw))) top = i;
+function lookUp(work: Work, from: number, count: number, host: Host): boolean {
+	const written = work.blocks.slice(from, from + count).flatMap(lines);
+	const top = host.waitingAboveClosedBy(written, (i) => work.blocks.at(i).raw, from);
 	return top >= 0 && reread(work, top, from + count - 1, host) !== null;
 }
 

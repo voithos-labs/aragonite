@@ -12,7 +12,8 @@ import {
 	documentLineEnding,
 	ownTrailingLineEnding,
 	splitLines,
-	trailingLineEnding
+	trailingLineEnding,
+	trimTrailingLineEnding
 } from '../core/lines';
 import { parse } from '../core/parser';
 import { ancestorsOf } from '../core/paths';
@@ -29,7 +30,7 @@ import {
 } from '../editor-actions/unwrap-strategies';
 import type { EditEvent } from '../editor-events';
 import { isDirectiveKind } from '../core/directive/registry';
-import { defaultGrammarView } from '../schema/block-openers';
+import { defaultGrammarView, unfinishedReadings, waitingReading } from '../schema/block-openers';
 import { kitReading } from './kit-reading';
 import {
 	getBlockKindDescriptor,
@@ -45,7 +46,9 @@ import {
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { legalizeWrite } from '../tree-operations/content-write';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { reservedChromeKindOf, rowMarker, unwrapRoleOf } from '../schema/reserved-chrome';
+import { leafAtRawOffset } from '../tree-operations/container-offsets';
+import { docPathFrom } from '../core/coordinate-spaces';
 import { assertParseConverged } from './parse-convergence';
 import { mountBlockListState } from './headless-block-list.svelte';
 import {
@@ -135,6 +138,7 @@ export type ConformanceCell =
 	| 'focusBubble'
 	| 'terminatorCollision'
 	| 'titleRow'
+	| 'openerLine'
 	| 'declarations';
 
 export interface ContainerConformanceReport {
@@ -150,7 +154,7 @@ export interface ContainerCellContext {
 }
 
 /** The kit's cells as data, so {@link runContainerConformance} and the built-in sweep run the
- *  same set; `titleRow` and `declarations` declare no coverage and always run. */
+ *  same set; `titleRow`, `openerLine` and `declarations` declare no coverage and always run. */
 export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
 	ConformanceCell,
 	ContainerCellContext
@@ -187,6 +191,10 @@ export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
 	{
 		cell: 'titleRow',
 		run: ({ kind }) => checkTitleRowFeedsNoMetadata(kind)
+	},
+	{
+		cell: 'openerLine',
+		run: ({ kind }) => checkOpenerLineHoldsCaret(kind)
 	},
 	{
 		cell: 'declarations',
@@ -486,7 +494,7 @@ const TITLE_PROBE = 'probe title';
  *  that keystroke's rebuild and the tree has to match a fresh parse, every metadata key included. */
 function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
 	const descriptor = getBlockKindDescriptor(kind);
-	const chromeKind = descriptor.reservedChrome?.kind;
+	const chromeKind = reservedChromeKindOf(kind);
 	if (descriptor.containerContract !== 'opaque' || chromeKind === undefined) {
 		return {
 			status: 'exempt',
@@ -509,11 +517,41 @@ function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
 	const owner = nodeAtPath(doc, leafPath.slice(0, -1));
 	const lineEnding = documentLineEnding(doc);
 	const body = { children: owner.children!, owner, lineEnding };
-	const text = TITLE_PROBE + trailingLineEnding(title.raw, lineEnding);
-	const write = legalizeWrite(body, 0, text, 'authored');
+	const text = rowMarker(owner, title) + TITLE_PROBE + trailingLineEnding(title.raw, lineEnding);
+	const write = legalizeWrite(body, 0, text, 'authored', deps.reading.grammar);
 	const typed = createUndoController(deps).typeLeaf(docPathFrom(leafPath), write, 0);
 	assert(typed.wrote, `${kind} takes a keystroke in its title row`);
 	assertParseConverged(doc, `${kind} after a keystroke in its title row`);
+}
+
+// ── (h) the opener line holds the caret ─────────────────────────────────────
+
+/** A waiting prefix of the fixture's first line is closed as it's typed, so the closed block must
+ *  hold the caret at the prefix's end in a leaf, or the next letter lands in the body. */
+function checkOpenerLineHoldsCaret(kind: AnyBlockKind): CellOutcome {
+	const fixture = getBlockKindDescriptor(kind).conformanceFixture;
+	if (fixture === undefined) {
+		return { status: 'exempt', detail: `"${kind}" carries no conformanceFixture to type` };
+	}
+	const line = trimTrailingLineEnding(fixture.slice(0, fixture.indexOf('\n') + 1 || undefined));
+	const readings = unfinishedReadings(defaultGrammarView);
+	let waited = 0;
+	for (let end = 1; end <= line.length; end++) {
+		const prefix = line.slice(0, end);
+		if (!waitingReading(`${prefix}\n`, readings)) continue;
+		waited++;
+		const { deps, doc } = createHeadlessActions(`x\n\n${fixture}`);
+		const write = legalizeWrite(doc, 0, `${prefix}\n`, 'authored', deps.reading.grammar);
+		createUndoController(deps).typeLeaf(docPathFrom([0]), write, end);
+		const leaf = leafAtRawOffset(doc.children[0], end);
+		assert(
+			leaf !== null && !nodeAtPath(doc, [0, ...leaf.path]).children?.length,
+			`${kind}: typing "${prefix}" above it closes a block whose offset ${end} sits in no leaf`
+		);
+	}
+	if (waited === 0) {
+		return { status: 'exempt', detail: `no prefix of "${line}" waits on a closer below` };
+	}
 }
 
 // ── (e) declaration sanity ───────────────────────────────────────────────────
@@ -526,7 +564,7 @@ export function checkDeclarationSanity(
 ): void {
 	const descriptor = getBlockKindDescriptor(kind);
 
-	const role = descriptor.unwrapRole;
+	const role = unwrapRoleOf(kind);
 	if (role) {
 		assertIs(
 			typeof firstChildUnwrapStrategies[role.firstChildBackspace],

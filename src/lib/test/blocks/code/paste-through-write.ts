@@ -1,6 +1,7 @@
 // A paste into a fenced code block holding `display`, taken as far as the bytes the write would
 // store: `codePasteSurface` splices, and the write's fence rule makes the result legal.
 
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { parse } from '#lib/core/parser.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
@@ -24,7 +25,7 @@ export function pasteThroughWrite(input: {
 		'\n'
 	);
 	const target = { children: [node], owner: undefined, lineEnding: '\n' as const };
-	const write = legalizeWrite(target, 0, spliced.newRaw, 'literal');
+	const write = legalizeWrite(target, 0, spliced.newRaw, 'literal', defaultGrammarView);
 	return {
 		text: trimTrailingLineEnding(write.text),
 		cursor: write.storedOffset(spliced.caretOffset)

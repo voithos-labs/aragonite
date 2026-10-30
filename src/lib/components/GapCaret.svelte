@@ -5,6 +5,7 @@
 	 * block, so it adds nothing to any block's text content. Text and Enter create a paragraph at
 	 * the boundary; every other input is refused at `beforeinput`.
 	 */
+	import { imeOwnsKey } from '../browser/composition';
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions } from '../action-contracts';
 	import { GAP_CARET_LABEL } from '../a11y-strings';
@@ -63,8 +64,8 @@
 	}
 
 	/** `insertParagraph`'s own landing focuses the new block, and that focus ends the gap. */
-	function mint(text: string): void {
-		void blockEdit?.insertParagraph(index, text);
+	function mint(text: string, at = index): Promise<boolean> | undefined {
+		return blockEdit?.insertParagraph(at, text);
 	}
 
 	/** Undo, redo and plugin-global chords run here, since no block has focus and the root answers
@@ -77,13 +78,17 @@
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {
+		if (imeOwnsKey(event)) return;
+		// The composed text's paragraph sits at this gap, so Enter opens the one after it.
+		const after = composedAt + 1;
+		if (hostInput.takesKey(event, () => mint('', after))) return;
 		if (handleGlobalChord(event)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		switch (event.key) {
 			case 'Enter':
 				event.preventDefault();
-				return mint('');
+				return void mint('');
 			// Shift+Arrow is deliberately the plain arrow here: a single block selected whole
 			// is not a representable cross-block state (docs/design/selection.md § The gap caret).
 			case 'ArrowDown':
@@ -102,7 +107,16 @@
 		}
 	}
 
-	const hostInput = createCaretHostInput(() => proxyEl, mint);
+	// Where the composed text's paragraph went, read before the commit moves this gap past it.
+	let composedAt = 0;
+	const hostInput = createCaretHostInput(
+		() => proxyEl,
+		(text) => {
+			composedAt = index;
+			return mint(text);
+		},
+		services!.composition
+	);
 
 	function onFocusOut(event: FocusEvent): void {
 		const next = event.relatedTarget;

@@ -14,7 +14,7 @@ import type { EditKind, FixedUpWrite, FixedUpEdit } from './tree-operations/fix-
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { OperationDetailMap, OperationKind, ScopedOpDescriptor } from './schema/operations';
 import type { WriteMode } from './schema/block-kind-descriptor';
-import type { DocPath } from './selection/path-math';
+import type { DocPath } from './core/coordinate-spaces';
 import type { CaretPosition, Landing } from './selection/primitives';
 import type { LegalWrite } from './tree-operations/content-write';
 import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
@@ -122,9 +122,14 @@ export interface BlockEditActions {
 	/** Write the space that finishes the container's marker in front of the block (`>abc` becomes
 	 *  `> abc`) as one write of the container's line; false where its kind or bytes take none. */
 	completeMarker(blockIndex: number): Promise<boolean>;
-	/** Replace the block with the structure an on-type completer makes of its line (a typed `$$`),
-	 *  with `caret` where the typing left it; false when no completer takes the line. */
-	completeLineOnType(blockIndex: number, caret: number): Promise<boolean>;
+	/** Write typed `text` as what an on-type completer makes of its line (a typed `$$`), in place of
+	 *  the content write; refused, writing nothing, when no completer takes the line at `caret`. */
+	completeLineOnType(
+		blockIndex: number,
+		text: string,
+		caret: number,
+		preEditOffset: number
+	): ContentWrite;
 	/** Shallow-merges metadata a container's rebuild writes into its bytes (a checkbox toggle). A
 	 *  leaf's metadata comes from its bytes, so a leaf refuses it and writes nothing. */
 	updateBlockMetadata(

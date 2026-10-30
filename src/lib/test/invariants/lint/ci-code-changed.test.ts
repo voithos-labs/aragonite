@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { touchesCode } from '../../../../../scripts/ci-code-changed.mjs';
+import { touchesCode } from '../../../../../scripts/ci/ci-code-changed.mjs';
 import { collectFiles, literalSpans, stringLiteralAt, stripComments } from './scan-source';
 
 /** Every markdown path the app or the e2e harness loads, from the string literals naming one. */
@@ -48,7 +48,7 @@ describe('ci-code-changed: docs-only changes', () => {
 		expect(loaded).toContain('docs/changelog/any.md');
 		expect(
 			loaded.filter((file) => !touchesCode([file])),
-			'the app loads markdown CI would skip the browser suites for; add it to APP_CONTENT in scripts/ci-code-changed.mjs'
+			'the app loads markdown CI would skip the browser suites for; add it to APP_CONTENT in scripts/ci/ci-code-changed.mjs'
 		).toEqual([]);
 	});
 });

@@ -1,6 +1,6 @@
 # Feature: Reserved-child-0 title row, the rangeDelete wall
 
-The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf, the
+The `:::callout` callout holds its opener line at child index 0, an editable leaf of kind `directiveOpenerLine`, the
 container's own title row. These checks prove that a range delete stops at it. They read
 behavior: the tree and the selection read by path through `window.__test`, not visuals.
 

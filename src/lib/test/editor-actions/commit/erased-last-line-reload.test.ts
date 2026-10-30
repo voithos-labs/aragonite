@@ -2,10 +2,11 @@
 // own, and the run below gives up the separator it doubled, so a reload reads the same blocks.
 // Miss-analysis: the rebuild tests fed parser-built trees, where a paragraph never ends in a blank
 // line, and no row put a blank line under the erased block, whose separator then counted twice.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import { serialize } from '#lib/core/serializer.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createTopLevelScope } from '#lib/editor-actions/block-edit-scope.js';
 import { commitLeafText } from '#lib/editor-actions/block-edit-core.js';
@@ -14,7 +15,7 @@ import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
 import { makeContainerHarness, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence, describeRunDivergence } from '#lib/test/harness/parse-converged.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const reloadsAsItself = (doc: Document) => {
 	expect(describeConvergence(doc)).toBeNull();
@@ -33,7 +34,7 @@ const ROUTES: [string, (source: string) => { doc: Document; write: Write }][] = 
 			const { deps } = makeEditorActionsDeps(source);
 			const scope = createTopLevelScope(deps, createUndoController(deps));
 			const write: Write = async (index, text, caret) => {
-				const legal = legalizeWrite(scope.target(), index, text, 'authored');
+				const legal = legalizeWrite(scope.target(), index, text, 'authored', defaultGrammarView);
 				await commitLeafText(scope, index, legal, { snapshotOffset: caret, caret });
 			};
 			return { doc: deps.doc, write };
@@ -47,7 +48,7 @@ const ROUTES: [string, (source: string) => { doc: Document; write: Write }][] = 
 			const write: Write = async (index, text, caret) => {
 				typing.typeLeaf(
 					docPathFrom([index]),
-					legalizeWrite(deps.doc, index, text, 'authored'),
+					legalizeWrite(deps.doc, index, text, 'authored', defaultGrammarView),
 					caret
 				);
 			};

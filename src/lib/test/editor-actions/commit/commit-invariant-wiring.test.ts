@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import type { MultiScopeTarget } from '#lib/action-contracts.js';
 import type { CstNode } from '#lib/core/nodes.js';

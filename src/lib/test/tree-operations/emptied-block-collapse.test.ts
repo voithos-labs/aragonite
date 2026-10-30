@@ -7,7 +7,7 @@ import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import { mergePrevSettled, deleteSettled } from '#lib/test/harness/settle-funnel.js';
 
 // Backspace on an emptied middle block collapses its line on the merge route as on the delete

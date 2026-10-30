@@ -1,0 +1,65 @@
+// Regenerates src/lib/test/gfm-conformance/spec-examples.json from a CommonMark spec.json
+// (path in argv[2]; fetched from https://spec.commonmark.org/, never committed). Keeps the
+// inline-only examples, so the inline differ compares like for like (a guard that duplicates
+// reference.ts so this runs with plain `node`), and every link reference definition example.
+// Strings are escaped so hard-break bytes and CRs survive LF normalization.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { Parser } from 'commonmark';
+
+// Read from the pinned devDependency rather than written down again: `reference.ts` already
+// asserts against this same field, so a literal here would be a third copy that can disagree.
+const REFERENCE_VERSION = JSON.parse(
+	readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8')
+).devDependencies.commonmark;
+
+const parser = new Parser();
+
+function isInlineOnly(markdown) {
+	const doc = parser.parse(markdown);
+	const first = doc.firstChild;
+	return Boolean(first && first.type === 'paragraph' && !first.next);
+}
+
+const specPath = process.argv[2];
+if (!specPath) {
+	console.error('usage: node scripts/vendor/extract-spec-examples.mjs <path-to-spec.json>');
+	process.exit(1);
+}
+
+// spec.json carries no version of its own, so the stamp cannot be read off the input. The
+// download path usually keeps one; disagreeing there would mislabel the corpus.
+const versionInPath = specPath.match(/\b(\d+\.\d+(?:\.\d+)?)\b/);
+if (versionInPath && versionInPath[1] !== REFERENCE_VERSION) {
+	console.error(
+		`extract-spec-examples: ${specPath} looks like spec ${versionInPath[1]}, but the pinned ` +
+			`reference implementation is ${REFERENCE_VERSION}. Download the matching spec.json.`
+	);
+	process.exit(1);
+}
+
+const specExamples = JSON.parse(readFileSync(specPath, 'utf8'));
+const pick = ({ section, example, markdown }) => ({ section, example, markdown });
+const examples = specExamples
+	.filter((entry) => isInlineOnly(entry.markdown.replace(/\n$/, '')))
+	.map(pick);
+const definitionExamples = specExamples
+	.filter((entry) => entry.section === 'Link reference definitions')
+	.map(pick);
+
+const outPath = fileURLToPath(
+	new URL('../../src/lib/test/gfm-conformance/spec-examples.json', import.meta.url)
+);
+writeFileSync(
+	outPath,
+	JSON.stringify(
+		{ referenceVersion: REFERENCE_VERSION, examples, definitionExamples },
+		null,
+		'\t'
+	) + '\n'
+);
+
+console.log(
+	`extract-spec-examples: ${examples.length} inline-only and ${definitionExamples.length} ` +
+		`definition examples of ${specExamples.length} → ${outPath}`
+);

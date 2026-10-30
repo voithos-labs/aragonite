@@ -11,7 +11,7 @@ import {
 import { pointAtRaw } from '../../text-runs';
 
 /**
- * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
+ * The `:::callout` callout holds its opener line as child 0, an editable title row (see
  * src/routes/test/plugins/callout). Part 6, that boundary inside a table: `involvesTable` is
  * checked before `involvesReservedChrome`, so a range with a table endpoint takes the table path,
  * and the boundary must hold there too: a covered title is emptied, a title at an endpoint
@@ -57,8 +57,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.bridge.waitForSourceContains(':::callout\n');
 
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['callout-title', 'table']);
-		expect(callout.childTexts[0]).toBe('');
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'table']);
+		expect(callout.childTexts[0]).toBe(':::callout');
 		expect(callout.raw).toBe(':::callout\n| 1 | 2 |\n| --- | --- |\n:::\n');
 		// The truncated start of the prose keeps its line ending, so the blank line the source had
 		// between it and the container survives, matching the case below that starts in the title.
@@ -73,9 +73,9 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
-			.toEqual(['callout-title', 'table']);
+			.toEqual(['directiveOpenerLine', 'table']);
 		expect((await readCallout(page, 1)).childTexts).toEqual([
-			'Title',
+			':::callout Title',
 			'| a | b |\n| --- | --- |\n| 1 | 2 |'
 		]);
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
@@ -87,15 +87,15 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.loadContent(TBL_FIXTURE);
 		// Starting in the title of the same container: the boundary truncates by writing raw, so the
 		// title keeps its kind rather than reparsing as a paragraph.
-		await editor.dragFromTo([1, 0], 3, [1, 1], 0);
+		await editor.dragFromTo([1, 0], 14, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains(':::callout Tit\n');
 
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['callout-title', 'table']);
-		expect(callout.childTexts[0]).toBe('Tit');
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'table']);
+		expect(callout.childTexts[0]).toBe(':::callout Tit');
 		expect(await editor.bridge.getSource()).toBe(
 			'Above\n\n:::callout Tit\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
@@ -105,8 +105,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
-			.toEqual(['callout-title', 'table']);
-		expect((await readCallout(page, 1)).childTexts[0]).toBe('Title');
+			.toEqual(['directiveOpenerLine', 'table']);
+		expect((await readCallout(page, 1)).childTexts[0]).toBe(':::callout Title');
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
 	});
 
@@ -119,7 +119,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await dragBetweenPoints(
 			page,
 			await cellCenter(page, 2),
-			await pointAtRaw(editor.page, [1, 0], 3)
+			await pointAtRaw(editor.page, [1, 0], 14)
 		);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -127,8 +127,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.bridge.waitForSourceContains(':::callout le');
 
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
-		expect(callout.childTexts).toEqual(['le', 'Body']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(callout.childTexts).toEqual([':::callout le', 'Body']);
 		expect(await editor.bridge.getSource()).toBe(
 			'| a | b |\n| --- | --- |\n\n:::callout le\nBody\n:::\n\nBelow\n'
 		);
@@ -148,8 +148,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.bridge.waitForSourceContains(':::callout\n');
 
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['callout-title', 'table']);
-		expect(callout.childTexts[0]).toBe('');
+		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'table']);
+		expect(callout.childTexts[0]).toBe(':::callout');
 		expect(await editor.bridge.getSource()).toBe(
 			'| a | b |\n| --- | --- |\n\n:::callout\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
@@ -157,7 +157,9 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
-		await expect.poll(() => readCallout(page, 1).then((n) => n.childTexts[0])).toBe('Title');
+		await expect
+			.poll(() => readCallout(page, 1).then((n) => n.childTexts[0]))
+			.toBe(':::callout Title');
 		expect(await editor.bridge.getSource()).toBe(TBL_BOTH_FIXTURE);
 	});
 
@@ -185,8 +187,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.undo();
 		await expect
 			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
-			.toEqual(['callout-title', 'paragraph']);
-		expect((await readCallout(page, 1)).childTexts).toEqual(['Title', 'Body']);
+			.toEqual(['directiveOpenerLine', 'paragraph']);
+		expect((await readCallout(page, 1)).childTexts).toEqual([':::callout Title', 'Body']);
 		expect(await editor.bridge.getSource()).toBe(TBL_ABOVE_FIXTURE);
 	});
 });

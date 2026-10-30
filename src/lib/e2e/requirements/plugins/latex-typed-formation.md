@@ -21,9 +21,9 @@ its end, is replaced by the finished fence pair instead of being split.
 ## Edge cases
 
 - The new block puts the caret inside a render-primary leaf, which commits on blur, so the undo
-  entry only closes once the caret leaves: after the blur, one Mod+Z restores the paragraph byte
-  for byte with the caret back at the end of the typed fence, and a character typed then lands
-  after the second `$` rather than in front of it. Mod+Z from inside the source while it is
+  entry only closes once the caret leaves: after the blur, one Mod+Z takes the second `$` back,
+  since the block is written in place of that keystroke, leaving the paragraph's `$` with the
+  caret after it, and a character typed then lands after the `$`. Mod+Z from inside the source while it is
   still focused does nothing (#161), which is a gap between showing a source and undo rather
   than one in the completion, since the same entry restores correctly after the blur
 - A loaded `$$ x` plus Enter falls through to the ordinary split: an opener line carrying body

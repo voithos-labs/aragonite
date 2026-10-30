@@ -6,12 +6,12 @@
 
 import type { DocumentView } from '../core/node-views';
 import { CURSOR_END, CURSOR_START, entryEdge } from '../block-component';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { displayLength } from '../core/lines';
 import { leafAtRawOffset } from '../tree-operations/container-offsets';
 import { caretChildCount } from '../schema/reserved-chrome';
-import type { DocPath } from './path-math';
+import type { DocPath } from '../core/coordinate-spaces';
 import type { CaretPosition, SelectionPoint } from './primitives';
 import { collapsedContainerHiding, firstCaretLeafFrom, previousCaretPath } from './path-lookup';
 

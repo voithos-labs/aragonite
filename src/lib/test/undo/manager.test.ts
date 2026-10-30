@@ -3,7 +3,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { assignIds } from '../../block-id';
 import { createUndoManager as createManager } from '../../undo/manager';
-import { rangeSelectionOf } from '../support/undo-entry';
+import { rangeSelectionOf } from '../harness/undo-entry';
 import type { UndoEntry } from '../../undo/types';
 import type { Document } from '../../core/nodes';
 

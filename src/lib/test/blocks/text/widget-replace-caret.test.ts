@@ -11,7 +11,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { mountBodyRow } from '../../harness/editor-actions';
-import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
+import { refusedWrite, withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { createSurfaceWrite, rangeWrite } from '#lib/components/blocks/editable/surface-write.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { LeafRangeEdit } from '#lib/tree-operations/leaf-range.js';
@@ -73,7 +73,7 @@ function fixture() {
 			return [0];
 		},
 		blockEdit: {
-			completeLineOnType: async () => false,
+			completeLineOnType: () => refusedWrite(),
 			updateBlockContent: (
 				_: number,
 				raw: string,

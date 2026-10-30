@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { InlineWidgetComponentProps } from '#lib/plugin.js';
+	import { imeOwnsKey, type InlineWidgetComponentProps } from '#lib/plugin.js';
 	import { footnoteNumbersFor } from './footnote-numbering';
 	import { findFootnoteDefinitionLanding } from './footnote-lookup';
 	import { footnoteReferenceLabel } from './constants';
@@ -44,6 +44,7 @@
 	}
 
 	function onKeydown(e: KeyboardEvent): void {
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter' || e.key === ' ') {
 			e.preventDefault();
 			e.stopPropagation();

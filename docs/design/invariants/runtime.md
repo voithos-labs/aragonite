@@ -30,11 +30,11 @@ These checks run in three kinds of place:
 | G1.11  | Every keymap chord is unique per kind and names a known command                               | A·N     |
 | G1.12  | An opaque container's raw still reparses to its live children and metadata                    | A·N     |
 | G1.13  | An opaque `rebuildRaw` is deterministic over committed state                                  | A·N     |
-| G1.14  | A container declaring `reservedChrome` holds its chrome leaf at child 0                       | A·N     |
+| G1.14  | A container with a title row holds it at child 0; a `:::` row is the container's first line   | A·N     |
 | G1.15  | A plugin opener claims at least one line, and its raw matches the lines it consumed           | A·N     |
 | G1.16  | Every coordinate a commit declares is document-absolute                                       | A·N     |
 | G1.17  | An opener registered after the grammar was read warns                                         | A·N     |
-| G1.18  | A container's `reservedChrome` names a registered chrome kind                                 | A·N     |
+| G1.18  | A container's `reservedChrome` names a registered chrome kind, the one child 0 holds          | A·N     |
 | G1.19  | A commit scope's declared path still resolves to its captured node                            | A       |
 | G1.20  | An unshared chain is as deep as the path it was asked for                                     | A       |
 | G1.21  | A column edit's row scopes are the owned table's own children                                 | A       |
@@ -71,7 +71,7 @@ These checks run in three kinds of place:
 | G1.58  | An indent key over a range keeps every word it holds, in order                                | A·N     |
 | G1.61  | A list move keeps the order its text reads in                                                 | A·P·N   |
 | G1.71  | A command key over a range runs in the kind of block whose keymap claimed it                  | A·N     |
-| G1.75  | No selection endpoint the editor writes sits after an empty block's placeholder `<br>`        | A·N     |
+| G1.75  | No selection endpoint the editor writes sits after the `<br>` closing a block                 | A·N     |
 | G1.76  | The drawn caret sits on its caret until the caret moves                                       | A       |
 | G1.77  | The mark hiding the browser's caret is on exactly the editable the drawn caret draws for      | A       |
 | G1.87  | Nothing an editor started before it unmounted writes, reports or reads its tree after         | N       |
@@ -111,6 +111,11 @@ These checks run in three kinds of place:
 | G1.154 | A content write's fixed-up window holds the block it wrote                                    | A·N     |
 | G1.155 | A block's write puts its caret inside the text it writes                                      | A·N     |
 | G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs    | A·N     |
+| G1.158 | A block a commit splices in holds no opener it wrote that a block below would close           | A·N     |
+| G1.159 | The caret writer writes a caret only where something shows it                                 | A·N     |
+| G1.160 | A widget beside a caret the writer puts down lays out inline                                  | A·N     |
+| G1.161 | A typed letter the editor leaves to the browser lands at its caret                            | A·N     |
+| G1.163 | A caret key the editor decided leaves the selection it wrote                                  | A·N     |
 
 ### The entries
 
@@ -177,8 +182,9 @@ and is skipped otherwise. `checkOpaqueStaleRaw` (`node-shape.ts`) · commit prim
 probe-vs-probe: run it twice, require the same bytes. Predicate `checkOpaqueRebuildDeterminism`
 (`node-shape.ts`) · commit primitive · `opaque-rebuild-determinism.test.ts`.
 
-**G1.14 · Reserved-chrome slot.** A container declaring `reservedChrome` holds a chrome leaf of the
-declared kind at child 0; kinds with no declaration are exempt. Predicate `checkReservedChromeSlot`
+**G1.14 · Reserved-chrome slot.** A container with a title row holds a leaf of the row's kind at
+child 0: the kind its `reservedChrome` declares, or `directiveOpenerLine` for a `:::` container,
+whose row must also hold the container's first line byte for byte. Other kinds are exempt. Predicate `checkReservedChromeSlot`
 (`node-shape.ts`) · commit primitive · `reserved-chrome-slot.test.ts`.
 
 **G1.15 · Opener return trust.** A plugin opener claims at least one line (`consumed >= 1`). A
@@ -199,12 +205,12 @@ parsed documents never re-parse, so the kind would miss every open document. Reg
 first editor mounts. Predicate `checkLateOpenerRegistration` (`registry.ts`) · bootstrap ·
 `test/schema/registration-checks.test.ts`.
 
-**G1.18 · Reserved-chrome coherence.** The chrome kind a container's `reservedChrome` names (its
-title row) is registered, which `registerChromeLeaf` does, and a registered kind always carries its
-view (G3.15, which retired this check's component half). The bootstrap counterpart to G1.14's
-per-commit slot check. Predicate `checkReservedChromeCoherence`
+**G1.18 · Reserved-chrome coherence.** The chrome kind a container's `reservedChrome` names is
+registered (`registerChromeLeaf` does that, view included, G3.15) and is the row child 0 holds, so
+a `:::` container, whose row is its opener line, can only name `directiveOpenerLine`. The bootstrap
+counterpart to G1.14's per-commit slot check. Predicate `checkReservedChromeCoherence`
 (`registry.ts`) · bootstrap · `reserved-chrome-coherence.test.ts`,
-`test/schema/registration-checks.test.ts`.
+`test/schema/registration-checks.test.ts`, `opener-line-registration.test.ts`.
 
 **G1.19 · Multi-scope commit path.** A scope's declared path still resolves to its captured node,
 checked over all scopes _before_ any spine is copied, since a stale-but-in-range path would copy and
@@ -230,8 +236,8 @@ half-written tree, so `notifyEdit` and `runAll` assert no commit is open, and a 
 
 **G1.24 · Closure-block coherence.** A kind's closure block (its answer to each editor system)
 agrees with its descriptor: no `inherit-default` for a container's `roundTrip` (its `rebuildRaw` is
-the round trip), a `not-mergeable` kind's `mergeBackspace` or a `reservedChrome` kind's `clipboard`,
-and a cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must
+the round trip), a `not-mergeable` kind's `mergeBackspace` or a title-row kind's `clipboard`, and a
+cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must
 parse to its kind, checked in the unit sweep since a `parse` import in the flush is a cycle.
 `checkClosureCoherence` · bootstrap · `closure-coherence.test.ts`, `closure-fixtures.test.ts`.
 
@@ -250,11 +256,11 @@ holds at entry. A blur with no reveal or in a cross-block range is silent. `widg
 `inline-commands.ts`, `reveal-source.ts` · `widget-reveal-transitions.test.ts`.
 
 **G1.27 · Composition window.** `compositionend` lands only inside a composition the surface
-opened, at its start or, when a range across blocks was live at the start, at its first composed
-character. An unpaired end means `compositionend` was wired without `compositionstart`, and every
-composed keystroke committed mid-IME. Predicate `checkCompositionEndPaired`
-(`inline-transitions.ts`) · run in `components/blocks/editable/editable-surface.ts :: onCompositionEnd` ·
-`inline-transitions.test.ts`, `test/blocks/editable/editable-surface-composition.test.ts`.
+opened, at its start or, when a range across blocks claimed the start, at its first composed
+character (a claimed start that ends with no run pairs too). An unpaired end means `compositionend`
+was wired without `compositionstart`. The tracker's `end` answers it (`browser/composition.ts`);
+predicate `checkCompositionEndPaired` (`inline-transitions.ts`), run in `editable-surface.ts ::
+onCompositionEnd` · `inline-transitions.test.ts`, `editable-surface-composition.test.ts`.
 
 **G1.28 · Rendered text fidelity.** A code block's rendered fragment carries its bytes exactly
 (`textContent === trimTrailingLineEnding(raw)`), since `template.innerHTML` can drop a byte (U+0000,
@@ -281,11 +287,11 @@ mount, once the hooks load. `checkInlineConstructPolicy` · `runStartupInvariant
 `inline-construct-policy-coherence.test.ts`, `inline-construct-policy.test.ts`.
 
 **G1.33 · The caret can land.** In a mode that hides markers and edits (live, preview-inline), a
-block holding the caret paints a spot the caret can land on; one that's all hidden markers takes the
-next key between `display:none` spans, on either side. Built-ins hold by construction
-(`docs/design/live-mode.md` § 4.1), so this catches a plugin drawing its own marker chrome. It fires
-from the root's `focusin`, so a consumer's caret component is covered. `checkLandableCaret` ·
-`editor-root/focus.ts` · `landable-caret.test.ts`, `landable-caret-doors.test.ts`.
+block holding the caret has a spot a caret shows at, read by G1.159's own check at its start; one
+that's all hidden markers takes the next key between `display:none` spans. Built-ins hold by
+construction (`docs/design/live-mode.md` § 4.1). It fires from the root's `focusin`, so a caret no
+writer placed (a consumer's own component) is covered. `checkCaretCanLand` · `editor-root/focus.ts`
+· `caret-can-land.test.ts`, `caret-can-land-placements.test.ts`.
 
 **G1.35 · Single-node sink.** A slot that installs exactly one node never installs bytes that
 reparse to several (bytes arriving plural are fine). Every join (Backspace, Delete, the list-item
@@ -407,10 +413,11 @@ the removal the command must run in a block of that kind (kinds only, since a jo
 offset). Predicate `invariants/command-key-landing.ts :: checkCommandLanding` ·
 `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
 
-**G1.75 · The caret goes before an empty block's `<br>`** (`caret-before-break`). An empty editable
-holds one `<br>`, and a caret looks the same on either side, but in Chromium a composition started
-after it is dropped after its first update, losing or doubling the text. Every caret and range the
-editor writes passes `widget-offset.ts :: writeSelection`, which checks both ends in dev (G4.36
+**G1.75 · The caret goes before a block's closing `<br>`** (`caret-before-break`). An empty editable
+holds one `<br>`, and so does a block whose content ends on a picture (the anchor its line's text
+height comes from). A caret looks the same on either side, but after an empty block's, Chromium
+drops a composition after its first update, losing or doubling the text. Every caret and range the
+editor writes passes `browser/caret-writer.ts :: writeSelection`, which checks both ends in dev (G4.270
 keeps every selection write there). `checkCaretBeforeBreak` · `caret-before-break.test.ts`.
 
 **G1.76 · The drawn caret agrees** (`drawn-caret-agrees`). At a `selectionchange` with no paint
@@ -537,8 +544,8 @@ without rebuilding the list. A failed commit restores them with its bytes
 
 **G1.119 · No caret inside a CRLF pair** (`caret-in-line-ending-pair`). A caret written between
 `\r` and `\n` would edit inside the pair in WebKit and Firefox, so every selection write checks both
-endpoints. Arrows cross a pair in one press (`handleUnitStep`), and a Shift+Arrow moves an anchor
-the browser parked inside one to before it (`extendSelectionToRaw`).
+endpoints. Arrows cross a pair in one press (`caret/caret-motion.ts` :: `motionTarget`), and a
+Shift+Arrow moves an anchor the browser parked inside one to before it (`extendSelectionToRaw`).
 `checkCaretOutsideLineEndingPair` · `line-ending-pairs.test.ts`.
 
 **G1.121 · A menu asked to close is gone** (`menu-closes`). Each menu closes through its own
@@ -659,3 +666,37 @@ has installed its entry and placed the caret, the document's bytes are the entry
 between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and
 would clear the redo stack, so the write gate declines every write while the install runs.
 `checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, the behavior rows.
+
+**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit
+splices or moves in holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further
+down would close, since that opener would read in blocks the edit never touched. Every write route
+closes one first (`legalizeWrite`, `closeWrittenOpeners`); a content write and a removal aren't
+asked, and a range delete's survivor lands outside a commit's list, where the route rows hold it.
+`checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.
+
+**G1.159 · A written caret shows** (`caret-paints`). The caret writer writes a caret only where
+something shows it: text, a line the browser paints, or a widget's side (beside a picture, the drawn
+caret's bar). A spot with only hidden marker runs beside it, in a block holding focus (focus decides
+what hides), moves to visible text at the same offset, or is refused (no write, a false return);
+only a plugin block drawing nothing but markers gets there. `checkCaretPaints` ·
+`browser/caret-writer.ts` · `caret-spot.test.ts`, `caret-shows`.
+
+**G1.160 · Widgets lay out inline** (`widget-lays-out-inline`). A widget beside a caret the writer
+puts down computes an inline-level display (`inline-block` for a box). Laid out as a block it has no
+line beside it: a letter typed there lands on another line, Chromium starts no composition there,
+and nothing draws the caret. It fires whether or not the kind declares `frame`, since a plugin's
+widget sets its own `display`. `checkWidgetLaysOutInline` · `browser/caret-writer.ts` ·
+`caret-spot.test.ts`.
+
+**G1.161 · A typed letter lands at its caret** (`typed-insert-at-caret`). A collapsed typed insert
+the editor leaves to the browser (a caret in a text node, where the typing decision in
+`components/blocks/editable/typed-insert.ts` keeps the browser's insert) reads back at the caret it
+started at, or across hidden marker text from it, where placement picks the side. Anywhere else is
+an engine insert the decision has to take. `checkTypedInsertAtCaret` ·
+`components/blocks/editable/editable-surface.ts` · `typed-insert.test.ts`, `typed-insert-at-caret.test.ts`.
+
+**G1.163 · A decided caret key moves the caret once** (`caret-motion-decided`). A caret key the
+editor lands (`caret/caret-motion.ts`) records the selection the browser holds after its write; a
+different one at the next `selectionchange`, keydown, `beforeinput` or `compositionstart` means the
+browser's own move ran too. An editor write or a pointer press ends the record unchecked.
+`checkMotionDecided` · `browser/caret-writer.ts` · `caret-motion-decided.test.ts`.

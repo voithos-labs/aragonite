@@ -9,7 +9,7 @@ import {
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
 import type { RootListScroll } from './scroll-owner';
-import { observeResize } from './observe-resize';
+import { laidOutBox, observeResize } from './observe-resize';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { foreignMeasureViolation } from '../invariants/measures-in-own-list';
 import {
@@ -117,7 +117,7 @@ function windowingUnit(opts: ContainerWindowingOpts): ListWindowing {
 		measureOnResize: windowing.measureChildOnResize,
 		watchSize: scrollOwner
 			? scrollOwner.watchSize
-			: (el, onResize) => observeResize(el, (entries) => entries[0] && onResize(entries[0]))
+			: (el, onHeight) => observeResize(el, () => onHeight(laidOutBox(el).height))
 	} satisfies ChildMeasureChannel);
 
 	return windowing;

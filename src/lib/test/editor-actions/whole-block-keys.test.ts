@@ -5,14 +5,14 @@ import {
 } from '#lib/editor-actions/container-block-component.js';
 import { displayLength } from '#lib/core/lines.js';
 import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
-import { asEditorX } from '#lib/caret/coordinate-spaces.js';
+import { asEditorX } from '#lib/core/coordinate-spaces.js';
 import { commandForKey } from '#lib/schema/commands.js';
 import {
 	normalizeKeybindingOverrides,
 	type KeybindingOverride
 } from '#lib/schema/keybinding-overrides.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { commandContextWith } from '#lib/test/support/command-context.js';
+import { commandContextWith } from '#lib/test/harness/command-context.js';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
 
 function makeDeps(
@@ -34,7 +34,8 @@ function makeDeps(
 		isReading,
 		selection,
 		caretMemory,
-		commandOf: (e) => commandForKey(e, 'thematicBreak', commandContextWith(overrides))
+		commandOf: (e) => commandForKey(e, 'thematicBreak', commandContextWith(overrides)),
+		takesKey: () => false
 	};
 	return { deps, splitBlock, deleteBlock, insertParagraph, moveFocus, caretMemory };
 }
@@ -123,14 +124,6 @@ describe('handleWholeBlockKeys', () => {
 		handleWholeBlockKeys(e, deps);
 		expect(insertParagraph).not.toHaveBeenCalled();
 		expect(e.preventDefault).toHaveBeenCalled();
-	});
-
-	it('declines a mid-composition character, whose bytes the IME has not committed', () => {
-		const { deps, insertParagraph } = makeDeps();
-		const e = press('a', { isComposing: true });
-		handleWholeBlockKeys(e, deps);
-		expect(insertParagraph).not.toHaveBeenCalled();
-		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 
 	it.each([{ ctrlKey: true }, { metaKey: true }, { altKey: true }])(

@@ -3,7 +3,7 @@ import { runGlobalChordOnKind } from '#lib/schema/commands.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import type { AnyBlockKind } from '#lib/core/nodes.js';
 import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
-import { commandContextWith } from '../support/command-context';
+import { commandContextWith } from '../harness/command-context';
 
 // The handler a block focused as a whole carries: no inner leaf runs the global chords for
 // it, and the editor root declines while focus sits on the block itself.

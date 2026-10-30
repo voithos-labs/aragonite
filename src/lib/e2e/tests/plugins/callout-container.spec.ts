@@ -22,7 +22,7 @@ test.describe('plugin container: :::callout editability', () => {
 		expect(state.kind).toBe('callout');
 		expect(state.rootCount).toBe(1);
 		expect(state.childCount).toBe(2);
-		expect(state.childTexts).toEqual(['Title', 'First']);
+		expect(state.childTexts).toEqual([':::callout Title', 'First']);
 
 		// Type into the callout's body paragraph, child 1, not the title row.
 		await page.locator('.callout-block [contenteditable="true"]', { hasText: /^First$/ }).click();
@@ -44,7 +44,7 @@ test.describe('plugin container: :::callout editability', () => {
 		const afterSplitTyping = await waitForContainer(page, 0, (s) => s.childTexts[2] === 'two');
 		expect(afterSplitTyping.rootCount).toBe(1);
 		expect(afterSplitTyping.childCount).toBe(3);
-		expect(afterSplitTyping.childTexts).toEqual(['Title', 'First one', 'two']);
+		expect(afterSplitTyping.childTexts).toEqual([':::callout Title', 'First one', 'two']);
 		// The callout's raw is rebuilt from every child, so a stale raw would read the opener line
 		// alone; the same rebuild writes the blank line between the body paragraphs.
 		expect(afterSplitTyping.raw).toBe(':::callout Title\nFirst one\n\ntwo\n:::\n');
@@ -57,7 +57,7 @@ test.describe('plugin container: :::callout editability', () => {
 		await page.keyboard.press('Backspace');
 		const afterMerge = await waitForContainer(page, 0, (s) => s.childCount === 2);
 		expect(afterMerge.rootCount).toBe(1);
-		expect(afterMerge.childTexts).toEqual(['Title', 'First onetwo']);
+		expect(afterMerge.childTexts).toEqual([':::callout Title', 'First onetwo']);
 		expect(afterMerge.raw).toBe(':::callout Title\nFirst onetwo\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(':::callout Title\nFirst onetwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
@@ -85,7 +85,7 @@ test.describe('plugin container: :::callout editability', () => {
 		await editor.loadContent('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
 
 		// Drag-select from the prose above into the middle of the title, then copy.
-		await editor.dragFromTo([0], 2, [1, 0], 3);
+		await editor.dragFromTo([0], 2, [1, 0], 14);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();

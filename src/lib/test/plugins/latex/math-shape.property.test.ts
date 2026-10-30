@@ -3,6 +3,7 @@
 // agree on the block and its body, and the blocks below read as before unless a `$$` line was
 // left to pair with one of theirs.
 // Miss-analysis: the painter, the write rule and the parser each had their own fixtures.
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { parse } from '#lib';
@@ -12,7 +13,7 @@ import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
 import { reshapeMathEdit } from '#lib/plugins/latex/math-source.js';
 import { freshOrFixedSeed } from '#lib/test/invariants/arbitraries/property-seed.js';
 import { paintedSplit } from './painted-split';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(688) } as const;
 
@@ -67,7 +68,13 @@ function checkEdit(block: string, eol: LineEnding, edit: Edit): string {
 	const node = doc.children[0];
 	const edited = applyEdit(painted(block, 0, eol), edit, eol);
 	const text = painted(edited.text, edited.caret, eol);
-	const written = legalizeWrite(doc, 0, text + ownTrailingLineEnding(node.raw), 'authored').text;
+	const written = legalizeWrite(
+		doc,
+		0,
+		text + ownTrailingLineEnding(node.raw),
+		'authored',
+		fixtureGrammar
+	).text;
 	const reload = written + source.slice(node.raw.length);
 	const label = `${JSON.stringify(block)} ${edit.kind}@${edit.at} -> ${JSON.stringify(text)}`;
 
@@ -78,7 +85,13 @@ function checkEdit(block: string, eol: LineEnding, edit: Edit): string {
 		expect(now.slice(now.length - below.length), `${label}: the blocks below moved`).toEqual(below);
 	}
 	// The same bytes arriving whole (a paste, a replace) mustn't move them either.
-	const literal = legalizeWrite(doc, 0, text + ownTrailingLineEnding(node.raw), 'literal').text;
+	const literal = legalizeWrite(
+		doc,
+		0,
+		text + ownTrailingLineEnding(node.raw),
+		'literal',
+		fixtureGrammar
+	).text;
 	const pasted = blocksOf(literal + source.slice(node.raw.length));
 	if (!strandsFence(literal)) {
 		expect(

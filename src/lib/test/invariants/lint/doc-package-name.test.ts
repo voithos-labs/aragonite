@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
+import { corpusFiles } from '../../../../../scripts/docs/doc-corpus.mjs';
 
 /** Records of what shipped, under whatever the package was called then. */
 const EXEMPT_DIRS = ['docs/changelog'];

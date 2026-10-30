@@ -5,13 +5,13 @@
 // own candidate scan, line lookup and nearest-X choice all run for real against that geometry.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset, asEditorX } from '../../caret/coordinate-spaces';
+import { asDomTextOffset, asEditorX } from '../../core/coordinate-spaces';
 import {
 	getCurrentCursorEditorRelativeX,
 	caretBoxAt,
 	findOffsetNearestX
 } from '../../caret/sticky-measure';
-import type { LineRead } from '../../caret/visual-lines';
+import type { LineRead } from '../../browser/visual-lines';
 
 /** One line of text, so no caret here sits at a soft wrap and the browser is never asked. */
 const OFF_A_WRAP: LineRead = {

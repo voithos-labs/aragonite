@@ -7,7 +7,7 @@ import { checkLastLineKept } from '#lib/invariants/open-tail.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 /** `bytes` parsed, then the block at `path` stripped of its line ending, as a glue bug leaves it. */
 function glued(bytes: string, path: number[]): Document {
@@ -71,12 +71,12 @@ describe('G1.41 over a container with its own closing line', () => {
 	beforeEach(() => activateDirectiveGrammar(testDirectiveViews()));
 
 	it('fails a body line glued onto a directive’s closing `:::`', () => {
-		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 0]);
+		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 1]);
 		expect(checkLastLineKept(doc, false)?.message).toMatch(/directiveContainer > paragraph/);
 	});
 
 	it('fails the directive the rebuild then writes, whose closer lost its line', () => {
-		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 0]);
+		const doc = glued('intro\n\n:::note\nbody\n:::\n', [1, 1]);
 		rebuildContainerRaw(doc.children[1], defaultGrammarView);
 		expect(doc.children[1].raw).toBe(':::note\nbody:::\n');
 		expect(checkLastLineKept(doc, false)?.message).toMatch(/directiveContainer > paragraph/);

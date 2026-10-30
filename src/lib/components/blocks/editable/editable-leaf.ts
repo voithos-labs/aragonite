@@ -5,11 +5,12 @@
  * synchronously during initialisation. `plugin-guide/editable-content.md` § The editable leaf.
  */
 
+import { imeOwnsInput, imeOwnsKey } from '../../../browser/composition';
 import { onDestroy, tick, untrack } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { EditableLeafBlockApi, StickyColumnDirection } from '../../../block-component';
 import type { NodeView } from '../../../core/node-views';
-import { asRawOffset } from '../../../caret/coordinate-spaces';
+import { asRawOffset } from '../../../core/coordinate-spaces';
 import { createSurfaceBackend } from './surface-backend';
 import { handleSharedKeydown } from '../../../selection/shared-keydown';
 import {
@@ -24,22 +25,26 @@ import { anchorTrailingNewline, plainTextOf } from './plain-text-backend';
 import {
 	CONTENT_EMPTY_ATTR,
 	chromeFreeText,
-	clampToLandableRaw,
-	holdsOnlyMarkerChrome,
-	landableRawBounds,
-	type RawRange
-} from '../../../caret/widget-offset';
+	holdsOnlyMarkerChrome
+} from '../../../browser/painted';
+import { clampToReachableRaw, reachableRawBounds, type RawRange } from '../../../browser/offsets';
+import {
+	deleteExtent,
+	unitContextAt,
+	type DeleteAnswer,
+	type DeleteContext
+} from '../../../caret/delete-extent';
 import {
 	decidedDelete,
-	deleteExtent,
 	isDeleteInput,
 	isMoveDelete,
-	type DeleteAnswer,
+	readInput,
+	targetRange,
 	type DeleteIntent
-} from '../../../caret/delete-extent';
-import { lineEdgeOffset } from '../../../caret/visual-lines';
+} from '../../../browser/input';
 import { isAtMostOneCharacter } from '../../../core/text-units';
-import { nativeRangeIn, parkFocusOnEditorRoot } from '../../../selection/native-bridge';
+import { nativeRangeIn } from '../../../browser/selection-read';
+import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import { resetForPointerDown } from '../../../selection/cross-block/pointer';
@@ -216,7 +221,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		componentPluginOptions(pluginEditor, deps.getNode().kind) as Options;
 	const isReading = () => getPresentationMode() === 'reading';
 
-	let composing = false;
 	let pendingCursor: number | null = null;
 	/** The open reveal's edit, which writes only over the bytes it opened on; null while folded. */
 	let draft: Draft | null = null;
@@ -244,10 +248,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getNode: deps.getNode,
 		getMyPath: deps.getPath,
 		getIndex: deps.getIndex,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		// render-primary never restores a pending caret: focus has already left on
 		// commit, and a re-render must not pull it back.
 		requestCaret: (at) => {
@@ -255,14 +255,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		getFocusOffset: backend.getFocusOffset,
 		getTextLen: () => plainTextOf(deps.getEl()).length,
-		readInput: (caret) => ({ text: plainTextOf(deps.getEl()), caret }),
+		readBack: (caret) => ({ text: plainTextOf(deps.getEl()), caret }),
 		repaint: syncSource,
 		handleKeydown,
-		localHistory: (e) =>
-			(e.inputType === 'historyUndo' || e.inputType === 'historyRedo') &&
-			stepSourceHistory(e, e.inputType === 'historyUndo'),
+		localHistory: (e) => {
+			const read = readInput(e);
+			return read.kind === 'history' && stepSourceHistory(e, !read.redo);
+		},
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret,
+		unitContext,
 		commandTarget: () => keyTarget,
 		handleDeclinedDelete: spliceTargetRange,
 		removeSelection: (range) => {
@@ -460,7 +462,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// report here.
 	function afterNativeEdit(): void {
 		const el = deps.getEl();
-		if (!el || composing || (el.textContent ?? '') === reported) return;
+		if (!el || editableSurface.composing() || (el.textContent ?? '') === reported) return;
 		repaintSource();
 		reportSourceEdit(el.textContent ?? '');
 	}
@@ -484,7 +486,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	function repaintSource(): void {
 		const el = deps.getEl();
-		if (!el || !deps.renderSource || composing) return;
+		if (!el || !deps.renderSource || editableSurface.composing()) return;
 		const offset = backend.getRaw();
 		const text = el.textContent ?? '';
 		// A native edit (an IME commit) reaches the kind's reshape like the leaf's own edits do.
@@ -641,7 +643,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();
-		if (composing || !el) return;
+		if (!el) return;
 
 		// Undo inside a shown painted source steps through its own edits; the document sees them as
 		// one entry written on blur.
@@ -703,47 +705,57 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	 *  node and its delete cannot see hidden markers. Clamping keeps edits off hidden fence lines. */
 	function onBeforeInput(e: InputEvent): void {
 		// A delete the editor decides is `deleteAtCaret`'s, and reaches the splice only if declined.
-		if (!decidedDelete(e.inputType)) spliceTargetRange(e);
+		if (!decidedDelete(e)) spliceTargetRange(e);
 	}
 
 	function spliceTargetRange(e: InputEvent): void {
-		if (!deps.renderSource || composing || e.isComposing) return;
+		if (!deps.renderSource || editableSurface.composing() || imeOwnsInput(e)) return;
 		const el = deps.getEl();
 		if (!el) return;
-		const insert = sourceInsertion(e.inputType, e.data);
+		const insert = sourceInsertion(e);
 		if (insert === null) return;
-		const target = e.getTargetRanges()[0];
+		const target = targetRange(e);
 		const range = target ? backend.rawRangeOf(target) : null;
 		if (!range) return;
 		e.preventDefault();
-		const start = clampToLandableRaw(el, range.start);
-		const end = Math.max(start, clampToLandableRaw(el, range.end));
+		const start = clampToReachableRaw(el, range.start);
+		const end = Math.max(start, clampToReachableRaw(el, range.end));
 		spliceSourceText(el, start, end, insert);
 	}
 
 	/** What an input writes over its target range in a painted source; null leaves it alone. */
-	function sourceInsertion(inputType: string, data: string | null): string | null {
-		if (isDeleteInput(inputType)) return isMoveDelete(inputType) ? null : '';
-		if (inputType === 'insertText') return data ?? '';
-		const breaks = inputType === 'insertLineBreak' || inputType === 'insertParagraph';
-		return breaks ? editableSurface.lineEnding() : null;
+	function sourceInsertion(e: InputEvent): string | null {
+		if (isDeleteInput(e)) return isMoveDelete(e) ? null : '';
+		const read = readInput(e);
+		if (read.kind === 'insert') return e.data ?? '';
+		return read.kind === 'break' ? editableSurface.lineEnding() : null;
 	}
 
 	/** A collapsed delete takes what the delete rule names in the DOM's text, which a shown
 	 *  render-primary source reaches the node with only on blur, kept off the lines the mode hides. */
 	function deleteAtCaret(caret: number, intent: DeleteIntent): DeleteAnswer {
 		const el = deps.getEl();
-		if (!el) return 'declined';
-		const text = el.textContent ?? '';
-		const span = deleteExtent(intent, {
-			text,
-			caret,
-			bounds: landableRawBounds(el) ?? { start: 0, end: text.length },
-			lineEdge: (side) => lineEdgeOffset(el, caret, side, caretWriter)
-		});
+		const context = unitContext(caret);
+		if (!el || !context) return 'declined';
+		const span = deleteExtent(intent, context);
 		if (!span) return 'at-edge';
 		spliceSourceText(el, span.start, span.end, '');
 		return 'taken';
+	}
+
+	/** What the delete and the caret keys read at `caret`: the DOM's text, which a shown source
+	 *  reaches the node with only on blur. */
+	function unitContext(caret: number): DeleteContext | null {
+		const el = deps.getEl();
+		if (!el) return null;
+		const text = el.textContent ?? '';
+		return unitContextAt({
+			el,
+			text,
+			caret,
+			bounds: reachableRawBounds(el),
+			lineRead: caretWriter
+		});
 	}
 
 	function onPointerDown(e: PointerEvent): void {
@@ -786,7 +798,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			if (!isRevealed()) onRenderClick(e);
 		},
 		onkeydown: (e) => {
-			if (!isRevealed()) void dispatchChord(e);
+			if (!isRevealed() && !imeOwnsKey(e)) void dispatchChord(e);
 		}
 	};
 
@@ -797,7 +809,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		oninput: (e: Event) => {
 			editableSurface.onInput(e);
 			noteShownSource();
-			if (!(e as InputEvent).isComposing) afterNativeEdit();
+			if (!imeOwnsInput(e as InputEvent)) afterNativeEdit();
 		},
 		onbeforeinput: editableSurface.onBeforeInput,
 		onkeydown: editableSurface.onKeyDown,

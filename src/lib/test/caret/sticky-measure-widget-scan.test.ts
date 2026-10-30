@@ -5,7 +5,7 @@
 // around a widget answers with that widget's box on a grid of lines.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { asDomTextOffset, asEditorX } from '../../caret/coordinate-spaces';
+import { asDomTextOffset, asEditorX } from '../../core/coordinate-spaces';
 import { findOffsetNearestX } from '../../caret/sticky-measure';
 
 const WIDGETS = 50;

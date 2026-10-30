@@ -36,3 +36,45 @@
 	font-weight: 700;
 	cursor: text;
 }
+.chip,
+.memo-length {
+	font-size: 0.75em;
+	padding: 0 0.4em;
+	border-radius: 4px;
+	background: #9ad0ff;
+	color: #222;
+	user-select: none;
+}
+/* The whole-block editing host sits in the note's element, so the note is its positioned box. */
+.note {
+	position: relative;
+	border: 1px solid #8884;
+	border-radius: 6px;
+	padding: 0.25em 0.5em;
+}
+.note:focus-within {
+	border-color: #3b82f6;
+}
+.note-text {
+	margin: 0;
+	outline: none;
+}
+.note-source {
+	width: 100%;
+	box-sizing: border-box;
+	font: inherit;
+}
+.dice-roll {
+	font: inherit;
+	padding: 0.25em 0.75em;
+	border: 1px solid #8884;
+	border-radius: 6px;
+	background: #f4f4f5;
+	color: #222;
+	cursor: pointer;
+}
+.dice-roll:focus-visible,
+.dice-roll:focus {
+	outline: 2px solid #3b82f6;
+	outline-offset: 1px;
+}

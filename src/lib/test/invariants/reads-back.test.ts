@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
@@ -33,7 +33,8 @@ function typeInto(h: ReturnType<typeof makeTopHarness>, leaf: number[], text: st
 		body,
 		leaf[leaf.length - 1],
 		raw.slice(0, at) + text + raw.slice(at),
-		'authored'
+		'authored',
+		defaultGrammarView
 	);
 	h.controller.typeLeaf(docPathFrom(leaf), write, at + 1);
 }

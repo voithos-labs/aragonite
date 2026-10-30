@@ -1,13 +1,23 @@
 import { test, expect } from '../../../fixtures';
+import type { Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { textRunRect } from '../../../text-runs';
+import { PluginsPage } from '../../plugins/helpers';
 import { waitForFirstImageLoaded } from './helpers';
 
 const LIST_IMAGE_DOC = '- ![pic|300x200](/test-fixtures/sample.png)\n- second\n';
 const NESTED_LIST_IMAGE_DOC = '- outer\n  - ![pic|300x200](/test-fixtures/sample.png)\n';
+const PIC = '![pic|300x200](/test-fixtures/sample.png)';
 const WRAPPED_LIST_IMAGE_DOCS = {
 	link: '- [![pic|300x200](/test-fixtures/sample.png)](https://example.com)\n',
 	emphasis: '- *![pic|300x200](/test-fixtures/sample.png)*\n'
 };
+
+const AMBIENT_MARKER = '.text-editable-block > .md-marker[contenteditable="false"]';
+
+async function markerCellBox(page: Page) {
+	return (await page.locator('.list-item-block > .list-item-marker').first().boundingBox())!;
+}
 
 test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 	let editor: EditorPage;
@@ -93,6 +103,29 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		expect(inlineMarkerPositions.every((p) => p === 'static')).toBe(true);
 	});
 
+	// Text on the picture's line is what the marker numbers, so it sits on that line's baseline.
+	for (const mode of ['source', 'live'] as const) {
+		for (const [source, word] of [
+			[`- lead ${PIC} after text`, 'lead'],
+			[`- ${PIC} after text`, 'after']
+		]) {
+			test(`${mode}: \`${source.replace(PIC, '![pic]')}\` puts the marker beside the text`, async ({
+				page
+			}) => {
+				await editor.setPresentationMode(mode);
+				await editor.loadContent(`${source}\n`);
+				await waitForFirstImageLoaded(page);
+				const marker = await markerCellBox(page);
+				const text = await textRunRect(page, word, { path: [0, 0, 0] });
+				const middle = marker.y + marker.height / 2;
+				expect(middle, `marker ${middle} vs text ${text.top}..${text.bottom}`).toBeGreaterThan(
+					text.top
+				);
+				expect(middle).toBeLessThan(text.bottom);
+			});
+		}
+	}
+
 	// The sibling case: an image paragraph outside a list gets no marker layout at all.
 	test('inline markers in a non-list image paragraph stay in normal flow', async ({ page }) => {
 		await editor.loadContent('*bold* ![pic|200](/test-fixtures/sample.png)\n');
@@ -103,4 +136,47 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 			.evaluateAll((els) => els.map((el) => getComputedStyle(el).position));
 		expect(positions.every((p) => p === 'static')).toBe(true);
 	});
+});
+
+// A container that draws its marker inside its first paragraph (a footnote definition's `[^1]: `)
+// follows the same rule as a list item's.
+test.describe('an ambient marker beside a picture', () => {
+	for (const mode of ['source', 'live'] as const) {
+		test(`${mode}: a picture alone on the first line keeps the marker at its top`, async ({
+			page
+		}) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins('footnotes');
+			await editor.setPresentationMode(mode);
+			await editor.loadContent(`see[^1]
+
+[^1]: ${PIC}
+`);
+			await waitForFirstImageLoaded(page);
+			const marker = (await page.locator(AMBIENT_MARKER).first().boundingBox())!;
+			const image = (await page.locator('[data-image-widget] img').first().boundingBox())!;
+			expect(
+				Math.abs(marker.y - image.y),
+				`marker ${marker.y} vs image ${image.y}`
+			).toBeLessThanOrEqual(12);
+		});
+
+		test(`${mode}: text on the picture's line keeps the marker beside it`, async ({ page }) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins('footnotes');
+			await editor.setPresentationMode(mode);
+			await editor.loadContent(`see[^1]
+
+[^1]: ${PIC} after text
+`);
+			await waitForFirstImageLoaded(page);
+			const marker = (await page.locator(AMBIENT_MARKER).first().boundingBox())!;
+			const text = await textRunRect(page, 'after', { path: [1] });
+			const middle = marker.y + marker.height / 2;
+			expect(middle, `marker ${middle} vs text ${text.top}..${text.bottom}`).toBeGreaterThan(
+				text.top
+			);
+			expect(middle).toBeLessThan(text.bottom);
+		});
+	}
 });

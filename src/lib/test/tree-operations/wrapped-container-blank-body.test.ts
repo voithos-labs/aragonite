@@ -12,7 +12,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { testDirectiveViews, testView } from '#lib/test/support/test-view.js';
+import { testDirectiveViews, testView } from '#lib/test/harness/test-view.js';
 
 // Emptying every body block of a fenced container leaves a blank run that is the whole body, and
 // the reload strips a line into both `innerPrefix` and `innerSuffix`, so the run carries two lines.
@@ -63,7 +63,7 @@ describe('a blank run that is the whole wrapped body', () => {
 		expect(callout.innerPrefix).toBe('\n');
 		expect(callout.innerSuffix).toBe('\n');
 		expect(callout.children!.map((c) => [c.leadingTrivia, c.raw])).toEqual([
-			['', 'Title\n'],
+			['', ':::callout Title\n'],
 			['', '\n'],
 			['', '\n']
 		]);

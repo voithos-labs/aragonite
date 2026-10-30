@@ -2,12 +2,13 @@
 // reading a reload gives those bytes.
 // Miss-analysis: every rebuild re-prefixed a lazy line, so no test had a kept lazy line lose the
 // paragraph it continued, and nothing asked what the bytes then read as.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { commitLeafTextAt } from '#lib/editor-actions/block-edit-core.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
@@ -22,7 +23,13 @@ const ROUTES: [string, Route][] = [
 		async (h, leaf, text) => {
 			const owner = blockNodeAt(h.deps.doc, leaf.slice(0, -1)) as CstNode;
 			const body = { children: owner.children!, owner, lineEnding: documentLineEnding(h.deps.doc) };
-			const write = legalizeWrite(body, leaf[leaf.length - 1], text, 'authored');
+			const write = legalizeWrite(
+				body,
+				leaf[leaf.length - 1],
+				text,
+				'authored',
+				defaultGrammarView
+			);
 			const typing = h.controller;
 			expect(typing.typeLeaf(docPathFrom(leaf), write, 2).wrote).toBe(true);
 		}

@@ -3,8 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { augmentBlockKind, registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const minimal = {
 	gapEdges: 'none',

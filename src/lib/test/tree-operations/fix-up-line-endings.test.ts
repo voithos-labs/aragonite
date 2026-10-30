@@ -12,7 +12,7 @@ import { checkStaleRaw } from '#lib/invariants/node-shape.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { testDirectiveViews } from '#lib/test/support/test-view.js';
+import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 /** The body of the list that is `source`'s first block, as a list scope's commit sees it. */
 function listBody(source: string): BodyParent {

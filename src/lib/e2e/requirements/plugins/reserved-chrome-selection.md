@@ -1,6 +1,6 @@
 # Feature: Reserved-child-0 title row, selection parity
 
-The `:::callout` callout reserves child index 0 as an editable `callout-title` leaf, rendered
+The `:::callout` callout holds its opener line at child index 0, an editable leaf of kind `directiveOpenerLine`, rendered
 inside the callout's single `.block-list`. This early proof shows that selection behaves inside
 that title exactly as it does in a built-in block. The checks read behavior: the tree and the
 selection read by path through `window.__test`, not visuals.

@@ -1,8 +1,8 @@
 /** The rects a cross-block selection paints: an end block's own, and the stretches between the
  *  first painted line and the last that no block's paint covers (`regionGaps`). */
 
-import type { DomTextOffset, LocalRect } from '../../caret/coordinate-spaces';
-import { createRangeAtDomTextOffsets, widgetsIntersectingRange } from '../../caret/widget-offset';
+import type { DomTextOffset, LocalRect } from '../../core/coordinate-spaces';
+import { createRangeAtDomTextOffsets, widgetsIntersectingRange } from '../../browser/offsets';
 
 /** Client rects covering the DOM-walk range [startOffset, endOffset) within `el`. The
  *  `getClientRects` check keeps jsdom unit tests from crashing. */

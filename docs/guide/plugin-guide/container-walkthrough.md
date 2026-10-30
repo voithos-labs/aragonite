@@ -2,7 +2,7 @@
 
 Part of the [plugin guide](../plugin-guide.md). It assumes you've built the parrot in [the quickstart](../plugin-guide.md#the-first-fifteen-minutes), since this is the same four moves on a block that holds other blocks.
 
-Enough preamble. This builds a `:::conspiracy` box: a titled, editable container whose title is a real editable line carrying the theory, and whose body holds the evidence as ordinary Markdown blocks. One kind answers to two directive names, `:::conspiracy` and `:::debunked` (somebody checked), and reads which one it is from its metadata, so the verdict is a one-field edit rather than a second block kind. It runs unchanged in a fresh SvelteKit app.
+Enough preamble. This builds a `:::conspiracy` box: an editable container whose first line, `:::conspiracy Birds are government drones`, is a real line you type in (the theory goes after the name), and whose body holds the evidence as ordinary Markdown blocks. One kind answers to two directive names, `:::conspiracy` and `:::debunked` (somebody checked), and reads which one it is off that first line, so the verdict is a rename of the line rather than a second block kind. It runs unchanged in a fresh SvelteKit app.
 
 It reuses the `:::name` directive grammar rather than a hand-written opener. The grammar itself is the [directives guide](../directives.md)'s job; this walkthrough covers the descriptor and the component.
 
@@ -14,7 +14,6 @@ One file declares the kinds, describes them along with the component that draws 
 // conspiracy-kind.ts
 import {
 	activateDirectives,
-	chromeChild,
 	createDirectiveRebuild,
 	declarePluginKind,
 	declaredPluginKind,
@@ -23,10 +22,9 @@ import {
 	isDirectiveRegistered,
 	registerBlockKind,
 	registerBlockCommand,
-	registerChromeLeaf,
 	registerDirective,
 	setPluginMetadata,
-	trimWhitespace,
+	withDirectiveName,
 	type BlockView,
 	type CstNode,
 	type EditorPlugin,
@@ -35,54 +33,41 @@ import {
 import { conspiracyView } from './conspiracy-view'; // the view built in the next section
 
 const CONSPIRACY = 'conspiracy';
-const CONSPIRACY_TITLE = 'conspiracy-title';
 
 export interface ConspiracyMetadata {
-	name: string; // 'conspiracy' or 'debunked'; re-emitted into raw so the verdict survives
-	colonCount: number;
-	closerColonCount: number;
+	name: string; // 'conspiracy' or 'debunked', read off the opener line
+	closerColonCount: number; // how the closing line looked, which no child holds
 	closerNewline: boolean;
-	lineEnding: string; // captured at parse; createDirectiveRebuild re-emits it (CRLF-safe)
 }
 
-// Build the node from a parsed :::conspiracy fence. Child 0 is the title (the theory,
-// from the opener line); children 1+ are the parsed evidence. The fence bytes go to
-// metadata so the raw can be rebuilt after an edit.
+// Build the node from a parsed :::conspiracy fence. The grammar puts the opener line (the
+// name and the theory) in front as child 0, so this hands back only the evidence: the
+// body's blocks. The closing line's shape goes to metadata so the raw can be rebuilt.
 function conspiracyFromDirective(parsed: ParsedDirective): CstNode {
-	const theory = trimWhitespace(parsed.fence.info);
 	const node: CstNode = {
 		kind: declaredPluginKind(CONSPIRACY),
 		leadingTrivia: parsed.leadingTrivia,
 		raw: parsed.raw,
 		innerPrefix: parsed.body?.prefix ?? '',
-		children: [
-			chromeChild(declaredPluginKind(CONSPIRACY_TITLE), theory),
-			...(parsed.body?.children ?? [])
-		],
+		children: parsed.body?.children ?? [],
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
 	setPluginMetadata<ConspiracyMetadata>(node, {
 		name: parsed.fence.name,
-		colonCount: parsed.fence.colonCount,
 		closerColonCount: parsed.closerColonCount,
-		closerNewline: parsed.closerNewline,
-		lineEnding: parsed.lineEnding
+		closerNewline: parsed.closerNewline
 	});
 	return node;
 }
 
-// Re-emit raw from the children after any structural edit. createDirectiveRebuild owns
-// the title-to-opener line, the body serialization, and the authored line ending (the
-// byte a hand-written copy silently drops); you supply only the verdict-name resolver.
-const rebuildConspiracyRaw = createDirectiveRebuild<ConspiracyMetadata>(
-	(meta) => meta?.name ?? CONSPIRACY
-);
+// Re-emit raw from the children after any edit: the opener line as it stands, the body,
+// and the closing line, in the authored line ending (the byte a hand-written copy drops).
+const rebuildConspiracyRaw = createDirectiveRebuild();
 
 function registerConspiracy(view: BlockView): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
 
 	const conspiracy = declarePluginKind(CONSPIRACY);
-	const conspiracyTitle = declarePluginKind(CONSPIRACY_TITLE);
 
 	// Two names, one kind: :::conspiracy and :::debunked both resolve here, the kind
 	// reading its verdict back from metadata; any other name falls through to the
@@ -98,12 +83,12 @@ function registerConspiracy(view: BlockView): void {
 		}
 	}
 
-	// A block command that flips the verdict. updateMetadata is the supported
-	// commit path: it merges the patch, runs rebuildRaw, and makes one undoable edit;
-	// because the name flows into raw, the verdict survives a round-trip.
+	// A block command that flips the verdict. The verdict is the name on the opener line, so
+	// the command rewrites that line: replaceRaw makes it one undoable edit, and the container
+	// is read again under its new name, metadata included.
 	const setVerdict = registerBlockCommand(conspiracy, 'conspiracy.setVerdict', (ctx) => {
 		if (typeof ctx.arg !== 'string') return false;
-		ctx.updateMetadata({ name: ctx.arg });
+		ctx.replaceRaw(withDirectiveName(ctx.node.raw, ctx.arg));
 		return true;
 	});
 
@@ -116,19 +101,16 @@ function registerConspiracy(view: BlockView): void {
 		// this, two adjacent conspiracies give the user nowhere to type a paragraph between them.
 		gapEdges: 'both',
 		container: {
-			// The title lives in the opener line, so raw is not a strip of the children:
+			// The closing line is no child's, so raw is not a strip of the children:
 			// 'opaque' marks raw authoritative.
 			contract: 'opaque',
 			rebuildRaw: rebuildConspiracyRaw,
 			// Every `:::` body parses against this wrap. Skip it and a filled innerPrefix
 			// trips a dev assertion the moment someone edits a conspiracy with a blank first line.
-			bodyWrap: DIRECTIVE_BODY_WRAP,
-			reservedChrome: { kind: conspiracyTitle },
-			// Child 0 is the title, and Backspace at its start never lifts it out, so you only
-			// say what Backspace does between body children. A container whose child 0 is body
-			// also picks a first-child strategy: `'lift-first-child-keep-container'`,
-			// `'lift-first-child-drop-opener'` for a quote shape, or `'list-item-cascade'`.
-			unwrapRole: { middleChildBackspace: 'default-merge' }
+			bodyWrap: DIRECTIVE_BODY_WRAP
+			// No title row or Backspace rules to declare: the opener line is child 0 for every
+			// `:::` container, Backspace at its start leaves it be, and Backspace at the first
+			// body block's start goes to the end of that line.
 			// Declare `reorderChildren` here if the body's blocks should reorder among
 			// themselves (drag, or Alt+ArrowUp/ArrowDown). Without it, an opaque
 			// container like this one declines the move.
@@ -144,8 +126,8 @@ function registerConspiracy(view: BlockView): void {
 		// editor mounts. See the guide's "The closure block" section for all of them.
 		closure: {
 			roundTrip: { mode: 'implemented', via: 'container contract=opaque, rebuildConspiracyRaw' },
-			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
-			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
+			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
+			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container; nothing merges into the opener line' },
 			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
 			searchPaint: {
 				mode: 'implemented',
@@ -154,21 +136,18 @@ function registerConspiracy(view: BlockView): void {
 			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
 			undo: {
 				mode: 'implemented',
-				via: 'updateMetadata; the verdict flip commits as one undo entry'
+				via: 'replaceRaw; the verdict flip commits as one undo entry'
 			},
-			// reservedChrome means the default byte slice is wrong for this kind, so the
-			// clipboard cell has to name what a slice touching the title actually does.
+			// A copy that starts on the opener line takes the conspiracy with it, which a plain
+			// byte slice wouldn't, so the clipboard cell names what such a copy does.
 			clipboard: {
 				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the title re-emits the conspiracy around the collected body'
+				via: 'byte-slice copy; a slice touching the opener line re-emits the conspiracy around the collected body'
 			},
 			// The honest answer unless your kind has simulation tests of its own.
 			simOracle: { mode: 'inherit-default' }
 		}
 	});
-
-	// The label is what a screen reader and the block menu call the title row.
-	registerChromeLeaf(conspiracyTitle, { label: 'Theory', blockClass: 'conspiracy-title' });
 }
 
 export function conspiracyPlugin(): EditorPlugin {
@@ -198,17 +177,27 @@ export function conspiracyPlugin(): EditorPlugin {
 	lineEnding: '\n'
 }
 
-// the node it builds
-chromeChild(conspiracyTitle, 'Birds are government drones'); // { kind: 'conspiracy-title', leadingTrivia: '', raw: 'Birds are government drones\n' }
-node.children.map((child) => child.kind); // ['conspiracy-title', 'paragraph']
-getPluginMetadata<ConspiracyMetadata>(node); // { name: 'conspiracy', colonCount: 3, closerColonCount: 3, closerNewline: true, lineEnding: '\n' }
+// the node it builds holds the evidence only
+conspiracyFromDirective(parsed).children.map((child) => child.kind); // ['paragraph']
+
+// and the node in the document, once the grammar puts the opener line in front
+node.children.map((child) => child.kind); // ['directiveOpenerLine', 'paragraph']
+node.children[0].raw; // ':::conspiracy Birds are government drones\n'
+getPluginMetadata<ConspiracyMetadata>(node); // { name: 'conspiracy', closerColonCount: 3, closerNewline: true }
+```
+
+Child 0 is the whole opener line, `:::conspiracy` included, kind `directiveOpenerLine`. Every `:::` container gets one, built by the grammar, which is why the factory doesn't. It's a line you type in like any other, with a few manners: a selection that runs onto it from the blocks around clears only the theory, nothing merges into it, and a paste with the caret on the name lands in the theory. So the box doesn't lose its name by accident. Renaming it on purpose (the verdict command, or someone typing over the name) reads the container again under the new name. If your view wants just the theory, `rowContentRange` says where it sits on the line:
+
+```ts
+const { start, end } = rowContentRange(node);
+node.children[0].raw.slice(start, end); // 'Birds are government drones'
 ```
 
 That nine-column `closure` literal gets its own section, [The closure block](#the-closure-block), right after this walkthrough.
 
 ## The component
 
-Your view supplies only its own chrome: the border, the title styling, an icon if you like. Chrome may read the node it dresses: the verdict comes off the metadata through `getPluginMetadata`, and the stamp follows it. The editor handles everything else, the child list and its windowing (the editor only mounts the blocks in view) included, once you tell it where the children go with `ctx.container.mountChildren`.
+Your view supplies only its own chrome: the border, the opener line's styling, an icon if you like. Chrome may read the node it dresses: the verdict comes off the metadata through `getPluginMetadata`, and the stamp follows it. The editor handles everything else, the child list and its windowing (the editor only mounts the blocks in view) included, once you tell it where the children go with `ctx.container.mountChildren`.
 
 ```ts
 // conspiracy-view.ts
@@ -242,14 +231,18 @@ export const conspiracyView = defineBlockView({
 	border-radius: 6px;
 	padding: 8px 12px;
 }
-.conspiracy-block .conspiracy-title {
+/* the opener line; the `>` steps keep a conspiracy nested inside this one out of it */
+.conspiracy-block > .block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line {
 	font-weight: 600;
 }
 /* debunked: the string comes down, the theory gets crossed out, the stamp lands */
 .conspiracy-block.debunked {
 	border-left-color: var(--color-ui-muted);
 }
-.conspiracy-block.debunked .conspiracy-title {
+.conspiracy-block.debunked
+	> .block-list
+	> [data-block-kind='directiveOpenerLine']
+	.directive-opener-line {
 	text-decoration: line-through;
 }
 .conspiracy-block.debunked::after {
@@ -317,14 +310,17 @@ The same box as a component, on `createContainerBlock` from `@voithos-labs/arago
 		border-radius: 6px;
 		padding: 8px 12px;
 	}
-	.conspiracy-block :global(.conspiracy-title) {
+	/* the opener line; the `>` steps keep a conspiracy nested inside this one out of it */
+	.conspiracy-block
+		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line) {
 		font-weight: 600;
 	}
 	/* debunked: the string comes down, the theory gets crossed out, the stamp lands */
 	.debunked {
 		border-left-color: var(--color-ui-muted);
 	}
-	.debunked :global(.conspiracy-title) {
+	.debunked
+		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line) {
 		text-decoration: line-through;
 	}
 	.debunked::after {
@@ -363,7 +359,7 @@ A container's `ctx` carries more than the conspiracy uses. The Svelte factory re
 
 ```ts
 const { container } = ctx;
-container.updateOwnMetadata({ name: 'debunked' }); // one undo entry; rebuildRaw re-emits the opener line as :::debunked
+container.updateOwnMetadata({ open: false }); // one undo entry; your rebuildRaw runs after the patch
 container.updateOwnMetadata({ open: false }, { caret: { path: [0], offset: 0 } }); // ...and the caret lands on child 0's start
 ctx.state().presentationMode; // 'source'
 ctx.state().theme; // 'dark'
@@ -373,7 +369,7 @@ showSourceCard();
 await restore(); // ...and after; a no-op when nothing moved
 ```
 
-One more is the Svelte factory's alone for now (a DOM view has no way to ask for it yet). It's a dep, for a container whose first line starts with a marker the way a list item's `- ` does (a footnote definition's `[^label]: `, say): **`getAmbientPrefix`**. Its first child paints that prefix as a dimmed, read-only run before its own bytes, and the caret skips it the way it skips a list marker.
+One more is for a container whose first line starts with a marker the way a list item's `- ` does (a footnote definition's `[^label]: `, say): **`getAmbientPrefix`**, a dep of the Svelte factory, or `ambientPrefix(state, editor)` beside `mount` in a DOM view's spec. Its first child paints that prefix as a dimmed, read-only run before its own bytes, and the caret skips it the way it skips a list marker.
 
 - Return a string, read live, so a marker derived from metadata re-renders after an edit.
 - Or return `{ text, interactive }` to make ranges of it clickable. Each range gets its own span, class and click handler (that's how a footnote definition's `[^label]` takes the click back to its reference).
@@ -418,7 +414,7 @@ The flip is one undoable edit, so undo un-debunks it, which is how conspiracies 
 
 The wrapper and the two `light`s are there because the editor paints no background of its own. A fresh app's page is white, so the built-in chrome (the wrapper's attribute) and the editor's own surfaces (the prop) both have to say so; on a dark page, both say `dark`, or nothing. [consumer-guide.md](../consumer-guide.md)'s theming section explains the two tiers.
 
-Want a collapse toggle? Give `reservedChrome` an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit. Without it, such a reveal has nowhere to land and reports that it didn't.
+Want a collapse toggle? That's how `<details>` folds: its descriptor declares its summary as a title row (`reservedChrome`) with an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit. Without it, such a reveal has nowhere to land and reports that it didn't. A `:::` box folds the same way, except its title row is the opener line the grammar builds, so the `reservedChrome` you add names that row: `{ kind: DIRECTIVE_OPENER_LINE, isCollapsed }`, with `DIRECTIVE_OPENER_LINE` from `/plugin`. A dev build warns if it names any other.
 
 ![A conspiracy, debunked on camera](./conspiracy.gif)
 
@@ -435,7 +431,7 @@ The type does the nagging: a missing column or a missing block is a compile erro
 1. A container can't declare `roundTrip: inherit-default`; its `rebuildRaw` is the mechanism.
 2. A `not-mergeable` kind can't declare `mergeBackspace: inherit-default`; it has no default merge to inherit.
 3. A cell claiming the focus-then-delete model (a `focus` or `mergeBackspace` `via` saying `focus-then-delete` or `a second press deletes`) must be backed by `blockFocus: 'whole-block'`.
-4. A kind declaring `reservedChrome` can't leave `clipboard: inherit-default`; the chrome bytes live in the container's own raw, so the default byte slice is wrong for it.
+4. A kind with a title row (a declared `reservedChrome`, or the opener line every `:::` container has) can't leave `clipboard: inherit-default`; the row's bytes live in the container's own raw, so the default byte slice is wrong for it.
 
 **Name a mechanism your own kind carries.** `implemented` needs a `via` you can point at: your component, your `rebuildRaw`, your test. Never an internal editor mechanism you don't own. A cell you can't name honestly is `inherit-default` or `not-supported`, never an invented capability.
 
@@ -472,17 +468,17 @@ simpleLeafClosure({ focus, searchPaint, undo, simOracle });
 ```ts
 closure: containerClosure({
 	roundTripVia: 'container contract=opaque, rebuildConspiracyRaw',
-	focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
-	mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
+	focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
+	mergeBackspace: { mode: 'implemented', via: 'mergeRole=container; nothing merges into the opener line' },
 	undo: {
 		mode: 'implemented',
-		via: 'updateMetadata; the verdict flip commits as one undo entry'
+		via: 'replaceRaw; the verdict flip commits as one undo entry'
 	},
-	// The conspiracy declares reservedChrome, so coherence rule four warns about the baked
-	// clipboard cell; a container without reserved chrome just leaves this out.
+	// A copy starting on the opener line re-emits the conspiracy, so the baked clipboard cell
+	// is overridden; a container with no title row just leaves this out.
 	clipboard: {
 		mode: 'implemented',
-		via: 'byte-slice copy; a slice touching the title re-emits the conspiracy around the collected body'
+		via: 'byte-slice copy; a slice touching the opener line re-emits the conspiracy around the collected body'
 	},
 	simOracle: { mode: 'inherit-default' }
 });

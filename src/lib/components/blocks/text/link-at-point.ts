@@ -8,7 +8,7 @@ import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import { rawSelectionFocus } from '../../../caret/widget-offset';
+import { rawSelectionFocus } from '../../../browser/selection-read';
 import { followEditOf } from '../../../schema/inline-construct-policy';
 import { linkTextRange } from '../../../core/inline/link-source-bytes';
 import { claimsActivationClick, getInlineWidgetEditing } from '../../../core/inline/inline-widgets';

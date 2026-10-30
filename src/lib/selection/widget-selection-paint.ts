@@ -7,7 +7,7 @@
 
 import { widgetElAt } from '../caret/block-el-lookup';
 import type { WidgetTarget } from './primitives';
-import { readNativeSelection } from './native-bridge';
+import { readNativeSelection } from '../browser/selection-read';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
 const SELECTED_CLASS = 'md-widget-selected';

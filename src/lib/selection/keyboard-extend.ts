@@ -7,15 +7,15 @@ import { isVerticallyTransparentNode, type ArrivalReading } from '../core/inline
 import type { CaretLanding } from './caret-landing';
 import {
 	readNativeCaretInBlock,
-	readNativeSelection,
 	readDomPoint,
 	applyCollapsedCaret,
 	applySingleBlockRange
 } from './native-bridge';
-import type { CaretWriter } from '../caret/widget-offset';
+import { readNativeSelection } from '../browser/selection-read';
+import type { CaretWriter } from '../browser/caret-writer';
 import { pageTarget, type PageStepContext } from './page-step';
-import { lineEdgeOffset } from '../caret/visual-lines';
-import { offsetFromViewportPoint } from '../caret/point-offset';
+import { lineEdgeOffset } from '../browser/visual-lines';
+import { offsetFromViewportPoint } from '../browser/point';
 import { tableFocusExtension, type ArrowKey } from './table-rect-extend';
 import { cellPoint } from './primitives';
 import {

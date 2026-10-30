@@ -5,10 +5,10 @@
  */
 
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { checkLandableCaret } from '../../invariants/landable-caret';
+import { checkCaretCanLand } from '../../invariants/caret-can-land';
 import { isPreviewMode, type PresentationMode } from '../../presentation-mode';
 import { readBlockPath } from '../../selection/path-lookup';
-import { CONTENT_EMPTY_ATTR } from '../../caret/widget-offset';
+import { CONTENT_EMPTY_ATTR } from '../../browser/painted';
 import { onRoot, removeAll } from './listeners';
 import type { TextMoves } from '../overlays/text-moves';
 
@@ -97,8 +97,8 @@ export function createFocusAttribution(deps: FocusAttributionDeps): FocusAttribu
 			// so a consumer's own caret placement is checked here too (G1.33).
 			const landed = e.target;
 			if (landed instanceof HTMLElement) {
-				assertInvariant('landable-caret', () =>
-					checkLandableCaret(landed, deps.mode, focusedPath() ?? [])
+				assertInvariant('caret-can-land', () =>
+					checkCaretCanLand(landed, deps.mode, focusedPath() ?? [])
 				);
 			}
 		};

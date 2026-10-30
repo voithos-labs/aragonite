@@ -3,7 +3,7 @@ import { PluginsPage, readContainer, waitForContainer, roundTripStable } from '.
 import { edgeKey } from '../../platform-keys';
 
 // The generic `:::name` container: an unregistered directive falls back to
-// `DirectiveContainerBlock`, a dimmed read-only `:::name` marker over a nested editable BlockList.
+// `DirectiveContainerBlock`, its opener line an editable first row over a nested editable body.
 // It shares the opaque-container code with the callout, so this mirrors callout-container.spec.ts.
 
 const SEED = ':::foo\nhello\n:::\n';
@@ -16,18 +16,17 @@ test.describe('plugin container: generic :::name directive', () => {
 		await editor.gotoPlugins();
 	});
 
-	test('unregistered :::foo renders as a directive container with a marker and editable body', async () => {
+	test('unregistered :::foo renders as a directive container with its line and editable body', async () => {
 		await editor.loadContent(SEED);
 
 		const state = await readContainer(editor.page);
 		expect(state.kind).toBe('directiveContainer');
 		expect(state.rootCount).toBe(1);
-		expect(state.childCount).toBe(1);
-		expect(state.childTexts).toEqual(['hello']);
+		expect(state.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
+		expect(state.childTexts).toEqual([':::foo', 'hello']);
 
-		// The fence renders as a marker, not as an editable raw line, and `hello` is reachable in
-		// an editable body block.
-		await expect(editor.page.locator('.directive-marker')).toHaveText(':::foo');
+		// The opener line is the first row, and `hello` is reachable in an editable body block.
+		await expect(editor.page.locator('.directive-opener-line')).toHaveText(':::foo');
 		await expect(
 			editor.page.locator('.directive-block [contenteditable="true"]', { hasText: /^hello$/ })
 		).toHaveCount(1);
@@ -42,9 +41,9 @@ test.describe('plugin container: generic :::name directive', () => {
 		await page.keyboard.press(edgeKey('lineEnd'));
 		await editor.typeText(' world');
 
-		const state = await waitForContainer(page, 0, (s) => s.childTexts[0] === 'hello world');
+		const state = await waitForContainer(page, 0, (s) => s.childTexts[1] === 'hello world');
 		expect(state.rootCount).toBe(1);
-		expect(state.childCount).toBe(1);
+		expect(state.childCount).toBe(2);
 		// An edit inside one paragraph: the container's raw is rebuilt from the body, so getSource
 		// is byte-exact, where a stale raw would still read the seed.
 		expect(state.raw).toBe(':::foo\nhello world\n:::\n');
@@ -63,29 +62,31 @@ test.describe('plugin container: generic :::name directive', () => {
 		// Enter inside the container must add to the container's children, never to the document
 		// root; a broken container would push a sibling to the root (rootCount === 2).
 		await page.keyboard.press('Enter');
-		let state = await waitForContainer(page, 0, (s) => s.childCount === 2);
+		let state = await waitForContainer(page, 0, (s) => s.childCount === 3);
 		expect(state.rootCount).toBe(1);
 
 		await editor.typeText('second');
-		state = await waitForContainer(page, 0, (s) => s.childTexts[1] === 'second');
+		state = await waitForContainer(page, 0, (s) => s.childTexts[2] === 'second');
 		expect(state.rootCount).toBe(1);
-		expect(state.childTexts).toEqual(['hello', 'second']);
+		expect(state.childTexts).toEqual([':::foo', 'hello', 'second']);
 		// The rebuild ran over every child, so the new block reaches the container's raw.
 		expect(state.raw).toContain('second');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	test('the :::foo marker is read-only chrome, not caret-editable', async ({ page }) => {
+	test('the :::foo line is editable text: a title typed at its end lands on the line', async ({
+		page
+	}) => {
 		await editor.loadContent(SEED);
 
-		const marker = page.locator('.directive-marker');
-		await expect(marker).toHaveCount(1);
-		expect(await marker.getAttribute('contenteditable')).toBe('false');
-		// It also sits outside every editable region, so a caret can't land in it.
-		const outsideEditable = await page.evaluate(
-			() =>
-				document.querySelector('.directive-marker')?.closest('[contenteditable="true"]') === null
-		);
-		expect(outsideEditable).toBe(true);
+		await editor.focusBlockAtPath([0, 0], 6);
+		await editor.typeText(' Title');
+		await editor.bridge.waitForSourceContains(':::foo Title');
+
+		const state = await readContainer(page);
+		expect(state.kind).toBe('directiveContainer');
+		expect(state.childTexts).toEqual([':::foo Title', 'hello']);
+		expect(await editor.bridge.getSource()).toBe(':::foo Title\nhello\n:::\n');
+		expect(await roundTripStable(page)).toBe(true);
 	});
 });

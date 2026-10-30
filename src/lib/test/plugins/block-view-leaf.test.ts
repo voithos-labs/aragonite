@@ -15,7 +15,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchKey, pressKey } from '#lib/test/harness/settle.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { newestEntryCaret } from '../support/undo-entry';
+import { newestEntryCaret } from '../harness/undo-entry';
 import { BLOCK_CONTENT_SELECTOR } from '#lib/caret/block-content-selector.js';
 import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
 import { PLAIN_LEAF_FORMS, domPlainLeaf, markerLeafPlugin, newViewLog } from './fixtures/dom-views';
@@ -146,6 +146,45 @@ describe('a DOM leaf view’s lifecycle', () => {
 		expect(log.mounts[1]).not.toBe(log.mounts[0]);
 		expect(log.mounts[0].isConnected).toBe(false);
 
+		typeInto(surfaceAt(editor, LEAF), '@@ abcd!?');
+		await editor.settle();
+		expect(editor.source()).toBe(SOURCE.replace('abcd', 'abcd!?'));
+	});
+
+	// Miss-analysis: only a synchronous throw from `destroy` had a row, and a framework's unmount
+	// rejects a promise instead, which went unhandled.
+	it('reports a rejection of the promise its destroy returns', async () => {
+		const editor = mountLeaf(
+			domPlainLeaf(newViewLog(), () => ({
+				destroy: () => Promise.reject(new Error('unmount exploded'))
+			}))
+		);
+		const errors: { origin: string }[] = [];
+		editor.instance.getEvents().on('error', (report) => errors.push(report));
+		await editor.settle();
+		editor.props.source = 'just a paragraph\n';
+		await editor.settle();
+		expect(errors.map((report) => report.origin)).toEqual(['render']);
+	});
+
+	// Miss-analysis: each framework helper guarded its own late `ref(null)`, and a plain DOM view
+	// handing an element back after its own `destroy` had no row at all.
+	it('ignores an element handed back by a mount that already ended', async () => {
+		const attaches: ((el: HTMLElement | null) => void)[] = [];
+		const editor = mountLeaf(
+			domPlainLeaf(newViewLog(), (_, ctx) => {
+				attaches.push(ctx.leaf.attach);
+				return { update: (state) => !state.node.raw.includes('!') };
+			})
+		);
+		await editor.settle();
+		typeInto(surfaceAt(editor, LEAF), '@@ abcd!');
+		await editor.settle();
+		expect(attaches).toHaveLength(2);
+
+		attaches[0](null);
+		await editor.settle();
+		expect(surfaceAt(editor, LEAF).textContent).toBe('@@ abcd!');
 		typeInto(surfaceAt(editor, LEAF), '@@ abcd!?');
 		await editor.settle();
 		expect(editor.source()).toBe(SOURCE.replace('abcd', 'abcd!?'));

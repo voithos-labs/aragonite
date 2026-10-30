@@ -17,6 +17,7 @@ import { recordSettlePass } from '../../perf/instruments';
 import { checkStructuralDescriptor } from '../../invariants/structural-descriptor';
 import { noteBodySettled } from '../../invariants/settle-once';
 import { checkSettledWindowReadsBack } from '../../invariants/settled-window-reads-back';
+import { checkSplicedOpenersClosed } from '../written-openers';
 import type { SharingState } from '../sharing';
 import { cloneMetadata } from '../clone';
 import { spliceChildren } from '../children';
@@ -92,6 +93,7 @@ export function fixUpEdit(
 	const { change, before } = edit;
 	assertInvariant('structural-descriptor', () => checkStructuralDescriptor(change, before.length));
 	const { written } = edit;
+	checkSplicedOpeners(body, edit, grammar);
 	const listEdit: ListEdit = {
 		before,
 		span: spanOf(change),
@@ -415,6 +417,19 @@ function offsetInWindow(
 		pos += (i === at ? 0 : children[i].leadingTrivia.length) + children[i].raw.length;
 	}
 	return pos + (start.index > at ? children[start.index].leadingTrivia.length : 0) + start.offset;
+}
+
+/** G1.158 over the blocks a commit's edit put in place, asked against the bytes they replaced; a
+ *  content write was made legal on its way in, and a removal puts nothing new. */
+function checkSplicedOpeners(body: BodyParent, edit: BodyEdit, grammar: GrammarView): void {
+	if (edit.written || edit.removed) return;
+	const span = edit.moved ? { at: edit.moved.to, removed: 0, added: 1 } : spanOf(edit.change);
+	if (!span) return;
+	const replaced = edit.moved ? [] : edit.before.slice(span.at, span.at + span.removed);
+	const before = replaced.map((node, k) => (k > 0 ? node.leadingTrivia : '') + node.raw).join('');
+	assertInvariant('spliced-opener-closed', () =>
+		checkSplicedOpenersClosed(body, span.at, span.added, before, grammar)
+	);
 }
 
 /** G1.145 over the window a fix-up reports; a write that kept its block in place reports none,

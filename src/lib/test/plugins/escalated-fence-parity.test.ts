@@ -1,5 +1,6 @@
 // Miss-analysis: every escalation test checked the bytes of one bare rebuild and never edited the
 // block again, so no test compared a live session with a reload of the escalated bytes.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, serialize } from '#lib';
 import {
@@ -14,15 +15,15 @@ import {
 	setPluginMetadata,
 	type CstNode
 } from '#lib/plugin.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { scanCompiled } from '#lib/test/harness/search-replace.js';
-import { testClosure } from '#lib/test/support/closure.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testClosure } from '#lib/test/harness/closure.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // ── A third-party kind following the guide's "Code in metadata" recipe ──────
 
@@ -105,7 +106,7 @@ const typeInBody =
 	(h) => {
 		const owner = h.deps.doc.children[0];
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(h.deps.doc) };
-		const write = legalizeWrite(body, index, raw, 'authored');
+		const write = legalizeWrite(body, index, raw, 'authored', defaultGrammarView);
 		const typing = h.controller;
 		expect(typing.typeLeaf(docPathFrom([0, index]), write, 0).wrote).toBe(true);
 	};
@@ -137,8 +138,8 @@ const ROWS: Row[] = [
 	{
 		name: 'a directive with no title, by typing in its body',
 		source: ':::spoiler\nhidden\n:::\n',
-		collide: typeInBody(0, 'hidden\n:::\n'),
-		plain: typeInBody(0, 'shown\n')
+		collide: typeInBody(1, 'hidden\n:::\n'),
+		plain: typeInBody(1, 'shown\n')
 	},
 	{
 		name: 'a directive with a title, by typing in its body',
@@ -150,7 +151,7 @@ const ROWS: Row[] = [
 		name: 'a directive with no title, joined into by Backspace',
 		source: ':::spoiler\n::\n:::\n:\n',
 		collide: joinBelow,
-		plain: typeInBody(0, 'shown\n')
+		plain: typeInBody(1, 'shown\n')
 	},
 	{
 		name: 'a directive with a title, joined into by Backspace',
@@ -162,7 +163,7 @@ const ROWS: Row[] = [
 		name: 'a directive with no title, by replace-all, which reparses the bytes it writes',
 		source: ':::spoiler\nhidden\nX\n:::\n',
 		collide: replaceAll('X', ':::'),
-		plain: typeInBody(0, 'shown\n')
+		plain: typeInBody(1, 'shown\n')
 	},
 	{
 		name: 'a plugin kind with its code in metadata, by a code commit',

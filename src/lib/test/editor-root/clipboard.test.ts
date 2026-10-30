@@ -11,7 +11,7 @@ import type { PasteImageHook } from '#lib/host-hooks.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/editor-actions/whole-block-focus-surface.js';
+import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/selection/whole-block-input.js';
 
 // Chromium aims a clipboard event at <body> and Firefox at a block element when the selection's end
 // has no caret, at a cross-block endpoint or a selected widget; driven through `target`.

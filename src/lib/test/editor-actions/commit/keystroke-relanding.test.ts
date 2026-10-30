@@ -2,10 +2,11 @@
 // the text it was in front of, found by its byte position in the container, not its leaf offset.
 // Miss-analysis: the fold rows checked a fold's index and bytes, never the caret after a fold that
 // kept its index but moved the leaf's bytes (a space a widened marker took).
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
@@ -22,7 +23,7 @@ describe('a keystroke relands in front of the text once a container re-reads it'
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
 		const index = leaf[leaf.length - 1];
 		// A space typed at the content start, the caret after it.
-		const write = legalizeWrite(body, index, ' ab\n', 'authored');
+		const write = legalizeWrite(body, index, ' ab\n', 'authored', defaultGrammarView);
 
 		const typed = createUndoController(deps).typeLeaf(docPathFrom(leaf), write, 1);
 

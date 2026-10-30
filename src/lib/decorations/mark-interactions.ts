@@ -4,7 +4,7 @@
  * activate command, so the pointer and the keyboard pick the same mark.
  */
 
-import type { LocalRect } from '../caret/coordinate-spaces';
+import type { LocalRect } from '../core/coordinate-spaces';
 import type { IndexedDecoration } from './buckets';
 import type { MarkDecoration } from './types';
 

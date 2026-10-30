@@ -15,7 +15,7 @@ import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import { createImagePasteArm } from '../paste-image-arm';
 import { runClipboardCut, takeCopy } from '../blocks/editable/clipboard-step';
 import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
-import { isWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
+import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 
 export interface EditorRootClipboardDeps {
 	selection: SelectionState;

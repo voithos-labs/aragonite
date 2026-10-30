@@ -4,6 +4,7 @@ import { roundTripStable, waitForDoc, activeBlockPath } from './helpers';
 import { MemoPage } from './memo-helpers';
 import { insertText } from '../../insert-text';
 import { edgeKey, extendKey } from '../../platform-keys';
+import { attachIme } from '../../simulation/ime';
 
 /**
  * A plain-mode editable leaf (requirements/plugins/editable-leaf-plain.md): the `%%` memo harness
@@ -200,5 +201,65 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 			await editor.bridge.waitForSourceContains('INSERTED');
 			expect(await roundTripStable(page)).toBe(true);
 		});
+	});
+});
+
+// Every composition host keeps the same rules (`ime-hosts.spec.ts` for the built-in ones); each
+// row compares against the same gesture with the text typed instead.
+test.describe('plain-mode editable leaf: IME composition', () => {
+	let editor: MemoPage;
+	let seed: string;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new MemoPage(page);
+		await editor.gotoSeed();
+		seed = await editor.bridge.getSource();
+	});
+
+	async function atMemoEnd(page: Page): Promise<void> {
+		await editor.loadContent(seed);
+		await editor.memo.click();
+		await page.keyboard.press(edgeKey('lineEnd'));
+	}
+
+	test.describe('a composition the browser drops, then Enter', () => {
+		test.use({ expectWarns: ['composition'] });
+		// The CDP composition owns a key pressed inside it; the hand-fired IME drops at any key.
+		test.skip(({ browserName }) => browserName === 'chromium', 'Chromium drops only after a <br>');
+
+		test('saves the text once, and Enter acts as after typing it', async ({ page }) => {
+			const run = async (enter: () => Promise<void>) => {
+				await atMemoEnd(page);
+				await enter();
+				await page.keyboard.press('Enter');
+				await editor.typeSlowly('Q');
+				await editor.bridge.waitForSourceContains('Q');
+				return editor.bridge.getSource();
+			};
+			const typed = await run(() => insertText(page, 'か'));
+			const ime = await attachIme(page);
+			expect(await run(() => ime.compose('か'))).toBe(typed);
+		});
+	});
+
+	test('a composition over a range anchored in the memo lands in it, as typing does', async ({
+		page
+	}) => {
+		const over = async (put: () => Promise<void>) => {
+			await atMemoEnd(page);
+			await page.keyboard.press('Shift+ArrowDown');
+			await editor.waitForCrossBlock(true);
+			await put();
+			await editor.bridge.waitForSourceContains('漢');
+			return editor.bridge.getSource();
+		};
+		const typed = await over(() => insertText(page, '漢'));
+		const ime = await attachIme(page);
+		const composed = await over(async () => {
+			await ime.compose('かん');
+			await ime.commit('漢');
+		});
+		expect(composed).toBe(typed);
+		expect(composed).toContain('%% memo text漢');
 	});
 });

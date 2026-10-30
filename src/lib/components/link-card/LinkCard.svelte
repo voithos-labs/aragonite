@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../browser/composition';
 	import { tick, untrack } from 'svelte';
 	import {
 		LINK_CARD_LABEL,
@@ -83,9 +84,8 @@
 	}
 
 	function handleKeyDown(e: KeyboardEvent): void {
-		// An IME's confirm/step keystrokes arrive as ordinary keydowns mid-composition; they are
-		// the composition's, never the card's.
-		if (e.isComposing) return;
+		// An IME's confirm and step keys are the composition's, never the card's.
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Tab') {
 			e.preventDefault();
 			stepTrap(e.shiftKey);
@@ -97,7 +97,7 @@
 	}
 
 	function handleUrlKeyDown(e: KeyboardEvent): void {
-		if (e.isComposing) return;
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			if (canWrite) onCommit(draft);

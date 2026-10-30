@@ -1,6 +1,6 @@
 # Live Mode
 
-`presentationMode="live"` is the fifth of the five presentation modes, which run from raw source up to fully rendered. It hides every Markdown marker standing over content, and nothing brings one back, not even the caret walking into the construct (that's preview-inline's trick). The document stays editable the whole time. Like every mode it's CSS over the one render path (`editor.md` § The editing surface), so the bytes and the offsets are the source document's. What live changes is editing. A caret next to a marker it can't see needs answers the other modes never had to give, and this doc catalogues them.
+`presentationMode="live"` is the fifth of the five presentation modes, which run from raw source up to fully rendered. It hides every Markdown marker standing over content, and nothing brings one back, not even the caret walking into the construct (that's preview-inline's trick). Well, one thing does: a `:::` container's opener line shows its source while the caret's on it (§ 4.1). The document stays editable the whole time. Like every mode it's CSS over the one render path (`editor.md` § The editing surface), so the bytes and the offsets are the source document's. What live changes is editing. A caret next to a marker it can't see needs answers the other modes never had to give, and this doc catalogues them.
 
 A `live-mode.md § 4.x` citation in source or a test resolves to § 4 below, and those numbers never move. Jump by section:
 
@@ -35,7 +35,7 @@ Take `Some **bold** text` in live mode. Each `**` (a marker run, from here on: t
 
 A live rewrite never trusts its own reading of the bytes. It builds a candidate byte string and asks the render path what that candidate would show, through `renderedText` (`core/inline/visibility.ts`). I'll call that check the painter. The rule it enforces: the screen after the write shows exactly what the gesture claimed, and live only drops or writes bytes the user never sees.
 
-The painter's idea of the screen comes from one rule, `familyHidesText` in the same file, which says which spans a mode leaves on screen. The caret walk (the traversal in `caret/widget-offset.ts` that maps DOM positions to raw offsets) reads the same rule, and a lint fails any third place that works out what's hidden on its own.
+The painter's idea of the screen comes from one rule, `familyHidesText` in the same file, which says which spans a mode leaves on screen. The caret walk (the traversal in `browser/` that maps DOM positions to raw offsets, its segments in `browser/painted.ts`) reads the same rule, and a lint fails any third place that works out what's hidden on its own.
 
 The mode read and the painter, on one block (`reading` is the editor's `Reading`, from `schema/reading.ts`: its grammar, link resolver and mode in one object):
 
@@ -98,6 +98,8 @@ Two prohibitions, and every rule below applies them:
 
 A document can already hold such residue when it loads: a `#` typed before its heading has a word, a fence before its first body line, a loaded `[](url)`. There the prohibition falls on the paint rather than the bytes. Chrome may hide only while it stands over content, so a construct with none shows its markers dimmed, exactly as source mode shows them.
 
+One row gets that look on purpose. A `:::` container's opener line (`:::note Heads up`) is where you type the container's name, so while the caret is on it the line shows its `:::note` dimmed, the way source mode does. Off the line you get the container's own look: an admonition's icon and title (or its kind's name, when it has no title), or a generic directive's `:::name` as a dimmed copy the container draws, so that line looks the same either way. The row's element carries `data-source-at-caret`, and the stylesheet and `browser/painted.ts` read it right next to the content-empty mark.
+
 ```ts
 // opts as in § 2
 const empty = '[](https://x.example)';
@@ -117,7 +119,7 @@ The painted state decides three things: where a caret can land, which side an in
 
 The wiring, for the curious:
 
-- Each block surface marks its walk container (the contenteditable element the caret geometry reads) with the content-empty condition on every render, and the two consumers of the hiding rule, the stylesheet and `caret/widget-offset.ts`, read that mark under the same modes and over the same marker families.
+- Each block surface marks its walk container (the contenteditable element the caret geometry reads) with the content-empty condition on every render, and the two consumers of the hiding rule, the stylesheet and `browser/painted.ts`, read that mark under the same modes and over the same marker families.
 - The preview modes take the same rule; reading mode doesn't, since it takes no keystrokes.
 - Without the rule such a block would have no position a caret can sit at, and the focus entry every caret route crosses refuses a block like that in dev.
 
@@ -335,7 +337,7 @@ What arrives here:
 
 - Backspace merges, a Delete merge (a Delete at a hidden run inside one block is § 4.4's press instead), range deletes, typing over a selection, cut, a drag's cut and the bytes the drag carries off, what a copy or a cut puts on the clipboard, a paste or an IME composition over a selection, the removal a line break over a selection makes first, a widget or a decoration taken out whole, and anything a popover or an inline menu writes over a range (an image's Remove button, a link card's edit, a menu pick).
 - Inside one block they're all one function, `tree-operations/leaf-range.ts` :: `replaceRangeInLeaf(node, range, text, store)`, which re-expresses the edit as a join of what survives on either side with `text` between them. The range delete is the exception for now: it still builds its own join and calls `cleanJoinedRaw` itself, until it moves onto the same function. A merge's join of two blocks is `replaceRangeInLeaf`'s sibling in the same file, `joinLeaves`.
-- The range a browser edit rewrites comes off the event (a drag's, a spellcheck replacement's), and every editable prose surface takes that branch rather than keeping its own list of input types. A word or line delete at a caret doesn't ask the event: the editor names the span itself, a word read the way the screen shows it (a hidden marker is no word of its own, a widget is one character), and sends it through the same `replaceRangeInLeaf`. So a word delete leaves what selecting the same text and pressing Delete leaves, except right beside a widget, where it does what Backspace does there.
+- The range a browser edit rewrites comes off the event (a drag's, a spellcheck replacement's), and every editable prose surface takes that branch rather than keeping its own list of input types. A word or line delete at a caret doesn't ask the event: the editor names the span itself, a word read the way the screen shows it (a hidden marker is no word of its own, a widget is one character), and sends it through the same `replaceRangeInLeaf`. So a word delete leaves what selecting the same text and pressing Delete leaves, except right beside a widget, where it does what Backspace does there. A double-click reads its word off the same text with the same word boundaries, so double-clicking the `b` of `a**b**c` selects `abc` (the delete then adds its own reach, like the spaces between the caret and the word), and a word key (Ctrl+Arrow, Option+Arrow on a Mac) lands where the delete ends. The boundaries are cut the same on every engine, which the engines' own segmenters don't manage: a full stop or a colon between two letters always ends a word (`foo.bar` is three stops, where Firefox and WebKit would make it one), and a word is any run holding a letter or a digit (Firefox calls some Japanese words punctuation).
 
 The rest of what a join does:
 
@@ -388,7 +390,7 @@ Scenarios: `src/lib/e2e/requirements/presentation/presentation-live-hard-break.m
 
 - Copy yields the source bytes, with one live tweak: a format run the selection cuts through comes along closed at its edges, the bytes a cut there would take (`tree-operations/leaf-range.ts` :: `bytesLeavingLeaf`). So `ld an` out of `**bold** and` copies as `**ld** an`, and pasting it back gives you the bold back. Reading mode is the real exception: there a copy writes what the browser's selection shows, hidden markers left out.
 - Search matches the source bytes, so a query crossing a construct boundary misses what the screen appears to show.
-- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are the offsets a caret can reach, not its raw ends, and the position after a body's final newline, on a hidden closer's line, is outside them too unless a caret anchor paints that line (`caret/widget-offset.ts`).
+- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are the offsets a caret can reach, not its raw ends, and the position after a body's final newline, on a hidden closer's line, is outside them too unless a caret anchor paints that line (`browser/offsets.ts`).
 - Bytes change only where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, except at § 4.1's painted content-empty chrome, where a block's own structural gate follows the mode and the two modes diverge.
 - Undo granularity is the document's wherever a rendered block reveals its source for editing (block math, a painted code source): a burst of typing there comes back in one press, batched on the same pause the document batches on, and the whole reveal still commits as one document entry on blur.
 - Keystroke latency is a gated perf axis, with live rows beside their source twins (`performance.md`).

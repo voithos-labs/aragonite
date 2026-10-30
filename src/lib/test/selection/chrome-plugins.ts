@@ -2,7 +2,7 @@
 
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 export function registerCalloutForTests(): void {
 	registerCalloutKind(testView());

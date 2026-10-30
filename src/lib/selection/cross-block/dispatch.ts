@@ -10,7 +10,7 @@ import type { UserScrollport } from '../../windowing/scroll-ancestors';
 import type { ScrollOwner } from '../../windowing/scroll-owner';
 import type { SelectionState } from '../selection-state.svelte';
 import type { CaretMemory } from '../../caret/caret-memory';
-import type { CaretWriter } from '../../caret/widget-offset';
+import type { CaretWriter } from '../../browser/caret-writer';
 import type { SelectionPoint } from '../primitives';
 import type { CaretLanding } from '../caret-landing';
 import type { CommitController } from '../../action-contracts';
@@ -22,6 +22,7 @@ import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-d
 import { normalizeLineEndings } from '../../core/lines';
 import { isReadingMode } from '../../presentation-mode';
 import { replaceRange } from './range-replace';
+import { readInput } from '../../browser/input';
 import { createCrossBlockKeydown } from './keydown';
 import { createCrossBlockPointer, type PaddingPress } from './pointer';
 
@@ -103,7 +104,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	const pointer = createCrossBlockPointer(ctx);
 
 	const claimsBeforeInput = (e: InputEvent): boolean =>
-		ctx.selection.isCrossBlock && e.inputType === 'insertText';
+		ctx.selection.isCrossBlock && readInput(e).kind === 'insert';
 
 	const insertText = async (text: string): Promise<boolean> => {
 		// Refused quietly here, since the range replace's refusal warns about a key the editor lets

@@ -3,6 +3,7 @@
 // writes it: a reload reads that break as a backslash, so the write drops it and the lines.
 // Miss-analysis: #733, the only rows over that text drove the key route, so a cut or any other
 // write through the content write went unchecked.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import { openLinesAtEnd, withHardBreak } from '#lib/core/inline/index.js';
 import { parse } from '#lib/core/parser.js';
@@ -46,7 +47,7 @@ describe('the content write drops the open lines', () => {
 		const item = parse('- abc def\n- next\n').children[0].children![0];
 		const body = { children: item.children!, owner: item, lineEnding: '\n' as const };
 
-		const legal = legalizeWrite(body, 0, 'abc def\\\n\n', 'literal');
+		const legal = legalizeWrite(body, 0, 'abc def\\\n\n', 'literal', defaultGrammarView);
 
 		expect(legal.text).toBe('abc def\n');
 		expect(legal.storedOffset(9)).toBe(7);
@@ -55,7 +56,7 @@ describe('the content write drops the open lines', () => {
 	it('in the last block of a file with no line ending after it', () => {
 		const doc = parse('next\n\nabc def');
 
-		const legal = legalizeWrite(doc, 1, 'abc def\\\n', 'literal');
+		const legal = legalizeWrite(doc, 1, 'abc def\\\n', 'literal', defaultGrammarView);
 
 		expect(legal.text).toBe('abc def');
 		expect(legal.storedOffset(9)).toBe(7);
@@ -64,13 +65,13 @@ describe('the content write drops the open lines', () => {
 	it('keeps a backslash that ends the text, which a reload reads as one', () => {
 		const doc = parse('abc\\\n\nnext\n');
 
-		expect(legalizeWrite(doc, 0, 'abc\\\n', 'literal').text).toBe('abc\\\n');
+		expect(legalizeWrite(doc, 0, 'abc\\\n', 'literal', defaultGrammarView).text).toBe('abc\\\n');
 	});
 
 	it('leaves a code block’s backslash alone', () => {
 		const doc = parse('```\nx\n```\n');
 		const code = '```\nx\\\n\n```\n';
 
-		expect(legalizeWrite(doc, 0, code, 'literal').text).toBe(code);
+		expect(legalizeWrite(doc, 0, code, 'literal', defaultGrammarView).text).toBe(code);
 	});
 });

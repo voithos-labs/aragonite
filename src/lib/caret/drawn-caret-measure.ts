@@ -11,8 +11,10 @@ import {
 	neighbourCaretRect,
 	softWrapAt,
 	type CaretRect
-} from './visual-lines';
-import { isAtomicInlineWidget } from './widget-offset';
+} from '../browser/visual-lines';
+import { isAtomicInlineWidget } from '../browser/painted';
+import { FRAME_ATTR } from '../core/inline/widget-shell';
+import { widgetElByStart } from '../core/inline/inline-widgets';
 import type { ClientCaretBox, HostBox, WidgetEdgeBox } from './drawn-caret-target';
 
 export interface CaretMeasure {
@@ -52,19 +54,36 @@ export function hostBox(host: HTMLElement): HostBox {
 	};
 }
 
-/** The bar on one side of `widget`; an image's is held clear of its frame and short of its ends,
- *  so it reads as a caret rather than part of the border. */
-export function widgetEdgeBox(widget: HTMLElement, side: 'before' | 'after'): WidgetEdgeBox {
+/** The bar on one side of `widget` in `surface`: at a picture's edge, the height of the text on its
+ *  line, where the next letter lands; beside any other widget, 1px clear and the widget's height. */
+export function widgetEdgeBox(
+	widget: HTMLElement,
+	side: 'before' | 'after',
+	surface: HTMLElement
+): WidgetEdgeBox {
 	const r = widget.getBoundingClientRect();
-	const image = widget.matches(IMAGE_WIDGET);
-	const clear = image ? 4 : 1;
-	const inset = image ? 4 : 0;
+	if (widget.hasAttribute(FRAME_ATTR)) {
+		const line = lineTextBox(widget, r, surface) ?? r;
+		const left = side === 'after' ? r.right : r.left;
+		return { left, top: line.top, bottom: line.bottom, width: WIDGET_BAR_WIDTH };
+	}
 	return {
-		left: side === 'after' ? r.right + clear - WIDGET_BAR_WIDTH : r.left - clear,
-		top: r.top + inset,
-		bottom: r.bottom - inset,
+		left: side === 'after' ? r.right + 1 - WIDGET_BAR_WIDTH : r.left - 1,
+		top: r.top,
+		bottom: r.bottom,
 		width: WIDGET_BAR_WIDTH
 	};
+}
+
+/** The bar beside the widget whose source ends (else starts) at raw `offset` in `surface`, the
+ *  edge a click held; null when no widget sits there. */
+export function widgetEdgeAt(surface: HTMLElement, offset: number): WidgetEdgeBox | null {
+	const ending = surface.querySelector<HTMLElement>(
+		`[data-inline-widget][data-source-end="${offset}"]`
+	);
+	if (ending) return widgetEdgeBox(ending, 'after', surface);
+	const starting = widgetElByStart(surface, offset);
+	return starting && widgetEdgeBox(starting, 'before', surface);
 }
 
 export function measureCaret(surface: HTMLElement, range: Range): CaretMeasure | null {
@@ -102,8 +121,6 @@ export function chipStopBox(edge: ChipEdge, side: 'inside' | 'outside'): ClientC
 // ── Internal ────────────────────────────────────────────────────────────────
 
 const WIDGET_BAR_WIDTH = 1.5;
-
-const IMAGE_WIDGET = '.md-image-widget';
 
 /** A code span's painted chip. */
 export const CODE_CHIP = '.inline-code-content';
@@ -148,6 +165,47 @@ function clippedBetween(surface: HTMLElement, host: HTMLElement, caret: CaretRec
 		if (outside) return true;
 	}
 	return false;
+}
+
+/** The text-height box on a picture's line: the first text or caret anchor after it, else the
+ *  last text before it, that shares the picture's line. */
+function lineTextBox(frame: HTMLElement, r: DOMRect, surface: HTMLElement): CaretRect | null {
+	const onLine = (box: CaretRect | null) => box && box.bottom > r.top && box.top < r.bottom;
+	for (const side of ['after', 'before'] as const) {
+		const box = nearestLineBox(frame, side, surface);
+		if (onLine(box)) return box;
+	}
+	return null;
+}
+
+// Past hidden marker runs, which measure to nothing, and past other widgets.
+function nearestLineBox(
+	from: Node,
+	side: 'before' | 'after',
+	surface: HTMLElement
+): CaretRect | null {
+	for (let node = stepPast(from, side, surface); node; node = stepPast(node, side, surface)) {
+		if (node instanceof Text && node.data !== '') {
+			const box = caretRectAt(surface, node, side === 'after' ? 0 : node.data.length);
+			if (box) return box;
+		} else if (node instanceof HTMLBRElement && node.parentNode) {
+			const at = Array.prototype.indexOf.call(node.parentNode.childNodes, node);
+			const box = neighbourCaretRect({ startContainer: node.parentNode, startOffset: at });
+			if (box) return box;
+		}
+	}
+	return null;
+}
+
+/** The next node on `side` in document order, entering elements but never a widget. */
+function stepPast(node: Node, side: 'before' | 'after', root: Node): Node | null {
+	const child = side === 'after' ? node.firstChild : node.lastChild;
+	if (child && node !== root && !isAtomicInlineWidget(node)) return child;
+	for (let at: Node | null = node; at && at !== root; at = at.parentNode) {
+		const sibling = side === 'after' ? at.nextSibling : at.previousSibling;
+		if (sibling) return sibling;
+	}
+	return null;
 }
 
 function touchesWidget(range: Range): boolean {

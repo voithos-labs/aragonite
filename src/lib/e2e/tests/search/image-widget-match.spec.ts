@@ -11,7 +11,7 @@ test.describe('search: image-widget matches', () => {
 	}) => {
 		const editor = new EditorPage(page);
 		await editor.goto();
-		await editor.loadContent('- ![a needle here|120](https://picsum.photos/seed/x/120/80)\n');
+		await editor.loadContent('- ![a needle here|120](/test-fixtures/photos/sunset-120x80.png)\n');
 		await editor.waitForRenderFlush();
 
 		await openFind(editor);
@@ -39,7 +39,7 @@ test.describe('search: image-widget matches', () => {
 		await editor.goto();
 		// The needle lives only in the URL (inside the widget's source range) and nowhere in
 		// textContent, which is the same fully-inside-a-widget collapse.
-		await editor.loadContent('- ![alt|120](https://picsum.photos/seed/needleseed/120/80)\n');
+		await editor.loadContent('- ![alt|120](/test-fixtures/photos/sunset-120x80.png?needleseed)\n');
 		await editor.waitForRenderFlush();
 
 		await openFind(editor);
@@ -63,8 +63,8 @@ test.describe('search: image-widget matches', () => {
 		await page.keyboard.type('list');
 		await expect(count(page)).toHaveText(/1\s+of\s+11/);
 
-		// Matches #9 and #10 live inside the image in `- ![In a list|300](.../seed/aragonite-list/...)`.
-		// Step to #9 and assert an overlay paints with width > 0.
+		// The ninth and tenth matches sit inside the list image, in its alt text and its file name.
+		// Step to the ninth and assert an overlay paints with width > 0.
 		for (let i = 1; i < 9; i++) {
 			await page.keyboard.press('Enter');
 		}

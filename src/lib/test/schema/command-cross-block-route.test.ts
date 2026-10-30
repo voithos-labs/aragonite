@@ -12,7 +12,7 @@ import {
 } from '#lib/schema/block-commands.js';
 import { TOOLBAR_COMMANDS } from '#lib/schema/commands.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
-import { commandContext, INERT_RANGE_ROUTER } from '../support/command-context';
+import { commandContext, INERT_RANGE_ROUTER } from '../harness/command-context';
 
 const TOGGLES = [
 	TOOLBAR_COMMANDS.toggleStrong,

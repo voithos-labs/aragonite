@@ -14,14 +14,15 @@
 	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
+	import { rawTextOfNode } from '../../../browser/block-text';
 	import {
-		rawTextOfNode,
 		containerDomTextLength,
-		landableDomTextBounds,
-		rawSelectionFocus,
+		reachableDomTextBounds,
 		type RawRange
-	} from '../../../caret/widget-offset';
-	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../caret/coordinate-spaces';
+	} from '../../../browser/offsets';
+	import { rawSelectionFocus } from '../../../browser/selection-read';
+	import { readInput } from '../../../browser/input';
+	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../core/coordinate-spaces';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../caret/sticky-measure';
 	import { handleEdgeStep, handleSharedKeydown } from '../../../selection/shared-keydown';
@@ -35,7 +36,7 @@
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
 	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
 	import { selectWholeDocument, extendFromCell } from '../../../selection/keyboard-extend';
-	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../caret/visual-lines';
+	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../browser/visual-lines';
 	import {
 		cellCommandPlan,
 		cellKeydownPlan,
@@ -139,7 +140,6 @@
 		badgeRefusal: "a table cell's children are its editable text, re-rendered on every edit"
 	});
 
-	let composing = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 
 	// The only writer of `pendingCursorOffset` besides the render's clear. The offset counts
@@ -182,24 +182,27 @@
 		getNode: () => node,
 		getMyPath: () => myPath,
 		getIndex: () => index,
-		getComposing: () => composing,
-		setComposing: (value) => {
-			composing = value;
-		},
 		requestCaret: (at) => parkCursor(at),
 		ownPairs,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
-		readInput: (caret) => ({ text: readCellText(), caret }),
+		readBack: (caret) => ({ text: readCellText(), caret }),
 		repaint: () => cellRender.render({ forceRebuild: true }),
 		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
 		handleKeydown: onKeyDown,
 		handleBeforeInput: onBeforeInput,
 		deleteAtCaret: (caret, intent) => edgeDispatch.deleteAtCaret(caret, intent),
+		unitContext: (caret) => edgeDispatch.unitContext(caret),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
+		typedInsert: {
+			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),
+			widgetBeside: (caret) => edgeDispatch.typing.widgetBeside(caret),
+			widgetClosesAt: (caret) => edgeDispatch.typing.widgetClosesAt(caret),
+			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)
+		},
 		commandTarget: () => keyTarget,
 		removeSelection: (range) =>
 			writeText({
@@ -362,7 +365,6 @@
 		reading,
 		ownPairs,
 		writeText,
-		edges: edgeDispatch,
 		text: () => readCellText(),
 		content: () => ({ start: 0, end: readCellText().length })
 	});
@@ -491,7 +493,7 @@
 		const root = el;
 		if (!root) return;
 		const handler = () => {
-			if (composing) return;
+			if (editableSurface.composing()) return;
 			widgetInteraction.foldRevealIfSelectionEscaped();
 		};
 		document.addEventListener('selectionchange', handler);
@@ -514,7 +516,7 @@
 	function cellPlanState(offset: number | null): CellKeyState {
 		// A cell has no marker prefix, so these are raw offsets; they follow what is on screen,
 		// not the mode, since a cell's move follows what the user sees.
-		const bounds = landableDomTextBounds(el!);
+		const bounds = reachableDomTextBounds(el!);
 		return {
 			rowIdx,
 			colIdx,
@@ -529,7 +531,7 @@
 	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (composing || !el) return;
+		if (!el) return;
 
 		// Reset before `cellKeydownPlan`: the shared reset runs only for keys the plan leaves to the
 		// browser, so a key the plan takes would leave the select-all run active.
@@ -623,7 +625,7 @@
 	// as prose does. False falls through.
 	function startIntraTableRect(key: 'ArrowUp' | 'ArrowDown', offset: number): boolean {
 		if (!el) return false;
-		const bounds = landableDomTextBounds(el);
+		const bounds = reachableDomTextBounds(el);
 		const atEdge =
 			key === 'ArrowDown'
 				? isAtLastVisualLine(el, offset, bounds, caretWriter)
@@ -649,7 +651,8 @@
 	function onBeforeInput(e: InputEvent): void {
 		if (typedInput(e)) return;
 		// A soft keyboard's line break, with no keydown, is the Shift+Enter command.
-		if (e.inputType === 'insertLineBreak') {
+		const read = readInput(e);
+		if (read.kind === 'break' && !read.paragraph) {
 			e.preventDefault();
 			// Input, not a key, so it asks for the removal itself.
 			editableSurface.afterSelectionRemoved(() => runCommand('cell.lineBreak'));

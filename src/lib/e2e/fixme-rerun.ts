@@ -1,5 +1,5 @@
 // How the shared e2e `test` treats `test.fixme`. Under `E2E_RERUN_FIXME`, which
-// `scripts/fixme-recheck.mjs` sets, an in-test `test.fixme(condition, reason)` records its reason
+// `scripts/release/fixme-recheck.mjs` sets, an in-test `test.fixme(condition, reason)` records its reason
 // as a `fixme-rerun` annotation and lets the test run; every other form keeps Playwright's behavior.
 
 interface FixmeHost {

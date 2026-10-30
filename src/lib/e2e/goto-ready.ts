@@ -57,11 +57,14 @@ export function gotoReady(page: Page, url: RouteUrl): Promise<void> {
 
 /** Loads `url` with every script request held unanswered, so a spec reads the page as served,
  *  before the app hydrates it; inline scripts in the markup still run. */
-export async function gotoUnhydrated(page: Page, url: RouteUrl): Promise<void> {
-	await page.route('**/*', (route) =>
-		route.request().resourceType() === 'script' ? undefined : route.continue()
-	);
-	await page.goto(url, { waitUntil: NAVIGATED });
+export function gotoUnhydrated(page: Page, url: RouteUrl): Promise<void> {
+	return navigateFrom(page, readyBudget(), async (timeout) => {
+		// Installed once the page it leaves has loaded, so only the new page's scripts are held.
+		await page.route('**/*', (route) =>
+			route.request().resourceType() === 'script' ? undefined : route.fallback()
+		);
+		await page.goto(url, { timeout, waitUntil: NAVIGATED });
+	});
 }
 
 export function reloadReady(page: Page): Promise<void> {
@@ -85,9 +88,7 @@ async function navigateReady(
 	// The navigation, the mount and the global share one budget: a full ceiling each would sum
 	// past the runner's timeout, and a wait killed by the runner reports none of this.
 	const started = Date.now();
-	const deadline = started + READY_TIMEOUT;
-	// Playwright reads 0 as "no timeout", so an exhausted budget asks for the smallest wait.
-	const budgetLeft = () => Math.max(1, deadline - Date.now());
+	const budgetLeft = readyBudget();
 	const diagnose = async (what: string, cause: unknown): Promise<never> => {
 		const elapsed = Date.now() - started;
 		const reported = failures.seen();
@@ -107,7 +108,9 @@ async function navigateReady(
 		);
 	};
 	try {
-		await navigate(budgetLeft()).catch((cause) => diagnose('the page never loaded', cause));
+		await navigateFrom(page, budgetLeft, navigate).catch((cause) =>
+			diagnose('the navigation never finished', cause)
+		);
 		await page
 			.locator('.editor')
 			.first()
@@ -126,6 +129,44 @@ async function navigateReady(
 		failures.stop();
 		loadSteps.stop();
 	}
+}
+
+/** The milliseconds left of a `READY_TIMEOUT` that starts now. */
+function readyBudget(): () => number {
+	const deadline = Date.now() + READY_TIMEOUT;
+	// Playwright reads 0 as "no timeout", so an exhausted budget asks for the smallest wait.
+	return () => Math.max(1, deadline - Date.now());
+}
+
+// ── Leaving a page ──────────────────────────────────────────────────
+
+/** Every navigation starts here, once the page's document and images finished loading: Firefox
+ *  turns a cut-off load into a page error or a `page.goto` "interrupted" by its own URL. */
+async function navigateFrom(
+	page: Page,
+	budgetLeft: () => number,
+	navigate: (timeout: number) => Promise<unknown>
+): Promise<void> {
+	await page
+		.waitForFunction(
+			() => document.readyState === 'complete' && [...document.images].every((img) => img.complete),
+			undefined,
+			{ timeout: budgetLeft() }
+		)
+		.catch(async (cause) => {
+			const loading = await page
+				.evaluate(() =>
+					[...document.images]
+						.filter((img) => !img.complete)
+						.map((img) => img.currentSrc || img.src)
+				)
+				.catch(() => []);
+			throw new Error(
+				`the page it was leaving, ${page.url()}, never finished loading (${firstLine(cause)}); ` +
+					`images still loading: ${loading.join(', ') || 'none'}`
+			);
+		});
+	await navigate(budgetLeft());
 }
 
 // ── Page-load diagnosis ─────────────────────────────────────────────

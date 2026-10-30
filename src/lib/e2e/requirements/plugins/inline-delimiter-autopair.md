@@ -42,9 +42,12 @@ backtick does this on its own; a plugin trigger opts in with `autoPair: true` on
 
 - Three backticks are still three keystrokes: the second steps over the one already there, the
   third extends the run, and the line is a fence.
-- `$$` is still two keystrokes and still forms the math block as the second one lands: a step
-  over that leaves the line to an on-type completer goes through the one content-writing path,
-  so the completer is asked.
+- A `$` typed on an empty line types alone. `$|$` there is a line that is only `$$`, which opens
+  a math block as soon as a `$$` line anywhere below closes it, so the pair would take in every
+  block down to the next math block. Anywhere else on a line `$` still pairs.
+- `$$` is still two keystrokes and still forms the math block as the second one lands: the second
+  `$` completes the line, and the completer is asked before the line is written, so a math block
+  below never reads it as its own opener.
 
 ## Declines
 

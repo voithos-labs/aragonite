@@ -4,12 +4,10 @@ import { describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
 import {
 	activateDirectives,
-	chromeChild,
 	createDirectiveRebuild,
 	declarePluginKind,
 	DIRECTIVE_BODY_WRAP,
 	registerBlockKind,
-	registerChromeLeaf,
 	registerDirective,
 	setPluginMetadata,
 	type CstNode,
@@ -18,9 +16,9 @@ import {
 } from '#lib/plugin.js';
 import { runContainerConformance, type ContainerConformanceProfile } from '#lib/testing.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 interface TitledMetadata {
@@ -35,8 +33,6 @@ interface TitledMetadata {
 function registerTitledKind(): PluginBlockKind {
 	activateDirectives();
 	const kind = declarePluginKind('titled');
-	const titleKind = declarePluginKind('titled-title');
-	registerChromeLeaf(titleKind);
 	registerDirective('container', 'titled', {
 		kind,
 		fromDirective: (parsed: ParsedDirective): CstNode => {
@@ -46,7 +42,7 @@ function registerTitledKind(): PluginBlockKind {
 				leadingTrivia: parsed.leadingTrivia,
 				raw: parsed.raw,
 				innerPrefix: parsed.body?.prefix ?? '',
-				children: [chromeChild(titleKind, title), ...(parsed.body?.children ?? [])],
+				children: parsed.body?.children ?? [],
 				innerSuffix: parsed.body?.suffix ?? ''
 			};
 			setPluginMetadata<TitledMetadata>(node, {
@@ -67,10 +63,8 @@ function registerTitledKind(): PluginBlockKind {
 		supportsInline: false,
 		container: {
 			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild<TitledMetadata>(() => 'titled'),
-			bodyWrap: DIRECTIVE_BODY_WRAP,
-			reservedChrome: { kind: titleKind },
-			unwrapRole: { middleChildBackspace: 'default-merge' }
+			rebuildRaw: createDirectiveRebuild(),
+			bodyWrap: DIRECTIVE_BODY_WRAP
 		},
 		conformanceFixture: ':::titled T\n\nbody\n\n:::\n',
 		closure: testClosure
@@ -106,6 +100,11 @@ describe('the container kit writes the title row (#640)', () => {
 			'an admonition',
 			() => (installPlugins([admonitionsPlugin()]), 'admonition'),
 			':::note T\nbody\n:::\n'
+		],
+		[
+			'the generic directive',
+			() => (installPlugins([admonitionsPlugin()]), 'directiveContainer'),
+			':::spoiler T\nbody\n:::\n'
 		]
 	])('passes %s, whose title row feeds no metadata', async (_label, register, source) => {
 		const kind = register();
@@ -114,10 +113,11 @@ describe('the container kit writes the title row (#640)', () => {
 	});
 
 	it('excuses a container with no title row, saying why', async () => {
-		installPlugins([admonitionsPlugin()]);
-		const { cells } = await runContainerConformance('directiveContainer' as PluginBlockKind, {
-			...profileFor(':::spoiler\nbody\n:::\n'),
-			deepNesting: { source: ':::spoiler\nbody\n:::\n', leafPath: [0, 0] }
+		const { cells } = await runContainerConformance('blockquote' as PluginBlockKind, {
+			...profileFor('> body\n'),
+			deepNesting: { source: '> body\n', leafPath: [0, 0] },
+			terminatorCollisionFixture: undefined,
+			terminatorCollision: { mode: 'exempt', reason: EXCUSED }
 		});
 		expect(cells.find((c) => c.cell === 'titleRow')).toMatchObject({ status: 'exempt' });
 	});

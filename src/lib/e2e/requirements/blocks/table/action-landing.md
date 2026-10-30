@@ -1,7 +1,7 @@
 # Feature: Where the caret goes after a table edit
 
 Every structural table edit puts the caret in a cell once it lands, and the next key you type goes
-there. Each scenario types `x` straight after the edit and reads which cell it went into.
+there. Each scenario types `x` straight after the edit and reads which cell it went into. On a Mac, where Option+Arrow moves by word, the same commands go through the cell menu's Column flyout, and every column scenario runs them the platform's way (`e2e/table-columns.ts` :: `runColumnCommand`).
 
 ## Happy paths
 

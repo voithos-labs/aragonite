@@ -6,11 +6,11 @@
  * everything else is literal, so a drifted count or a reworded suffix fails the run.
  */
 import { describe, it, expect } from 'vitest';
-import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { corpusFiles } from '../../../../../scripts/doc-corpus.mjs';
+import { corpusFiles } from '../../../../../scripts/docs/doc-corpus.mjs';
 
 const ROOT = path.resolve('.');
 
@@ -33,14 +33,14 @@ const FAILURE_CORPORA: Record<string, (dir: string) => void> = {
 };
 
 function run(script: string, cwd: string): string[] {
-	// stderr is piped, not inherited: a failure run's output is this gate's input, not a fire.
-	const options: ExecFileSyncOptionsWithStringEncoding = {
-		cwd,
-		encoding: 'utf8',
-		stdio: ['ignore', 'pipe', 'pipe']
-	};
 	try {
-		return execFileSync('node', [path.join(ROOT, 'scripts', script)], options).split('\n');
+		// stderr is piped, not inherited: a failure run's output is this gate's input, not a fire.
+		return execFileSync('node', [path.join(ROOT, 'scripts/docs', script)], {
+			cwd,
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'pipe'],
+			timeout: 120_000
+		}).split('\n');
 	} catch (err) {
 		const failure = err as { stdout?: string; stderr?: string };
 		return `${failure.stdout ?? ''}\n${failure.stderr ?? ''}`.split('\n');

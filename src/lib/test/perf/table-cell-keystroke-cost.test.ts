@@ -1,9 +1,10 @@
 // Miss-analysis: the keystroke cost tests covered lists and quotes, whose rebuild copies only the
 // edited chain, and no test counted what a table rebuild copied, which was every row.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
@@ -22,7 +23,7 @@ describe('a keystroke in one cell of a large table', () => {
 		const before = [...deps.doc.children[0].children!];
 		const row = before[TARGET];
 		const body = { children: row.children!, owner: row, lineEnding: documentLineEnding(deps.doc) };
-		const write = legalizeWrite(body, 1, 'xQ', 'authored');
+		const write = legalizeWrite(body, 1, 'xQ', 'authored', defaultGrammarView);
 
 		expect(typing.typeLeaf(docPathFrom([0, TARGET, 1]), write, 0).wrote).toBe(true);
 

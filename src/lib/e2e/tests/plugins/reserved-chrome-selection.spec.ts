@@ -6,10 +6,10 @@ import {
 	capturedErrors,
 	FIXTURE
 } from './reserved-chrome-helpers';
-import { extendKey } from '../../platform-keys';
+import { edgeKey, extendKey } from '../../platform-keys';
 
 /**
- * The `:::callout` callout reserves child 0 as an editable `callout-title` row (see
+ * The `:::callout` callout holds its opener line as child 0, an editable title row (see
  * src/routes/test/plugins/callout). Part 1, the selection behaving like any other: a cross-block
  * selection from the paragraph above paints straight into the title, and the caret and undo land
  * there, with no new selection code. The title holds a character offset, so none of the
@@ -49,7 +49,7 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		await editor.dragFromTo([0], 2, [1, 0], 3);
+		await editor.dragFromTo([0], 2, [1, 0], 14);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 
 		const sel = await editor.bridge.getSelectionPaths();
@@ -65,8 +65,8 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		// The default title row: a callout whose author has not typed a title.
 		await editor.loadContent('Above\n\n:::callout\nBody\n:::\n');
 		const seed = await readCallout(page, 1);
-		expect(seed.childKinds[0]).toBe('callout-title');
-		expect(seed.childTexts[0]).toBe('');
+		expect(seed.childKinds[0]).toBe('directiveOpenerLine');
+		expect(seed.childTexts[0]).toBe(':::callout');
 
 		await editor.focusBlock(0, 2);
 		await page.keyboard.press(extendKey('lineEnd'));
@@ -90,10 +90,11 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		// The typed character lands in child 0, showing the caret can reach path [1, 0]; that the title
-		// keeps its kind is covered elsewhere.
+		// The typed character lands in child 0, showing the caret can reach path [1, 0]; End takes it
+		// past the `:::callout` name the kept column lands in.
 		await page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
+		await page.keyboard.press(edgeKey('lineEnd'));
 		await editor.typeText('Z');
 		await editor.bridge.waitForSource((s) => /:::callout [^\n]*Z/.test(s));
 
@@ -107,13 +108,15 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
-		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
+		await editor.focusBlockAtPath([1, 0], 16); // end of "Title"
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains(':::callout Title!');
 
 		// Polls the CST child, not the bytes, which can finish before the title child is rebuilt.
 		await editor.undo();
-		await expect.poll(() => readCallout(page, 1).then((n) => n.childTexts[0])).toBe('Title');
+		await expect
+			.poll(() => readCallout(page, 1).then((n) => n.childTexts[0]))
+			.toBe(':::callout Title');
 		// Undo restores the selection, so the caret returns to the title row.
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);

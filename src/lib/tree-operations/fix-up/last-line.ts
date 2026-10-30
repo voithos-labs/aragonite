@@ -5,10 +5,11 @@ import type { Host } from './types';
 import { withoutLastEnding } from './endings';
 
 export function lastLineOpen(document: Document): boolean {
-	// The last non-empty part of the bytes, read from the end so a long document costs nothing.
+	// The last non-empty part of the bytes, read from the end and never joined to the part above it,
+	// so a long last block costs nothing.
 	let last = document.suffix;
 	for (let i = document.children.length - 1; last === '' && i >= 0; i--) {
-		last = document.children[i].leadingTrivia + document.children[i].raw;
+		last = document.children[i].raw || document.children[i].leadingTrivia;
 	}
 	if (last === '') last = document.prefix;
 	return last !== '' && ownTrailingLineEnding(last) === '';

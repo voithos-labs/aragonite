@@ -17,7 +17,7 @@ test.describe('plugins prop: install before the first parse', () => {
 
 		const callout = await readContainer(page, 0);
 		expect(callout.kind).toBe('callout');
-		expect(callout.childKinds[0]).toBe('callout-title');
+		expect(callout.childKinds[0]).toBe('directiveOpenerLine');
 		// Installing too late shows as one of two fallbacks: with the grammar off the block is a
 		// `paragraph`, and with the grammar on but callout unregistered a `directiveContainer`.
 		expect(callout.kind).not.toBe('paragraph');

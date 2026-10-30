@@ -23,6 +23,8 @@ through a real CDP composition.
   - both cells of a table row, drawn from the first cell into the second, so the caret starts in
     the second. The removal empties both cells and the text lands in the first one, where typing
     over the same cells puts it.
+  - a code block's body into the paragraph after it, so the removal keeps the code block and the
+    text lands in its body
 - A range whose removal leaves the caret on a block's syntax (a rule, a fence, a heading's `#`)
   composes in a new paragraph where the range was; `text-over-range-syntax.md` holds those rows.
 

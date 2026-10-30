@@ -20,7 +20,7 @@ import { definitionsOf } from '#lib/core/inline/scan/definitions.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import type { Reading } from '#lib/schema/reading.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
-import { pluginContextDeps } from '../../support/plugin-context-deps';
+import { pluginContextDeps } from '../../harness/plugin-context-deps';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

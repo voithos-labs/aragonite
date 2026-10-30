@@ -1,16 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { chromeChild, declaredPluginKind } from '#lib/plugin.js';
+import { chromeChild, declarePluginKind } from '#lib/plugin.js';
 import {
 	registerCalloutKind,
-	rebuildCalloutRaw,
-	CALLOUT_TITLE
+	rebuildCalloutRaw
 } from '../../../routes/test/plugins/callout/callout-kind';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
-// `createDirectiveRebuild` is the shared body behind both callout and admonitions (the
-// only per-kind difference is the name resolver), so its byte-assembly is pinned once
-// here, through the callout instance that binds it.
+// `createDirectiveRebuild` is the one rebuild every `:::` container uses, so its byte-assembly is
+// pinned once here, through the callout instance that binds it.
 
 describe('createDirectiveRebuild threads the authored line ending', () => {
 	beforeEach(() => {
@@ -33,13 +31,13 @@ describe('createDirectiveRebuild threads the authored line ending', () => {
 		expect(callout.raw).toBe(':::callout My Title\nedited\n:::\n');
 	});
 
-	it('re-emits the title from child 0 and the variant name from metadata', () => {
+	it('re-emits the opener line from child 0, variant name and title included', () => {
 		const callout = parse(':::aside Watch out\r\nBody\r\n:::\r\n').children[0];
 		rebuildCalloutRaw(callout);
 		expect(callout.raw).toBe(':::aside Watch out\r\nBody\r\n:::\r\n');
 	});
 
-	it('drops the opener info when child 0 is empty', () => {
+	it('keeps a bare opener line bare', () => {
 		const callout = parse(':::callout\nBody\n:::\n').children[0];
 		rebuildCalloutRaw(callout);
 		expect(callout.raw).toBe(':::callout\nBody\n:::\n');
@@ -47,16 +45,13 @@ describe('createDirectiveRebuild threads the authored line ending', () => {
 });
 
 describe('chromeChild builds the reserved child-0 node', () => {
-	beforeEach(() => {
-		registerCalloutKind(testView());
-	});
-
 	it('appends a trailing newline to non-empty title text', () => {
-		const child = chromeChild(declaredPluginKind(CALLOUT_TITLE), 'Heads up');
-		expect(child).toMatchObject({ kind: CALLOUT_TITLE, leadingTrivia: '', raw: 'Heads up\n' });
+		const summary = declarePluginKind('summary-row');
+		const child = chromeChild(summary, 'Heads up');
+		expect(child).toMatchObject({ kind: summary, leadingTrivia: '', raw: 'Heads up\n' });
 	});
 
 	it('collapses empty text to a bare newline so the leaf still holds a line', () => {
-		expect(chromeChild(declaredPluginKind(CALLOUT_TITLE), '').raw).toBe('\n');
+		expect(chromeChild(declarePluginKind('summary-row'), '').raw).toBe('\n');
 	});
 });

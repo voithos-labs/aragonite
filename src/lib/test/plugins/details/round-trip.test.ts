@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { getPluginMetadata } from '#lib/plugin.js';
 import { registerDetailsKind, rebuildDetailsRaw } from '#lib/plugins/details/details-kind.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 // A canonical open details with a titled summary and a blank-line-wrapped body.
 const OPEN_SRC = '<details open>\n<summary>Title</summary>\n\nBody\n\n</details>\n';

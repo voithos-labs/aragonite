@@ -2,8 +2,8 @@
  * An e2e spec drives the browser through the shared helpers, each supplying what a raw call skips:
  * the IME driver (G4.49), the clipboard helper (G4.212), `gotoReady` and `reloadReady`, the mode
  * switch that waits (G4.133), the Firefox click-run, insert and in-place helpers (G4.228), the
- * platform's own key spelling (G4.226), `endTypingBatch` (G4.232) and `waitForImagesDecoded`.
- * Probe text is spelled in pieces, since this file is scanned too.
+ * platform's key spelling (G4.226), `endTypingBatch` (G4.232), `waitForImagesDecoded` and a route's
+ * `fallback`, past the fixture's off-host block (G4.269). Probe text is spelled in pieces.
  */
 import { it, expect } from 'vitest';
 import { collectFiles, readSource } from '../../test/invariants/lint/scan-source';
@@ -21,6 +21,7 @@ const MULTI_CLICK_HELPER = 'src/lib/e2e/multi-click.ts';
 const INSERT_TEXT_HELPER = 'src/lib/e2e/insert-text.ts';
 const PLATFORM_KEYS = 'src/lib/e2e/platform-keys.ts';
 const EDGE_CHORDS_SPEC = 'src/lib/e2e/tests/keyboard-navigation/edge-chords.spec.ts';
+const MOTION_CLASS_SPEC = 'src/lib/e2e/tests/caret/motion-class.spec.ts';
 const IN_PLACE_HELPER = 'src/lib/e2e/click-in-place.ts';
 const TYPING_BATCH_HELPER = 'src/lib/e2e/typing-batch.ts';
 const TYPING_PAUSE_SPEC = 'src/lib/e2e/tests/undo-typing-pause.spec.ts';
@@ -210,7 +211,9 @@ describeManifests(
 			declared: {
 				[PLATFORM_KEYS]: 'edgeKey and extendKey, the one spelling per platform',
 				[EDGE_CHORDS_SPEC]:
-					"sends both platforms' literal chords on every engine, so the Cmd+Arrow reading runs on every Linux push"
+					"sends both platforms' literal chords on every engine, so the Cmd+Arrow reading runs on every Linux push",
+				[MOTION_CLASS_SPEC]:
+					'sends both spellings of each edge key on every engine, so where Cmd+Arrow lands is checked on every Linux push'
 			},
 			reason: `press edgeKey or extendKey (${PLATFORM_KEYS}): on macOS Home and End scroll the page`,
 			hits: [
@@ -396,8 +399,11 @@ describeManifests(
 			declared: {
 				[IMAGE_WAIT]: 'waitForImagesDecoded, which decodes each picture',
 				'src/lib/e2e/carets-showing.ts': 'decodes its own screenshot before reading the pixels',
+				[NAVIGATION_HELPER]:
+					'waits for a page to stop downloading, decoded or not, before leaving it',
 				'src/lib/e2e/tests/blocks/image/image-load-scroll-stability.spec.ts':
 					'asserts the picture has not loaded yet',
+				'src/lib/e2e/tests/goto-ready.spec.ts': 'asserts a picture is still downloading',
 				'src/lib/e2e/tests/perf/vr-nested-growth.spec.ts':
 					'waits for the picture to decode or unmount, whichever comes first'
 			},
@@ -413,6 +419,16 @@ describeManifests(
 				'new TextDecoder().decode(bytes)',
 				'expect(row.completed).toBe(true);'
 			]
+		},
+		{
+			id: 'G4.269 every e2e route passes a request on with fallback, past the off-host block',
+			population: SCANNED_SPECS,
+			matches: /\.\s*continue\s*\(/,
+			declared: {},
+			reason:
+				"pass the request on with route.fallback(): route.continue() sends it to the network past the fixture's block on other hosts (src/lib/e2e/fixtures.ts)",
+			hits: ['route.continue()', 'await r.continue({ headers });'],
+			misses: ['await route.fallback();', 'continue;']
 		}
 	],
 	files

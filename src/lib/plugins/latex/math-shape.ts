@@ -26,6 +26,9 @@ export interface MathEdit {
 /** The multi-line form's opener or closer: the fence and nothing else. */
 export const isMathFenceLine = (text: string): boolean => text === BLOCK_FENCE;
 
+/** The line that closes the multi-line form. */
+export const mathCloser = (): string => BLOCK_FENCE;
+
 /** A whole block on one line; at four characters or more, its two fences can't overlap. */
 const isOneLineMath = (text: string): boolean =>
 	text.length >= 4 && text.startsWith(BLOCK_FENCE) && text.endsWith(BLOCK_FENCE);

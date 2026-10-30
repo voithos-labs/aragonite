@@ -30,7 +30,8 @@ import type { RangeCoverage } from './selection/range-coverage';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { CaretMemory } from './caret/caret-memory';
-import type { CaretWriter } from './caret/widget-offset';
+import type { CaretWriter } from './browser/caret-writer';
+import type { CompositionTracker } from './browser/composition';
 import type { DrawnCaret } from './caret/drawn-caret.svelte';
 import type { AutoPairRecord } from './components/blocks/text/auto-pair-record';
 import type { ScrollOwner } from './windowing/scroll-owner';
@@ -85,7 +86,7 @@ export interface ChildMeasureChannel {
 	measureNow(id: string): void;
 	measureOnResize(id: string, observedHeight: number): void;
 	/** Every child's size is watched by one observer per editor; its callback only records heights. */
-	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
+	watchSize(el: Element, onHeight: (height: number) => void): () => void;
 }
 
 // ── Facets ───────────────────────────────────────────────────────────────────
@@ -112,6 +113,8 @@ export interface EditorServices {
 	presses: PressTracker;
 	/** The caret the editor draws; each editable surface registers itself with it. */
 	drawnCaret: DrawnCaret;
+	/** The composition in progress, whichever element hosts it; the one composing flag. */
+	composition: CompositionTracker;
 	/** The empty delimiter pair the auto-pair last wrote, the only pair it steps over, collapses
 	 *  or deletes; each typing block takes its own view of it. */
 	autoPairs: AutoPairRecord;

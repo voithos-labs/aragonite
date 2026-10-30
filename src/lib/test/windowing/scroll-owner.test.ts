@@ -9,7 +9,7 @@ import { flushSync, tick } from 'svelte';
 import { installHeaderSlotCompensation } from '../../components/editor-root/geometry';
 import { parse } from '../../core/parser';
 import { createCaretMemory } from '../../caret/caret-memory';
-import { docPathFrom } from '../../caret/coordinate-spaces';
+import { docPathFrom } from '../../core/coordinate-spaces';
 import { createEditorRects } from '../../editor-rects';
 import type { EditorDoc, EditorServices } from '../../editor-keys';
 import type { ScrollOwner } from '../../windowing/scroll-owner';
@@ -26,8 +26,8 @@ import {
 } from '../harness/list-windowing.svelte';
 import { stubScrollOwner, stubScrollport } from '../harness/stub-scrollport';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { caretRectAt } from '../../caret/visual-lines';
-import { readNativeSelection } from '../../selection/native-bridge';
+import { caretRectAt } from '../../browser/visual-lines';
+import { readNativeSelection } from '../../browser/selection-read';
 
 const COLUMNS = ['host anchoring holds', 'a held placement is live', 'free'] as const;
 type Column = (typeof COLUMNS)[number];
@@ -122,9 +122,8 @@ class FakeResizeObserver {
 	}
 	observe(): void {}
 	disconnect(): void {}
-	grow(to: number): void {
-		const entries = [{ borderBoxSize: [{ blockSize: to, inlineSize: 0 }] }];
-		this.callback(entries as unknown as ResizeObserverEntry[], this as unknown as ResizeObserver);
+	report(): void {
+		this.callback([], this as unknown as ResizeObserver);
 	}
 }
 
@@ -138,7 +137,8 @@ afterEach(() => {
 
 function growHeader(f: Fixture): void {
 	const el = document.createElement('div');
-	el.getBoundingClientRect = () => ({ height: 40 }) as DOMRect;
+	let height = 40;
+	el.getBoundingClientRect = () => ({ height }) as DOMRect;
 	const uninstall = installHeaderSlotCompensation({
 		el,
 		port: f.owner.port,
@@ -146,7 +146,8 @@ function growHeader(f: Fixture): void {
 	});
 	// The observer reports after layout, when the list below has already moved down.
 	f.growHeaderBy(GROWTH);
-	FakeResizeObserver.last!.grow(40 + GROWTH);
+	height += GROWTH;
+	FakeResizeObserver.last!.report();
 	uninstall();
 }
 

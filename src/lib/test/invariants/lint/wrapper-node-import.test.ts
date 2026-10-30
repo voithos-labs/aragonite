@@ -1,5 +1,5 @@
 /**
- * A wrapper's entries import in plain Node with no DOM (G4.188): `scripts/node-import.mjs` holds the
+ * A wrapper's entries import in plain Node with no DOM (G4.188): `scripts/pack/node-import.mjs` holds the
  * rule, and `verify-pack.mjs` runs it on every wrapper after the build.
  */
 
@@ -7,7 +7,7 @@ import { describe, it, expect, afterAll } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { nodeImportFailures } from '../../../../../scripts/node-import.mjs';
+import { nodeImportFailures } from '../../../../../scripts/pack/node-import.mjs';
 
 const made: string[] = [];
 

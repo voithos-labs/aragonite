@@ -8,7 +8,7 @@ import {
 	pastLineEnd
 } from './multi-click-helpers';
 import { multiClick, multiClickDrag, multiClickHold } from '../../multi-click';
-import { textRunCenter } from '../../text-runs';
+import { pointInGap, textRunCenter } from '../../text-runs';
 import { nextRow } from '../presentation/helpers';
 
 // Triple-click and the drags a multi-click starts
@@ -164,4 +164,25 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 		await held.release();
 		await expect.poll(() => nativeSelectionText(page)).toBe('beta gamma');
 	});
+
+	// Level with a body row, in the editor's padding: a single click there focuses nothing either.
+	for (const clicks of [2, 3]) {
+		test(`a ${clicks === 2 ? 'double' : 'triple'}-click beside a table selects nothing`, async ({
+			page
+		}) => {
+			await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
+			const cell = await page.locator('.table-cell').nth(2).boundingBox();
+			if (!cell) throw new Error('no box for the first body cell');
+			const table = page.locator(`[data-block-path='[1]']`);
+			const at = await pointInGap(editor.editorContainer, table, 'right', cell.y + cell.height / 2);
+
+			await multiClick(page, at, clicks);
+			await page.keyboard.type('!');
+			await editor.waitForNoSourceMutation();
+
+			expect(await nativeSelectionText(page)).toBe('');
+			expect(await editorSelection(page)).toBeNull();
+			expect(await editor.bridge.getSource()).not.toContain('!');
+		});
+	}
 });

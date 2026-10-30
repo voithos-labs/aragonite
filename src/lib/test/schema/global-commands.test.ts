@@ -14,7 +14,7 @@ import {
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
-import { commandContext, INERT_MARK_ACTIVATION } from '../support/command-context';
+import { commandContext, INERT_MARK_ACTIVATION } from '../harness/command-context';
 
 const editor = {
 	editorId: 'e',

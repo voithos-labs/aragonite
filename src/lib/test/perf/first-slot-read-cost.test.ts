@@ -1,9 +1,10 @@
 // Miss-analysis: the item reader's rows checked what it read, never how much, so a reader that
 // parsed every keystroke's paragraph behind a rebuilt marker line passed them all.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
@@ -28,7 +29,7 @@ function parsedBytesForKeystroke(source: string, leaf: number[]): number {
 	const owner = blockNodeAt(deps.doc, leaf.slice(0, -1)) as CstNode;
 	const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
 	const raw = TEXT.replace(`line ${LINES - 2}`, `line ${LINES - 2}x`);
-	const write = legalizeWrite(body, leaf[leaf.length - 1], raw, 'authored');
+	const write = legalizeWrite(body, leaf[leaf.length - 1], raw, 'authored', defaultGrammarView);
 	resetPerfInstruments();
 	enablePerfInstruments();
 	expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);

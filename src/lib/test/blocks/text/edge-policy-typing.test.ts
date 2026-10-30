@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
-import { asRawOffset, asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
+import { asRawOffset, asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import {
 	BACKSPACE,
 	installEdgeDispatchCleanup,
@@ -21,7 +21,7 @@ import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.sve
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { applyLiveRangeEdit } from '#lib/components/blocks/text/live-selection-edit.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { mountBlock } from '../../harness/mount-block';
 import { settleEditor } from '../../harness/settle';
 import { noIslands } from '../table/mount-cell';

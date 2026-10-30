@@ -6,7 +6,7 @@
 
 import { isBlankParagraph } from '../core/parser';
 import { ownTrailingLineEnding } from '../core/lines';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { dropChildSpans } from '../schema/child-spans';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
@@ -38,7 +38,7 @@ function mintSeparator(body: BodyParent, index: number, sharing: SharingState): 
 /** A container's reserved title child is not a body block, so the body starts past it. */
 function bodyStartIndex(body: BodyParent): number {
 	const { owner } = body;
-	return owner && tryGetBlockKindDescriptor(owner.kind)?.reservedChrome ? 1 : 0;
+	return owner && reservedChromeKindOf(owner.kind) !== undefined ? 1 : 0;
 }
 
 /** Every write to a body changes bytes the owner's child spans describe, so the spans are dropped

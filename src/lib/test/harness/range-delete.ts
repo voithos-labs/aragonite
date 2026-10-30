@@ -7,7 +7,10 @@ import type { ScopeWrites } from '#lib/action-contracts.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import type { RemovalGesture } from '#lib/selection/caret-target.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { rangeDelete, type RangeDeleteResult } from '#lib/selection/range-delete.js';
+import {
+	rangeDelete,
+	type RangeDeleteResult
+} from '#lib/selection/cross-block/range-delete/range-delete.js';
 import { createSharingState, type SharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from './fixture-grammar';
 import { writtenBelow } from '#lib/test/harness/settle-funnel.js';

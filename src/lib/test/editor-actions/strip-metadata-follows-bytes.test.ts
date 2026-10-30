@@ -1,12 +1,13 @@
 // Miss-analysis: every write into a list item's first line kept its marker's width, so no test
 // wrote a leading space there, where a reload reads the space as part of a wider marker.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { commitLeafTextAt } from '#lib/editor-actions/block-edit-core.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
@@ -106,7 +107,13 @@ const ROUTES: [string, Route][] = [
 			const owner = blockNodeAt(h.deps.doc, leaf.slice(0, -1)) as CstNode;
 			const lineEnding = documentLineEnding(h.deps.doc);
 			const body = { children: owner.children!, owner, lineEnding };
-			const write = legalizeWrite(body, leaf[leaf.length - 1], text, 'authored');
+			const write = legalizeWrite(
+				body,
+				leaf[leaf.length - 1],
+				text,
+				'authored',
+				defaultGrammarView
+			);
 			const typing = h.controller;
 			expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);
 		}

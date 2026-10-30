@@ -6,7 +6,7 @@ import {
 	resolveKindBinding
 } from '#lib/schema/commands.js';
 import { dispatchKeyCommand } from '#lib/schema/block-commands.js';
-import { commandContext } from '../support/command-context';
+import { commandContext } from '../harness/command-context';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 

@@ -9,7 +9,7 @@ import {
 import { getCommand, resolveGlobalBinding } from '#lib/schema/commands.js';
 import { eventToChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { INERT_MARK_ACTIVATION } from '../../support/command-context';
+import { INERT_MARK_ACTIVATION } from '../../harness/command-context';
 
 const slashKey = {
 	key: '/',

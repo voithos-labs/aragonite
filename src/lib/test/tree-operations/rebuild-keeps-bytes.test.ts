@@ -10,7 +10,7 @@ import { serialize } from '#lib/core/serializer.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { ListContext } from '#lib/action-contracts.js';
 import { displayLength, documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { buildQuoteExitReplacement, plainQuote } from '#lib/tree-operations/blockquote.js';
@@ -56,7 +56,8 @@ async function typeInPlace(source: string, leaf: number[], offset: number, text:
 		body,
 		leaf[leaf.length - 1],
 		raw.slice(0, at) + text + raw.slice(at),
-		'authored'
+		'authored',
+		defaultGrammarView
 	);
 	const typing = h.controller;
 	expect(typing.typeLeaf(docPathFrom(leaf), write, at).wrote).toBe(true);
@@ -228,7 +229,7 @@ describe('the space that finishes a bare `>`', () => {
 
 		const owner = h.deps.doc.children[0];
 		const body = { children: owner.children!, owner, lineEnding: '\n' as const };
-		const write = legalizeWrite(body, 0, 'Qabcdef\n', 'authored');
+		const write = legalizeWrite(body, 0, 'Qabcdef\n', 'authored', defaultGrammarView);
 		h.controller.typeLeaf(docPathFrom([0, 0]), write, 1);
 		expect(serialize(h.deps.doc)).toBe('> Qabcdef\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();

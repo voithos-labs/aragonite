@@ -1,12 +1,12 @@
 // The prebuilt build in `dist/prebuilt`, which package.json's `default` condition hands a host whose
 // bundler doesn't compile Svelte. One build over every entry point, so they share chunks and the
-// plugin registries stay one instance. `scripts/verify-prebuilt.mjs` gates its output.
+// plugin registries stay one instance. `scripts/pack/verify-prebuilt.mjs` gates its output.
 
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { publishedEntryPoints } from './scripts/lib-alias.mjs';
-import { prebuiltExternals } from './scripts/pack-manifest.mjs';
+import { prebuiltExternals } from './scripts/pack/pack-manifest.mjs';
 
 const entry = Object.fromEntries(
 	publishedEntryPoints().map(({ source, prebuilt }) => [

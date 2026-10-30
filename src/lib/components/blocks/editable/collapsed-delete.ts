@@ -5,16 +5,15 @@
  * unit changes is decided at its keydown, since an engine may send no input for it.
  */
 
+import { imeOwnsInput } from '../../../browser/composition';
 import {
 	characterExtent,
-	decidedDelete,
 	type DeleteAnswer,
 	type DeleteDecline,
-	type DeleteDirection,
-	type DeleteIntent,
 	type DeleteVerdict
 } from '../../../caret/delete-extent';
-import type { RawRange } from '../../../caret/widget-offset';
+import { decidedDelete, type DeleteDirection, type DeleteIntent } from '../../../browser/input';
+import type { RawRange } from '../../../browser/offsets';
 import { isBareKey } from '../text/click-snap-guard';
 
 export interface CollapsedDeleteReads {
@@ -46,7 +45,7 @@ export function decideDeleteChord(
 ): 'beside' | 'at-edge' | null {
 	const key = e.key;
 	if (key !== 'Backspace' && key !== 'Delete') return null;
-	if (isBareKey(e) || e.defaultPrevented || e.isComposing || reads.hasRange()) return null;
+	if (isBareKey(e) || e.defaultPrevented || reads.hasRange()) return null;
 	const caret = reads.caret();
 	if (caret === null) return null;
 	const direction = key === 'Backspace' ? 'backward' : 'forward';
@@ -68,7 +67,8 @@ export function decideCollapsedDelete(
 	keyChord: string | null,
 	reads: CollapsedDeleteReads
 ): DeleteVerdict | null {
-	const intent = decidedDelete(e.inputType);
+	const intent = decidedDelete(e);
+
 	if (!intent) return null;
 	const caret = reads.caret();
 	const decline = declineReason(e, intent, caret, keyChord !== null, reads);
@@ -90,7 +90,7 @@ function declineReason(
 	keyed: boolean,
 	reads: CollapsedDeleteReads
 ): DeleteDecline | null {
-	if (e.isComposing || reads.composing()) return 'composing';
+	if (imeOwnsInput(e) || reads.composing()) return 'composing';
 	if (!e.cancelable) return 'not-cancelable';
 	if (reads.hasRange()) return 'range';
 	if (caret === null) return 'no-caret';

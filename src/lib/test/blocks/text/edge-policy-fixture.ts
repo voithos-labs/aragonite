@@ -7,7 +7,7 @@ import {
 	type EdgePolicyDispatchDeps
 } from '#lib/components/blocks/text/edge-policy-dispatch.js';
 import { parse } from '#lib/core/parser.js';
-import type { DeleteIntent } from '#lib/caret/delete-extent.js';
+import type { DeleteIntent } from '#lib/browser/input.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
@@ -22,7 +22,7 @@ import { createTypedPlacement } from '#lib/components/blocks/text/edge-seat.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
-export { asRawOffset as at } from '#lib/caret/coordinate-spaces.js';
+export { asRawOffset as at } from '#lib/core/coordinate-spaces.js';
 
 /** A one-character Backspace and Delete, as `deleteAtCaret` takes them. */
 export const BACKSPACE: DeleteIntent = { unit: 'character', direction: 'backward' };
@@ -130,7 +130,7 @@ export function makeEdgeDispatch(
 		return dispatch.handleKeydown(e, caret);
 	};
 	// The surface records the caret at `beforeinput`, and at a chord's keydown, before it hands the
-	// delete on.
+	// delete or the typed insert on.
 	const deleteAtCaret: typeof dispatch.deleteAtCaret = (caret, intent) => {
 		keyCaret = caret;
 		return dispatch.deleteAtCaret(caret, intent);
@@ -139,8 +139,15 @@ export function makeEdgeDispatch(
 		keyCaret = caret;
 		return dispatch.deleteBeside(caret, direction);
 	};
+	const typing: typeof dispatch.typing = {
+		...dispatch.typing,
+		typeAt: (caret, text) => {
+			keyCaret = caret;
+			dispatch.typing.typeAt(caret, text);
+		}
+	};
 	return {
-		dispatch: { ...dispatch, deleteAtCaret, deleteBeside },
+		dispatch: { ...dispatch, deleteAtCaret, deleteBeside, typing },
 		handleKeydown,
 		edits,
 		markerWrites

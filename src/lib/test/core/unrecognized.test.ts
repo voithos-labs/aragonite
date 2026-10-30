@@ -1,4 +1,4 @@
-import { describeRoundTrips } from '#lib/test/support/round-trip.js';
+import { describeRoundTrips } from '#lib/test/harness/round-trip.js';
 
 describeRoundTrips('non-GFM syntax round-trips without loss', [
 	{

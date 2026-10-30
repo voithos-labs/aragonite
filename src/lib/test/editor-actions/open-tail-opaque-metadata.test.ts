@@ -1,15 +1,16 @@
 // Miss-analysis: the open-last-line suite checked the bytes a structural edit left, never an edit
 // after it, so no test saw an opaque container rebuild from a line ending its metadata had missed.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, serialize } from '#lib';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 type Edit = (h: TopHarness) => Promise<unknown> | void;
 
@@ -23,7 +24,7 @@ const typeInBody =
 	(h) => {
 		const owner = h.deps.doc.children[0];
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(h.deps.doc) };
-		const write = legalizeWrite(body, 0, raw, 'authored');
+		const write = legalizeWrite(body, 0, raw, 'authored', defaultGrammarView);
 		const typing = h.controller;
 		expect(typing.typeLeaf(docPathFrom([0, 0]), write, 0).wrote).toBe(true);
 	};

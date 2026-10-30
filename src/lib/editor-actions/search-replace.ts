@@ -22,7 +22,7 @@ import { applyRangesToText } from '../search/replace';
 import type { Match } from '../search/document-scan';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { toEditEvent } from '../editor-events';
-import { docPathFrom } from '../caret/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import { documentLineEnding } from '../core/lines';
 
 function descend(root: CstNode, rel: number[]): CstNode | null {
@@ -64,7 +64,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const substituted = applyRangesToText(leaf.raw, ranges, template);
 			installOwnRaw(
 				leaf,
-				legalizeWrite(target, index, substituted, 'literal').text,
+				legalizeWrite(target, index, substituted, 'literal', deps.reading.grammar).text,
 				deps.reading.grammar
 			);
 		}

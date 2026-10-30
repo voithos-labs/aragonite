@@ -78,7 +78,7 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 	test('the shared callout plugin resolves the callout in both editors', () => {
 		const noteOne = blockOfKind(editorOne, 'callout');
 		const noteTwo = blockOfKind(editorTwo, 'callout');
-		expect(noteOne?.child0).toBe('callout-title');
-		expect(noteTwo?.child0).toBe('callout-title');
+		expect(noteOne?.child0).toBe('directiveOpenerLine');
+		expect(noteTwo?.child0).toBe('directiveOpenerLine');
 	});
 });

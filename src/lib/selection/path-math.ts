@@ -1,25 +1,7 @@
 /**
- * Pure predicates over CST paths, plus the `DocPath` brand. The predicates take
- * `readonly number[]` rather than `DocPath`: they order any path-shaped array whatever it
- * addresses, and the brand would force a cast at every call site.
+ * Pure predicates over CST paths. They take `readonly number[]` rather than `DocPath`: they order
+ * any path-shaped array whatever it addresses, and the brand would force a cast at every call site.
  */
-
-// ── Doc-absolute path brand ──────────────────────────────────────────────────
-
-declare const docPathBrand: unique symbol;
-/**
- * A path resolved from the document root, which a commit requires of `op.eventPath` and
- * `snapshot.path`, checked at runtime for callers the types don't bind (G1.16). `asDocPath` is
- * the base constructor; `extendDocPath` and `docPathFrom` in `caret/coordinate-spaces.ts`
- * build on it.
- */
-export type DocPath = number[] & { readonly [docPathBrand]: true };
-
-export function asDocPath(indices: number[]): DocPath {
-	return indices as DocPath;
-}
-
-// ── Path predicates ────────────────────────────────────────────────────────
 
 /** Document order, ancestor-before-descendant: `[2]` precedes `[2, 0]`. */
 export function comparePaths(a: readonly number[], b: readonly number[]): number {

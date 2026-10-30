@@ -16,7 +16,7 @@ import {
 	rowMajorCellIndex,
 	cellRowCol,
 	type CellRect
-} from '../caret/coordinate-spaces';
+} from '../core/coordinate-spaces';
 import { comparePaths } from './path-math';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 

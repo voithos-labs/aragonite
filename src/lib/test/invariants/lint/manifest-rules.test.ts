@@ -17,7 +17,6 @@ import {
 	type Probe
 } from './file-rule';
 import { SOURCE, SOURCE_DIR } from './source-paths';
-import { NATIVE_SELECTION_WRITE } from './native-selection-write';
 
 const at = (relPath: string, code: string): Probe => ({ relPath, code });
 const keys = (...groups: Record<string, string>[]) => groups.flatMap((g) => Object.keys(g));
@@ -140,7 +139,7 @@ const STAMP_WRITE = /\.(?:toggle|set)Attribute\(\s*CONTENT_EMPTY_ATTR\b/;
 
 const CLASSIFICATION_HOMES: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts': 'the families and the hiding rule',
-	'src/lib/caret/widget-offset.ts': 'applies them to a live DOM, and owns the reveal branches'
+	'src/lib/browser/painted.ts': 'applies them to a live DOM, and owns the reveal branches'
 };
 
 /** Resolving marker-hiding state either way: a DOM read of the mode root, the block-focus, construct
@@ -172,13 +171,11 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 };
 
 // Read off the families themselves, so a new one is scanned the day it is added.
-const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal', 'directive-marker'];
+const MARKER_CLASSES = [...MARKER_FAMILY_CLASSES, 'md-construct-reveal'];
 
 const MARKER_CLASS_FILES: Record<string, string> = {
-	'src/lib/caret/widget-offset.ts': 'the classification home',
-	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
-		'creates the directive container chrome: contenteditable="false" and outside every walk container, so the hiding classification excludes it twice over',
-	'src/lib/ambient/ambient-dom.ts': 'creates and identifies the marker-prefix span',
+	'src/lib/browser/painted.ts': 'the classification home',
+	'src/lib/components/blocks/marker-prefix.ts': 'creates and identifies the marker-prefix span',
 	'src/lib/core/inline-render.ts': 'creates inline marker and ref-label spans',
 	'src/lib/core/inline/visibility.ts': 'names the families the hiding rule is stated over',
 	'src/lib/components/blocks/text/text-render.ts': 'creates the block-own prefix span',
@@ -238,7 +235,7 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/core/inline/visibility.ts':
 		'the one module that states the families and drops what hides',
 	'src/lib/core/inline-render.ts': 'creates the spans `visibility.ts` then reads back',
-	'src/lib/ambient/ambient-dom.ts': 'creates that same widget',
+	'src/lib/components/blocks/marker-prefix.ts': 'creates that same widget',
 	'src/lib/components/blocks/text/text-render.ts': "creates the block's own prefix span",
 	'src/lib/components/blocks/code/code-renderer.ts':
 		'creates the fence marker spans, for every kind that holds its own fence',
@@ -295,6 +292,8 @@ const PLAIN_READS: Record<string, string> = {
 		'installs after backfill: counts the blocks joined or split bytes read as, a probe, and installs a joined leaf read at its slot after giving it its paragraph (`installMergedLeaf`)',
 	'src/lib/tree-operations/node-primitives.ts':
 		'probe: re-derives the metadata of a block written in place under its own kind, and installs none of the read’s nodes',
+	'src/lib/tree-operations/written-openers.ts':
+		'probe: reads written bytes, alone and with the blocks below, to find an opener that would read down into them; installs none of what it reads',
 	'src/lib/tree-operations/stored-as.ts':
 		'probe: answers how a slot reads bytes, for the write rules and the live join’s comparisons; nothing it reads is installed here',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
@@ -313,7 +312,7 @@ const PLAIN_READS: Record<string, string> = {
 		'hands on: a block a range holds whole is replaced by its text read at the slot, through `replaceBlock`, which fills in',
 	'src/lib/selection/selection-drop.ts':
 		'hands on: the dragged-out block’s rest is read at its slot and lands through `replaceBlock`, which fills in',
-	'src/lib/selection/range-delete-ceremony.ts':
+	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts':
 		'installs after backfill: the survivor of a range delete is read at its slot and given its paragraph before the splice',
 	'src/lib/invariants/node-shape.ts':
 		'probe: G1.1 and G1.12 compare a container’s bytes with its children’s bytes, which the empty paragraph would hide; G1.42 compares block kinds and reads through `readAsOpened`',
@@ -366,48 +365,13 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['buildImageEditBytes(image, raw, fields)']
 	},
 	{
-		id: 'G4.36 the one file writing the native selection is the caret writer',
-		// A one-argument collapse counts on a selection only: Range.collapse(toStart) and the
-		// selection store's own collapse() write no caret.
-		matches: NATIVE_SELECTION_WRITE,
-		declared: {
-			'src/lib/caret/widget-offset.ts':
-				'createCaretWriter, one per editor: its writes check every endpoint against an empty block’s <br> (G1.75) and ask the drawn caret to repaint'
-		},
-		reason:
-			'every write or clear of the native selection goes through the editor’s caret writer (EditorServices.caretWriter), which skips the marker prefix, clamps, and asks the drawn caret to repaint',
-		hits: [
-			'sel?.addRange(range);',
-			'window.getSelection()?.removeAllRanges();',
-			'sel.empty();',
-			'sel.setBaseAndExtent(n, 0, n, 0);',
-			'sel.extend(node, 2);',
-			'window.getSelection()?.collapse(node, 2);',
-			'sel.setPosition(node, 2);',
-			'sel.selectAllChildren(node);',
-			'sel.collapseToEnd();',
-			'sel.collapseToStart();',
-			"sel.modify('move', 'forward', 'character');",
-			'sel.collapse(node);',
-			'window.getSelection()?.collapse(node);',
-			'window.getSelection()!.collapse(node);',
-			'sel.setPosition(node);'
-		],
-		misses: [
-			'sel.getRangeAt(0);',
-			'selectionState.collapse();',
-			'ctx.selection.collapse();',
-			'range.collapse(true);',
-			'range.collapse(toStart);'
-		]
-	},
-	{
 		id: 'G4.36 a DOM position is built from a walk offset only in the walk module and its measuring readers',
 		matches: namesToken(
 			'(?:createRangeAtDomTextOffsets|findDomTextOffsetTarget|findDomTextLanding)'
 		),
 		declared: {
-			'src/lib/caret/widget-offset.ts': 'defines the walk and the one caret writer over it',
+			'src/lib/browser/offsets.ts':
+				'defines the walk, and where a caret at a raw offset goes in the DOM',
 			'src/lib/components/overlays/rects.ts':
 				"measures a range's client rects, and writes no caret",
 			'src/lib/caret/sticky-measure.ts':
@@ -425,11 +389,11 @@ const MANIFESTS: ManifestRule[] = [
 		id: 'G4.36 the files naming rawRangeToDomRange measure or decorate, never place a caret',
 		matches: namesToken('rawRangeToDomRange'),
 		declared: {
-			'src/lib/caret/widget-offset.ts': 'defines it',
+			'src/lib/browser/offsets.ts': 'defines it',
 			'src/lib/decorations/island-dom.ts':
 				'inserts and replaces decoration widgets in a built fragment',
 			'src/lib/selection/selection-drop.ts': "measures the drop caret's rect",
-			'src/lib/caret/visual-lines.ts': 'measures the caret at a raw offset',
+			'src/lib/browser/visual-lines.ts': 'measures the caret at a raw offset',
 			'src/lib/components/blocks/text/source-wash.ts': 'tints a shown widget source',
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'measures a shown source for the double-click that selects it'
@@ -460,17 +424,17 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ["import { focusAtColumn } from '../../selection/place-caret';"]
 	},
 	{
-		id: 'G4.36 the files naming checkLandableCaret are the definition and its one caller',
-		matches: namesToken('checkLandableCaret'),
+		id: 'G4.36 the files naming checkCaretCanLand are the definition and its one caller',
+		matches: namesToken('checkCaretCanLand'),
 		declared: {
-			'src/lib/invariants/landable-caret.ts': 'defines the predicate',
+			'src/lib/invariants/caret-can-land.ts': 'defines the predicate',
 			'src/lib/components/editor-root/focus.ts':
 				'the editor root focusin listener: the one place the question is asked'
 		},
 		reason:
 			'G1.33 fires once at the focus boundary every caret writer crosses; a per-writer copy re-opens the class',
-		hits: ['checkLandableCaret(root);'],
-		misses: ['// checkLandableCaret asks once']
+		hits: ['checkCaretCanLand(root);'],
+		misses: ['// checkCaretCanLand asks once']
 	},
 	{
 		id: 'G4.83 every plain read of bytes into block nodes outside the parser is declared, with why its nodes need no fill-in',
@@ -609,7 +573,7 @@ const MANIFESTS: ManifestRule[] = [
 		},
 		declared: MARKER_CLASS_FILES,
 		reason: 'a file started naming marker classes: declare its role',
-		hits: ["const SEL = '.md-marker';", "el.classList.add('directive-marker');"],
+		hits: ["const SEL = '.md-marker';", "el.classList.add('md-construct-reveal');"],
 		misses: [at('x.svelte', '<style>:global(.md-marker) { display: none; }</style>')]
 	},
 	{

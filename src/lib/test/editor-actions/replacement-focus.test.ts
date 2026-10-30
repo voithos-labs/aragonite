@@ -10,11 +10,17 @@ import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 /** `text` made legal as the only child of `owner`, the way the write hands it to the trial. */
 const legalIn = (node: NodeView, text: string, owner?: NodeView) =>
-	legalizeWrite({ children: [node], owner, lineEnding: '\n' }, 0, text, 'literal');
+	legalizeWrite(
+		{ children: [node], owner, lineEnding: '\n' },
+		0,
+		text,
+		'literal',
+		defaultGrammarView
+	);
 
 function focusBlockAt(path: number[]): void {
 	focusHostWithRawPath(JSON.stringify(path));

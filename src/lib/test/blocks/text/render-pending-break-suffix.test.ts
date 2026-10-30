@@ -11,7 +11,8 @@ import {
 	pressKeyAt,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { hiddenSuffixLength, rawTextOfContent } from '#lib/caret/widget-offset.js';
+import { hiddenSuffixLength } from '#lib/browser/painted.js';
+import { readContent } from '#lib/browser/block-text.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -55,7 +56,7 @@ describe.each(['source', 'live'] as const)('%s mode: the line a pending break op
 	it('reads back from the DOM as the stored bytes', async () => {
 		const { editor, el } = await openBreakAt('# Hi #\n', 6, mode);
 
-		expect(rawTextOfContent(el, editor.source(), ' #')).toBe('# Hi #');
+		expect(readContent(el, editor.source(), ' #', 0).text).toBe('# Hi #');
 	});
 });
 

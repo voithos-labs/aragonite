@@ -26,8 +26,8 @@ Where to jump:
   what CI checks with it, and how to run it yourself.
 - [The adapter suite](#the-adapter-suite): the same idea for the framework wrappers, one suite
   over React, Next, Vue and Nuxt apps.
-- [Size budgets](#size-budgets): the numbers that say how heavy the repo is, what reds when one
-  moves, and how to accept a move on purpose.
+- [Size budgets](#size-budgets): the first-load budget that reds when it moves, how to accept a
+  move on purpose, and the report numbers that don't gate.
 - [The behavior differential](#the-behavior-differential): every key at every offset of a set of
   documents, compared before and after your change, so a refactor can show it changed nothing.
 - [Every short input](#every-short-input): every string up to a few characters long, parsed,
@@ -96,6 +96,12 @@ Four deliberate exceptions, and no, a fifth isn't on offer:
 - **The debug-panel state test** (`test/debug/panel-state`) covers a route-level module outside
   `src/lib/`, so it has no in-library module to mirror.
 
+Two helper folders sit beside the mirrored tests. `test/support/` holds only what Vitest loads by
+itself (the setup files in `vitest.config.ts` and the data they read). Anything a test file imports
+to mount, drive or fixture something goes in `test/harness/`. Neither holds a test file; a test of
+that machinery (the warn gate, the growth harness) sits at `test/` root, since there's no source
+folder for it to mirror.
+
 A source scan (a test under `lint/` that reads source files and fails on a pattern) takes every
 path it reads from `src/lib/test/invariants/lint/source-paths.ts`, so moving a file is one edit
 there. Hand-write a path in a scan instead and `source-paths.test.ts` fails, naming the path. A scan
@@ -125,8 +131,8 @@ Test files take turns in a shared Node process, which bites in three ways:
 | `test:editor:tree-ops`       | Tree mutation helpers                                                                                       |
 | `test:editor:editor-actions` | Editor action bundles and commit primitives                                                                 |
 | `test:editor:schema`         | Block-kind descriptors, op vocabulary, openers, container raw rebuild, merge rules                          |
-| `test:editor:ambient`        | A container's marker prefix in the DOM, and offset translation across it                                    |
-| `test:editor:caret`          | Caret memory, offset translation, sticky column, overlay rect measurement                                   |
+| `test:editor:browser`        | Offset translation, the caret writer, the selection readers, line and point reads                           |
+| `test:editor:caret`          | Caret memory, sticky column, drawn caret, delete extents                                                    |
 | `test:editor:windowing`      | Virtual rendering: height model, scroll owner, per-list windowing                                           |
 | `test:editor:block-lists`    | Block-list state and state registry                                                                         |
 | `test:editor:selection`      | Selection-state logic                                                                                       |
@@ -239,6 +245,9 @@ What it fails a spec on:
 - an uncaught page error or rejection, under the tag `pageerror`
 - an error only `window.onerror` sees (Chromium reports a ResizeObserver loop there and nowhere
   else), which the fixture relays under `onerror:<message>`
+- a request to any host but the app server, which it blocks and names by URL. The harness's
+  images live in `static/test-fixtures/`, and a spec that needs a page from elsewhere answers a
+  made-up host (`https://e2e-link.test/`, say) with its own `route`
 
 The verdict lands at teardown and names the fire:
 
@@ -447,8 +456,8 @@ another battery makes their timing-sensitive rows flake for a reason the product
 **In CI.** All three engines' full suites run, sharded, on every pull request to `dev` or `main`
 and every push to either. A change that only touches docs skips the e2e and perf work. macOS
 WebKit runs nightly on `dev` and on every pull request to `main` (`webkit-macos.yml`). How the
-shards split and which engine checks block a merge are in the headers of `scripts/e2e-shards.mjs`
-and `scripts/branch-protection-contexts.mjs`.
+shards split and which engine checks block a merge are in the headers of `scripts/ci/e2e-shards.mjs`
+and `scripts/release/branch-protection-contexts.mjs`.
 
 To read a red run, open the job summary: it has the pass, fail, flaky and skip counts and every
 failing test, and the job's artifact holds the same rows as `ci-summary.json`. A failure you
@@ -582,7 +591,9 @@ hydrated, since the server-rendered markup shows up well before any click handle
 `reloadReady(page)` is the reload version, and `editor.goto()` already calls `gotoReady` for you.
 To check what a page shows before it hydrates, `gotoUnhydrated(page, url)` loads it with every
 script request held back.
-A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/e2e-drivers.test.ts`.
+A raw `page.goto` or `page.reload` fails `src/lib/e2e/lint/e2e-drivers.test.ts`. All three also
+wait for the page they're leaving to finish loading, images included, so a spec that holds an image
+request open and then navigates again fails, naming that image.
 
 One navigation per test, though. If a test wants a different URL than its `beforeEach` gave it
 (another mode, a flag in the query), it gets its own `describe` with its own `beforeEach`, instead
@@ -730,7 +741,11 @@ event order and full wiring, drive real sequences in e2e through `attachIme`
 already waits for the composed text to show up in the focused element's DOM, since there's no
 source change mid-composition to wait on. A key pressed while the composition's still open goes
 through `ime.press(key)`: WebKit's real keydown doesn't know about the hand-fired composition, so
-it'd arrive saying `isComposing: false` and the editor would end the composition early.
+it'd arrive saying `isComposing: false` and the editor would end the composition early. The key
+that opens a composition, before it starts, goes through `ime.openingKey(key)`, which sends it with
+code 229 the way Chromium and WebKit do. In the unit harness, a composition the browser drops is
+heard by the editor's tracker, so a row that ends one dispatches the signal on the element before it
+calls the surface's handler (`editable-surface-composition.test.ts` has the shape).
 
 ## The conformance differ
 
@@ -739,7 +754,7 @@ _Are we certain our inline parser is right?_ Of course not, which is why
 inputs commonmark.js reads as one paragraph spanning the whole input are compared, so a divergence
 always means the _inline_ parsers disagree. Bumping the reference is a deliberate re-bless (re-recording the
 committed reference as the new accepted truth) with a changelog note;
-`scripts/extract-spec-examples.mjs` regenerates `spec-examples.json` from the new version's
+`scripts/vendor/extract-spec-examples.mjs` regenerates `spec-examples.json` from the new version's
 downloaded spec.json.
 
 | Tier       | Command                    | Scope                                                                                                               |
@@ -943,12 +958,12 @@ run.
 `examples/consumer/` is a tiny SvelteKit app that installs aragonite the way a stranger would:
 from the packed tarball, importing only published entry points. It's a test, not documentation
 (if something is only learnable from that folder, that's a docs bug; file it). CI's
-`consumer-smoke` job runs `scripts/consumer-smoke.mjs`, which:
+`consumer-smoke` job runs `scripts/smoke/consumer-smoke.mjs`, which:
 
 1. builds and packs `dist/`, and checks the tarball holds every published path and no test file.
    It checks the prebuilt build too (`dist/prebuilt/`, what a bundler with no Svelte plugin gets):
    no Svelte import of its own, every entry loads in Node, one plugin registry across entries, and
-   a size budget (`scripts/verify-prebuilt.mjs`)
+   a size budget (`scripts/pack/verify-prebuilt.mjs`)
 2. installs the tarball into the example with `--no-save`
 3. typechecks and builds the example, where an import cycle through a published entry point is
    a build error
@@ -973,7 +988,7 @@ Locally the example depends on `@voithos-labs/aragonite` as `file:../..`, a link
 tree you cloned, so there's no tarball to refresh; after a library change, `npm run package`
 again and the example sees it. Don't edit `examples/consumer/src/plugins/`: it's a git-ignored
 copy of the callout fixture (`src/routes/test/plugins/callout/`) that
-`scripts/sync-consumer-plugins.mjs` regenerates before every `dev`, `build`, `check`, and `test`,
+`scripts/smoke/sync-consumer-plugins.mjs` regenerates before every `dev`, `build`, `check`, and `test`,
 with its `#lib` imports rewritten to the package name.
 
 ## The adapter suite
@@ -997,7 +1012,7 @@ The wrappers are npm workspaces of the root, so the root `npm install` installs 
 exactly that version, since all three packages publish together (`npm run release:publish`);
 `src/lib/test/invariants/lint/lockstep-versions.test.ts` fails when one drifts.
 
-`scripts/adapter-smoke.mjs` packs the core and every wrapper, installs the tarballs into each app,
+`scripts/smoke/adapter-smoke.mjs` packs the core and every wrapper, installs the tarballs into each app,
 checks no Svelte came along, builds the apps and runs the suite. CI runs the `perPr` projects on
 every PR (`--per-pr`) and everything on the release PR into `main`. To iterate on one project
 once its app is built (`npm run package` at the root, then `npm install` and `npm run build` in
@@ -1016,40 +1031,41 @@ Heads up if you're mutating a wrapper to see what reds: outside CI the config re
 
 ## Size budgets
 
-A handful of numbers say how heavy the repo is, and each one has a budget, so it can't creep up
-without anybody deciding it should. They live in `scripts/measure-baseline.json`, each with a
-baseline and a tolerance (how far it may move before anything complains, sized to about one normal
-change).
+One number has a budget: how much JS a minimal app loads, since that's what every consumer pays
+for. It lives in `scripts/pack/size-budget.json` with a baseline and a tolerance (how far it may
+move before anything complains, about one normal change).
 
-| Number                                       | What it counts                                                                                                                                                                                                                                                                                                                                                                                                                 | Checked by                                                                                                         |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Production code and comment lines            | Non-blank lines of `.ts`, `.svelte` and `.js` under `src/lib`, tests aside. A line that opens a comment or sits inside one is a comment line                                                                                                                                                                                                                                                                                   | `npm run lint`                                                                                                     |
-| Unit test files, internal and published-only | A unit test file is internal when it, or a helper under `test/` it imports, imports, names a type from or mocks anything the package doesn't publish (published means reachable from an entry point in `package.json` `exports`). A published-only test keeps passing through any rewrite behind the entry points, which is the kind we want more of                                                                           | `npm run lint`                                                                                                     |
-| Active source scans                          | Rows in `docs/design/invariants/scans.md` that aren't marked retired                                                                                                                                                                                                                                                                                                                                                           | `npm run lint`                                                                                                     |
-| The minimal app: first load, total, chunks   | A page that imports `createEditor`, built minified for production, once through the Svelte build and once through the prebuilt one. Three numbers each: the gzipped JS the page loads before it runs (the entry plus what it imports up front), all the JS it could ever load, and how many chunks that is. It's one chunk today, so the first two match; a lazy split shows up as a new chunk, which fails until you bless it | `scripts/verify-dev-strip.mjs`, which runs inside `verify-pack.mjs` (before a publish, and in CI's consumer smoke) |
+| Number                                     | What it counts                                                                                                                                                                                                                                                                                                                                                                                                                 | Checked by                                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| The minimal app: first load, total, chunks | A page that imports `createEditor`, built minified for production, once through the Svelte build and once through the prebuilt one. Three numbers each: the gzipped JS the page loads before it runs (the entry plus what it imports up front), all the JS it could ever load, and how many chunks that is. It's one chunk today, so the first two match; a lazy split shows up as a new chunk, which fails until you bless it | `scripts/pack/verify-dev-strip.mjs`, which runs inside `verify-pack.mjs` (before a publish, and in CI's consumer smoke) |
 
 A number fails when it moves past its tolerance in either direction. Growing past it means more
 than one change's worth landed. Shrinking past it means the baseline is stale: bless it, so the
 next change can't quietly spend what you saved. Blessing writes the current numbers in as the new
 baselines, and the tolerances stay put.
 
+Everything else `npm run measure` prints is a report, and nothing gates on it: production code and
+comment lines, how many unit test files are internal (they, or a helper under `test/` they import,
+import, name a type from or mock something the package doesn't publish, where published means
+reachable from an entry point in `package.json` `exports`) against published-only, and how many
+source scans are active. A published-only test keeps passing through any rewrite behind the entry
+points, which is the kind we want more of.
+
 ```bash
 npm run measure                                          # every number, per directory, plus the test helpers that import internals
 npm run measure -- --against $(git merge-base HEAD dev)  # how far each one moved since your branch left dev
-npm run measure:bless                                    # accept the lines, tests and scans as they are now
-node scripts/verify-dev-strip.mjs --bless                # accept the app sizes (after `npm run package`)
+node scripts/pack/verify-dev-strip.mjs --bless           # accept the app sizes (after `npm run package`)
 ```
 
 Same commands in PowerShell. When a branch reports what it did to the numbers, it reports the
-`--against` deltas. Those measure the old commit directly, so a bless along the way doesn't hide
-anything.
+`--against` deltas.
 
 The test split is a cheap stand-in for "this test guards behavior". The real check is whether a
 module's behavior suites (the e2e specs and property tests that judge it) stay green while its
 insides change shape, and nobody has scripted that one yet.
 
-Each prebuilt entry point also has a gzipped budget of its own, in `scripts/verify-prebuilt.mjs`,
-edited by hand. And for how long CI takes, `node scripts/ci-time.mjs` prints the latest dev push's
+Each prebuilt entry point also has a gzipped budget of its own, in `scripts/pack/verify-prebuilt.mjs`,
+edited by hand. And for how long CI takes, `node scripts/ci/ci-time.mjs` prints the latest dev push's
 wall time and runner minutes, against the median of the last five. That one's report-only, since
 CI time is too noisy to gate on.
 

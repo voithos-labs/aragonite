@@ -6,7 +6,6 @@ import {
 	wordSpanAt
 } from '#lib/selection/multi-click.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
-import { maskedWalkText } from '#lib/caret/widget-offset.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 const span = (text: string, offset: number) => {
@@ -33,6 +32,11 @@ describe('wordSpanAt: the segment a press at an offset takes', () => {
 		expect(span('foo,bar', 4)).toBe('bar');
 	});
 
+	it('a full stop between letters ends a word, as the word delete reads it', () => {
+		expect(span('foo.bar', 1)).toBe('foo');
+		expect(span('foo.bar', 5)).toBe('bar');
+	});
+
 	it('inside whitespace takes the whitespace run, as the browser would', () => {
 		expect(span('a  b', 2)).toBe('  ');
 	});
@@ -53,22 +57,6 @@ describe('wordSpanAt: the segment a press at an offset takes', () => {
 
 	it('answers null on empty text', () => {
 		expect(wordSpanAt('', 0)).toBeNull();
-	});
-});
-
-describe('maskedWalkText: what the word rule reads', () => {
-	it('blanks marker chrome and widgets to spaces at the walk offsets', () => {
-		const p = document.createElement('p');
-		p.innerHTML =
-			'<span class="md-marker">**</span>bold<span class="md-marker">**</span> a' +
-			'<span data-inline-widget data-source-start="9" data-source-end="14">x</span>b';
-		expect(maskedWalkText(p)).toBe('  bold   a     b');
-	});
-
-	it('keeps the ambient prefix widget as text', () => {
-		const p = document.createElement('p');
-		p.innerHTML = '<span class="md-marker" contenteditable="false">- </span>item';
-		expect(maskedWalkText(p)).toBe('- item');
 	});
 });
 

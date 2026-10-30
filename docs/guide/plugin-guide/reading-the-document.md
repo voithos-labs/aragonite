@@ -35,13 +35,13 @@ export const contentsView = defineBlockView({
 				})
 			);
 		draw();
-		// A list to read, not a place for the caret, so focus never lands here.
-		return { update: draw, focusable: false, focus() {}, getCursorOffset: () => null };
+		// A list to read, not a place for the caret: it publishes nothing, so focus passes over it.
+		return { update: draw };
 	}
 });
 ```
 
-Every edit anywhere now redraws the list, so keep the walk cheap (this one is). The React and Vue helpers don't take `'none'`, so a list like this one stays a `defineBlockView`. A block of theirs with text or children can still pass `watchDocument: true` and read `ctx.editor.document` in its component ([React and Vue blocks](react-and-vue.md#what-your-component-gets)).
+Every edit anywhere now redraws the list, so keep the walk cheap (this one is). In React or Vue it's the same list in a component: `reactBlockView` or `vueBlockView` with `surface: 'none'` and `watchDocument: true`, reading `ctx.editor.document` ([React and Vue blocks](react-and-vue.md#a-block-you-draw-whole)).
 
 **Already in Svelte?** `BlockComponentProps.document` delivers the same document to every component, at any nesting depth, and a `$derived` over it re-runs only when it changes:
 

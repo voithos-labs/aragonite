@@ -96,21 +96,15 @@ test.describe('image rendering', () => {
 		}
 	});
 
-	test('broken image preserves block-level layout (trailing text wraps below)', async ({
-		page
-	}) => {
+	test('broken image keeps the line layout (trailing text beside it)', async ({ page }) => {
 		await editor.loadContent('![bad](/test-fixtures/nonexistent.png)a\n');
 		await page.waitForFunction(
 			() => !!document.querySelector('[data-image-widget].md-image-broken')
 		);
-		const display = await page.evaluate(
-			() => getComputedStyle(document.querySelector('[data-image-widget]')!).display
-		);
-		expect(display).toBe('block');
-
 		const widgetBox = await page.locator('[data-image-widget]').first().boundingBox();
-		const aTop = (await textRunRect(page, 'a', { path: [0] })).top;
 		if (!widgetBox) throw new Error('layout box missing');
-		expect(aTop).toBeGreaterThanOrEqual(widgetBox.y + widgetBox.height - 1);
+		const a = await textRunRect(page, 'a', { path: [0] });
+		expect(Math.abs(a.left - (widgetBox.x + widgetBox.width))).toBeLessThan(1);
+		expect(a.top).toBeLessThan(widgetBox.y + widgetBox.height);
 	});
 });

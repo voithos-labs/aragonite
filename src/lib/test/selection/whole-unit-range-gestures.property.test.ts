@@ -19,7 +19,7 @@ import {
 	makePasteEvent
 } from './cross-block/typed-char-env';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const PARAMS = { numRuns: 60, seed: freshOrFixedSeed(515151) } as const;
 

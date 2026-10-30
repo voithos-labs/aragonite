@@ -5,9 +5,8 @@ import { clickWordSettled } from '../../presentation/helpers';
 import { waitForFirstImageLoaded } from './helpers';
 import { edgeKey } from '../../../platform-keys';
 
-// Home before an image at the start of a line: the caret can sit before the widget, but no text
-// node holds that position, so the browser puts the caret past the image and typing there is
-// unreachable. Requirements: `e2e/requirements/blocks/image/home-leading-image.md`.
+// Home on a line an image opens lands before the image, a spot no text node holds, and a typed
+// byte lands ahead of the image's bytes. Requirements: `e2e/requirements/blocks/image/home-leading-image.md`.
 
 const IMAGE = '![pic](/test-fixtures/sample.png)';
 

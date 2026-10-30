@@ -89,7 +89,7 @@ describeManifests(
 			id: 'G4.200 only the hidden-screen read pairs a block’s mode with its screen',
 			matches: /\bscreenVisibilityOf\s*\(/,
 			declared: {
-				'src/lib/caret/widget-offset.ts':
+				'src/lib/browser/painted.ts':
 					'defines it, and `hidingScreenOf`, which every edge rule asks',
 				'src/lib/invariants/marker-css-parity.ts':
 					'the dev check compares the screen against the stylesheet in every mode'
@@ -181,7 +181,7 @@ describeManifests(
 
 /** Reads a block's `onClick` may not make: measuring a press against text is the check's job. */
 const MEASURES_TEXT =
-	/\b(?:getClientRects|getBoundingClientRect|caretRangeFromPoint|caretPositionFromPoint|caretSeatInElement|visualLines?\w*)\s*\(/;
+	/\b(?:getClientRects|getBoundingClientRect|caretRangeFromPoint|caretPositionFromPoint|caretPositionInElement|visualLines?\w*)\s*\(/;
 
 /** The body of `function onClick(` in `code`, or null. */
 function onClickBody(code: string): string | null {

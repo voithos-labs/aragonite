@@ -1,6 +1,6 @@
 {
 	"name": "@voithos-labs/aragonite",
-	"version": "0.11.3",
+	"version": "0.11.4",
 	"description": "cute svelte-based markdown editor lib with actual rich markdown editing",
 	"keywords": [
 		"markdown-editor",
@@ -165,7 +165,7 @@
 		"test:editor:decorations": "vitest run src/lib/test/decorations",
 		"test:editor:tree-ops": "vitest run src/lib/test/tree-operations",
 		"test:editor:editor-actions": "vitest run src/lib/test/editor-actions",
-		"test:editor:ambient": "vitest run src/lib/test/ambient",
+		"test:editor:browser": "vitest run src/lib/test/browser",
 		"test:editor:caret": "vitest run src/lib/test/caret",
 		"test:editor:schema": "vitest run src/lib/test/schema",
 		"test:editor:windowing": "vitest run src/lib/test/windowing",
@@ -209,19 +209,17 @@
 		"test:exhaustive": "node scripts/run-with-env.mjs EXHAUSTIVE_FULL=1 -- vitest run src/lib/test/exhaustive",
 		"test:editor:property:fresh": "node scripts/run-with-env.mjs PROPERTY_FRESH=1 -- vitest run .property.test src/lib/test/core/directive/roundtrip-coverage.test.ts",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && npm run docs:pack:check && npm run docs:map:check && npm run measure:check && npm run lint:eslint",
+		"lint": "prettier --check . && npm run docs:pack:check && npm run docs:map:check && npm run lint:eslint",
 		"lint:eslint": "eslint .",
-		"docs:pack:check": "node scripts/build-docs-pack.mjs",
-		"docs:map:check": "node scripts/check-codebase-map.mjs",
-		"measure": "node scripts/measure.mjs",
-		"measure:check": "node scripts/measure.mjs --check",
-		"measure:bless": "node scripts/measure.mjs --bless",
-		"behavior": "node scripts/behavior.mjs",
+		"docs:pack:check": "node scripts/docs/build-docs-pack.mjs",
+		"docs:map:check": "node scripts/docs/check-codebase-map.mjs",
+		"measure": "node scripts/measure/measure.mjs",
+		"behavior": "node scripts/measure/behavior.mjs",
 		"docs:capture:modes": "node scripts/run-with-env.mjs DOCS_CAPTURE=1 -- playwright test --project=e2e-capture",
-		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs && vite build --config vite.prebuilt.config.js && npm run build --workspaces",
-		"prepack": "npm run package && node scripts/verify-pack.mjs",
-		"release:fixme-recheck": "node scripts/fixme-recheck.mjs",
-		"release:publish": "node scripts/check-lockstep.mjs && node scripts/check-release-gates.mjs && npm publish --workspaces --include-workspace-root",
+		"package": "svelte-kit sync && svelte-package && node scripts/pack/prune-dist.mjs && vite build --config vite.prebuilt.config.js && npm run build --workspaces",
+		"prepack": "npm run package && node scripts/pack/verify-pack.mjs",
+		"release:fixme-recheck": "node scripts/release/fixme-recheck.mjs",
+		"release:publish": "node scripts/release/check-lockstep.mjs && node scripts/release/check-release-gates.mjs && npm publish --workspaces --include-workspace-root",
 		"prepare": "git config core.hooksPath .githooks || exit 0",
 		"showcase:react": "node scripts/showcase.mjs react",
 		"showcase:vue": "node scripts/showcase.mjs vue"
@@ -275,7 +273,7 @@
 		"typescript-eslint": "^8.71.2",
 		"vite": "^8.3.4",
 		"vitest": "^5.0.0",
-		"wrangler": "4.151.2"
+		"wrangler": "4.153.0"
 	},
 	"overrides": {
 		"lodash-es": "^4.18.0"

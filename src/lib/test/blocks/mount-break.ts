@@ -5,7 +5,7 @@ import { vi } from 'vitest';
 import ThematicBreakBlock from '#lib/components/blocks/ThematicBreakBlock.svelte';
 import type { EditorServices } from '#lib/editor-keys.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/editor-actions/whole-block-focus-surface.js';
+import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/selection/whole-block-input.js';
 import { parse } from '#lib/core/parser.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeStubFocus } from '../harness/editor-actions';

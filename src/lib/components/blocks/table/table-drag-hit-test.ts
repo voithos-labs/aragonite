@@ -4,7 +4,7 @@
  */
 
 import { cellAtPoint, mountedRowEls, rowCellEls } from './cell-pointer';
-import { rowMajorCellIndex } from '../../../caret/coordinate-spaces';
+import { rowMajorCellIndex } from '../../../core/coordinate-spaces';
 
 export function tableDragHitTest(
 	blockEl: HTMLElement,

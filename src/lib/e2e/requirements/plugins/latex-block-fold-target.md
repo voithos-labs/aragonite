@@ -19,10 +19,11 @@ Fixture: `/test/plugins?seed=mathblock`.
 
 ## Edge cases
 
-- `$$` and Enter creates a math block with the caret in its shown source. Mod+Z there walks the
+- Typing `$$` creates a math block with the caret in its shown source. Mod+Z there walks the
   typed draft back one burst of typing per press, since the draft batches typing the way the
-  document does, and the press after the last one brings the paragraph back rather than moving
-  the document forward with the draft. No press along the way is swallowed
+  document does, and the press after the last one brings back the `$` the second keystroke
+  found rather than moving the document forward with the draft. No press along the way is
+  swallowed
 
 ## Miss-analysis
 

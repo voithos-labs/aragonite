@@ -8,7 +8,7 @@
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkPlacementEndsWidget } from '../invariants/placement-ends-widget';
 import type { GapCaretPosition } from './gap-caret';
-import type { CaretWriter } from '../caret/widget-offset';
+import type { CaretWriter } from '../browser/caret-writer';
 import type { WidgetTarget } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 

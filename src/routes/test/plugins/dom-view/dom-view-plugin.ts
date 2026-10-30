@@ -8,7 +8,6 @@
 import {
 	OPENER_PRIORITIES,
 	activateDirectives,
-	chromeChild,
 	containerClosure,
 	createDirectiveRebuild,
 	declarePluginKind,
@@ -17,7 +16,6 @@ import {
 	definePlugin,
 	DIRECTIVE_BODY_WRAP,
 	registerBlockKind,
-	registerChromeLeaf,
 	registerDirective,
 	setPluginMetadata,
 	simpleLeafClosure,
@@ -30,7 +28,6 @@ import {
 export const DOM_MEMO = 'dom-memo';
 export const DOM_BADGE = 'dom-badge';
 export const DOM_BOX = 'dombox';
-const DOM_BOX_TITLE = 'dombox-title';
 const BADGE_LINE = '[[dom-badge]]';
 
 type Counts = Record<'mounts' | 'updates' | 'destroys', Record<string, number>>;
@@ -72,16 +69,16 @@ const memoView = defineBlockView({
 
 const badgeView = defineBlockView({
 	surface: 'none',
-	mount(target) {
+	mount(target, ctx) {
 		target.className = 'dom-badge';
 		target.tabIndex = -1;
 		target.textContent = 'a badge drawn by hand';
-		return {
-			...counted(DOM_BADGE),
+		ctx.block.publish({
 			focus: () => target.focus({ preventScroll: true }),
 			getCursorOffset: () => null,
 			focusable: true
-		};
+		});
+		return counted(DOM_BADGE);
 	}
 });
 
@@ -107,10 +104,7 @@ function domBoxFromDirective(parsed: ParsedDirective): CstNode {
 		leadingTrivia: parsed.leadingTrivia,
 		raw: parsed.raw,
 		innerPrefix: parsed.body?.prefix ?? '',
-		children: [
-			chromeChild(declaredPluginKind(DOM_BOX_TITLE), parsed.fence.info.trim()),
-			...(parsed.body?.children ?? [])
-		],
+		children: parsed.body?.children ?? [],
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
 	setPluginMetadata<DomBoxMetadata>(node, {
@@ -127,7 +121,6 @@ function registerDomViews(): void {
 	const memo = declarePluginKind(DOM_MEMO);
 	const badge = declarePluginKind(DOM_BADGE);
 	const box = declarePluginKind(DOM_BOX);
-	const boxTitle = declarePluginKind(DOM_BOX_TITLE);
 
 	registerBlockKind(memo, {
 		view: memoView,
@@ -189,10 +182,8 @@ function registerDomViews(): void {
 		supportsInline: false,
 		container: {
 			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild<DomBoxMetadata>(() => DOM_BOX),
-			bodyWrap: DIRECTIVE_BODY_WRAP,
-			reservedChrome: { kind: boxTitle },
-			unwrapRole: { middleChildBackspace: 'default-merge' }
+			rebuildRaw: createDirectiveRebuild(),
+			bodyWrap: DIRECTIVE_BODY_WRAP
 		},
 		closure: containerClosure({
 			roundTripVia: 'container contract=opaque, the directive rebuild',
@@ -206,7 +197,6 @@ function registerDomViews(): void {
 			simOracle: { mode: 'inherit-default' }
 		})
 	});
-	registerChromeLeaf(boxTitle, { blockClass: 'dombox-title' });
 }
 
 export const domViewPlugin: EditorPlugin = definePlugin({

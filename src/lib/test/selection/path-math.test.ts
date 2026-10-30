@@ -3,10 +3,9 @@ import {
 	pathHasPrefix,
 	isStrictAncestorOf,
 	pathsEqual,
-	isPathBetween,
-	asDocPath
+	isPathBetween
 } from '../../selection/path-math';
-import { extendDocPath, docPathFrom } from '../../caret/coordinate-spaces';
+import { asDocPath, extendDocPath, docPathFrom } from '../../core/coordinate-spaces';
 import { checkCommitPathAddressable } from '../../invariants/commit-paths';
 
 describe('pathHasPrefix', () => {

@@ -1,0 +1,207 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Hiding a block's markers makes raw 0 unreachable, so block exits must fire at reachable bounds.
+// Miss-analysis: bounds came from declared content ranges, so kinds declaring none went untested.
+vi.mock('../../selection/keyboard-extend', () => ({
+	extendFocusToNextBlock: vi.fn(),
+	extendFocusToPreviousBlock: vi.fn(),
+	extendWithinBlock: vi.fn()
+}));
+
+import { handleSharedKeydown, type SharedKeydownContext } from '../../selection/shared-keydown';
+import { extendFocusToPreviousBlock } from '../../selection/keyboard-extend';
+import { parse } from '../../core/parser';
+import type { CstNode } from '../../core/nodes';
+import { createTextRender } from '../../components/blocks/text/text-render';
+import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
+import { makeRenderHarness } from '#lib/test/harness/text-render.js';
+import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createCaretMemory } from '#lib/caret/caret-memory.js';
+import { commandContext } from '#lib/test/harness/command-context.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
+
+const toPrev = vi.mocked(extendFocusToPreviousBlock);
+
+interface Env {
+	ctx: SharedKeydownContext;
+	moveFocus: ReturnType<typeof vi.fn>;
+}
+
+/** The block's own renderer paints the fixture: the bounds read the DOM, so a hand-built tree
+ *  would answer for a document that never rendered. */
+function render(node: CstNode): HTMLElement {
+	const { el, deps } = makeRenderHarness(node, { mode: 'live' });
+	if (node.kind === 'fencedCode') el.replaceChildren(renderCodeBlock(node, everyInstalledPlugin));
+	else createTextRender(deps).render();
+	return el;
+}
+
+function makeEnv(source: string, offset: number | null, mode?: string): Env {
+	const doc = parse(source);
+	const root = document.createElement('div');
+	if (mode) root.setAttribute('data-presentation', mode);
+	const el = render(doc.children[0]);
+	root.appendChild(el);
+	document.body.replaceChildren(root);
+	const moveFocus = vi.fn();
+	return {
+		moveFocus,
+		// Cast only the members this fixture does not stand up, never the whole context, so a new
+		// required reader fails to type-check here.
+		ctx: {
+			caretWriter: testCaretWriter,
+			caretLanding: { restore: async () => 'applied' as const, showSelectionEnd: async () => {} },
+			// No plugins stood up here, so every installed one is active.
+			commands: commandContext(),
+			reading: fixtureReading(),
+			scroll: { visibleBand: () => null, showRect: () => {} },
+			getEl: () => el,
+			getCursorOffset: () => offset,
+			getFocusOffset: () => offset,
+			getTextLen: () => source.replace(/\n+$/, '').length,
+			getMyPath: () => [0],
+			getIndex: () => 1,
+			crossBlock: {
+				handleKeyDown: async () => false,
+				handleBeforeInput: async () => false
+			} as unknown as SharedKeydownContext['crossBlock'],
+			selection: {
+				resetSelectAllCount: () => {}
+			} as unknown as SharedKeydownContext['selection'],
+			caretMemory: createCaretMemory(),
+			history: {} as SharedKeydownContext['history'],
+			focus: { moveFocus } as unknown as SharedKeydownContext['focus'],
+			getDoc: () => doc,
+			unitContext: () => null,
+			caretUnits: { beside: () => null, crossed: () => {} }
+		}
+	};
+}
+
+const press = (key: string, shiftKey = false) =>
+	new KeyboardEvent('keydown', { key, shiftKey, cancelable: true });
+
+const FENCE = '```js\nconst x = 1;\n```\n';
+
+beforeEach(() => toPrev.mockReset());
+
+describe('block-exit branches read the reachable bounds', () => {
+	// `## Title`: the `## ` is unpainted in live, so 3 is the first offset a caret can occupy
+	// and ArrowLeft there is the block exit.
+	it('ArrowLeft exits at a heading’s content start in live', async () => {
+		const { ctx, moveFocus } = makeEnv('## Title\n', 3, 'live');
+		const e = press('ArrowLeft');
+		expect(await handleSharedKeydown(e, ctx)).toBe(true);
+		expect(e.defaultPrevented).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(0, 'end');
+	});
+
+	it('ArrowLeft mid-content still steps natively in live', async () => {
+		const { ctx, moveFocus } = makeEnv('## Title\n', 4, 'live');
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(false);
+		expect(moveFocus).not.toHaveBeenCalled();
+	});
+
+	// Source paints the `## `, so raw 3 is an ordinary interior offset there.
+	it('ArrowLeft at the same offset stays native in source mode', async () => {
+		const { ctx, moveFocus } = makeEnv('## Title\n', 3);
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(false);
+		expect(moveFocus).not.toHaveBeenCalled();
+	});
+
+	// preview-block and preview-inline show the focused block's own prefix, so its bytes
+	// stay reachable and the exit stays at raw 0.
+	for (const mode of ['preview-block', 'preview-inline']) {
+		it(`ArrowLeft at the content start stays native in ${mode}`, async () => {
+			const { ctx } = makeEnv('## Title\n', 3, mode);
+			expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(false);
+		});
+	}
+
+	it('a paragraph keeps raw 0 as its exit in live', async () => {
+		const { ctx, moveFocus } = makeEnv('Title\n', 0, 'live');
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(0, 'end');
+	});
+
+	// The kinds that declare no content range: a paragraph opening with a construct, and a
+	// fenced code block, whose fence lines are the run nothing paints.
+	it('ArrowLeft exits past a paragraph’s opening construct in live', async () => {
+		const { ctx, moveFocus } = makeEnv('**Lead** in\n', 2, 'live');
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(0, 'end');
+	});
+
+	it('ArrowLeft exits at a fenced code block’s body start in live', async () => {
+		const { ctx, moveFocus } = makeEnv(FENCE, 6, 'live');
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(0, 'end');
+	});
+
+	it('ArrowRight exits at a fenced code block’s body end in live', async () => {
+		const { ctx, moveFocus } = makeEnv(FENCE, 18, 'live');
+		expect(await handleSharedKeydown(press('ArrowRight'), ctx)).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(2, 'start');
+	});
+
+	it('the fence’s bounds are the whole raw in source mode', async () => {
+		const { ctx } = makeEnv(FENCE, 6, undefined);
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(false);
+		const atEnd = makeEnv(FENCE, 18, undefined);
+		expect(await handleSharedKeydown(press('ArrowRight'), atEnd.ctx)).toBe(false);
+	});
+
+	// A setext underline is a marker suffix: in live the last reachable offset is the
+	// content end, and ArrowRight there exits rather than stepping into unpainted bytes.
+	it('ArrowRight exits at a setext heading’s content end in live', async () => {
+		const { ctx, moveFocus } = makeEnv('Title\n===\n', 5, 'live');
+		const e = press('ArrowRight');
+		expect(await handleSharedKeydown(e, ctx)).toBe(true);
+		expect(e.defaultPrevented).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(2, 'start');
+	});
+
+	it('ArrowRight at the same offset stays native in source mode', async () => {
+		const { ctx } = makeEnv('Title\n===\n', 5);
+		expect(await handleSharedKeydown(press('ArrowRight'), ctx)).toBe(false);
+	});
+
+	it('Shift+ArrowLeft extends out of the block from the content start in live', async () => {
+		const { ctx } = makeEnv('## Title\n', 3, 'live');
+		expect(await handleSharedKeydown(press('ArrowLeft', true), ctx)).toBe(true);
+		expect(toPrev).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('the keydown entry point notes the arrival', () => {
+	// An arrow or Home moves the caret, which ends the edge record (live-mode.md § 4.2): the next
+	// letter follows the character before wherever the caret lands.
+	it('an arrow and Home end the edge record and note the caret arrived by a key', async () => {
+		const { ctx } = makeEnv('Title\n', 2, 'live');
+		for (const key of ['ArrowRight', 'ArrowLeft', 'Home']) {
+			ctx.caretMemory.noteOutside();
+			await handleSharedKeydown(press(key), ctx);
+			expect(ctx.caretMemory.side(), key).toBeNull();
+			expect(ctx.caretMemory.arrivedByKey(), key).toBe(true);
+		}
+	});
+
+	// The shared handler reads the chord through the block's keymap before the memory sees it:
+	// the default reorder chord moves the block, so the caret's memory stays for the move's commit.
+	it('the reorder chord leaves the record and the pending marks alone', async () => {
+		const { ctx } = makeEnv('Title\n', 2, 'live');
+		ctx.caretMemory.noteOutside();
+		pendMark(ctx.caretMemory);
+		const reorder = new KeyboardEvent('keydown', {
+			key: 'ArrowUp',
+			altKey: true,
+			cancelable: true
+		});
+		await handleSharedKeydown(reorder, ctx);
+		expect(ctx.caretMemory.side()).toBe('outside');
+		expect(marksPending(ctx.caretMemory)).toBe(true);
+	});
+});

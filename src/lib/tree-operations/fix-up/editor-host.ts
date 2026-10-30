@@ -2,7 +2,11 @@
 import type { CstNode } from '../../core/nodes';
 import { splitLines } from '../../core/lines';
 import { tableTakesLine } from '../../core/parsers/table';
-import { unfinishedReadings, type GrammarView } from '../../schema/block-openers';
+import {
+	unfinishedReadings,
+	waitingAboveClosedBy,
+	type GrammarView
+} from '../../schema/block-openers';
 import { readAsOpened } from '../../schema/opened-reading';
 import { isGridKind, tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { childHoldingLastLine, followBytes } from '../../schema/container-raw';
@@ -11,6 +15,7 @@ import { cloneMetadata } from '../clone';
 import { fragmentReaderAt } from '../list/task-paragraph';
 import { itemsShareList } from '../list/ordered-markers';
 import type { Host } from './types';
+import { reservedChromeKindOf } from '../../schema/reserved-chrome';
 
 const hosts = new WeakMap<GrammarView, Host>();
 
@@ -29,11 +34,13 @@ function createHost(grammar: GrammarView): Host {
 			return lines.length > 0 && tableTakesLine(lines, 0, lines.length, grammar);
 		},
 		readingsThatMayChange: () => unfinishedReadings(grammar),
+		waitingAboveClosedBy: (written, rawAbove, count) =>
+			waitingAboveClosedBy(written, rawAbove, count, unfinishedReadings(grammar)),
 		kindTraits: (kind) => {
 			const descriptor = tryGetBlockKindDescriptor(kind as CstNode['kind']);
 			return {
 				bodyWrap: descriptor?.bodyWrap,
-				titleRowKind: descriptor?.reservedChrome?.kind,
+				titleRowKind: reservedChromeKindOf(kind as CstNode['kind']),
 				container: descriptor?.isContainer === true,
 				contextDependent: descriptor?.contextDependentKind === true,
 				stripContainer: descriptor?.containerContract === 'strip',

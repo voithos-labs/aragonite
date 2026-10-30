@@ -18,7 +18,7 @@ const entry = (over: Partial<ClosureCoherenceEntry>): ClosureCoherenceEntry => (
 	declaresWholeBlockFocus: false,
 	focusVia: undefined,
 	mergeBackspaceVia: undefined,
-	declaresReservedChrome: false,
+	hasTitleRow: false,
 	clipboardMode: 'implemented',
 	...over
 });
@@ -141,7 +141,7 @@ describe('checkClosureCoherence: reservedChrome clipboard rule', () => {
 		const v = checkClosureCoherence([
 			entry({
 				kind: 'rc' as AnyBlockKind,
-				declaresReservedChrome: true,
+				hasTitleRow: true,
 				clipboardMode: 'inherit-default'
 			})
 		]);
@@ -151,20 +151,16 @@ describe('checkClosureCoherence: reservedChrome clipboard rule', () => {
 
 	it('accepts a chrome declarer naming its clipboard behavior or marking it unsupported', () => {
 		expect(
-			checkClosureCoherence([entry({ declaresReservedChrome: true, clipboardMode: 'implemented' })])
+			checkClosureCoherence([entry({ hasTitleRow: true, clipboardMode: 'implemented' })])
 		).toBeNull();
 		expect(
-			checkClosureCoherence([
-				entry({ declaresReservedChrome: true, clipboardMode: 'not-supported' })
-			])
+			checkClosureCoherence([entry({ hasTitleRow: true, clipboardMode: 'not-supported' })])
 		).toBeNull();
 	});
 
 	it('leaves a chrome-free kind on the default clipboard cell', () => {
 		expect(
-			checkClosureCoherence([
-				entry({ declaresReservedChrome: false, clipboardMode: 'inherit-default' })
-			])
+			checkClosureCoherence([entry({ hasTitleRow: false, clipboardMode: 'inherit-default' })])
 		).toBeNull();
 	});
 });

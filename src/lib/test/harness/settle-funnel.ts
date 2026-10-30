@@ -135,7 +135,7 @@ export function reorderSettled(
 	const settled = commitSteps(
 		body,
 		() => {
-			const reordered = reorderChildrenWithTrivia(body, from, to, sharing);
+			const reordered = reorderChildrenWithTrivia(body, from, to, sharing, grammar);
 			landing = reordered.landing;
 			return {
 				change: reordered.change,

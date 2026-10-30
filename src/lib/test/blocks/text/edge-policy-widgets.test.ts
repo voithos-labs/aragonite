@@ -7,7 +7,7 @@ import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
 import { computeInlineContent } from '#lib/core/inline/index.js';
-import { asRawOffset } from '#lib/caret/coordinate-spaces.js';
+import { asRawOffset } from '#lib/core/coordinate-spaces.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -35,7 +35,7 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 installEdgeDispatchCleanup();
 
 describe('decoration widgets', () => {
-	// Delete chords pass the dispatch's keydown, and a printable key at an element-level caret becomes a CST edit.
+	// Delete chords pass the dispatch's keydown; a key typed beside a decoration is `typed-insert.test.ts`'s.
 
 	interface Harness extends EdgeDispatchHarness {
 		island: HTMLElement;
@@ -90,30 +90,14 @@ describe('decoration widgets', () => {
 		});
 	});
 
-	describe('typing at an element-level caret against a widget decoration', () => {
-		it('consumes the key and inserts at the raw offset through one CST edit', () => {
-			const h = mount('hello\n', 5, 5);
-			caretAfter(h.island);
-			const e = key('z');
-			expect(h.handleKeydown(e, asRawOffset(5))).toBe(true);
-			expect(e.defaultPrevented).toBe(true);
-			expect(h.edits).toEqual([[0, 'helloz\n', 5, 6]]);
-		});
-
-		it('leaves a text-node caret to native typing', () => {
-			const h = mount('hello\n', 5, 5);
-			const textNode = h.island.previousSibling as Text;
-			const range = document.createRange();
-			range.setStart(textNode, 5);
-			range.collapse(true);
-			const sel = window.getSelection()!;
-			sel.removeAllRanges();
-			sel.addRange(range);
-
-			const e = key('z');
-			expect(h.handleKeydown(e, asRawOffset(5))).toBe(false);
-			expect(e.defaultPrevented).toBe(false);
-		});
+	it('a letter typed at either edge of a decoration faces it, and one typed elsewhere does not', () => {
+		const h = mount('abHIDDENcd\n', 2, 8);
+		expect([2, 8, 1, 9].map((at) => h.dispatch.typing.widgetBeside(at))).toEqual([
+			true,
+			true,
+			false,
+			false
+		]);
 	});
 
 	// ── Precedence: a CST widget wins the shared caret edge ───────────────────────
@@ -436,18 +420,16 @@ describe('pending cursor', () => {
 	describe('an edge-dispatch write parks the caret the write stored', () => {
 		it('typing beside a CST widget', () => {
 			const b = mountWidget('hello ![a](u) world', 'image');
-			caretAfter(b.island);
 
-			expect(b.dispatch.handleKeydown(key('z'), asRawOffset(b.widget.end))).toBe(true);
-			expect(b.parks).toEqual([{ offset: b.widget.end + 1 + SHIFT, source: 'widget' }]);
+			b.dispatch.typing.typeAt(b.widget.end, 'z');
+			expect(b.parks).toEqual([{ offset: b.widget.end + 1 + SHIFT, source: 'typed-insert' }]);
 		});
 
 		it('typing beside a decoration widget', () => {
 			const b = mountIsland('hello\n', 5);
-			caretAfter(b.island);
 
-			expect(b.dispatch.handleKeydown(key('z'), asRawOffset(5))).toBe(true);
-			expect(b.parks).toEqual([{ offset: 6 + SHIFT, source: 'island' }]);
+			b.dispatch.typing.typeAt(5, 'z');
+			expect(b.parks).toEqual([{ offset: 6 + SHIFT, source: 'typed-insert' }]);
 		});
 
 		it('deleting through a decoration widget', () => {

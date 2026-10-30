@@ -2,11 +2,12 @@
 // slot and its neighbours, never the whole list it sits in, at the root or inside any container.
 // Miss-analysis: the keystroke cost rows counted parses and rebuilt lines, never reads of the
 // leaf's own list, so a copy of that list on every key passed them all.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt, documentBody } from '#lib/tree-operations/node-primitives.js';
@@ -47,7 +48,13 @@ function siblingReads(source: string, leaf: number[]): number {
 			? { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) }
 			: documentBody(deps.doc);
 		const raw = parent.children![index].raw;
-		const write = legalizeWrite(body, index, raw.replace('\n', 'Q\n'), 'authored');
+		const write = legalizeWrite(
+			body,
+			index,
+			raw.replace('\n', 'Q\n'),
+			'authored',
+			defaultGrammarView
+		);
 		if (n === 1) {
 			parent.children = new Proxy(parent.children!, {
 				get(target, key, receiver) {

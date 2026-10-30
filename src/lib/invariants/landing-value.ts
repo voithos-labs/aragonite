@@ -4,6 +4,7 @@
  */
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
+import { readNativeSelection } from '../browser/selection-read';
 
 /** Where focus and the selection's anchor are, compared by identity. */
 export interface CaretWhereabouts {
@@ -15,11 +16,11 @@ export interface CaretWhereabouts {
 export function readCaretWhereabouts(): CaretWhereabouts | null {
 	// With no document there is no focus or selection a landing could move, so nothing to compare.
 	if (typeof document === 'undefined') return null;
-	const selection = document.getSelection();
+	const anchor = readNativeSelection()?.anchor;
 	return {
 		active: document.activeElement,
-		anchorNode: selection?.anchorNode ?? null,
-		anchorOffset: selection?.anchorOffset ?? 0
+		anchorNode: anchor?.node ?? null,
+		anchorOffset: anchor?.offset ?? 0
 	};
 }
 

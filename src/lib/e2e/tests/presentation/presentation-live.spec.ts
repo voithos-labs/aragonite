@@ -37,8 +37,9 @@ const DOC = [
 	'See <https://commonmark.org> too'
 ].join('\n');
 
-// Directives render only on `/test/plugins`, so the container-marker case is driven there.
-const DIRECTIVE_DOC = ':::foo\nBody with **bold** here.\n:::\n';
+// Directives render only on `/test/plugins`, so the container-marker case is driven there. Titled,
+// so its opener line holds more than markers and only the line's own rule can show them.
+const DIRECTIVE_DOC = ':::foo Bar\nBody with **bold** here.\n:::\n';
 
 const AMBIENT_MARKER = ".md-marker[contenteditable='false']";
 
@@ -170,20 +171,58 @@ test.describe('live mode: the surface stays editable', () => {
 // The bridge is the third way into live mode (the query param and the toggle are covered above),
 // and the only one that reaches the plugin harness where directive containers render.
 test.describe('live mode: plugin container chrome', () => {
-	test('directive fences hide and stay hidden with the caret in the body', async ({ page }) => {
+	test('an opener line shows its source only while the caret is on it', async ({ page }) => {
 		const ep = new PluginsPage(page);
 		await ep.gotoPlugins();
 		await ep.loadContent(DIRECTIVE_DOC);
 		await ep.setPresentationMode('live');
 		await ep.waitForRenderFlush();
 
-		const directiveMarker = page.locator('.directive-marker').first();
-		await expect(directiveMarker).toHaveCSS('display', 'none');
+		const opener = page.locator('.directive-opener-line');
+		const openerMarker = opener.locator('.md-marker');
+		await expect(openerMarker).toHaveCSS('display', 'none');
+		// The generic container draws its `:::foo` in place of the hidden one, so the line looks the
+		// same with the caret on it or off it.
+		expect(await opener.evaluate((el) => getComputedStyle(el, '::before').content)).toBe(
+			'":::foo "'
+		);
 
-		// Under preview-block the body's own `**` would show here; live shows neither the body's
-		// markers nor the container's fences.
+		// The caret in the body shows neither the body's markers nor the opener line's.
 		await page.locator('.directive-block [contenteditable="true"]', { hasText: /bold/ }).click();
-		await expect(page.locator('.directive-block .md-marker').first()).toHaveCSS('display', 'none');
-		await expect(directiveMarker).toHaveCSS('display', 'none');
+		await expect(page.locator('.directive-block .md-marker').last()).toHaveCSS('display', 'none');
+		await expect(openerMarker).toHaveCSS('display', 'none');
+
+		// The caret on the opener line shows its own `:::foo`, and the drawn copy steps aside.
+		await ep.focusBlockAtPath([0, 0], 10);
+		await expect(openerMarker).not.toHaveCSS('display', 'none');
+		expect(await opener.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
+	});
+
+	test("an admonition shows its icon and title, or its kind's name, off the line", async ({
+		page
+	}) => {
+		const ep = new PluginsPage(page);
+		await ep.gotoPlugins();
+		await ep.loadContent(':::note Heads up\nOne.\n:::\n\n:::tip\nTwo.\n:::\n');
+		await ep.setPresentationMode('live');
+		await ep.waitForRenderFlush();
+
+		const titled = page.locator('.admonition[data-kind="note"] .directive-opener-line');
+		const untitled = page.locator('.admonition[data-kind="tip"] .directive-opener-line');
+		const label = (row: typeof titled) =>
+			row.evaluate((el) => getComputedStyle(el, '::after').content);
+		await expect(titled.locator('.md-marker')).toHaveCSS('display', 'none');
+		await expect(untitled.locator('.md-marker')).toHaveCSS('display', 'none');
+		expect(await label(untitled)).toBe('"Tip"');
+		// The icon is the line's own ::before, so it paints whatever the line's marker does.
+		expect(await titled.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('""');
+
+		// On the line, the untitled tip shows its `:::tip` source and no stand-in name.
+		await ep.focusBlockAtPath([1, 0], 6);
+		await expect(untitled.locator('.md-marker')).not.toHaveCSS('display', 'none');
+		expect(await label(untitled)).toBe('none');
+		await ep.focusBlockAtPath([0, 0], 16);
+		await expect(titled.locator('.md-marker')).not.toHaveCSS('display', 'none');
+		expect(await label(untitled)).toBe('"Tip"');
 	});
 });

@@ -1,12 +1,12 @@
 # Feature: the caret beside an inline widget
 
-When a click lands the caret at a `contenteditable=false`-adjacent position, Chromium often can't draw a caret of its own there. So the editor draws it: the drawn caret's one bar, in its `widget` state, on the widget's edge the click meant, so you can see where typing will land.
+When a click lands the caret at a `contenteditable=false`-adjacent position, the browser's own caret there isn't where typing will land: beside a picture Chromium paints it the whole line box tall, and sometimes not at all. So the editor draws it: the drawn caret's one bar, in its `widget` state, on the widget's edge the click meant, so you can see where typing will land. Beside a picture that's the frame's edge at the height of the text on its line (`caret/caret-shows.md` measures it against the letter).
 
 Exactly one caret shows for one caret position. Where the caret lands in a text node, the browser's position is good and the usual caret shows (on a fine pointer that's the drawn one, `caret/drawn-caret.md`). At an element-level offset beside the widget, Chromium sometimes paints one anyway, so the editable's own caret stays hidden for as long as the bar draws there. The rule holds for every kind; the matching case for inline math (on a route with plugins installed) is `plugins/latex-inline-caret-paint.md`.
 
 ## Happy paths
 
-- A click past an image draws one caret: the bar, 1.5px wide, 4px clear of the image's frame and 4px short of its top and bottom
+- A click past an image draws one caret: the bar, 1.5px wide, at the image's edge, on its line at the text's height
 - The browser's caret goes dark from the pointer-down, not from the click: the pointer-down places the browser's caret before the click says which edge it meant, and at the element-level offset beside the widget Chromium paints it at the line box's height, a taller stroke for as long as the button is down. Nothing shows until the click, then the bar does. A pointer-down that lands in a text node shows exactly one caret, the drawn one
   - Miss-analysis: every indicator test read the caret once the click had completed, so the window between the pointer-down and the click, where the browser's caret is the only one on screen, was never observed
 - In live mode, an image inside a link or emphasis gets the same bar as a bare one when you click past it. The click finds the image through its wrapper, so the bar has to as well

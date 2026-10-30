@@ -25,7 +25,7 @@ identical on screen.
   split call, so the split reads the construct the render path drew instead of a pair of brackets
 - one `Mod+Z` restores the single original block, bytes identical, with the caret back inside it
 
-Four more are covered by unit tests, in `src/lib/test/core/inline/live-split.test.ts`
+Four more are covered by unit tests, in `src/lib/test/core/inline/live-edit/live-split.test.ts`
 (the rewrite) and `src/lib/test/tree-operations/live-split.test.ts` (the split, and the merge that
 carries it):
 

@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { parse } from '#lib/core/parser.js';
 import type { Document } from '#lib/core/nodes.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
@@ -17,7 +17,7 @@ import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {
 	registerMathBlock(testView());
@@ -43,7 +43,7 @@ const ROUTES: Array<[string, Route, (raw: string, cut: number) => string]> = [
 		(source, { raw, cut }) => {
 			const { deps } = makeEditorActionsDeps(source);
 			const typing = createUndoController(deps);
-			const write = legalizeWrite(deps.doc, 1, raw.slice(cut), 'authored');
+			const write = legalizeWrite(deps.doc, 1, raw.slice(cut), 'authored', defaultGrammarView);
 			typing.typeLeaf(docPathFrom([1]), write, 0);
 			return deps.doc;
 		},

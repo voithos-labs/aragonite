@@ -6,10 +6,10 @@ import {
 	deleteExtent,
 	wordExtent,
 	type DeleteContext,
-	type DeleteIntent,
 	type ForwardWordReach
 } from '#lib/caret/delete-extent.js';
-import type { VisibleText } from '#lib/caret/widget-offset.js';
+import type { DeleteIntent } from '#lib/browser/input.js';
+import type { VisibleText } from '#lib/browser/offsets.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -56,6 +56,17 @@ describe('wordExtent: a word delete', () => {
 		['f|oo bar', 'f| bar']
 	])('Delete in %j leaves %j on Apple platforms', (marked, left) => {
 		expect(word(marked, 'forward', 'word-end')).toBe(left);
+	});
+
+	// Miss-analysis: every row ran on Node's segmenter, which joins `foo.bar` as Firefox's and WebKit's
+	// do, so nothing showed Chromium cutting it and the three engines' deletes taking different text.
+	it.each([
+		['foo.bar|', 'foo.|'],
+		['|foo.bar', '|.bar'],
+		['a:b|', 'a:|'],
+		['pi 3.14|', 'pi |']
+	])('a full stop or colon between letters ends a word: %j leaves %j', (marked, left) => {
+		expect(word(marked, marked.startsWith('|') ? 'forward' : 'backward')).toBe(left);
 	});
 
 	it('takes nothing at a line break, which a character delete takes instead', () => {
@@ -147,7 +158,7 @@ describe('deleteExtent: a word read as the screen shows it', () => {
 			text: RAW,
 			caret,
 			bounds: { start: 0, end: RAW.length },
-			visible
+			visible: () => visible
 		});
 
 	it('takes the word inside the hidden run, not the run as a word of its own', () => {
@@ -166,7 +177,7 @@ describe('deleteExtent: a word read as the screen shows it', () => {
 			rawStart: [0, 1, 2, 8],
 			rawEnd: [1, 2, 8, 9]
 		};
-		const context = { text: raw, caret: 8, bounds: { start: 0, end: 9 }, visible: widget };
+		const context = { text: raw, caret: 8, bounds: { start: 0, end: 9 }, visible: () => widget };
 		expect(deleteExtent(intent('word', 'backward'), context)).toEqual({ start: 2, end: 8 });
 	});
 });

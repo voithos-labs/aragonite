@@ -1,5 +1,5 @@
 /**
- * `scripts/build-docs-pack.mjs` resolves every in-pack `#anchor` against its target doc's headings,
+ * `scripts/docs/build-docs-pack.mjs` resolves every in-pack `#anchor` against its target doc's headings,
  * slugged as GitHub renders them, so a renamed heading fails `npm run lint` instead of stranding a
  * link inside the npm tarball. These tests keep that check from passing on nothing.
  * Miss-analysis: the gate dropped the fragment before checking, and no test could tell.
@@ -13,7 +13,7 @@ import {
 	anchorsOf,
 	githubAnchors,
 	headingsOf
-} from '../../../../../scripts/check-codebase-map.mjs';
+} from '../../../../../scripts/docs/check-codebase-map.mjs';
 import { pluginGuidePages } from './scan-source';
 
 const ROOT = path.resolve('.');
@@ -90,17 +90,18 @@ describe('in-pack anchors: the index', () => {
 function packGateOutput(docs: Record<string, string>, others: Record<string, string> = {}): string {
 	const dir = mkdtempSync(path.join(tmpdir(), 'aragonite-pack-'));
 	try {
-		execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore' });
+		execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore', timeout: 120_000 });
 		const files = Object.entries(docs).map(([name, body]) => [`docs/guide/${name}`, body]);
 		for (const [name, body] of [...files, ...Object.entries(others)]) {
 			mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
 			writeFileSync(path.join(dir, name), body);
 		}
 		try {
-			return execFileSync('node', [path.join(ROOT, 'scripts/build-docs-pack.mjs')], {
+			return execFileSync('node', [path.join(ROOT, 'scripts/docs/build-docs-pack.mjs')], {
 				cwd: dir,
 				encoding: 'utf8',
-				stdio: ['ignore', 'pipe', 'pipe']
+				stdio: ['ignore', 'pipe', 'pipe'],
+				timeout: 120_000
 			});
 		} catch (err) {
 			const failure = err as { stdout?: string; stderr?: string };

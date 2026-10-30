@@ -17,8 +17,8 @@ import { createLinkCardState } from '#lib/components/link-card/link-card-state.s
 import { enterLinkCardAtCaret } from '#lib/components/link-card/link-card-entry.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { createTextRender } from '#lib/components/blocks/text/text-render.js';
-import { asDomTextOffset } from '#lib/caret/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { makeRenderHarness } from '#lib/test/harness/text-render.js';
 import type { Reading } from '#lib/schema/reading.js';
 

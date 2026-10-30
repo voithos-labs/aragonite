@@ -11,7 +11,7 @@ import {
 	type FlankingCase,
 	FLANKING_CASES,
 	INTRA_WORD_UNDERSCORE_CASES
-} from '../../../support/flanking-corpus';
+} from '../../../harness/flanking-corpus';
 
 // The §6.2 cases live in the flanking corpus.
 

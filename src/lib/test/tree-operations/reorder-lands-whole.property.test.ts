@@ -13,7 +13,7 @@ import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 const PARAMS = { numRuns: 100, seed: freshOrFixedSeed(414141) } as const;
 

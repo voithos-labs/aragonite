@@ -6,14 +6,15 @@
 import type { CommitSnapshotArg } from '../action-contracts';
 import { SELECTION_END } from '../block-component';
 import type { RangeCoverage } from './range-coverage';
-import { comparePaths, pathsEqual, type DocPath } from './path-math';
+import { comparePaths, pathsEqual } from './path-math';
 import {
+	type DocPath,
 	asCellIndex,
 	asRawOffset,
 	docPathFrom,
 	type CellIndex,
 	type RawOffset
-} from '../caret/coordinate-spaces';
+} from '../core/coordinate-spaces';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 
 // ── Types ──────────────────────────────────────────────────────────────────

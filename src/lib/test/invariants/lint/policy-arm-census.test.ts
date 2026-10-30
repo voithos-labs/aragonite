@@ -15,13 +15,13 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
  *  and `schema/` sit outside, since the parser and the table's registration name every kind. */
 const GESTURE_ROOTS = [
 	SOURCE_DIR.components,
+	SOURCE_DIR.browser,
 	SOURCE_DIR.caret,
 	SOURCE_DIR.windowing,
 	SOURCE_DIR.selection,
 	SOURCE_DIR.treeOperations,
 	SOURCE_DIR.decorations,
-	SOURCE_DIR.search,
-	SOURCE_DIR.ambient
+	SOURCE_DIR.search
 ];
 
 /** Gesture code under `core/`: the link card's byte writer sits beside the link grammar it inverts. */

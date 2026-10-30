@@ -41,15 +41,23 @@ function sourceLines(raw: string): number {
 	return Math.max(1, n);
 }
 
-// An image's hinted height, else the floor: an unsized image is not knowable until it decodes.
+// Pictures sit side by side in their line, so each source line stands as tall as its tallest: an
+// image's hinted height, else the floor, since an unsized image is not knowable until it decodes.
 function imageHeights(raw: string, env: HeightEstimateEnv): number {
 	let total = 0;
+	let line = 0;
+	let lineStart = 0;
 	IMAGE_ALT.lastIndex = 0;
 	let m: RegExpExecArray | null;
 	while ((m = IMAGE_ALT.exec(raw)) !== null) {
-		total += readSizeHint(m[1]).height ?? env.imageBlockMinHeight;
+		if (raw.lastIndexOf('\n', m.index) >= lineStart) {
+			total += line;
+			line = 0;
+			lineStart = m.index;
+		}
+		line = Math.max(line, readSizeHint(m[1]).height ?? env.imageBlockMinHeight);
 	}
-	return total;
+	return total + line;
 }
 
 // ── Estimates ───────────────────────────────────────────────────────────────

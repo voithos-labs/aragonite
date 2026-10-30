@@ -23,7 +23,7 @@ import {
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import { normalizePluginEntries } from '#lib/schema/plugin-install.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { pluginContextDeps } from '../../support/plugin-context-deps';
+import { pluginContextDeps } from '../../harness/plugin-context-deps';
 
 const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 

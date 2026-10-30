@@ -1,9 +1,8 @@
 /**
- * Where a prose block or a table cell decides two things: a key aimed at an inline construct or
- * the container's marker, by a declared policy rather than native editing, which would corrupt the
- * bytes those constructs stand for (G4.12); and every collapsed Backspace or Delete, by key or soft
- * keyboard, at `beforeinput` (`deleteAtCaret`), its widget answer at a chord's keydown too
- * (`deleteBeside`). Where a typed byte lands is `next-insertion.ts`'s.
+ * Where a prose block or a table cell decides a key aimed at an inline construct or the container's
+ * marker, by a declared policy rather than native editing, which would corrupt the bytes those
+ * constructs stand for (G4.12); every collapsed Backspace or Delete, at `beforeinput` and a chord's
+ * keydown; and which widget a typed insert meets (`typing`).
  */
 
 import type { ContentWrite } from '../../../action-contracts';
@@ -11,45 +10,38 @@ import type { NodeView } from '../../../core/node-views';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import { widgetSourceRange } from '../../../core/inline/widget-shell';
 import { getContentRange, structuralSuffix } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
-import { type RawOffset } from '../../../caret/coordinate-spaces';
+import { type RawOffset } from '../../../core/coordinate-spaces';
 import type { BlockPendingMarks } from '../../../caret/pending-marks';
 import type { InsideCloserView } from '../../../caret/inside-closer';
-import {
-	keptBlockText,
-	landableRawBounds,
-	markerPrefixOf,
-	hidingScreenOf,
-	hidesBlockPrefix,
-	visibleWalkText,
-	type CaretWriter,
-	type EditedBlock
-} from '../../../caret/widget-offset';
+import { keptBlockText, hidesBlockPrefix, type EditedBlock } from '../../../browser/block-text';
+import { reachableRawBounds, visibleWalkText } from '../../../browser/offsets';
+import { markerPrefixOf, hidingScreenOf } from '../../../browser/painted';
+import type { CaretWriter } from '../../../browser/caret-writer';
 import {
 	deleteExtent,
+	unitContextAt,
 	type DeleteAnswer,
-	type DeleteIntent,
+	type DeleteContext,
 	type DeleteSpan
 } from '../../../caret/delete-extent';
-import { lineEdgeOffset } from '../../../caret/visual-lines';
+import type { DeleteDirection, DeleteIntent } from '../../../browser/input';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { hasModifier, isBareKey, isPlainTypingKey } from './click-snap-guard';
-import { caretIsInTextContent } from '../../../caret/text-seat';
+import { caretIsInTextContent, readNativeSelection } from '../../../browser/selection-read';
 import { createMarkerCompletion } from './marker-completion';
-import {
-	resolveEdgeDeletion,
-	type DeleteDirection,
-	type EdgeDeletion
-} from './construct-edge-delete';
+import { resolveEdgeDeletion, type EdgeDeletion } from './construct-edge-delete';
+
 import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 import { widgetAtCursor, widgetsIn, type WidgetAtCursor } from './widget-adjacency';
-import type { CaretUnitSource } from '../../../selection/shared-keydown';
-import { readNativeSelection } from '../../../selection/native-bridge';
+import type { CaretUnitSource } from '../../../caret/caret-motion';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import { rangeWrite, withOwnEnding, type TextWrite } from '../editable/surface-write';
+import type { TypedInsertWrites } from '../editable/typed-insert';
 
 /** The part of the inline-widget editing policy the built-in widget rules reuse, in the same
  *  terms but without widening the public API. */
@@ -129,15 +121,18 @@ export interface EdgePolicyDispatch {
 	/** The widgets and replace decorations a horizontal arrow crosses whole, for the shared
 	 *  keydown, which decides that step before any arm here runs. */
 	readonly inlineUnits: CaretUnitSource;
-	/** Writes `typed` at `caret` when the caret sits right before a widget that ends the block,
-	 *  where Firefox fires the insertion's `beforeinput` and inserts nothing. True if written. */
-	typeBeforeClosingWidget(caret: number, typed: string): boolean;
+	/** The block's half of the typed-insert decision (`editable/typed-insert.ts`): which widgets
+	 *  face the caret, and the write. A widget selected whole is the widget interaction's. */
+	readonly typing: Omit<TypedInsertWrites, 'typeOverSelected'>;
 	/** A collapsed delete that reached `beforeinput`, by the rules the keys above follow, then the
 	 *  delete rule; declined while a shown source holds bytes the tree hasn't seen. */
 	deleteAtCaret(caret: number, intent: DeleteIntent): DeleteAnswer;
 	/** Takes or enters what a delete of any unit facing `direction` meets at `caret`: a widget by
 	 *  its policy, or, outside reading mode, a replace decoration, selected whole. True when it did. */
 	deleteBeside(caret: number, direction: DeleteDirection): boolean;
+	/** What the delete and the caret keys read at `caret` (`caret/caret-motion.ts`); null while a
+	 *  shown source holds bytes the tree hasn't seen. */
+	unitContext(caret: number): DeleteContext | null;
 }
 
 /** One family of gestures, listed in the order the families outrank each other. A family is not a
@@ -285,8 +280,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		for (const kind of deletion.unwrappedMarks) deps.pendingMarks.toggle(kind);
 	}
 
-	/** A printable byte the browser would drop at an element-level caret: over a range through the
-	 *  join rules, at a caret as an insertion the write places like any other. */
+	/** A typed byte the block writes itself: over a range through the join rules, at a caret as an
+	 *  insertion the write places like any other. */
 	function writeTypedByte(caretOffset: number, typed: string, source: string): void {
 		const range = heldRange();
 		if (range && range.end > range.start) editDisplay(range.start, range.end, typed, source);
@@ -320,10 +315,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			takeOrEnterWidget(widgetAt, false);
 			return true;
 		}
-		// Chromium inserts into a text node natively, but drops printable keys at
-		// element-level positions adjacent to a contenteditable=false widget.
+		// A key over a range that opens at the widget replaces the range through the join rules; a
+		// key at a caret beside it is the typed-insert decision's.
 		const el = deps.getEl();
-		if (el && !caretIsInTextContent(el) && isPlainTypingKey(e) && !deps.isReading()) {
+		if (range && el && !caretIsInTextContent(el) && isPlainTypingKey(e) && !deps.isReading()) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
 			writeTypedByte(caretOffset, e.key, 'widget');
@@ -349,9 +344,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		recordIslandKeyScan();
 		const out: IslandSpan[] = [];
 		for (const node of el.querySelectorAll<HTMLElement>('[data-decoration-island]')) {
-			const start = Number(node.dataset.sourceStart);
-			const end = Number(node.dataset.sourceEnd);
-			if (Number.isInteger(start) && Number.isInteger(end)) out.push({ start, end, el: node });
+			const span = widgetSourceRange(node);
+			if (span) out.push({ ...span, el: node });
 		}
 		return out;
 	}
@@ -369,7 +363,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function handleIsland(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		// A collapsed delete is the `delete-beside` arm's; this one takes a held range's delete.
 		const isDestructive = !hasModifier(e) && (e.key === 'Backspace' || e.key === 'Delete');
-		const isTyping = isPlainTypingKey(e);
+		// A key typed at a caret beside a decoration is the typed-insert decision's, not this arm's.
+		const isTyping = isPlainTypingKey(e) && heldRange() !== null;
 		if (!isDestructive && !isTyping) return false;
 
 		// Blocks with no decoration widgets, the common case, skip the per-keystroke DOM scan.
@@ -397,8 +392,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			return true;
 		}
 
-		// Some browsers drop printable keys at an element-level caret beside a non-editable widget.
-		// Chromium types them, so a unit test, not e2e, covers this branch.
 		if (caretOffset !== null && !caretIsInTextContent(el)) {
 			e.preventDefault();
 			writeTypedByte(caretOffset, e.key, 'island');
@@ -447,10 +440,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	/** A one-character delete at a widget decoration, which stands for no bytes, takes what is
 	 *  beside it, as if the decoration were not there; false at the block's edge. */
 	function deletePastIsland(el: HTMLElement, caret: number, intent: DeleteIntent): boolean {
-		const landable = landableRawBounds(el);
-		if (facesEdge(landable, caret, intent.direction)) return false;
+		const reachable = reachableRawBounds(el);
+		if (facesEdge(reachable, caret, intent.direction)) return false;
 		// This branch outranks the construct-edge rule beside a hidden run, so it asks that rule.
-		if (!hiddenRunDelete(el, caret, intent)) void deleteSpan(el, caret, intent, landable);
+		if (!hiddenRunDelete(el, caret, intent)) void deleteSpan(el, caret, intent, reachable);
 		return true;
 	}
 
@@ -543,13 +536,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	/** Whether `caret` is the first or last offset the caret can sit at, on the side `direction`
-	 *  faces; `landable` null is a block that draws its markers, every offset reachable. */
+	 *  faces; `reachable` null is a block that draws its markers, every offset reachable. */
 	function facesEdge(
-		landable: DeleteSpan | null,
+		reachable: DeleteSpan | null,
 		caret: number,
 		direction: DeleteDirection
 	): boolean {
-		const bounds = landable ?? { start: 0, end: display().length };
+		const bounds = reachable ?? { start: 0, end: display().length };
 		return direction === 'backward' ? caret <= bounds.start : caret >= bounds.end;
 	}
 
@@ -559,10 +552,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!el || deps.isRevealing()) return 'declined';
 		// At the first or last offset the caret can sit at the delete is the block's merge, never
 		// the first visible character past a hidden run.
-		const landable = landableRawBounds(el);
-		if (facesEdge(landable, caret, intent.direction)) return 'at-edge';
+		const reachable = reachableRawBounds(el);
+		if (facesEdge(reachable, caret, intent.direction)) return 'at-edge';
 		if (hiddenRunDelete(el, caret, intent)) return 'taken';
-		return deleteSpan(el, caret, intent, landable) ? 'taken' : 'at-edge';
+		return deleteSpan(el, caret, intent, reachable) ? 'taken' : 'at-edge';
 	}
 
 	/** The delete rule's span through the in-leaf range replace, a word read as the screen shows it;
@@ -571,16 +564,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		el: HTMLElement,
 		caret: number,
 		intent: DeleteIntent,
-		landable: DeleteSpan | null
+		reachable: DeleteSpan | null
 	): boolean {
 		const text = display();
-		const span = deleteExtent(intent, {
-			text,
-			caret,
-			bounds: landable ?? { start: 0, end: text.length },
-			lineEdge: (side) => lineEdgeOffset(el, caret, side, deps.caretWriter),
-			visible: intent.unit === 'word' ? visibleWalkText(el) : undefined
-		});
+		const span = deleteExtent(intent, contextAt(el, caret, reachable));
 		if (!span) return false;
 		deps.setSnapTarget(null);
 		const written = rangeEdit(span, '');
@@ -595,6 +582,24 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 				source: 'delete'
 			});
 		return true;
+	}
+
+	/** What the delete rule and the motion rule read at `caret`: the text as the key's write sees
+	 *  it, the offsets a caret reaches, the visual line's edges and the text as the screen shows it. */
+	function contextAt(el: HTMLElement, caret: number, reachable: DeleteSpan | null): DeleteContext {
+		return unitContextAt({
+			el,
+			text: display(),
+			caret,
+			bounds: reachable,
+			lineRead: deps.caretWriter,
+			visible: () => visibleWalkText(el)
+		});
+	}
+
+	function unitContext(caret: number): DeleteContext | null {
+		const el = deps.getEl();
+		return el && !deps.isRevealing() ? contextAt(el, caret, reachableRawBounds(el)) : null;
 	}
 
 	/** The block as `keptBlockText` reads it once `span` is cut from `text`, the parts the input
@@ -629,18 +634,30 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return true;
 	}
 
-	function typeBeforeClosingWidget(caret: number, typed: string): boolean {
-		if (deps.isRevealing() || deps.isReading() || heldRange()) return false;
-		const end = getContentRange(deps.node).end;
-		const widgets = widgetsIn(deps.node, deps.reading);
-		if (!widgets.some((widget) => widget.start === caret && widget.end === end)) return false;
-		writeTypedByte(caret, typed, 'closing-widget');
-		return true;
-	}
+	// ── Typing at a caret beside a widget ──────────────────────────────────────
+
+	const typing: EdgePolicyDispatch['typing'] = {
+		widgetBeside(caret) {
+			if (deps.isRevealing() || deps.isReading()) return false;
+			if (widgetAtCursor(caret, widgetsIn(deps.node, deps.reading)) !== null) return true;
+			const el = deps.getEl();
+			if (!el || !deps.hasIslands()) return false;
+			return islandsInDom(el).some((island) => island.start === caret || island.end === caret);
+		},
+		widgetClosesAt(caret) {
+			if (deps.isRevealing() || deps.isReading()) return false;
+			const end = getContentRange(deps.node).end;
+			return widgetsIn(deps.node, deps.reading).some((w) => w.start === caret && w.end === end);
+		},
+		typeAt(caret, text) {
+			deps.setSnapTarget(null);
+			writeTypedByte(caret, text, 'typed-insert');
+		}
+	};
 
 	function keyIntent(e: KeyboardEvent): DeleteIntent {
 		return { unit: 'character', direction: e.key === 'Backspace' ? 'backward' : 'forward' };
 	}
 
-	return { handleKeydown, arms, inlineUnits, typeBeforeClosingWidget, deleteAtCaret, deleteBeside };
+	return { handleKeydown, arms, inlineUnits, typing, deleteAtCaret, deleteBeside, unitContext };
 }

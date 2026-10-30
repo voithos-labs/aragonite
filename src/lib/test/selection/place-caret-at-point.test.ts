@@ -98,26 +98,6 @@ describe('placeCaretAtPoint landing walk', () => {
 		expect(order).toEqual(['read', 'place', 'snap']);
 	});
 
-	// A margin point reaches an editable element only once clamped into the block's box, and the
-	// element gets that clamped point. Both axes, since the margin band runs beside and above.
-	it('clamps a point in the margin band into the block’s own box', () => {
-		expect(placeAt(20, TABLE_BOX.top + 20)).toBe(true);
-		expect(leafSnap).toHaveBeenLastCalledWith(TABLE_BOX.left + 1, TABLE_BOX.top + 20);
-		expect(focusByPath).toHaveBeenLastCalledWith([0, 0], CURSOR_END);
-
-		expect(placeAt(TABLE_BOX.right + 500, TABLE_BOX.top + 20)).toBe(true);
-		expect(leafSnap).toHaveBeenLastCalledWith(TABLE_BOX.right - 1, TABLE_BOX.top + 20);
-		expect(focusByPath).toHaveBeenLastCalledWith([0, 1], CURSOR_END);
-
-		expect(placeAt(TABLE_BOX.left + 100, TABLE_BOX.top - 30)).toBe(true);
-		expect(leafSnap).toHaveBeenLastCalledWith(TABLE_BOX.left + 100, TABLE_BOX.top + 1);
-	});
-
-	it('aims a point below the document at the last block’s trailing corner', () => {
-		expect(placeAt(20, TABLE_BOX.bottom + 2000)).toBe(true);
-		expect(focusByPath).toHaveBeenCalledWith([0, 1], CURSOR_END);
-	});
-
 	// Miss-analysis: the below-document case only ran fully mounted, where last band = last block.
 	it('resolves a point below a windowed-out tail against the document, not the slice', async () => {
 		const land = vi.fn(async () => 'placed' as const);
@@ -128,6 +108,18 @@ describe('placeCaretAtPoint landing walk', () => {
 		await vi.waitFor(() => expect(land).toHaveBeenCalledWith({ path: [9], offset: CURSOR_END }));
 		// The rendered slice's own last block is never touched; a caret there is the defect.
 		expect(focusByPath).not.toHaveBeenCalled();
+	});
+
+	// Miss-analysis: the anchor and the click run each kept their own copy of the tail check, and
+	// no row asked either below an unmounted tail.
+	it('starts no margin drag and names no block for a click run below a windowed-out tail', () => {
+		const below = TABLE_BOX.bottom + 2000;
+		expect(makeCaret().anchorAtPoint(root, 20, below)).not.toBeNull();
+		expect(makeCaret().blockNearPress(root, 20, below)?.path).toEqual([0]);
+
+		const windowed = makeCaret({ lastBlockIndex: () => 9 });
+		expect(windowed.anchorAtPoint(root, 20, below)).toBeNull();
+		expect(windowed.blockNearPress(root, 20, below)).toBeNull();
 	});
 
 	// Miss-analysis: the click's reset ran after the tail's caret was placed, and forgot the side

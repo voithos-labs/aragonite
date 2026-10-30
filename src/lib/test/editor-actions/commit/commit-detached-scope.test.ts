@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { asDocPath } from '#lib/selection/path-math.js';
+import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { trackChildIds } from '#lib/tree-operations/structural-change.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';

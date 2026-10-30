@@ -31,7 +31,7 @@ import {
 	trailingLineEnding,
 	trimTrailingLineEnding
 } from '#lib/core/lines.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt, documentBody } from '#lib/tree-operations/node-primitives.js';
@@ -220,7 +220,8 @@ function keystrokeMovesOneLine(source: string, pick: number, offset: number): vo
 		body,
 		leaf.at(-1)!,
 		raw.slice(0, at) + 'Q' + raw.slice(at),
-		'authored'
+		'authored',
+		defaultGrammarView
 	);
 	const before = splitLines(serialize(deps.doc)).map((line) => line.raw);
 	createUndoController(deps).typeLeaf(docPathFrom(leaf), write, at);

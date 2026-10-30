@@ -22,10 +22,11 @@
 	} from '../editor-keys';
 	import type { ResolveImageUrl, ResolveLinkUrl } from '../host-hooks';
 	import { createCaretMemory } from '../caret/caret-memory';
-	import { createCaretWriter } from '../caret/widget-offset';
+	import { createCaretWriter } from '../browser/caret-writer';
 	import { createDrawnCaret } from '../caret/drawn-caret.svelte';
-	import { caretRectAt } from '../caret/visual-lines';
-	import { docPathFrom } from '../caret/coordinate-spaces';
+	import { createCompositionTracker } from '../browser/composition';
+	import { caretRectAt } from '../browser/visual-lines';
+	import { docPathFrom } from '../core/coordinate-spaces';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createScrollOwner } from '../windowing/scroll-owner';
 	import { createScrollHostResolution } from './editor-root/scroll-host';
@@ -75,12 +76,8 @@
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
 	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
-	import {
-		holdsNativeRange,
-		readCurrentSelection,
-		readDomPoint,
-		readNativeSelection
-	} from '../selection/native-bridge';
+	import { holdsNativeRange, readNativeSelection } from '../browser/selection-read';
+	import { readCurrentSelection, readDomPoint } from '../selection/native-bridge';
 	import { createCaretRestore, type CaretRestoreDeps } from '../selection/caret-restore';
 	import { createRoundTripRestore } from '../selection/round-trip-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
@@ -313,13 +310,15 @@
 		// Read off the live document, since a widget's own commits move its end byte.
 		widgetSpan: (target) => widgetSpanAt(doc, target, reading)
 	});
+	const composition = createCompositionTracker();
 	// `scrollOwner` is built further down; the drawn caret watches sizes only after init.
 	const drawnCaret = createDrawnCaret({
 		getRoot: () => editorEl ?? null,
 		caretMode: () => caret,
 		isReading: () => effectiveMode === 'reading',
 		selection: selectionState,
-		watchSize: (el, onResize) => scrollOwner.watchSize(el, onResize)
+		watchSize: (el, onResize) => scrollOwner.watchSize(el, onResize),
+		composition
 	});
 	// Reading mode has no caret; one the editor asks for there marks where leaving puts it.
 	const caretWriter = createCaretWriter(drawnCaret.request, (el, raw) => {
@@ -815,6 +814,7 @@
 		activation: activePlugins,
 		getPresentationMode: reading.mode,
 		isCrossBlockRange: () => selectionState.isCrossBlock,
+		holdsNativeRange,
 		crossBlockCommands,
 		markActivation,
 		undoStack: undoManager,
@@ -840,6 +840,7 @@
 		caretWriter,
 		presses,
 		drawnCaret,
+		composition,
 		autoPairs,
 		scrollOwner,
 		linkCard,
@@ -1016,13 +1017,16 @@
 		return () => handle.dispose();
 	});
 
+	rootEffect((root) => composition.install(root));
+
 	rootEffect((root) => {
 		return installSelectionChangeBridge({
 			root,
 			isHostChrome,
 			announceIfMoved: selectionAnnouncer.announceIfMoved,
 			selection: selectionState,
-			caretWriter
+			caretWriter,
+			composition
 		});
 	});
 

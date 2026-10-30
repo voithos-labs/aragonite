@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { bundledPluginDirs, collectEditorSources } from './scan-source';
 import { SOURCE_DIR } from './source-paths';
-import { requiredPackPaths } from '../../../../../scripts/pack-manifest.mjs';
+import { requiredPackPaths } from '../../../../../scripts/pack/pack-manifest.mjs';
 import { publishedEntryPoints, SOURCE_CONDITION } from '../../../../../scripts/lib-alias.mjs';
 
 const PLUGIN_SRC = path.resolve(SOURCE_DIR.plugins);

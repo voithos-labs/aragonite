@@ -80,8 +80,8 @@ export interface ScrollOwner {
 	/** Runs `run` after the current flush, with every other list's. */
 	measureSoon(run: () => void): void;
 	/** Watches a child's size with the editor's one observer. The callback runs inside the browser's
-	 *  size report, so a height it records moves the window and the scroll inside that report. */
-	watchSize(el: Element, onResize: (entry: ResizeObserverEntry) => void): () => void;
+	 *  size report, or earlier inside an owner write, so a height it records moves the scroll there. */
+	watchSize(el: Element, onHeight: (height: number) => void): () => void;
 	/** Take the position for a scroll into view now, before the mount's awaits; `scroll()` once
 	 *  the block is mounted. */
 	place(path: readonly number[], opts: PlaceOptions): ScrollPlacement;
@@ -212,11 +212,17 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		for (const queued of runs) queued();
 	}
 
-	/** Every owner write but the round's own: it measures the queued blocks and closes the round
-	 *  first, so it reads tables that know every mounted block, and no correction lands after it. */
-	function writeScroll(target: () => ScrollTarget | null): void {
+	/** Brings the tables up to the page (queued measures, size reports not sent yet) and closes the
+	 *  round, so a position read after it has no correction still to land. */
+	function catchUp(): void {
 		measureQueued();
+		sizes.reportNow();
 		closeRound();
+	}
+
+	/** Every owner write but the round's own, read off the page once the tables have caught up. */
+	function writeScroll(target: () => ScrollTarget | null): void {
+		catchUp();
 		const to = target();
 		const p = writable();
 		if (!to || !p) return;
@@ -337,7 +343,7 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 		},
 		beginRound,
 		roundOpen: () => open !== null,
-		watchSize: (el, onResize) => sizes.watch(el, onResize),
+		watchSize: (el, onHeight) => sizes.watch(el, onHeight),
 		measureSoon(run) {
 			if (soon.size === 0) void tick().then(measureQueued);
 			soon.add(run);
@@ -360,9 +366,8 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 					if (el && placement === mine) recordLanding(mine, el);
 					await settle(token, p);
 					const landed = !token.superseded && landedInView(p);
-					// `'center'` places without holding, as `rects.scrollTo` promises, and a target that
-					// didn't land has no position to keep.
-					if ((!hold || block === 'center' || !landed) && placement === mine) drop();
+					// A target that didn't land has no position to keep.
+					if ((!hold || !landed) && placement === mine) drop();
 					return landed;
 				}
 			};
@@ -375,8 +380,8 @@ export function createScrollOwner(deps: ScrollOwnerDeps): ScrollOwner {
 			});
 		},
 		keep() {
-			// Closed first, so the position kept is the one the open round's correction leaves.
-			closeRound();
+			// Caught up first, so the position kept is the one the pending correction leaves.
+			catchUp();
 			const p = writable();
 			const before = p?.scrollTop() ?? 0;
 			return async () => {

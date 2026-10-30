@@ -220,6 +220,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Classifies keys for the caret memory and consumes none: only a plain arrow crosses a code chip’s border, so the modifier reads there are a refusal.'
 	},
 	{
+		file: 'editor-actions/caret-host-input.ts',
+		chords: [],
+		keys: ['Enter'],
+		note: 'A plain key that ended a composition the browser dropped in the gap caret or a block focused whole is spent there, Enter opening the paragraph after the composed one; a chord goes on to the host.'
+	},
+	{
 		file: 'editor-actions/container-block-component.ts',
 		chords: ['Mod+C', 'Mod+X'],
 		keys: [
@@ -233,13 +239,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'c',
 			'x'
 		],
-		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too.'
-	},
-	{
-		file: 'editor-actions/plugin/container.ts',
-		chords: [],
-		keys: [],
-		note: 'The arrow exit for a plugin editor declines every modified key rather than claiming one.'
+		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too. The arrow exit for a plugin editor or a hand-built view declines every modified key rather than claiming one.'
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',
@@ -315,6 +315,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		chords: [],
 		keys: [],
 		note: 'A modified click is a platform command, so the dead-space caret declines it.'
+	},
+	{
+		file: 'selection/motion-keys.ts',
+		chords: [],
+		keys: [],
+		note: 'Its caret keys are read by motionKey (schema/keybindings.ts); a vertical arrow with Ctrl or Cmd is left to the browser, never claimed.'
 	},
 	{
 		file: 'selection/shared-keydown.ts',

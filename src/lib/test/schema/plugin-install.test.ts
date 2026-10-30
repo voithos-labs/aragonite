@@ -7,12 +7,12 @@ import {
 } from '#lib/schema/plugin-install.js';
 import { declarePluginKind, declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { componentPluginEditor } from '#lib/schema/block-kind-plugin.js';
-import { declareOwnedKind } from '#lib/test/support/owned-kind.js';
+import { declareOwnedKind } from '#lib/test/harness/owned-kind.js';
 import { registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
-import { testClosure } from '#lib/test/support/closure.js';
+import { testClosure } from '#lib/test/harness/closure.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { testView } from '#lib/test/support/test-view.js';
+import { testView } from '#lib/test/harness/test-view.js';
 
 /** The thrown error itself, where `toThrow` only proves that something threw. */
 function captureThrow(run: () => void): unknown {

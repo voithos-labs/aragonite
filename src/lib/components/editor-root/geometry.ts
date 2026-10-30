@@ -4,7 +4,7 @@
  * per callback, so there is no timer (G4.4).
  */
 
-import { observeResizeNow } from '../../windowing/observe-resize';
+import { laidOutBox, observeResizeNow } from '../../windowing/observe-resize';
 import type { UserScrollport } from '../../windowing/scroll-ancestors';
 import type { RootListScroll, ScrollOwner } from '../../windowing/scroll-owner';
 import { ESTIMATE_BASE_FONT_SIZE } from '../../windowing/typography-estimates';
@@ -63,15 +63,8 @@ export function installTypeScaleProbe(el: HTMLElement, deps: TypeScaleProbeDeps)
 		if (!(next > 0) || Math.abs(next - deps.getScale()) < 0.01) return;
 		deps.onScale(next);
 	};
-	apply(el.getBoundingClientRect().height);
-	return observeResizeNow(el, (entries) => apply(borderBoxHeight(entries, el)));
-}
-
-// Border boxes throughout, first measurement and fallback alike, so a browser without
-// `borderBoxSize` computes the same difference.
-function borderBoxHeight(entries: ResizeObserverEntry[], el: HTMLElement): number {
-	const box = entries[0]?.borderBoxSize?.[0];
-	return box ? box.blockSize : el.getBoundingClientRect().height;
+	apply(laidOutBox(el).height);
+	return observeResizeNow(el, () => apply(laidOutBox(el).height));
 }
 
 // ── Header height ───────────────────────────────────────────────────
@@ -91,9 +84,9 @@ export interface HeaderSlotCompensationDeps {
  *  growing header would slide the document. */
 export function installHeaderSlotCompensation(deps: HeaderSlotCompensationDeps): () => void {
 	const { el, port, compensate } = deps;
-	let lastHeight = el.getBoundingClientRect().height;
-	return observeResizeNow(el, (entries) => {
-		const height = borderBoxHeight(entries, el);
+	let lastHeight = laidOutBox(el).height;
+	return observeResizeNow(el, () => {
+		const height = laidOutBox(el).height;
 		const delta = height - lastHeight;
 		lastHeight = height;
 		if (delta === 0) return;

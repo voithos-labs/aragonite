@@ -17,10 +17,14 @@ import {
 	isPathBetween,
 	isPathSubtreeBetween,
 	pathHasPrefix,
-	pathsEqual,
-	type DocPath
+	pathsEqual
 } from './path-math';
-import { cellRectBounds, docPathFrom, type CellRect } from '../caret/coordinate-spaces';
+import {
+	type DocPath,
+	cellRectBounds,
+	docPathFrom,
+	type CellRect
+} from '../core/coordinate-spaces';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { isBlankParagraph } from '../core/parser';
 import { countsCells, isGridKind, tableCellCount } from '../schema/block-kind-descriptor';
@@ -228,6 +232,12 @@ export function isChromeChild(container: ChromeContainer, leafPath: readonly num
 		leafPath.length === container.path.length + 1 &&
 		isReservedChromeChild(container.node, leafPath[container.path.length])
 	);
+}
+
+/** The container whose title row the leaf at `path` is, or null for any other leaf. */
+export function titleRowOwner(doc: DocumentView, path: readonly number[]): NodeView | null {
+	const container = nearestChromeContainer(doc, path);
+	return container && isChromeChild(container, path) ? container.node : null;
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

@@ -28,25 +28,38 @@ describe('cross-block copy ending in reserved chrome', () => {
 		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(
 			doc,
-			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3))),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 14))),
 			SOURCE_READING
 		);
 		const note = parse(text).children.find((c) => c.kind === 'callout');
 		expect(note).toBeDefined();
-		expect(note!.children?.map((c) => c.kind)).toEqual(['callout-title']);
-		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe('Tit');
+		expect(note!.children?.map((c) => c.kind)).toEqual(['directiveOpenerLine']);
+		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe(':::callout Tit');
 	});
 
 	it('whole-title endpoint (offset at chrome end) synthesizes the full title, empty body', () => {
 		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(
 			doc,
-			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 5))),
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 16))),
 			SOURCE_READING
 		);
 		const note = parse(text).children.find((c) => c.kind === 'callout');
-		expect(note!.children?.map((c) => c.kind)).toEqual(['callout-title']);
-		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe('Title');
+		expect(note!.children?.map((c) => c.kind)).toEqual(['directiveOpenerLine']);
+		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe(':::callout Title');
+	});
+
+	// Miss-analysis: the end side sliced the row's bytes itself, and no row ended inside the name.
+	it.each([3, 7])('an endpoint inside `:::callout` (offset %i) keeps the whole name', (offset) => {
+		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
+		const text = collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], offset))),
+			SOURCE_READING
+		);
+		const note = parse(text).children.find((c) => c.kind === 'callout');
+		expect(note?.children?.map((c) => c.kind)).toEqual(['directiveOpenerLine']);
+		expect(trimTrailingLineEnding(note!.children![0].raw).trimEnd()).toBe(':::callout');
 	});
 
 	// The copied opener keeps the live `open` flag; a closed details is copied whole, since the

@@ -18,6 +18,7 @@ const page = query.has('shared-plugin')
 			: createApp(App, { uncontrolled: query.has('uncontrolled') });
 if (query.has('block-views')) {
 	page.provide('badge-text', 'memo by vue');
+	page.provide('framework-name', 'vue');
 	page.provide('block-view-plugins', blockViewPlugins(page));
 }
 page.mount('#app');

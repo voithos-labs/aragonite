@@ -12,8 +12,8 @@ import { serialize } from '#lib/core/serializer.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { Reading } from '#lib/schema/reading.js';
-import { asDomTextOffset, asRawOffset } from '#lib/caret/coordinate-spaces.js';
-import { createRangeAtDomTextOffsets } from '#lib/caret/widget-offset.js';
+import { asDomTextOffset, asRawOffset } from '#lib/core/coordinate-spaces.js';
+import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
@@ -41,7 +41,7 @@ import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js'
 import { fixtureReading } from '../harness/fixture-grammar';
 import { mountBlock } from '../harness/mount-block';
 import { settleEditor } from '../harness/settle';
-import { ensurePasteSurface } from '../support/paste-surface';
+import { ensurePasteSurface } from '../harness/paste-surface';
 import { mountCell, noIslands } from '../blocks/table/mount-cell';
 import {
 	decorationIsland,
@@ -679,7 +679,7 @@ const FAMILIES: Family[] = [
 	},
 	{
 		name: 'a range delete',
-		stores: { 'selection/range-delete.ts': 1 },
+		stores: { 'selection/cross-block/range-delete/range-delete.ts': 1 },
 		rows: [
 			...[TODO, QUOTED_TODO, NESTED_TODO, FOOTNOTE_TODO].map((place) => ({
 				shape: place.name,
@@ -700,7 +700,7 @@ const FAMILIES: Family[] = [
 	},
 	{
 		name: 'a range delete that stops at a title row',
-		stores: { 'selection/range-delete-ceremony.ts': 2 },
+		stores: { 'selection/cross-block/range-delete/range-delete-ceremony.ts': 2 },
 		rows: [
 			{
 				shape: 'the kept head of a to-do',

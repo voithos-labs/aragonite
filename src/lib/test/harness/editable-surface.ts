@@ -6,15 +6,17 @@ import {
 } from '#lib/components/blocks/editable/editable-surface.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { asRawOffset, type RawOffset } from '#lib/caret/coordinate-spaces.js';
+import { asRawOffset, type RawOffset } from '#lib/core/coordinate-spaces.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
-import { rawOffsetAt, type CaretClamp } from '#lib/caret/widget-offset.js';
+import { rawOffsetAt } from '#lib/browser/offsets.js';
+import type { CaretClamp } from '#lib/browser/caret-writer.js';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { fixtureReading } from './fixture-grammar';
 import { stubBlockEdit, stubCaretMemory } from '#lib/testing/headless-actions.js';
 import type { CaretMemory } from '#lib/caret/caret-memory.js';
-import { commandContext } from '../support/command-context';
+import { commandContext } from './command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { createCompositionTracker } from '#lib/browser/composition.js';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
@@ -54,7 +56,9 @@ export function makeSurface(
 	}
 
 	let caret = 0;
-	let composing = false;
+	// Listening on the element itself, which every signal a test sends reaches.
+	const composition = createCompositionTracker();
+	composition.install(el);
 	const commits: SurfaceHarness['commits'] = [];
 	const seats: number[] = [];
 	const writer = createSurfaceBackend({ caretWriter: testCaretWriter, getEl: () => el });
@@ -82,10 +86,7 @@ export function makeSurface(
 		getNode: options.getNode ?? (() => ({ kind: 'paragraph', leadingTrivia: '', raw: '' })),
 		getMyPath: () => [0],
 		getIndex: () => 0,
-		getComposing: () => composing,
-		setComposing: (value: boolean) => {
-			composing = value;
-		},
+		composition,
 		requestCaret: () => {},
 		selection: { isCrossBlock: false },
 		caretWriter: testCaretWriter,
@@ -107,7 +108,7 @@ export function makeSurface(
 		pasteCoordinator: {},
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
-		readInput: (caret: number) => ({ text: el.textContent ?? '', caret }),
+		readBack: (caret: number) => ({ text: el.textContent ?? '', caret }),
 		compositionSeat: options.compositionSeat,
 		handleKeydown: options.handleKeydown ?? (async () => {}),
 		handleBeforeInput: options.handleBeforeInput,

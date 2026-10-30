@@ -1,6 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { clickInPlace } from '../../../click-in-place';
+import { runColumnCommand } from '../../../table-columns';
 
 // 12 columns at ~150px each overflow `.table-block`'s overflow-x in an 800px viewport, so the late
 // columns start scrolled off the right edge. A column moved into that region carries the caret
@@ -23,9 +24,7 @@ test.describe('table block: column move on a wide (overflowing) table', () => {
 		await editor.goto();
 	});
 
-	test('Alt+ArrowRight into the clipped region scrolls the moved column into view', async ({
-		page
-	}) => {
+	test('a column moved into the clipped region scrolls into view', async ({ page }) => {
 		await editor.loadContent(WIDE_TABLE);
 		const tableEl = page.locator('[role="table"]').first();
 
@@ -48,7 +47,7 @@ test.describe('table block: column move on a wide (overflowing) table', () => {
 		expect(last).toBeLessThan(COLS - 1);
 
 		await clickInPlace(page.locator('.table-cell').nth(last));
-		await page.keyboard.press('Alt+ArrowRight');
+		await runColumnCommand(page, 'Move column right');
 
 		// Insert semantics: the column swaps past its clipped neighbour.
 		await editor.bridge.waitForSourceMatches(

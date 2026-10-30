@@ -8,7 +8,7 @@ so the bullets below are the picture's contract.
 
 - one strip per page theme, so the README's `<picture>` can pair them like the charts do
 - the editor keeps its default theme in both; what changes is the page around the panels
-- both strips share the chart palette (`scripts/chart-common.mjs`), so the assets read as one set
+- both strips share the chart palette (`scripts/docs/chart-common.mjs`), so the assets read as one set
 
 ## The panels
 

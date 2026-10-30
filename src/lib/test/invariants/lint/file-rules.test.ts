@@ -38,18 +38,16 @@ const at = (relPath: string, code: string): Probe => ({ relPath, code });
 // ── G4.15 coordinate brands ──────────────────────────────────────────────────
 
 const COORDINATE_HOME = SOURCE.coordinateBrands;
-const DOCPATH_HOME = SOURCE.docPathBrand;
 const BRANDS = ['RawOffset', 'DomTextOffset', 'EditorX', 'ViewportX', 'CellIndex', 'DocPath'];
 
-/** Where each brand's bare `as <Brand>` cast may live. `DocPath` composes in the neutral
- *  coordinate module too, which `tree-operations` can reach without importing `selection/`. */
+/** Where each brand's bare `as <Brand>` cast may live. */
 const BRAND_CAST_HOME: Record<string, string[]> = {
 	RawOffset: [COORDINATE_HOME],
 	DomTextOffset: [COORDINATE_HOME],
 	EditorX: [COORDINATE_HOME],
 	ViewportX: [COORDINATE_HOME],
 	CellIndex: [COORDINATE_HOME],
-	DocPath: [DOCPATH_HOME, COORDINATE_HOME]
+	DocPath: [COORDINATE_HOME]
 };
 
 const BRAND_CAST_RE = /\bas\s+(RawOffset|DomTextOffset|EditorX|ViewportX|CellIndex|DocPath)\b/g;
@@ -532,7 +530,7 @@ const RULES: FileRule[] = [
 		matches:
 			/(?:\b\w*[rR]ange\??|\bgetRangeAt\([^)]*\))\.get(?:ClientRects|BoundingClientRect)\s*\(/,
 		allowed: {
-			'src/lib/caret/visual-lines.ts':
+			'src/lib/browser/visual-lines.ts':
 				'`caretRectAt`, the one measure of a caret, and the character and line boxes it reads',
 			'src/lib/components/overlays/rects.ts': 'the boxes of a span between two offsets',
 			'src/lib/components/blocks/text/widget-interaction.ts':
@@ -542,7 +540,7 @@ const RULES: FileRule[] = [
 				'whether a selected range covers a right-click; a collapsed one is never measured'
 		},
 		reason:
-			'WebKit and Firefox measure a caret right after a `\\n` on the line the `\\n` ends, so a caret measured anywhere else reads the wrong line at every line start: call `caretRectAt`, or `charRect` for one character',
+			'WebKit and Firefox measure a caret right after a `\\n` on the line the `\\n` ends, so a caret measured anywhere else reads the wrong line at every line start: call `caretRectAt`',
 		hits: [
 			'const rects = range.getClientRects();',
 			'return sel.getRangeAt(0).getBoundingClientRect();',
@@ -551,25 +549,48 @@ const RULES: FileRule[] = [
 		misses: ['const box = el.getBoundingClientRect();', 'const rects = block.getClientRects();']
 	},
 	{
-		id: 'G4.243 the browser moves a selection in one place, the caret writer',
-		matches: /\.modify\s*\(/,
+		id: 'G4.275 words are cut by one rule',
+		matches: /\bIntl\s*\.\s*Segmenter\b|\bgranularity\s*:\s*['"]word['"]/,
 		allowed: {
-			'src/lib/caret/widget-offset.ts':
-				'the caret writer: its line-edge moves, and the read of which line a caret at a soft wrap shows on'
+			'src/lib/core/text-units.ts':
+				'`wordSegments`, which cuts a full stop or colon between letters the same on every engine'
 		},
 		reason:
-			'a `Selection.modify` moves the caret where the writer never recorded it, so the drawn caret and `canonicalizeCaret` misread it: move through `moveCaretToLineEdge` or `extendToLineEdge`, or ask `focusEndsLine`',
+			'engines’ word segmenters disagree (Chromium cuts `foo.bar`, Firefox and WebKit join it), so a word read straight off `Intl.Segmenter` takes different text on each: read words through `wordSegments` in `core/text-units.ts`',
 		hits: [
-			"sel.modify('move', 'forward', 'line');",
-			"window.getSelection()!.modify ('extend', 'left', 'lineboundary');"
+			"const s = new Intl.Segmenter(undefined, { granularity: 'word' });",
+			'if (typeof Intl.Segmenter === "function") {}',
+			"create('word', { granularity: 'word' })"
 		],
-		misses: ['const modified = view.modifiedAt;', 'modify(node);']
+		misses: ['const segments = wordSegments(text);', 'const unit = graphemeSegmenter();']
+	},
+	{
+		id: 'G4.276 a widget’s raw span is read only through `widgetSourceRange`',
+		matches:
+			/\bdataset\.source(?:Start|End)\b(?!\s*=[^=])|\{[^{}]*\bsource(?:Start|End)\b[^{}]*\}\s*=[^;]*\.dataset\b|getAttribute\(\s*['"]data-source-(?:start|end)['"]/,
+		allowed: {
+			'src/lib/core/inline/widget-shell.ts': '`widgetSourceRange` itself'
+		},
+		reason:
+			'a widget or decoration names its raw span in `data-source-start` and `data-source-end`, and a reader that parses them by hand drifts on a missing or partial span: read it through `widgetSourceRange` in `core/inline/widget-shell.ts`',
+		hits: [
+			'const start = Number(shell.dataset.sourceStart);',
+			"const end = el.getAttribute('data-source-end');",
+			'if (a.dataset.sourceEnd === b) {}',
+			'const { sourceStart, sourceEnd } = (widget as HTMLElement).dataset;'
+		],
+		misses: [
+			'shell.dataset.sourceStart = String(node.start);',
+			'const span = widgetSourceRange(shell);',
+			"el.querySelector('[data-source-start]')",
+			'function f(el: HTMLElement, sourceStart: number) {\n\tconst { id } = el.dataset;\n}'
+		]
 	},
 	{
 		id: 'G4.243 the caret’s line is decided through the soft-wrap read',
 		matches: /\bcaretRectAt(?:Raw)?\s*\(/,
 		allowed: {
-			'src/lib/caret/visual-lines.ts':
+			'src/lib/browser/visual-lines.ts':
 				'`caretRectAt` itself, and the line decisions, which ask the browser at a soft wrap first',
 			'src/lib/caret/sticky-measure.ts':
 				'the column: the caret’s own x after the soft-wrap read, and the column search over offsets that are no caret',
@@ -577,6 +598,8 @@ const RULES: FileRule[] = [
 				'the drawn caret’s box, which steps aside for the browser’s own caret at a soft wrap',
 			'src/lib/selection/caret-landing.ts':
 				'the box scrolled into view, where a line off at a soft wrap still shows the caret',
+			'src/lib/selection/show-caret.ts':
+				'the box a caret key the editor landed is scrolled into view by, where a line off at a soft wrap still shows the caret',
 			'src/lib/selection/selection-drop.ts':
 				'the drop caret, at a point the pointer chose, not the caret',
 			'src/lib/selection/page-step.ts':
@@ -591,7 +614,7 @@ const RULES: FileRule[] = [
 			'const box = caretRectAtRaw(el, raw);',
 			'deps.caretRectAt(root, n, o)'
 		],
-		misses: ['import { caretRectAt } from "./visual-lines";', 'caretRectAt,']
+		misses: ['import { caretRectAt } from "./lines";', 'caretRectAt,']
 	},
 	{
 		id: 'G4.221 a paste with no paste event calls the paste step, never a constructed event',
@@ -610,10 +633,10 @@ const RULES: FileRule[] = [
 		id: 'G4.221 the shown text of a selection is read in one place',
 		matches: readsSelectionString,
 		allowed: {
-			[SOURCE.clipboardStep]:
+			[SOURCE.selectionRead]:
 				'`shownSelectionText`: LF line breaks, and nothing for an empty block’s placeholder `<br>`'
 		},
-		reaches: [SOURCE.clipboardStep],
+		reaches: [SOURCE.selectionRead],
 		reason:
 			'Firefox on Windows writes a selection’s line breaks as CRLF and an empty block’s placeholder `<br>` as one, so the text read straight off the selection differs by engine: call `shownSelectionText`',
 		hits: [
@@ -814,10 +837,9 @@ const RULES: FileRule[] = [
 		id: 'G4.15 every `as<Brand>()` conversion lives in a declared home or boundary file',
 		matches: MINT_CALL_RE,
 		allowed: {
-			[COORDINATE_HOME]: 'the numeric-space conversions themselves',
-			[DOCPATH_HOME]: 'the DocPath brand and its base conversion (asDocPath)',
+			[COORDINATE_HOME]: 'the conversions themselves, asDocPath included',
 			// Modules that own a coordinate space.
-			'src/lib/caret/widget-offset.ts': 'DomTextOffset home: the walk brands its returns',
+			'src/lib/browser/offsets.ts': 'DomTextOffset home: the walk brands its returns',
 			'src/lib/caret/sticky-measure.ts': 'EditorX/ViewportX home + walk-offset candidate scan',
 			'src/lib/components/blocks/editable/surface-backend.ts':
 				'RawOffset home for the caret intent a block records as a plain number (the snap target)',
@@ -845,9 +867,7 @@ const RULES: FileRule[] = [
 			'src/lib/components/blocks/text/inline-commands.ts':
 				'Edit link puts the caret at a construct’s text end, a CST offset (unbranded model value)',
 			'src/lib/components/blocks/text/typed-input.ts':
-				'the auto-pair’s caret, counted in the block’s displayed text, enters cursor IO',
-			'src/lib/selection/multi-click.ts':
-				'the point probe’s raw offsets and the segmenter’s walk-text indices (both unbranded) cross the walk in each direction'
+				'the auto-pair’s caret, counted in the block’s displayed text, enters cursor IO'
 		},
 		reason:
 			'a boundary conversion is a new declared entry into a coordinate space: add the file with the reason its plain value cannot be branded yet',
@@ -871,31 +891,12 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
-		id: 'the browser is asked for a caret at a point in one module',
-		matches: /\bcaret(Range|Position)FromPoint\b/,
-		allowed: {
-			'src/lib/caret/point-offset.ts':
-				'caretSeatFromPoint, behind the offset lookups that move a padding point level with a line'
-		},
-		reason:
-			'Mac and Linux Chromium answer a point in an element’s top or bottom padding with the line’s start or end: resolve a point through offsetFromViewportPoint or caretOffsetAtPoint',
-		hits: [
-			'const r = document.caretRangeFromPoint(x, y);',
-			'const p = (doc as any).caretPositionFromPoint?.(x, y);'
-		],
-		misses: [
-			'const offset = offsetFromViewportPoint(el, x, y);',
-			'const seat = caretSeatFromPoint(document, x, y);',
-			'// never call caretRangeFromPoint here\nconst a = 1;'
-		]
-	},
-	{
 		id: 'every editable surface hands each press to the shared press handler once',
 		matches: skipsSharedPress,
 		allowed: {
 			'src/lib/components/GapCaret.svelte':
 				'the caret between blocks holds no text, so a press there has no line to land on',
-			'src/lib/editor-actions/whole-block-focus-surface.ts':
+			'src/lib/editor-actions/whole-block-focus-surface.svelte.ts':
 				'the hidden editing host behind a whole block takes focus, never a press',
 			'src/lib/plugins/mermaid/MermaidBlock.svelte':
 				'the diagram source is a textarea, a form control that places its own caret, with no DOM text for the probe',
@@ -1056,7 +1057,7 @@ const RULES: FileRule[] = [
 		matches: (file) => !HOST_AWARE_RE.test(file.code),
 		allowed: {
 			'src/lib/active-editor.ts': 'the host IS a text-entry surface: a focus move must yield to it',
-			'src/lib/invariants/landable-caret.ts':
+			'src/lib/invariants/caret-can-land.ts':
 				'G1.33 resolves the host as the focused editable and does nothing on its emptiness'
 		},
 		reason:
@@ -1210,7 +1211,7 @@ const RULES: FileRule[] = [
 			`\\b(?:${EDITOR_GETTERS.join('|')})\\?\\.\\(|(?:\\?\\?|\\|\\|)\\s*'(?:source|reading)'`
 		),
 		allowed: {
-			'src/lib/caret/widget-offset.ts':
+			'src/lib/browser/painted.ts':
 				'the mode a mounted block wears in the DOM, where no hiding attribute means source'
 		},
 		reason:
@@ -1384,7 +1385,7 @@ const RULES: FileRule[] = [
 			'src/lib/selection/range-coverage.ts':
 				'decides once what a range covers: the blocks between, the units, the edges, the cells, the rectangle',
 			'src/lib/selection/path-math.ts': 'defines the two path predicates',
-			'src/lib/caret/coordinate-spaces.ts': 'defines the rectangle two cells span',
+			'src/lib/core/coordinate-spaces.ts': 'defines the rectangle two cells span',
 			'src/lib/selection/primitives.ts': 'defines the cell index read of a table endpoint',
 			'src/lib/schema/block-kind-descriptor.ts':
 				"defines a table's cell count and the clamp every cell index takes",
@@ -1394,7 +1395,7 @@ const RULES: FileRule[] = [
 				"checks a stored cell endpoint lies inside its table's cells",
 			'src/lib/selection/table-rect-extend.ts':
 				"moves a rectangle's focus cell one step on Shift+arrow, an edit of the selection",
-			'src/lib/selection/range-delete-table.ts':
+			'src/lib/selection/cross-block/range-delete/range-delete-table.ts':
 				'puts the caret in the start cell once the coverage has said which cells clear'
 		},
 		reason:
@@ -1423,9 +1424,10 @@ const RULES: FileRule[] = [
 		matches: /(?<![\w.])(?:survivorWhereRangeResumes|caretWhereRangeResumes)\s*\(/,
 		allowed: {
 			'src/lib/selection/caret-target.ts': 'defines the survivor read',
-			'src/lib/selection/range-delete-chrome.ts':
+			'src/lib/selection/cross-block/range-delete/range-delete-chrome.ts':
 				'defines the caret read, and a range that took its start container whole and runs on',
-			'src/lib/selection/range-delete-table.ts': 'the same range, ending in a table'
+			'src/lib/selection/cross-block/range-delete/range-delete-table.ts':
+				'the same range, ending in a table'
 		},
 		reason:
 			'`survivorAfterRemoval` is the one place a gesture picks the side; a removal that asks for the next block itself lands Backspace below',
@@ -1604,12 +1606,12 @@ const RULES: FileRule[] = [
 		matches:
 			/['"`]delete(?:Content|Word|SoftLine|HardLine|EntireSoftLine|By|Composition)\w*['"`]|\.startsWith\(\s*['"`]delete['"`]|\/\^delete/,
 		allowed: {
-			[SOURCE.deleteExtent]:
-				'the one list of delete input types, which says what each takes and which the editor writes'
+			[SOURCE.inputRead]:
+				'the one table of input types, which says what each delete takes and which the editor writes'
 		},
-		reaches: [SOURCE.deleteExtent],
+		reaches: [SOURCE.inputRead],
 		reason:
-			'a branch on a delete input type is a second opinion on which deletes the editor writes: ask `caret/delete-extent.ts` (`decidedDelete`, `isDeleteInput`, `isMoveDelete`)',
+			'a branch on a delete input type is a second opinion on which deletes the editor writes: ask `browser/input.ts` (`readInput`, `decidedDelete`, `isDeleteInput`, `isMoveDelete`)',
 		hits: [
 			"if (e.inputType !== 'deleteContentBackward') return false;",
 			"case 'deleteWordForward':",
@@ -1618,7 +1620,7 @@ const RULES: FileRule[] = [
 			'const cut = inputType === "deleteByCut";'
 		],
 		misses: [
-			'if (!isCharacterBackspace(e.inputType)) return false;',
+			'if (!isCharacterBackspace(e)) return false;',
 			"blockEdit.deleteBlock(index, 'Backspace');",
 			"case 'table.deleteRow':",
 			"['deleteRow', 'Delete row', canDeleteRow(rowIdx, rowCount)]"
@@ -1655,7 +1657,7 @@ const RULES: FileRule[] = [
 				'a capture listener on the root that ends the undo step and writes nothing',
 			'src/lib/components/GapCaret.svelte':
 				'the gap caret, which is no block’s text and refuses every input but its one character',
-			'src/lib/editor-actions/whole-block-focus-surface.ts':
+			'src/lib/editor-actions/whole-block-focus-surface.svelte.ts':
 				'the proxy a block focused whole types into, which refuses every input but its one character'
 		},
 		reason:
@@ -1773,7 +1775,7 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'src/lib/core/inline/link-source-bytes.ts':
 				'the link writer rewrites one whole link and checks its candidate against the screen',
 			'src/lib/inline-menu/inline-menu-session.ts': 'compares two texts and writes nothing',
-			'src/lib/selection/range-delete.ts':
+			'src/lib/selection/cross-block/range-delete/range-delete.ts':
 				'the range delete’s own join, a known gap until it calls `joinLeaves` (T18 slice 5)',
 			'src/lib/selection/cross-block/range-replace.ts':
 				'a key typed over a range into a block with no typing write lands after its removal, a known gap until the text rides into the join (T18 slice 5)'
@@ -2335,7 +2337,12 @@ const ROGUE_WRITER = `${SOURCE_DIR.blocks}x/rogue-writer.ts`;
 const TYPED_WRITE_ASKS: ManifestRule[] = [
 	{
 		id: 'G4.101 only the surface write names a typed kind change or completes a typed line',
-		population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.selection),
+		population: under(
+			SOURCE_DIR.components,
+			SOURCE_DIR.browser,
+			SOURCE_DIR.caret,
+			SOURCE_DIR.selection
+		),
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/editable/surface-write.ts':
@@ -2470,6 +2477,8 @@ const RANGE_INDENT: ManifestRule[] = [
 				'a command key, run at the caret the range’s removal leaves',
 			'src/lib/editor-actions/plugin/container.ts':
 				'reads what a key means for the caret memory, and never runs it',
+			'src/lib/components/dom-block-view/DomBlockView.svelte':
+				'reads what an arrow leaving a hand-built block means for the caret memory, and never runs it',
 			'src/lib/components/link-card/LinkCardHost.svelte':
 				'asks only whether the key is the one that opens the link card'
 		},
@@ -2789,7 +2798,12 @@ const ROGUE_WIDGET_READER = `${SOURCE_DIR.textBlock}RogueWidgets.svelte`;
 
 const WIDGET_LIST: FileRule = {
 	id: 'G4.125 a component asks which inlines are widgets only in `widget-adjacency.ts`',
-	population: under(SOURCE_DIR.components, SOURCE_DIR.caret, SOURCE_DIR.plugins),
+	population: under(
+		SOURCE_DIR.components,
+		SOURCE_DIR.browser,
+		SOURCE_DIR.caret,
+		SOURCE_DIR.plugins
+	),
 	matches: /\b(?:isInlineWidget|flattenInlineWidgets)\s*\(/,
 	allowed: {
 		[WIDGET_LIST_HOME]:
@@ -2838,10 +2852,6 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		reason:
 			'with no document there is no focus or selection a landing could move, so nothing to compare'
 	},
-	'src/lib/schema/commands.ts :: warnSelectionKept': {
-		branches: 1,
-		reason: 'with no DOM a block holds no selection, so no command runs beside one'
-	},
 	'src/lib/editor-actions/replacement-focus.ts :: focusMovedOutsideReplacement': {
 		branches: 1,
 		reason: 'with no document nothing holds focus, so the caret goes back where the write left it'
@@ -2865,8 +2875,8 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		reason: 'with no media queries (jsdom) a recording names its pointer `none`'
 	},
 	'src/lib/testing/mount-dom-stubs.ts :: installEditorDomStubsForTests': {
-		branches: 3,
-		reason: 'with no DOM there is no element, range prototype or document to fill in'
+		branches: 2,
+		reason: 'with no DOM there is no element or range prototype to fill in'
 	}
 };
 

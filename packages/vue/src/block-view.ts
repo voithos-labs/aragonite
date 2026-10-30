@@ -8,12 +8,14 @@ import {
 	defineComponent,
 	h,
 	inject,
+	onUnmounted,
 	provide,
-	render,
+	watch,
 	type App,
 	type Component,
 	type InjectionKey,
-	type PropType
+	type PropType,
+	type WatchSource
 } from 'vue';
 import {
 	defineBlockView,
@@ -24,6 +26,9 @@ import {
 	type ContainerSurface,
 	type ContainerViewContext,
 	type ContainerViewSpec,
+	type HandBuiltBlock,
+	type HandBuiltViewContext,
+	type HandBuiltViewSpec,
 	type LeafSurface,
 	type LeafViewContext,
 	type LeafViewSpec,
@@ -31,12 +36,14 @@ import {
 	type RenderPrimaryViewContext,
 	type RenderPrimaryViewSpec
 } from '@voithos-labs/aragonite/plugin';
+import { createViewRoot } from './view-root.js';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-// A component's `ctx` leaves out the calls that hand the editor an element, which `LeafContent`,
-// `BlockChildren` and the helper itself make.
+// A component's `ctx` leaves out the calls that hand the editor something, which `LeafContent`,
+// `BlockChildren`, `useBlockHandle` and the helper itself make.
 interface Surfaces {
+	none: { spec: HandBuiltViewSpec; ctx: BlockViewContext };
 	leaf: {
 		spec: LeafViewSpec;
 		ctx: BlockViewContext & { readonly leaf: Omit<LeafSurface, 'attach'> };
@@ -53,10 +60,12 @@ interface Surfaces {
 	};
 }
 
-type MountContext = LeafViewContext | RenderPrimaryViewContext | ContainerViewContext;
+type MountContext =
+	HandBuiltViewContext | LeafViewContext | RenderPrimaryViewContext | ContainerViewContext;
 
-/** What the editor builds into a framework-drawn block: editable text, shown always or behind a
- *  rendered view until a click, or child blocks. */
+/** What the editor builds into a framework-drawn block: nothing (the component draws it all and
+ *  publishes with `useBlockHandle`), editable text, shown always or behind a rendered view until a
+ *  click, or child blocks. */
 export type FrameworkSurface = keyof Surfaces;
 
 /** What the block's component gets as props: the block's state, and the editor calls for its surface. */
@@ -72,7 +81,9 @@ export type VueBlockViewOptions<S extends FrameworkSurface> = Omit<Surfaces[S]['
 	/** Classes for the element the editor made for the block, which it measures as the block. */
 	className?: string;
 	/** Hears each change to the shown text, once, never mid-composition; leaf surfaces only. */
-	afterInput?: S extends 'container' ? never : (text: string, ctx: Surfaces[S]['ctx']) => void;
+	afterInput?: S extends 'container' | 'none'
+		? never
+		: (text: string, ctx: Surfaces[S]['ctx']) => void;
 	/** The host app, whose `provide`s, global components and plugins the block then sees; without
 	 *  it the block renders apart from any app. */
 	app?: App;
@@ -103,12 +114,11 @@ export function vueBlockView<S extends FrameworkSurface>(
 					return () => h(component, { state: props.state, ctx, draft: props.draft });
 				}
 			});
+			const root = createViewRoot(target, app);
 			let draft: string | null = null;
 			const draw = (state: BlockViewState, typed = state.revealed ? draft : null) => {
 				draft = typed;
-				const root = h(Root, { state, draft });
-				root.appContext = app?._context ?? null;
-				render(root, target);
+				root.render(h(Root, { state, draft }));
 			};
 			draw(ctx.state());
 			return {
@@ -118,8 +128,7 @@ export function vueBlockView<S extends FrameworkSurface>(
 					afterInput?.(text, ctx as never);
 				},
 				destroy() {
-					handOver.live = false;
-					render(null, target);
+					root.unmount();
 				}
 			};
 		}
@@ -135,7 +144,7 @@ export const LeafContent = defineComponent({
 	name: 'LeafContent',
 	props: contentProps,
 	setup(props) {
-		const handOver = useHandOver('LeafContent');
+		const handOver = useHandOver('<LeafContent>');
 		return () => h(props.as, { ref: handOver.attach });
 	}
 });
@@ -145,42 +154,55 @@ export const BlockChildren = defineComponent({
 	name: 'BlockChildren',
 	props: contentProps,
 	setup(props) {
-		const handOver = useHandOver('BlockChildren');
+		const handOver = useHandOver('<BlockChildren>');
 		return () => h(props.as, { ref: handOver.mountChildren });
 	}
 });
 
+/** What the editor calls on a `surface: 'none'` block (`focus`, `getCursorOffset`, `focusable` and
+ *  friends), made by `create` in `setup`, made again when `deps` change, and taken back on unmount. */
+export function useBlockHandle(
+	create: () => HandBuiltBlock,
+	deps?: WatchSource | WatchSource[]
+): void {
+	const handOver = useHandOver('useBlockHandle');
+	handOver.publish(create());
+	if (deps) watch(deps, () => handOver.publish(create()));
+	onUnmounted(() => handOver.publish(null));
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
-/** One per mount: it holds the mount's `ctx`, and drops a ref call that lands after `destroy`.
- *  Vue calls a function ref again on each re-render; the editor ignores an element it already has. */
+/** One per mount, holding the mount's `ctx`. Vue calls a function ref again on each re-render; the
+ *  editor ignores an element it already has, and one handed over after `destroy`. */
 interface HandOver {
-	live: boolean;
 	attach(el: unknown): void;
 	mountChildren(el: unknown): void;
+	publish(block: HandBuiltBlock | null): void;
 }
 
 const HAND_OVER: InjectionKey<HandOver> = Symbol('aragonite block view');
 
 function handOverFor(ctx: MountContext): HandOver {
-	const handOver: HandOver = {
-		live: true,
+	return {
 		attach(el) {
-			if (!handOver.live) return;
 			if (!('leaf' in ctx)) throw new Error('<LeafContent> is for a leaf or render-primary block');
 			ctx.leaf.attach(el as HTMLElement | null);
 		},
 		mountChildren(el) {
-			if (!handOver.live || !el) return;
+			if (!el) return;
 			if (!('container' in ctx)) throw new Error('<BlockChildren> is for a container block');
 			ctx.container.mountChildren(el as HTMLElement);
+		},
+		publish(block) {
+			if (!('block' in ctx)) throw new Error("useBlockHandle is for a `surface: 'none'` block");
+			ctx.block.publish(block);
 		}
 	};
-	return handOver;
 }
 
 function useHandOver(name: string): HandOver {
 	const handOver = inject(HAND_OVER, null);
-	if (!handOver) throw new Error(`<${name}> renders only inside a vueBlockView component`);
+	if (!handOver) throw new Error(`${name} runs only inside a vueBlockView component`);
 	return handOver;
 }

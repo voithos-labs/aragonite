@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { holdFixturePhotos } from '../../page-probes';
 import { cstBlockCount } from '../perf/vr-helpers';
 
 /**
@@ -57,9 +58,8 @@ function blockViewport(page: Page, path: number[]): Promise<BlockViewport> {
 test('scrollTo to the document tail past undecoded images lands it in view, not stranded', async ({
 	page
 }) => {
-	// Keep the showcase's picsum images undecoded for the whole test: the requests hang, the
-	// <img>s never decode and keep measuring ~0. Set before goto.
-	await page.route('https://picsum.photos/**', () => {});
+	// Set before goto, so the showcase's own images never decode either.
+	const held = await holdFixturePhotos(page);
 
 	const editor = new EditorPage(page);
 	await editor.goto(); // the default HARNESS_SHOWCASE_CONTENT: sized and unsized images, wide tables
@@ -80,6 +80,7 @@ test('scrollTo to the document tail past undecoded images lands it in view, not 
 	expect(view.inView).toBe(true);
 	// `resolved` is honest: true goes with the block being in view.
 	expect(resolved).toBe(true);
+	expect(held(), 'the photos the scroll passed stayed undecoded').toBeGreaterThan(0);
 });
 
 // The image band above the target collapses when scrolled to; the `room` prose above it stays
@@ -92,7 +93,7 @@ function imageBandDoc(): { md: string; targetIndex: number } {
 		parts.push(`Room paragraph ${i} above the image band, holding centering room.`);
 	}
 	for (let i = 0; i < 20; i++) {
-		parts.push(`![band image ${i}](https://picsum.photos/seed/scrollto-band-${i}/600/400)`);
+		parts.push(`![band image ${i}](/test-fixtures/photos/photo-600x400.png?band=${i})`);
 	}
 	const targetIndex = parts.length;
 	parts.push('## Target heading below the image band');
@@ -106,7 +107,7 @@ function imageBandDoc(): { md: string; targetIndex: number } {
 test('scrollTo center to a mid-document target below undecoded images stays centered', async ({
 	page
 }) => {
-	await page.route('https://picsum.photos/**', () => {});
+	const held = await holdFixturePhotos(page);
 
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -128,4 +129,5 @@ test('scrollTo center to a mid-document target below undecoded images stays cent
 	// Centered after the band collapses: not clamped to an edge, not stranded above.
 	expect(Math.abs(view.centerOffset!)).toBeLessThan(view.viewportHeight * 0.3);
 	expect(resolved).toBe(true);
+	expect(held(), 'the photos the scroll passed stayed undecoded').toBeGreaterThan(0);
 });

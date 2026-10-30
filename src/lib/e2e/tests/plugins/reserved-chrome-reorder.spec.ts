@@ -65,7 +65,7 @@ test.describe('opaque containers decline nested reorder', () => {
 		await editor.loadContent(ADMONITION);
 		const admonition = await readContainer(page, 0);
 		expect(admonition.kind).toBe('admonition');
-		expect(admonition.childKinds).toEqual(['admonition-title', 'paragraph', 'paragraph']);
+		expect(admonition.childKinds).toEqual(['directiveOpenerLine', 'paragraph', 'paragraph']);
 
 		await expect(ownHandle(page, [0, 0])).toHaveCount(0); // title chrome
 		await expect(ownHandle(page, [0, 1])).toHaveCount(0); // body one

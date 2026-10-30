@@ -9,7 +9,7 @@ import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import type { CommitSnapshotArg, UndoGrouping } from '../../action-contracts';
 import type { ScopedOpDescriptor } from '../../schema/operations';
 import type { CstNode } from '../../core/nodes';
-import { asDocPath } from '../../selection/path-math';
+import { asDocPath } from '../../core/coordinate-spaces';
 import { beginCommit, endCommit } from '../../commit-scope';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { endsOpen } from '../../tree-operations/fix-up/apply';

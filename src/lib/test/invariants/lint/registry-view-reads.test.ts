@@ -18,7 +18,7 @@ import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
 import { withEnterCompletion } from '#lib/editor-actions/enter-completion.js';
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import type { Reading } from '#lib/schema/reading.js';
-import { pluginContextDeps } from '../../support/plugin-context-deps';
+import { pluginContextDeps } from '../../harness/plugin-context-deps';
 import {
 	callArguments,
 	collectEditorSources,

@@ -10,7 +10,7 @@ prop on a later mount adds to what is registered. Editor 2's document is read th
 ## Happy paths
 
 - a grammar registered late is live for the late mount's own first parse: editor 2's `<details>` resolves to the `details` plugin kind, with child 0 a `details-summary`, so the grammar detailsPlugin registered when editor 2 mounted serves editor 2's parse
-- the shared plugin renders in both editors: `callout` resolves `:::callout` to a `callout` container, with child 0 a `callout-title`, in editor 1 _and_ editor 2, which proves a registration global to the process serves a later mount
+- the shared plugin renders in both editors: `callout` resolves `:::callout` to a `callout` container, with child 0 its `directiveOpenerLine` row, in editor 1 _and_ editor 2, which proves a registration global to the process serves a later mount
 
 ## Edge cases
 

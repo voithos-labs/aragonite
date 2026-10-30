@@ -12,7 +12,7 @@ import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte
 import type { DecorationRegistry } from '#lib/decorations/types.js';
 import type { EditorRects } from '#lib/editor-rects.js';
 import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
-import { noopInlineMenus, noopRects, pluginContextDeps } from '../support/plugin-context-deps';
+import { noopInlineMenus, noopRects, pluginContextDeps } from '../harness/plugin-context-deps';
 
 const deps = (doc: { children: unknown[] }) => ({
 	...pluginContextDeps(doc),

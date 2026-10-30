@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { blockNearPoint, descendToLevelChild, nearestBand } from '#lib/selection/nearest-block.js';
+import {
+	blockNearPoint,
+	descendToLevelChild,
+	hitAtDocumentPoint,
+	measureBlocks,
+	nearestBand,
+	nearestBlockOf,
+	UNMOUNTED_TAIL,
+	type NearestBlock
+} from '#lib/selection/nearest-block.js';
 import { blockAtPoint } from '#lib/selection/block-hit-test.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
@@ -52,9 +61,22 @@ describe('nearestBand', () => {
 	});
 });
 
+// The drag's lookup and the press's walk the same bands, so every row runs on both; the press's
+// sees the whole document mounted here.
+const LOOKUPS: [string, (root: HTMLElement, x: number, y: number) => NearestBlock | null][] = [
+	['blockNearPoint', blockNearPoint],
+	[
+		'hitAtDocumentPoint',
+		(root, x, y) => {
+			const hit = hitAtDocumentPoint(root, measureBlocks(root), x, y, 1);
+			return hit && hit !== UNMOUNTED_TAIL ? nearestBlockOf(hit) : null;
+		}
+	]
+];
+
 // A grid kind records the point its hook is handed, the only view of the clamped point. Unclamped,
 // an off-block point resolves to no offset on a text block and drops a whole coalesced drag.
-describe('blockNearPoint', () => {
+describe.each(LOOKUPS)('%s', (name, lookup) => {
 	const BOXES = [
 		{ left: 100, right: 300, top: 100, bottom: 140 },
 		{ left: 100, right: 300, top: 150, bottom: 200 }
@@ -100,7 +122,7 @@ describe('blockNearPoint', () => {
 	}
 
 	it('hands back a direct hit, hit-tested at the caller’s own point', () => {
-		const near = blockNearPoint(root, 120, 120);
+		const near = lookup(root, 120, 120);
 
 		expect(near?.path).toEqual([0]);
 		expect(near?.endpointHere()).toEqual(cellIn([0]));
@@ -108,7 +130,7 @@ describe('blockNearPoint', () => {
 	});
 
 	it('answers a point below the last block at its trailing corner', () => {
-		const near = blockNearPoint(root, 120, 900);
+		const near = lookup(root, 120, 900);
 
 		expect(near?.path).toEqual([1]);
 		expect(near?.endpointHere()).toEqual(cellIn([1]));
@@ -118,8 +140,8 @@ describe('blockNearPoint', () => {
 	// Beside a block the y is already in its band, so only x moves: the row the pointer is
 	// level with, at its near edge.
 	it('answers a point in a side gutter at the block’s near edge', () => {
-		blockNearPoint(root, 10, 170)?.endpointHere();
-		blockNearPoint(root, 900, 170)?.endpointHere();
+		lookup(root, 10, 170)?.endpointHere();
+		lookup(root, 900, 170)?.endpointHere();
 
 		expect(probes).toEqual([
 			{ x: 101, y: 170 },
@@ -130,15 +152,25 @@ describe('blockNearPoint', () => {
 	// The drag's same-path branch resolves no endpoint at all, and a character hit-test forces
 	// layout, so resolving one eagerly would charge every frame of a drag inside one block.
 	it('resolves no endpoint until asked', () => {
-		blockNearPoint(root, 120, 900);
+		lookup(root, 120, 900);
 
 		expect(probes).toEqual([]);
 	});
 
 	it('declines when nothing is mounted', () => {
 		root.replaceChildren();
-		expect(blockNearPoint(root, 10, 10)).toBeNull();
+		expect(lookup(root, 10, 10)).toBeNull();
 	});
+
+	// Miss-analysis: the tail check lived in the click's own copy of the walk, which no row
+	// compared with the drag's.
+	it.runIf(name === 'hitAtDocumentPoint')(
+		'below a windowed-out tail, the press names no block and the drag the last mounted',
+		() => {
+			expect(hitAtDocumentPoint(root, measureBlocks(root), 120, 900, 5)).toBe(UNMOUNTED_TAIL);
+			expect(blockNearPoint(root, 120, 900)?.path).toEqual([1]);
+		}
+	);
 });
 
 // Which child a point on a container's own box goes to, when the container has an editable row

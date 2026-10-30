@@ -1,30 +1,8 @@
-# Feature: Keyboard Navigation, Caret-Edge Chords
+# Feature: Keyboard Navigation, Cmd+Arrow as an edge key
 
-Home and End move the caret to a line's edge, and with Ctrl (Cmd on a Mac) to the edge of the
-block's text. On a Mac, where Home and End scroll the page, the same moves are Cmd+Left, Cmd+Right,
-Cmd+Up and Cmd+Down. Every place the editor steps in on one of these keys reads both spellings the
-same way; neither spelling changes what the other does.
-
-## Happy paths
-
-- The line start in a paragraph opening with an image lands before the image, so a typed letter
-  goes ahead of it: Home and Cmd+Left alike
-- Extending to the line start there takes the image too: Shift+Home and Cmd+Shift+Left
-- The block start there lands before the image as well: Mod+Home and Cmd+Up
-- The block end of a paragraph ending in an image lands past the image: Mod+End and Cmd+Down
-- The line end past a code chip ending the line types outside the chip, in live mode: End and
-  Cmd+Right
-- The line start from a selected image leaves the image and types at the line's start: Home and
-  Cmd+Left
-- The block start and end from a selected image leave the image for the paragraph's start or end:
-  Mod+Home and Cmd+Up, Mod+End and Cmd+Down
-- Extending from a selected image keeps the image in the selection, anchored at its far edge: to
-  the line start (Shift+Home, Cmd+Shift+Left) and end (Shift+End, Cmd+Shift+Right), and to the
-  document's start (Mod+Shift+Home, Cmd+Shift+Up) and end (Mod+Shift+End, Cmd+Shift+Down)
-- The line start on the line Shift+Enter opened at a block's end keeps that line, so a typed letter
-  lands on it: Home and Cmd+Left
-- Extending to the document's end from a caret takes every block after it: Mod+Shift+End and
-  Cmd+Shift+Down
+On a Mac, where Home and End scroll the page, the line and block edges are Cmd+Left, Cmd+Right,
+Cmd+Up and Cmd+Down. The editor reads Cmd+Arrow as an edge key everywhere, never as a step across
+blocks. Where each edge key lands is `requirements/caret/motion-class.md`.
 
 ## Edge cases
 
@@ -33,24 +11,15 @@ same way; neither spelling changes what the other does.
 - Cmd+Left at a block's start keeps the caret in its block instead of stepping to the block before
 - Cmd+Up in a table cell keeps the caret in its cell instead of stepping to the cell above
 - Ctrl+Left on Windows and Linux still steps one word, never to the line start, even in a
-  paragraph opening with an image, where the editor places the line start itself
+  paragraph opening with an image
 
 ## User interactions
 
-- Each row sends its chords literally on every engine, so the Cmd+Arrow reading runs on every Linux
+- each row sends its chord literally on every engine, so the Cmd+Arrow reading runs on every Linux
   push, not only on the macOS run
-  - On macOS the Home and End spellings of the rows where the browser moves the caret itself (the
-    code chip, the selected image) skip, since macOS scrolls on those keys instead
-- Cmd+Up and Cmd+Down land on the block's edge on every platform, the editor placing them, since
-  only macOS moves the caret for them
 
 ## Miss-analysis
 
-- Five editor sites each compared Home or End, so Cmd+Arrow on a Mac reached none of them: a
-  line start beside a leading image landed past it, and Cmd+Up hopped a block. Every spec pressed
-  Home and End, and the one macOS run read Home as a scroll, so nothing ever sent Cmd+Arrow.
-- The Shift+Enter line's Cmd+Left row was only run on Chromium and macOS WebKit, so nothing saw
-  WebKit and Firefox off macOS take Cmd+Left as a plain ArrowLeft, leaving the open line.
-- Mod+Home, Mod+End and every extend on a selected image did nothing, and Mod+Shift+End in Chromium
-  extended from the block's start: the selected-image row pressed only Home, and no row pressed a
-  block or document chord on the selected image itself.
+- Five editor sites each compared Home or End, so Cmd+Arrow on a Mac reached none of them, and
+  Cmd+Up hopped a block. Every spec pressed Home and End, and the one macOS run read Home as a
+  scroll, so nothing ever sent Cmd+Arrow.

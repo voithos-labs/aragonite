@@ -42,9 +42,9 @@ import type { CaretMemory } from '../../../caret/caret-memory';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { placeCaret, selectInBlock } from '../../../selection/place-caret';
 import { deleteSnapshot } from '../../../selection/primitives';
-import { asEditorX, asRawOffset, type RawOffset } from '../../../caret/coordinate-spaces';
+import { asEditorX, asRawOffset, type RawOffset } from '../../../core/coordinate-spaces';
 import type { SurfaceBackend } from './surface-backend';
-import type { DrawnCaret, WidgetEdgeSource } from '../../../caret/drawn-caret.svelte';
+import type { DrawnCaret } from '../../../caret/drawn-caret.svelte';
 import type { HeldInsertion } from '../../../caret/next-insertion';
 import type { TypedPlacement } from '../text/edge-seat';
 import { caretLook, type NextByte } from '../../../caret/caret-look';
@@ -81,22 +81,19 @@ import {
 	type InlinePaste,
 	pasteIntoBlock
 } from './surface-clipboard';
-import { shownSelectionText } from './clipboard-step';
+import { collapsedCaretIn, shownSelectionText } from '../../../browser/selection-read';
 import {
 	rawOfWalkOffset,
-	revealsNoMarkers,
 	rawOffsetAt,
+	visibleWalkText,
 	walkOffsetOfRaw,
-	type CaretClamp,
-	type CaretWriter,
-	type InputRead,
 	type RawRange
-} from '../../../caret/widget-offset';
-import {
-	caretLandableBounds,
-	type CaretUnitSource,
-	type SharedKeydownContext
-} from '../../../selection/shared-keydown';
+} from '../../../browser/offsets';
+import { revealsNoMarkers } from '../../../browser/painted';
+import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
+import type { InputRead } from '../../../browser/block-text';
+import { caretReachableBounds, type SharedKeydownContext } from '../../../selection/shared-keydown';
+import type { CaretUnitSource } from '../../../caret/caret-motion';
 import {
 	isInteractionTraceEnabled,
 	traceCompositionEnd,
@@ -107,25 +104,35 @@ import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkRepaintReadsTree } from '../../../invariants/repaint-reads-tree';
 import { checkCompositionEndPaired } from '../../../invariants/inline-transitions';
 import { checkDeleteDecided } from '../../../invariants/collapsed-delete';
-import type {
-	DeleteAnswer,
-	DeleteDirection,
-	DeleteIntent,
-	DeleteVerdict
-} from '../../../caret/delete-extent';
+import { checkTypedInsertAtCaret } from '../../../invariants/typed-insert-at-caret';
+import type { DeleteAnswer, DeleteContext, DeleteVerdict } from '../../../caret/delete-extent';
+import {
+	readInput,
+	targetRange,
+	type DeleteDirection,
+	type DeleteIntent
+} from '../../../browser/input';
 import {
 	decideCollapsedDelete,
 	decideDeleteChord,
 	type CollapsedDeleteReads
 } from './collapsed-delete';
+import {
+	decideTypedInsert,
+	decideTypedKey,
+	type TypedInsertReads,
+	type TypedInsertWrites,
+	type TypedVerdict
+} from './typed-insert';
 import type { Reading } from '../../../schema/reading';
 import { createPlaceholderHint, type PlaceholderPolicy } from '../placeholder-hint.svelte';
 import type { CompositionSeat } from '../text/composition-seat';
 import {
-	opensComposition,
-	reportDroppedComposition,
-	type CompositionSignal
-} from '../../../editor-actions/dropped-composition';
+	imeOwnsInput,
+	imeOwnsKey,
+	type CompositionOwner,
+	type CompositionTracker
+} from '../../../browser/composition';
 
 // ── Keydown verdict ─────────────────────────────────────────────────────────
 
@@ -206,8 +213,6 @@ export interface EditableSurfaceDeps {
 	getNode: () => NodeView;
 	getMyPath: () => number[];
 	getIndex: () => number;
-	getComposing: () => boolean;
-	setComposing: (value: boolean) => void;
 	/** Puts the caret at `at` once the next render lands, while the block still has focus. */
 	requestCaret: (at: number, opts: { source: string }) => void;
 
@@ -217,6 +222,8 @@ export interface EditableSurfaceDeps {
 	caretWriter: CaretWriter;
 	/** The caret the editor draws, which this surface's element registers with while mounted. */
 	drawnCaret: Pick<DrawnCaret, 'register'>;
+	/** The composition in progress, which this surface's element hosts while the IME types in it. */
+	composition: CompositionTracker;
 	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 	focusActions: FocusActions;
@@ -270,7 +277,7 @@ export interface EditableSurfaceDeps {
 	// ── Input handling (per block) ────────────────────────────────────────────
 	/** Read the element back as the block's displayed text, with `caret`, counted in the bytes the
 	 *  element shows, moved onto it: a read that drops bytes moves the caret with them. */
-	readInput: (caret: number) => InputRead;
+	readBack: (caret: number) => InputRead;
 	/** Rebuild the element from the block's bytes, for an input the tree took back after the
 	 *  browser had already drawn it. */
 	repaint: () => void;
@@ -285,8 +292,8 @@ export interface EditableSurfaceDeps {
 	getInlines?: () => readonly InlineNode[];
 	/** Runs before the shared input commit (the text block lets go of its widget edge here). */
 	inputPrelude?: () => void;
-	/** How the drawn caret draws beside this editable's inline widgets; absent where it has none. */
-	widgetEdge?: WidgetEdgeSource;
+	/** The key a click's widget edge in this editable is held under; absent where it holds none. */
+	widgetEdgeOwner?: object;
 	/** The block's own keydown handling, run after the surface records the pre-edit caret. */
 	handleKeydown: (e: KeyboardEvent) => Promise<void>;
 	/** Deletes `range` of the block's own text, leaving the caret at its start. */
@@ -299,9 +306,15 @@ export interface EditableSurfaceDeps {
 	/** Takes what a collapsed delete at raw `caret` aims at, through the block's own text. Omitted
 	 *  where the browser's delete is read back. */
 	deleteAtCaret?: (caret: number, intent: DeleteIntent) => DeleteAnswer;
+	/** What that delete reads at `caret`, which a word or edge key lands by too
+	 *  (`caret/caret-motion.ts`); omitted, or null, leaves those keys to the browser. */
+	unitContext?: (caret: number) => DeleteContext | null;
 	/** Takes or enters the widget or decoration a delete of any unit facing `direction` meets at raw
 	 *  `caret`; true when it did. Omitted, like `deleteAtCaret`, where the block draws no widgets. */
 	deleteBeside?: (caret: number, direction: DeleteDirection) => boolean;
+	/** Writes a typed insert the browser's own could put away from the caret, beside a widget or
+	 *  over a selected one (`typed-insert.ts`). Omitted where the block draws no widgets. */
+	typedInsert?: TypedInsertWrites;
 	/** What the block's keys run at, for a delete at its edge, which runs the plain key's binding. */
 	commandTarget?: () => KindCommandTarget;
 	/** The block's own handling of a delete the editor left to the browser (a range, a soft
@@ -367,6 +380,8 @@ export interface EditableSurface {
 	commitInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
+	/** Whether this block's element hosts the composition in progress. */
+	composing(): boolean;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
 	getPreEditOffset(): number;
 	/** A shown source whose edits reach the node only on blur, for the empty-block hint to judge;
@@ -391,7 +406,7 @@ export interface EditableSurfaceMethods {
 }
 
 export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurface {
-	const readText = () => deps.readInput(0).text;
+	const readText = () => deps.readBack(0).text;
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
@@ -432,6 +447,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getTextLen: deps.getTextLen,
 		stepEdge: deps.stepEdge,
 		caretUnits,
+		unitContext: (caret) => deps.unitContext?.(caret) ?? null,
 		getMyPath: deps.getMyPath,
 		getIndex: deps.getIndex,
 		crossBlock,
@@ -538,18 +554,21 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── Input and composition ─────────────────────────────────────────────────
 
+	const composing = (): boolean => deps.composition.openIn(deps.getEl());
+
 	const placeholder = createPlaceholderHint({
 		policy: deps.placeholder,
 		getNode: deps.getNode,
 		getPath: deps.getMyPath,
-		reading: deps.reading
+		reading: deps.reading,
+		composition: deps.composition
 	});
 
 	// The caret before the edit, so undo puts it back there. A composition keeps the one read at
 	// its start: Chromium fires the composition's own beforeinput events after that.
 	let preEditOffset = 0;
 	const recordPreEditOffset = (): void => {
-		if (!deps.getComposing()) preEditOffset = deps.backend.getRaw() ?? 0;
+		if (!composing()) preEditOffset = deps.backend.getRaw() ?? 0;
 	};
 
 	// For a typed line break only: a rewrite of the block's own text keeps the ending it has
@@ -630,14 +649,16 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	let deleteKeydown: KeyboardEvent | null = null;
 	// The delete step's verdict on the input in progress, which the `input` after it checks.
 	let deleteVerdict: DeleteVerdict | null = null;
+	// The typing step's verdict on the input in progress, which the `input` after it checks.
+	let typedVerdict: TypedVerdict | null = null;
 
 	const deleteReads: CollapsedDeleteReads = {
-		composing: deps.getComposing,
+		composing,
 		caret: () => deps.backend.getRaw(),
 		hasRange: () => deps.backend.getRawSelection() !== null,
 		text: readText,
 		targetRange: (e) => {
-			const target = typeof e.getTargetRanges === 'function' ? e.getTargetRanges()[0] : undefined;
+			const target = targetRange(e);
 			return target ? deps.backend.rawRangeOf(target) : null;
 		},
 		deleteAtCaret: deps.deleteAtCaret
@@ -655,7 +676,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		atEdge: (caret, direction) => {
 			const el = deps.getEl();
 			if (!el) return false;
-			const bounds = caretLandableBounds(sharedCtx, el);
+			const bounds = caretReachableBounds(sharedCtx, el);
 			return direction === 'backward' ? caret <= bounds.start : caret >= bounds.end;
 		},
 		runPlainKey: (key) => {
@@ -664,19 +685,43 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		}
 	};
 
+	const typedReads: TypedInsertReads = {
+		composing,
+		el: deps.getEl,
+		caretPosition: () => {
+			const el = deps.getEl();
+			return el ? collapsedCaretIn(el) : null;
+		},
+		caret: () => deps.backend.getRaw(),
+		rawStartOf: (range) => deps.backend.rawRangeOf(range)?.start ?? null,
+		onOpenLine: () => pendingBreak.at() !== null,
+		writes: deps.typedInsert && {
+			...deps.typedInsert,
+			typeAt: (caret, text) => {
+				deps.inputPrelude?.();
+				deps.typedInsert!.typeAt(caret, text);
+			}
+		}
+	};
+
 	// A keydown that writes for itself fires no beforeinput, so the caret is read here too.
 	const onKeyDown = withKeydownVerdict(async (e) => {
-		endsDroppedComposition(e);
 		// A key can outrun the `selectionchange` that moves a caret the browser left off its spot, and
-		// every handler below reads the caret.
+		// every handler below reads the caret; the IME's opening key composes there too.
 		const el = deps.getEl();
-		if (!e.isComposing && el) deps.caretWriter.canonicalizeCaret(el);
-		if (!e.isComposing) recordPreEditOffset();
-		if (e.key === 'Enter' && !e.isComposing) enterKeydown = e;
-		deleteKeydown = !e.isComposing && (e.key === 'Backspace' || e.key === 'Delete') ? e : null;
+		deps.caretWriter.checkDecidedMotion();
+		if (el && !deps.composition.live()) deps.caretWriter.canonicalizeCaret(el);
+		if (imeOwnsKey(e)) {
+			deleteKeydown = null;
+			return;
+		}
+		recordPreEditOffset();
+		if (e.key === 'Enter') enterKeydown = e;
+		deleteKeydown = e.key === 'Backspace' || e.key === 'Delete' ? e : null;
 		try {
 			await deps.handleKeydown(e);
 			if (deleteKeydown === e) decideDeleteChord(e, deleteReads);
+			else decideTypedKey(e, typedReads);
 		} finally {
 			if (enterKeydown === e) enterKeydown = null;
 		}
@@ -685,30 +730,34 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	/** A break input that arrives while its Enter's handler still runs is that key's default, which
 	 *  the handler replaces, so it writes nothing (Playwright's Firefox fires it before the await). */
 	function isEnterDefault(e: InputEvent): boolean {
-		const isBreak = e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph';
-		return isBreak && enterKeydown !== null;
+		return readInput(e).kind === 'break' && enterKeydown !== null;
 	}
 
 	// Synchronous to the block's handler: the block's `preventDefault` only counts inside this
 	// listener's microtask checkpoint.
 	function onBeforeInput(e: InputEvent): void {
+		// An edit moves the caret for its own reason, so a decided key's record ends before it.
+		deps.caretWriter.checkDecidedMotion();
 		const keyChord =
 			deleteKeydown && !deleteKeydown.defaultPrevented ? eventToChord(deleteKeydown) : null;
 		deleteKeydown = null;
 		// A step below that claims the input leaves it this verdict; the delete step overwrites it.
 		deleteVerdict = { decided: false, decline: 'claimed' };
-		endsDroppedComposition(e);
+		typedVerdict = null;
 		adoptsComposition(e);
 		// A drop's text lands at the pointer, not at the caret a chord promised its marks to.
-		if (e.inputType === 'insertFromDrop') pendingMarks.end();
+		const read = readInput(e);
+		if (read.kind === 'transfer' && read.via === 'drop') pendingMarks.end();
 		if (isEnterDefault(e)) {
 			e.preventDefault();
 			return;
 		}
-		if (!e.isComposing) recordPreEditOffset();
+		if (!imeOwnsInput(e)) recordPreEditOffset();
 		if (deps.localHistory?.(e) || runSharedBeforeInput(e)) return;
 		deps.handleBeforeInput?.(e);
 		if (e.defaultPrevented) return;
+		typedVerdict = decideTypedInsert(e, typedReads);
+		if (typedVerdict?.decided) return;
 		deleteVerdict = decideCollapsedDelete(e, keyChord, deleteReads);
 		if (deleteVerdict && !deleteVerdict.decided) deps.handleDeclinedDelete?.(e);
 	}
@@ -716,11 +765,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	/** The browser's own Undo and Redo are the editor's, and a character typed over a range across
 	 *  blocks replaces the range. True when the step took the event. */
 	function runSharedBeforeInput(e: InputEvent): boolean {
-		if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
+		const read = readInput(e);
+		if (read.kind === 'history') {
 			e.preventDefault();
-			void (e.inputType === 'historyUndo'
-				? deps.history.requestUndo()
-				: deps.history.requestRedo());
+			void (read.redo ? deps.history.requestRedo() : deps.history.requestUndo());
 			return true;
 		}
 		if (!crossBlock.claimsBeforeInput(e)) return false;
@@ -731,10 +779,25 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function onInput(e: Event): void {
 		const verdict = deleteVerdict;
 		deleteVerdict = null;
-		if (e instanceof InputEvent && !e.isComposing && !deps.getComposing()) {
-			assertInvariant('collapsed-delete-decided', () => checkDeleteDecided(e.inputType, verdict));
+		const typed = typedVerdict;
+		typedVerdict = null;
+		if (e instanceof InputEvent && !imeOwnsInput(e) && !composing()) {
+			assertInvariant('collapsed-delete-decided', () => checkDeleteDecided(e, verdict));
+			const el = deps.getEl();
+			if (el && typed && !typed.decided && typed.decline === 'at-caret') {
+				assertInvariant('typed-insert-at-caret', () =>
+					checkTypedInsertAtCaret({
+						before: trimTrailingLineEnding(deps.getNode().raw),
+						after: readText(),
+						caret: preEditOffset,
+						visible: visibleWalkText(el).rawStart,
+						data: e.data ?? ''
+					})
+				);
+			}
 		}
-		if (!endsDroppedComposition(e)) commitDomRead(false);
+		// A drop the tracker found at this input already committed what it shows.
+		if (!deps.composition.endedBy(e)) commitDomRead(false);
 	}
 
 	function commitDomRead(fromComposition: boolean): void {
@@ -747,8 +810,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.inputPrelude?.();
 		deps.caretMemory.noteTyping();
 		const el = deps.getEl();
-		if (deps.getComposing() || !el) return unwritten();
-		const read = deps.readInput(deps.backend.getRaw() ?? 0);
+		if (composing() || !el) return unwritten();
+		const read = deps.readBack(deps.backend.getRaw() ?? 0);
 		const { text, caret: savedOffset } = keepLineEndingPairs(
 			trimTrailingLineEnding(deps.getNode().raw),
 			read.text,
@@ -793,13 +856,23 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// Held from the composition's opening to its commit.
 	let heldForComposition: HeldInsertion | null = null;
 
+	// The tracker ends a composition the browser dropped, wherever in the editor the signal lands.
+	const owner: CompositionOwner = {
+		get el() {
+			return deps.getEl();
+		},
+		dropped: () => endComposition()
+	};
+
 	function onCompositionStart(): void {
+		deps.caretWriter.checkDecidedMotion();
 		if (!deps.getEl()) return;
-		endsDroppedComposition('compositionstart');
 		traceCompositionStart();
 		// A range across blocks goes first, and whichever block its removal leaves the caret in opens
 		// the composition at its first update.
-		if (!crossBlock.handleCompositionStart()) openComposition();
+		if (crossBlock.handleCompositionStart()) return deps.composition.start(null);
+		openComposition();
+		deps.composition.start(owner);
 	}
 
 	// The records the run spends are held before the caret memory forgets.
@@ -809,36 +882,25 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		heldForComposition?.finish(true);
 		heldForComposition = holdInsertion();
 		deps.caretMemory.forget();
-		deps.setComposing(true);
-		placeholder.setComposing(true);
 	}
 
 	// No composition open here means a range across blocks claimed the start. This block holds
 	// the caret its removal left, so it opens the composition before the first run lands.
 	function adoptsComposition(e: InputEvent): void {
-		if (opensComposition(e, deps.getComposing())) openComposition();
+		if (deps.getEl() && deps.composition.adopt(e, owner)) openComposition();
 	}
 
 	function onCompositionEnd(): void {
+		const paired = deps.composition.end(owner);
 		// A composition opens at its start or at its first run, so an unpaired end means a consumer
 		// wired compositionend without compositionstart.
-		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
+		assertInvariant('composition-window', () => checkCompositionEndPaired(paired));
 		endComposition();
-	}
-
-	// Every signal a held composing flag is read at (a key, a beforeinput, an input, a new
-	// composition) asks here first, so a composition the browser dropped ends before it is read.
-	function endsDroppedComposition(signal: CompositionSignal): boolean {
-		if (!reportDroppedComposition(signal, deps.getComposing())) return false;
-		endComposition();
-		return true;
 	}
 
 	// The browser's `compositionend`, or a signal showing the browser dropped the composition.
 	function endComposition(): void {
 		traceCompositionEnd();
-		deps.setComposing(false);
-		placeholder.setComposing(false);
 		commitDomRead(true);
 		crossBlock.handleCompositionEnd();
 		deps.compositionSeat?.noteEnd();
@@ -932,8 +994,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	const caretSource = (el: HTMLElement) =>
 		deps.drawnCaret.register({
 			el,
-			drawable: () => !deps.getComposing() && !deps.isInputSuppressed?.(),
-			widgetEdge: deps.widgetEdge,
+			drawable: () => !composing() && !deps.isInputSuppressed?.(),
+			widgetEdgeOwner: deps.widgetEdgeOwner,
 			...(getInlines && {
 				look: (range: Range) => {
 					recordCaretLook('caretLookOffsetWalks');
@@ -990,6 +1052,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		commitInput: () => commitDomRead(false),
 		onCompositionStart,
 		onCompositionEnd,
+		composing,
 		getPreEditOffset: () => preEditOffset,
 		noteShownSource: (read) => {
 			if (!read) placeholder.setShownSource(null);

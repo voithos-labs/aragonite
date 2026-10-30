@@ -13,6 +13,14 @@ its own, and a widget is one character.
 
 ## Edge cases
 
+- a full stop between letters ends a word on every engine: word Delete at the start of
+  `foo.bar, baz` leaves `.bar, baz`, and word Backspace before `baz` in a code body's `foo.bar baz`
+  leaves `foo.baz`
+  - Miss-analysis: every row ran words without punctuation inside them, so nothing showed Firefox's
+    and WebKit's segmenters joining `foo.bar` where Chromium's cuts it
+- a Japanese word is a word on every engine: word Backspace after `日本語.` takes only the `.`
+  - Miss-analysis: no row deleted CJK text, so nothing showed Firefox's segmenter calling `日本語`
+    no word after a full stop, which ran it into the punctuation the delete takes
 - `a &copy;`, word Backspace after the entity: the entity goes whole, as Backspace takes it
 - live mode, each of these leaves the same bytes as selecting the same visible text with
   Shift+ArrowLeft and pressing Delete:
@@ -28,6 +36,11 @@ its own, and a widget is one character.
   paragraph empties it; to the line end on a code block's first line takes that line's text and
   leaves the next line; to the line start at the end of a paragraph that wraps leaves the lines
   above, never all of it
+- a line delete to the line end past a widget or a replace decoration closing the line takes it
+  (`lead ![x]`, `lead HIDDEN` under a replace decoration), and one to the line start of a line a
+  picture opens after a hard break takes the picture and stops at the break
+  - Miss-analysis: no line-delete row ended at a widget, and a point on a widget's box resolves
+    before it on Firefox (a picture) and on every engine (a replace decoration)
 
 ## Error cases
 

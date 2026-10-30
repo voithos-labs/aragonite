@@ -8,12 +8,12 @@ import type { FocusActions } from '#lib/action-contracts.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeCaretMemory } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
-import { commandContext } from '#lib/test/support/command-context.js';
+import { commandContext } from '#lib/test/harness/command-context.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // jsdom lays nothing out, so the block reads as one line and every vertical arrow is at its edge.
-vi.mock('../../caret/visual-lines', async (original) => ({
-	...(await original<typeof import('../../caret/visual-lines')>()),
+vi.mock('../../browser/visual-lines', async (original) => ({
+	...(await original<typeof import('../../browser/visual-lines')>()),
 	isAtFirstVisualLine: () => true,
 	isAtLastVisualLine: () => true
 }));
@@ -45,6 +45,7 @@ function mount() {
 		history: {} as SharedKeydownContext['history'],
 		focus: { moveFocus: vi.fn(async () => {}) } as unknown as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,
+		unitContext: () => null,
 		caretUnits: { beside: () => null, crossed: () => {} }
 	};
 	const select = (anchor: number, focus: number) =>
@@ -88,8 +89,7 @@ describe('handleSharedKeydown: a plain arrow over a range collapses it first', (
 		[{ ctrlKey: true }, ALL],
 		[{ altKey: true }, ALL],
 		[{ metaKey: true }, ['ArrowLeft', 'ArrowRight']],
-		[{ shiftKey: true }, ALL],
-		[{ isComposing: true }, ALL]
+		[{ shiftKey: true }, ALL]
 	] as const) {
 		it(`leaves the range to ${JSON.stringify(over)} arrows`, async () => {
 			for (const key of keys) {

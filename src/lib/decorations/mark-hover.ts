@@ -5,7 +5,7 @@
  * route that takes the mark away ends it exactly once.
  */
 
-import type { LocalRect } from '../caret/coordinate-spaces';
+import type { LocalRect } from '../core/coordinate-spaces';
 import type { IndexedDecoration } from './buckets';
 import { comparePrecedence, hitRect } from './mark-interactions';
 import type { MarkDecoration, MarkHover } from './types';

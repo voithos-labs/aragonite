@@ -1,7 +1,7 @@
 # Feature: Plugin Container, :::callout Callout Editability
 
 The `:::callout` callout is a container a plugin defines, built the same way as the built-in
-blockquote. It reserves child 0 as an editable `callout-title` leaf, so its children are
+blockquote. It holds its opener line at child 0 as an editable `directiveOpenerLine` row, so its children are
 `[title, ...body]`. Editing inside it has to change the callout's own children through the
 nested-container wiring, never the document root, and it must never break byte-for-byte
 round-trip fidelity. These checks read behavior: they assert the tree read by path through
@@ -9,7 +9,7 @@ round-trip fidelity. These checks read behavior: they assert the tree read by pa
 
 ## Happy paths
 
-- callout parses as container: the seeded `:::callout Title` is a `callout` block at the document root whose children are `[callout-title, paragraph]`
+- callout parses as container: the seeded `:::callout Title` is a `callout` block at the document root whose children are `[directiveOpenerLine, paragraph]`
 - type inside callout: typing at the end of the callout's body paragraph appends to that child; the title stays put and the document root keeps one block
 - split inside callout: Enter mid-body splits that body paragraph, growing the callout to three children, and the document root still holds exactly one block. That last count is what tells the two outcomes apart: a broken container grows the root instead
 

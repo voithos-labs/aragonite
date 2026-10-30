@@ -2,11 +2,12 @@
 // delimiter row and every other cell keep their padding.
 // Miss-analysis: every table fixture was already canonical, so a rebuild that respelled every
 // row wrote the bytes it had read and no test saw the rest of the table move.
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
@@ -28,7 +29,13 @@ function writeCell(
 	for (const text of texts) {
 		const owner = blockNodeAt(deps.doc, [0, row]) as CstNode;
 		const body = { children: owner.children!, owner, lineEnding: documentLineEnding(deps.doc) };
-		const write = legalizeWrite(body, column, text(owner.children![column].raw), 'authored');
+		const write = legalizeWrite(
+			body,
+			column,
+			text(owner.children![column].raw),
+			'authored',
+			defaultGrammarView
+		);
 		expect(typing.typeLeaf(docPathFrom(leaf), write, 0).wrote).toBe(true);
 	}
 	return deps.doc;

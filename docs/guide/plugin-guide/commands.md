@@ -38,7 +38,7 @@ So bind commands to your own plugin kinds. A command bound on a built-in kind (p
 
 A host's `editor.runCommand(id)` doesn't reach a **block** command either: it finds no handler and a dev build warns. Bind a chord, or expose an API of your own, for a block affordance a host must invoke without a keystroke. A **global** command (below) is different: `editor.runCommand('wordCount.log')` runs it and `canRunCommand` answers `true` for it.
 
-**View state rides `ctx.hooks`.** A view-state command (open an editor, open a focus overlay) has to reach the mounted component, so hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter and the handler gets it back as `ctx.hooks`. It's read at dispatch, so an undo that replaces the node still hits the current handlers. `hooks` is typed `unknown`: cast it to your own type in the handler, and decline when it's `undefined`, which means no instance of the kind is mounted.
+**View state rides `ctx.hooks`.** A view-state command (open an editor, open a focus overlay) has to reach the mounted component, so hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter (a DOM, React or Vue view calls `ctx.container.setCommandHooks({ openEdit, openFocusView })`, or `ctx.leaf.setCommandHooks` on a leaf) and the handler gets it back as `ctx.hooks`. It's read at dispatch, so an undo that replaces the node still hits the current handlers. `hooks` is typed `unknown`: cast it to your own type in the handler, and decline when it's `undefined`, which means no instance of the kind is mounted.
 
 A handler that throws doesn't take the editor down: the gesture does nothing and an `error` event of origin `command` fires, naming the kind, the command id, and the plugin that registered the command. That's also the plugin whose `EditorContext` the handler gets as `ctx.editor`, even when the kind belongs to someone else.
 
@@ -99,10 +99,11 @@ setup(ctx) {
 
 A handler that waits on something before it writes (a fetch, a dialog) should read `editor.documentGeneration` before the wait and compare it after: if the host loaded another note meanwhile, a write through `editor` lands in that one.
 
-The chord binds in the **plugin-global tier**, the last step in the chord priority order [the consumer guide's Rebinding chords](../consumer-guide.md#rebinding-chords) lays out. Three consequences:
+The chord binds in the **plugin-global tier**, the last step in the chord priority order [the consumer guide's Rebinding chords](../consumer-guide.md#rebinding-chords) lays out. Four consequences:
 
 - A plugin chord never shadows a built-in: a built-in kind's own chord beats yours **on that kind, not elsewhere**.
 - A chord the global tier already binds (undo and redo, or another plugin's global chord) or the search bar reserves (`Mod+F` / `Mod+H`) can't be taken, and the collision **throws before the command is created**.
+- A caret key of the platform the editor runs on (an arrow left or right, a word key, `Home`, `End`, the full list's in [the consumer guide](../consumer-guide.md#keyboard-shortcuts)) yields to the caret: a chord on one registers with a `keybindings` warning in a dev build and never fires there, though a host's own `keybindings` entry can still bind it.
 - A handler throw is contained the same way a block command's is.
 
 ```ts

@@ -1,9 +1,9 @@
 <!--
-  One alert box for both kinds: the directive admonition (an editable title at child 0)
-  and the GitHub alert (no title, a static badge instead).
+  One alert box for both kinds: the directive admonition (its opener line, holding the title, at
+  child 0) and the GitHub alert (no title, a static badge instead).
 -->
 <script lang="ts">
-	import { getPluginMetadata, isBlankText, type NodeView } from '#lib/plugin.js';
+	import { getPluginMetadata, isBlankText, rowContentRange, type NodeView } from '#lib/plugin.js';
 	import { BlockList, createContainerBlock } from '#lib/svelte.js';
 	import {
 		capitalize,
@@ -29,7 +29,12 @@
 			? coerceAdmonitionName(getPluginMetadata<GithubAlertMetadata>(node)?.alertType?.toLowerCase())
 			: coerceAdmonitionName(getPluginMetadata<AdmonitionMetadata>(node)?.name)
 	);
-	const titleEmpty = $derived(isAlert || isBlankText(node.children?.[0]?.raw ?? ''));
+	const titleEmpty = $derived(isAlert || isBlankText(titleOf(node)));
+
+	function titleOf(admonition: NodeView): string {
+		const { start, end } = rowContentRange(admonition);
+		return admonition.children?.[0]?.raw.slice(start, end) ?? '';
+	}
 
 	export { containerApi };
 </script>
@@ -89,8 +94,11 @@
 		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 1.3h6l4 4v6l-4 4H5l-4-4V5.3zM7.1 4h1.8v5H7.1zm0 6h1.8v1.6H7.1z'/%3E%3C/svg%3E");
 	}
 
-	/* Positioned so the icon and untitled-name pseudo-elements anchor to the row. */
-	.admonition :global(.admonition-title) {
+	/* Positioned so the icon and untitled-name pseudo-elements anchor to the row: the alert's badge,
+	   or this admonition's own opener line, not one nested deeper. */
+	.admonition :global(.admonition-title),
+	.admonition
+		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line) {
 		position: relative;
 		font-weight: 600;
 		color: var(--adm-accent);
@@ -106,7 +114,11 @@
 	}
 
 	/* Masked, not colored, so one glyph recolors per kind. */
-	.admonition :global(.admonition-title)::before {
+	.admonition :global(.admonition-title::before),
+	.admonition
+		> :global(
+			.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line::before
+		) {
 		content: '';
 		position: absolute;
 		left: 0;
@@ -120,15 +132,27 @@
 		user-select: none;
 	}
 
-	/* The empty title leaf holds a lone <br>, which pre-wrap paints as a trailing empty
-	   line; capping to one row keeps the title-to-body gap equal to the titled variants. */
-	.admonition[data-title-empty='true'] :global(.admonition-title) {
+	/* An untitled opener line whose `:::name` is hidden paints nothing but a <br>, which pre-wrap
+	   shows as a second line; capping to one row keeps the gap to the body the titled one's. */
+	.admonition[data-title-empty='true'] :global(.admonition-title),
+	.admonition[data-title-empty='true']
+		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line) {
 		height: 1.4em;
 	}
 
-	/* Absolute, not inline: the empty leaf's <br> would wrap generated content onto a
-	   second row and break titled/untitled geometry parity. */
-	.admonition[data-title-empty='true'] :global(.admonition-title)::after {
+	/* The kind's name stands in for a missing title wherever the line's `:::name` is hidden; absolute,
+	   so the leaf's <br> can't wrap it onto a second row. */
+	.admonition :global(.admonition-title::after),
+	:global(.editor[data-presentation='reading'])
+		.admonition[data-title-empty='true']
+		> :global(.block-list > [data-block-kind='directiveOpenerLine'] .directive-opener-line::after),
+	:global(.editor[data-presentation])
+		.admonition[data-title-empty='true']
+		> :global(
+			.block-list
+				> [data-block-kind='directiveOpenerLine']
+				.directive-opener-line:not(:focus-within)::after
+		) {
 		content: var(--adm-label);
 		position: absolute;
 		left: 1.7em;

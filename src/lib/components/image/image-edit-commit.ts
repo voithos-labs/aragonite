@@ -16,7 +16,7 @@ import {
 import { selectWidgetWhole } from '../../selection/place-caret';
 import type { WidgetTarget } from '../../selection/primitives';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import type { CaretWriter } from '../../caret/widget-offset';
+import type { CaretWriter } from '../../browser/caret-writer';
 import { widgetElAt } from '../../caret/block-el-lookup';
 import type { Reading } from '../../schema/reading';
 import { widgetNodeIn, widgetSpanAt } from '../blocks/text/widget-adjacency';

@@ -33,7 +33,7 @@ Relevant (or irrelevant, fuck if i know) details:
 - Rather not hold state? Pass `defaultValue` instead of `value`/`onChange` and the editor keeps the document itself.
 - Every other prop is an editor option (`theme`, `plugins`, `header` for a node above the first block, ...), and the ref gets you the handle (`getSource()`, `runCommand()`, ...) once it mounts.
 - Next: import the two stylesheets in your root layout. The component is already `'use client'`, so a server component can render it.
-- Writing a plugin? Its blocks can be react components too: `reactBlockView` turns one into a block view ([react and vue blocks](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/react-and-vue.md)).
+- Writing a plugin? Its blocks can be react components too: `reactBlockView` turns one into a block view, and `reactView` does the same for an inline widget, a decoration or a menu row ([react and vue blocks](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/react-and-vue.md)).
 
 ## More
 

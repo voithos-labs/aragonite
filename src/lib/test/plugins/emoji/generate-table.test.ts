@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	emojiTableEntries,
 	renderEmojiTable
-} from '../../../../../scripts/generate-emoji-table.mjs';
+} from '../../../../../scripts/vendor/generate-emoji-table.mjs';
 
 // The generation script's pure core, driven over a vendored db slice so the test
 // never touches the network. gemoji entries carry `{ emoji, aliases[] }`; the
@@ -42,7 +42,7 @@ describe('renderEmojiTable: a generated, self-describing module', () => {
 
 	it('marks the file generated and names the regeneration command', () => {
 		expect(source).toContain('GENERATED');
-		expect(source).toContain('generate-emoji-table.mjs');
+		expect(source).toContain('scripts/vendor/generate-emoji-table.mjs');
 	});
 
 	it('emits a typed ReadonlyMap the plugin can import', () => {

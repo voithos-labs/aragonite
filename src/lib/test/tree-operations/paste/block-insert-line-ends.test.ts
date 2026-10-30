@@ -5,7 +5,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
 import { runPasteDispatch, makePasteCommit } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { ensurePasteSurface } from '#lib/test/support/paste-surface.js';
+import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 
 // Pasted or inserted blocks keep their own line ending and blank lines, even from a table cell.
 // Miss-analysis: GH #415, every paste test's clipboard ended in a line ending, none left a cell.

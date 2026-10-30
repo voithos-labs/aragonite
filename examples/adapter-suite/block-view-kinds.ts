@@ -1,25 +1,42 @@
 // The kinds the `?block-views` page draws with each framework's own components
-// (`requirements/block-views.md`): a `%% ` memo line, a `@@ ` click-to-edit label, and a `:::box`
-// container. Each app passes its views; the grammar here is shared.
+// (`requirements/block-views.md`): a `%% ` memo line, a `@@ ` click-to-edit label, a `:::box`
+// container, a `{{name}}` inline chip, a badge on each memo giving its length, a ```` ```note ````
+// block focused whole with an edit box of its own, and a `!! d6` die the component draws whole.
+// Each app passes its views; the grammar here is shared.
 import {
 	activateDirectives,
-	chromeChild,
 	containerClosure,
 	createDirectiveRebuild,
+	declarePluginInlineKind,
 	declarePluginKind,
 	declaredPluginKind,
+	escalatedFenceLength,
+	fenceRawWrite,
+	fenceReading,
+	fenceShapeOfRaw,
+	getPluginMetadata,
+	matchFenceInfo,
+	OPENER_PRIORITIES,
+	registerBlockCommand,
 	definePlugin,
 	DIRECTIVE_BODY_WRAP,
 	registerBlockKind,
-	registerChromeLeaf,
 	registerDirective,
+	registerInlineSyntax,
+	registerInlineWidgetKind,
+	scanFence,
 	setPluginMetadata,
 	simpleLeafClosure,
-	trimWhitespace,
 	type BlockView,
 	type CstNode,
+	type Decoration,
+	type DecorationSource,
 	type EditorPlugin,
-	type ParsedDirective
+	type InlineNode,
+	type InlineWidgetComponentProps,
+	type NodeView,
+	type ParsedDirective,
+	type PluginView
 } from '@voithos-labs/aragonite/plugin';
 
 export { BLOCK_VIEWS_SOURCE, LONG_SOURCE } from './block-views-source';
@@ -28,12 +45,28 @@ export interface BlockViews {
 	memo: BlockView;
 	label: BlockView;
 	box: BlockView;
+	note: BlockView;
+	dice: BlockView;
+	chip: PluginView<InlineWidgetComponentProps>;
+	/** Shows the `data-memo-length` attribute of the decoration it's given. */
+	memoLength: PluginView<{ decoration: Decoration }>;
 }
+
+export const MEMO_LENGTH_ATTR = 'data-memo-length';
+
+/** The chip each app's view throws on. */
+export const BOOM = '{{boom}}';
+
+/** The die each app's view throws on. */
+export const DICE_BOOM = '!! boom';
+
+/** A die's sides, from its `!! d<sides>` line. */
+export const diceSides = (node: NodeView): number => Number(/d(\d+)/.exec(node.raw)?.[1] ?? 6);
 
 export function blockViewsPlugin(views: BlockViews): EditorPlugin {
 	return definePlugin({
 		name: 'block-views',
-		setup() {
+		setup(ctx) {
 			registerLine('memo', '%% ', 25, views.memo, 'leaf: every keystroke commits');
 			registerLine(
 				'label',
@@ -43,8 +76,50 @@ export function blockViewsPlugin(views: BlockViews): EditorPlugin {
 				'render-primary: one commit when the caret leaves'
 			);
 			registerBox(views.box);
+			registerNote(views.note);
+			registerDice(views.dice);
+			registerChip(views.chip);
+			ctx.onEditor((editor) => {
+				const handle = editor.decorations.addSource(memoLengths(views.memoLength));
+				return () => handle.dispose();
+			});
 		}
 	});
+}
+
+function registerChip(view: PluginView<InlineWidgetComponentProps>): void {
+	const chip = declarePluginInlineKind('chip');
+	registerInlineSyntax('{', (raw, pos, end): InlineNode | null => {
+		if (!raw.startsWith('{{', pos)) return null;
+		const close = raw.indexOf('}}', pos + 2);
+		if (close < 0 || close + 2 > end || raw.slice(pos + 2, close).includes('\n')) return null;
+		return { kind: chip, start: pos, end: close + 2, children: [] };
+	});
+	registerInlineWidgetKind(chip, {
+		isWidget: () => true,
+		view,
+		editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
+	});
+}
+
+// A badge on every top-level memo, carrying the memo's length, so an edit changes its decoration.
+function memoLengths(view: PluginView<{ decoration: Decoration }>): DecorationSource {
+	return {
+		name: 'memo-length',
+		provide: (doc) =>
+			doc.children.flatMap((node, index): Decoration[] =>
+				node.kind === declaredPluginKind('memo')
+					? [
+							{
+								type: 'block',
+								path: [index],
+								attrs: { [MEMO_LENGTH_ATTR]: String(node.raw.trimEnd().length) },
+								badge: { view }
+							}
+						]
+					: []
+			)
+	};
 }
 
 function registerLine(
@@ -92,10 +167,7 @@ function boxFromDirective(parsed: ParsedDirective): CstNode {
 		leadingTrivia: parsed.leadingTrivia,
 		raw: parsed.raw,
 		innerPrefix: parsed.body?.prefix ?? '',
-		children: [
-			chromeChild(declaredPluginKind('box-title'), trimWhitespace(parsed.fence.info)),
-			...(parsed.body?.children ?? [])
-		],
+		children: parsed.body?.children ?? [],
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
 	setPluginMetadata<BoxMetadata>(node, {
@@ -110,7 +182,6 @@ function boxFromDirective(parsed: ParsedDirective): CstNode {
 function registerBox(view: BlockView): void {
 	activateDirectives();
 	const box = declarePluginKind('box');
-	const title = declarePluginKind('box-title');
 	registerDirective('container', 'box', { kind: box, fromDirective: boxFromDirective });
 	registerBlockKind(box, {
 		view,
@@ -120,20 +191,149 @@ function registerBox(view: BlockView): void {
 		gapEdges: 'both',
 		container: {
 			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild<BoxMetadata>(() => 'box'),
-			bodyWrap: DIRECTIVE_BODY_WRAP,
-			reservedChrome: { kind: title },
-			unwrapRole: { middleChildBackspace: 'default-merge' }
+			rebuildRaw: createDirectiveRebuild(),
+			bodyWrap: DIRECTIVE_BODY_WRAP
 		},
 		conformanceFixture: ':::box Title\nbody\n:::\n',
 		closure: containerClosure({
 			roundTripVia: 'createDirectiveRebuild',
-			focus: { mode: 'implemented', via: 'focus walks to the title row' },
+			focus: { mode: 'implemented', via: 'focus walks to the opener line' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: { mode: 'implemented', via: 'children commit as ordinary blocks' },
 			simOracle: { mode: 'inherit-default' },
 			clipboard: { mode: 'implemented', via: 'byte-slice copy' }
 		})
 	});
-	registerChromeLeaf(title, { label: 'Box title', blockClass: 'box-title' });
+}
+
+// ── The note block ───────────────────────────────────────────────────────────
+
+/** The note's text and its fence, everything `rebuildNoteRaw` writes back. */
+export interface NoteMetadata {
+	text: string;
+	indent: string;
+	marker: '`' | '~';
+	fenceLength: number;
+	infoRaw: string;
+	lineEnding: string;
+	closerRaw: string;
+}
+
+/** What the note's `note.edit` command (Mod+M) reaches through the view's command hooks. */
+export interface NoteHooks {
+	openEdit(): void;
+}
+
+export const noteText = (node: NodeView): string =>
+	getPluginMetadata<NoteMetadata>(node)?.text ?? '';
+
+function rebuildNoteRaw(node: CstNode): void {
+	const meta = getPluginMetadata<NoteMetadata>(node);
+	if (!meta) return;
+	const length = escalatedFenceLength(meta.text, meta.marker, meta.fenceLength);
+	const fence = meta.marker.repeat(length);
+	// An unterminated note has no closer and gains none; one a longer fence outgrows is rewritten.
+	const closer = !meta.closerRaw
+		? ''
+		: length > meta.fenceLength
+			? fence + meta.lineEnding
+			: meta.closerRaw;
+	node.raw = meta.indent + fence + meta.infoRaw + meta.lineEnding + meta.text + closer;
+}
+
+function registerNote(view: BlockView): void {
+	const note = declarePluginKind('note');
+	const matchNote = matchFenceInfo('note');
+	const edit = registerBlockCommand(note, 'note.edit', (ctx) => {
+		const hooks = ctx.hooks as NoteHooks | undefined;
+		if (!hooks) return false;
+		hooks.openEdit();
+		return true;
+	});
+	registerBlockKind(note, {
+		view,
+		opener: {
+			priority: OPENER_PRIORITIES.fencedCode - 4,
+			interruptsParagraph: (line) => matchNote(line) !== null,
+			readingNotFinal: fenceReading,
+			tryOpen(ctx) {
+				const fence = matchNote(ctx.line.text);
+				if (!fence) return null;
+				const scan = scanFence(ctx, fence);
+				const node: CstNode = {
+					kind: note,
+					leadingTrivia: ctx.leadingTrivia,
+					raw: '',
+					children: []
+				};
+				setPluginMetadata<NoteMetadata>(node, {
+					text: scan.body,
+					indent: fence.indent,
+					marker: fence.marker,
+					fenceLength: fence.length,
+					infoRaw: fence.infoRaw,
+					lineEnding: ctx.line.lineEnding,
+					closerRaw: scan.closer === -1 ? '' : ctx.lines[scan.closer].raw
+				});
+				rebuildNoteRaw(node);
+				return { node, consumed: scan.consumed };
+			}
+		},
+		label: 'Note',
+		mergeRole: 'not-mergeable',
+		editable: true,
+		supportsInline: false,
+		blockFocus: 'whole-block',
+		gapEdges: 'before',
+		container: { contract: 'opaque', rebuildRaw: rebuildNoteRaw },
+		rawWrite: fenceRawWrite(fenceShapeOfRaw),
+		keymap: [{ chord: 'Mod+M', command: edit }],
+		conformanceFixture: '```note\nhello\n```\n',
+		closure: {
+			roundTrip: { mode: 'implemented', via: 'container contract=opaque, rebuildNoteRaw' },
+			focus: {
+				mode: 'implemented',
+				via: 'blockFocus=whole-block, the view attaches its focus element'
+			},
+			mergeBackspace: { mode: 'implemented', via: 'blockFocus=whole-block' },
+			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect' },
+			searchPaint: { mode: 'implemented', via: 'raw scans as a leaf' },
+			reorder: { mode: 'implemented', via: 'whole-block reorder' },
+			undo: { mode: 'implemented', via: 'updateOwnMetadata, one entry per edit' },
+			clipboard: { mode: 'implemented', via: 'focused-block copy and cut' },
+			simOracle: { mode: 'inherit-default' }
+		}
+	});
+}
+
+// ── The die ──────────────────────────────────────────────────────────────────
+
+function registerDice(view: BlockView): void {
+	const dice = declarePluginKind('dice');
+	registerBlockKind(dice, {
+		view,
+		opener: {
+			priority: 27,
+			interruptsParagraph: (text) => text.startsWith('!! '),
+			tryOpen: (ctx) =>
+				ctx.line.text.startsWith('!! ')
+					? {
+							node: { kind: dice, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
+							consumed: 1
+						}
+					: null
+		},
+		label: 'Die',
+		gapEdges: 'none',
+		mergeRole: 'not-mergeable',
+		editable: false,
+		supportsInline: false,
+		conformanceFixture: '!! d6\n',
+		closure: simpleLeafClosure({
+			focus: { mode: 'implemented', via: 'the component publishes focus through useBlockHandle' },
+			searchPaint: { mode: 'not-supported', reason: 'its drawn buttons hold no source' },
+			undo: { mode: 'not-supported', reason: 'the die writes no bytes' },
+			simOracle: { mode: 'inherit-default' }
+		})
+	});
 }

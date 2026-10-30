@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { imeOwnsKey } from '../../browser/composition';
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
 	import { pressLeavesImage } from './image-press';
@@ -14,7 +15,7 @@
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
 	import type { MenuCloseCause, MenuPresence } from '../menu/menu-presence.svelte';
-	import type { CaretWriter } from '../../caret/widget-offset';
+	import type { CaretWriter } from '../../browser/caret-writer';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
 	import { eventToChord } from '../../schema/keybindings';
@@ -150,6 +151,7 @@
 	}
 
 	function onFieldKeydown(e: KeyboardEvent) {
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			void endField(true);
@@ -408,6 +410,7 @@
 
 	// Reached when keyboard focus sits on the toolbar.
 	function onRootKeydown(e: KeyboardEvent) {
+		if (imeOwnsKey(e)) return;
 		if (e.key === 'Escape' && !fieldOpen && !cropping) {
 			e.preventDefault();
 			onDismiss();

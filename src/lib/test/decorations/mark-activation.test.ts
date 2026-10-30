@@ -6,7 +6,7 @@ import { createMarkActivation, type MarkActivationDeps } from '#lib/decorations/
 import type { IndexedDecoration } from '#lib/decorations/buckets.js';
 import type { MarkDecoration } from '#lib/decorations/types.js';
 import { canRunCommandById, runCommandById } from '#lib/schema/block-commands.js';
-import { commandContext } from '../support/command-context';
+import { commandContext } from '../harness/command-context';
 
 type Call = { cls: string; anchor: DOMRect };
 

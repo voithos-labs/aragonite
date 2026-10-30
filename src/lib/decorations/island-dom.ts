@@ -10,10 +10,10 @@ import type { ContentLength } from '../core/inline';
 import {
 	rawOfWalkOffset,
 	rawRangeToDomRange,
-	rawTextOfNode,
 	walkOffsetOfRaw,
 	widgetSpanContainingOffset
-} from '../caret/widget-offset';
+} from '../browser/offsets';
+import { rawTextOfNode } from '../browser/block-text';
 import type { IndexedDecoration } from './buckets';
 import type {
 	Decoration,

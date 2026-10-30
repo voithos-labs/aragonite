@@ -12,7 +12,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { makeNestedHarness, makeTopHarness } from '../../harness/editor-actions';
 import { takeDevWarns } from '../../support/warn-gate';
-import { docPathFrom } from '#lib/caret/coordinate-spaces.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 
 interface Writer {
 	deps: EditorActionsDeps;

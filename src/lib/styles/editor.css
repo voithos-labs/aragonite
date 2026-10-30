@@ -278,10 +278,11 @@
 	translate: 0 var(--md-find-bar-clearance);
 }
 
+/* A picture sits in its line, as Markdown means it, so a letter typed beside it lands on that line.
+   Aligned to the line's bottom, a picture alone in its paragraph leaves no gap under it. */
 :where(.editor) .md-image-widget {
-	display: block;
-	/* Shrink to fit, so the widget matches the image rather than its line box. */
-	width: fit-content;
+	display: inline-block;
+	vertical-align: bottom;
 	margin: 0.5em 0;
 	user-select: none;
 }
@@ -328,37 +329,22 @@
 	object-fit: cover;
 }
 
-/* A paragraph holding a picture: the block-level widget would push an in-flow marker onto a line of
-   its own, so the container's marker sits out of flow at the paragraph's top-left, on its first line. */
+/* A container's marker drawn inside a paragraph whose first line holds only pictures (a footnote's
+   `[^1]: `) sits at the paragraph's top-left, beside the pictures' top, as a list item's does. */
 :where(.editor)
-	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
-		.md-image-widget
+	.text-editable-block.paragraph-block[data-picture-line]:has(
+		> .md-marker[contenteditable='false']
 	) {
 	position: relative;
 	text-indent: 0 !important;
 }
 
 :where(.editor)
-	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
-		.md-image-widget
-	)
+	.text-editable-block.paragraph-block[data-picture-line]
 	> .md-marker[contenteditable='false'] {
 	position: absolute;
 	left: 0;
 	top: 0;
-}
-
-/* Drop the trailing empty line-box the contenteditable keeps after a block-level child,
-   which otherwise leaves dead vertical space below every image-only item. */
-:where(.editor) .text-editable-block.paragraph-block:has(.md-image-widget:last-child) {
-	min-height: 0;
-}
-
-/* An image wrapped in a link: left inline, the anchor stretches to full content width and its
-   `title` tooltip hovers beside the image. Hug the widget so the tooltip covers only it. */
-:where(.editor) a.md-link-content:has(.md-image-widget) {
-	display: inline-block;
-	width: fit-content;
 }
 
 /* An image with no pixels (broken, scheme-refused, or a `'placeholder'` load policy) would lay out
@@ -663,11 +649,11 @@
 	font-weight: var(--md-heading-weight);
 }
 
-/* A picture's baseline is its bottom edge, so an item that opens with one puts its marker at the
-   top instead. */
+/* A picture's baseline is its bottom edge, so an item whose first line holds only pictures puts
+   its marker at their top; text on that line keeps the marker on its baseline. */
 :where(.editor)
 	.list-item-block:has(
-		> .list-item-content > .block-list > .block-host:first-child .md-image-widget
+		> .list-item-content > .block-list > .block-host:first-child [data-picture-line]
 	)
 	> .list-item-marker {
 	align-self: flex-start;
@@ -685,6 +671,13 @@
 	syntax: '<length>';
 	inherits: true;
 	initial-value: 0px;
+}
+
+/* A `:::` container's `:::name`, as a CSS string the generic directive draws where the line's own
+   marker is hidden (`DirectiveContainerBlock.svelte`). */
+@property --md-directive-marker {
+	syntax: '*';
+	inherits: true;
 }
 
 /* A container's leading marker takes its line's size, and where it renders, the line's weight
@@ -784,21 +777,19 @@
    owns marker + newline, so collapsing it leaves no blank line at the box's edge. */
 /* .md-ref-label: resolution metadata, not content; a rendered document shows only the
    link text. */
-/* .directive-marker: the container's border and gutter are the directive fence's rendered form,
-   so a focused block inside never shows the fence's source. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
 		[data-presentation='live']
 	)
-	:is(.md-marker:not([contenteditable='false']), .md-fence-line, .md-ref-label, .directive-marker) {
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line, .md-ref-label) {
 	display: none;
 }
 
-/* A focused construct whose only bytes are its markers shows them dimmed, since it has nothing
-   else to show and no caret position inside; mirrored in `caret/widget-offset.ts`. */
+/* A focused construct whose only bytes are its markers shows them, having nothing else to show,
+   and so does a source-at-caret row (a `:::` opener line); mirrored in `browser/painted.ts`. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
-	[contenteditable][data-content-empty]:focus-within
+	[contenteditable]:is([data-content-empty], [data-source-at-caret]):focus-within
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
 	display: inline;
 }

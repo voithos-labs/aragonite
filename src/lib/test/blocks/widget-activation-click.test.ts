@@ -14,7 +14,7 @@ import { bindActivationClick, createPressTracker, type LinkClick } from '#lib/ac
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
-import { ACTIVATION_CLICK_CASES } from '#lib/test/support/activation-click-cases.js';
+import { ACTIVATION_CLICK_CASES } from '#lib/test/harness/activation-click-cases.js';
 import ActivationClickWidget from './fixtures/ActivationClickWidget.svelte';
 import {
 	installMathInline,

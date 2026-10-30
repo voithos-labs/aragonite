@@ -35,7 +35,7 @@ Relevant (or irrelevant, fuck if i know) details:
 - Rather not bind? Pass `default-value` instead of `v-model` and the editor keeps the document itself.
 - Every other prop is an editor option (`theme`, `plugins`, ...), and the ref's `handle` gets you `getSource()`, `runCommand()` and friends once it mounts.
 - Nuxt: no `<ClientOnly>` needed, it renders on the server just fine. Put the two stylesheets in `nuxt.config`'s `css` array instead of importing them.
-- Writing a plugin? Its blocks can be vue components too: `vueBlockView` turns one into a block view ([react and vue blocks](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/react-and-vue.md)).
+- Writing a plugin? Its blocks can be vue components too: `vueBlockView` turns one into a block view, and `vueView` does the same for an inline widget, a decoration or a menu row ([react and vue blocks](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/react-and-vue.md)).
 
 ## More
 
