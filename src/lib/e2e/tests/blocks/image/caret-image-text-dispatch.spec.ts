@@ -79,7 +79,7 @@ test.describe('caret dispatch around image+text paragraphs', () => {
 		expect(await editor.bridge.getSource()).toContain(`)${TRAILING}X`);
 	});
 
-	test('Down from text1 lands a visible caret on the trailing-text line of the image+text paragraph', async ({
+	test('Down from the start of text1, left of the image, lands a visible caret in the text beside it', async ({
 		page
 	}) => {
 		await setupStaleInlineParagraph(editor, page);
@@ -93,7 +93,7 @@ test.describe('caret dispatch around image+text paragraphs', () => {
 		expect(src).not.toMatch(/!\[Xpic|Xtext1|text1X/);
 	});
 
-	test('Down/Down from text1 reaches text2 in two presses (image visual line is transparent)', async ({
+	test('Down twice from text1 reaches text2: an image in a paragraph with text is no vertical stop', async ({
 		page
 	}) => {
 		await setupStaleInlineParagraph(editor, page);
