@@ -139,15 +139,19 @@ flowchart TD
 
 The insertion goes through the ordinary commit rather than a bespoke one, which is why it costs one
 undo entry and one edit event without anybody arranging that. Everything else the stand-in could
-receive, paste above all, is declined rather than guessed at. The whole input policy is four
-lines:
+receive, paste above all, is declined rather than guessed at. The whole input policy is one
+handler, shared with a block focused whole:
 
 ```ts
-// src/lib/components/GapCaret.svelte (comments stripped)
-function onBeforeInput(event: InputEvent): void {
-	if (composing) return;
+// src/lib/editor-actions/caret-host-input.ts (comments stripped)
+onBeforeInput(event) {
+	const host = getHost();
+	if (host) composition.adopt(event, owner);
+	if (composition.openIn(host)) return;
 	event.preventDefault();
-	if (event.inputType === 'insertText' && event.data) mint(event.data);
+	const typed = readInput(event).kind === 'insert' ? (event.data ?? '') : '';
+	const text = takeHostText() + typed;
+	if (text) insert(text);
 }
 ```
 
