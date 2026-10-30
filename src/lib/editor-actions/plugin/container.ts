@@ -271,7 +271,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		drafts,
 		readingFocus,
 		composition,
-		containerChords
+		containerChords,
+		pasteAsBlocks
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -340,6 +341,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				getLabel: () => blockAccessibleName(deps.getNode()),
 				holdTabStop: (proxy) => readingFocus.hold(proxy, deps.getPath),
 				mint: (text) => parentBlockEdit.insertParagraph(deps.getIndex() + 1, text),
+				paste: (md) =>
+					pasteAsBlocks(
+						() => parentBlockEdit.insertParagraph(deps.getIndex() + 1, ''),
+						md,
+						deps.getPath()
+					),
 				composition
 			})
 		: undefined;

@@ -118,7 +118,14 @@
 			composedAt = index;
 			return mint(text);
 		},
-		services!.composition
+		services!.composition,
+		(md) => {
+			const gap = selection?.gapCaret;
+			if (!gap) return;
+			// Undo puts the caret back on the block beside the gap, the nearest place one can stand.
+			const beside = [...gap.parentPath, Math.max(0, gap.index - 1)];
+			return services!.pasteAsBlocks(async () => !!(await mint('')), md, beside);
+		}
 	);
 
 	function onFocusOut(event: FocusEvent): void {
@@ -144,6 +151,7 @@
 		onbeforeinput={hostInput.onBeforeInput}
 		oncompositionstart={hostInput.onCompositionStart}
 		oncompositionend={hostInput.onCompositionEnd}
+		onpaste={hostInput.onPaste}
 		onfocusout={onFocusOut}
 	></div>
 </div>

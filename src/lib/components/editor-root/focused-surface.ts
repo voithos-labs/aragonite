@@ -42,6 +42,9 @@ export interface FocusedSurface {
 	/** An insert at the caret, aimed now at the focused block and document, for an insert that
 	 *  waits on something first (a menu's clipboard read); null with no block to aim at. */
 	aimInsertAtFocus(): AimedInsert | null;
+	/** Pastes `md` as blocks into the paragraph `mint` opens and focuses, the paste route and one
+	 *  undo entry seeded at `at`: a paste at a gap or on a block focused whole. */
+	pasteAsBlocks(mint: () => Promise<boolean>, md: string, at: number[]): Promise<boolean>;
 }
 
 /** The focused block's two paste entries, each true only when bytes moved into its document. */
@@ -123,6 +126,14 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 			}
 			return insertBelow(at[0], md, madeFor);
 		},
-		aimInsertAtFocus: () => aimAtFocus(deps.stamps.current())
+		aimInsertAtFocus: () => aimAtFocus(deps.stamps.current()),
+		async pasteAsBlocks(mint, md, at) {
+			const madeFor = deps.stamps.current();
+			let inserted = false;
+			await deps.undoStep(at, 0, async () => {
+				if (await mint()) inserted = await insertAtFocus(md, madeFor);
+			});
+			return inserted;
+		}
 	};
 }

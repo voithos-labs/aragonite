@@ -42,6 +42,7 @@ import type { LinkCardState } from './components/link-card/link-card-state.svelt
 import type { KindCue } from './components/kind-cue.svelte';
 import type { TextMoves } from './components/overlays/text-moves';
 import type { ContainerChords } from './editor-actions/container-chords';
+import type { FocusedSurface } from './components/editor-root/focused-surface';
 import type { ReadingFocus } from './components/editor-root/reading-focus.svelte';
 import type { PlaceholderPolicy } from './components/blocks/placeholder-hint.svelte';
 import type { BlockElLookup } from './caret/block-el-lookup';
@@ -161,6 +162,8 @@ export interface EditorServices {
 	readingFocus: ReadingFocus;
 	/** The chords the containers around a block take, which each block's keydown runs last. */
 	containerChords: ContainerChords;
+	/** A paste at a gap or on a block focused whole: the clipboard's blocks, at that spot. */
+	pasteAsBlocks: FocusedSurface['pasteAsBlocks'];
 }
 
 /** Host-supplied render/behavior policies. The getter members read live editor state

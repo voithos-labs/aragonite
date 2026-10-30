@@ -20,7 +20,7 @@ import {
 	takesGlobalChord,
 	takesGlobalChordOnKind
 } from '../../schema/commands';
-import { eventToChord, isCharacterKey, textKeyRole } from '../../schema/keybindings';
+import { eventToChord, isCharacterKey, isPasteKey, textKeyRole } from '../../schema/keybindings';
 import { wholeBlockClipboardKey } from '../../editor-actions/container-block-component';
 import { rangeOwnsKey } from '../../selection/cross-block/keydown';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
@@ -135,6 +135,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		if (chord && keymapTakes(e, chord, kind, path, true)) return true;
 		if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') return true;
 		if (wholeBlockClipboardKey(e) && !deps.selection.isCrossBlock) return true;
+		if (isPasteKey(e)) return !reading();
 		if (e.ctrlKey || e.metaKey || e.altKey) return false;
 		return isCharacterKey(e.key) || e.key.startsWith('Arrow');
 	}
@@ -142,6 +143,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 	function gapTakes(e: KeyboardEvent, chord: string | null, gap: GapCaretPosition) {
 		if (chord && takesGlobalChord(chord, deps.commands)) return true;
 		if (deps.containerChords.takes(e, [...gap.parentPath, gap.index])) return true;
+		if (isPasteKey(e)) return !reading();
 		if (e.ctrlKey || e.metaKey || e.altKey) return false;
 		if (GAP_KEYS.has(e.key)) return true;
 		return isCharacterKey(e.key) && !reading();

@@ -173,7 +173,8 @@ describe('the editing host names its block', () => {
 				holdTabStop,
 				composition: createCompositionTracker(),
 				getLabel: () => label,
-				mint: () => {}
+				mint: () => {},
+				paste: () => {}
 			})
 		);
 		expect(proxy.el()?.getAttribute('aria-label')).toBe('Chart');
@@ -199,7 +200,8 @@ describe('the editing host in reading mode', () => {
 				holdTabStop,
 				composition: createCompositionTracker(),
 				getLabel: () => 'Divider',
-				mint: (text) => void editor.actions.insertParagraph(1, text)
+				mint: (text) => void editor.actions.insertParagraph(1, text),
+				paste: () => {}
 			})
 		);
 		expect(proxy.el()?.getAttribute('contenteditable')).toBe('false');
@@ -229,7 +231,8 @@ describe('a paste that reaches the editing host', () => {
 				holdTabStop,
 				composition: createCompositionTracker(),
 				getLabel: () => 'Divider',
-				mint: (text) => void minted.push(text)
+				mint: (text) => void minted.push(text),
+				paste: () => {}
 			})
 		);
 
@@ -259,7 +262,8 @@ describe('the editing host follows its box', () => {
 				holdTabStop,
 				composition: createCompositionTracker(),
 				getLabel: () => 'Diagram',
-				mint: () => {}
+				mint: () => {},
+				paste: () => {}
 			})
 		);
 		expect(first.contains(proxy.el())).toBe(true);

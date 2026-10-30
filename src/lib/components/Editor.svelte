@@ -874,7 +874,8 @@
 		kindCue,
 		textMoves,
 		readingFocus,
-		containerChords
+		containerChords,
+		pasteAsBlocks: (mint, md, at) => focusedSurface.pasteAsBlocks(mint, md, at)
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {

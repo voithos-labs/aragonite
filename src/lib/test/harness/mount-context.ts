@@ -122,6 +122,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
 		readingFocus: {} as EditorServices['readingFocus'],
 		containerChords: {} as EditorServices['containerChords'],
+		pasteAsBlocks: () => Promise.resolve(false),
 		stamps,
 		drafts: createDraftRegistry(stamps),
 		shownSource: createShownSourceState(),

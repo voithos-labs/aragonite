@@ -40,6 +40,8 @@
 		getLabel: () => blockAccessibleName(node),
 		holdTabStop: (proxy) => readingFocus.hold(proxy, () => myPath),
 		mint: (text) => blockEdit.insertParagraph(index + 1, text),
+		paste: (md) =>
+			wiring.services.pasteAsBlocks(() => blockEdit.insertParagraph(index + 1, ''), md, myPath),
 		composition
 	});
 

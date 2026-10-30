@@ -238,6 +238,12 @@ export function textKeyChords(): string[] {
 	return [...chords];
 }
 
+/** A paste chord: what the gap caret and a block focused whole take as a paste of blocks. */
+export function isPasteKey(e: ChordKeys): boolean {
+	const chord = eventToChord(e);
+	return chord === 'Mod+V' || chord === 'Mod+Shift+V' || chord === 'Shift+Insert';
+}
+
 /** The role a key plays in a text field, or null for a key no text field acts on by default. */
 export function textKeyRole(e: ChordKeys): TextKeyRole | null {
 	// Alt+ArrowUp and Down are no text field's: the editor's keymaps move blocks with them.
