@@ -65,18 +65,18 @@ test.describe('minting a paragraph at the gap', () => {
 		expect(await editor.bridge.getSource()).toBe(`${QUOTED_FENCE}>\n> x\n`);
 	});
 
-	// The gap refuses every input type but text: a paste has block structure the boundary has no rule
-	// for, so it is declined rather than guessed at.
-	test('a paste at the gap changes nothing and keeps the gap', async () => {
+	// A paste lands at the gap as the clipboard's blocks, the caret leaving the gap for them.
+	test('a paste at the gap inserts its blocks at the boundary', async () => {
 		await loadThenArrive(editor);
 		await editor.seedClipboard('pasted\n');
 
 		await editor.paste();
-		// A paste event, not a keystroke: no keydown, so nothing for the editor to answer.
-		await editor.waitForNoSourceMutation();
 
-		expect(await editor.bridge.getSource()).toBe(TABLE_THEN_FENCE);
-		expect(await editor.bridge.getGapCaret()).toEqual(AT_BOUNDARY);
+		await editor.bridge.waitForSourceContains('pasted');
+		expect(await editor.bridge.getSource()).toBe(
+			TABLE_THEN_FENCE.replace(FENCE, `pasted\n\n${FENCE}`)
+		);
+		expect(await editor.bridge.getGapCaret()).toBeNull();
 	});
 });
 
