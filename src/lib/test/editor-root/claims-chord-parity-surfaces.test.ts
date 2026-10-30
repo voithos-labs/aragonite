@@ -2,7 +2,7 @@
 // Miss-analysis: `claimsChord` was a second computation no test held against the keydown handlers
 // of the surfaces with no text block focused: the gap caret, the root, a range, the find bar, a card,
 // and an open menu, which takes Escape at the document wherever the caret is.
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { defineBlockView } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
@@ -24,6 +24,8 @@ import {
 } from './claims-parity';
 
 beforeAll(installLayoutStubs);
+// The host-field context leaves its input on the page.
+afterEach(() => document.querySelectorAll('body > input').forEach((el) => el.remove()));
 registerBuiltInDescriptors();
 
 const PROSE = 'para text here\n\n# heading text\n\n| A | B |\n| --- | --- |\n| 1 | middle |\n';
@@ -75,6 +77,12 @@ const CONTEXTS: ClaimContext[] = [
 			expect(editor.instance.__test.getGapCaret()).not.toBeNull();
 			return document.activeElement as HTMLElement;
 		}
+	},
+	{
+		name: 'a field of the host’s own',
+		source: PROSE,
+		focus: { at: 'outside' },
+		enter: async () => focusIn(document.body.appendChild(document.createElement('input')))
 	},
 	{
 		name: 'editor root focused',

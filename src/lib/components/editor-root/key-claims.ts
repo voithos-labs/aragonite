@@ -57,6 +57,7 @@ export interface KeyClaimsDeps extends KeyFocusDeps {
 
 /** Where a keystroke lands, as the editor's keydown handlers meet it. */
 export type KeyFocus =
+	| { at: 'host-chrome' }
 	| { at: 'outside' }
 	| { at: 'root' }
 	| { at: 'find-bar' }
@@ -191,8 +192,9 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		const root = deps.root();
 		if (!root) return { at: 'outside' };
 		const el = keyTargetOf(e, root, deps);
-		if (deps.isHostChrome(el)) return { at: 'outside' };
-		if (!el || el === root || !focusInEditor(root, el, deps)) return { at: 'root' };
+		if (deps.isHostChrome(el)) return { at: 'host-chrome' };
+		if (el === root || ownsWindowedOutCaret(root, el)) return { at: 'root' };
+		if (!el || !focusInEditor(root, el, deps)) return { at: 'outside' };
 		if (deps.isFindBar(el)) return { at: 'find-bar' };
 		const gap = deps.selection.gapCaret;
 		if (gap && el.closest('[data-gap-caret]')) return { at: 'gap', gap };
@@ -213,13 +215,14 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 	/** Whether the editor takes `e` at `focus`: the one decision `claimsChord` reads. */
 	function takesKey(e: KeyboardEvent, focus: KeyFocus): boolean {
 		const root = deps.root();
-		if (!root || focus.at === 'outside') return false;
+		if (!root || focus.at === 'host-chrome') return false;
 		const el = keyTargetOf(e, root, deps);
 		if (imeOwnsKey(e)) return focusInEditor(root, el, deps);
 		const chord = eventToChord(e);
 		if (rootTakes(e, chord, root, el)) return true;
 		switch (focus.at) {
 			case 'root':
+			case 'outside':
 				return false;
 			case 'find-bar':
 				return textKeyRole(e) !== null || e.key === 'Enter' || e.key === 'Escape';
