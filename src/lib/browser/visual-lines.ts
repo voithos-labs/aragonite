@@ -49,7 +49,7 @@ export function caretRectAtRaw(el: HTMLElement, raw: number): DOMRect | null {
 }
 
 /** The box of the one character at `at` in `text`, null past its end or where it paints nothing. */
-export function charRect(text: Text, at: number): DOMRect | null {
+function charRect(text: Text, at: number): DOMRect | null {
 	if (at < 0 || at >= text.length) return null;
 	const range = document.createRange();
 	range.setStart(text, at);
@@ -213,7 +213,7 @@ export interface LineBox {
 }
 
 /** Non-collapsed ranges reliably return rects where collapsed ones don't. */
-export function getCharRangeTop(container: Node, offset: number, atEnd: boolean): number | null {
+function getCharRangeTop(container: Node, offset: number, atEnd: boolean): number | null {
 	try {
 		const range = document.createRange();
 		if (atEnd) {
@@ -228,16 +228,6 @@ export function getCharRangeTop(container: Node, offset: number, atEnd: boolean)
 		// offset out of bounds
 	}
 	return null;
-}
-
-/** Skips non-text children (dimmed marker spans) that would otherwise leave the block's
- *  first line unmeasurable, and hidden marker text, which measures to no rect at all. */
-export function findFirstTextNode(root: Node): Text | null {
-	return measurableText(root, containerOf(root), false);
-}
-
-export function findLastTextNode(root: Node): Text | null {
-	return measurableText(root, containerOf(root), true);
 }
 
 /** The first and last offsets a caret can sit at in a block, which a hidden run moves inward. */
@@ -258,7 +248,7 @@ export function isAtFirstVisualLine(
 		isEmpty: bounds.start === bounds.end,
 		toStart: true,
 		boundaryTop: () => {
-			const firstText = findFirstTextNode(el);
+			const firstText = measurableText(el, el, false);
 			const top = firstText ? getCharRangeTop(firstText, 0, false) : null;
 			return top ?? collapsedContentsTop(el, true);
 		}
@@ -275,7 +265,7 @@ export function isAtLastVisualLine(
 		isEmpty: bounds.start === bounds.end,
 		toStart: false,
 		boundaryTop: () => {
-			const lastText = findLastTextNode(el);
+			const lastText = measurableText(el, el, true);
 			if (!lastText) return collapsedContentsTop(el, false);
 			const below = lastText.data.endsWith('\n') ? nextLineStartAfter(lastText, el) : null;
 			const top = below?.top ?? getCharRangeTop(lastText, lastText.length, true);
@@ -515,6 +505,8 @@ function containerOf(root: Node): HTMLElement | null {
 	return root instanceof HTMLElement ? root : null;
 }
 
+/** The first or last text under `node` that measures to a rect, past empty text and hidden marker
+ *  text, neither of which has one. */
 function measurableText(node: Node, container: HTMLElement | null, fromEnd: boolean): Text | null {
 	for (const current of domDescendants(node, undefined, { fromEnd })) {
 		if (current.nodeType !== Node.TEXT_NODE) continue;

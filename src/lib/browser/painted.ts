@@ -200,7 +200,7 @@ export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
 
 /** Whether `node` sits inside an atomic inline widget under `root`, where a caret is no caret of
  *  the editor's: the browser can leave one there, but no key types into it. */
-export function isInsideAtomicWidget(root: ParentNode, node: Node): boolean {
+function isInsideAtomicWidget(root: ParentNode, node: Node): boolean {
 	for (let at: Node | null = node; at && at !== root; at = at.parentNode) {
 		if (isAtomicInlineWidget(at)) return true;
 	}

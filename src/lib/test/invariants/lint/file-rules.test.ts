@@ -540,7 +540,7 @@ const RULES: FileRule[] = [
 				'whether a selected range covers a right-click; a collapsed one is never measured'
 		},
 		reason:
-			'WebKit and Firefox measure a caret right after a `\\n` on the line the `\\n` ends, so a caret measured anywhere else reads the wrong line at every line start: call `caretRectAt`, or `charRect` for one character',
+			'WebKit and Firefox measure a caret right after a `\\n` on the line the `\\n` ends, so a caret measured anywhere else reads the wrong line at every line start: call `caretRectAt`',
 		hits: [
 			'const rects = range.getClientRects();',
 			'return sel.getRangeAt(0).getBoundingClientRect();',

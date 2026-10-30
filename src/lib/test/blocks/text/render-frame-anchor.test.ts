@@ -20,7 +20,7 @@ import {
 	selectRange,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { rawTextOfContent } from '#lib/browser/block-text.js';
+import { readContent } from '#lib/browser/block-text.js';
 import { caretPointAtRaw, endOfContents } from '#lib/browser/offsets.js';
 import { placeholderBreakOf } from '#lib/browser/placeholder-break.js';
 import { shownSelectionText } from '#lib/browser/selection-read.js';
@@ -148,7 +148,7 @@ describe('every read skips the anchor', () => {
 		for (const source of [IMG, `[${IMG}](https://x.y)`, `lead ${IMG}`]) {
 			const el = surfaceAt(mountEditor({ source: `${source}\n`, presentationMode: 'live' }), [0]);
 			expect(endsOnAnchor(el)).toBe(true);
-			expect(rawTextOfContent(el, source, '')).toBe(source);
+			expect(readContent(el, source, '', 0).text).toBe(source);
 		}
 	});
 

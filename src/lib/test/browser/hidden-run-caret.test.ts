@@ -10,7 +10,7 @@ import {
 	findDomTextOffsetTarget
 } from '../../browser/offsets';
 import { isHiddenMarkerText } from '../../browser/painted';
-import { findFirstTextNode, findLastTextNode } from '../../browser/visual-lines';
+import { edgeLineIsOn } from '#lib/test/harness/edge-line-measure.js';
 import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { createSurfaceBackend } from '../../components/blocks/editable/surface-backend';
 import { applyCollapsedCaret } from '../../selection/native-bridge';
@@ -299,16 +299,17 @@ describe('the caret-in-text guards agree that hidden text holds no caret', () =>
 		expect(caretIsInTextContent(fx.block)).toBe(true);
 	});
 
-	it('the visual-line text-node walks skip hidden runs at both ends', () => {
+	it('the first- and last-line checks measure past hidden runs at both ends', () => {
 		const fx = mount({ mode: 'live' });
-		expect(findFirstTextNode(fx.block)).toBe(fx.body);
-		expect(findLastTextNode(fx.block)).toBe(fx.body);
+		expect(edgeLineIsOn(fx.block, fx.body, 'first')).toBe(true);
+		expect(edgeLineIsOn(fx.block, fx.body, 'last')).toBe(true);
 	});
 
-	it('the visual-line walks still find marker text in source mode', () => {
+	it('the line checks still measure marker text in source mode', () => {
 		const fx = mount();
-		expect(findFirstTextNode(fx.block)).toBe(fx.openMarker);
-		expect(findLastTextNode(fx.block)).toBe(fx.closeMarker);
+		expect(edgeLineIsOn(fx.block, fx.openMarker, 'first')).toBe(true);
+		expect(edgeLineIsOn(fx.block, fx.closeMarker, 'last')).toBe(true);
+		expect(edgeLineIsOn(fx.block, fx.body, 'first')).toBe(false);
 	});
 });
 
