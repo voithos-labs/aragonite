@@ -567,7 +567,7 @@ const RULES: FileRule[] = [
 	{
 		id: 'G4.276 a widget’s raw span is read only through `widgetSourceRange`',
 		matches:
-			/\bdataset\.source(?:Start|End)\b(?!\s*=[^=])|getAttribute\(\s*['"]data-source-(?:start|end)['"]/,
+			/\bdataset\.source(?:Start|End)\b(?!\s*=[^=])|\bsource(?:Start|End)\b[^}]*\}\s*=[^;]*\.dataset\b|getAttribute\(\s*['"]data-source-(?:start|end)['"]/,
 		allowed: {
 			'src/lib/core/inline/widget-shell.ts': '`widgetSourceRange` itself'
 		},
@@ -576,7 +576,8 @@ const RULES: FileRule[] = [
 		hits: [
 			'const start = Number(shell.dataset.sourceStart);',
 			"const end = el.getAttribute('data-source-end');",
-			'if (a.dataset.sourceEnd === b) {}'
+			'if (a.dataset.sourceEnd === b) {}',
+			'const { sourceStart, sourceEnd } = (widget as HTMLElement).dataset;'
 		],
 		misses: [
 			'shell.dataset.sourceStart = String(node.start);',
