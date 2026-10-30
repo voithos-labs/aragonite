@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: `claimsChord` was a second computation no test held against the keydown handlers
-// of the surfaces with no text block focused: the gap caret, the root, a range, the find bar, a card.
+// of the surfaces with no text block focused: the gap caret, the root, a range, the find bar, a card,
+// and an open menu, which takes Escape at the document wherever the caret is.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { defineBlockView } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
@@ -34,6 +35,8 @@ const badge = markerLeafPlugin(
 	}),
 	'claims-badge'
 );
+
+const TAG = { id: 'a', label: 'a', insert: '#a' };
 
 const focusIn = (el: Element | null | undefined): HTMLElement => {
 	if (!(el instanceof HTMLElement)) throw new Error('no element to focus');
@@ -110,6 +113,21 @@ const CONTEXTS: ClaimContext[] = [
 		}
 	},
 	{ name: 'find bar', source: PROSE, enter: openFindBar },
+	{
+		name: 'paragraph under an open inline menu',
+		source: PROSE,
+		mode: 'live',
+		enter: async (editor) => {
+			const menus = editor.instance.getInlineMenus();
+			menus.addSource({ name: 'tags', trigger: '#', items: () => [TAG, { ...TAG, id: 'b' }] });
+			const para = surfaceAt(editor, [0]);
+			placeCaret(para, 4);
+			menus.open('tags');
+			await editor.settle();
+			expect(document.querySelector('[role="option"]')).not.toBeNull();
+			return para;
+		}
+	},
 	{
 		name: 'live caret in a link',
 		source: 'see [link](https://x.test) here\n',

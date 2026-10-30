@@ -44,8 +44,10 @@ export interface KeyClaimsDeps extends KeyFocusDeps {
 	root(): HTMLElement | undefined;
 	searchBarEnabled(): boolean;
 	searchOpen(): boolean;
-	/** An open block menu, context menu or link card, which takes Escape and its focus trap. */
+	/** An open block menu, context menu or link card, which holds a focus trap. */
 	menusOpen(): boolean;
+	/** An open menu, the crop or a toolbar flyout, which closes on Escape wherever the caret is. */
+	menuTakesEscape(): boolean;
 	/** The chord an open link card swallows: the one that opens it. */
 	opensLinkCard(e: KeyboardEvent): boolean;
 	selection: Pick<SelectionState, 'gapCaret' | 'isCrossBlock' | 'anchor' | 'focus'>;
@@ -86,6 +88,9 @@ export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => 
 		el: Element | null
 	) {
 		if (e.key === 'Backspace' && keepsPageOnBackspace(root, el, deps)) return true;
+		if (e.key === 'Escape' && deps.menuTakesEscape()) {
+			if (focusInEditor(root, el, deps) || ownsWindowedOutCaret(root, el)) return true;
+		}
 		if (searchChordsReach(root, el, deps)) {
 			if (deps.searchBarEnabled() && chord && isReservedUiChord(chord)) return true;
 			if (e.key === 'Escape' && deps.searchOpen()) return true;
@@ -203,10 +208,10 @@ const GAP_KEYS = new Set([
 	'Escape'
 ]);
 
-// An open card's field takes its focus trap, its Enter and the Escape that closes it, modified or not.
-const FIELD_MENU_KEYS = new Set(['Enter', 'Tab', 'Escape']);
+// An open card's field takes its focus trap and its Enter, modified or not.
+const FIELD_MENU_KEYS = new Set(['Enter', 'Tab']);
 
-// An open menu steps, picks and closes.
+// An open menu steps and picks.
 const MENU_KEYS = new Set([
 	'ArrowDown',
 	'ArrowUp',
@@ -215,6 +220,5 @@ const MENU_KEYS = new Set([
 	'Home',
 	'End',
 	'Enter',
-	'Tab',
-	'Escape'
+	'Tab'
 ]);
