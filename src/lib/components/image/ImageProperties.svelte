@@ -338,11 +338,12 @@
 			t === document.body ||
 			(t instanceof Node && !!getWidgetEl()?.closest('.editor')?.contains(t));
 		// Typing and deleting over the selected image, and the editor's own chords, minus the find
-		// bar's and the caret keys, which move without writing.
+		// bar's and the unshifted caret keys and copy, which read; Shift+Arrow resizes the image.
 		const writes = (e: KeyboardEvent): boolean => {
 			if (isPlainTypingKey(e) || e.key === 'Backspace' || e.key === 'Delete') return true;
 			const chord = eventToChord(e);
-			if (chord === null || isReservedUiChord(chord) || textKeyRole(e) === 'reads') return false;
+			if (chord === null || isReservedUiChord(chord)) return false;
+			if (textKeyRole(e) === 'reads' && !e.shiftKey) return false;
 			return editorTakesChord(e);
 		};
 		const onKey = (e: KeyboardEvent) => {

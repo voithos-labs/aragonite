@@ -59,7 +59,8 @@ describe('claimsChord answers for where the caret is', () => {
 			{ key: 'ArrowRight', ctrlKey: true },
 			{ key: 'ArrowLeft', ctrlKey: true, shiftKey: true },
 			{ key: 'Home' },
-			{ key: 'End', shiftKey: true }
+			{ key: 'End', shiftKey: true },
+			{ key: 'ArrowLeft', metaKey: true }
 		]) {
 			expect(editor.instance.claimsChord(press(init)), JSON.stringify(init)).toBe(true);
 		}
