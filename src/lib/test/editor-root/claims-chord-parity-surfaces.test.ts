@@ -15,7 +15,13 @@ import {
 import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt } from '../blocks/table/mount-table';
 import { markerLeafPlugin } from '../plugins/fixtures/dom-views';
-import { expectParity, keysToProbe, type ClaimContext, type Probe } from './claims-parity';
+import {
+	expectFocusAgrees,
+	expectParity,
+	keysToProbe,
+	type ClaimContext,
+	type Probe
+} from './claims-parity';
 
 beforeAll(installLayoutStubs);
 registerBuiltInDescriptors();
@@ -60,6 +66,7 @@ async function caretInLink(editor: MountedEditor<Probe>): Promise<HTMLElement> {
 const CONTEXTS: ClaimContext[] = [
 	{
 		name: 'gap caret',
+		focus: { at: 'gap', gap: { parentPath: [], index: 0 } },
 		source: '```\ncode\n```\n\npara text here\n',
 		enter: async (editor) => {
 			const code = surfaceAt(editor, [0]);
@@ -71,6 +78,7 @@ const CONTEXTS: ClaimContext[] = [
 	},
 	{
 		name: 'editor root focused',
+		focus: { at: 'root' },
 		source: PROSE,
 		enter: async (editor) => focusIn(editor.target.querySelector('.editor'))
 	},
@@ -112,7 +120,7 @@ const CONTEXTS: ClaimContext[] = [
 			return document.activeElement as HTMLElement;
 		}
 	},
-	{ name: 'find bar', source: PROSE, enter: openFindBar },
+	{ name: 'find bar', source: PROSE, focus: { at: 'find-bar' }, enter: openFindBar },
 	{
 		name: 'paragraph under an open inline menu, Tab and Enter freed there',
 		source: PROSE,
@@ -140,6 +148,7 @@ const CONTEXTS: ClaimContext[] = [
 	},
 	{
 		name: 'open link card',
+		focus: { at: 'field', path: null },
 		source: 'see [link](https://x.test) here\n',
 		mode: 'live',
 		enter: async (editor) => {
@@ -171,12 +180,17 @@ const CONTEXTS: ClaimContext[] = [
 	},
 	{
 		name: 'hand-built block text field',
+		focus: { at: 'field', path: [1] },
 		source: 'intro\n\n@@ badge\n\noutro\n',
 		plugins: [badge],
 		enter: async (editor) =>
 			focusIn(editor.target.querySelector('[data-block-path="[1]"] textarea'))
 	}
 ];
+
+describe('claimsChord reads the focus its handler stands at', () => {
+	it.each(CONTEXTS.filter((context) => context.focus))('$name', expectFocusAgrees);
+});
 
 describe.each(CONTEXTS)('claimsChord agrees with the keydown: $name', (context) => {
 	const keys = [...keysToProbe(), ...(context.pluginChords ?? [])];

@@ -9,7 +9,7 @@ import {
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt } from '../blocks/table/mount-table';
-import { expectParity, keysToProbe, type ClaimContext } from './claims-parity';
+import { expectFocusAgrees, expectParity, keysToProbe, type ClaimContext } from './claims-parity';
 
 beforeAll(installLayoutStubs);
 registerBuiltInDescriptors();
@@ -34,10 +34,20 @@ const caretAt =
 	};
 
 const CONTEXTS: ClaimContext[] = [
-	{ name: 'paragraph', source: DOC, enter: caretAt([0], 5) },
+	{
+		name: 'paragraph',
+		source: DOC,
+		focus: { at: 'leaf', path: [0] },
+		enter: caretAt([0], 5)
+	},
 	{ name: 'paragraph, caret at its start', source: DOC, enter: caretAt([6], 0) },
 	{ name: 'heading', source: DOC, enter: caretAt([1], 6) },
-	{ name: 'nested list item in a quote', source: DOC, enter: caretAt([2, 0, 0, 1, 0, 0], 8) },
+	{
+		name: 'nested list item in a quote',
+		source: DOC,
+		focus: { at: 'leaf', path: [2, 0, 0, 1, 0, 0] },
+		enter: caretAt([2, 0, 0, 1, 0, 0], 8)
+	},
 	{
 		name: 'table cell',
 		source: DOC,
@@ -51,6 +61,7 @@ const CONTEXTS: ClaimContext[] = [
 	{
 		name: 'thematic break focused whole',
 		source: DOC,
+		focus: { at: 'whole-block', path: [5] },
 		enter: async (editor) => {
 			editor.instance.__test.getBlockComponent([5])!.focus?.(0);
 			await editor.settle();
@@ -73,6 +84,10 @@ const CONTEXTS: ClaimContext[] = [
 		enter: caretAt([0], 5)
 	}
 ];
+
+describe('claimsChord reads the focus its handler stands at', () => {
+	it.each(CONTEXTS.filter((context) => context.focus))('$name', expectFocusAgrees);
+});
 
 describe.each(CONTEXTS)('claimsChord agrees with the keydown: $name', (context) => {
 	it.each(keysToProbe())('%s', (chord) => expectParity(context, chord));

@@ -1366,7 +1366,7 @@
 	});
 
 	export function claimsChord(event: KeyboardEvent): boolean {
-		return keyClaims(event);
+		return keyClaims.claims(event);
 	}
 
 	const diagnostics = createEditorDiagnostics({
@@ -1420,6 +1420,7 @@
 		getOperationsLog: () => operationsLog,
 		isCrossBlockActive: () => selectionState.isCrossBlock,
 		getGapCaret: () => selectionState.gapCaret,
+		getKeyFocus: (e) => keyClaims.readKeyFocus(e),
 		getDecorationEngine: () => decorationEngine,
 		getHeightOracle: () => heightOracle,
 		getBlockIds: () => blockIds,
