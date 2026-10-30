@@ -87,8 +87,8 @@ export async function handleSharedKeydown(
 	// After the key note, so the press still resets the sticky column as any horizontal step does.
 	const motion = motionKey(e);
 	if (motion && handleMotion(e, motion, ctx, el)) return true;
-	// A caret-edge key the editor left alone (Cmd+Up and Down, a line nothing lays out) is the
-	// browser's, never a step across blocks.
+	// A caret-edge key the editor declined (a document edge, a line nothing lays out, right-to-left
+	// text) is the browser's, never a step across blocks.
 	if (caretEdgeKey(e)) return false;
 
 	// The moving end, read for the boundary check: with Shift the focus, since a forward range's
