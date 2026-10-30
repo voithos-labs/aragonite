@@ -290,8 +290,8 @@ mount, once the hooks load. `checkInlineConstructPolicy` · `runStartupInvariant
 block holding the caret has a spot a caret shows at, read by G1.159's own check at its start; one
 that's all hidden markers takes the next key between `display:none` spans. Built-ins hold by
 construction (`docs/design/live-mode.md` § 4.1). It fires from the root's `focusin`, so a caret no
-writer placed (a consumer's own component) is covered. `checkLandableCaret` · `editor-root/focus.ts`
-· `landable-caret.test.ts`, `landable-caret-doors.test.ts`.
+writer placed (a consumer's own component) is covered. `checkCaretCanLand` · `editor-root/focus.ts`
+· `caret-can-land.test.ts`, `caret-can-land-placements.test.ts`.
 
 **G1.35 · Single-node sink.** A slot that installs exactly one node never installs bytes that
 reparse to several (bytes arriving plural are fine). Every join (Backspace, Delete, the list-item

@@ -9,7 +9,7 @@ import { hidesMarkers, type PresentationMode } from '../presentation-mode';
 import { caretSpotOf } from '../browser/caret-spot';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 
-export function checkLandableCaret(
+export function checkCaretCanLand(
 	focused: HTMLElement,
 	mode: PresentationMode,
 	blockPath: readonly number[]
@@ -20,7 +20,7 @@ export function checkLandableCaret(
 	// The block's start reads past every hidden run to the first thing that paints, if any.
 	if (!el || caretSpotOf(el, { node: el, offset: 0 }) !== 'none') return null;
 	return {
-		code: 'landable-caret',
+		code: 'caret-can-land',
 		message: `the block at [${blockPath}] is every byte a hidden marker run, so "${mode}" paints it nowhere and the caret being placed there has no position of its own: paint the chrome while it stands over no content`,
 		detail: { path: [...blockPath], mode }
 	};

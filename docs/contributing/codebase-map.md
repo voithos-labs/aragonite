@@ -20,7 +20,7 @@ call sites. So when you want to add a branch at one of these files, the rule in 
 you're arguing with.
 
 A few of the words the repo coined survive in symbol names (`HeightOracle`,
-`checkLandableCaret`). Since this may be your first doc in the repo, keep
+`buildAmbientSpan`). Since this may be your first doc in the repo, keep
 [`glossary.md`](glossary.md) open beside it; every one of them is a line there.
 
 ## Behavior → entry

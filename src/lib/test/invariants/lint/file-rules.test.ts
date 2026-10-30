@@ -1055,7 +1055,7 @@ const RULES: FileRule[] = [
 		matches: (file) => !HOST_AWARE_RE.test(file.code),
 		allowed: {
 			'src/lib/active-editor.ts': 'the host IS a text-entry surface: a focus move must yield to it',
-			'src/lib/invariants/landable-caret.ts':
+			'src/lib/invariants/caret-can-land.ts':
 				'G1.33 resolves the host as the focused editable and does nothing on its emptiness'
 		},
 		reason:
