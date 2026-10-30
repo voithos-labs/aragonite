@@ -17,9 +17,7 @@ export function markContainerChords(
 ): void {
 	$effect(() => {
 		const el = getEl();
-		if (!el) return;
-		el.setAttribute(CONTAINER_CHORDS_ATTR, getKind());
-		return () => el.removeAttribute(CONTAINER_CHORDS_ATTR);
+		return el ? mark(el, getKind()) : undefined;
 	});
 }
 
@@ -29,11 +27,25 @@ export function listenForContainerChords(
 	kind: AnyBlockKind,
 	handler: (e: KeyboardEvent) => void
 ): () => void {
-	el.setAttribute(CONTAINER_CHORDS_ATTR, kind);
+	const unmark = mark(el, kind);
 	const off = on(el, 'keydown', handler);
 	return () => {
 		off();
-		el.removeAttribute(CONTAINER_CHORDS_ATTR);
+		unmark();
+	};
+}
+
+// Counted, since a factory's box and a block's own listener can mark one element: the first
+// owner to let go must not strip the mark the other still relies on.
+const markHolders = new WeakMap<Element, number>();
+
+function mark(el: HTMLElement, kind: AnyBlockKind): () => void {
+	el.setAttribute(CONTAINER_CHORDS_ATTR, kind);
+	markHolders.set(el, (markHolders.get(el) ?? 0) + 1);
+	return () => {
+		const left = (markHolders.get(el) ?? 1) - 1;
+		markHolders.set(el, left);
+		if (left === 0) el.removeAttribute(CONTAINER_CHORDS_ATTR);
 	};
 }
 

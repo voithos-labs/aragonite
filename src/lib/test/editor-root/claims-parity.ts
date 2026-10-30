@@ -27,7 +27,8 @@ export interface ClaimContext {
 	mode?: PresentationMode;
 	plugins?: EditorPlugin[];
 	keybindings?: KeybindingOverride[];
-	/** Chords the context's plugins bind, which register only once it mounts. */
+	/** Chords the context's plugins bind, which register only once it mounts. A `-t` filter for one
+	 *  of them escapes the `+` (`-t "container.*Mod.7"`). */
 	pluginChords?: string[];
 	/** Puts focus where the row's keys go and returns the element a browser would send them to. */
 	enter(editor: MountedEditor<Probe>): Promise<HTMLElement>;

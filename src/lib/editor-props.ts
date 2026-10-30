@@ -265,8 +265,8 @@ export interface EditorInstance {
 	/**
 	 * Whether this instance takes that keystroke where it lands, bare or chorded: the target block's
 	 * keymap and its containers', the global chords, and the keys a block edits or moves through
-	 * itself. Read off the event's target, or focus for an event never dispatched; `false` with focus
-	 * outside the editor. Ctrl and Cmd read alike.
+	 * itself. Read off the event's target, or focus for an event never dispatched; `false` in a host's
+	 * own field, and with nothing focused only undo and redo. Ctrl and Cmd read alike.
 	 */
 	claimsChord(event: KeyboardEvent): boolean;
 }

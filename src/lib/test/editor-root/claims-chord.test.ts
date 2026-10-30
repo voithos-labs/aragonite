@@ -90,6 +90,17 @@ describe('claimsChord answers for where the caret is', () => {
 		field.remove();
 	});
 
+	// With nothing focused, the root still runs undo and redo for the one editor mounted.
+	it('takes only the history chords with nothing focused', async () => {
+		const editor = mount();
+		await editor.settle();
+		(document.activeElement as HTMLElement | null)?.blur();
+		expect(document.activeElement).toBe(document.body);
+		expect(editor.instance.claimsChord(press({ key: 'z', ctrlKey: true }))).toBe(true);
+		expect(editor.instance.claimsChord(press({ key: 'b', ctrlKey: true }))).toBe(false);
+		expect(editor.instance.claimsChord(press(ALT_LEFT))).toBe(false);
+	});
+
 	it('takes a key that belongs to a composition', async () => {
 		const editor = mount();
 		await editor.settle();
