@@ -51,7 +51,7 @@ export function decideTypedInsert(e: InputEvent, reads: TypedInsertReads): Typed
 	if (!e.cancelable) return declined('not-cancelable');
 	const text = e.data;
 	if (!text) return declined('no-text');
-	const decline = typeAtCaret(text, reads, e);
+	const decline = reads.writes?.typeOverSelected(text) ? null : typeAtInput(text, reads, e);
 	if (decline) return declined(decline);
 	e.preventDefault();
 	return { decided: true };
@@ -61,47 +61,63 @@ export function decideTypedInsert(e: InputEvent, reads: TypedInsertReads): Typed
  *  widget with no text node to type into. True when taken. */
 export function decideTypedKey(e: KeyboardEvent, reads: TypedInsertReads): boolean {
 	if (e.defaultPrevented || !isPlainTypingKey(e) || reads.composing()) return false;
-	if (typeAtCaret(e.key, reads, null)) return false;
+	const caret = caretFor(reads);
+	if (typeof caret === 'string' || !typeBesideWidget(e.key, caret)) return false;
 	e.preventDefault();
 	return true;
 }
 
-/** Writes `text` at the editor's caret where the browser's insert could miss it, else says why not.
- *  A keydown (`e` null) decides only beside a widget: a selected widget's keydown took the rest. */
-function typeAtCaret(
-	text: string,
-	reads: TypedInsertReads,
-	e: InputEvent | null
-): TypedDecline | null {
+/** Writes `text` at the editor's caret where the browser's insert could miss it, else says why not. */
+function typeAtInput(text: string, reads: TypedInsertReads, e: InputEvent): TypedDecline | null {
+	const caret = caretFor(reads);
+	if (typeof caret === 'string') return caret;
+	if (typeBesideWidget(text, caret) || typeBeforeClosingWidget(text, caret)) return null;
+	const target = targetRange(e);
+	if (!target?.collapsed) return 'at-caret';
+	const { at } = caret;
+	if (target.startContainer === at.node && target.startOffset === at.offset) return 'at-caret';
+	const aimed = reads.rawStartOf(target);
+	return writeAtCaret(text, caret, (raw) => aimed !== null && aimed !== raw) ? null : 'at-caret';
+}
+
+/** The caret a typed insert would land at, read once both entries know they may take it. */
+interface TypingCaret {
+	reads: TypedInsertReads;
+	writes: TypedInsertWrites;
+	el: HTMLElement;
+	at: DomPosition;
+}
+
+function caretFor(reads: TypedInsertReads): TypingCaret | TypedDecline {
 	const writes = reads.writes;
 	if (!writes) return 'surface';
-	if (e && writes.typeOverSelected(text)) return null;
 	if (reads.onOpenLine()) return 'open-line';
 	const at = reads.caretPosition();
 	const el = reads.el();
 	if (!at || !el) return 'no-caret';
-	const write = (caret: number): null => {
-		writes.typeAt(caret, text);
-		return null;
-	};
-	if (at.node.nodeType !== Node.TEXT_NODE) {
-		const caret = reads.caret();
-		if (caret !== null && writes.widgetBeside(caret)) return write(caret);
-	} else if (
-		e &&
-		at.offset === (at.node as Text).length &&
-		widgetFollowsText(el, at.node as Text)
-	) {
-		const caret = reads.caret();
-		if (caret !== null && writes.widgetClosesAt(caret)) return write(caret);
-	}
-	if (!e) return 'at-caret';
-	const target = targetRange(e);
-	if (!target?.collapsed) return 'at-caret';
-	if (target.startContainer === at.node && target.startOffset === at.offset) return 'at-caret';
-	const aimed = reads.rawStartOf(target);
-	const caret = reads.caret();
-	return aimed === null || caret === null || aimed === caret ? 'at-caret' : write(caret);
+	return { reads, writes, el, at };
+}
+
+/** A caret in no text node beside a widget, the one spot a keydown decides too. True if written. */
+function typeBesideWidget(text: string, caret: TypingCaret): boolean {
+	if (caret.at.node.nodeType === Node.TEXT_NODE) return false;
+	return writeAtCaret(text, caret, (raw) => caret.writes.widgetBeside(raw));
+}
+
+/** A caret at a text's end before a widget that ends the block's content. True if written. */
+function typeBeforeClosingWidget(text: string, caret: TypingCaret): boolean {
+	const { node, offset } = caret.at;
+	if (node.nodeType !== Node.TEXT_NODE || offset !== (node as Text).length) return false;
+	if (!widgetFollowsText(caret.el, node as Text)) return false;
+	return writeAtCaret(text, caret, (raw) => caret.writes.widgetClosesAt(raw));
+}
+
+/** Writes `text` at the raw caret where `takes` holds there. True if written. */
+function writeAtCaret(text: string, caret: TypingCaret, takes: (raw: number) => boolean): boolean {
+	const raw = caret.reads.caret();
+	if (raw === null || !takes(raw)) return false;
+	caret.writes.typeAt(raw, text);
+	return true;
 }
 
 function declined(decline: TypedDecline): TypedVerdict {

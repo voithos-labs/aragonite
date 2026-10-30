@@ -136,6 +136,14 @@ describe.each([
 		await editor.settle();
 		expect(event.defaultPrevented).toBe(false);
 	});
+
+	// A text node takes the key, so its `beforeinput` follows and decides with the engine's target.
+	it('leaves the typed key at its keydown to the input that follows', async () => {
+		const { editor, el } = mountAt(source, 4);
+		const event = await pressKey(el, { key: 'Q', bubbles: true, cancelable: true });
+		expect(event.defaultPrevented).toBe(false);
+		expect(editor.source()).toBe(source);
+	});
 });
 
 describe('a target the engine aims away from the caret', () => {
