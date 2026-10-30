@@ -256,7 +256,12 @@
 	<span class="list-item-marker" data-heading={firstHeadingLevel} {@attach drawMarker}></span>
 	<div
 		class="list-item-content"
-		{@attach (el) => listenForContainerChords(el, node.kind, handleKeydown)}
+		{@attach (el) =>
+			listenForContainerChords(
+				el,
+				untrack(() => node.kind),
+				handleKeydown
+			)}
 		bind:this={contentEl}
 	>
 		<BlockList

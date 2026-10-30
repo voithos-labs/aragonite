@@ -4,6 +4,7 @@
  * contract binds `handleKeydown`; a block binding its own handler uses `listenForContainerChords`.
  */
 
+import { untrack } from 'svelte';
 import { on } from 'svelte/events';
 import type { AnyBlockKind } from '../core/nodes';
 
@@ -17,7 +18,8 @@ export function markContainerChords(
 ): void {
 	$effect(() => {
 		const el = getEl();
-		return el ? mark(el, getKind()) : undefined;
+		// Untracked: a block's kind never changes, while its node is copied by every edit inside it.
+		return el ? mark(el, untrack(getKind)) : undefined;
 	});
 }
 
