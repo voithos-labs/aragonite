@@ -92,7 +92,7 @@ import {
 import { revealsNoMarkers } from '../../../browser/painted';
 import type { CaretClamp, CaretWriter } from '../../../browser/caret-writer';
 import type { InputRead } from '../../../browser/block-text';
-import { caretLandableBounds, type SharedKeydownContext } from '../../../selection/shared-keydown';
+import { caretReachableBounds, type SharedKeydownContext } from '../../../selection/shared-keydown';
 import type { CaretUnitSource } from '../../../caret/caret-motion';
 import {
 	isInteractionTraceEnabled,
@@ -676,7 +676,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		atEdge: (caret, direction) => {
 			const el = deps.getEl();
 			if (!el) return false;
-			const bounds = caretLandableBounds(sharedCtx, el);
+			const bounds = caretReachableBounds(sharedCtx, el);
 			return direction === 'backward' ? caret <= bounds.start : caret >= bounds.end;
 		},
 		runPlainKey: (key) => {
@@ -709,7 +709,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		// A key can outrun the `selectionchange` that moves a caret the browser left off its spot, and
 		// every handler below reads the caret; the IME's opening key composes there too.
 		const el = deps.getEl();
-		deps.caretWriter.settleDecidedMotion();
+		deps.caretWriter.checkDecidedMotion();
 		if (el && !deps.composition.live()) deps.caretWriter.canonicalizeCaret(el);
 		if (imeOwnsKey(e)) {
 			deleteKeydown = null;
@@ -737,7 +737,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// listener's microtask checkpoint.
 	function onBeforeInput(e: InputEvent): void {
 		// An edit moves the caret for its own reason, so a decided key's record ends before it.
-		deps.caretWriter.settleDecidedMotion();
+		deps.caretWriter.checkDecidedMotion();
 		const keyChord =
 			deleteKeydown && !deleteKeydown.defaultPrevented ? eventToChord(deleteKeydown) : null;
 		deleteKeydown = null;
@@ -865,7 +865,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	};
 
 	function onCompositionStart(): void {
-		deps.caretWriter.settleDecidedMotion();
+		deps.caretWriter.checkDecidedMotion();
 		if (!deps.getEl()) return;
 		traceCompositionStart();
 		// A range across blocks goes first, and whichever block its removal leaves the caret in opens

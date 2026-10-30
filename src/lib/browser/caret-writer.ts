@@ -7,7 +7,7 @@
 import {
 	type DomPosition,
 	caretPointAtRaw,
-	clampToLandableRaw,
+	clampToReachableRaw,
 	containerDomTextLength,
 	markerPrefixLength,
 	endOfContents,
@@ -79,7 +79,7 @@ export interface CaretWriter {
 	 *  `selectionchange` or keydown means the browser's move ran too (G1.163). */
 	noteDecidedMotion(): void;
 	/** Checks and ends the decided key's record; the `selectionchange` and the next keydown call it. */
-	settleDecidedMotion(): void;
+	checkDecidedMotion(): void;
 	/** Ends the record unchecked, for a press, which moves the caret itself. */
 	forgetDecidedMotion(): void;
 }
@@ -201,7 +201,7 @@ export function createCaretWriter(
 				clear();
 				return false;
 			}
-			const at = clamp === 'reachable' ? clampToLandableRaw(el, Math.max(0, raw)) : raw;
+			const at = clamp === 'reachable' ? clampToReachableRaw(el, Math.max(0, raw)) : raw;
 			const text = caretPointAtRaw(el, at);
 			const point = (line === 'later' && beforeWidgetOf(el, text)) || text;
 			return writeSelection(point, point, el);
@@ -267,7 +267,7 @@ export function createCaretWriter(
 		forgetDecidedMotion() {
 			decided = null;
 		},
-		settleDecidedMotion() {
+		checkDecidedMotion() {
 			if (!decided) return;
 			const wrote = decided;
 			decided = null;

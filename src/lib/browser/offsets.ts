@@ -464,7 +464,7 @@ export function createRangeAtDomTextOffsets(
 
 /** The first and last walk offsets a caret can sit at, past hidden marker runs and the marker
  *  prefix; the checks at a block's edge read these. All-hidden text answers `{len, len}`. */
-export function landableDomTextBounds(container: ParentNode): {
+export function reachableDomTextBounds(container: ParentNode): {
 	start: DomTextOffset;
 	end: DomTextOffset;
 } {
@@ -499,11 +499,11 @@ export function landableDomTextBounds(container: ParentNode): {
 	return { start: asDomTextOffset(start), end: asDomTextOffset(Math.max(start, end)) };
 }
 
-/** {@link landableDomTextBounds} in raw offsets, or null where the markers paint and all of raw is
+/** {@link reachableDomTextBounds} in raw offsets, or null where the markers paint and all of raw is
  *  reachable. Every caret check and placement reads this one answer. */
-export function landableRawBounds(el: HTMLElement): RawRange | null {
+export function reachableRawBounds(el: HTMLElement): RawRange | null {
 	if (!revealsNoMarkers(el)) return null;
-	const bounds = landableDomTextBounds(el);
+	const bounds = reachableDomTextBounds(el);
 	const prefixLength = markerPrefixLength(el);
 	return {
 		start: toClampedRawOffset(bounds.start, prefixLength),
@@ -512,8 +512,8 @@ export function landableRawBounds(el: HTMLElement): RawRange | null {
 }
 
 /** Clamp a caret offset into the range the caret can sit in; a no-op wherever the markers paint. */
-export function clampToLandableRaw(el: HTMLElement, offset: number): number {
-	const bounds = landableRawBounds(el);
+export function clampToReachableRaw(el: HTMLElement, offset: number): number {
+	const bounds = reachableRawBounds(el);
 	if (!bounds) return offset;
 	return Math.min(Math.max(offset, bounds.start), bounds.end);
 }

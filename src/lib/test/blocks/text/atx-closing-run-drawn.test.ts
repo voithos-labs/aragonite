@@ -11,7 +11,7 @@ import {
 	surfaceAt,
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { landableRawBounds } from '#lib/browser/offsets.js';
+import { reachableRawBounds } from '#lib/browser/offsets.js';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -28,7 +28,7 @@ describe('the closing run is on the page', () => {
 
 	it('keeps the caret out of the closing run where markers hide', () => {
 		const live = mountEditor({ source: '# Hi #\n', presentationMode: 'live' });
-		expect(landableRawBounds(surfaceAt(live, [0]))).toEqual({ start: 2, end: 4 });
+		expect(reachableRawBounds(surfaceAt(live, [0]))).toEqual({ start: 2, end: 4 });
 	});
 });
 

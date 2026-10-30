@@ -121,7 +121,7 @@ export interface SelectionChangeBridgeDeps {
  *  spot onto it, and drops a caret that appears while an inline widget is selected whole. */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
 	const handler = () => {
-		deps.caretWriter.settleDecidedMotion();
+		deps.caretWriter.checkDecidedMotion();
 		const live = readNativeSelection();
 		if (!live) return;
 		const anchorNode = live.anchor.node;

@@ -5,7 +5,7 @@
 // Miss-analysis: block exits read the declared content range, blind to unreachable content bytes.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createCaretAnchor } from '../../browser/painted';
-import { findDomTextOffsetTarget, landableDomTextBounds } from '../../browser/offsets';
+import { findDomTextOffsetTarget, reachableDomTextBounds } from '../../browser/offsets';
 import { asDomTextOffset } from '../../core/coordinate-spaces';
 import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
@@ -21,7 +21,7 @@ function island(text: string): HTMLElement {
 
 afterEach(() => document.body.replaceChildren());
 
-describe('landableDomTextBounds: hidden runs move the bound in', () => {
+describe('reachableDomTextBounds: hidden runs move the bound in', () => {
 	it('clears a leading and a trailing marker run in live', () => {
 		const block = mountBlock(
 			{ mode: 'live' },
@@ -29,12 +29,12 @@ describe('landableDomTextBounds: hidden runs move the bound in', () => {
 			text('bold'),
 			span('md-marker', '**')
 		);
-		expect(landableDomTextBounds(block)).toEqual({ start: 2, end: 6 });
+		expect(reachableDomTextBounds(block)).toEqual({ start: 2, end: 6 });
 	});
 
 	it('keeps the whole walk in source mode, where the markers paint', () => {
 		const block = mountBlock({}, span('md-marker', '**'), text('bold'), span('md-marker', '**'));
-		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 8 });
+		expect(reachableDomTextBounds(block)).toEqual({ start: 0, end: 8 });
 	});
 
 	it('coalesces adjacent hidden runs of different families', () => {
@@ -46,15 +46,15 @@ describe('landableDomTextBounds: hidden runs move the bound in', () => {
 			text('bold'),
 			span('md-marker', '**')
 		);
-		expect(landableDomTextBounds(block)).toEqual({ start: 5, end: 9 });
+		expect(reachableDomTextBounds(block)).toEqual({ start: 5, end: 9 });
 	});
 
 	it('clears a trailing reference label and a fence line alike', () => {
 		const withLabel = mountBlock({ mode: 'live' }, text('docs'), span('md-ref-label', '[ref]'));
-		expect(landableDomTextBounds(withLabel)).toEqual({ start: 0, end: 4 });
+		expect(reachableDomTextBounds(withLabel)).toEqual({ start: 0, end: 4 });
 
 		const fenced = mountBlock({ mode: 'live' }, span('md-fence-line', '```\n'), text('x'));
-		expect(landableDomTextBounds(fenced)).toEqual({ start: 4, end: 5 });
+		expect(reachableDomTextBounds(fenced)).toEqual({ start: 4, end: 5 });
 	});
 
 	it('collapses both bounds onto the far end when nothing is reachable', () => {
@@ -63,11 +63,11 @@ describe('landableDomTextBounds: hidden runs move the bound in', () => {
 			span('md-marker', '```'),
 			span('md-marker', '\n```')
 		);
-		expect(landableDomTextBounds(block)).toEqual({ start: 7, end: 7 });
+		expect(reachableDomTextBounds(block)).toEqual({ start: 7, end: 7 });
 	});
 });
 
-describe('landableDomTextBounds: widgets the caret cannot enter', () => {
+describe('reachableDomTextBounds: widgets the caret cannot enter', () => {
 	it('steps past the ambient marker in every mode', () => {
 		// `- **lead**`: the marker prefix takes no caret and the `**` behind it is unpainted, so the
 		// first offset the caret can sit at clears both.
@@ -77,31 +77,31 @@ describe('landableDomTextBounds: widgets the caret cannot enter', () => {
 			span('md-marker', '**'),
 			text('lead')
 		);
-		expect(landableDomTextBounds(live)).toEqual({ start: 4, end: 8 });
+		expect(reachableDomTextBounds(live)).toEqual({ start: 4, end: 8 });
 
 		const source = mountBlock({}, buildAmbientSpan('- '), text('lead'));
-		expect(landableDomTextBounds(source)).toEqual({ start: 2, end: 6 });
+		expect(reachableDomTextBounds(source)).toEqual({ start: 2, end: 6 });
 	});
 
 	it('leaves both boundaries of an atomic widget reachable', () => {
 		// A widget cannot be entered, but it is not unreachable: a caret sits before and after it.
 		const block = mountBlock({ mode: 'live' }, widget('$x$'), text('after'));
-		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 8 });
+		expect(reachableDomTextBounds(block)).toEqual({ start: 0, end: 8 });
 	});
 
 	it('leaves both boundaries of a decoration widget reachable', () => {
 		// A widget the caret steps over is the opposite of the marker prefix: its far side is a raw
 		// offset of its own, so a bound moved in front of it would turn that step into a block exit.
 		const block = mountBlock({ mode: 'live' }, text('lead '), island('HIDDEN'), text(' tail'));
-		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 16 });
+		expect(reachableDomTextBounds(block)).toEqual({ start: 0, end: 16 });
 
 		const trailing = mountBlock({ mode: 'live' }, text('lead '), island('HIDDEN'));
-		expect(landableDomTextBounds(trailing)).toEqual({ start: 0, end: 11 });
+		expect(reachableDomTextBounds(trailing)).toEqual({ start: 0, end: 11 });
 	});
 });
 
 // Miss-analysis: every trailing-marker case ended on a character, never on a final `\n`.
-describe('landableDomTextBounds: a trailing newline before hidden chrome', () => {
+describe('reachableDomTextBounds: a trailing newline before hidden chrome', () => {
 	it('ends before the newline, whose far side is a line nothing paints', () => {
 		const emptyBody = mountBlock(
 			{ mode: 'live' },
@@ -109,7 +109,7 @@ describe('landableDomTextBounds: a trailing newline before hidden chrome', () =>
 			text('\n'),
 			span('md-fence-line', '$$')
 		);
-		expect(landableDomTextBounds(emptyBody)).toEqual({ start: 3, end: 3 });
+		expect(reachableDomTextBounds(emptyBody)).toEqual({ start: 3, end: 3 });
 
 		const body = mountBlock(
 			{ mode: 'live' },
@@ -117,7 +117,7 @@ describe('landableDomTextBounds: a trailing newline before hidden chrome', () =>
 			text('foo\n'),
 			span('md-fence-line', '```')
 		);
-		expect(landableDomTextBounds(body)).toEqual({ start: 4, end: 7 });
+		expect(reachableDomTextBounds(body)).toEqual({ start: 4, end: 7 });
 	});
 
 	it('keeps the position after the newline when a caret anchor paints its line', () => {
@@ -130,7 +130,7 @@ describe('landableDomTextBounds: a trailing newline before hidden chrome', () =>
 			anchor,
 			span('md-fence-line', '\n```')
 		);
-		expect(landableDomTextBounds(block)).toEqual({ start: 4, end: 8 });
+		expect(reachableDomTextBounds(block)).toEqual({ start: 4, end: 8 });
 	});
 });
 
@@ -139,9 +139,9 @@ describe('landableDomTextBounds: a trailing newline before hidden chrome', () =>
 describe('a pending hard break’s line, drawn without a byte of its own', () => {
 	const breakAnchor = () => createCaretAnchor('break');
 
-	it('keeps the text’s end as the last landable offset', () => {
+	it('keeps the text’s end as the last reachable offset', () => {
 		const block = mountBlock({ mode: 'live' }, text('abc'), breakAnchor(), breakAnchor());
-		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 3 });
+		expect(reachableDomTextBounds(block)).toEqual({ start: 0, end: 3 });
 	});
 
 	it('takes a caret at the text’s end onto the line, in both modes', () => {

@@ -9,7 +9,7 @@ import {
 	isHiddenMarkerRoot,
 	screenVisibilityOf
 } from '../../browser/painted';
-import { landableDomTextBounds } from '../../browser/offsets';
+import { reachableDomTextBounds } from '../../browser/offsets';
 import { buildAmbientSpan } from '../../components/blocks/marker-prefix';
 import { mountBlock, span, text, widget } from './chrome-fixtures';
 
@@ -68,17 +68,17 @@ describe('holdsOnlyMarkerChrome: the mark condition', () => {
 			span('md-ref-label', '[ref]')
 		);
 		expect(holdsOnlyMarkerChrome(withLabel)).toBe(true);
-		expect(landableDomTextBounds(withLabel)).toEqual({ start: 0, end: 1 });
+		expect(reachableDomTextBounds(withLabel)).toEqual({ start: 0, end: 1 });
 	});
 });
 
 describe('the mark in the walk', () => {
 	it('makes a heading prefix reachable in live, and leaves it unreachable unstamped', () => {
 		const stamped = mountBlock({ mode: 'live', stamped: true }, span('md-marker', '# '));
-		expect(landableDomTextBounds(stamped)).toEqual({ start: 0, end: 2 });
+		expect(reachableDomTextBounds(stamped)).toEqual({ start: 0, end: 2 });
 
 		const bare = mountBlock({ mode: 'live' }, span('md-marker', '# '));
-		expect(landableDomTextBounds(bare)).toEqual({ start: 2, end: 2 });
+		expect(reachableDomTextBounds(bare)).toEqual({ start: 2, end: 2 });
 	});
 
 	it('paints the same two families the stylesheet does, and no third', () => {
@@ -95,10 +95,10 @@ describe('the mark in the walk', () => {
 	it('applies to the preview inline syntax handlers and never to reading', () => {
 		for (const mode of ['preview-block', 'preview-inline']) {
 			const block = mountBlock({ mode, stamped: true }, span('md-marker', '# '));
-			expect(landableDomTextBounds(block), mode).toEqual({ start: 0, end: 2 });
+			expect(reachableDomTextBounds(block), mode).toEqual({ start: 0, end: 2 });
 		}
 		const reading = mountBlock({ mode: 'reading', stamped: true }, span('md-marker', '# '));
-		expect(landableDomTextBounds(reading)).toEqual({ start: 2, end: 2 });
+		expect(reachableDomTextBounds(reading)).toEqual({ start: 2, end: 2 });
 	});
 });
 

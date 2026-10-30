@@ -18,7 +18,7 @@ import { type RawOffset } from '../../../core/coordinate-spaces';
 import type { BlockPendingMarks } from '../../../caret/pending-marks';
 import type { InsideCloserView } from '../../../caret/inside-closer';
 import { keptBlockText, hidesBlockPrefix, type EditedBlock } from '../../../browser/block-text';
-import { landableRawBounds, visibleWalkText } from '../../../browser/offsets';
+import { reachableRawBounds, visibleWalkText } from '../../../browser/offsets';
 import { markerPrefixOf, hidingScreenOf } from '../../../browser/painted';
 import type { CaretWriter } from '../../../browser/caret-writer';
 import {
@@ -440,10 +440,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	/** A one-character delete at a widget decoration, which stands for no bytes, takes what is
 	 *  beside it, as if the decoration were not there; false at the block's edge. */
 	function deletePastIsland(el: HTMLElement, caret: number, intent: DeleteIntent): boolean {
-		const landable = landableRawBounds(el);
-		if (facesEdge(landable, caret, intent.direction)) return false;
+		const reachable = reachableRawBounds(el);
+		if (facesEdge(reachable, caret, intent.direction)) return false;
 		// This branch outranks the construct-edge rule beside a hidden run, so it asks that rule.
-		if (!hiddenRunDelete(el, caret, intent)) void deleteSpan(el, caret, intent, landable);
+		if (!hiddenRunDelete(el, caret, intent)) void deleteSpan(el, caret, intent, reachable);
 		return true;
 	}
 
@@ -536,13 +536,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	/** Whether `caret` is the first or last offset the caret can sit at, on the side `direction`
-	 *  faces; `landable` null is a block that draws its markers, every offset reachable. */
+	 *  faces; `reachable` null is a block that draws its markers, every offset reachable. */
 	function facesEdge(
-		landable: DeleteSpan | null,
+		reachable: DeleteSpan | null,
 		caret: number,
 		direction: DeleteDirection
 	): boolean {
-		const bounds = landable ?? { start: 0, end: display().length };
+		const bounds = reachable ?? { start: 0, end: display().length };
 		return direction === 'backward' ? caret <= bounds.start : caret >= bounds.end;
 	}
 
@@ -552,10 +552,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!el || deps.isRevealing()) return 'declined';
 		// At the first or last offset the caret can sit at the delete is the block's merge, never
 		// the first visible character past a hidden run.
-		const landable = landableRawBounds(el);
-		if (facesEdge(landable, caret, intent.direction)) return 'at-edge';
+		const reachable = reachableRawBounds(el);
+		if (facesEdge(reachable, caret, intent.direction)) return 'at-edge';
 		if (hiddenRunDelete(el, caret, intent)) return 'taken';
-		return deleteSpan(el, caret, intent, landable) ? 'taken' : 'at-edge';
+		return deleteSpan(el, caret, intent, reachable) ? 'taken' : 'at-edge';
 	}
 
 	/** The delete rule's span through the in-leaf range replace, a word read as the screen shows it;
@@ -564,10 +564,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		el: HTMLElement,
 		caret: number,
 		intent: DeleteIntent,
-		landable: DeleteSpan | null
+		reachable: DeleteSpan | null
 	): boolean {
 		const text = display();
-		const span = deleteExtent(intent, contextAt(el, caret, landable));
+		const span = deleteExtent(intent, contextAt(el, caret, reachable));
 		if (!span) return false;
 		deps.setSnapTarget(null);
 		const written = rangeEdit(span, '');
@@ -586,12 +586,12 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	/** What the delete rule and the motion rule read at `caret`: the text as the key's write sees
 	 *  it, the offsets a caret reaches, the visual line's edges and the text as the screen shows it. */
-	function contextAt(el: HTMLElement, caret: number, landable: DeleteSpan | null): DeleteContext {
+	function contextAt(el: HTMLElement, caret: number, reachable: DeleteSpan | null): DeleteContext {
 		return unitContextAt({
 			el,
 			text: display(),
 			caret,
-			bounds: landable,
+			bounds: reachable,
 			lineRead: deps.caretWriter,
 			visible: () => visibleWalkText(el)
 		});
@@ -599,7 +599,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	function unitContext(caret: number): DeleteContext | null {
 		const el = deps.getEl();
-		return el && !deps.isRevealing() ? contextAt(el, caret, landableRawBounds(el)) : null;
+		return el && !deps.isRevealing() ? contextAt(el, caret, reachableRawBounds(el)) : null;
 	}
 
 	/** The block as `keptBlockText` reads it once `span` is cut from `text`, the parts the input

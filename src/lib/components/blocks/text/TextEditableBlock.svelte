@@ -49,7 +49,7 @@
 	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
-	import { caretLandableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
+	import { caretReachableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		rawSelectionIn,
 		rawSelectionFocus,
@@ -492,7 +492,7 @@
 	/** The offsets a caret can reach here, as the arrow exits read them: a mode that draws no marker
 	 *  puts the block's own marker bytes out of reach, so 0 and the length are wrong there. */
 	function caretBounds(): { start: number; end: number } {
-		return el ? caretLandableBounds(sharedCtx, el) : { start: 0, end: caretReach() };
+		return el ? caretReachableBounds(sharedCtx, el) : { start: 0, end: caretReach() };
 	}
 
 	/** The structural bytes this key gives up before any merge: a declared kind's, in a mode

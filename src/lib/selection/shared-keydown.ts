@@ -16,7 +16,7 @@ import { holdsNativeRange, rawSelectionIn } from '../browser/selection-read';
 import type { Reading } from '../schema/reading';
 import { extendFocusToNextBlock, extendFocusToPreviousBlock } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../caret/sticky-measure';
-import { landableRawBounds } from '../browser/offsets';
+import { reachableRawBounds } from '../browser/offsets';
 import { handleMotion, stepBesideWidget, type MotionKeyContext } from './motion-keys';
 import { isAtFirstVisualLine, isAtLastVisualLine, lineHeightOf } from '../browser/visual-lines';
 import { caretEdgeKey, endsSelectAllRun, eventToChord, motionKey } from '../schema/keybindings';
@@ -25,7 +25,7 @@ import type { ScrollOwner } from '../windowing/scroll-owner';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export interface SharedKeydownContext extends LandableBoundsContext, MotionKeyContext {
+export interface SharedKeydownContext extends ReachableBoundsContext, MotionKeyContext {
 	getEl(): HTMLElement | null;
 	getIndex(): number;
 	getMyPath(): number[];
@@ -100,8 +100,8 @@ export async function handleSharedKeydown(
 	const myPath = ctx.getMyPath();
 	// Lazy: off the arrow path the block's bounds are never asked for, and the resolve
 	// walks the block's DOM.
-	let cachedBounds: LandableBounds | null = null;
-	const bounds = () => (cachedBounds ??= caretLandableBounds(ctx, el));
+	let cachedBounds: ReachableBounds | null = null;
+	const bounds = () => (cachedBounds ??= caretReachableBounds(ctx, el));
 
 	// The moving end, which the line check measures (a forward extension's anchor stays mid-block);
 	// with no caret in the block, as in reading mode, every arrow is at its edge.
@@ -235,20 +235,23 @@ const edgeStepByEvent = new WeakMap<KeyboardEvent, boolean>();
 
 // ── Block bounds ───────────────────────────────────────────────────────────
 
-export interface LandableBounds {
+export interface ReachableBounds {
 	start: number;
 	end: number;
 }
 
 /** The reads the bounds need, so a block-edge check outside this file can ask without building
  *  the whole keydown context. */
-export interface LandableBoundsContext {
+export interface ReachableBoundsContext {
 	/** textContent length in raw-content coordinates (the marker prefix excluded). */
 	getTextLen(): number;
 }
 
 /** The raw offsets a caret can reach in the block, from the same walk that places it: hidden
  *  markers put bytes out of reach, so every block-edge check reads this, not 0 and length. */
-export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
-	return landableRawBounds(el) ?? { start: 0, end: ctx.getTextLen() };
+export function caretReachableBounds(
+	ctx: ReachableBoundsContext,
+	el: HTMLElement
+): ReachableBounds {
+	return reachableRawBounds(el) ?? { start: 0, end: ctx.getTextLen() };
 }
