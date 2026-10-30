@@ -5,7 +5,6 @@
  * sets its own.
  */
 
-import { markContainerChords } from '../container-chords.svelte';
 import { imeOwnsKey } from '../../browser/composition';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { getContext } from 'svelte';
@@ -45,7 +44,7 @@ import { createContainerExitOverrides } from '../container-exit-overrides';
 import { delegateMoveFocus } from '../focus/focus-dispatch';
 import {
 	createContainerBlockComponent,
-	dispatchContainerChord,
+	dispatchOwnKindChord,
 	dispatchWholeBlockGlobalChord,
 	handleWholeBlockKeys,
 	moveFocusOutByArrow
@@ -143,10 +142,8 @@ export interface ContainerBlock {
 		patch: Record<string, unknown>,
 		options?: { caret?: { path: number[]; offset: number } }
 	): void | Promise<void>;
-	/**
-	 * Attach to the block's box: a chord bubbling from an inner leaf resolves against this
-	 * kind's keymap. Kind keymap only, so a bubbled undo or redo never fires twice.
-	 */
+	/** Attach to the box, for its keys focused whole. Its kind's chords run from a block inside or
+	 *  its own controls without it; a block focused whole inside keeps its own editor's keys. */
 	handleKeydown(e: KeyboardEvent): void;
 	/** Hand the caret, through the editor's focus traversal, to the neighbour a plain arrow points
 	 *  at once a plugin editor's caret reaches its edge. False for a modified or non-arrow key. */
@@ -273,13 +270,13 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		commands,
 		drafts,
 		readingFocus,
-		composition
+		composition,
+		containerChords,
+		pasteAsBlocks
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const { pluginEditor, reading, doc: getDoc } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = reading.mode;
-	// The plugin contract binds `handleKeydown` on the box.
-	markContainerChords(deps.getBoxEl, () => deps.getNode().kind);
 
 	const getEditor = (): EditorContext | undefined =>
 		componentPluginEditor(pluginEditor, deps.getNode().kind);
@@ -344,6 +341,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				getLabel: () => blockAccessibleName(deps.getNode()),
 				holdTabStop: (proxy) => readingFocus.hold(proxy, deps.getPath),
 				mint: (text) => parentBlockEdit.insertParagraph(deps.getIndex() + 1, text),
+				paste: (md) =>
+					pasteAsBlocks(
+						() => parentBlockEdit.insertParagraph(deps.getIndex() + 1, ''),
+						md,
+						deps.getPath()
+					),
 				composition
 			})
 		: undefined;
@@ -363,6 +366,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	};
 
 	const containerApi = createContainerBlockComponent({
+		// A block focused as a whole holds no blocks, and runs its own chords as it holds focus.
+		containerChordTarget: wholeBlockSurface ? undefined : (from) => bubbledTarget(from),
 		// The kind's descriptor is the declaration; the mounted component only reports it.
 		get editable() {
 			return getBlockKindDescriptor(deps.getNode().kind).editable;
@@ -423,11 +428,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	// A key from a block inside runs once that block's shown source is written, so a command that
 	// rewrites this container's bytes keeps the edit.
-	const bubbledTarget = (e: KeyboardEvent): KindCommandTarget => ({
+	const bubbledTarget = (from: readonly number[]): KindCommandTarget => ({
 		...kindTarget,
 		afterSourceCommit: (run) => {
-			const from = findBlockPathForElement(e.target instanceof Element ? e.target : null);
-			const inner = from && componentAt(childList, from.slice(deps.getPath().length));
+			const inner = componentAt(childList, from.slice(deps.getPath().length));
 			if (inner?.afterSourceCommit) inner.afterSourceCommit(run);
 			else run();
 		}
@@ -436,19 +440,20 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const commandOf = (e: KeyboardEvent) => commandForKey(e, deps.getNode().kind, commands);
 
 	const handleKeydown = (e: KeyboardEvent): void => {
-		if (imeOwnsKey(e)) return;
-		if (e.defaultPrevented) return;
-		// A whole-block kind has no child blocks, so an editable target is the plugin's own editor
-		// (its textarea), and the key is that editor's.
+		if (imeOwnsKey(e) || e.defaultPrevented) return;
+		// A whole-block kind has no child blocks, so an editable target is the plugin's own
+		// editor (its textarea), and the key is that editor's.
 		if (wholeBlockSurface && isEditableEventTarget(e.target)) return;
-		const ownsFocus = ownsWholeBlockFocus(e);
-		// Only when this block itself holds focus: a chord bubbling from an inner leaf already
-		// met the global chords there, and running it here would fire it twice.
-		if (ownsFocus && dispatchWholeBlockGlobalChord(e, deps.getNode().kind, commands)) return;
-		const target = ownsFocus ? wholeBlockTarget : bubbledTarget(e);
-		const range = ownsFocus ? null : { selection, getDoc };
-		if (dispatchContainerChord(e, target, commands, range)) return;
-		if (ownsFocus) handleWholeBlockKeydown(e);
+		if (!ownsWholeBlockFocus(e)) {
+			// A key from a block inside is that block's to hand on, a plugin editor's included; one
+			// from this block's own controls runs this container's chords and those around it.
+			const at = findBlockPathForElement(e.target instanceof Element ? e.target : null);
+			if (!at || at.length === deps.getPath().length) containerChords.take(e, deps.getPath());
+			return;
+		}
+		if (dispatchWholeBlockGlobalChord(e, deps.getNode().kind, commands)) return;
+		if (dispatchOwnKindChord(e, wholeBlockTarget, commands)) return;
+		handleWholeBlockKeydown(e);
 	};
 
 	const moveFocusOut = (e: KeyboardEvent): boolean =>
@@ -479,7 +484,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			selection,
 			caretMemory,
 			commandOf,
-			takesKey: (press, openAfter) => inputProxy?.takesKey(press, openAfter) ?? false
+			takesKey: (press, openAfter) => inputProxy?.takesKey(press, openAfter) ?? false,
+			getPath: deps.getPath,
+			containerChords
 		});
 	}
 

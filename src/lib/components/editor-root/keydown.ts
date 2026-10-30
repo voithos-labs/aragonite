@@ -33,6 +33,9 @@ export interface EditorRootKeydownDeps extends KeyFocusDeps {
 	/** Snapshot the pre-search selection; the bar's close handler restores it. */
 	saveSearchCaret(): void;
 	setReplaceExpanded(expanded: boolean): void;
+	/** Runs the chords of the containers holding a key at a control or field in a block, the one
+	 *  place inside a block no block's own keydown reaches. */
+	takeContainerChord(event: KeyboardEvent): void;
 }
 
 export interface EditorRootKeydown {
@@ -88,6 +91,7 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			}
 
 			if (handleSearchChords(event, root, chord, active)) return;
+			deps.takeContainerChord(event);
 			const ownsCaret = ownsWindowedOutCaret(root, active);
 			// A block that took the key ran it; at chrome the editor's global chords answer.
 			const atChrome = !event.defaultPrevented && chromeHoldsFocus(root, active, deps);

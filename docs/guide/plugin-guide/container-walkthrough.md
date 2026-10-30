@@ -342,7 +342,7 @@ The same box as a component, on `createContainerBlock` from `@voithos-labs/arago
 Register it with `svelteBlockView(ConspiracyBlock)` in place of `conspiracyView`, and keep two more rules:
 
 - **`export { containerApi }` is the whole publication.** It's how the editor talks to your container (a caret walking in descends through it, for one), and the name is fixed. Leave it out and your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) fails at the call that makes the view (`svelteBlockView` here). The factory's `containerApi` is always complete; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get a missing member reported at the definition instead.
-- **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
+- **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it. Your keymap's chords work from that chrome too, a button or a field in it included.
 
 A container's `ctx` carries more than the conspiracy uses. The Svelte factory returns the same things under its own names (`updateOwnMetadata`, `getPresentationMode()`, `getTheme()`, `getOptions()`, `getEditor()`, and so on):
 

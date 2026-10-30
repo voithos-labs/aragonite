@@ -180,11 +180,11 @@ of those, your file claims a chord by hand, and it has to join the manifest.
 
 **The manifest** comes in two halves. `src/lib/test/invariants/lint/hardcoded-chord-sites.ts` ::
 `HARDCODED_CHORD_SITES` has one entry per library file that reads a modifier flag, with the key
-literals it compares. It lives with the tests, so none of it ships. The chords a file takes outside
-every keymap, and where focus is when it does (a table cell, the find bar, any text block), go in
-`src/lib/schema/reserved-chords.ts` :: `HARDCODED_CHORD_CLAIMS`. That's what keeps `reservedChords()`
-honest (the public set of chord strings a host page reads to avoid colliding with the editor), and
-it's how `claimsChord` knows which of those chords apply to the key in hand.
+literals it compares and the chords its branches take. It lives with the tests, so none of it
+ships. Each of those chords has to be one `reservedChords()` already lists, from a keymap or the
+text keys (`src/lib/schema/keybindings.ts` :: `textKeyRole`), and the scan fails the day a branch
+takes another. That's what keeps `reservedChords()` honest (the public set of chord strings a host
+page reads to avoid colliding with the editor). A chord with nowhere else to live goes in a keymap.
 
 **And here's the one place the codebase's instinct is inverted.** A listed file keeps its literal
 key comparisons. Pulling four `e.key === 'ArrowUp'` checks behind a shared `isVerticalArrow()`

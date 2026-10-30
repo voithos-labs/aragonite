@@ -72,6 +72,10 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 		handoff: 'handlePaste',
 		why: 'the image-import handler reads the attachment payload and hands the hook’s markdown to the cross-block paste route'
 	},
+	'src/lib/editor-actions/caret-host-input.ts': {
+		handoff: 'paste(text)',
+		why: 'a paste at the gap caret or on a block focused whole hands its text to `pasteAsBlocks`, which pastes it into the paragraph it opens through that block’s `insertMarkdown`, the editable-surface route above'
+	},
 	'src/lib/selection/cross-block/dispatch.ts': {
 		handoff: 'replaceRange',
 		why: 'a paste over a range hands its text to the range replace, which runs the transforms or hands it to the paste tree-op'

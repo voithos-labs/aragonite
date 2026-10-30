@@ -13,12 +13,14 @@ import { textKeyRole } from '#lib/schema/keybindings.js';
 import { collectReservedChords } from '#lib/schema/reserved-chords.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
+import type { KeyFocus } from '#lib/components/editor-root/key-claims.js';
 import { mountEditor, type MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 
 export type Probe = {
 	getBlockComponent(path: number[]): BlockComponent | null;
 	getGapCaret(): GapCaretPosition | null;
+	getKeyFocus(e: KeyboardEvent): KeyFocus;
 };
 
 export interface ClaimContext {
@@ -30,6 +32,8 @@ export interface ClaimContext {
 	/** Chords the context's plugins bind, which register only once it mounts. A `-t` filter for one
 	 *  of them escapes the `+` (`-t "container.*Mod.7"`). */
 	pluginChords?: string[];
+	/** Where the handler that takes the context's keys stands, which `claimsChord` must read too. */
+	focus?: Partial<KeyFocus>;
 	/** Puts focus where the row's keys go and returns the element a browser would send them to. */
 	enter(editor: MountedEditor<Probe>): Promise<HTMLElement>;
 }
@@ -120,4 +124,27 @@ export async function expectParity(context: ClaimContext, chord: string): Promis
 	expect(claimed, `${context.name} ${chord}: claimsChord against what the keydown did`).toBe(
 		prevented
 	);
+}
+
+/** `claimsChord`'s read of where a key lands agrees with where the context's handler stands, the
+ *  one way the two can still disagree once both ask the same decision. */
+export async function expectFocusAgrees(context: ClaimContext): Promise<void> {
+	const editor = mountEditor<Probe>({
+		source: context.source,
+		presentationMode: context.mode ?? 'source',
+		plugins: context.plugins,
+		keybindings: context.keybindings
+	});
+	try {
+		await editor.settle();
+		const el = await context.enter(editor);
+		let focus: KeyFocus | null = null;
+		const read = (e: KeyboardEvent) => (focus = editor.instance.__test.getKeyFocus(e));
+		window.addEventListener('keydown', read, true);
+		await pressKey(el, { key: 'F24' });
+		window.removeEventListener('keydown', read, true);
+		expect(focus, context.name).toMatchObject(context.focus!);
+	} finally {
+		await editor.destroy();
+	}
 }

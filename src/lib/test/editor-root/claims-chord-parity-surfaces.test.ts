@@ -2,7 +2,7 @@
 // Miss-analysis: `claimsChord` was a second computation no test held against the keydown handlers
 // of the surfaces with no text block focused: the gap caret, the root, a range, the find bar, a card,
 // and an open menu, which takes Escape at the document wherever the caret is.
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { defineBlockView } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
@@ -15,9 +15,17 @@ import {
 import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt } from '../blocks/table/mount-table';
 import { markerLeafPlugin } from '../plugins/fixtures/dom-views';
-import { expectParity, keysToProbe, type ClaimContext, type Probe } from './claims-parity';
+import {
+	expectFocusAgrees,
+	expectParity,
+	keysToProbe,
+	type ClaimContext,
+	type Probe
+} from './claims-parity';
 
 beforeAll(installLayoutStubs);
+// The host-field context leaves its input on the page.
+afterEach(() => document.querySelectorAll('body > input').forEach((el) => el.remove()));
 registerBuiltInDescriptors();
 
 const PROSE = 'para text here\n\n# heading text\n\n| A | B |\n| --- | --- |\n| 1 | middle |\n';
@@ -60,6 +68,7 @@ async function caretInLink(editor: MountedEditor<Probe>): Promise<HTMLElement> {
 const CONTEXTS: ClaimContext[] = [
 	{
 		name: 'gap caret',
+		focus: { at: 'gap', gap: { parentPath: [], index: 0 } },
 		source: '```\ncode\n```\n\npara text here\n',
 		enter: async (editor) => {
 			const code = surfaceAt(editor, [0]);
@@ -70,7 +79,14 @@ const CONTEXTS: ClaimContext[] = [
 		}
 	},
 	{
+		name: 'a field of the host’s own',
+		source: PROSE,
+		focus: { at: 'outside' },
+		enter: async () => focusIn(document.body.appendChild(document.createElement('input')))
+	},
+	{
 		name: 'editor root focused',
+		focus: { at: 'root' },
 		source: PROSE,
 		enter: async (editor) => focusIn(editor.target.querySelector('.editor'))
 	},
@@ -112,7 +128,7 @@ const CONTEXTS: ClaimContext[] = [
 			return document.activeElement as HTMLElement;
 		}
 	},
-	{ name: 'find bar', source: PROSE, enter: openFindBar },
+	{ name: 'find bar', source: PROSE, focus: { at: 'find-bar' }, enter: openFindBar },
 	{
 		name: 'paragraph under an open inline menu, Tab and Enter freed there',
 		source: PROSE,
@@ -140,6 +156,7 @@ const CONTEXTS: ClaimContext[] = [
 	},
 	{
 		name: 'open link card',
+		focus: { at: 'field', path: null },
 		source: 'see [link](https://x.test) here\n',
 		mode: 'live',
 		enter: async (editor) => {
@@ -160,7 +177,6 @@ const CONTEXTS: ClaimContext[] = [
 			const tip = [...leaves].find((el) => el.textContent === 'Tip text here');
 			if (!tip) throw new Error('no paragraph inside the admonition');
 			placeCaret(tip, 4);
-			expect(tip.closest('[data-container-chords]')).not.toBeNull();
 			return tip;
 		}
 	},
@@ -172,12 +188,17 @@ const CONTEXTS: ClaimContext[] = [
 	},
 	{
 		name: 'hand-built block text field',
+		focus: { at: 'field', path: [1] },
 		source: 'intro\n\n@@ badge\n\noutro\n',
 		plugins: [badge],
 		enter: async (editor) =>
 			focusIn(editor.target.querySelector('[data-block-path="[1]"] textarea'))
 	}
 ];
+
+describe('claimsChord reads the focus its handler stands at', () => {
+	it.each(CONTEXTS.filter((context) => context.focus))('$name', expectFocusAgrees);
+});
 
 describe.each(CONTEXTS)('claimsChord agrees with the keydown: $name', (context) => {
 	const keys = [...keysToProbe(), ...(context.pluginChords ?? [])];

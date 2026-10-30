@@ -1,8 +1,8 @@
 /**
- * Every library file that reads a KeyboardEvent modifier flag, with the key literals it compares:
- * the G4.29 scan's evidence that the chords `schema/reserved-chords.ts :: HARDCODED_CHORD_CLAIMS`
- * lists for it are still current. A listed file keeps its literal key comparisons and modifier
- * reads. Test-only, so none of it ships.
+ * Every library file that reads a KeyboardEvent modifier flag, with the key literals it compares
+ * and the chords its own branches take: the G4.29 scan's evidence that each of those chords is one
+ * `reservedChords()` lists, from a keymap or the text keys. A listed file keeps its literal key
+ * comparisons and modifier reads. Test-only, so none of it ships.
  */
 
 export interface HardcodedChordSite {
@@ -10,6 +10,8 @@ export interface HardcodedChordSite {
 	file: string;
 	/** Key literals the file compares. */
 	keys: readonly string[];
+	/** Modifier chords the file's own branches take. */
+	takes?: readonly string[];
 	/** Why the file's chords are what they are, where its branches alone don't say. */
 	note?: string;
 }
@@ -71,6 +73,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/SearchBar.svelte',
+		takes: ['Shift+Enter'],
 		keys: ['Enter', 'Escape'],
 		note: 'Previous match from the find input. Reachable only with the bar open, and the prose keymap binds the same chord anyway.'
 	},
@@ -81,6 +84,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/link-card/LinkCard.svelte',
+		takes: ['Shift+Tab'],
 		keys: ['Enter', 'Tab'],
 		note: "Backwards step of the open card's focus trap. The chord that opens the card is swallowed there too, resolved through the keymap like everywhere else. Escape is the menu presence's, which also closes a card the document still holds the caret for."
 	},
@@ -91,21 +95,19 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/blocks/table/TableActionMenu.svelte',
+		takes: ['Shift+Tab'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Home', 'Tab'],
 		note: "Backwards step of the open menu's focus trap."
 	},
 	{
-		file: 'components/blocks/table/TableBlock.svelte',
-		keys: ['ContextMenu', 'F10'],
-		note: 'The keyboard routes to the cell action menu.'
-	},
-	{
 		file: 'components/blocks/table/TableCellBlock.svelte',
+		takes: ['Shift+ArrowUp', 'Shift+ArrowDown'],
 		keys: ['ArrowDown', 'ArrowUp', 'Enter'],
 		note: 'Starts the intra-table rectangle before the prose extend can walk the next leaf.'
 	},
 	{
 		file: 'components/blocks/table/cell-keydown-plan.ts',
+		takes: ['Mod+ArrowUp', 'Mod+ArrowDown'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backspace', 'Delete'],
 		note: 'Arrows and Backspace or Delete at a cell edge move between cells. Up and Down move with any modifier but Shift, so an unbound Alt+ArrowUp still moves a row up; Tab and Enter are the keymap’s.'
 	},
@@ -136,6 +138,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/blocks/text/widget-interaction.ts',
+		takes: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: [
 			'Arrow*',
 			'ArrowDown',
@@ -165,6 +168,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/image/image-widget-editing.ts',
+		takes: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: ['ArrowLeft', 'ArrowRight'],
 		note: 'Keyboard resize of the selected image.'
 	},
@@ -202,20 +206,32 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'ArrowRight',
 			'ArrowUp',
 			'Backspace',
+			'C',
 			'Delete',
 			'Enter',
-			'c',
-			'x'
+			'X'
 		],
-		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too. The arrow exit for a plugin editor or a hand-built view declines every modified key rather than claiming one.'
+		takes: ['Mod+C', 'Mod+X'],
+		note: 'Whole-block copy/cut reads its chord off `eventToChord`, a keydown carrying no ClipboardEvent, and `claimsChord` asks the same predicate. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too. The arrow exit for a plugin editor or a hand-built view declines every modified key rather than claiming one.'
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',
+		takes: ['Mod+Enter'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape', 'Tab'],
 		note: 'Commits the diagram edit; the arrows are the edit box’s boundary exits, and a modified one is declined rather than claimed. Taken only in a diagram block, which exists only where the plugin is listed, so `reservedChords()` lists it unconditionally: the table keymap binds it anyway.'
 	},
 	{
 		file: 'schema/keybindings.ts',
+		takes: [
+			'Mod+A',
+			'Shift+Home',
+			'Mod+Home',
+			'Mod+End',
+			'Mod+Shift+Home',
+			'Mod+Shift+End',
+			'Shift+PageUp',
+			'Shift+PageDown'
+		],
 		keys: [
 			'A',
 			'ArrowDown',
@@ -226,13 +242,16 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'Delete',
 			'End',
 			'Home',
+			'Insert',
 			'PageDown',
-			'PageUp'
+			'PageUp',
+			'V'
 		],
 		note: "The normalizer every other site reads, the select-all predicate every block asks, the caret-edge reader every edge site asks, and the page-key reader, which leaves Ctrl, Cmd and Alt with a page key to the browser. Its sites take Shift+Home and Mod+Home behind a marker or a leading widget, Mod+End before a trailing widget, Cmd+Right past a code chip and Cmd+Left from a selected widget; Mod+Shift+Home and Mod+Shift+End always extend to the document's edge. Its Cmd+Arrow chords (macOS's Home and End) are `schema/reserved-chords.ts :: CMD_EDGE_CHORDS`, since the chord form cannot tell Cmd from Ctrl."
 	},
 	{
 		file: 'selection/cross-block/keydown.ts',
+		takes: ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: [
 			'ArrowDown',
 			'ArrowLeft',
@@ -272,6 +291,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'selection/shared-keydown.ts',
+		takes: ['Shift+ArrowUp', 'Shift+ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp'],
 		note: 'Extends across a block boundary once the native extend runs out of room. Its block-edge chords are read by caretEdgeKey (schema/keybindings.ts).'
 	}

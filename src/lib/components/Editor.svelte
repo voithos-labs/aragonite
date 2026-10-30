@@ -114,6 +114,7 @@
 	import { createRootEffect } from './editor-root/root-effect.svelte';
 	import { collectReservedChords } from '../schema/reserved-chords';
 	import { createKeyClaims } from './editor-root/key-claims';
+	import { createContainerChords } from '../editor-actions/container-chords';
 	import { opensLinkCard } from './link-card/opens-card';
 	import { portalInto } from './portal';
 	import {
@@ -836,6 +837,13 @@
 	setContext(HISTORY_KEY, history);
 	setContext(CONTAINER_EDIT_KEY, containerEdit);
 
+	const containerChords = createContainerChords({
+		commands,
+		getBlockComponent,
+		selection: selectionState,
+		getDoc
+	});
+
 	setContext(EDITOR_SERVICES_KEY, {
 		events,
 		decorations: decorationEngine,
@@ -865,7 +873,9 @@
 		stamps,
 		kindCue,
 		textMoves,
-		readingFocus
+		readingFocus,
+		containerChords,
+		pasteAsBlocks: (mint, md, at) => focusedSurface.pasteAsBlocks(mint, md, at)
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
@@ -1086,7 +1096,14 @@
 		isHostChrome,
 		isFindBar,
 		saveSearchCaret: searchCaret.saveCurrent,
-		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
+		setReplaceExpanded: (expanded) => (replaceExpanded = expanded),
+		takeContainerChord: (e) => {
+			if (!containerChords.mayTake(e)) return;
+			const focus = keyClaims.readKeyFocus(e);
+			if ((focus.at === 'control' || focus.at === 'field') && focus.path) {
+				containerChords.take(e, focus.path);
+			}
+		}
 	});
 
 	rootEffect((root) => {
@@ -1348,6 +1365,7 @@
 		menuTakesEscape: () => menuPresence.takesEscape,
 		inlineMenu,
 		opensLinkCard: (e) => opensLinkCard(e, linkCard, getDoc(), commands),
+		containerChords,
 		selection: selectionState,
 		getDoc,
 		commands,
@@ -1356,7 +1374,7 @@
 	});
 
 	export function claimsChord(event: KeyboardEvent): boolean {
-		return keyClaims(event);
+		return keyClaims.claims(event);
 	}
 
 	const diagnostics = createEditorDiagnostics({
@@ -1410,6 +1428,7 @@
 		getOperationsLog: () => operationsLog,
 		isCrossBlockActive: () => selectionState.isCrossBlock,
 		getGapCaret: () => selectionState.gapCaret,
+		getKeyFocus: (e) => keyClaims.readKeyFocus(e),
 		getDecorationEngine: () => decorationEngine,
 		getHeightOracle: () => heightOracle,
 		getBlockIds: () => blockIds,

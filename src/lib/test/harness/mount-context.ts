@@ -121,6 +121,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		menuPresence: {} as EditorServices['menuPresence'],
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
 		readingFocus: {} as EditorServices['readingFocus'],
+		containerChords: {} as EditorServices['containerChords'],
+		pasteAsBlocks: () => Promise.resolve(false),
 		stamps,
 		drafts: createDraftRegistry(stamps),
 		shownSource: createShownSourceState(),
@@ -231,6 +233,12 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	services.menuPresence =
 		overrides.services?.menuPresence ??
 		createMenuPresence({ isReading: () => doc.reading.mode() === 'reading' });
+	// A bare block mount has no container around it to take a chord.
+	services.containerChords = overrides.services?.containerChords ?? {
+		take: () => false,
+		takes: () => false,
+		mayTake: () => false
+	};
 	services.readingFocus =
 		overrides.services?.readingFocus ??
 		createReadingFocus({
@@ -264,7 +272,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		markActivation: { canActivate: () => false, activate: () => false },
 		// Answers yes, as a mounted editor does once something has been edited.
 		undoStack: { canUndo: true, canRedo: true },
-		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
+		keybindingOverrides: () => ({ global: new Map(), byKind: new Map(), chords: new Set() }),
 		onCommandError: (report) => emitCommandError(services.events, report),
 		reorder: services.reorder,
 		...overrides.commands

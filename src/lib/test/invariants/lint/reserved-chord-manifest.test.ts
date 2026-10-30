@@ -1,11 +1,11 @@
 /**
  * The hardcoded-chord manifest (`hardcoded-chord-sites.ts`) covers every library file that reads a
- * KeyboardEvent modifier flag, each entry's key evidence still matches the file, and every chord
- * `HARDCODED_CHORD_CLAIMS` lists names a key its file compares (G4.29). A branch cannot claim a
- * chord without reading a modifier flag and comparing a key, so a new claim fails until listed.
+ * KeyboardEvent modifier flag, each entry's key evidence still matches the file, and every chord an
+ * entry takes names a key its file compares and is one `reservedChords()` lists (G4.29). A branch
+ * cannot take a chord without reading a modifier flag and comparing a key, so a new one fails here.
  */
 import { describe, it, expect } from 'vitest';
-import { collectReservedChords, HARDCODED_CHORD_CLAIMS } from '#lib/schema/reserved-chords.js';
+import { collectReservedChords } from '#lib/schema/reserved-chords.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import { registeredChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
@@ -60,7 +60,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 		const unnamed = modifierReaders.map(relToLib).filter((path) => !manifested.has(path));
 		expect(
 			unnamed,
-			`these files read a KeyboardEvent modifier flag but are absent from HARDCODED_CHORD_SITES: add an entry with the keys each compares, and any chord it takes to HARDCODED_CHORD_CLAIMS: ${unnamed.join(', ')}`
+			`these files read a KeyboardEvent modifier flag but are absent from HARDCODED_CHORD_SITES: add an entry with the keys each compares and the chords it takes: ${unnamed.join(', ')}`
 		).toEqual([]);
 	});
 
@@ -79,25 +79,27 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 		).toEqual([...site.keys].sort());
 	});
 
-	it.each(HARDCODED_CHORD_CLAIMS)('$file: every claimed chord is evidenced', (claim) => {
-		const site = HARDCODED_CHORD_SITES.find((s) => s.file === claim.file);
-		expect(
-			site,
-			`${claim.file} claims chords but has no HARDCODED_CHORD_SITES entry`
-		).toBeDefined();
-		for (const chord of claim.chords) {
+	const takers = HARDCODED_CHORD_SITES.filter((site) => site.takes);
+	it.each(takers)('$file: every chord it takes is evidenced and published', (site) => {
+		registerBuiltInDescriptors();
+		const reserved = collectReservedChords({ searchBar: true, activation: everyInstalledPlugin });
+		for (const chord of site.takes!) {
 			expect(
-				() => registeredChord(chord, claim.file),
-				`${claim.file}: malformed chord`
+				() => registeredChord(chord, site.file),
+				`${site.file}: malformed chord`
 			).not.toThrow();
 			const key = chord.split('+').pop()!;
-			const evidenced = site!.keys.some(
+			const evidenced = site.keys.some(
 				(recorded) =>
 					recorded === key ||
 					recorded.toLowerCase() === key.toLowerCase() ||
 					(recorded.endsWith('*') && key.startsWith(recorded.slice(0, -1)))
 			);
-			expect(evidenced, `${claim.file}: "${chord}" names a key the file never compares`).toBe(true);
+			expect(evidenced, `${site.file}: "${chord}" names a key the file never compares`).toBe(true);
+			expect(
+				reserved.has(chord),
+				`${site.file} takes "${chord}", which no keymap or text key gives reservedChords()`
+			).toBe(true);
 		}
 	});
 });
@@ -111,7 +113,7 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(found.length).toBeGreaterThan(10);
 		expect(found).toContain(libRelative(SOURCE.crossBlockKeydown));
 		expect(found).toContain(libRelative(SOURCE.containerBlockComponent));
-		expect(found).toContain(libRelative(SOURCE.tableBlock));
+		expect(found).toContain(libRelative(SOURCE.searchBar));
 		// A .svelte file must survive collection, or every component site goes unscanned.
 		expect(found.some((path) => path.endsWith('.svelte'))).toBe(true);
 	});

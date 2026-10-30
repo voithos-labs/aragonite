@@ -12,6 +12,7 @@ import type { OperationsLog } from '../../debug/operations-log';
 import type { DecorationEngine } from '../../decorations/decoration-state.svelte';
 import type { RefSlots } from '../../block-lists/child-refs';
 import type { GapCaretPosition } from '../../selection/gap-caret';
+import type { KeyFocus } from './key-claims';
 import type { GrammarView } from '../../schema/block-openers';
 import type { UndoManager } from '../../undo/types';
 import type { DrawnCaret } from '../../caret/drawn-caret.svelte';
@@ -33,6 +34,9 @@ export interface EditorTestSurface {
 	/** The gap caret has no public selection shape and no paint, so arrival is observable
 	 *  only here. */
 	getGapCaret(): GapCaretPosition | null;
+	/** Where `claimsChord` reads a keystroke as landing, for the rows that hold it to where the
+	 *  handler that takes the key stands. */
+	getKeyFocus(e: KeyboardEvent): KeyFocus;
 	/** The decoration engine, not the `addSource`-only registry: its per-path buckets are the
 	 *  only place a stale bucket shows, since jsdom measures every range at zero width. */
 	getDecorationEngine(): DecorationEngine;

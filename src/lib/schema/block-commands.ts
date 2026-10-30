@@ -446,9 +446,14 @@ export function canRunCommandById(
 	if (isReadingMode(gates.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, gates);
 	if (route.kind !== 'block-local') return route.kind === 'cross-block';
-	const { tier } = resolveCommand(id, target, gates.activation);
-	if (tier === 'global') return canRunGlobalCommand(id, gates.activation, gates);
-	return tier === 'minted' || tier === 'builtin' || tier === 'move';
+	const resolved = resolveCommand(id, target, gates.activation);
+	if (resolved.tier === 'global') return canRunGlobalCommand(id, gates.activation, gates);
+	return reachesHandler(resolved);
+}
+
+/** A block-level resolution with a handler to run, rather than one that declines. */
+function reachesHandler(resolved: BlockLocalResolution): boolean {
+	return resolved.tier === 'minted' || resolved.tier === 'builtin' || resolved.tier === 'move';
 }
 
 /** The read behind `EditorInstance.isCommandActive`: state, not permission, so a disabled button
@@ -495,27 +500,40 @@ export function leafKeyCommandRuns(id: AnyCommandId, kind: AnyBlockKind, gates: 
 	return rangeRouteFor(id, gates).kind !== 'decline';
 }
 
-/** The same for a chord bubbled to a container: only a command that runs on the block itself. */
-export function containerKeyCommandRuns(id: AnyCommandId, kind: AnyBlockKind, gates: CommandGates) {
-	if (isReadingMode(gates.getPresentationMode) || leftUnderLiveRange(id, kind, gates)) return false;
-	return rangeRouteFor(id, gates).kind === 'block-local';
-}
-
 /** A command meant to run once a range is removed, reached by a key the range didn't claim (the
  *  block it would land in binds the key otherwise): run here, it would write under the live range. */
 function leftUnderLiveRange(id: AnyCommandId, kind: AnyBlockKind, gates: CommandGates): boolean {
 	return gates.isCrossBlockRange() && commandOverRange(kind, id, gates.activation) !== undefined;
 }
 
-/** Dispatch for a chord at a container: kind commands only, since undo/redo and the range
- *  commands belong to the focused leaf and would otherwise fire twice. */
+/** A chord at a container, against its kind's bindings only: undo/redo and the range commands
+ *  belong to the focused leaf and would otherwise fire twice. Null where the container runs none. */
+function resolveKindChord(chord: string, target: KindCommandTarget, ctx: CommandDispatchContext) {
+	const binding = resolveKindBinding(chord, target.kind, ctx.keybindingOverrides());
+	if (!binding || isReadingMode(ctx.getPresentationMode)) return null;
+	if (leftUnderLiveRange(binding.command, target.kind, ctx)) return null;
+	if (rangeRouteFor(binding.command, ctx).kind !== 'block-local') return null;
+	return { binding, resolved: resolveBlockLocalCommand(binding.command, target, ctx.activation) };
+}
+
+/** Whether `dispatchKindCommand` would reach a handler for `chord` at `target`, short of running it. */
+export function kindChordRuns(
+	chord: string,
+	target: KindCommandTarget,
+	ctx: CommandDispatchContext
+): boolean {
+	const found = resolveKindChord(chord, target, ctx);
+	return !!found && reachesHandler(found.resolved);
+}
+
+/** Dispatch for a chord at a container, through the lookup `kindChordRuns` reads. */
 export function dispatchKindCommand(
 	chord: string,
 	target: KindCommandTarget,
 	ctx: CommandDispatchContext
 ): boolean {
-	const binding = resolveKindBinding(chord, target.kind, ctx.keybindingOverrides());
-	if (!binding || !containerKeyCommandRuns(binding.command, target.kind, ctx)) return false;
-	const resolved = resolveBlockLocalCommand(binding.command, target, ctx.activation);
+	const found = resolveKindChord(chord, target, ctx);
+	if (!found) return false;
+	const { binding, resolved } = found;
 	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', ctx, AT_CARET);
 }

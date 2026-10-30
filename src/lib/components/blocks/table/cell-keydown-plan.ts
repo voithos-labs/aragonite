@@ -1,8 +1,8 @@
 /**
  * Turns a keydown into a plan for a table cell's caret-dependent moves: the next cell at a text
  * boundary, a row, or out of the table. Tab and Enter are keymap chords, planned by
- * `cellCommandPlan`. A vertical arrow ignores Alt and Mod, since the command dispatcher takes those
- * first; a sideways move takes only a caret key; a Cmd+Arrow is a caret-edge key, so it is `native`.
+ * `cellCommandPlan`. A vertical arrow ignores Mod and leaves Alt to the row move; a sideways move
+ * takes only a caret key; a Cmd+Arrow is a caret-edge key, so it is `native`.
  */
 import { cellAbove, cellBelow, nextCell, prevCell, type CellCoord } from './table-navigation';
 import {
@@ -55,8 +55,10 @@ export function cellKeydownPlan(e: ChordKeys, s: CellKeyState): CellKeyPlan {
 	if (e.key === 'ArrowRight' && sideways && atEnd) {
 		return horizontalMove(nextCell(pos, s.columnCount, s.rowCount), 'start', 'down');
 	}
-	if (e.key === 'ArrowUp' && !e.shiftKey) return verticalMove(cellAbove(pos), 'up');
-	if (e.key === 'ArrowDown' && !e.shiftKey) return verticalMove(cellBelow(pos, s.rowCount), 'down');
+	// Alt+ArrowUp and Down are the row move's, so a disabled one does nothing here.
+	const vertical = !e.shiftKey && !e.altKey;
+	if (e.key === 'ArrowUp' && vertical) return verticalMove(cellAbove(pos), 'up');
+	if (e.key === 'ArrowDown' && vertical) return verticalMove(cellBelow(pos, s.rowCount), 'down');
 	if (e.key === 'Backspace' && s.offset !== null && atStart) {
 		return horizontalMove(prevCell(pos, s.columnCount), 'end', 'up');
 	}

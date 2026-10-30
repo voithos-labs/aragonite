@@ -44,9 +44,8 @@ const cell = (
 
 // The structural chords are keymap bindings, so an arrow that reaches the plan was taken by
 // nothing and must navigate; `native` hands it to the prose path, which moves by sibling index.
-describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
+describe('cellKeydownPlan: an unclaimed caret-key chord still navigates', () => {
 	const cases: Array<[string, ChordKeys, Partial<CellKeyState>, CellKeyPlan]> = [
-		['Alt+ArrowUp', key('ArrowUp', { altKey: true }), {}, cell(0, 1, 'start')],
 		['Mod+ArrowDown', key('ArrowDown', { ctrlKey: true }), {}, cell(2, 1, 'start')],
 		[
 			'Mod+ArrowRight at the right edge',
@@ -65,6 +64,13 @@ describe('cellKeydownPlan: an unclaimed modified arrow still navigates', () => {
 // Miss-analysis: the rows above read any modified arrow as navigation, and none asked what a
 // host's Alt+← (Back, off a Mac) does with the caret at a cell's edge or in reading mode.
 describe('cellKeydownPlan: a sideways step takes only a caret key', () => {
+	// Alt+ArrowUp and Down are the row move's, so a disabled one leaves the caret where it is.
+	it('leaves Alt+ArrowUp to the row move', () => {
+		expect(cellKeydownPlan(key('ArrowUp', { altKey: true }), state({}))).toEqual({
+			kind: 'native'
+		});
+	});
+
 	it('leaves Alt+ArrowLeft at the left edge to the page', () => {
 		expect(cellKeydownPlan(key('ArrowLeft', { altKey: true }), state({ offset: 0 }))).toEqual({
 			kind: 'native'

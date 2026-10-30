@@ -375,8 +375,8 @@ through `normalizeOwnRaw` or `legalizeWrite` first is left to review. `lint/leaf
 
 **G4.29 · Hardcoded-chord manifest.** Every library file that reads a `KeyboardEvent` modifier flag
 is named in `lint/hardcoded-chord-sites.ts` with the key literals it compares (negated guards
-included), and every chord `schema/reserved-chords.ts` takes outside the keymaps names one of its
-file's keys, which keeps `reservedChords()` and `claimsChord()` true. A listed file keeps literal key
+included) and the chords it takes, each naming one of its keys and each one `reservedChords()`
+lists from a keymap or the text keys, so no branch takes a chord the published set misses. A listed file keeps literal key
 comparisons, since the scan is structural: a shared helper fails it until the scan learns that
 helper. `lint/reserved-chord-manifest.test.ts`.
 
@@ -843,8 +843,8 @@ and the block's own edit actions in `editable-surface.ts`, which `writeText` wri
 **G4.112 · An indent key over a range has one route.** Over a range, Tab, Shift+Tab and any key
 bound to an indent command nest or lift every list item it reaches once, through
 `range-indent.ts :: indentRange`. Three rows: the item moves (`nestListItem`, `liftNestedItem`) are
-called only from a caret's Tab in `list-context.ts` and the range indent; `dispatchContainerChord`
-leaves a key a live range owns to the range; and a range replace's command insertion is built only
+called only from a caret's Tab in `list-context.ts` and the range indent; the container step
+(`editor-actions/container-chords.ts`) leaves a key a live range owns to the range; and a range replace's command insertion is built only
 in `cross-block/keydown.ts`, which leaves Tab out. `lint/file-rules.test.ts`.
 
 **G4.114 · One paint decision under a range.** Whether a block under a cross-block range paints one

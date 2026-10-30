@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { imeOwnsKey } from '../../../browser/composition';
 	import { setContext, getContext, untrack, tick } from 'svelte';
 	import type { CellPosition, TableAxisAction, TableContext } from '../../../action-contracts';
 	import {
@@ -233,6 +232,10 @@
 				stickyColumnFrom: 'above'
 			});
 		},
+		openCellMenu(rowIdx, colIdx) {
+			const rect = cellElementAt(rowIdx, colIdx)?.getBoundingClientRect();
+			openMenuAtCell(rowIdx, colIdx, rect ? rect.left : 0, rect ? rect.bottom : 0);
+		},
 		notifyCellFocused(rowIdx, colIdx) {
 			focusedCell = { rowIdx, colIdx };
 			mirrorCaretCell();
@@ -349,18 +352,6 @@
 		if (!cell) return;
 		e.preventDefault();
 		openMenuAtCell(cell.rowIdx, cell.colIdx, e.clientX, e.clientY);
-	}
-
-	// Keyboard equivalent of the cell right-click, bubbling up from the cell;
-	// `preventDefault` suppresses the browser's context menu the key would trigger.
-	function onTableKeyDown(e: KeyboardEvent): void {
-		if (imeOwnsKey(e)) return;
-		const opensMenu = e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey);
-		if (readOnly || !opensMenu || !focusedCell) return;
-		e.preventDefault();
-		const { rowIdx, colIdx } = focusedCell;
-		const rect = cellElementAt(rowIdx, colIdx)?.getBoundingClientRect();
-		openMenuAtCell(rowIdx, colIdx, rect ? rect.left : 0, rect ? rect.bottom : 0);
 	}
 
 	// Through the caret landing, which mounts the row: it can scroll out of the row window while
@@ -568,14 +559,12 @@
 </script>
 
 <!-- Delegated listeners for the cell grid, since the cells are what the user interacts with. -->
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	bind:this={tableEl}
 	class="table-block"
 	role="table"
 	style:grid-template-columns={trackTemplate}
 	oncontextmenu={openCellMenu}
-	onkeydown={onTableKeyDown}
 >
 	<!-- No whitespace between the blocks: a stray text node joins the raw-offset traversal
 	     and shifts a remembered caret (browser/offsets.ts). -->

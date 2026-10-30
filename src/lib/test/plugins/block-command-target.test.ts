@@ -30,7 +30,8 @@ function bindKindChord(
 	if (normalized === null) throw new Error(`unexpected chord normalization for "${chord}"`);
 	return {
 		global: new Map(),
-		byKind: new Map([[kind, new Map([[normalized, { chord: normalized, command }]])]])
+		byKind: new Map([[kind, new Map([[normalized, { chord: normalized, command }]])]]),
+		chords: new Set([normalized])
 	};
 }
 

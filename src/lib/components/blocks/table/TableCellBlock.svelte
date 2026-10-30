@@ -385,6 +385,7 @@
 				void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);
 		}
 		if (id === 'cell.lineBreak') return writeLineBreak;
+		if (id === 'cell.openMenu') return () => tableContext.openCellMenu(rowIdx, colIdx);
 		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return null;
 		const plan = cellCommandPlan(id, cellPlanState(cursor.getRaw() ?? 0));
 		return () => void applyCellPlan(plan);

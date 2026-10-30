@@ -1,8 +1,5 @@
 /** The shared `BlockComponent` implementation for container blocks. */
 
-import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { checkContainerChordMark } from '../invariants/container-chord-mark';
-import { containerChordKindOf } from './container-chords.svelte';
 import {
 	entryEdge,
 	type BlockComponent,
@@ -30,7 +27,7 @@ import type { AnyCommandId } from '../schema/command-id';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CaretWriter } from '../browser/caret-writer';
 import { placeCaret } from '../selection/place-caret';
-import { rangeOwnsKey, type RangeKeyReads } from '../selection/cross-block/keydown';
+import type { ContainerChords } from './container-chords';
 import {
 	focusWholeBlockEl,
 	holdsWholeBlockFocus,
@@ -51,23 +48,23 @@ export function dispatchWholeBlockGlobalChord(
 	return true;
 }
 
-/** A chord at a container, against its own kind only: a key bubbling from a leaf met the global
- *  chords there, and one a live range owns is the range's. Null `range`: the container has focus. */
-export function dispatchContainerChord(
+/** A chord at a block focused as a whole, against its own kind's keymap. */
+export function dispatchOwnKindChord(
 	e: KeyboardEvent,
 	target: KindCommandTarget,
-	commands: CommandDispatchContext,
-	range: Omit<RangeKeyReads, 'commands'> | null
+	commands: CommandDispatchContext
 ): boolean {
-	if (e.defaultPrevented) return false;
-	if (range?.selection.isCrossBlock && rangeOwnsKey(e, { ...range, commands })) return true;
 	const chord = eventToChord(e);
 	if (!chord || !dispatchKindCommand(chord, target, commands)) return false;
-	assertInvariant('container-chord-mark', () =>
-		checkContainerChordMark(containerChordKindOf(e.currentTarget), target.kind)
-	);
 	e.preventDefault();
 	return true;
+}
+
+/** Mod+C or Mod+X on a block focused as a whole, which copies its own Markdown through writeText:
+ *  a keydown carries no ClipboardEvent. `claimsChord` asks the same. */
+export function wholeBlockClipboardKey(e: KeyboardEvent): 'copy' | 'cut' | null {
+	const chord = eventToChord(e);
+	return chord === 'Mod+C' ? 'copy' : chord === 'Mod+X' ? 'cut' : null;
 }
 
 export interface BlockEdgeExitDeps {
@@ -111,6 +108,8 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	/** Whether the key ended a composition the browser dropped in the block's hidden host, which
 	 *  spends it (`CaretHostInput.takesKey`). */
 	takesKey: CaretHostInput['takesKey'];
+	getPath: () => number[];
+	containerChords: Pick<ContainerChords, 'take'>;
 }
 
 /**
@@ -137,12 +136,12 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 		return;
 	}
 
-	// Mod+C and Mod+X copy the block's own Markdown through writeText, since a keydown carries no
-	// ClipboardEvent; a range across blocks is left to the copy event the editor's handlers take.
-	if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'x')) {
+	// A range across blocks is left to the copy event the editor's handlers take.
+	const clipboard = wholeBlockClipboardKey(e);
+	if (clipboard) {
 		if (deps.selection.isCrossBlock) return;
 		e.preventDefault();
-		void copyFocusedWholeBlock(deps, e.key === 'x');
+		void copyFocusedWholeBlock(deps, clipboard === 'cut');
 		return;
 	}
 
@@ -156,6 +155,7 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 
 	const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
 	if (plainArrow && focusAcrossBlockEdge(e.key, deps)) e.preventDefault();
+	else deps.containerChords.take(e, deps.getPath());
 }
 
 // Copy is a read, so it is never blocked; cut's delete is blocked in reading mode and only
@@ -190,6 +190,8 @@ export interface ContainerBlockComponentDeps {
 	readonly getBoxEl?: () => HTMLElement | null | undefined;
 	/** The hidden editing host beside the declared element, where whole-block focus lands. */
 	readonly inputProxy?: WholeBlockInputProxy;
+	/** What this container's kind chords run against, published as `containerChordTarget`. */
+	readonly containerChordTarget?: (from: readonly number[]) => KindCommandTarget | null;
 }
 
 export function createContainerBlockComponent(
@@ -228,6 +230,7 @@ export function createContainerBlockComponent(
 		get editable() {
 			return deps.editable ?? true;
 		},
+		containerChordTarget: deps.containerChordTarget,
 		focusable: true,
 		focus: placeCaret(deps.selection, deps.caretWriter, (offset) =>
 			walkInto(offset, (child, at) => child.focus(at))

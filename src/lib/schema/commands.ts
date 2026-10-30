@@ -9,7 +9,11 @@ import type { AnyCommandId } from './command-id';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
-import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import {
+	getAllRegisteredKinds,
+	onBlockKindChange,
+	tryGetBlockKindDescriptor
+} from './block-kind-descriptor';
 import { eventToChord, isMotionChord, registeredChord, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
@@ -53,6 +57,7 @@ export const BLOCK_COMMAND_IDS = [
 	'list.toggleTask',
 	'cell.enter',
 	'cell.lineBreak',
+	'cell.openMenu',
 	'cell.tab',
 	'cell.shiftTab',
 	// Bound on `tableCell` (the block that holds the caret) but named for their subject: each takes
@@ -454,6 +459,24 @@ export function resolveKindBinding(
 	const override = overrideTier(overrides, kind, chord);
 	if (override !== undefined) return override;
 	return builtinKindBinding(chord, kind);
+}
+
+// Rebuilt when a kind registers, so a plugin's container keymap is never missed.
+let containerKeymapChords: ReadonlySet<string> | null = null;
+onBlockKindChange(() => (containerKeymapChords = null));
+
+/** Whether any container could bind `chord`: a container kind's keymap, or any `keybindings`
+ *  override. False means no container walk can find it, so none is made. */
+export function containerMayBind(
+	chord: string,
+	overrides: KeybindingOverrideMap | undefined
+): boolean {
+	containerKeymapChords ??= new Set(
+		getAllRegisteredKinds()
+			.filter((kind) => tryGetBlockKindDescriptor(kind)?.containerContract !== undefined)
+			.flatMap((kind) => kindKeymap(kind).map((binding) => binding.chord))
+	);
+	return containerKeymapChords.has(chord) || !!overrides?.chords.has(chord);
 }
 
 /**
