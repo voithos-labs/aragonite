@@ -569,9 +569,7 @@ const RULES: FileRule[] = [
 		matches:
 			/\bdataset\.source(?:Start|End)\b(?!\s*=[^=])|getAttribute\(\s*['"]data-source-(?:start|end)['"]/,
 		allowed: {
-			'src/lib/core/inline/widget-shell.ts': '`widgetSourceRange` itself',
-			'src/lib/components/blocks/widget-portal.ts':
-				'compares the stamped span with the node’s before writing it again'
+			'src/lib/core/inline/widget-shell.ts': '`widgetSourceRange` itself'
 		},
 		reason:
 			'a widget or decoration names its raw span in `data-source-start` and `data-source-end`, and a reader that parses them by hand drifts on a missing or partial span: read it through `widgetSourceRange` in `core/inline/widget-shell.ts`',

@@ -181,7 +181,7 @@ function widgetBetween(el: HTMLElement, a: number, b: number): boolean {
 }
 
 // Hebrew, Arabic and the scripts beside them, whose arrows move visually; nothing reads direction yet.
-const RIGHT_TO_LEFT = /[֐-ࣿיִ-﷿ﹰ-ﻼ]/;
+const RIGHT_TO_LEFT = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;
 const RTL_WINDOW = 256;
 
 /** Whether the caret's line, within a window around it, holds right-to-left text. */
