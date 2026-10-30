@@ -30,7 +30,7 @@ The behavior contract:
 ## Happy paths
 
 - One arrow press crosses a replace island each way, with or without Shift, never selecting it:
-  `caret/unit-step.md`.
+  `caret/motion-class.md`.
 - Backspace against a replace island's trailing edge selects it whole (island tinted, source
   unchanged); a second Backspace deletes the whole hidden range in one commit.
 - Delete against a replace island's leading edge selects it whole; a second Delete deletes the

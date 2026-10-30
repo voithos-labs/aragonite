@@ -146,8 +146,9 @@ eventToChord(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true })); //
 ```
 
 So matching a chord never asks the platform. The tree's one platform read is
-`src/lib/schema/platform-conventions.ts` :: `usesMacEditingConventions`, for the two things Apple
-does its own way: Cmd+Arrow as Home and End, and a forward word delete stopping at the word's end.
+`src/lib/schema/platform-conventions.ts` :: `usesMacEditingConventions`, for what Apple does its
+own way: Cmd+Arrow as Home and End, Option+Arrow as the word key, and a forward word delete
+stopping at the word's end.
 The Playwright harness does have to press a real OS key, so its helpers spell every editor chord
 `ControlOrMeta` and let Playwright pick. A word jump or a word delete, which no chord names, uses
 `WORD_MODIFIER` (Control, Alt on a Mac), because macOS binds those to a different key. A branch that reads `ctrlKey`

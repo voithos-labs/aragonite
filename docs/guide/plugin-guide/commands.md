@@ -103,7 +103,7 @@ The chord binds in the **plugin-global tier**, the last step in the chord priori
 
 - A plugin chord never shadows a built-in: a built-in kind's own chord beats yours **on that kind, not elsewhere**.
 - A chord the global tier already binds (undo and redo, or another plugin's global chord) or the search bar reserves (`Mod+F` / `Mod+H`) can't be taken, and the collision **throws before the command is created**.
-- A caret key of the platform the editor runs on (an arrow left or right, a word key, `Home`, `End`, the full list's in [the consumer guide](../consumer-guide.md#rebinding-chords)) yields to the caret: a chord on one registers with a `keybindings` warning in a dev build and never fires there, though a host's own `keybindings` entry can still bind it.
+- A caret key of the platform the editor runs on (an arrow left or right, a word key, `Home`, `End`, the full list's in [the consumer guide](../consumer-guide.md#keyboard-shortcuts)) yields to the caret: a chord on one registers with a `keybindings` warning in a dev build and never fires there, though a host's own `keybindings` entry can still bind it.
 - A handler throw is contained the same way a block command's is.
 
 ```ts
