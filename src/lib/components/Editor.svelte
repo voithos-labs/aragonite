@@ -1346,6 +1346,7 @@
 		searchOpen: () => searchState.isOpen,
 		menusOpen: () => menuPresence.isOpen,
 		menuTakesEscape: () => menuPresence.takesEscape,
+		inlineMenu,
 		opensLinkCard: (e) => opensLinkCard(e, linkCard, getDoc(), commands),
 		selection: selectionState,
 		getDoc,

@@ -5,6 +5,7 @@
  */
 
 import { imeOwnsKey } from '../../browser/composition';
+import type { InlineMenuState } from '../../inline-menu/inline-menu-state.svelte';
 import type { AnyBlockKind, Document } from '../../core/nodes';
 import { containerChordKinds } from '../../editor-actions/container-chords.svelte';
 import { isEditableEventTarget } from '../../editor-actions/whole-block-focus-surface.svelte';
@@ -48,6 +49,8 @@ export interface KeyClaimsDeps extends KeyFocusDeps {
 	menusOpen(): boolean;
 	/** An open menu, the crop or a toolbar flyout, which closes on Escape wherever the caret is. */
 	menuTakesEscape(): boolean;
+	/** The rows under the caret, which step and pick on their keys before any block sees them. */
+	inlineMenu: Pick<InlineMenuState, 'listKey'>;
 	/** The chord an open link card swallows: the one that opens it. */
 	opensLinkCard(e: KeyboardEvent): boolean;
 	selection: Pick<SelectionState, 'gapCaret' | 'isCrossBlock' | 'anchor' | 'focus'>;
@@ -88,6 +91,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): (event: KeyboardEvent) => 
 		el: Element | null
 	) {
 		if (e.key === 'Backspace' && keepsPageOnBackspace(root, el, deps)) return true;
+		if (root.contains(el) && deps.inlineMenu.listKey(e) !== null) return true;
 		if (e.key === 'Escape' && deps.menuTakesEscape()) {
 			if (focusInEditor(root, el, deps) || ownsWindowedOutCaret(root, el)) return true;
 		}

@@ -5,6 +5,7 @@
  */
 
 import { tick } from 'svelte';
+import { imeOwnsKey } from '../browser/composition';
 import { isProseKind } from '../core/inline';
 import { resolvedInlineContent } from '../core/inline/inline-cache';
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -12,6 +13,7 @@ import type { EditorError, EditorEvents } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
 import type { EditorSelection } from '../selection/primitives';
 import { isGridKind } from '../schema/block-kind-descriptor';
+import { eventToChord } from '../schema/keybindings';
 import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import {
 	findOpening,
@@ -75,6 +77,8 @@ export interface InlineMenuState {
 	/** What the editable at `path` must say about the list showing in it, or null when none is.
 	 *  The editable renders these itself; nothing writes onto its element. Reactive. */
 	comboboxFor(path: readonly number[]): InlineMenuCombobox | null;
+	/** What a keystroke does to a list that shows rows, or null for a key the list leaves alone. */
+	listKey(e: KeyboardEvent): InlineMenuListKey | null;
 	move(delta: 1 | -1): void;
 	setActive(index: number): void;
 	/** Take a baseline for the caret's leaf if none is held; the host calls it at beforeinput,
@@ -87,6 +91,16 @@ export interface InlineMenuState {
 	reportSourceError(error: unknown, source: string): void;
 	dispose(): void;
 }
+
+export type InlineMenuListKey = 'down' | 'up' | 'commit';
+
+// The bare key alone: a chorded arrow (Shift to extend, Mod to jump) stays the document's.
+const LIST_KEYS: ReadonlyMap<string, InlineMenuListKey> = new Map([
+	['ArrowDown', 'down'],
+	['ArrowUp', 'up'],
+	['Enter', 'commit'],
+	['Tab', 'commit']
+]);
 
 /** The ids a focused editable points a screen reader at while an inline menu's list shows in it. */
 export interface InlineMenuCombobox {
@@ -461,6 +475,12 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		registry,
 		listboxId,
 		optionId,
+		listKey(e) {
+			// An empty list holds no key, and a composing Enter belongs to the IME's candidate window.
+			if (session === null || items.length === 0 || !sources.has(session.source)) return null;
+			if (imeOwnsKey(e)) return null;
+			return LIST_KEYS.get(eventToChord(e) ?? '') ?? null;
+		},
 		comboboxFor(path) {
 			if (session === null || items.length === 0) return null;
 			if (sessionPathKey !== path.join()) return null;

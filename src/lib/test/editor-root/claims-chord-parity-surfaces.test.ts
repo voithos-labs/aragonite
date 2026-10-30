@@ -114,9 +114,13 @@ const CONTEXTS: ClaimContext[] = [
 	},
 	{ name: 'find bar', source: PROSE, enter: openFindBar },
 	{
-		name: 'paragraph under an open inline menu',
+		name: 'paragraph under an open inline menu, Tab and Enter freed there',
 		source: PROSE,
 		mode: 'live',
+		keybindings: [
+			{ kind: 'paragraph', chord: 'Tab', command: null },
+			{ kind: 'paragraph', chord: 'Enter', command: null }
+		],
 		enter: async (editor) => {
 			const menus = editor.instance.getInlineMenus();
 			menus.addSource({ name: 'tags', trigger: '#', items: () => [TAG, { ...TAG, id: 'b' }] });
