@@ -256,10 +256,10 @@ export interface EditorInstance {
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
 	/**
-	 * Every modifier chord this instance takes somewhere, normalized (`Mod` covers Ctrl and Cmd): the
-	 * union over every block kind, composed live from the keymaps, active plugins, `keybindings` and
-	 * search, for a host's accelerator table. Bare keys aren't listed, nor is a chord turned off with
-	 * `command: null`. For the keystroke in hand, ask `claimsChord`.
+	 * Every modifier chord `claimsChord` can answer true for somewhere, normalized (`Mod` covers Ctrl
+	 * and Cmd): every block kind's keymap, the text keys, active plugins, `keybindings` and search,
+	 * composed live, for a host's accelerator table. Bare keys aren't listed, nor is a keymap chord
+	 * turned off with `command: null`. For the keystroke in hand, ask `claimsChord`.
 	 */
 	reservedChords(): ReadonlySet<string>;
 	/**
