@@ -8,8 +8,8 @@ import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
 import { recordContainerChordWalk } from '../perf/instruments';
 import {
-	containerBindingFor,
 	dispatchKindCommand,
+	kindChordRuns,
 	type CommandDispatchContext,
 	type KindCommandTarget
 } from '../schema/block-commands';
@@ -67,7 +67,7 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 			const chord = eventToChord(e);
 			if (!chord || rangeOwns(e)) return false;
 			for (const target of targetsAround(chord, from)) {
-				if (containerBindingFor(chord, target.kind, deps.commands)) return true;
+				if (kindChordRuns(chord, target, deps.commands)) return true;
 			}
 			return false;
 		}

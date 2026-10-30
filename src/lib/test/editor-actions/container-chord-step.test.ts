@@ -9,8 +9,11 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
-	pressKeyAt
+	placeCaret,
+	pressKeyAt,
+	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { probe, type ClaimContext } from '../editor-root/claims-parity';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -78,5 +81,24 @@ describe('the container walk', () => {
 		expect(perfSnapshot().containerChordWalks).toBe(0);
 		await pressKeyAt(editor, [0], 2, { key: 'Tab', shiftKey: true });
 		expect(perfSnapshot().containerChordWalks).toBe(1);
+	});
+});
+
+// Miss-analysis: the step and its claim each composed the container lookup, and no row bound a
+// container chord to a command the container has no way to run.
+describe('a container chord bound to a command the container cannot run', () => {
+	it('is neither claimed nor prevented', async () => {
+		const context: ClaimContext = {
+			name: 'quote, list.indent bound on the quote',
+			source: '> quote text\n',
+			keybindings: [{ kind: 'blockquote', chord: 'Mod+Shift+J', command: 'list.indent' }],
+			enter: async (editor) => {
+				const el = surfaceAt(editor, [0, 0]);
+				placeCaret(el, 2);
+				return el;
+			}
+		};
+		const { claimed, prevented } = await probe(context, 'Mod+Shift+J');
+		expect([claimed, prevented]).toEqual([false, false]);
 	});
 });
