@@ -1,4 +1,11 @@
-import { devChecksOn, devWarn, isTestProcess } from '@voithos-labs/aragonite/dev-checks';
+import {
+	assertInvariant,
+	devChecksOn,
+	devWarn,
+	isTestProcess
+} from '@voithos-labs/aragonite/dev-checks';
+import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-copy';
+import { ARAGONITE_VERSION } from '../version';
 import { isValidPluginName } from './plugin-name';
 import { enrollTestReset } from './registry-reset';
 // Type-only: `editor-events` already imports this module at runtime, so importing a value back
@@ -92,6 +99,13 @@ let coreDepth = 0;
 // Bumped whenever the installed set changes, so a cache filtered by installation can tell it is stale.
 let generation = 0;
 
+// Every copy of the core marks the plugins it defines under one shared key, each with its own value.
+const DEFINED_BY = Symbol.for('@voithos-labs/aragonite:defined-by');
+const THIS_COPY: CoreCopy = Object.freeze({ version: ARAGONITE_VERSION });
+
+const definingCopy = (plugin: EditorPlugin): CoreCopy | undefined =>
+	(plugin as { [DEFINED_BY]?: CoreCopy })[DEFINED_BY];
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export function definePlugin<Options extends object = Record<never, never>>(
@@ -105,6 +119,7 @@ export function definePlugin<Options extends object = Record<never, never>>(
 			`definePlugin: invalid plugin name "${plugin.name}"; lowercase first letter, then letters/digits/hyphens`
 		);
 	}
+	if (Object.isExtensible(plugin)) Object.defineProperty(plugin, DEFINED_BY, { value: THIS_COPY });
 	return plugin;
 }
 
@@ -126,6 +141,9 @@ export function installPlugins(plugins: readonly EditorPlugin[]): void {
 				{ cause: failed.get(plugin.name) }
 			);
 		}
+		assertInvariant('plugin-one-core-copy', () =>
+			checkDefinedByThisCopy(plugin.name, definingCopy(plugin), THIS_COPY)
+		);
 		installOne(plugin);
 	}
 }

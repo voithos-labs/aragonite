@@ -117,6 +117,7 @@ These checks run in three kinds of place:
 | G1.161 | A typed letter the editor leaves to the browser lands at its caret                                        | A·N     |
 | G1.163 | A caret key the editor decided leaves the selection it wrote                                              | A·N     |
 | G1.165 | _Retired upward_: a container's chords run from the block they're pressed in, so no element needs marking | A·N     |
+| G1.166 | A plugin installs into the copy of the editor that defined it                                             | A·N     |
 
 ### The entries
 
@@ -705,3 +706,10 @@ browser's own move ran too. An editor write or a pointer press ends the record u
 **G1.165 · Retired upward.** A container's kind chords run from the block a key is pressed in, the
 last step of its keydown (`editor-actions/container-chords.ts`), so no container element carries a
 mark for `claimsChord` to find, and both read one walk.
+
+**G1.166 · One copy of the editor** (`plugin-one-core-copy`). A plugin installs into the copy of
+the editor that defined it. `definePlugin` marks each plugin with the copy it ran in, so a plugin
+package that resolved a second copy of the core (a version that doesn't match, or a bundler that
+didn't dedupe) warns at `installPlugins` instead of registering into registries the editor never
+reads. A plugin object built by hand carries no mark and isn't checked. `checkDefinedByThisCopy` ·
+`schema/plugin-install.ts` · `plugin-one-core-copy.test.ts`.

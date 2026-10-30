@@ -137,6 +137,7 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'schema -> menu-icons.ts',
 	'schema -> perf',
 	'schema -> presentation-mode.ts',
+	'schema -> version.ts',
 	'search -> decorations',
 	'search -> schema',
 	'selection -> a11y-strings.ts',
