@@ -1,5 +1,5 @@
 /**
- * The KaTeX adapter behind the `@voithos-labs/aragonite/plugins/latex/renderer` subpath.
+ * The KaTeX adapter behind the `@voithos-labs/aragonite-latex/renderer` subpath.
  * Importing it is how a consumer opts into `katex`, an optional peer dependency nothing else
  * pulls in.
  */

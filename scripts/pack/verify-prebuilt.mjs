@@ -13,9 +13,8 @@ const PREBUILT_DIR = 'dist/prebuilt';
 
 // Gzipped bytes per entry, each a little above what it measured, and 23,656 of CSS. A group owns
 // the files its entry loads that no earlier group does. Measured: index 482,984, plugin 9,470,
-// svelte 634, runtime/svelte 152, runtime/svelte/internal/client 339, admonitions 4,392, details
-// 3,983, emoji 16,354, footnotes 4,330, highlight-occurrences 1,573, latex 7,474, mermaid 6,916,
-// parrot 4,315, slash-commands 1,962, toc 2,828, testing 18,601.
+// svelte 634, runtime/svelte 152, runtime/svelte/internal/client 339, testing 18,601. The plugin
+// packages' budgets are in verify-plugin-package.mjs.
 /** @type {{ js: Record<string, number>, css: number }} */
 const BUDGET = {
 	js: {
@@ -24,16 +23,6 @@ const BUDGET = {
 		svelte: 750,
 		'runtime/svelte': 250,
 		'runtime/svelte/internal/client': 450,
-		'plugins/admonitions': 4_650,
-		'plugins/details': 4_100,
-		'plugins/emoji': 16_500,
-		'plugins/footnotes': 4_450,
-		'plugins/highlight-occurrences': 1_700,
-		'plugins/latex': 7_900,
-		'plugins/mermaid': 7_050,
-		'plugins/parrot': 4_450,
-		'plugins/slash-commands': 2_100,
-		'plugins/toc': 2_950,
 		testing: 18_750
 	},
 	css: 23_800
@@ -173,18 +162,14 @@ function overBudget(files) {
 }
 
 /**
- * Budget name to the JS files it owns: the root closure, then /plugin, /svelte, each bundled plugin
- * and /testing, each owning what no earlier group loads.
+ * Budget name to the JS files it owns: the root closure, then /plugin, /svelte, the two runtime
+ * subpaths and /testing, each owning what no earlier group loads.
  * @param {string[]} files
  * @returns {Map<string, string[]>}
  */
 function budgetGroups(files) {
 	const scripts = files.filter((file) => file.endsWith('.js'));
 	const at = (/** @type {string} */ name) => `${PREBUILT_DIR}/${name}`;
-	const plugins = scripts
-		.filter((file) => /\/plugins\/[^/]+\/index\.js$/.test(file))
-		.map((file) => file.split('/')[3])
-		.sort();
 	/** @type {[string, string[]][]} */
 	const order = [
 		['index', [at('index.js')]],
@@ -192,13 +177,6 @@ function budgetGroups(files) {
 		['svelte', [at('svelte.js')]],
 		['runtime/svelte', [at('runtime/svelte.js')]],
 		['runtime/svelte/internal/client', [at('runtime/svelte/internal/client.js')]],
-		...plugins.map(
-			(name) =>
-				/** @type {[string, string[]]} */ ([
-					`plugins/${name}`,
-					scripts.filter((file) => file.startsWith(at(`plugins/${name}/`)))
-				])
-		),
 		['testing', [at('testing.js')]]
 	];
 	const claimed = new Set();
@@ -249,7 +227,7 @@ function listFiles(dir) {
  * @param {string} file
  * @returns {string[]}
  */
-function bareImports(file) {
+export function bareImports(file) {
 	/** @type {string[]} */
 	const found = [];
 	const visit = (/** @type {any} */ node) => {

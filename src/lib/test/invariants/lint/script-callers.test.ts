@@ -1,9 +1,9 @@
 /**
  * G4.268: every file under `scripts/` has a caller, so a script nobody runs can't sit in the folder
  * looking maintained. A caller is an npm script, a workflow step, a git hook, an import or a
- * spawned path in another script, or an import from a root config or from `src/`. A doc mention,
- * a test that only reads the file, and a failure-message string are not callers: a script reached
- * only that way is hand-run, and sits in `HAND_RUN` with the reason.
+ * spawned path in another script, or an import from a root or package config or from `src/`. A
+ * doc mention, a test that only reads the file, and a failure-message string are not callers: a
+ * script reached only that way is hand-run, and sits in `HAND_RUN` with the reason.
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -78,7 +78,7 @@ function callerFiles(): CallerFile[] {
 		text: readFileSync(relPath, 'utf8')
 	}));
 	const code = [
-		...listed('scripts', ':(glob)*.config.*'),
+		...listed('scripts', ':(glob)*.config.*', ':(glob)packages/*/*.config.*'),
 		...git('grep', '--untracked', '-l', '-e', 'scripts/', '--', 'src/**/*.ts', 'src/**/*.svelte')
 	]
 		.filter(isCode)

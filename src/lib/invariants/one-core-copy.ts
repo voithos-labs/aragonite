@@ -20,8 +20,8 @@ export function checkDefinedByThisCopy(
 	return {
 		code: 'plugin-second-core-copy',
 		message:
-			`plugin '${pluginName}' was defined by another copy of @voithos-labs/aragonite ` +
-			`(${definedBy.version}) than the editor runs (${thisCopy.version}), so what it registers ` +
-			"lands in registries this editor never reads. Install one copy: a plugin package peers the editor's exact version."
+			`plugin '${pluginName}' comes from another copy of @voithos-labs/aragonite ` +
+			`(${definedBy.version}; the editor runs ${thisCopy.version}) and registers where the ` +
+			'editor never reads. Install one copy.'
 	};
 }

@@ -1,6 +1,7 @@
 /**
- * Every wrapper package releases with the core, and the library's version constant names it
- * (G4.181): `scripts/release/check-lockstep.mjs` holds the rule, and the publish script runs it first.
+ * Every workspace package, wrapper or plugin, releases with the core, and the library's version
+ * constant names it (G4.181): `scripts/release/check-lockstep.mjs` holds the rule, and the publish
+ * script runs it first.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -19,11 +20,13 @@ const wrapper = (version: string, peer?: string) => ({
 });
 
 describe('lockstep versions', () => {
-	it('holds on this tree, which has at least one wrapper', () => {
-		const { root, wrappers, libraryVersion } = readManifests();
+	it('holds on this tree, wrappers and plugin packages both', () => {
+		const { root, packages, libraryVersion } = readManifests();
+		const names = packages.map((pkg) => pkg.name);
 
-		expect(wrappers.length).toBeGreaterThan(0);
-		expect(lockstepDrift(root, wrappers)).toEqual([]);
+		expect(names).toContain('@voithos-labs/aragonite-react');
+		expect(names).toContain('@voithos-labs/aragonite-latex');
+		expect(lockstepDrift(root, packages)).toEqual([]);
 		expect(libraryVersionDrift(root, libraryVersion)).toEqual([]);
 	});
 
@@ -36,7 +39,7 @@ describe('lockstep versions', () => {
 		['its peer on the core', wrapper('1.2.0', '1.1.0')],
 		['a range instead of the exact version', wrapper('1.2.0', '^1.2.0')],
 		['no peer on the core at all', wrapper('1.2.0')]
-	])('reports a wrapper that drifts by %s', (_, drifted) => {
+	])('reports a package that drifts by %s', (_, drifted) => {
 		expect(lockstepDrift(ROOT, [drifted])).toHaveLength(1);
 	});
 });

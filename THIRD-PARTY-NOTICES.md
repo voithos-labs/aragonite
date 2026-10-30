@@ -71,34 +71,6 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## gemoji (MIT)
-
-`packages/emoji/src/emoji-table.ts` is generated from gemoji's `db/emoji.json` (<https://github.com/github/gemoji>), pinned to commit `0eca75db9301421efc8710baf7a7576793ae452a` by `scripts/vendor/generate-emoji-table.mjs`.
-
-```
-The MIT License (MIT)
-
-Copyright (c) GitHub, Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
 ## Lucide (ISC)
 
 The editor's own chrome embeds icon path data from Lucide: the code block's side gutter, the
@@ -135,7 +107,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ## terminal-parrot (MIT)
 
-`packages/parrot/src/ParrotBlock.svelte` and `docs/guide/plugin-guide/parrot-frames.md` carry the ten ASCII party-parrot frames from terminal-parrot (<https://github.com/jmhobbs/terminal-parrot>), the art `curl parrot.live` serves.
+`docs/guide/plugin-guide/parrot-frames.md` carries the ten ASCII party-parrot frames from terminal-parrot (<https://github.com/jmhobbs/terminal-parrot>), the art `curl parrot.live` serves.
 
 ```
 MIT License

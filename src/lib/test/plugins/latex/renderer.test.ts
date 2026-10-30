@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The KaTeX adapter, reached through the `@voithos-labs/aragonite/plugins/latex/renderer`
+ * The KaTeX adapter, reached through the `@voithos-labs/aragonite-latex/renderer`
  * subpath. Anything that needs a real KaTeX render lives here; the caching layer above it is
  * proven in `math-renderer.test.ts`.
  */

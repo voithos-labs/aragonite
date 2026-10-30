@@ -1,5 +1,5 @@
 /**
- * The mermaid adapter behind the `@voithos-labs/aragonite/plugins/mermaid/renderer` subpath,
+ * The mermaid adapter behind the `@voithos-labs/aragonite-mermaid/renderer` subpath,
  * the half a consumer supplies. The dynamic import keeps mermaid out of module evaluation, so
  * nothing touches `document` until a diagram actually renders.
  */

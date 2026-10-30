@@ -47,7 +47,7 @@
 		"./dist/prebuilt/renderer.js"
 	],
 	"scripts": {
-		"build": "svelte-package -i src -o dist && vite build",
+		"build": "svelte-package -i src -o dist && node ../../scripts/pack/strip-declaration-css.mjs dist && vite build",
 		"prepack": "npm run build"
 	},
 	"peerDependencies": {
