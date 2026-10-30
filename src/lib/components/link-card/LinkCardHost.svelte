@@ -11,8 +11,7 @@
 	import type { TextMoves } from '../overlays/text-moves';
 	import type { Reading } from '../../schema/reading';
 	import type { CommandDispatchContext } from '../../schema/block-commands';
-	import { commandForKey } from '../../schema/commands';
-	import { blockNodeAt } from '../../tree-operations/node-primitives';
+	import { opensLinkCard } from './opens-card';
 
 	// Mounted unconditionally by Editor: the anchoring and dismiss effects must observe the card's
 	// target changing, so the open/closed `{#if}` lives here rather than at the mount site.
@@ -111,13 +110,7 @@
 		linkCard.commitCreate(target, url);
 	}
 
-	// Resolved at the block the card edits, so a consumer's rebinding of the chord is the one
-	// the card takes.
-	function opensCard(e: KeyboardEvent): boolean {
-		const path = card.getTarget()?.path ?? card.getCreateTarget()?.path;
-		const kind = path ? (blockNodeAt(getDoc(), path)?.kind ?? null) : null;
-		return commandForKey(e, kind, commands) === 'link.openCard';
-	}
+	const opensCard = (e: KeyboardEvent): boolean => opensLinkCard(e, card, getDoc(), commands);
 
 	function remove(): void {
 		const target = card.getTarget();

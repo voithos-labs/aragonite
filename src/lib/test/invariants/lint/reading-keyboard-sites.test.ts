@@ -17,7 +17,7 @@ const HAND_TAB_SITES: FileRule = {
 			"the open menu's focus trap; the menu never opens in reading mode",
 		[SOURCE.linkCard]: "the open card's focus trap; the card never opens in reading mode",
 		[SOURCE.imageProperties]: 'lets Tab through to the page while a crop is open',
-		'src/lib/components/menu/InlineMenuHost.svelte':
+		'src/lib/inline-menu/inline-menu-state.svelte.ts':
 			'commits the open row; an inline menu never opens in reading mode',
 		[SOURCE.mermaidBlock]: "indents in the diagram's edit box, which reading mode never opens"
 	},

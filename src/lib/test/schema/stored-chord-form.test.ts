@@ -2,7 +2,7 @@
 // chords as is and a chord out of modifier order would never match a keypress.
 import { describe, it, expect } from 'vitest';
 import { GLOBAL_KEYMAP, kindKeymap, reservedUiChords } from '#lib/schema/commands.js';
-import { HARDCODED_CHORD_SITES } from '#lib/schema/reserved-chords.js';
+import { HARDCODED_CHORD_CLAIMS } from '#lib/schema/reserved-chords.js';
 import { normalizeChord } from '#lib/schema/keybindings.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
@@ -15,7 +15,7 @@ describe('stored chords are normalized', () => {
 	});
 
 	it('the hardcoded-chord manifest', () => {
-		expect(denormal(HARDCODED_CHORD_SITES.flatMap((site) => site.chords))).toEqual([]);
+		expect(denormal(HARDCODED_CHORD_CLAIMS.flatMap((claim) => claim.chords))).toEqual([]);
 	});
 
 	it('every registered kind keymap, whole-block defaults included', () => {

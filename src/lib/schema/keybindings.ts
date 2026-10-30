@@ -180,6 +180,39 @@ export function isMotionChord(chord: string): boolean {
 	);
 }
 
+/** What a key does by a focused text field's own default, whatever a keymap binds: `writes` types,
+ *  deletes, cuts, pastes or steps the history; `reads` moves the caret, grows a selection or copies. */
+export type TextKeyRole = 'writes' | 'reads';
+
+const TEXT_READ_CHORDS = new Set(['Mod+A', 'Mod+C', 'Mod+Insert']);
+const TEXT_WRITE_CHORDS = new Set([
+	'Mod+X',
+	'Mod+V',
+	'Mod+Shift+V',
+	'Shift+Insert',
+	'Mod+Z',
+	'Mod+Y',
+	'Mod+Shift+Z'
+]);
+
+/** The role a key plays in a text field, or null for a key no text field acts on by default. */
+export function textKeyRole(e: ChordKeys): TextKeyRole | null {
+	// Alt+ArrowUp and Down are no text field's: the editor's keymaps move blocks with them.
+	const vertical = (e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.altKey;
+	if (vertical || caretEdgeKey(e) || pageKey(e) || motionKey(e)) return 'reads';
+	const chord = eventToChord(e);
+	if (chord === null) return null;
+	if (TEXT_READ_CHORDS.has(chord)) return 'reads';
+	if (TEXT_WRITE_CHORDS.has(chord) || e.key === 'Backspace' || e.key === 'Delete') return 'writes';
+	return typesCharacter(e) ? 'writes' : null;
+}
+
+/** A key that types its character: no command modifier, or Ctrl+Alt, which is AltGr off a Mac. */
+function typesCharacter(e: ChordKeys): boolean {
+	if (!isCharacterKey(e.key) || e.metaKey) return false;
+	return !e.ctrlKey || (e.altKey && !usesMacEditingConventions());
+}
+
 export function normalizeChord(chord: string): string {
 	const parts = chord.split('+');
 	const key = parts.pop() ?? '';

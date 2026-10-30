@@ -1,5 +1,8 @@
 /** The shared `BlockComponent` implementation for container blocks. */
 
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkContainerChordMark } from '../invariants/container-chord-mark';
+import { containerChordKindOf } from './container-chords.svelte';
 import {
 	entryEdge,
 	type BlockComponent,
@@ -60,6 +63,9 @@ export function dispatchContainerChord(
 	if (range?.selection.isCrossBlock && rangeOwnsKey(e, { ...range, commands })) return true;
 	const chord = eventToChord(e);
 	if (!chord || !dispatchKindCommand(chord, target, commands)) return false;
+	assertInvariant('container-chord-mark', () =>
+		checkContainerChordMark(containerChordKindOf(e.currentTarget), target.kind)
+	);
 	e.preventDefault();
 	return true;
 }

@@ -5,15 +5,21 @@
  */
 
 import { imeOwnsKey } from '../../browser/composition';
-import { claimsBodyChord, isForeignTextEntry, isTextEntrySurface } from '../../active-editor';
 import type { SearchState } from '../../search/search-state.svelte';
 import type { CrossBlockHandlers } from '../../selection/cross-block/dispatch';
 import type { CommandDispatchContext } from '../../schema/block-commands';
 import { isReservedUiChord, runGlobalChord } from '../../schema/commands';
 import { eventToChord, isCharacterKey } from '../../schema/keybindings';
 import { shownSelectionText } from '../../browser/selection-read';
+import {
+	chromeHoldsFocus,
+	keepsPageOnBackspace,
+	ownsWindowedOutCaret,
+	searchChordsReach,
+	type KeyFocusDeps
+} from './key-focus';
 
-export interface EditorRootKeydownDeps {
+export interface EditorRootKeydownDeps extends KeyFocusDeps {
 	/** Getters, never values: capturing them would freeze the flags at construction time. */
 	get searchBarEnabled(): boolean;
 	/** One predicate, so the root Mod+H and the bar's chevron cannot diverge on when
@@ -24,11 +30,6 @@ export interface EditorRootKeydownDeps {
 	/** The editor's command dispatch, which takes only this instance's plugins' chords. */
 	commands: CommandDispatchContext;
 	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown' | 'insertText'>;
-	/** True for nodes in the host's own header: they sit inside `root.contains`
-	 *  without being the editor's own content. */
-	isHostChrome(node: Node | null): boolean;
-	/** True for nodes in this editor's find bar, which the host can mount outside the root. */
-	isFindBar(node: Node | null): boolean;
 	/** Snapshot the pre-search selection; the bar's close handler restores it. */
 	saveSearchCaret(): void;
 	setReplaceExpanded(expanded: boolean): void;
@@ -41,9 +42,6 @@ export interface EditorRootKeydown {
 }
 
 export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRootKeydown {
-	const focusInEditor = (root: HTMLElement, active: Element | null): boolean =>
-		root.contains(active) || deps.isFindBar(active);
-
 	/** Search and Escape, with focus in this editor or a search chord this instance holds; a text
 	 *  field outside every editor keeps page-wide Find while the user types in it. */
 	function handleSearchChords(
@@ -52,8 +50,7 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 		chord: string | null,
 		active: Element | null
 	): boolean {
-		if (!(focusInEditor(root, active) || (claimsBodyChord(root) && !isForeignTextEntry(active))))
-			return false;
+		if (!searchChordsReach(root, active, deps)) return false;
 
 		if (deps.searchBarEnabled && chord && isReservedUiChord(chord)) {
 			event.preventDefault();
@@ -75,33 +72,6 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 		return false;
 	}
 
-	/** Undo, redo, plugin-global chords and cross-block motion need no element focused, since an
-	 *  outside one may own them (a text input owns Mod+Z); the gap caret handles its own. */
-	function ownsWindowedOutCaret(root: HTMLElement, active: Element | null): boolean {
-		const noElementFocused = active === null || active === root.ownerDocument.body;
-		return active === root || (noElementFocused && claimsBodyChord(root));
-	}
-
-	/** WebKit goes back in history on a Backspace outside a field, and in reading mode every block
-	 *  is outside one. Any input keeps the key, since a date input deletes on it too. */
-	function keepPageOnBackspace(event: KeyboardEvent, root: HTMLElement, active: Element | null) {
-		if (event.key !== 'Backspace' || isTextEntrySurface(active)) return;
-		if (active instanceof HTMLInputElement) return;
-		if (focusInEditor(root, active) || ownsWindowedOutCaret(root, active)) event.preventDefault();
-	}
-
-	/** Editor chrome (a toolbar button, a menu item) holds focus and has no keymap, so the editor's
-	 *  global chords answer there; a field owns its own Mod+Z, and a block that took the key ran it. */
-	function chromeHoldsFocus(event: KeyboardEvent, root: HTMLElement, active: Element | null) {
-		return (
-			active !== null &&
-			active !== root &&
-			focusInEditor(root, active) &&
-			!isTextEntrySurface(active) &&
-			!event.defaultPrevented
-		);
-	}
-
 	return {
 		handleKeyDown(event, root) {
 			if (imeOwnsKey(event)) return;
@@ -113,11 +83,15 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			// The host's header owns its keystrokes; `isForeignTextEntry` cannot tell, since the
 			// header is inside the editor.
 			if (deps.isHostChrome(active)) return;
-			keepPageOnBackspace(event, root, active);
+			if (event.key === 'Backspace' && keepsPageOnBackspace(root, active, deps)) {
+				event.preventDefault();
+			}
 
 			if (handleSearchChords(event, root, chord, active)) return;
 			const ownsCaret = ownsWindowedOutCaret(root, active);
-			if (!ownsCaret && !chromeHoldsFocus(event, root, active)) return;
+			// A block that took the key ran it; at chrome the editor's global chords answer.
+			const atChrome = !event.defaultPrevented && chromeHoldsFocus(root, active, deps);
+			if (!ownsCaret && !atChrome) return;
 
 			// No block is focused here, so resolve globally, overrides included, or a consumer's
 			// global rebind would be dead in this one place. Prevented, so no engine runs its own undo.

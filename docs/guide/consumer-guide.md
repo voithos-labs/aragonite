@@ -1053,7 +1053,7 @@ The `keybindings` prop rebinds (or disables, with `command: null`) chords that g
 />
 ```
 
-An override's `kind` scope takes a plugin kind too; name it through the plugin's exported kind constant, which is a branded string, so a raw literal won't typecheck. A bind reaches every surface the editor owns, including the ones with no focused block for a kind scope to apply to: the caret between two blocks, a block focused as a whole (a thematic break, a plugin diagram), and the document with nothing focused inside it. A disable unbinds the command but the press is still consumed, as [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes) explains.
+An override's `kind` scope takes a plugin kind too; name it through the plugin's exported kind constant, which is a branded string, so a raw literal won't typecheck. A bind reaches every surface the editor owns, including the ones with no focused block for a kind scope to apply to: the caret between two blocks, a block focused as a whole (a thematic break, a plugin diagram), and the document with nothing focused inside it. A disable unbinds the command and lets the press through to the page, undo and redo aside, as [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes) explains.
 
 **Over a selection spanning blocks, a chord goes by what you bound it to.** If the key is bound to something that happens at a caret (splitting a block, a hard line break, a heading level), it first removes the selection, the way `Backspace` would, then does its thing where that leaves the caret. So rebind the heading to `Mod+Alt+1` and that chord makes a heading over a selection too, while a disabled `Mod+1` leaves the selection alone. The binding that counts is the one in the block the caret lands in after the removal, so a binding scoped to one kind works here too. The indent keys follow the same rule: a chord you bind to `list.indent` indents a selection's list items, like Tab. That's the keyboard, mind you; `runCommand` with a heading level still declines over a selection spanning blocks, as [Toolbar commands](#toolbar-commands) says.
 
@@ -1078,40 +1078,45 @@ The Find / replace chords ignore `keybindings` and aren't rebindable today; `sea
 
 ### Which shortcuts the editor consumes
 
-An app that registers its own accelerators needs to know what the document already claims. Ask the editor rather than keeping a copy.
-
-`reservedChords(): ReadonlySet<string>`
-
-Every modifier chord this instance consumes, normalized.
+An app that registers its own accelerators needs to know what the document already takes. Ask the editor rather than keeping a copy. There are two questions here, so there are two methods.
 
 `claimsChord(event: KeyboardEvent): boolean`
 
-The same question for one keystroke, answered with the editor's own normalization, so a host key handler doesn't re-derive the platform rule: Ctrl and Cmd both fold to `Mod` (a macOS `Ctrl+B` and a `Cmd+B` give the same answer), and a CapsLock-uppercased letter matches its lowercase binding.
+Whether the editor takes this keystroke where it lands. It answers for the block the key is aimed at (the event's target, or whatever has focus for an event you built and never dispatched), and for any key, bare or chorded. That covers the block's own keymap and the containers around it, the editor's global chords, your `keybindings`, and the keys a block edits or moves through by itself: typing, deleting, the caret keys, the clipboard chords. In a field or a button of your own it's `false`. With nothing focused at all, undo and redo still go to the editor the user last touched, so that editor answers `true` for those two and nothing else. And while one of its menus is open (the block menu, an inline menu under the caret, an image crop), Escape is `true` too, since the menu closes on it, and an inline menu's arrows, Enter and Tab are `true` even where your `keybindings` freed them.
 
-One exception to the fold: `Cmd+Left`, `Cmd+Right`, `Cmd+Up` and `Cmd+Down` (and `Cmd+Shift+Left`, `Up` and `Down`) are how a Mac spells Home, End, `Mod+Home` and `Mod+End`, and the editor takes them wherever it takes those. `Ctrl+Arrow` folds to the same `Mod+Arrow`, but it's the word key on Windows and Linux, and like a bare arrow it isn't in the set (the caret in a block still moves on it). So the set holds those `Mod+Arrow` chords only on a Mac, and `claimsChord` claims `Cmd+Arrow` and leaves `Ctrl+Arrow` alone on every platform.
+So with the caret in a paragraph, `Alt+←` is `false` on Windows and Linux (the column move only applies in a table, so your Back runs). In a table cell it's `true`. `Ctrl+→` is `true` anywhere there's a caret, since the editor moves by a word on it.
+
+It reads the key with the editor's own normalization, so your handler doesn't re-derive the platform rule: Ctrl and Cmd give the same answer (a macOS `Ctrl+B` and a `Cmd+B` both mean `Mod+B`), and a CapsLock-uppercased letter matches its lowercase binding.
 
 ```ts
-editor.reservedChords();
-// Set { 'Mod+B', 'Mod+I', 'Mod+Shift+X', 'Mod+E', 'Mod+K', 'Mod+Z', 'Mod+Y', 'Mod+Shift+Z', 'Alt+ArrowUp', 'Mod+F', 'Mod+H', ... }
-
-// editorEl: the element you mounted <Editor> into
 window.addEventListener(
 	'keydown',
 	(e) => {
-		if (editorEl.contains(e.target as Node) && editor.claimsChord(e)) return; // the document's, leave it
+		if (editor.claimsChord(e)) return; // the document's, leave it
 		runMyAccelerator(e);
 	},
 	{ capture: true }
 );
 ```
 
-The set is built on each call, so it reflects the plugins this editor listed and the `keybindings` you passed: a chord you disabled globally drops out, one you bound appears, and turning `searchBar` off drops `Mod+F` and `Mod+H`. A per-kind disable doesn't drop a chord (other kinds still claim it), and neither does disabling one the editor handles outside the keymaps, like `Shift+Tab` or `Shift+ArrowUp`.
+`reservedChords(): ReadonlySet<string>`
 
-**Modifier chords only, by design.** Bare keys (`Enter`, `Tab`, `Escape`, the arrows, `Backspace`) never appear: a focused document owns them whatever the set says (except Tab in reading mode, which is the page's), so an app shortcut bound to one is lost while the caret is in a block regardless. That makes the set the right input for an accelerator table and the wrong input for a "what can I press here" help sheet; for that, use the [shortcut table](#keyboard-shortcuts).
+Every modifier chord this instance takes somewhere, normalized. It's the union over every block kind, so a chord only a table binds is in it even if your document has no table. That makes it the input for an accelerator table or a settings screen that warns about clashes; for the keystroke in hand, ask `claimsChord`.
 
-**Consumed means consumed, even where the chord does nothing.** A chord in the set is swallowed on every surface the editor owns, not only where it acts: `Mod+K` with the caret outside a link opens no card and still takes the press, because a chord the editor reported as claimed must never fall through to the browser's own default. Reading mode runs nothing at all, and splits the set in two: the history chords stay consumed there (a read-only document mustn't fall through to the browser's own undo), while a block-scoped keymap chord finds nothing to run and is left to the page.
+```ts
+editor.reservedChords();
+// Set { 'Mod+B', 'Mod+I', 'Mod+Shift+X', 'Mod+E', 'Mod+K', 'Mod+Z', 'Mod+Y', 'Mod+Shift+Z', 'Alt+ArrowUp', 'Mod+F', 'Mod+H', ... }
+```
 
-**A disable releases the command, not the press.** `{ chord: 'Mod+Z', command: null }` drops `Mod+Z` from the set, which is what lets you bind it app-wide: your handler fires whenever focus is outside the editor. Inside the editor the press is still swallowed and runs nothing, because the browser's own undo inside a `contenteditable` would rewrite the document behind the editor's back. If you want the chord to act inside the document too, bind it to a command rather than disabling it.
+The set is built on each call, so it reflects the plugins this editor listed and the `keybindings` you passed: a chord you disabled globally drops out, one you bound appears, and turning `searchBar` off drops `Mod+F` and `Mod+H`. A per-kind disable doesn't drop a chord from the set (other kinds still take it), and neither does disabling one the editor handles outside the keymaps, like `Shift+Tab` or `Shift+ArrowUp`. `claimsChord` follows a per-kind disable to the kind it's about.
+
+One Mac quirk: `Cmd+←` and `Cmd+→` (with or without Shift) are how a Mac spells Home and End. The chord form can't tell them from `Ctrl+←` and `Ctrl+→`, which are the word key everywhere else, so the set holds `Mod+ArrowLeft` and `Mod+ArrowRight` only on a Mac.
+
+**Modifier chords only, in the set.** Bare keys (`Enter`, `Tab`, `Escape`, the arrows, `Backspace`) never appear in it: a focused document owns them (except Tab in reading mode, which is the page's), and an accelerator table has no use for them. For a "what can I press here" help sheet, use the [shortcut table](#keyboard-shortcuts).
+
+**Some chords are taken even where they do nothing.** `Mod+K` with the caret outside a link opens no card and still takes the press, so the browser's own `Mod+K` never runs. A chord you disabled falls through instead, undo and redo aside (next paragraph). Reading mode runs nothing at all and splits the answer in two: the history chords stay taken there (a read-only document mustn't fall through to the browser's undo either), while a block's keymap chord is left to the page.
+
+**A disabled undo still takes the press.** `{ chord: 'Mod+Z', command: null }` drops `Mod+Z` from the set, which is what lets you bind it app-wide: your handler fires whenever focus is outside the editor. Inside the editor the press is still swallowed and runs nothing, because the browser's own undo inside a `contenteditable` would rewrite the document behind the editor's back. If you want the chord to act inside the document too, bind it to a command rather than disabling it.
 
 Two things the answer can't cover. It describes the chords the editor consumes, not the ones that reach it: a shell that resolves its accelerator first takes the chord before any handler runs (see [the webview section](consumer-guide/shipping.md#embedding-in-a-webview-shell)). And a chord the editor doesn't claim isn't thereby free: the browser's own editing chords still apply inside a `contenteditable`.
 

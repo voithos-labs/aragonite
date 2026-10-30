@@ -374,11 +374,11 @@ call counts too outside that file and the content write. Whether a listed route 
 through `normalizeOwnRaw` or `legalizeWrite` first is left to review. `lint/leaf-raw-write-rule.test.ts`.
 
 **G4.29 · Hardcoded-chord manifest.** Every library file that reads a `KeyboardEvent` modifier flag
-is named in `schema/reserved-chords.ts`, with the chords it claims outside the keymaps and the key
-literals it compares (negated guards included), which keeps the public `reservedChords()`
-(`editor-props.ts`) true. A manifested file keeps literal key comparisons and modifier reads: the scan
-is structural, so a shared helper fails it until the scan learns that helper.
-`lint/reserved-chord-manifest.test.ts`.
+is named in `lint/hardcoded-chord-sites.ts` with the key literals it compares (negated guards
+included), and every chord `schema/reserved-chords.ts` takes outside the keymaps names one of its
+file's keys, which keeps `reservedChords()` and `claimsChord()` true. A listed file keeps literal key
+comparisons, since the scan is structural: a shared helper fails it until the scan learns that
+helper. `lint/reserved-chord-manifest.test.ts`.
 
 **G4.30 · Hidden-run classification.** `core/inline/visibility.ts` states the marker families and
 the hiding rule, and `browser/painted.ts` applies it where there's a caret; a third copy would

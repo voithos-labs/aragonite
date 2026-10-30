@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
-import { collectReservedChords, chordIsClaimed } from '#lib/schema/reserved-chords.js';
+import { collectReservedChords } from '#lib/schema/reserved-chords.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
@@ -11,10 +11,6 @@ registerBuiltInDescriptors();
 
 const chords = (searchBar = true) =>
 	collectReservedChords({ searchBar, activation: everyInstalledPlugin });
-
-function ke(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
-	return new KeyboardEvent('keydown', init);
-}
 
 describe('collectReservedChords: sources', () => {
 	it('unions the kind keymaps and the editor-global keymap', () => {
@@ -104,54 +100,14 @@ describe('collectReservedChords: per-instance overrides', () => {
 	});
 });
 
-describe('chordIsClaimed: the editor normalization, not the caller', () => {
-	const set = chords();
-
-	it('folds Ctrl and Cmd to one answer', () => {
-		expect(chordIsClaimed(ke({ key: 'b', ctrlKey: true }), set)).toBe(true);
-		expect(chordIsClaimed(ke({ key: 'b', metaKey: true }), set)).toBe(true);
-	});
-
-	it('matches a CapsLock-uppercased letter', () => {
-		expect(chordIsClaimed(ke({ key: 'B', ctrlKey: true }), set)).toBe(true);
-	});
-
-	it('reads modifiers in any order the platform reports them', () => {
-		expect(chordIsClaimed(ke({ key: 'z', ctrlKey: true, shiftKey: true }), set)).toBe(true);
-		expect(chordIsClaimed(ke({ key: 'ArrowUp', altKey: true }), set)).toBe(true);
-	});
-
-	it('declines an unclaimed chord, a bare key, and a lone modifier', () => {
-		expect(chordIsClaimed(ke({ key: 'q', ctrlKey: true }), set)).toBe(false);
-		expect(chordIsClaimed(ke({ key: 'b' }), set)).toBe(false);
-		expect(chordIsClaimed(ke({ key: 'Enter' }), set)).toBe(false);
-		expect(chordIsClaimed(ke({ key: 'Control', ctrlKey: true }), set)).toBe(false);
-	});
-
-	it('declines a modified variant of a claimed chord', () => {
-		expect(chordIsClaimed(ke({ key: 'b', ctrlKey: true, altKey: true }), set)).toBe(false);
-	});
-});
-
 // Cmd+Arrow is macOS's Home and End, which the edge sites take; the chord form folds Ctrl+Arrow, the
-// word motion of Windows and Linux, into the same `Mod+Arrow`, so a keystroke is read for itself.
+// word motion of Windows and Linux, into the same `Mod+Arrow`.
 describe('the Cmd+Arrow edge chords', () => {
-	const set = (cmdEdgeChords: boolean) =>
-		collectReservedChords({ searchBar: true, activation: everyInstalledPlugin, cmdEdgeChords });
+	afterEach(() => vi.unstubAllGlobals());
 
 	it('are listed only where Cmd is the command key', () => {
-		expect(set(true).has('Mod+ArrowLeft')).toBe(true);
-		expect(set(false).has('Mod+ArrowLeft')).toBe(false);
-	});
-
-	it('claim Cmd+Arrow and leave Ctrl+Arrow to the browser', () => {
-		expect(chordIsClaimed(ke({ key: 'ArrowLeft', metaKey: true }), set(false))).toBe(true);
-		expect(chordIsClaimed(ke({ key: 'ArrowUp', metaKey: true, shiftKey: true }), set(false))).toBe(
-			true
-		);
-		expect(chordIsClaimed(ke({ key: 'ArrowLeft', ctrlKey: true }), set(false))).toBe(false);
-		expect(
-			chordIsClaimed(ke({ key: 'ArrowRight', metaKey: true, shiftKey: true }), set(false))
-		).toBe(false);
+		expect(chords().has('Mod+ArrowLeft')).toBe(false);
+		vi.stubGlobal('navigator', { platform: 'MacIntel' });
+		expect(chords().has('Mod+ArrowLeft')).toBe(true);
 	});
 });

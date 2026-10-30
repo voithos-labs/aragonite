@@ -6,10 +6,11 @@ import {
 	resolveBinding,
 	resolveGlobalBinding,
 	runGlobalChord,
+	takesGlobalChord,
 	pluginGlobalChords
 } from '#lib/schema/commands.js';
 import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
-import { chordIsClaimed, collectReservedChords } from '#lib/schema/reserved-chords.js';
+import { collectReservedChords } from '#lib/schema/reserved-chords.js';
 import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
 import { commandContext } from '../harness/command-context';
@@ -76,11 +77,10 @@ describe('reservedChords answers for the instance that asks', () => {
 		expect(reserved(notListing).has(CHORD)).toBe(false);
 	});
 
-	// `claimsChord` reads the same set, so a host asking on each keystroke gets this editor's
-	// answer rather than the whole process's.
+	// `claimsChord` asks the same resolver the gap caret and the root dispatch through, so a host
+	// asking on each keystroke gets this editor's answer rather than the whole process's.
 	it('claimsChord follows it', () => {
-		const press = { key: '9', ctrlKey: true, shiftKey: true } as KeyboardEvent;
-		expect(chordIsClaimed(press, reserved(listing))).toBe(true);
-		expect(chordIsClaimed(press, reserved(notListing))).toBe(false);
+		expect(takesGlobalChord(CHORD, chordContext(listing))).toBe(true);
+		expect(takesGlobalChord(CHORD, chordContext(notListing))).toBe(false);
 	});
 });

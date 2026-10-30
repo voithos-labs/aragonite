@@ -28,6 +28,7 @@
 		createContainerBlockComponent,
 		dispatchContainerChord
 	} from '../../../editor-actions/container-block-component';
+	import { listenForContainerChords } from '../../../editor-actions/container-chords.svelte';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
 	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
@@ -253,8 +254,16 @@
 	bind:this={boxEl}
 >
 	<span class="list-item-marker" data-heading={firstHeadingLevel} {@attach drawMarker}></span>
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="list-item-content" onkeydown={handleKeydown} bind:this={contentEl}>
+	<div
+		class="list-item-content"
+		{@attach (el) =>
+			listenForContainerChords(
+				el,
+				untrack(() => node.kind),
+				handleKeydown
+			)}
+		bind:this={contentEl}
+	>
 		<BlockList
 			children={node.children ?? []}
 			blockIds={listState.innerBlockIds}

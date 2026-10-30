@@ -302,7 +302,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	imageWidgetEditing: 'export function imageWidgetOnSelectedKey',
 	linkCard: 'function focusStops(',
 	readingFocus: 'export function createReadingFocus',
-	linkCardHost: 'function opensCard(',
+	linkCardHost: 'opensLinkCard(',
 
 	// ── Bundled plugins and styles ──────────────────────────────────────────
 	latexBlockMath: 'function keepSourceFocus(',

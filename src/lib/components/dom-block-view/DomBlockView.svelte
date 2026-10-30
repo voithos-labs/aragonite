@@ -46,6 +46,7 @@
 	import { createEditableLeaf } from '../blocks/editable/editable-leaf';
 	import { createContainerBlock } from '../../editor-actions/plugin/container';
 	import { moveFocusOutByArrow } from '../../editor-actions/container-block-component';
+	import { listenForContainerChords } from '../../editor-actions/container-chords.svelte';
 	import { isEditableEventTarget } from '../../editor-actions/whole-block-focus-surface.svelte';
 	import { commandForKey } from '../../schema/commands';
 	import BlockList from '../BlockList.svelte';
@@ -323,7 +324,9 @@
 		return untrack(() => {
 			const mount = { ended: false };
 			// On the block's element, so the keys of a whole-block view's own focus element reach it too.
-			const offKeys = container ? on(target, 'keydown', container.handleKeydown) : null;
+			const offKeys = container
+				? listenForContainerChords(target, node.kind, container.handleKeydown)
+				: null;
 			handle = mountSpec(target, mount);
 			// After the mount, so a framework root's own listener on `target` sees the key first.
 			const offArrows = view.surface === 'none' ? on(target, 'keydown', handBuiltKeydown) : null;
