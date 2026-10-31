@@ -80,7 +80,7 @@ Three things to check. Though, prob already true in sveltekit apps (if thats you
    { "compilerOptions": { "moduleResolution": "bundler" } }
    ```
 
-   `node16` and `nodenext` work too. Classic `node` doesn't read `exports`, and the symptom is odd: the root `@voithos-labs/aragonite` import typechecks fine while every subpath import (`/plugin`, `/plugins/*`, `/testing`) reports "Cannot find module".
+   `node16` and `nodenext` work too. Classic `node` doesn't read `exports`, and the symptom is odd: the root `@voithos-labs/aragonite` import typechecks fine while every subpath import (`/plugin`, `/svelte`, `/testing`) reports "Cannot find module".
 
 3. **In a Svelte app, your Vite Svelte plugin compiles the package out of `node_modules`**, since the source build ships `.svelte` and `.svelte.js` files uncompiled. That's `vite-plugin-svelte`'s default, so a plain config is all it takes:
 
@@ -90,7 +90,7 @@ Three things to check. Though, prob already true in sveltekit apps (if thats you
    export default { plugins: [sveltekit()] };
    ```
 
-   If you hand-tune `optimizeDeps` or `ssr.noExternal`, keep `@voithos-labs/aragonite` on the Svelte plugin's side of those lists rather than pre-bundling it.
+   If you hand-tune `optimizeDeps` or `ssr.noExternal`, keep `@voithos-labs/aragonite` and its plugin packages on the Svelte plugin's side of those lists rather than pre-bundling them.
 
    Not a Svelte app? There's nothing to configure, but the prebuilt build wants one more stylesheet imported ([Mounting without Svelte](#mounting-without-svelte), below).
 
@@ -120,7 +120,7 @@ Two things hold for all three:
   import '@voithos-labs/aragonite/styles/editor-theme.css';
   ```
 
-- **Plugins go in `plugins` as usual.** Every bundled plugin runs here (import its `style.css` too, if it has one: admonitions, details, footnotes, latex, mermaid, parrot and toc do), and so does any plugin that draws with plain DOM. One that ships Svelte components of its own (any plugin with a custom block, for now) needs a bundler that compiles Svelte; [the plugin guide](plugin-guide.md#what-draws-your-plugin-and-where-it-runs) says which plugins those are.
+- **Plugins go in `plugins` as usual.** Every bundled plugin runs here (import its `style.css` too, `@voithos-labs/aragonite-latex/style.css` say, if it has one: admonitions, details, footnotes, latex, mermaid, parrot and toc do), and so does any plugin that draws with plain DOM. One that ships Svelte components of its own (any plugin with a custom block, for now) needs a bundler that compiles Svelte; [the plugin guide](plugin-guide.md#what-draws-your-plugin-and-where-it-runs) says which plugins those are.
 
 ### React
 
@@ -804,7 +804,7 @@ Ten first-party plugins ship as packages of their own, one per plugin, named `@v
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-latex @voithos-labs/aragonite-toc
 ```
 
-Each one releases with the editor and asks for exactly its version, so bump them together; npm refuses a mismatch. If a plugin still ends up with a copy of the editor of its own (a bundler that didn't dedupe, say), a dev build warns about it, since that plugin's blocks would quietly parse as plain Markdown. Then import them like any other plugin:
+Each one releases with the editor and asks for exactly its version, so bump them together; npm refuses a mismatch. If a plugin still ends up with a copy of the editor of its own (a bundler that didn't dedupe, say), a dev build warns about it, since that plugin's blocks would quietly parse as plain Markdown. On React, Vue or plain JavaScript, most of them also have a `style.css` to import ([Mounting without Svelte](#mounting-without-svelte) says which). Then import them like any other plugin:
 
 ```ts
 import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';

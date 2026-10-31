@@ -482,7 +482,7 @@ Which apps can run your plugin follows from that. An app whose bundler compiles 
 | React or Vue components, through `reactBlockView` or `vueBlockView`                                                                 | Every app with that framework installed                  |
 | Any Svelte component                                                                                                                | An app whose bundler compiles Svelte (a Svelte app, say) |
 
-The bundled plugins run everywhere, since each one's prebuilt build is compiled against the editor's own copy of Svelte. Mount a Svelte component of yours in an app that doesn't compile Svelte, and it fails the way any throwing view does: a block shows a "block failed to render" notice above its source, a widget shows just its source. In a dev build the notice and the console name the cause: the component was compiled against a different copy of Svelte.
+The bundled plugins run everywhere, since each one's prebuilt build is compiled against the editor's own copy of Svelte. That copy sits on the editor's `runtime/svelte` subpaths, but don't build your plugin against it yet: it only carries the bits of Svelte the bundled plugins happen to use, and that list moves whenever they do. Mount a Svelte component of yours in an app that doesn't compile Svelte, and it fails the way any throwing view does: a block shows a "block failed to render" notice above its source, a widget shows just its source. In a dev build the notice and the console name the cause: the component was compiled against a different copy of Svelte.
 
 ## Views: what you read, what you own
 

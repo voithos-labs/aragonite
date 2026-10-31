@@ -711,5 +711,6 @@ mark for `claimsChord` to find, and both read one walk.
 the editor that defined it. `definePlugin` marks each plugin with the copy it ran in, so a plugin
 package that resolved a second copy of the core (a version that doesn't match, or a bundler that
 didn't dedupe) warns at `installPlugins` instead of registering into registries the editor never
-reads. A plugin object built by hand carries no mark and isn't checked. `checkDefinedByThisCopy` ·
+reads. The mark is written in every build, so an editor running its checks still catches a plugin
+whose copy runs without them. A plugin object built by hand carries no mark and isn't checked. `checkDefinedByThisCopy` ·
 `schema/plugin-install.ts` · `plugin-one-core-copy.test.ts`.
