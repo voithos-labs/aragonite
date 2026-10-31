@@ -54,7 +54,7 @@ export function createDevice(out) {
 
 	// Chrome exposes each paragraph to accessibility as an EditText holding its text, and builds
 	// that tree only once something asks, so the lookup polls. It waits out what moves or covers
-	// the page: a prompt, and the "Back online" bar above the toolbar.
+	// the page: a prompt, and for a few seconds the network bar above the toolbar.
 	async function paragraphBox(text, name) {
 		for (let i = 0; i < 30; i++) {
 			const nodes = dumpNodes(name);
@@ -67,7 +67,9 @@ export function createDevice(out) {
 					n.cls === 'android.widget.EditText' &&
 					n.text.trim() === text
 			);
-			if (node && !dismiss && !banner) return node.box;
+			// "Back online" leaves within seconds; "No internet connection" stays, and a tap that lands
+			// in the wrong block is retried anyway.
+			if (node && !dismiss && (!banner || i >= 8)) return node.box;
 			await sleep(500);
 		}
 		throw new Error(`no settled EditText node reading "${text}" in the screen dump`);
