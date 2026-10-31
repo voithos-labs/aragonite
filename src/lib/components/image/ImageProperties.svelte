@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
 	import { pressLeavesImage } from './image-press';
+	import { clearOnPress } from '../../selection/pointer-gesture';
 	import type { WidgetTarget } from '../../selection/primitives';
 	import {
 		IMAGE_ALT_FIELD,
@@ -83,11 +84,17 @@
 
 	$effect(() => {
 		if (!rootEl) return;
+		// A finger's tap that lands after the popover closed has nothing left to dismiss.
+		const open = new AbortController();
 		const handler = (e: PointerEvent) => {
-			if (pressLeavesImage(e, getWidgetEl()?.closest('.editor') ?? null)) onDismiss();
+			if (pressLeavesImage(e, getWidgetEl()?.closest('.editor') ?? null))
+				clearOnPress(e, open.signal, onDismiss);
 		};
 		document.addEventListener('pointerdown', handler, true);
-		return () => document.removeEventListener('pointerdown', handler, true);
+		return () => {
+			open.abort();
+			document.removeEventListener('pointerdown', handler, true);
+		};
 	});
 
 	// In the effect's cleanup, so every way the popover closes commits here; an open crop is

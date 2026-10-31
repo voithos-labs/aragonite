@@ -12,9 +12,15 @@ touch events. The real-device rows are in `requirements/mobile/android.md`.
   - Miss-analysis: no test exercised touch at all, because nothing read `pointerType`.
 - A swipe keeps a range across blocks: a swipe that starts on a paragraph below a range across
   the first two leaves the range exactly as it was.
+- A swipe keeps a selected picture: after a tap selects a picture, a swipe that starts on a
+  paragraph below it scrolls, and the picture stays selected with its overlay up.
+  - Miss-analysis: the rows covered the drag and the range reset, never the picture's own two
+    press handlers (the editor root's and the open popover's), which cleared it at the press.
 
 ## User interactions
 
 - A tap clears a range across blocks: a tap at the end of a paragraph below the range puts a
   collapsed caret there. The tap stays clear of the range's formatting toolbar, which takes a tap
   as a command.
+- A tap elsewhere clears a selected picture: a tap on a paragraph below a selected picture puts
+  the caret there and takes the picture's overlay down.

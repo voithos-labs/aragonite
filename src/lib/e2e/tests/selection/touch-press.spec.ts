@@ -3,8 +3,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { pointAtRaw } from '../../text-runs';
 import { skipUnlessSupported } from '../../browser-engine';
+import { waitForFirstImageLoaded } from '../blocks/image/helpers';
 
-// On a touch screen a swipe scrolls and never selects, and only a tap clears a range.
+// On a touch screen a swipe scrolls and never selects, and only a tap clears a range or a picture.
 // Requirements: `e2e/requirements/selection/touch-press.md`.
 
 const FILLER = Array.from({ length: 30 }, (_, i) => `filler line ${i + 1}`).join('\n\n');
@@ -13,21 +14,36 @@ const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 
 // The range's formatting toolbar sits over the first paragraphs, so a gesture meant for the text
 // lands on `filler line 4`, well below it.
 const BELOW_RANGE = [6];
+const PICTURE_DOC = `lead ![pic](/test-fixtures/sample.png) trail
+
+${FILLER}
+`;
 
 test.use({ hasTouch: true });
 
-async function open(page: Page): Promise<EditorPage> {
+async function open(page: Page, doc = DOC): Promise<EditorPage> {
 	skipUnlessSupported(page, 'touch');
 	skipUnlessSupported(page, 'cdp');
 	const editor = new EditorPage(page);
 	await editor.goto();
-	await editor.loadContent(DOC);
+	await editor.loadContent(doc);
 	return editor;
 }
 
-/** A finger swipe up from `path`'s text, as touch events: Chromium's input pipeline sends a move or
- *  two, then a pointercancel as it starts the scroll, the order a phone gives. */
+/** How far every scrolled element on the page has scrolled, summed. */
+function scrolled(page: Page): Promise<number> {
+	return page.evaluate(() =>
+		[document.scrollingElement, ...document.querySelectorAll('*')].reduce(
+			(sum, el) => sum + (el?.scrollTop ?? 0),
+			0
+		)
+	);
+}
+
+/** A finger swipe up from `path`'s text as touch events, which Chromium ends with a pointercancel as
+ *  it scrolls, the order a phone gives. A swipe that never scrolled proves nothing, so it fails. */
 async function swipeUpFrom(page: Page, path: number[]): Promise<void> {
+	const before = await scrolled(page);
 	const start = await pointAtRaw(page, path, 3);
 	const x = Math.round(start.x);
 	const y = Math.round(start.y);
@@ -41,6 +57,7 @@ async function swipeUpFrom(page: Page, path: number[]): Promise<void> {
 	}
 	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 	await cdp.detach();
+	await expect.poll(() => scrolled(page), 'the swipe scrolled').toBeGreaterThan(before);
 }
 
 async function tapEndOf(page: Page, path: number[], offset: number): Promise<void> {
@@ -87,3 +104,30 @@ test('a tap clears a range across blocks', async ({ page }) => {
 		.poll(() => editor.bridge.getSelectionPaths())
 		.toEqual({ anchor: caret, focus: caret });
 });
+
+test('a swipe keeps a selected picture', async ({ page }) => {
+	await open(page, PICTURE_DOC);
+	await waitForFirstImageLoaded(page);
+	await tapPicture(page);
+
+	await swipeUpFrom(page, BELOW_RANGE);
+
+	await expect(page.locator('[data-image-overlay]')).toBeVisible();
+});
+
+test('a tap elsewhere clears a selected picture', async ({ page }) => {
+	await open(page, PICTURE_DOC);
+	await waitForFirstImageLoaded(page);
+	await tapPicture(page);
+
+	await tapEndOf(page, BELOW_RANGE, 13);
+
+	await expect(page.locator('[data-image-overlay]')).toHaveCount(0);
+});
+
+async function tapPicture(page: Page): Promise<void> {
+	const box = await page.locator('[data-image-widget] img').first().boundingBox();
+	if (!box) throw new Error('the picture has no box');
+	await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+	await expect(page.locator('[data-image-overlay]')).toBeVisible();
+}

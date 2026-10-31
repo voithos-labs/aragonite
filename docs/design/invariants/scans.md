@@ -1465,8 +1465,8 @@ and declares each module that imports a stylesheet in `sideEffects`, in both bui
 package without the keyword has to be a framework wrapper. `lint/plugin-packages.test.ts`.
 
 **G4.279 · One answer to "is this a finger?".** On a touch screen the browser owns a press's drag:
-a moved finger scrolls, and a long press selects with the browser's own handles. So
-`isTouchPointer` in `selection/pointer-gesture.ts` is the only place the editor reads
-`pointerType` (the hover marks and the input recorder read it too, for their own reasons), and a
-drag session says who drags for a finger through its required `touch` option. A finger's press
-clears a range only once it ends as a tap (`resetForPress`). `lint/file-rules.test.ts`.
+a moved finger scrolls, and a long press selects natively. So `isTouchPointer` in
+`selection/pointer-gesture.ts` is the only place the editor reads `pointerType` (the hover marks and
+the input recorder read it for their own reasons). A drag session names who drags for a finger in
+its required `touch` option, and a press that clears a selection waits for a finger's tap through
+`clearOnPress`. `lint/file-rules.test.ts`.

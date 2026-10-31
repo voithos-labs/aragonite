@@ -12,7 +12,7 @@ import { isInPaddingRow, offsetFromViewportPoint } from '../../browser/point';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { isWholeBlockInputProxy } from '../whole-block-input';
-import { isTouchPointer, onTap } from '../pointer-gesture';
+import { clearOnPress } from '../pointer-gesture';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -45,8 +45,8 @@ export function resetForPointerDown(
 	}
 }
 
-/** `resetForPointerDown` for a press: at once for a mouse or a pen, and for a finger only once the
- *  press ends as a tap, so a scroll or a native long-press selection keeps the range it began on. */
+/** `resetForPointerDown` at a press, a finger's at its tap (`clearOnPress`). A Shift press clears no
+ *  range, so it resets at once, ahead of the shift-click that grows the range. */
 export function resetForPress(
 	selection: SelectionState,
 	writer: CaretWriter,
@@ -54,11 +54,8 @@ export function resetForPress(
 	e: PointerEvent,
 	lifetime: AbortSignal | null
 ): void {
-	if (!isTouchPointer(e)) {
-		resetForPointerDown(selection, writer, caretMemory, e.shiftKey);
-		return;
-	}
-	onTap(e, lifetime, () => resetForPointerDown(selection, writer, caretMemory, false));
+	if (e.shiftKey) resetForPointerDown(selection, writer, caretMemory, true);
+	else clearOnPress(e, lifetime, () => resetForPointerDown(selection, writer, caretMemory, false));
 }
 
 // ── Pointer ────────────────────────────────────────────────────────────────

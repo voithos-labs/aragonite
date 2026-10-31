@@ -18,9 +18,20 @@ export function isTouchPointer(e: Pick<PointerEvent, 'pointerType'>): boolean {
 	return e.pointerType === 'touch';
 }
 
-/** Runs `then` once the press `down` opened ends as a tap (its pointerup), and never when the
- *  browser takes it over (its pointercancel) or the editor unmounts first (`lifetime` aborts). */
-export function onTap(down: PointerEvent, lifetime: AbortSignal | null, then: () => void): void {
+/** Runs `clear` for a press that ends what is selected: at once for a mouse or a pen, and for a
+ *  finger only once the press ends as a tap, so a press the browser takes over keeps it. */
+export function clearOnPress(
+	down: PointerEvent,
+	lifetime: AbortSignal | null,
+	clear: () => void
+): void {
+	if (isTouchPointer(down)) onTap(down, lifetime, clear);
+	else clear();
+}
+
+// A tap is the press's pointerup; its pointercancel (the browser took it) or the editor
+// unmounting first (`lifetime` aborts) runs nothing.
+function onTap(down: PointerEvent, lifetime: AbortSignal | null, then: () => void): void {
 	if (lifetime?.aborted) return;
 	const end = new AbortController();
 	const mine = (e: PointerEvent) => e.pointerId === down.pointerId;

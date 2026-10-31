@@ -98,7 +98,11 @@ describe('a press dragged into the next block', () => {
 });
 
 describe('a press on a block while a range spans blocks', () => {
-	function pressBlock(pointerType: string, lifetime = new AbortController().signal): void {
+	function pressBlock(
+		pointerType: string,
+		lifetime = new AbortController().signal,
+		init: MouseEventInit = {}
+	): void {
 		const el = editorRoot.children[0] as HTMLElement;
 		const pointer = createCrossBlockPointer({
 			getEl: () => el,
@@ -112,7 +116,7 @@ describe('a press on a block while a range spans blocks', () => {
 			getScrollHost: () => null,
 			getBlockElByPath: () => null
 		} as unknown as CrossBlockDispatchContext);
-		pointer.handlePointerDown(press('pointerdown', pointerType));
+		pointer.handlePointerDown(press('pointerdown', pointerType, init));
 	}
 
 	beforeEach(() => selection.enterCrossBlock(RANGE.anchor, RANGE.focus));
@@ -135,6 +139,13 @@ describe('a press on a block while a range spans blocks', () => {
 		expect(selection.isCrossBlock).toBe(false);
 	});
 
+	// A tablet with a keyboard: a Shift press grows the range, and its lift must not clear it.
+	it('keeps the range through a finger press with Shift held', () => {
+		pressBlock('touch', undefined, { shiftKey: true });
+		document.dispatchEvent(press('pointerup', 'touch'));
+		expect(selection.isCrossBlock).toBe(true);
+	});
+
 	// An editor that unmounts mid-press must not reset a selection state nobody holds any more.
 	it('lets the press go when the editor unmounts before the finger lifts', () => {
 		const lifetime = new AbortController();
@@ -148,8 +159,8 @@ describe('a press on a block while a range spans blocks', () => {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 // jsdom has no PointerEvent constructor, so the fields the editor reads are defined on a MouseEvent.
-function press(type: string, pointerType: string): PointerEvent {
-	const e = new MouseEvent(type, { clientX: 10, clientY: 10, button: 0, bubbles: true });
+function press(type: string, pointerType: string, init: MouseEventInit = {}): PointerEvent {
+	const e = new MouseEvent(type, { clientX: 10, clientY: 10, button: 0, bubbles: true, ...init });
 	Object.defineProperties(e, {
 		pointerId: { value: 1 },
 		pointerType: { value: pointerType },
