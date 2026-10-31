@@ -113,15 +113,46 @@ const screenshot = async (name) =>
 		Buffer.from(await call('GET', s('/screenshot')), 'base64')
 	);
 
-// A new page load, then the document: every row starts from a page no earlier row touched.
+// A new page load, then the document: every row starts from a page no earlier row touched. A seed
+// that didn't take is tried once more on a new load, then fails the row with that as its reason.
 async function fresh(url, text) {
+	for (let attempt = 1; attempt <= 2; attempt++) {
+		await web();
+		await call('POST', s('/url'), { url });
+		await dismissSafariTip();
+		await web();
+		for (let i = 0; i < 120 && !(await run('return !!window.__test').catch(() => false)); i++)
+			await sleep(500);
+		await run('window.__test.setSource(arguments[0]); return true', text).catch(() => {});
+		for (let i = 0; i < 40; i++) {
+			if ((await source().catch(() => null)) === text) return;
+			await sleep(250);
+		}
+	}
+	throw new Error('the seeded document never applied, after two page loads');
+}
+
+// Safari's first-run tip ("View Bookmarks, Share Menu, and Open Tabs") covers the page's first
+// blocks. Its close button is the `Close` nearest its text, since the harness page has a `Close`.
+async function dismissSafariTip() {
+	await native();
+	const tip = await tryFind('-ios predicate string', "label BEGINSWITH 'View Bookmarks'");
+	if (tip) {
+		const at = await call('GET', s(`/element/${tip}/rect`));
+		const closes = await call('POST', s('/elements'), {
+			using: '-ios predicate string',
+			value: "type == 'XCUIElementTypeButton' AND name == 'Close'"
+		});
+		let nearest = null;
+		for (const found of closes) {
+			const id = found[ELEMENT];
+			const r = await call('GET', s(`/element/${id}/rect`));
+			const d = Math.hypot(r.x - at.x, r.y - at.y);
+			if (!nearest || d < nearest.d) nearest = { id, d };
+		}
+		if (nearest) await click(nearest.id);
+	}
 	await web();
-	await call('POST', s('/url'), { url });
-	await web();
-	for (let i = 0; i < 120 && !(await run('return !!window.__test').catch(() => false)); i++)
-		await sleep(500);
-	await run('window.__test.setSource(arguments[0]); return true', text);
-	for (let i = 0; i < 40 && (await source()) !== text; i++) await sleep(250);
 }
 
 const ctx = {
@@ -138,7 +169,8 @@ const ctx = {
 	source,
 	editable,
 	screenshot,
-	fresh
+	fresh,
+	dismissSafariTip
 };
 const result = { platform: 'ios', simulator: sim, timings, rows: [], probes: [] };
 for (const [name, runRow] of Object.entries(rows)) {

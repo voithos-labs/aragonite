@@ -3,7 +3,7 @@ name: Mobile input
 # (Mobile Safari, driven by Appium), typing and touching through the platform's own keyboard and
 # touch screen. Each job runs the rows in `scripts/mobile/` and uploads its recordings. Android
 # runs on a dev push that touches input code; iOS, on macOS runners that are few, runs nightly on
-# dev (skipping a commit already green) and on pull requests to main.
+# dev (skipping a commit already green). Both run on pull requests to main.
 on:
   push:
     branches: [dev]
@@ -14,6 +14,8 @@ on:
       - 'src/lib/components/editor-root/**'
       - 'src/lib/components/blocks/text/**'
       - 'src/lib/components/blocks/editable/**'
+      - 'src/lib/debug/input-recorder.ts'
+      - 'src/routes/test/editor/**'
       - 'scripts/mobile/**'
       - '.github/workflows/mobile-input.yml'
   pull_request:
@@ -41,7 +43,7 @@ concurrency:
 # Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
 jobs:
   android:
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.platform != 'ios')
+    if: github.event_name != 'schedule' && (github.event_name != 'workflow_dispatch' || inputs.platform != 'ios')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

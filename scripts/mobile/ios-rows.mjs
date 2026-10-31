@@ -58,13 +58,14 @@ async function keyboardShown(ctx) {
 }
 
 // The editable's centre sits past the end of its short line, so the tap leaves the caret at its
-// end. A tap that brings up no keyboard is tried up to three times; the first one's page events
-// are kept, since the first tap is the one that misses.
+// end. A tap that brings up no keyboard is tried up to three times, each after clearing Safari's
+// tip; the first one's page events are kept, since the first tap is the one that misses.
 async function tapKeys(ctx, index, typed) {
 	typed.tapAttempts = 0;
 	let shown = false;
 	while (!shown && typed.tapAttempts < 3) {
 		typed.tapAttempts++;
+		await ctx.dismissSafariTip();
 		const tap = async () => ctx.click(await ctx.editable(index));
 		if (typed.tapAttempts === 1) typed.firstTapEvents = await logEvents(ctx, tap);
 		else await tap();

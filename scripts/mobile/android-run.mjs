@@ -10,16 +10,23 @@ const out = process.argv[2];
 const device = createDevice(out);
 const page = await device.connect();
 
-// A reload, then the document: every row starts from a page no earlier row touched.
+// A reload, then the document: every row starts from a page no earlier row touched. A seed that
+// didn't take is tried once more on a new reload, then fails the row with that as its reason.
 async function fresh(source) {
-	await page.evaluate('location.reload()').catch(() => {});
-	await sleep(1000);
-	for (let i = 0; i < 120; i++) {
-		if (await page.evaluate('!!window.__test').catch(() => false)) break;
-		await sleep(500);
+	for (let attempt = 1; attempt <= 2; attempt++) {
+		await page.evaluate('location.reload()').catch(() => {});
+		await sleep(1000);
+		for (let i = 0; i < 120; i++) {
+			if (await page.evaluate('!!window.__test').catch(() => false)) break;
+			await sleep(500);
+		}
+		await page.evaluate(`window.__test.setSource(${JSON.stringify(source)})`).catch(() => {});
+		for (let i = 0; i < 20; i++) {
+			if ((await page.evaluate('window.__test.getSource()').catch(() => null)) === source) return;
+			await sleep(250);
+		}
 	}
-	await page.evaluate(`window.__test.setSource(${JSON.stringify(source)})`);
-	await sleep(500);
+	throw new Error('the seeded document never applied, after two page loads');
 }
 
 const ctx = { device, page, out, fresh };
