@@ -1,0 +1,101 @@
+name: Mobile input spike
+# Can a CI runner type one word through a phone's real soft keyboard into the editor? Android: an
+# emulator with Chrome and the image's keyboard. iOS: the Simulator with Mobile Safari, driven by
+# Appium. Each run also types through a programmatic route as a control, and uploads both input
+# recordings. Manual only, so it never runs on anyone else's branch.
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Which platform to run
+        type: choice
+        options: [both, android, ios]
+        default: both
+      api-level:
+        description: The Android emulator's API level
+        default: '35'
+      target:
+        description: The Android system image (google_apis or google_apis_playstore)
+        default: google_apis
+
+permissions:
+  contents: read
+
+# Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
+jobs:
+  android:
+    if: inputs.platform != 'ios'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: bash scripts/mobile-spike/serve.sh
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: ${{ inputs.api-level }}
+          target: ${{ inputs.target }}
+          arch: x86_64
+          profile: pixel_6
+          enable-hw-keyboard: false
+          script: bash scripts/mobile-spike/android.sh mobile-out
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-run-${{ matrix.run }}
+          path: |
+            mobile-out/
+            preview.log
+
+  ios:
+    if: inputs.platform != 'android'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: bash scripts/mobile-spike/serve.sh
+      - name: Record Xcode and the simulator runtimes
+        run: |
+          mkdir -p mobile-out
+          { xcodebuild -version; xcrun simctl list runtimes; } | tee mobile-out/probes.txt
+      - name: Install Appium and the XCUITest driver
+        run: |
+          npm i -g appium@3.9.0
+          appium driver install xcuitest@12.22.7
+      - name: Start Appium
+        run: |
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          nohup appium --address 127.0.0.1 --port 4723 --log-timestamp > mobile-out/appium.log 2>&1 &
+          for _ in $(seq 1 60); do curl -sf http://127.0.0.1:4723/status > /dev/null && exit 0; sleep 1; done
+          exit 1
+      - run: node scripts/mobile-spike/ios-type.mjs mobile-out
+      - run: node scripts/mobile-spike/check-recording.mjs ios mobile-out/result.json
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-run-${{ matrix.run }}
+          path: |
+            mobile-out/
+            preview.log
