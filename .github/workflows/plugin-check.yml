@@ -5,8 +5,8 @@ name: Plugin check
 # which runs the conformance kits over the package's `./conformance` suite.
 #
 # This workflow runs a plugin's code, so three rules hold here and in every caller in this repo:
-# it asks for no permissions and reads no secrets, it installs a plugin with --ignore-scripts, and
-# nothing calls it from pull_request_target.
+# the job that runs it asks for no permissions and reads no secrets, it installs the plugin with
+# --ignore-scripts, and nothing calls it from pull_request_target.
 on:
   workflow_call:
     inputs:
@@ -38,55 +38,72 @@ permissions: {}
 
 # Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
 jobs:
+  # Packs the caller's own package with the caller's own build, so this job reads the caller's
+  # repository and nothing else; the job that runs the plugin holds no token at all.
+  pack:
+    if: inputs.package == '' && inputs.packs-artifact == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ inputs.node-version }}
+      - working-directory: ${{ inputs.working-directory }}
+        run: |
+          npm install
+          mkdir -p "$RUNNER_TEMP/packs"
+          npm pack --pack-destination "$RUNNER_TEMP/packs" > /dev/null
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-check-input
+          path: ${{ runner.temp }}/packs
+          retention-days: 1
+
   check:
+    needs: pack
+    if: always() && (needs.pack.result == 'success' || needs.pack.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions: {}
     outputs:
       result: ${{ steps.check.outputs.result }}
     env:
-      PACKS: ${{ runner.temp }}/packs
-      CHECK: ${{ runner.temp }}/check
-      INPUT_PACKAGE: ${{ inputs.package }}
+      # A packed checkout arrives as the one tarball in its artifact.
+      INPUT_PACKAGE: ${{ inputs.package || '*.tgz' }}
       INPUT_EDITOR: ${{ inputs.editor }}
-      FROM_ARTIFACT: ${{ inputs.packs-artifact }}
+      ARTIFACT: ${{ inputs.packs-artifact || (inputs.package == '' && 'plugin-check-input' || '') }}
     defaults:
       run:
         shell: bash
     steps:
+      - run: |
+          echo "PACKS=$RUNNER_TEMP/packs" >> "$GITHUB_ENV"
+          echo "CHECK=$RUNNER_TEMP/check" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ inputs.node-version }}
 
-      - if: inputs.packs-artifact != ''
+      - if: env.ARTIFACT != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ inputs.packs-artifact }}
+          name: ${{ env.ARTIFACT }}
           path: ${{ runner.temp }}/packs
-
-      - if: inputs.package == '' && inputs.packs-artifact == ''
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      # The caller's own build, in the caller's own repository, so its scripts run as they do there.
-      - if: inputs.package == '' && inputs.packs-artifact == ''
-        name: Pack the plugin
-        working-directory: ${{ inputs.working-directory }}
-        run: |
-          npm install
-          mkdir -p "$PACKS"
-          npm pack --pack-destination "$PACKS" > /dev/null
-          echo "PACKED_PLUGIN=$(ls "$PACKS"/*.tgz)" >> "$GITHUB_ENV"
 
       - name: Install the plugin beside the editor
         id: install
         run: |
-          plugin="${PACKED_PLUGIN:-$INPUT_PACKAGE}"
+          plugin="$INPUT_PACKAGE"
           editor="$INPUT_EDITOR"
-          if [ -n "$FROM_ARTIFACT" ]; then
+          if [ -n "$ARTIFACT" ]; then
             plugin=$(ls "$PACKS"/$INPUT_PACKAGE)
-            [ -n "$editor" ] && editor=$(ls "$PACKS"/$INPUT_EDITOR)
+            # An editor spec that names no file in the artifact is an npm spec.
+            [ -n "$editor" ] && ls "$PACKS"/$INPUT_EDITOR > /dev/null 2>&1 && editor=$(ls "$PACKS"/$INPUT_EDITOR)
           fi
           if [ -f "$plugin" ]; then
             manifest=$(tar -xzOf "$plugin" package/package.json)

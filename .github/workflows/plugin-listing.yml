@@ -64,7 +64,10 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.entries.outputs.packages) }}
     uses: ./.github/workflows/plugin-check.yml
-    permissions: {}
+    # A cap, not a grant: the job that runs a plugin asks for none, and the packing job (which
+    # these calls skip) asks to read the repository, which a nested job can't exceed.
+    permissions:
+      contents: read
     with:
       package: ${{ matrix.package }}@latest
       editor: ${{ needs.entries.outputs.editor != '' && format('@voithos-labs/aragonite@{0}', needs.entries.outputs.editor) || '' }}

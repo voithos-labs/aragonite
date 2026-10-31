@@ -171,3 +171,29 @@ describe('recording a check', () => {
 		expect(rows).toContain('not checked yet');
 	});
 });
+
+// The plugin check runs a plugin's code, so these hold in the workflow text where an edit would
+// loosen them, not only in the comment that states them.
+describe('the workflows that run a plugin', () => {
+	const read = (file: string) => readFileSync(`.github/workflows/${file}`, 'utf8');
+	const check = read('plugin-check.yml');
+
+	it('runs the plugin in a job that holds no token', () => {
+		const job = check.slice(check.indexOf('\n  check:\n'));
+		expect(job).toMatch(/^ {4}permissions: \{\}$/m);
+	});
+
+	it('installs the plugin with its install scripts off', () => {
+		const installs = check.split('\n').filter((line) => /npm install --no-save/.test(line));
+		expect(installs.length).toBeGreaterThan(0);
+		expect(installs.every((line) => line.includes('--ignore-scripts'))).toBe(true);
+	});
+
+	it.each(['plugin-check.yml', 'plugins.yml', 'plugin-listing.yml'])(
+		'%s never runs on pull_request_target',
+		(file) => {
+			const triggers = read(file).split('\njobs:')[0];
+			expect(triggers).not.toMatch(/^ {2}pull_request_target:/m);
+		}
+	);
+});

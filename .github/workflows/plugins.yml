@@ -58,7 +58,10 @@ jobs:
             template
           ]
     uses: ./.github/workflows/plugin-check.yml
-    permissions: {}
+    # A cap, not a grant: the job that runs a plugin asks for none, and the packing job (which
+    # these calls skip) asks to read the repository, which a nested job can't exceed.
+    permissions:
+      contents: read
     with:
       packs-artifact: plugin-packs
       package: ${{ matrix.plugin == 'template' && 'aragonite-parrot-[0-9]*.tgz' || format('voithos-labs-aragonite-{0}-[0-9]*.tgz', matrix.plugin) }}
