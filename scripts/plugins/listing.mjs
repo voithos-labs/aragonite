@@ -152,7 +152,7 @@ export function changedPackages(before, after) {
  * run's tarballs, since the release that publishes them may not exist yet), and everyone else's,
  * checked as npm has them.
  * @param {string[]} names
- * @param {{ dir: string, manifest: { name: string } }[]} bundled
+ * @param {import('../lib-alias.mjs').WorkspacePackage[]} bundled
  */
 export function partitionEntries(names, bundled) {
 	const dirs = new Map(bundled.map(({ dir, manifest }) => [manifest.name, dir.split('/').pop()]));
