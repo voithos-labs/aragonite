@@ -2,8 +2,10 @@ name: Mobile input spike
 # Can a CI runner type one word through a phone's real soft keyboard into the editor? Android: an
 # emulator with Chrome and the image's keyboard. iOS: the Simulator with Mobile Safari, driven by
 # Appium. Each run also types through a programmatic route as a control, and uploads both input
-# recordings. Manual only, so it never runs on anyone else's branch.
+# recordings. It runs on a push to the spike branch alone, or by hand.
 on:
+  push:
+    branches: [spike/mobile-input]
   workflow_dispatch:
     inputs:
       platform:
@@ -46,8 +48,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
-          api-level: ${{ inputs.api-level }}
-          target: ${{ inputs.target }}
+          api-level: ${{ inputs.api-level || '35' }}
+          target: ${{ inputs.target || 'google_apis' }}
           arch: x86_64
           profile: pixel_6
           enable-hw-keyboard: false
