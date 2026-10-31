@@ -72,15 +72,15 @@ function openSocket(url) {
 
 // uiautomator can fail to dump a screen that never goes idle, leaving a stale file behind, so each
 // try removes the file first.
-function dumpXml() {
+function dumpXml(...flags) {
 	for (let i = 0; i < 4; i++) {
 		adb('shell', 'rm', '-f', '/sdcard/ui.xml');
 		try {
-			adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml');
+			adb('shell', 'uiautomator', 'dump', ...flags, '/sdcard/ui.xml');
 			return adb('exec-out', 'cat', '/sdcard/ui.xml');
 		} catch {}
 	}
-	throw new Error('uiautomator dump failed four times');
+	throw new Error(`uiautomator dump ${flags.join(' ')} failed four times`);
 }
 
 function dumpNodes(name) {
@@ -91,8 +91,6 @@ function dumpNodes(name) {
 		const [x1, y1, x2, y2] = attr('bounds').match(/\d+/g).map(Number);
 		return {
 			text: attr('text'),
-			desc: attr('content-desc'),
-			id: attr('resource-id'),
 			cls: attr('class'),
 			pkg: attr('package'),
 			box: { x1, y1, x2, y2 }
@@ -100,74 +98,74 @@ function dumpNodes(name) {
 	});
 }
 
-// Chrome exposes the page's viewport to accessibility as one android.webkit.WebView node; without
-// it, the page starts below the toolbar inside the compositor view.
-function viewportBox(nodes) {
-	const web = nodes.find(
-		(n) => n.pkg === 'com.android.chrome' && n.cls === 'android.webkit.WebView'
-	);
-	if (web) return { ...web.box, from: 'WebView node' };
-	const holder = nodes.find((n) => n.id === 'com.android.chrome:id/compositor_view_holder');
-	const toolbar = nodes.find((n) => n.id === 'com.android.chrome:id/control_container');
-	if (!holder) throw new Error('no web content node in the screen dump');
-	return {
-		...holder.box,
-		y1: Math.max(holder.box.y1, toolbar?.box.y2 ?? 0),
-		from: 'compositor view'
-	};
+// Chrome exposes each paragraph to accessibility as an EditText holding its text, and builds that
+// tree only once something asks, so the lookup polls.
+async function paragraphBox(text, name) {
+	for (let i = 0; i < 20; i++) {
+		const node = dumpNodes(`${name}-before-tap`).find(
+			(n) =>
+				n.pkg === 'com.android.chrome' && n.cls === 'android.widget.EditText' && n.text === text
+		);
+		if (node) return node.box;
+		await sleep(500);
+	}
+	throw new Error(`no EditText node reading "${text}" in the screen dump`);
 }
 
 function imeShown() {
 	return /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method'));
 }
 
-// Gboard's keys by their accessibility labels; when it exposes none, positions from the standard
-// QWERTY grid inside the keyboard window, which the run's screenshot then has to confirm.
-function keyMap(nodes, imePackage) {
-	const keys = new Map();
-	const ime = nodes.filter((n) => n.pkg === imePackage);
-	for (const n of ime) {
-		const label = (n.desc || n.text).toLowerCase();
-		const center = { x: (n.box.x1 + n.box.x2) / 2, y: (n.box.y1 + n.box.y2) / 2 };
-		if (/^[a-z]$/.test(label)) keys.set(label, center);
-		else if (label === 'space' || n.id.endsWith('space')) keys.set(' ', center);
-	}
-	if (keys.has('h') && keys.has(' '))
-		return { source: 'accessibility', keys, imeNodes: ime.length };
-	if (ime.length === 0) throw new Error(`no ${imePackage} nodes in the screen dump`);
-	const x1 = Math.min(...ime.map((n) => n.box.x1));
-	const x2 = Math.max(...ime.map((n) => n.box.x2));
-	const y1 = Math.min(...ime.map((n) => n.box.y1));
-	const y2 = Math.max(...ime.map((n) => n.box.y2));
-	const rowHeight = (y2 - y1) / 5;
-	const keyWidth = (x2 - x1) / 10;
-	const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+// The last number (or WxH pair) `wm size` and `wm density` print, which is the override if one is set.
+const lastReading = (text) => [...text.matchAll(/(\d+)(?:x(\d+))?\s*$/gm)].at(-1);
+
+// A plain uiautomator dump holds only Chrome's window, so Gboard's keys come from its QWERTY grid,
+// measured off a Pixel 6 screenshot at density 420 and anchored to the bottom of the screen.
+const ROWS_FROM_BOTTOM = [684, 532, 376, 220];
+function gboardGrid() {
+	const [, width, height] = lastReading(adb('shell', 'wm', 'size')).map(Number);
+	const scale = Number(lastReading(adb('shell', 'wm', 'density'))[1]) / 420;
+	const keyWidth = width / 10;
 	const indent = [0, 0.5, 1.5];
-	rows.forEach((row, r) =>
+	const keys = new Map();
+	['qwertyuiop', 'asdfghjkl', 'zxcvbnm'].forEach((row, r) =>
 		[...row].forEach((ch, i) =>
-			keys.set(ch, { x: x1 + (indent[r] + i + 0.5) * keyWidth, y: y1 + (r + 1.5) * rowHeight })
+			keys.set(ch, {
+				x: (indent[r] + i + 0.5) * keyWidth,
+				y: height - ROWS_FROM_BOTTOM[r] * scale
+			})
 		)
 	);
-	keys.set(' ', { x: (x1 + x2) / 2, y: y1 + 4.5 * rowHeight });
-	return { source: 'grid', keys, imeNodes: ime.length };
+	keys.set(' ', { x: 0.55 * width, y: height - ROWS_FROM_BOTTOM[3] * scale });
+	return keys;
+}
+
+// Whether this uiautomator can dump every window, the keyboard's included; saved as evidence only.
+function probeAllWindowsDump() {
+	try {
+		const xml = dumpXml('--windows');
+		writeFileSync(path.join(out, 'keyboard-all-windows.xml'), xml);
+		return /inputmethod/.test(xml);
+	} catch (error) {
+		writeFileSync(path.join(out, 'keyboard-all-windows.xml'), `<!-- ${String(error)} -->`);
+		return false;
+	}
 }
 
 // ── One trial ──────────────────────────
 
-async function caretTap(page, blockPath, name) {
-	const target = await page.evaluate(`(() => {
-		const text = window.__test.getSource().split('\\n\\n')[${blockPath[0]}].trimEnd();
-		const r = window.__test.rects.rangeRects([${blockPath[0]}], text.length - 1, text.length)[0];
-		return { x: r.right + 4, y: (r.top + r.bottom) / 2, width: window.innerWidth };
-	})()`);
-	const nodes = dumpNodes(`${name}-before-tap`);
-	const view = viewportBox(nodes);
-	const scale = (view.x2 - view.x1) / target.width;
-	tap(view.x1 + target.x * scale, view.y1 + target.y * scale);
+async function caretTap(page, blockIndex, name) {
+	const source = await page.evaluate('window.__test.getSource()');
+	const box = await paragraphBox(source.split('\n\n')[blockIndex].trimEnd(), name);
+	// Near the right edge, past the end of the short line, so the caret lands at the line's end.
+	tap(box.x2 - 40, (box.y1 + box.y2) / 2);
 	for (let i = 0; i < 40 && !imeShown(); i++) await sleep(250);
 	if (!imeShown()) throw new Error('the soft keyboard never showed after the tap');
 	await sleep(500);
-	return { selection: await page.evaluate('window.__test.getSelection()'), viewport: view.from };
+	const selection = await page.evaluate('window.__test.getSelection()');
+	if (selection?.focus.path[0] !== blockIndex)
+		throw new Error(`the tap meant for block ${blockIndex} landed at ${JSON.stringify(selection)}`);
+	return selection;
 }
 
 async function settle(page, expected) {
@@ -180,16 +178,14 @@ async function settle(page, expected) {
 	return source;
 }
 
-async function trial(page, blockPath, name, type) {
+async function trial(page, blockIndex, name, type) {
 	const result = { method: name };
 	try {
 		await page.evaluate('window.__test.startInputRecording({ includeText: true })');
-		const { selection, viewport } = await caretTap(page, blockPath, name);
+		const selection = await caretTap(page, blockIndex, name);
 		result.caret = selection;
-		result.viewport = viewport;
 		const before = await page.evaluate('window.__test.getSource()');
-		const blockStart = before.indexOf(before.split('\n\n')[blockPath[0]]);
-		const at = blockStart + selection.focus.offset;
+		const at = before.indexOf(before.split('\n\n')[blockIndex]) + selection.focus.offset;
 		result.expected = `${before.slice(0, at)} ${WORD} ${before.slice(at)}`;
 		result.typing = await type();
 		result.actual = await settle(page, result.expected);
@@ -208,24 +204,22 @@ async function trial(page, blockPath, name, type) {
 
 // ── Run ──────────────────────────
 
-const imePackage = adb('shell', 'settings', 'get', 'secure', 'default_input_method')
-	.trim()
-	.split('/')[0];
 const page = await connect();
 for (let i = 0; i < 120 && !(await page.evaluate('!!window.__test')); i++) await sleep(500);
 await page.evaluate(`window.__test.setSource(${JSON.stringify(SOURCE)})`);
 mark('page ready');
 
-const real = await trial(page, [0], 'real', async () => {
-	const map = keyMap(dumpNodes('keyboard'), imePackage);
+const real = await trial(page, 0, 'real', async () => {
+	screenshot('keyboard');
+	const allWindowsDumpSeesKeyboard = probeAllWindowsDump();
+	const keys = gboardGrid();
 	for (const ch of ` ${WORD} `) {
-		const key = map.keys.get(ch);
-		tap(key.x, key.y);
+		tap(keys.get(ch).x, keys.get(ch).y);
 		await sleep(400);
 	}
-	return { keys: map.source, imeNodes: map.imeNodes, imePackage };
+	return { keys: 'Gboard grid taps', allWindowsDumpSeesKeyboard };
 });
-const control = await trial(page, [1], 'control', async () => {
+const control = await trial(page, 1, 'control', async () => {
 	adb('shell', 'input', 'text', `%s${WORD}%s`);
 	return { channel: 'adb shell input text' };
 });

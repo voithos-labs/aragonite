@@ -66,6 +66,8 @@ jobs:
     if: inputs.platform != 'android'
     runs-on: macos-latest
     timeout-minutes: 60
+    env:
+      WDA_DERIVED_DATA: ${{ github.workspace }}/../wda
     strategy:
       fail-fast: false
       matrix:
@@ -86,6 +88,12 @@ jobs:
         run: |
           npm i -g appium@3.9.0
           appium driver install xcuitest@12.22.7
+      # Built here rather than inside the session request, which a ten-minute build outlives.
+      - name: Build WebDriverAgent
+        run: |
+          project=$(find ~/.appium -name WebDriverAgent.xcodeproj -maxdepth 6 | head -1)
+          echo "WebDriverAgent: $project"
+          xcodebuild build-for-testing -quiet -project "$project" -scheme WebDriverAgentRunner             -destination 'generic/platform=iOS Simulator' -derivedDataPath "$WDA_DERIVED_DATA"             ARCHS=arm64 CODE_SIGNING_ALLOWED=NO
       - name: Start Appium
         run: |
           defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false

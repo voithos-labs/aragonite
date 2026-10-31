@@ -83,6 +83,10 @@ const session = await call('POST', '/session', {
 			'appium:wdaLaunchTimeout': 600000,
 			'appium:simulatorStartupTimeout': 600000,
 			'appium:newCommandTimeout': 900,
+			'appium:webviewConnectTimeout': 60000,
+			// The workflow builds WebDriverAgent in its own step, so the session only launches it.
+			'appium:usePrebuiltWDA': true,
+			'appium:derivedDataPath': process.env.WDA_DERIVED_DATA,
 			'appium:showXcodeLog': true
 		}
 	}
@@ -162,11 +166,26 @@ async function expectAtCaret(blockIndex, result) {
 	result.expected = `${before.slice(0, at)} ${WORD} ${before.slice(at)}`;
 }
 
-// The block's centre sits past the end of its short line, so the tap leaves the caret at the end.
+// The paragraph's editable, found the way the control finds it.
+const editable = async (blockIndex) =>
+	(await tryFind('css selector', `[data-block-path="[${blockIndex}]"] [contenteditable="true"]`)) ??
+	(await find('css selector', `[data-block-path="[${blockIndex}]"]`));
+
+// The editable's centre sits past the end of its short line, so the tap leaves the caret at the
+// end. A tap that brings up no keyboard is retried once, and the count is kept as evidence.
 async function tapKeys(blockIndex, result) {
-	await click(await find('css selector', `[data-block-path="[${blockIndex}]"]`));
-	if (!(await keyboardShown())) throw new Error('the soft keyboard never showed after the tap');
+	result.tapAttempts = 0;
+	while (result.tapAttempts < 2) {
+		result.tapAttempts++;
+		await click(await editable(blockIndex));
+		if (await keyboardShown()) break;
+	}
+	if (!(await keyboardShown())) throw new Error('the soft keyboard never showed after two taps');
 	await expectAtCaret(blockIndex, result);
+	if (result.caret?.focus.path[0] !== blockIndex)
+		throw new Error(
+			`the tap meant for block ${blockIndex} landed at ${JSON.stringify(result.caret)}`
+		);
 	await native();
 	const keyFor = (ch) =>
 		tryFind(
@@ -186,11 +205,7 @@ async function tapKeys(blockIndex, result) {
 }
 
 async function sendKeys(blockIndex, result) {
-	const id =
-		(await tryFind(
-			'css selector',
-			`[data-block-path="[${blockIndex}]"] [contenteditable="true"]`
-		)) ?? (await find('css selector', `[data-block-path="[${blockIndex}]"]`));
+	const id = await editable(blockIndex);
 	result.before = await source();
 	await call('POST', s(`/element/${id}/value`), { text: ` ${WORD} ` });
 	await sleep(1000);
