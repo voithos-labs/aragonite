@@ -188,7 +188,7 @@ describe('path and symbol references: still enforced', () => {
 	// the docs naming it passed locally and redded in CI.
 	it('reds on an empty directory, which git does not keep', () => {
 		const planted = 'scripts/zz-empty-dir-probe';
-		mkdirSync(planted);
+		mkdirSync(planted, { recursive: true });
 		try {
 			expect(referenceFailures([{ file: 'x.md', path: `${planted}/` }])).toEqual([
 				`x.md: ${planted}/ — an empty directory, so a checkout doesn't have it`
