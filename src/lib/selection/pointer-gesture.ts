@@ -20,6 +20,18 @@ export function isTouchPointer(e: Pick<PointerEvent, 'pointerType'>): boolean {
 	return e.pointerType === 'touch';
 }
 
+/** Reports whether each press inside `root` is a finger; returns the remover. */
+export function watchPressKind(root: HTMLElement, onPress: (finger: boolean) => void): () => void {
+	const listener = (e: PointerEvent) => onPress(isTouchPointer(e));
+	root.addEventListener('pointerdown', listener, true);
+	return () => root.removeEventListener('pointerdown', listener, true);
+}
+
+/** Whether the page's primary pointer is coarse: what a finger is taken to mean before any press. */
+export function coarsePointer(): boolean {
+	return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+}
+
 /** What a press that ends the selection clears: the editor's own selection, and the native caret
  *  it parked for a range across blocks. */
 export interface PressEnds {

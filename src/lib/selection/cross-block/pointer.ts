@@ -136,6 +136,7 @@ function handlePointerDown(
 		installDragListener(
 			{
 				editorRoot: root,
+				touch: 'browser',
 				// The root is the hit-test boundary; what scrolls may be an ancestor in host-scroll
 				// mode, so the two resolve separately.
 				scrollContainer: ctx.getScrollHost() ?? root,

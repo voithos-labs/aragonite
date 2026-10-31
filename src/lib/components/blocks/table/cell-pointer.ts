@@ -8,11 +8,13 @@ import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	cellPoint,
 	type CellSelectionPoint,
-	type SelectionEndpoint
+	type SelectionEndpoint,
+	type SelectionPoint
 } from '../../../selection/primitives';
 import { rowMajorCellIndex } from '../../../core/coordinate-spaces';
-import { createPointerDragSession } from '../../../selection/pointer-session';
+import { createPointerDragSession, type PointerPosition } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
+import { dropNativeRangeOnTakeover } from '../../../selection/drag-pointer';
 import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';
 import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
 import { caretOffsetAtPoint, elementAtPoint } from '../../../browser/point';
@@ -32,6 +34,10 @@ export interface CellAnchor {
 
 export interface CellDragContext {
 	editorRoot: HTMLElement;
+	/** Who drags for a finger (`PointerDragSessionOptions.touch`). */
+	touch: 'own' | 'browser';
+	/** The press's distance from the point it drags (`PointerDragSessionOptions.offset`). */
+	offset?: PointerPosition;
 	selection: SelectionState;
 	caretWriter: CaretWriter;
 	lifetimeSignal?: AbortSignal;
@@ -99,7 +105,13 @@ export function installCellDragListener(
 			anchor.tablePath,
 			rowMajorCellIndex(rowIdx, colIdx, anchor.columnCount)
 		);
+		extendTo(focus);
+	}
+
+	function extendTo(focus: SelectionEndpoint): void {
+		const painted = ctx.selection.isCustomRendered;
 		enterOrExtend(ctx.selection, anchorPoint, focus);
+		dropNativeRangeOnTakeover(ctx, painted);
 	}
 
 	function extendToForeignBlock(clientX: number, clientY: number): void {
@@ -111,15 +123,57 @@ export function installCellDragListener(
 		// whole-row snap just as the anchor does, and a kind with no editable element is skipped.
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
-		enterOrExtend(ctx.selection, anchorPoint, focusPoint);
+		extendTo(focusPoint);
 	}
 
 	return createPointerDragSession(down, {
-		touch: 'browser',
+		touch: ctx.touch,
+		offset: ctx.offset,
 		onMove: (p) => processMove(p.clientX, p.clientY),
 		autoScroll: { getTargets: () => [tableScrollEl] },
 		lifetimeSignal: ctx.lifetimeSignal
 	});
+}
+
+/** The cell drag a selection handle starts from the range's fixed end and that end's element: its
+ *  cell anchors it, and a text end paints from its offset. Null outside every table. */
+export function cellDragFrom(
+	el: HTMLElement,
+	point: SelectionPoint
+): { anchor: CellAnchor; padding: CellPaddingPress | null } | null {
+	if (point.cellCoordinate) {
+		const tableEl = el.matches('[role="table"]')
+			? el
+			: el.querySelector<HTMLElement>('[role="table"]');
+		const firstRow = tableEl && mountedRowEls(tableEl)[0];
+		const columnCount = firstRow ? rowCellEls(firstRow).length : 0;
+		if (!tableEl || columnCount === 0) return null;
+		const rowIdx = Math.floor(point.offset / columnCount);
+		const anchor = {
+			tableEl,
+			tablePath: point.path.slice(),
+			rowIdx,
+			colIdx: point.offset % columnCount,
+			columnCount
+		};
+		return { anchor, padding: null };
+	}
+	const cellEl = el.closest<HTMLElement>(TABLE_CELL_SELECTOR);
+	const tableEl = cellEl?.closest<HTMLElement>('[role="table"]');
+	const coords = tableEl ? cellCoordsOfElement(cellEl!, tableEl) : null;
+	const rowEl = cellEl?.closest('[data-table-row-idx]');
+	if (!cellEl || !tableEl || !coords || !rowEl) return null;
+	const anchor = {
+		tableEl,
+		tablePath: point.path.slice(0, -2),
+		rowIdx: coords.rowIdx,
+		colIdx: coords.colIdx,
+		columnCount: rowCellEls(rowEl).length
+	};
+	return {
+		anchor,
+		padding: { surface: cellEl, press: { offset: point.offset, placed: () => true } }
+	};
 }
 
 /** Shift+click on a cell when the previous focus was another cell of the same table. */

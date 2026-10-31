@@ -143,6 +143,8 @@
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import SelectionGapFill from './overlays/SelectionGapFill.svelte';
+	import SelectionHandles from './overlays/SelectionHandles.svelte';
+	import { coarsePointer, watchPressKind } from '../selection/pointer-gesture';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
 	import InlineMenuHost from './menu/InlineMenuHost.svelte';
 	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
@@ -285,6 +287,9 @@
 	const blockRefSlots = refSlotsOver(blockRefs);
 	let editorEl: HTMLDivElement | undefined = $state();
 	const rootEffect = createRootEffect(() => editorEl);
+	// Whether the last press here was a finger: what decides the selection handles and the toolbar's side.
+	let fingerPress = $state(coarsePointer());
+	rootEffect((root) => watchPressKind(root, (finger) => (fingerPress = finger)));
 	// A portaled search bar inside a themed host skips the theme class, whose defaults would
 	// shadow the host's tokens.
 	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
@@ -1493,6 +1498,9 @@
 		reorderable={true}
 	/>
 	<SelectionGapFill getEditorEl={() => editorEl ?? null} />
+	{#if effectiveMode !== 'reading'}
+		<SelectionHandles finger={() => fingerPress} {getSelection} />
+	{/if}
 	<!-- A sibling of the block list, like the header. -->
 	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
 	{#if blockMenu}
@@ -1519,6 +1527,7 @@
 				getEvents
 			}}
 			root={editorEl}
+			finger={() => fingerPress}
 			{menuPresence}
 		/>
 	{/if}

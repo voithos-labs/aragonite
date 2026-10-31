@@ -58,13 +58,22 @@
 	];
 	const BUTTONS = [...MARKS, ...ROWS, { command: TURN_INTO_COMMAND }];
 	const BAR_GAP = 6;
+	// Room for the selection handles a finger gets: hung below the range, or above a block's start.
+	const HANDLE_ROOM = 44;
 
 	let {
 		editor,
 		root,
+		finger,
 		menuPresence
-	}: { editor: ToolbarEditor; root: HTMLElement | undefined; menuPresence: MenuPresence } =
-		$props();
+	}: {
+		editor: ToolbarEditor;
+		root: HTMLElement | undefined;
+		/** Whether the last press was a finger: the bar then sits above the range, clear of the
+		 *  selection handles below it, where a phone puts its own menu. */
+		finger: () => boolean;
+		menuPresence: MenuPresence;
+	} = $props();
 
 	let turnIntoOpen = $state(false);
 	let blockKind = $state<string | null>(null);
@@ -84,6 +93,8 @@
 		y: number;
 		/** The selection's first rectangle, used when the bar has to go above it instead. */
 		flipY: number;
+		/** Where the first rectangle starts, the bar's left edge when it sits above. */
+		flipX: number;
 	}
 
 	// The editor root's top is the line the bar may not cross: whatever the host draws above
@@ -111,6 +122,13 @@
 		if (!size) return { x: placement.x, y: placement.y };
 		const margin = 8;
 		let { x, y } = placement;
+		// A finger's bar keeps clear of the handles hanging below the range: above it where there
+		// is room, otherwise below the handles.
+		const above = placement.flipY - size.h - BAR_GAP - HANDLE_ROOM;
+		if (finger() && above >= topInset() + 4) {
+			x = placement.flipX;
+			y = above;
+		} else if (finger()) y += HANDLE_ROOM;
 		if (x + size.w > window.innerWidth - margin)
 			x = Math.max(margin, window.innerWidth - margin - size.w);
 		if (y + size.h > window.innerHeight - margin)
@@ -229,7 +247,12 @@
 		const last = rects[rects.length - 1];
 		// Scrolled out from under whatever the host draws above, or off the bottom: nowhere to go.
 		if (last.bottom < topInset() || first.top > window.innerHeight) return null;
-		return { x: last.right + BAR_GAP, y: last.bottom + BAR_GAP, flipY: first.top };
+		return {
+			x: last.right + BAR_GAP,
+			y: last.bottom + BAR_GAP,
+			flipY: first.top,
+			flipX: first.left
+		};
 	}
 
 	// A click opens and never toggles, since a pointer's click lands after its hover opened it.

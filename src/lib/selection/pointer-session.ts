@@ -18,6 +18,9 @@ export interface PointerDragSessionOptions {
 	/** Who drags for a finger: `own` for a control that takes the touch (`touch-action: none`), or
 	 *  `browser`, where a finger's press opens no session and the browser scrolls or selects. */
 	touch: 'own' | 'browser';
+	/** The press's distance from the point it drags, added to every pointer: a knob held below its
+	 *  line drags the line's point, not the one under the finger. */
+	offset?: PointerPosition;
 	/** Coalesced to one call per animation frame with the latest pointer: intermediate positions
 	 *  are dropped, so a consumer must answer the point it gets rather than wait for a better one. */
 	onMove(pointer: PointerPosition): void;
@@ -46,9 +49,11 @@ export function createPointerDragSession(
 	let resolved: PointerPosition | null = null;
 	let rafId: number | null = null;
 
+	const dx = opts.offset?.clientX ?? 0;
+	const dy = opts.offset?.clientY ?? 0;
 	function resolve(pointer: PointerPosition): void {
 		resolved = pointer;
-		opts.onMove(pointer);
+		opts.onMove({ clientX: pointer.clientX + dx, clientY: pointer.clientY + dy });
 	}
 
 	const autoScroll = createAutoScroll({

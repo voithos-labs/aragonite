@@ -724,7 +724,7 @@
 				const editorRoot = getEditorRoot();
 				if (!editorRoot) return;
 				installCellDragListener(
-					{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime },
+					{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime, touch: 'browser' },
 					anchorIn(tableEl),
 					e,
 					padding && { surface: cellEl, press: padding }

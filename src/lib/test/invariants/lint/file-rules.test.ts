@@ -1550,6 +1550,8 @@ const RULES: FileRule[] = [
 			'src/lib/components/blocks/table/cell-pointer.ts':
 				'a pointer drag across cells, whose end is under the pointer',
 			'src/lib/selection/native-bridge.ts': 'the restore, whose landing shows the caret itself',
+			'src/lib/components/overlays/selection-handles.ts':
+				'a selection handle trading the anchor for the focus before its drag, which moves no end',
 			'src/lib/selection/cross-block/range-indent.ts':
 				'an indent keeping a block held whole, which moves no end',
 			'src/lib/testing/kind-conformance.ts': 'the conformance kit, which sets up a range'
@@ -2873,6 +2875,10 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 	'src/lib/editor-actions/replacement-focus.ts :: focusMovedOutsideReplacement': {
 		branches: 1,
 		reason: 'with no document nothing holds focus, so the caret goes back where the write left it'
+	},
+	'src/lib/selection/pointer-gesture.ts :: coarsePointer': {
+		branches: 1,
+		reason: 'with no media queries there is no pointer to ask about, so no finger is assumed'
 	},
 	'src/lib/selection/caret-landing.ts :: caretBox': {
 		branches: 1,

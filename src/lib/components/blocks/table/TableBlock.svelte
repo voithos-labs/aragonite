@@ -514,7 +514,7 @@
 		if (!target || !editorRoot) return false;
 		const [rowIdx, colIdx] = target.path;
 		installCellDragListener(
-			{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime },
+			{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime, touch: 'browser' },
 			{ tableEl, tablePath: myPath.slice(), rowIdx, colIdx, columnCount },
 			e
 		);

@@ -53,9 +53,10 @@ afterEach(() => {
 });
 
 describe('a press dragged into the next block', () => {
-	function drag(pointerType: string): void {
+	function drag(pointerType: string, touch: 'own' | 'browser' = 'browser'): void {
 		installDragListener(
 			{
+				touch,
 				caretWriter: testCaretWriter,
 				editorRoot,
 				scrollContainer: wideScrollport(),
@@ -86,6 +87,14 @@ describe('a press dragged into the next block', () => {
 		move(10, 40);
 		frame.run();
 		expect(selection.isCrossBlock).toBe(false);
+	});
+
+	// A selection knob takes the finger (`touch-action: none`), so its drag is the editor's.
+	it('opens a range from a finger on a control that owns the touch', () => {
+		drag('touch', 'own');
+		move(10, 40);
+		frame.run();
+		expect(selection.isCrossBlock).toBe(true);
 	});
 
 	// The emulator's swipe: a move or two inside one frame, then the browser takes the scroll.
