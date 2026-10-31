@@ -194,6 +194,19 @@ describe('the workflows that run a plugin', () => {
 		expect(job).toMatch(/^ {4}permissions: \{\}$/m);
 	});
 
+	// An action gets the run's artifact and cache token, which the plugin's code could read from it,
+	// so the job's one action (which has no post step) runs before the plugin does.
+	it('runs no action after the plugin, in the job that runs it', () => {
+		const start = check.indexOf('\n  check:\n') + 1;
+		const end = check.slice(start).search(/\n {2}\w[\w-]*:\n/);
+		const job = check.slice(start, end === -1 ? undefined : start + end);
+		const actions = job.split('\n').filter((line) => /^\s*(- )?uses:/.test(line));
+		expect(actions.map((line) => line.trim().replace(/@.*/, ''))).toEqual([
+			'uses: actions/download-artifact'
+		]);
+		expect(job.indexOf('uses:')).toBeLessThan(job.indexOf('aragonite-plugin-check'));
+	});
+
 	it('installs the plugin with its install scripts off', () => {
 		const installs = check.split('\n').filter((line) => /npm install --no-save/.test(line));
 		expect(installs.length).toBeGreaterThan(0);

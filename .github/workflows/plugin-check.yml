@@ -4,9 +4,10 @@ name: Plugin check
 # It installs the plugin beside the editor in an empty project and runs `aragonite-plugin-check`,
 # which runs the conformance kits over the package's `./conformance` suite.
 #
-# This workflow runs a plugin's code, so three rules hold here and in every caller in this repo:
-# the job that runs it asks for no permissions and reads no secrets, it installs the plugin with
-# --ignore-scripts, and nothing calls it from pull_request_target.
+# This workflow runs a plugin's code, so four rules hold here and in every caller in this repo: the
+# job that runs it asks for no permissions and reads no secrets, no action runs after the plugin in
+# that job (an action holds the run's artifact token), it installs the plugin with --ignore-scripts,
+# and nothing calls it from pull_request_target.
 on:
   workflow_call:
     inputs:
@@ -27,6 +28,7 @@ on:
         type: string
         default: ''
       node-version:
+        description: The Node version to check under, as the official node image tags it.
         type: string
         default: '24'
     outputs:
@@ -70,8 +72,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions: {}
+    # Node comes with the image, so no setup action leaves a step to run after the plugin's code.
+    container: node:${{ inputs.node-version }}-bookworm-slim
     outputs:
+      name: ${{ steps.install.outputs.name }}
       result: ${{ steps.check.outputs.result }}
+      record: ${{ steps.check.outputs.record }}
     env:
       # A packed checkout arrives as the one tarball in its artifact.
       INPUT_PACKAGE: ${{ inputs.package || '*.tgz' }}
@@ -84,10 +90,6 @@ jobs:
       - run: |
           echo "PACKS=$RUNNER_TEMP/packs" >> "$GITHUB_ENV"
           echo "CHECK=$RUNNER_TEMP/check" >> "$GITHUB_ENV"
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ inputs.node-version }}
 
       - if: env.ARTIFACT != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -111,6 +113,8 @@ jobs:
             manifest=$(npm view "$plugin" name peerDependencies --json)
           fi
           name=$(node -e 'const m = JSON.parse(process.argv[1]); console.log(m.name)' "$manifest")
+          # The name lands in step outputs, so it's held to npm's shape before anything reads it.
+          echo "$name" | grep -Eqx '(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*' || { echo "no npm name: $name"; exit 1; }
           if [ -z "$editor" ]; then
             range=$(node -e 'const m = JSON.parse(process.argv[1]); console.log(m.peerDependencies?.["@voithos-labs/aragonite"] ?? "")' "$manifest")
             editor="@voithos-labs/aragonite@${range:-latest}"
@@ -142,6 +146,7 @@ jobs:
           if [ "$OUTCOME" = out-of-range ]; then
             node -e 'const [p, editor] = process.argv.slice(1); console.log(JSON.stringify({ package: p, version: null, editor, result: "out-of-range", failures: null }))' "$NAME" "$EDITOR_VERSION" > result.json
             echo "result=out-of-range" >> "$GITHUB_OUTPUT"
+            echo "record=$(cat result.json)" >> "$GITHUB_OUTPUT"
             echo "$NAME: its peer range excludes this editor, so nothing was checked" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
@@ -149,19 +154,28 @@ jobs:
           npx --no-install aragonite-plugin-check "$NAME" --json result.json | tee log.txt
           status=${PIPESTATUS[0]}
           set -e
-          node -e 'const r = require("./result.json"); console.log(`result=${r.result}`)' >> "$GITHUB_OUTPUT" || echo "result=fail" >> "$GITHUB_OUTPUT"
+          node -e 'const r = require("./result.json"); console.log(`result=${r.result}\nrecord=${JSON.stringify(r)}`)' >> "$GITHUB_OUTPUT" || echo "result=fail" >> "$GITHUB_OUTPUT"
           { echo '```'; cat log.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
 
-      - if: always() && steps.install.outputs.name != ''
-        id: artifact
+  # The result travels as a job output, so no action (each gets the run's artifact token) shares
+  # a machine with the plugin's code.
+  upload:
+    needs: check
+    if: always() && needs.check.outputs.name != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - id: artifact
         env:
-          NAME: ${{ steps.install.outputs.name }}
-        run: echo "name=plugin-check-$(echo "$NAME" | tr '@/' '-_')" >> "$GITHUB_OUTPUT"
-
-      - if: always() && steps.artifact.outputs.name != ''
+          NAME: ${{ needs.check.outputs.name }}
+          RECORD: ${{ needs.check.outputs.record }}
+        run: |
+          printf '%s\n' "$RECORD" > "$RUNNER_TEMP/result.json"
+          echo "name=plugin-check-$(echo "$NAME" | tr '@/' '-_')" >> "$GITHUB_OUTPUT"
+      - if: needs.check.outputs.record != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ steps.artifact.outputs.name }}
-          path: ${{ runner.temp }}/check/result.json
-          if-no-files-found: ignore
+          path: ${{ runner.temp }}/result.json
