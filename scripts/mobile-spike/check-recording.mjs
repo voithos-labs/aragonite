@@ -1,6 +1,6 @@
 // Judges a typing run: did the word land at the caret, and does the real keyboard's event stream
 // look different from the programmatic control's? On Android it also asserts the soft keyboard's
-// shape (keyCode 229 keydowns, composition input); on iOS it reports the shape it sees.
+// shape (trusted keyCode 229 keydowns, text by keyboard input types); on iOS it reports the shape.
 // Usage: node check-recording.mjs <android|ios> <result.json>; exits 1 when the run fails.
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -32,22 +32,29 @@ function shape(recording) {
 	};
 }
 
-// What a soft keyboard's word looks like in Chrome on Android: every keydown unnamed, the text
-// arriving as composition updates that a compositionend closes, and nothing synthetic.
+// What a soft keyboard's word looks like in Chrome on Android: every keydown unnamed (keyCode 229),
+// the text arriving as keyboard input (committed or composed), and nothing synthetic. Whether
+// Gboard composed is reported in the shape, since it depends on the field, not on the route.
+const KEYBOARD_INPUT = new Set(['insertText', 'insertCompositionText']);
 function androidSoftKeyboard(recording) {
 	const all = events(recording);
 	const keydowns = all.filter((e) => e.type === 'keydown');
+	const inputs = all.filter((e) => e.type === 'beforeinput');
 	const reasons = [];
 	if (keydowns.length === 0) reasons.push('no keydowns');
 	const named = keydowns.filter((e) => e.keyCode !== 229 || e.key !== 'Unidentified');
 	if (named.length) reasons.push(`${named.length} keydown(s) not 229/Unidentified`);
-	if (!all.some((e) => e.type === 'beforeinput' && e.inputType === 'insertCompositionText'))
-		reasons.push('no insertCompositionText');
-	if (!all.some((e) => e.type === 'compositionend')) reasons.push('no compositionend');
+	if (inputs.length === 0) reasons.push('no beforeinput');
+	const other = inputs.filter((e) => !KEYBOARD_INPUT.has(e.inputType));
+	if (other.length) reasons.push(`input types ${other.map((e) => e.inputType).join(', ')}`);
 	if (all.some((e) => !e.trusted)) reasons.push('untrusted events');
 	if (!recording?.env?.uaData?.mobile) reasons.push('uaData.mobile is not true');
 	if (recording?.env?.pointer !== 'coarse') reasons.push(`pointer is ${recording?.env?.pointer}`);
-	return { pass: reasons.length === 0, reasons };
+	return {
+		pass: reasons.length === 0,
+		reasons,
+		composed: all.some((e) => e.type === 'compositionend')
+	};
 }
 
 function signature(s) {
