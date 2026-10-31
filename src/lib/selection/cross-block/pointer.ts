@@ -51,13 +51,14 @@ export function resetForPress(
 	selection: SelectionState,
 	writer: CaretWriter,
 	caretMemory: Pick<CaretMemory, 'forget'>,
-	e: PointerEvent
+	e: PointerEvent,
+	lifetime: AbortSignal | null
 ): void {
 	if (!isTouchPointer(e)) {
 		resetForPointerDown(selection, writer, caretMemory, e.shiftKey);
 		return;
 	}
-	onTap(e, () => resetForPointerDown(selection, writer, caretMemory, false));
+	onTap(e, lifetime, () => resetForPointerDown(selection, writer, caretMemory, false));
 }
 
 // ── Pointer ────────────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ function handlePointerDown(
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	resetForPress(selection, ctx.caretWriter, ctx.caretMemory, e);
+	resetForPress(selection, ctx.caretWriter, ctx.caretMemory, e, ctx.getEditorLifetime());
 	const padding = armPaddingPress(ctx.caretWriter, el, myPath, e);
 
 	if (e.shiftKey) {

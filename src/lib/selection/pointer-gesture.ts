@@ -19,11 +19,13 @@ export function isTouchPointer(e: Pick<PointerEvent, 'pointerType'>): boolean {
 }
 
 /** Runs `then` once the press `down` opened ends as a tap (its pointerup), and never when the
- *  browser takes the press over for a scroll or a long-press selection (its pointercancel). */
-export function onTap(down: PointerEvent, then: () => void): void {
+ *  browser takes it over (its pointercancel) or the editor unmounts first (`lifetime` aborts). */
+export function onTap(down: PointerEvent, lifetime: AbortSignal | null, then: () => void): void {
+	if (lifetime?.aborted) return;
 	const end = new AbortController();
 	const mine = (e: PointerEvent) => e.pointerId === down.pointerId;
 	const opts = { capture: true, signal: end.signal };
+	lifetime?.addEventListener('abort', () => end.abort(), { signal: end.signal });
 	// The document, not the window: a release reaches the drag session first (G4.225).
 	document.addEventListener(
 		'pointerup',

@@ -222,7 +222,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			// Reading mode places no caret, and the browser's own drag selects there.
 			if (deps.reading.mode() === 'reading') return;
 			marginDrag = true;
-			resetForPress(deps.selection, deps.caretWriter, deps.caretMemory, e);
+			resetForPress(deps.selection, deps.caretWriter, deps.caretMemory, e, deps.getLifetime());
 			// A block that runs its own drag from a nearby click (a table's cell rectangle) takes
 			// it; the generic drag is for blocks that have none.
 			if (!('offset' in anchor)) {

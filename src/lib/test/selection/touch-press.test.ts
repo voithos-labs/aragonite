@@ -98,7 +98,7 @@ describe('a press dragged into the next block', () => {
 });
 
 describe('a press on a block while a range spans blocks', () => {
-	function pressBlock(pointerType: string): void {
+	function pressBlock(pointerType: string, lifetime = new AbortController().signal): void {
 		const el = editorRoot.children[0] as HTMLElement;
 		const pointer = createCrossBlockPointer({
 			getEl: () => el,
@@ -108,7 +108,7 @@ describe('a press on a block while a range spans blocks', () => {
 			caretMemory: { forget: () => {} },
 			standInCaret: () => null,
 			getEditorRoot: () => editorRoot,
-			getEditorLifetime: () => new AbortController().signal,
+			getEditorLifetime: () => lifetime,
 			getScrollHost: () => null,
 			getBlockElByPath: () => null
 		} as unknown as CrossBlockDispatchContext);
@@ -133,6 +133,15 @@ describe('a press on a block while a range spans blocks', () => {
 		pressBlock('touch');
 		document.dispatchEvent(press('pointerup', 'touch'));
 		expect(selection.isCrossBlock).toBe(false);
+	});
+
+	// An editor that unmounts mid-press must not reset a selection state nobody holds any more.
+	it('lets the press go when the editor unmounts before the finger lifts', () => {
+		const lifetime = new AbortController();
+		pressBlock('touch', lifetime.signal);
+		lifetime.abort();
+		document.dispatchEvent(press('pointerup', 'touch'));
+		expect(selection.isCrossBlock).toBe(true);
 	});
 });
 
