@@ -20,6 +20,8 @@ URL=http://localhost:1430/test/editor
 FLAGS='_ --disable-fre --no-first-run --no-default-browser-check --remote-allow-origins=*'
 adb shell "echo '$FLAGS' > /data/local/tmp/chrome-command-line"
 adb shell am set-debug-app --persistent com.android.chrome
+# A slow emulator's system apps can stop responding, and their dialog covers the page.
+adb shell settings put global hide_error_dialogs 1
 # Granted up front, or Chrome covers the page with a prompt asking for it.
 adb shell pm grant com.android.chrome android.permission.POST_NOTIFICATIONS
 adb reverse tcp:1430 tcp:1430
