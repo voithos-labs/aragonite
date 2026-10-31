@@ -1465,6 +1465,6 @@ names `/testing`'s types and loads none of it. `lint/plugin-packages.test.ts`.
 
 **G4.278 · The template is the parrot, at the editor's version.** `templates/plugin/src` holds the
 bundled parrot's files byte for byte, as the parrot holds the plugin guide's, so the guide, the
-package and the template can't disagree. Its exact devDependency, its caret peer, its workflow tag
-and the tag the guide and README fetch it by all name the core's version.
+package and the template can't disagree. Its exact devDependency, its caret peer, the workflow tag it and
+the testing guide call, and the tag the guide and README fetch it by all name the core's version.
 `plugins/parrot/guide-parity.test.ts` · `lint/lockstep-versions.test.ts`.
