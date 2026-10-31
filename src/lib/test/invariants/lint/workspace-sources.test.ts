@@ -30,7 +30,10 @@ describe('the package names resolve to this checkout in every tool', () => {
 			specifier,
 			path.resolve(target)
 		]);
-		expect(mapped).toEqual(expected);
+		const fix = Object.fromEntries(
+			[...workspaceSources()].map(([specifier, source]) => [specifier, [`./${source}`]])
+		);
+		expect(mapped, `set tsconfig.json "paths" to ${JSON.stringify(fix)}`).toEqual(expected);
 	});
 
 	it('the app build aliases each name to its source file', async () => {

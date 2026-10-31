@@ -1,6 +1,6 @@
 // Packs the library and gates the tarball: every published path must be present, and no
-// test/e2e/spec file may ship. Run after `npm run package`. REQUIRED comes from package.json
-// `exports` (pack-manifest.mjs), so a new plugin subpath can't ship unbuilt.
+// test/e2e/spec file may ship. Then each workspace package's own. Run after `npm run package`.
+// REQUIRED comes from package.json `exports` (pack-manifest.mjs), so an entry can't ship unbuilt.
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
