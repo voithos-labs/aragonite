@@ -6,7 +6,7 @@ name: Mobile input
 # dev (skipping a commit already green). Both run on pull requests to main.
 on:
   push:
-    branches: [dev, fix/touch-selection]
+    branches: [dev]
     paths:
       - 'src/lib/selection/**'
       - 'src/lib/browser/**'
@@ -80,7 +80,7 @@ jobs:
   # Which commit iOS tests and whether to. A scheduled run's own sha is main's, never the dev commit
   # it checks out, so the record of a green nightly is a cache entry keyed on the tested commit.
   ios-gate:
-    if: (github.event_name != 'push' || github.ref == 'refs/heads/fix/touch-selection') && (github.event_name != 'workflow_dispatch' || inputs.platform != 'android')
+    if: github.event_name != 'push' && (github.event_name != 'workflow_dispatch' || inputs.platform != 'android')
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.target.outputs.sha }}
