@@ -26,6 +26,8 @@ Where to jump:
   what CI checks with it, and how to run it yourself.
 - [The adapter suite](#the-adapter-suite): the same idea for the framework wrappers, one suite
   over React, Next, Vue and Nuxt apps.
+- [The plugin template and the plugin check](#the-plugin-template-and-the-plugin-check): an
+  outside author's path, run on every push over the template and the bundled plugins.
 - [Size budgets](#size-budgets): the first-load budget that reds when it moves, how to accept a
   move on purpose, and the report numbers that don't gate.
 - [The behavior differential](#the-behavior-differential): every key at every offset of a set of
@@ -993,6 +995,22 @@ again and the example sees it. Don't edit `examples/consumer/src/plugins/`: it's
 copy of the callout fixture (`src/routes/test/plugins/callout/`) that
 `scripts/smoke/sync-consumer-plugins.mjs` regenerates before every `dev`, `build`, `check`, and `test`,
 with its `#lib` imports rewritten to the package name.
+
+## The plugin template and the plugin check
+
+`templates/plugin` is the starter an outside author fetches by tag, and nothing in this repo
+imports it, so it'd fall behind the editor quietly if CI didn't build it. `scripts/smoke/template-smoke.mjs`
+copies it out of the repo, installs it against this checkout's packed editor, builds it, runs its
+unit and browser tests, and runs `aragonite-plugin-check` over its packed package. It leaves every
+tarball in `tmp/plugin-packs`, and `.github/workflows/plugins.yml` hands those to the reusable
+`plugin-check.yml` once per bundled plugin and once for the template, so the workflow an author
+calls is proven on this repo first. The template's source is the bundled parrot's, file for file,
+and every version it names follows the core's (G4.278).
+
+The listing in `docs/guide/plugin-gallery/listing.json` gets its `verified` records from
+`scripts/plugins/check-listing.mjs`, run at each release cut with `--packs tmp/plugin-packs` after
+the template smoke. `plugin-listing.yml` runs the check on a pull request that adds an entry, and a
+manual run of it opens a pull request with fresh records.
 
 ## The adapter suite
 
