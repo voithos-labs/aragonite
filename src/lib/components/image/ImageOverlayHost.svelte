@@ -75,7 +75,8 @@
 		const handlePointerDown = (e: PointerEvent) => {
 			// A right-click on the held widget keeps it for the menu's rows, as one on a range does.
 			if (isSecondaryPress(e) && pressesSelectedWidget(selection, e.target)) return;
-			if (pressLeavesImage(e, root)) clearOnPress(e, lifetime, () => selection.clearWidget());
+			if (selection.widget !== null && pressLeavesImage(e, root))
+				clearOnPress(e, lifetime, () => selection.clearWidget());
 		};
 		root.addEventListener('pointerdown', handlePointerDown);
 		return () => root.removeEventListener('pointerdown', handlePointerDown);
