@@ -7,7 +7,7 @@ import {
 	type InlineWidgetComponentProps
 } from '#lib/core/inline/inline-widgets.js';
 import { mintWidgetShell } from '#lib/core/inline/widget-shell.js';
-import { registerEmoji, drawEmoji, EMOJI_KIND } from '#lib/plugins/emoji/emoji-recognizer.js';
+import { registerEmoji, drawEmoji, EMOJI_KIND } from '#packages/emoji/src/emoji-recognizer.js';
 
 // The glyph is what the widget shows; the shell the editor hands it keeps the source bytes on
 // `data-source-*`, so the DOM-to-offset traversal reads `:smile:` back while the DOM shows 😄.

@@ -2,7 +2,7 @@
 // replaced an unchanged object and re-ran everything reading it.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { adoptParsedMetadata } from '#lib/schema/container-raw.js';
 
 beforeEach(() => {

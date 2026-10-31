@@ -5,7 +5,7 @@ import {
 	readQuery,
 	splitQuery,
 	type FilterableEntry
-} from '#lib/plugins/slash-commands/filter.js';
+} from '#packages/slash-commands/src/filter.js';
 
 const row = (label: string, keywords: string[] = [], takesArgument = false): FilterableEntry => ({
 	label,

@@ -6,7 +6,7 @@ import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.j
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { findMergeTarget } from '#lib/schema/merge-rules.js';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,

@@ -7,14 +7,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { detailsPlugin } from '#lib/plugins/details/index.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
-import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { detailsPlugin } from '#packages/details/src/index.js';
+import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { tocPlugin } from '#packages/toc/src/index.js';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { PLUGINS_SEED } from '../../../../examples/consumer/src/routes/plugins/seed';
 

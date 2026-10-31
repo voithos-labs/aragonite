@@ -6,7 +6,7 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { setPluginMetadata, type CstNode } from '#lib/core/nodes.js';
 import { createNestedBlockEdit } from '#lib/editor-actions/nested/nested-block-edit.js';
 import type { NestedActionsDeps } from '#lib/editor-actions/nested/nested-actions.js';
-import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
 import {
 	makeBlockListState,
 	makeCaretMemory,

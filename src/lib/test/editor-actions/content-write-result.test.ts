@@ -4,8 +4,8 @@
 // only each route's own reading-mode check kept a refused write from parking a caret.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import type { ContentWrite } from '#lib/action-contracts.js';
 import { serialize } from '#lib/core/serializer.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';

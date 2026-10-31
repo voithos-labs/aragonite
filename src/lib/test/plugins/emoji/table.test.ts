@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EMOJI_TABLE } from '#lib/plugins/emoji/index.js';
+import { EMOJI_TABLE } from '#packages/emoji/src/index.js';
 
 // The generated table's shape, pinned; never the full listing. A regeneration that lost its
 // aliases, collapsed to nothing or grew absurdly fails here, and the exact glyph bytes for a

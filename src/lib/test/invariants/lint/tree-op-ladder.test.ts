@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	collectEditorSources,
-	EDITOR_SRC,
+	LIBRARY_ROOTS,
 	importSpecifiers,
 	resolveSpecifier
 } from './scan-source';
@@ -51,7 +51,7 @@ function upwardEdges(relPath: string, rung: number, code: string): string[] {
 describe('G4.64 the tree-ops layer order', () => {
 	// Library-internal: the order names files under src/lib, so the reference plugins and the
 	// consumer example have nothing to model.
-	const rungs = collectEditorSources(EDITOR_SRC)
+	const rungs = collectEditorSources(LIBRARY_ROOTS)
 		.map((f) => ({ ...f, rung: rungOfFile(f.relPath) }))
 		.filter((f) => f.rung >= 0);
 

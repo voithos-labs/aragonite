@@ -11,7 +11,7 @@ import {
 	registerMermaidKind,
 	MERMAID,
 	type MermaidMetadata
-} from '#lib/plugins/mermaid/mermaid-kind.js';
+} from '#packages/mermaid/src/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 const MERMAID_KIND = () => declaredPluginKind(MERMAID);

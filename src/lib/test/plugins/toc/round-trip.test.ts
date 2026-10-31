@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
-import { registerTocBlock, tocPlugin, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
+import { registerTocBlock, tocPlugin, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
 import { testView } from '#lib/test/harness/test-view.js';
 

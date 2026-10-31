@@ -23,7 +23,7 @@
 	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { HarnessSource } from './harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
-	import { slashCommandsPlugin } from '#lib/plugins/slash-commands/index.js';
+	import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
 
 	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
 	const param = (name: string): string | null =>

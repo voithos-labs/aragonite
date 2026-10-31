@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
-import { rebuildDetailsRaw, registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { rebuildDetailsRaw, registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { mergeWithNext, splitNode } from '#lib/tree-operations/node-ops.js';
 import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delete.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';

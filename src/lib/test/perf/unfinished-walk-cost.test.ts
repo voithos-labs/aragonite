@@ -17,9 +17,9 @@ import { readBack } from '#lib/core/inline/live-edit/read-back.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { installPlugins } from '#lib';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { detailsPlugin } from '#packages/details/src/index.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

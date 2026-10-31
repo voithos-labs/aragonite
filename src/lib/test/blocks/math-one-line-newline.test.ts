@@ -5,8 +5,8 @@
 // line break in it, the shape the painter, the write rule and the parser each read differently.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '#lib';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';

@@ -3,11 +3,11 @@
 // bound none lost them, and every suite's container bound one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { defineBlockView, definePlugin } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { svelteBlockView } from '#lib/svelte.js';
-import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
+import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,

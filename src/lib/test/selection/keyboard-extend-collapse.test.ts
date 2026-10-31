@@ -4,7 +4,7 @@ import { parse } from '../../core/parser';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { collapseCrossBlock } from '../../selection/keyboard-extend';
 import { restoreLandingOver } from '../harness/restore-landing';
-import { registerDetailsKind } from '../../plugins/details/details-kind';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { testView } from '#lib/test/harness/test-view.js';
 

@@ -61,11 +61,11 @@ const UNFENCED: Record<string, { wirings: number; why: string }> = {
 		wirings: 1,
 		why: 'the crop’s guard, which keeps every key that would write over the image off it, the IME’s too'
 	},
-	'src/lib/plugins/admonitions/AdmonitionBlock.svelte': {
+	'packages/admonitions/src/AdmonitionBlock.svelte': {
 		wirings: 1,
 		why: 'the container factory’s handleKeydown'
 	},
-	'src/lib/plugins/mermaid/MermaidBlock.svelte': {
+	'packages/mermaid/src/MermaidBlock.svelte': {
 		wirings: 1,
 		why: 'the container factory’s handleKeydown'
 	}
@@ -90,7 +90,7 @@ function unfencedIn(files: Pick<SourceFile, 'relPath' | 'code'>[]): Fence[] {
 describe('G4.273 every keydown handler that runs a command asks imeOwnsKey first', () => {
 	const sources = collectEditorSources().filter(
 		(f) =>
-			under(SOURCE_DIR.library)(f) &&
+			under(SOURCE_DIR.library, SOURCE_DIR.plugins)(f) &&
 			notUnder(SOURCE_DIR.debug)(f) &&
 			f.relPath !== SOURCE.compositionTracker
 	);

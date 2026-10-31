@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import {
 	activateDirectives,
 	registerDirective,

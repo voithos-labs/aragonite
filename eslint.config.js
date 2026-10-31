@@ -50,11 +50,12 @@ export default tseslint.config(
 		languageOptions: { globals: globals.node }
 	},
 
-	// Type-aware rules, scoped to src/**/*.ts (the only tree the app tsconfig covers); .svelte
-	// and root/scripts config files stay on the untyped net. The editor's promise-bearing logic
-	// lives in extracted `.ts` factories, so this covers it.
+	// Type-aware rules, scoped to the trees the app tsconfig covers; .svelte and root/scripts
+	// config files stay on the untyped net. The editor's promise-bearing logic lives in extracted
+	// `.ts` factories, so this covers it.
 	{
-		files: ['src/**/*.ts'],
+		files: ['src/**/*.ts', 'packages/*/src/**/*.ts'],
+		ignores: ['packages/react/**', 'packages/vue/**'],
 		languageOptions: {
 			parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname }
 		},
@@ -111,7 +112,7 @@ export default tseslint.config(
 	{
 		// … and re-armed on product `src/lib` to keep that surface `any`-free as a
 		// standing guard, minus the test/harness/debug/testing tiers.
-		files: ['src/lib/**/*.ts', 'src/lib/**/*.svelte'],
+		files: ['src/lib/**/*.ts', 'src/lib/**/*.svelte', 'packages/*/src/**/*.{ts,svelte}'],
 		ignores: ['src/lib/test/**', 'src/lib/e2e/**', 'src/lib/testing/**', 'src/lib/debug/**'],
 		rules: { '@typescript-eslint/no-explicit-any': 'error' }
 	},

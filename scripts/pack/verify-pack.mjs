@@ -1,8 +1,8 @@
 // Packs the library and gates the tarball: every published path must be present, and no
-// test/e2e/spec file may ship. Run after `npm run package`. REQUIRED comes from package.json
-// `exports` (pack-manifest.mjs), so a new plugin subpath can't ship unbuilt.
+// test/e2e/spec file may ship. Then each workspace package's own. Run after `npm run package`.
+// REQUIRED comes from package.json `exports` (pack-manifest.mjs), so an entry can't ship unbuilt.
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { nodeImportFailures } from './node-import.mjs';
 import { collectLeafStrings, requiredPackPaths } from './pack-manifest.mjs';
@@ -10,6 +10,8 @@ import { BLESS_COMMAND, verifyDevStrip } from './verify-dev-strip.mjs';
 import { checkBudgets, readBaseline } from './size-budget.mjs';
 import { verifyPrebuilt } from './verify-prebuilt.mjs';
 import { verifyTypes } from './verify-types.mjs';
+import { verifyPluginPackage } from './verify-plugin-package.mjs';
+import { PLUGIN_KEYWORD, workspacePackages } from '../lib-alias.mjs';
 
 // `npm pack --json` reports files[].path relative to the package root (`dist/index.js`), with no
 // `package/` prefix.
@@ -98,12 +100,12 @@ if (typeFailures.length) {
 	process.exit(1);
 }
 
-const wrapperFailures = readdirSync('packages')
-	.map((name) => path.join('packages', name))
-	.filter((dir) => existsSync(path.join(dir, 'package.json')))
-	.flatMap(verifyWrapper);
-if (wrapperFailures.length) {
-	console.error('verify-pack: a wrapper package fails:\n  ' + wrapperFailures.join('\n  '));
+const workspaceFailures = workspacePackages().flatMap(({ dir, manifest }) => [
+	...verifyWorkspacePackage(dir),
+	...((manifest.keywords ?? []).includes(PLUGIN_KEYWORD) ? verifyPluginPackage(dir) : [])
+]);
+if (workspaceFailures.length) {
+	console.error('verify-pack: a workspace package fails:\n  ' + workspaceFailures.join('\n  '));
 	process.exit(1);
 }
 
@@ -112,13 +114,13 @@ console.log(
 );
 
 /**
- * A wrapper's tarball holds every path its `exports` names plus its license and readme, each entry
- * imports in Node with no DOM as a server render does, and a React wrapper's entries open with
- * `'use client'`, so a Next server component can render them. Run after the wrapper builds.
+ * A workspace package's tarball holds every path its `exports` names plus its license and readme,
+ * each entry imports in Node with no DOM as a server render does, and a React wrapper's entries
+ * open with `'use client'`, so a Next server component can render them. Run after it builds.
  * @param {string} dir
  * @returns {string[]}
  */
-function verifyWrapper(dir) {
+function verifyWorkspacePackage(dir) {
 	const pkg = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'));
 	const packed = packedPaths(
 		execSync('npm pack --dry-run --json --ignore-scripts', { cwd: dir, encoding: 'utf8' })

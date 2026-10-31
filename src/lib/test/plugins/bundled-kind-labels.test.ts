@@ -8,13 +8,13 @@ import { blockAccessibleName } from '#lib/a11y-strings.js';
 import { blockNoun } from '#lib/components/menu/default-context-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
-import { ADMONITION, GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
+import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import {
 	registerDetailsKind,
 	DETAILS,
 	DETAILS_SUMMARY
-} from '#lib/plugins/details/details-kind.js';
+} from '#packages/details/src/details-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {

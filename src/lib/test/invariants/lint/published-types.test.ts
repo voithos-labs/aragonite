@@ -102,4 +102,18 @@ describe('G4.185 published types reach no svelte import and no stylesheet', () =
 			'./svelte reaches no svelte import, so the walk over its types is blind'
 		]);
 	});
+
+	// Miss-analysis: every fixture's declarations stayed inside their package, so an inferred
+	// type svelte-package wrote as a path into the core's build passed as one more file to walk.
+	it("reports a declaration that reaches past its own package's root", () => {
+		write({
+			'core/dist/schema/strip.d.ts': 'export interface Strip { raw: string }',
+			'plugin/package.json': JSON.stringify({ exports: { '.': { types: './dist/index.d.ts' } } }),
+			'plugin/dist/index.d.ts':
+				"export declare function rebuild(): import('../../core/dist/schema/strip').Strip;"
+		});
+		expect(verifyTypes(path.join(root, 'plugin'))).toEqual([
+			'. reaches ../../core/dist/schema/strip (outside the package) through index.d.ts'
+		]);
+	});
 });

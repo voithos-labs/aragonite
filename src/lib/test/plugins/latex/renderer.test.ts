@@ -1,12 +1,12 @@
 /**
  * @vitest-environment jsdom
  *
- * The KaTeX adapter, reached through the `@voithos-labs/aragonite/plugins/latex/renderer`
+ * The KaTeX adapter, reached through the `@voithos-labs/aragonite-latex/renderer`
  * subpath. Anything that needs a real KaTeX render lives here; the caching layer above it is
  * proven in `math-renderer.test.ts`.
  */
 import { describe, it, expect } from 'vitest';
-import { katexRenderer } from '#lib/plugins/latex/renderer.js';
+import { katexRenderer } from '#packages/latex/src/renderer.js';
 
 describe('katexRenderer', () => {
 	it('renders valid math with MathML in the DOM (A9)', () => {

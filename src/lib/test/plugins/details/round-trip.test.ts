@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { getPluginMetadata } from '#lib/plugin.js';
-import { registerDetailsKind, rebuildDetailsRaw } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind, rebuildDetailsRaw } from '#packages/details/src/details-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // A canonical open details with a titled summary and a blank-line-wrapped body.

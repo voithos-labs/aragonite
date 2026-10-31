@@ -1,7 +1,7 @@
 <script module lang="ts">
-	import { parrotPlugin } from '#lib/plugins/parrot/index.js';
-	import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-	import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+	import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
+	import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+	import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
 	import { DEMO_FOOTNOTES, DEMO_LATEX, DEMO_TOC } from '../../../demo-plugins';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';

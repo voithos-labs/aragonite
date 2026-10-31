@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathInline } from '#packages/latex/src/latex-kind.js';
 import {
 	findOpening,
 	isProseOffset,

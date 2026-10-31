@@ -12,7 +12,7 @@ import {
 	makeStubFocus
 } from '#lib/test/harness/editor-actions.js';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
-import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { admittedCaret } from '#lib/test/harness/editor-actions.js';

@@ -5,8 +5,8 @@ import { mount, unmount, flushSync, tick } from 'svelte';
 import type { EditorInstance } from '#lib';
 import { Editor } from '#lib/svelte.js';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });

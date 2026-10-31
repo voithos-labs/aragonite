@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize, type CstNode, type Document } from '#lib';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { testView } from '#lib/test/harness/test-view.js';
 

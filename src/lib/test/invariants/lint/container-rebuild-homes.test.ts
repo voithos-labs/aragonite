@@ -120,7 +120,7 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildTableRaw: 1 },
 		why: 'builds the table a rectangular copy writes'
 	},
-	'src/lib/plugins/mermaid/mermaid-kind.ts': {
+	'packages/mermaid/src/mermaid-kind.ts': {
 		calls: { rebuildMermaidRaw: 1 },
 		why: 'the opener builds a new node’s bytes with its own rebuild'
 	}

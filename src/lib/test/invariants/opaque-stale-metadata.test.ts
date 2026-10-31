@@ -6,8 +6,8 @@ import { getPluginMetadata, setPluginMetadata } from '#lib/plugin.js';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { registerMermaidKind, type MermaidMetadata } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registerMermaidKind, type MermaidMetadata } from '#packages/mermaid/src/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 beforeEach(() => {

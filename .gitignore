@@ -2,6 +2,8 @@
 node_modules
 /build
 /.svelte-kit
+# svelte-package writes one beside each plugin package it builds.
+packages/*/.svelte-kit/
 /package
 dist/
 *.tgz

@@ -44,7 +44,8 @@
 	"types": "./dist/index.d.ts",
 	"imports": {
 		"#lib": "./src/lib/index.js",
-		"#lib/*": "./src/lib/*"
+		"#lib/*": "./src/lib/*",
+		"#packages/*": "./packages/*"
 	},
 	"exports": {
 		".": {
@@ -62,65 +63,13 @@
 			"svelte": "./dist/svelte.js",
 			"default": "./dist/prebuilt/svelte.js"
 		},
-		"./plugins/admonitions": {
-			"types": "./dist/plugins/admonitions/index.d.ts",
-			"svelte": "./dist/plugins/admonitions/index.js",
-			"default": "./dist/prebuilt/plugins/admonitions/index.js"
+		"./runtime/svelte": {
+			"svelte": "./dist/runtime/svelte.js",
+			"default": "./dist/prebuilt/runtime/svelte.js"
 		},
-		"./plugins/details": {
-			"types": "./dist/plugins/details/index.d.ts",
-			"svelte": "./dist/plugins/details/index.js",
-			"default": "./dist/prebuilt/plugins/details/index.js"
-		},
-		"./plugins/emoji": {
-			"types": "./dist/plugins/emoji/index.d.ts",
-			"svelte": "./dist/plugins/emoji/index.js",
-			"default": "./dist/prebuilt/plugins/emoji/index.js"
-		},
-		"./plugins/footnotes": {
-			"types": "./dist/plugins/footnotes/index.d.ts",
-			"svelte": "./dist/plugins/footnotes/index.js",
-			"default": "./dist/prebuilt/plugins/footnotes/index.js"
-		},
-		"./plugins/latex": {
-			"types": "./dist/plugins/latex/index.d.ts",
-			"svelte": "./dist/plugins/latex/index.js",
-			"default": "./dist/prebuilt/plugins/latex/index.js"
-		},
-		"./plugins/latex/renderer": {
-			"types": "./dist/plugins/latex/renderer.d.ts",
-			"svelte": "./dist/plugins/latex/renderer.js",
-			"default": "./dist/prebuilt/plugins/latex/renderer.js"
-		},
-		"./plugins/mermaid": {
-			"types": "./dist/plugins/mermaid/index.d.ts",
-			"svelte": "./dist/plugins/mermaid/index.js",
-			"default": "./dist/prebuilt/plugins/mermaid/index.js"
-		},
-		"./plugins/mermaid/renderer": {
-			"types": "./dist/plugins/mermaid/renderer.d.ts",
-			"svelte": "./dist/plugins/mermaid/renderer.js",
-			"default": "./dist/prebuilt/plugins/mermaid/renderer.js"
-		},
-		"./plugins/parrot": {
-			"types": "./dist/plugins/parrot/index.d.ts",
-			"svelte": "./dist/plugins/parrot/index.js",
-			"default": "./dist/prebuilt/plugins/parrot/index.js"
-		},
-		"./plugins/toc": {
-			"types": "./dist/plugins/toc/index.d.ts",
-			"svelte": "./dist/plugins/toc/index.js",
-			"default": "./dist/prebuilt/plugins/toc/index.js"
-		},
-		"./plugins/highlight-occurrences": {
-			"types": "./dist/plugins/highlight-occurrences/index.d.ts",
-			"svelte": "./dist/plugins/highlight-occurrences/index.js",
-			"default": "./dist/prebuilt/plugins/highlight-occurrences/index.js"
-		},
-		"./plugins/slash-commands": {
-			"types": "./dist/plugins/slash-commands/index.d.ts",
-			"svelte": "./dist/plugins/slash-commands/index.js",
-			"default": "./dist/prebuilt/plugins/slash-commands/index.js"
+		"./runtime/svelte/internal/client": {
+			"svelte": "./dist/runtime/svelte/internal/client.js",
+			"default": "./dist/prebuilt/runtime/svelte/internal/client.js"
 		},
 		"./testing": {
 			"types": "./dist/testing.d.ts",
@@ -147,7 +96,6 @@
 		"./dist/components/built-in-blocks.js",
 		"./dist/core/parsers/built-in-openers.js",
 		"./dist/schema/built-in-descriptors.js",
-		"./dist/plugins/latex/renderer.js",
 		"./dist/prebuilt/**/*.js"
 	],
 	"scripts": {
@@ -229,17 +177,9 @@
 		"highlight.js": "^11.12.0"
 	},
 	"peerDependencies": {
-		"katex": "^0.17.0 || ^0.18.0 || ^0.19.0",
-		"mermaid": "^11.16.0 || ^12.0.0",
 		"svelte": "^5.29.0"
 	},
 	"peerDependenciesMeta": {
-		"katex": {
-			"optional": true
-		},
-		"mermaid": {
-			"optional": true
-		},
 		"svelte": {
 			"optional": true
 		}

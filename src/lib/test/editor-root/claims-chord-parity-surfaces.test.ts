@@ -4,7 +4,7 @@
 // and an open menu, which takes Escape at the document wherever the caret is.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { defineBlockView } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import {
 	installLayoutStubs,

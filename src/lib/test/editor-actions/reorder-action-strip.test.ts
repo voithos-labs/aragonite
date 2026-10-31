@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
 import { serialize } from '#lib/core/serializer.js';
 import { makeReorderContainer } from './reorder-harness';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 
 // An alert-style plugin container reorders its body children within itself. The hazard of
 // rebuilding it as a blockquote (which drops the `[!TYPE]` marker) is hidden in committed

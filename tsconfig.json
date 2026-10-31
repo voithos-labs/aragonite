@@ -5,8 +5,35 @@
 		"allowImportingTsExtensions": false,
 		// Resolves `@voithos-labs/aragonite/dev-checks` to its source file (package.json `exports`).
 		"customConditions": ["aragonite-source"],
+		// The package names reach this checkout's source (`scripts/lib-alias.mjs :: workspaceSources`).
+		"paths": {
+			"@voithos-labs/aragonite": ["./src/lib/index.ts"],
+			"@voithos-labs/aragonite/plugin": ["./src/lib/plugin.ts"],
+			"@voithos-labs/aragonite/svelte": ["./src/lib/svelte.ts"],
+			"@voithos-labs/aragonite/runtime/svelte": ["./src/lib/runtime/svelte.ts"],
+			"@voithos-labs/aragonite/runtime/svelte/internal/client": [
+				"./src/lib/runtime/svelte/internal/client.ts"
+			],
+			"@voithos-labs/aragonite/testing": ["./src/lib/testing.ts"],
+			"@voithos-labs/aragonite-admonitions": ["./packages/admonitions/src/index.ts"],
+			"@voithos-labs/aragonite-details": ["./packages/details/src/index.ts"],
+			"@voithos-labs/aragonite-emoji": ["./packages/emoji/src/index.ts"],
+			"@voithos-labs/aragonite-footnotes": ["./packages/footnotes/src/index.ts"],
+			"@voithos-labs/aragonite-highlight-occurrences": [
+				"./packages/highlight-occurrences/src/index.ts"
+			],
+			"@voithos-labs/aragonite-latex": ["./packages/latex/src/index.ts"],
+			"@voithos-labs/aragonite-latex/renderer": ["./packages/latex/src/renderer.ts"],
+			"@voithos-labs/aragonite-mermaid": ["./packages/mermaid/src/index.ts"],
+			"@voithos-labs/aragonite-mermaid/renderer": ["./packages/mermaid/src/renderer.ts"],
+			"@voithos-labs/aragonite-parrot": ["./packages/parrot/src/index.ts"],
+			"@voithos-labs/aragonite-slash-commands": ["./packages/slash-commands/src/index.ts"],
+			"@voithos-labs/aragonite-toc": ["./packages/toc/src/index.ts"]
+		},
 		"sourceMap": true,
 		"strict": true
 	},
-	"include": ["src", "vite.config.js"]
+	"include": ["src", "packages/*/src", "vite.config.js"],
+	// The framework wrappers type-check under their own configs.
+	"exclude": ["packages/react", "packages/vue"]
 }

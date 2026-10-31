@@ -15,7 +15,7 @@ import {
 	type PluginBlockKind
 } from '#lib/plugin.js';
 import { runContainerConformance, type ContainerConformanceProfile } from '#lib/testing.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { testClosure } from '#lib/test/harness/closure.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { testView } from '#lib/test/harness/test-view.js';

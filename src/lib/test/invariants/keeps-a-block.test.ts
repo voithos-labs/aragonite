@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { checkKeepsABlock } from '#lib/invariants/keeps-a-block.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { makeBlockListState, makeTopHarness } from '../harness/editor-actions';
 import { takeDevWarns } from '../support/warn-gate';

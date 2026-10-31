@@ -19,8 +19,8 @@ import { makeSurface } from '#lib/test/harness/editable-surface.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import type { EditorOptions, PlaceholderBlock } from '#lib/editor-props.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 
 installLayoutStubs();
 afterEach(destroyMountedEditors);

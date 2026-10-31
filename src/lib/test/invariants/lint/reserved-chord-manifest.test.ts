@@ -10,7 +10,7 @@ import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js'
 import { registeredChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
-import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
+import { collectEditorSources, LIBRARY_ROOTS, type SourceFile } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // ── The scan ─────────────────────────────────────────────────────────────────
@@ -45,9 +45,10 @@ export function harvestKeys(code: string): string[] {
 
 // Library-internal by design: the rule binds aragonite's own keydown branches, and a plugin
 // or example author's handlers are theirs to publish, not ours to manifest.
-const sources: SourceFile[] = collectEditorSources(EDITOR_SRC);
-// The manifest names its files from the library root.
-const libRelative = (relPath: string) => relPath.slice(SOURCE_DIR.library.length);
+const sources: SourceFile[] = collectEditorSources(LIBRARY_ROOTS);
+// The manifest names a library file from the library root and a plugin's from the repo root.
+const libRelative = (relPath: string) =>
+	relPath.startsWith(SOURCE_DIR.library) ? relPath.slice(SOURCE_DIR.library.length) : relPath;
 const relToLib = (file: SourceFile) => libRelative(file.relPath);
 const modifierReaders = sources.filter((file) => MODIFIER_READ.test(file.code));
 const byPath = new Map(sources.map((file) => [relToLib(file), file]));

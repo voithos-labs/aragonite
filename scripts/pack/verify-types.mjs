@@ -22,7 +22,7 @@ export function verifyTypes(root = '.') {
 			failures.push(`${subpath} has no declaration file at ${target.types}`);
 			continue;
 		}
-		const leaks = typeLeaks(entry);
+		const leaks = typeLeaks(entry, root);
 		if (SVELTE_ENTRIES.has(subpath)) {
 			// The Svelte entry reaching `svelte` is what proves the walk can see an import at all.
 			if (!leaks.some((leak) => isSvelte(leak.specifier))) {
@@ -39,11 +39,14 @@ export function verifyTypes(root = '.') {
 
 /**
  * Each `svelte` or stylesheet import reachable from `entry` through relative declaration imports,
- * with the chain of files that reaches it. An import no declaration file answers counts as a leak.
+ * with the chain of files that reaches it. An import no declaration file answers counts as a leak,
+ * and so does one reaching past `root`, which a host installing the package doesn't have.
  * @param {string} entry A `.d.ts` file.
+ * @param {string} [root] The package's root.
  * @returns {{ specifier: string, chain: string[] }[]}
  */
-export function typeLeaks(entry) {
+export function typeLeaks(entry, root = path.dirname(entry)) {
+	const inside = path.resolve(root) + path.sep;
 	const base = path.dirname(entry);
 	/** @type {Map<string, string | null>} */
 	const parent = new Map([[entry, null]]);
@@ -64,6 +67,10 @@ export function typeLeaks(entry) {
 				continue;
 			}
 			if (!specifier.startsWith('.')) continue;
+			if (!path.resolve(path.dirname(file), specifier).startsWith(inside)) {
+				leaks.push({ specifier: `${specifier} (outside the package)`, chain: chainTo(file) });
+				continue;
+			}
 			const next = declarationFor(file, specifier);
 			if (next === null) {
 				leaks.push({ specifier: `${specifier} (no declaration file)`, chain: chainTo(file) });

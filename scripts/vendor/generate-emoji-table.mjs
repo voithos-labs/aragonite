@@ -1,4 +1,4 @@
-// Regenerates `src/lib/plugins/emoji/emoji-table.ts` from github/gemoji's canonical
+// Regenerates `packages/emoji/src/emoji-table.ts` from github/gemoji's canonical
 // `db/emoji.json`. Run explicitly by a developer; the plugin ships the table checked in
 // and pulls no data at build or runtime. `--input <file>` regenerates from a local copy.
 // The output is deterministic (aliases sorted) and `.prettierignore`d — the emitted form
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 // upstream glyph or alias change arrive unreviewed. Bump, regenerate, and review together.
 const GEMOJI_DB_URL =
 	'https://raw.githubusercontent.com/github/gemoji/0eca75db9301421efc8710baf7a7576793ae452a/db/emoji.json';
-export const EMOJI_TABLE_PATH = 'src/lib/plugins/emoji/emoji-table.ts';
+export const EMOJI_TABLE_PATH = 'packages/emoji/src/emoji-table.ts';
 
 // ── Pure core (unit-tested) ───────────────────────────────────────────────────
 

@@ -1,0 +1,20 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"strict": true,
+		"declaration": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		// This checkout's own core build, wherever npm linked the package from.
+		"paths": {
+			"@voithos-labs/aragonite/plugin": ["../../dist/plugin.d.ts"],
+			"@voithos-labs/aragonite/svelte": ["../../dist/svelte.d.ts"]
+		}
+	},
+	"include": ["src"]
+}

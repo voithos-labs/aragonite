@@ -9,7 +9,13 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { resolveConfig } from 'vite';
-import { collectFiles, importSpecifiers, isLibrarySpecifier, readSource } from './scan-source';
+import {
+	collectFiles,
+	importSpecifiers,
+	isLibrarySpecifier,
+	LIBRARY_ROOTS,
+	readSource
+} from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 const config = await resolveConfig({ configFile: path.resolve(SOURCE.viteConfig) }, 'serve');
@@ -24,7 +30,7 @@ const toPosix = (file: string) => file.split(path.sep).join('/');
 function appSources() {
 	const extensions = ['.ts', '.js', '.svelte'];
 	return [
-		...collectFiles(SOURCE_DIR.library, { extensions, skip: ['test', 'e2e'] }),
+		...LIBRARY_ROOTS.flatMap((root) => collectFiles(root, { extensions, skip: ['test', 'e2e'] })),
 		...collectFiles(SOURCE_DIR.routes, { extensions })
 	]
 		.filter((relPath) => !relPath.endsWith('.d.ts'))

@@ -1,12 +1,12 @@
 // Miss-analysis: every case asserted the map, which a whole-document pass also produces.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, type DocumentView } from '#lib';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
 import {
 	collectFootnoteReferences,
 	footnoteNumbersFor
-} from '#lib/plugins/footnotes/footnote-numbering.js';
+} from '#packages/footnotes/src/footnote-numbering.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

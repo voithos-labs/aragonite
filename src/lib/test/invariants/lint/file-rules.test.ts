@@ -304,7 +304,7 @@ const MOUNTS_PLUGIN_VIEW =
 
 const PLUGIN_VIEW_FALLBACK: FileRule = {
 	id: 'G4.178 every route that mounts a plugin view contains its failure',
-	population: under(SOURCE_DIR.library),
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches: (file) =>
 		MOUNTS_PLUGIN_VIEW.test(file.code) && !/\bwarnIfForeignRuntime\(/.test(file.code),
 	allowed: {
@@ -338,7 +338,7 @@ const CALLS_PLUGIN_VIEW =
 
 const ONE_VIEW_WRAPPER: FileRule = {
 	id: 'G4.186 a plugin view is drawn only through mountPluginView',
-	population: under(SOURCE_DIR.library),
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches: CALLS_PLUGIN_VIEW,
 	allowed: {
 		'src/lib/plugin-view.ts': 'the wrapper itself, the one place a view is called'
@@ -396,7 +396,7 @@ const RULES: FileRule[] = [
 				'rAF pointermove coalescing: the one place every drag lifecycle runs',
 			'src/lib/editor-actions/commit/text-batch.ts':
 				'setTimeout wall-clock undo debounce, a pause detection tick() cannot express',
-			'src/lib/plugins/highlight-occurrences/highlight-occurrences-plugin.ts':
+			'packages/highlight-occurrences/src/highlight-occurrences-plugin.ts':
 				'setTimeout typing pause before the occurrence marks return, a pause detection tick() cannot express',
 			'src/lib/search/regex-executor.ts':
 				'setTimeout regex-scan cancellation deadline: nothing waits on the timer, and no main-thread budget can interrupt one RegExp.exec'
@@ -767,7 +767,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.175 every library component compiles in runes mode',
-		population: (file) => svelteOnly(file) && file.relPath.startsWith(SOURCE_DIR.library),
+		population: (file) => svelteOnly(file) && under(SOURCE_DIR.library, SOURCE_DIR.plugins)(file),
 		matches: (file) => !RUNES_MODE_RE.test(file.code),
 		reason:
 			'a component with no rune compiles in legacy mode in a Svelte host, which turns on the legacy flag in the Svelte runtime of that app: add `<svelte:options runes />`',
@@ -898,7 +898,7 @@ const RULES: FileRule[] = [
 				'the caret between blocks holds no text, so a press there has no line to land on',
 			'src/lib/editor-actions/whole-block-focus-surface.svelte.ts':
 				'the hidden editing host behind a whole block takes focus, never a press',
-			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+			'packages/mermaid/src/MermaidBlock.svelte':
 				'the diagram source is a textarea, a form control that places its own caret, with no DOM text for the probe',
 			'src/lib/invariants/marker-css-parity.ts':
 				'the dev check measures a detached probe element nobody presses'
@@ -1111,9 +1111,9 @@ const RULES: FileRule[] = [
 			'src/lib/components/link-card/LinkCard.svelte': 'a URL typed into the link card',
 			'src/lib/components/link-card/LinkCardHost.svelte': 'a URL typed into the link card',
 			'src/lib/core/inline/link-source-bytes.ts': 'the URL the link command was given',
-			'src/lib/plugins/latex/BlockMath.svelte':
+			'packages/latex/src/BlockMath.svelte':
 				'whether the render shows ink, not whether the Markdown is blank',
-			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+			'packages/mermaid/src/MermaidBlock.svelte':
 				'whether the render shows ink, not whether the Markdown is blank'
 		},
 		reason:
@@ -1139,14 +1139,12 @@ const RULES: FileRule[] = [
 			PLUGIN_GRAMMAR_DIRS.some((dir) => under(dir)(file)),
 		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
 		allowed: {
-			'src/lib/plugins/latex/flanking.ts':
-				'the `$` flanking rule reads Unicode whitespace, as emphasis does',
-			'src/lib/plugins/latex/renderer.ts': 'the text of a KaTeX error message',
-			'src/lib/plugins/latex/BlockMath.svelte': SHOWS_INK,
-			'src/lib/plugins/mermaid/MermaidBlock.svelte': SHOWS_INK,
-			'src/lib/plugins/slash-commands/slash-source.ts':
+			'packages/latex/src/renderer.ts': 'the text of a KaTeX error message',
+			'packages/latex/src/BlockMath.svelte': SHOWS_INK,
+			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
+			'packages/slash-commands/src/slash-source.ts':
 				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
-			'src/lib/plugins/slash-commands/filter.ts': 'the words of a menu query the user typed'
+			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed'
 		},
 		reaches: [...GRAMMAR_FILES, SOURCE.directiveGrammar],
 		reason:
@@ -1169,7 +1167,7 @@ const RULES: FileRule[] = [
 			at(PARSER_PROBE, 'isWhitespaceChar(ch); // JS \\s is too wide'),
 			at(PARSER_PROBE, 'const info = trimWhitespace(raw);'),
 			at('src/lib/core/inline/scan/emphasis.ts', 'return /\\s/.test(ch);'),
-			at('src/lib/plugins/mermaid/mermaid-kind.ts', 'const match = /^([`~]+)(.*)$/s.exec(raw);')
+			at('packages/mermaid/src/mermaid-kind.ts', 'const match = /^([`~]+)(.*)$/s.exec(raw);')
 		]
 	},
 	{
@@ -1501,7 +1499,7 @@ const RULES: FileRule[] = [
 				'a modified Enter or arrow is a shortcut, not the plain key the cell handles',
 			'src/lib/components/menu/BlockMenu.svelte':
 				'a modified key is left to the editor, not read as menu navigation',
-			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+			'packages/mermaid/src/MermaidBlock.svelte':
 				'Ctrl/Cmd+wheel zooms the diagram and Mod+Enter commits its edit: shortcuts, not a click that follows',
 			'src/lib/selection/dead-space-caret.ts': 'a modified click places no caret in empty space',
 			'src/lib/selection/multi-click.ts': 'a modified press is not a multi-click select'
@@ -2371,18 +2369,18 @@ const REVEAL_BLOCKS_IN_SVELTE: ManifestRule[] = [
 		matches: /\bmode:\s*['"]render-primary['"]/,
 		declared: {
 			[SOURCE.latexBlockMath]: 'block math, with its layout toggle and live preview',
-			'src/lib/plugins/toc/TocBlock.svelte': 'the outline, whose list follows the headings',
-			'src/lib/plugins/parrot/ParrotBlock.svelte': 'the plugin guide’s quickstart block'
+			'packages/toc/src/TocBlock.svelte': 'the outline, whose list follows the headings',
+			'packages/parrot/src/ParrotBlock.svelte': 'the plugin guide’s quickstart block'
 		},
 		reason:
 			'a bundled block that shows a rendered view until clicked can be a `defineBlockView({ surface: "render-primary" })` view; this list is where moving them starts, and it guards nothing inside a listed file',
-		hits: [at('src/lib/plugins/x/XBlock.svelte', "mode: 'render-primary',")],
+		hits: [at('packages/x/src/XBlock.svelte', "mode: 'render-primary',")],
 		misses: [
 			at(
-				'src/lib/plugins/x/x-kind.ts',
+				'packages/x/src/x-kind.ts',
 				"focus: { mode: 'implemented', via: 'render-primary reveal' },"
 			),
-			at('src/lib/plugins/x/x-view.ts', "surface: 'render-primary',")
+			at('packages/x/src/x-view.ts', "surface: 'render-primary',")
 		]
 	}
 ];
@@ -2495,7 +2493,7 @@ const RANGE_INDENT: ManifestRule[] = [
 	},
 	{
 		id: 'G4.112 a command key over a range is pressed from the keydown handler only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: /\{\s*kind:\s*'command',/,
 		declared: {
 			'src/lib/selection/cross-block/keydown.ts':
@@ -2599,12 +2597,12 @@ const SYNTAX_MODULES: FileRule[] = [
 			at(ROGUE_MATH_READER, 'const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);'),
 			at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
 			at(ROGUE_MATH_READER, "const price = '$' + amount;"),
-			at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
+			at('packages/mermaid/src/x.ts', "if (text.startsWith('$$')) return null;")
 		]
 	},
 	{
 		id: 'G4.131 a table row’s pipes are read and written in `table-line.ts` only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: new RegExp(`${PADDED_PIPE}|${TEMPLATE_ROW}|${EDGE_PIPE_READ}|${DELIMITER_CELL}`),
 		allowed: {
 			[TABLE_LINE_HOME]:
@@ -2653,7 +2651,7 @@ const SYNTAX_MODULES: FileRule[] = [
 	},
 	{
 		id: 'G4.131 whether two lines open a table is decided in `matchTableOpening` only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: OPENING_ARITY,
 		allowed: {
 			[SOURCE.tableParser]: '`matchTableOpening`, which the parser and the grid paste both ask'
@@ -2750,7 +2748,7 @@ const ITEM_PIECES: ManifestRule[] = [
 	},
 	{
 		id: 'G4.123 a list is rebuilt around a dissolved item in the dissolve module only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: /(?<![\w.])(?<!function\s+)assembleListHalf\s*\(/,
 		declared: {
 			[DISSOLVE_HOME]: '`dissolveItem`, the list halves around a dissolving item',
@@ -2772,7 +2770,7 @@ const ITEM_PIECES: ManifestRule[] = [
 
 const PIECES_UNDER_ORDER_CHECK: FileRule = {
 	id: 'G4.123 an item’s children are split inside the list order check only',
-	population: under(SOURCE_DIR.library),
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches: splitsOutsideOrderCheck,
 	reaches: [DISSOLVE_HOME],
 	reason:
@@ -2987,7 +2985,7 @@ function readsFenceLinesByHand(file: SourceFile): boolean {
 const CODE_EDIT_SPAN: FileRule[] = [
 	{
 		id: 'G4.130 a code block range is clamped to its body in `code-fence-boundary.ts` only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: /(?<![\w.])(?<!function\s+)clampRangeToBody\s*\(/,
 		allowed: {
 			[EDIT_SPAN_HOME]: '`editSpan` and the caret clamp',

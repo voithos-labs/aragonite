@@ -26,13 +26,13 @@ unguarded.
 | G4.7   | A render memo keys on every input its built DOM embeds                                           | D·N     |
 | G4.8   | Every documented chord resolves in the surface that dispatches it                                | L       |
 | G4.9   | Every published theme token is declared, with light and dark values                              | L       |
-| G4.10  | Every bundled plugin directory is exported, and the pack carries it                              | L       |
+| G4.10  | _Retired upward_: each plugin is its own package, held to that package's shape (G4.277)          | L       |
 | G4.11  | Exactly the allowed paste routes apply paste transforms                                          | L       |
 | G4.12  | Caret-edge destructive keys route through the one edge-policy dispatch                           | L       |
 | G4.13  | No view-stripping cast outside `tree-operations/` and the undo controller                        | T·L     |
 | G4.14  | Every component prop reading the CST is typed as a readonly view                                 | L       |
 | G4.15  | Coordinate brands are created only at their home modules                                         | L       |
-| G4.16  | Bundled plugins import only the public authoring barrels                                         | L       |
+| G4.16  | _Retired upward_: a plugin package can't spell a `#lib` import; G4.277 holds the rest            | L       |
 | G4.17  | No spec is collected by two Playwright projects                                                  | L       |
 | G4.18  | _Retired_: the inline handler-order and registration rows hold what the trigger table did        | L       |
 | G4.19  | _Retired upward_: reading mode is refused where bytes are written, not per dispatch site (G4.52) | L       |
@@ -223,6 +223,7 @@ unguarded.
 | G4.274 | A typed insert or a typed key is read only where the editor decides where it lands               | L       |
 | G4.275 | Words are cut by one rule, read only through `wordSegments`                                      | L       |
 | G4.276 | A widget's raw span is read only through `widgetSourceRange`                                     | L       |
+| G4.277 | Every bundled plugin is a package an outside author could have written                           | L       |
 
 ### The entries
 
@@ -276,10 +277,8 @@ exemption fails. `lint/consumer-guide-chords.test.ts`.
 `editor-theme.css`, and a themed token carries both a light and a dark value.
 `lint/theme-token-manifest.test.ts`.
 
-**G4.10 · Plugin package and pack parity.** Every `src/lib/plugins/<name>` directory is exported as
-`./plugins/<name>`, and verify-pack derives its required files from that (`scripts/pack/pack-manifest.mjs`);
-a plugin module with a top-level CSS import is declared in `sideEffects`. The `/renderer` subpaths
-are extra. `lint/plugin-pack-parity.test.ts`.
+**G4.10 · Retired upward.** Each bundled plugin is a package of its own now, whose manifest and
+pack G4.277 and `scripts/pack/verify-plugin-package.mjs` check.
 
 **G4.11 · Paste-transform site parity.** Exactly the allowed clipboard-to-parse routes call
 `applyPasteTransforms`, since a new route without it drops plugin transforms. A route that never
@@ -306,12 +305,11 @@ only in `core/coordinate-spaces.ts` and the allowlisted public-entry files; ever
 brand through those or a named conversion. G3.7's runtime-source complement.
 `lint/file-rules.test.ts`.
 
-**G4.16 · Bundled-plugin import boundary.** Every file under `src/lib/plugins/**` imports only the
-public authoring barrels (`#lib/plugin.js` and `#lib/svelte.js`), its own plugin directory, `svelte`,
-or, for a `renderer.ts`, its one declared rendering engine, which proves the barrels are complete.
-Every import-boundary scan (this one, G4.63, G4.64, G4.122) reads specifiers through
+**G4.16 · Retired upward.** A plugin's source sits in its own package, where a `#lib` import
+doesn't resolve at all; G4.277 holds the imports it can still write. Every import-boundary scan
+(G4.63, G4.64, G4.122, G4.277) reads specifiers through
 `src/lib/test/invariants/lint/scan-source.ts :: importSpecifiers`, so an import quoted in a string
-or comment is no edge. `lint/plugin-import-boundary.test.ts`.
+or comment is no edge.
 
 **G4.17 · One Playwright project per spec.** No spec file is collected by two Playwright projects. The scan reads what `playwright test --list` reports, so the glob
 depth rules are Playwright's own; a spec no project collects is G4.23's.
@@ -836,7 +834,7 @@ list of builders of genuinely new containers.
 **G4.111 · One write for a block's own text.** A block's editable element changes its own text
 through `components/blocks/editable/surface-write.ts :: writeText`, which gives undo the caret from before the
 key, keeps the line ending, and puts the caret back. `lint/call-site-rules.test.ts` fails an
-`updateBlockContent` call under `components/`, `selection/` or a plugin's code (`src/lib/plugins/`,
+`updateBlockContent` call under `components/`, `selection/` or a plugin's code (`packages/`,
 `src/routes/test/plugins/`) elsewhere, except the few listed by function that are still to move,
 and the block's own edit actions in `editable-surface.ts`, which `writeText` writes through.
 
@@ -919,10 +917,10 @@ holds `clampRangeToBody(` to there and `code-indent.ts`, and `fenceLinesShown` t
 a block's syntax drift apart, so each syntax gets one module, and `lint/file-rules.test.ts` keeps a
 row per syntax (`SYNTAX_MODULES`) that fails a copy elsewhere:
 
-- **`$$` math.** `src/lib/plugins/latex/math-shape.ts` (`readMathSource`, `mathCloserLine`,
+- **`$$` math.** `packages/latex/src/math-shape.ts` (`readMathSource`, `mathCloserLine`,
   `mathBlockLines`); `math-source.ts` :: `sliceMathSource` picks between it and the ` ```math ` fence
   form. The row fails `$$` spellings (strings, regexes, the fence constant, line splits) under
-  `src/lib/plugins/latex/` outside that module. `test/plugins/latex/math-shape-parity.test.ts`,
+  `packages/latex/src/` outside that module. `test/plugins/latex/math-shape-parity.test.ts`,
   `math-block-writers.test.ts`.
 - **Table rows.** `src/lib/core/parsers/table-line.ts` reads rows (`rowCellSpans`, `opensOnPipe`,
   `wrappedInPipes`, `boundaryPipeAt`) and writes them (`tableRowLine`, `tableDelimiterLine`,
@@ -1022,7 +1020,7 @@ removal leaves the caret in adopts the runs), and no file keeps a composing flag
 `lint/composition-holders.test.ts`.
 
 **G4.157 · Every bundled block kind can be inserted.** `test/plugins/insertable-kinds.test.ts`
-installs every plugin under `src/lib/plugins/` from its zero-argument factory and reads the kinds
+installs every plugin package under `packages/` from its zero-argument factory and reads the kinds
 they register: each one is in the tree some insert entry's Markdown parses to (a title row comes
 with its container), or is listed with why no entry makes it. A listed kind that's gone or has
 gained an entry fails too.
@@ -1062,7 +1060,7 @@ be first. `lint/table-header-flag.test.ts` fails a file other than the table par
 names its source build under `svelte` and the prebuilt one under `default`, at the same path below
 `dist/prebuilt/`; `publishedEntryPoints` throws on a broken pair, so all its readers stop together.
 `sideEffects` covers the whole prebuilt, since a bundler dropping a chunk it thinks pure loses its
-registrations. `lint/plugin-pack-parity.test.ts`; `scripts/pack/verify-prebuilt.mjs` checks the output's
+registrations. `lint/published-entry-builds.test.ts`; `scripts/pack/verify-prebuilt.mjs` checks the output's
 imports, Node load, a `/plugin` kind's parse and the size budget.
 
 **G4.175 · Runes mode only.** A component with no rune compiles in legacy mode, which turns on the
@@ -1457,3 +1455,10 @@ a letter or a digit. The word delete, the word keys and the double-click read wo
 stands for in `data-source-start` and `data-source-end`, and only
 `core/inline/widget-shell.ts :: widgetSourceRange` parses them back. It answers null unless both
 parse, so no reader trusts half a span. Writing them is fine anywhere. `lint/file-rules.test.ts`.
+
+**G4.277 · A bundled plugin is an outside author's package.** Each plugin under `packages/` (the
+`aragonite-plugin` keyword marks one) imports only the core's `/plugin` and `/svelte` entry points,
+`svelte`, its own files and the peers it declares, a rendering engine only from its `renderer.ts`.
+Its manifest carries the core's version and peers on exactly it, keeps every other peer optional,
+and declares each module that imports a stylesheet in `sideEffects`, in both builds. A workspace
+package without the keyword has to be a framework wrapper. `lint/plugin-packages.test.ts`.

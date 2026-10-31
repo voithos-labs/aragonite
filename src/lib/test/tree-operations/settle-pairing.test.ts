@@ -4,8 +4,8 @@
 // re-pairing ever reached a second fence further down.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { typingOver } from '#lib/test/harness/typing.js';
 import { makeReorderHarness } from '#lib/test/editor-actions/reorder-harness.js';

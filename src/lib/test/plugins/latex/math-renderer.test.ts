@@ -7,8 +7,8 @@
  */
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins } from '#lib';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { mathSlot, type MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { mathSlot, type MathRenderer } from '#packages/latex/src/math-renderer.js';
 
 const DARK = { theme: 'dark' };
 

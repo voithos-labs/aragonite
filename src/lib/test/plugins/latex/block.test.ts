@@ -3,8 +3,8 @@ import { installPlugins, parse, serialize } from '#lib';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
 import { handlersFor } from '#lib/core/inline/scan/plugin-syntax.js';
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
-import { registerMathBlock, MATH_BLOCK } from '#lib/plugins/latex/latex-kind.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { registerMathBlock, MATH_BLOCK } from '#packages/latex/src/latex-kind.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // Recognition starts only once the opener registers: with the plugin absent a `$$` fence is

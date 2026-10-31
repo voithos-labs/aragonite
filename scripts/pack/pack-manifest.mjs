@@ -1,7 +1,6 @@
-// Single source of truth for the published tarball manifest, derived from package.json
+// Single source of truth for the core's published tarball manifest, derived from package.json
 // `exports` plus the two files no export entry names. verify-pack.mjs gates the tarball
-// against this list; the G4.10 parity lint guards the derivation against the plugin source
-// tree, so a new plugin subpath flows into both automatically.
+// against this list, so a new entry point can't ship unbuilt.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { SOURCE_CONDITION, selfImportSpecifiers } from '../lib-alias.mjs';

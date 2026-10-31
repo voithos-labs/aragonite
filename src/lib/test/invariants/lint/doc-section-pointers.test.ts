@@ -184,6 +184,20 @@ describe('path and symbol references: still enforced', () => {
 		}
 	});
 
+	// Miss-analysis: a move left its old directory empty on disk, which git never checks out, so
+	// the docs naming it passed locally and redded in CI.
+	it('reds on an empty directory, which git does not keep', () => {
+		const planted = 'scripts/zz-empty-dir-probe';
+		mkdirSync(planted, { recursive: true });
+		try {
+			expect(referenceFailures([{ file: 'x.md', path: `${planted}/` }])).toEqual([
+				`x.md: ${planted}/ — an empty directory, so a checkout doesn't have it`
+			]);
+		} finally {
+			rmSync(planted, { recursive: true });
+		}
+	});
+
 	it('blanks a fence, so an illustrative snippet claims nothing', () => {
 		const blanked = stripFencedBlocks('Prose `src/a.ts`.\n```\n`src/nope.ts`\n```\nAfter.');
 		expect(blanked).toContain('src/a.ts');

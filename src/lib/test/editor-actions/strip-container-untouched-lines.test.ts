@@ -5,8 +5,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
 import { serialize } from '#lib/core/serializer.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 
 beforeEach(() => {

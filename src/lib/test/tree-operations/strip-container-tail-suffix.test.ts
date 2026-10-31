@@ -1,8 +1,8 @@
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';

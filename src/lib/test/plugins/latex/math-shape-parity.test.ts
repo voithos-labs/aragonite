@@ -16,18 +16,18 @@ import {
 } from '#lib/plugin.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
-import { MATH_BLOCK, registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { MATH_BLOCK, registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import {
 	mathBodySpan,
 	mathDisplaySource,
 	renderMathSource,
 	reshapeMathEdit
-} from '#lib/plugins/latex/math-source.js';
+} from '#packages/latex/src/math-source.js';
 import {
 	awaitsMathCloser,
 	readMathSource,
 	type MathSource
-} from '#lib/plugins/latex/math-shape.js';
+} from '#packages/latex/src/math-shape.js';
 import { paintedSplit } from './painted-split';
 import { testView } from '#lib/test/harness/test-view.js';
 

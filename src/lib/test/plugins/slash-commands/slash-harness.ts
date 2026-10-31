@@ -19,7 +19,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import {
 	createSlashSource,
 	type SlashCommandsOptions
-} from '#lib/plugins/slash-commands/slash-source.js';
+} from '#packages/slash-commands/src/slash-source.js';
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import { normalizePluginEntries } from '#lib/schema/plugin-install.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
