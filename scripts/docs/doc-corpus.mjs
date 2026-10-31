@@ -70,6 +70,9 @@ export function corpusFiles(roots, extensions) {
  */
 export function citationProblem(target, ignored) {
 	if (!existsSync(target)) return 'no such file or directory';
+	if (statSync(target).isDirectory() && readdirSync(target).length === 0) {
+		return "an empty directory, so a checkout doesn't have it";
+	}
 	const file = posix.normalize(target.split('\\').join('/'));
 	if (isIgnoredBy(ignored, file) || isIgnoredBy(ignored, `${file}/`)) {
 		return 'gitignored, so it exists only on this machine';

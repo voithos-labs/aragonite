@@ -834,7 +834,7 @@ list of builders of genuinely new containers.
 **G4.111 · One write for a block's own text.** A block's editable element changes its own text
 through `components/blocks/editable/surface-write.ts :: writeText`, which gives undo the caret from before the
 key, keeps the line ending, and puts the caret back. `lint/call-site-rules.test.ts` fails an
-`updateBlockContent` call under `components/`, `selection/` or a plugin's code (`src/lib/plugins/`,
+`updateBlockContent` call under `components/`, `selection/` or a plugin's code (`packages/`,
 `src/routes/test/plugins/`) elsewhere, except the few listed by function that are still to move,
 and the block's own edit actions in `editable-surface.ts`, which `writeText` writes through.
 
@@ -1020,7 +1020,7 @@ removal leaves the caret in adopts the runs), and no file keeps a composing flag
 `lint/composition-holders.test.ts`.
 
 **G4.157 · Every bundled block kind can be inserted.** `test/plugins/insertable-kinds.test.ts`
-installs every plugin under `src/lib/plugins/` from its zero-argument factory and reads the kinds
+installs every plugin package under `packages/` from its zero-argument factory and reads the kinds
 they register: each one is in the tree some insert entry's Markdown parses to (a title row comes
 with its container), or is listed with why no entry makes it. A listed kind that's gone or has
 gained an entry fails too.
