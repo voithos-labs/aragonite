@@ -27,11 +27,11 @@ const result = { platform: 'android', rows: [], probes: [] };
 for (const [name, run] of Object.entries(rows)) {
 	const started = Date.now();
 	const row = await run(ctx).catch((error) => ({ reasons: [String(error?.stack ?? error)] }));
-	result.rows.push({ name, pass: row.reasons.length === 0, ms: Date.now() - started, ...row });
+	result.rows.push({ ...row, name, pass: row.reasons.length === 0, ms: Date.now() - started });
 }
 for (const [name, run] of Object.entries(probes)) {
 	const outcome = await run(ctx).catch((error) => ({ error: String(error?.stack ?? error) }));
-	result.probes.push({ name, ...outcome });
+	result.probes.push({ ...outcome, name });
 }
 page.close();
 

@@ -115,6 +115,7 @@ export function installCellDragListener(
 	}
 
 	return createPointerDragSession(down, {
+		touch: 'browser',
 		onMove: (p) => processMove(p.clientX, p.clientY),
 		autoScroll: { getTargets: () => [tableScrollEl] },
 		lifetimeSignal: ctx.lifetimeSignal

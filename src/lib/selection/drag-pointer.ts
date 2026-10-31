@@ -191,6 +191,7 @@ export function installDragListener(
 	}
 
 	return createPointerDragSession(down, {
+		touch: 'browser',
 		onMove: (p) => processMove(p.clientX, p.clientY),
 		onEnd: () => {
 			if (ctx.selection.isCrossBlock) parkCaretInFocusBlock(ctx);

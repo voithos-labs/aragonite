@@ -144,12 +144,12 @@ const result = { platform: 'ios', simulator: sim, timings, rows: [], probes: [] 
 for (const [name, runRow] of Object.entries(rows)) {
 	const begun = Date.now();
 	const row = await runRow(ctx).catch((error) => ({ reasons: [String(error?.stack ?? error)] }));
-	result.rows.push({ name, pass: row.reasons.length === 0, ms: Date.now() - begun, ...row });
+	result.rows.push({ ...row, name, pass: row.reasons.length === 0, ms: Date.now() - begun });
 	mark(name);
 }
 for (const [name, runProbe] of Object.entries(probes)) {
 	const outcome = await runProbe(ctx).catch((error) => ({ error: String(error?.stack ?? error) }));
-	result.probes.push({ name, ...outcome });
+	result.probes.push({ ...outcome, name });
 	mark(name);
 }
 await call('DELETE', s('')).catch(() => {});

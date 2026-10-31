@@ -12,6 +12,7 @@ import { isInPaddingRow, offsetFromViewportPoint } from '../../browser/point';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { isWholeBlockInputProxy } from '../whole-block-input';
+import { isTouchPointer, onTap } from '../pointer-gesture';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -44,6 +45,21 @@ export function resetForPointerDown(
 	}
 }
 
+/** `resetForPointerDown` for a press: at once for a mouse or a pen, and for a finger only once the
+ *  press ends as a tap, so a scroll or a native long-press selection keeps the range it began on. */
+export function resetForPress(
+	selection: SelectionState,
+	writer: CaretWriter,
+	caretMemory: Pick<CaretMemory, 'forget'>,
+	e: PointerEvent
+): void {
+	if (!isTouchPointer(e)) {
+		resetForPointerDown(selection, writer, caretMemory, e.shiftKey);
+		return;
+	}
+	onTap(e, () => resetForPointerDown(selection, writer, caretMemory, false));
+}
+
 // ── Pointer ────────────────────────────────────────────────────────────────
 
 function handlePointerDown(
@@ -56,7 +72,7 @@ function handlePointerDown(
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	resetForPointerDown(selection, ctx.caretWriter, ctx.caretMemory, e.shiftKey);
+	resetForPress(selection, ctx.caretWriter, ctx.caretMemory, e);
 	const padding = armPaddingPress(ctx.caretWriter, el, myPath, e);
 
 	if (e.shiftKey) {

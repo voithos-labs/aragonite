@@ -15,7 +15,8 @@ import { BLOCK_TEXT_SELECTOR } from '../../caret/block-content-selector';
 import {
 	planPaddingPress,
 	rangeCoversPoint,
-	resetForPointerDown
+	resetForPointerDown,
+	resetForPress
 } from '../../selection/cross-block/pointer';
 import { nativeRangeIn } from '../../browser/selection-read';
 import { createDeadSpaceCaret } from '../../selection/dead-space-caret';
@@ -221,7 +222,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			// Reading mode places no caret, and the browser's own drag selects there.
 			if (deps.reading.mode() === 'reading') return;
 			marginDrag = true;
-			resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false);
+			resetForPress(deps.selection, deps.caretWriter, deps.caretMemory, e);
 			// A block that runs its own drag from a nearby click (a table's cell rectangle) takes
 			// it; the generic drag is for blocks that have none.
 			if (!('offset' in anchor)) {

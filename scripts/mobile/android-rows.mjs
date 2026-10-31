@@ -11,6 +11,9 @@ const SHORT = 'alpha beta\n\ngamma delta\n\nepsilon zeta\n';
 // Filler below the trial paragraphs gives a swipe something to scroll.
 const LONG = `${SHORT}\n${Array.from({ length: 24 }, (_, i) => `filler line ${i + 1}`).join('\n\n')}\n`;
 const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 } };
+// The range's formatting toolbar sits over the first paragraphs and takes a tap as a command, so a
+// gesture meant for the text lands on `filler line 4`, well below it.
+const BELOW_RANGE = 6;
 
 // ── Rows ──────────────────────────
 
@@ -42,8 +45,9 @@ export const rows = {
 	'a swipe keeps a range across blocks': async (ctx) => {
 		await ctx.fresh(LONG);
 		await tapCaret(ctx, 0, 'swipe-range');
+		await ctx.device.hideKeyboard();
 		const before = await setRange(ctx);
-		const swiped = await swipeOver(ctx, 2, 'swipe-range');
+		const swiped = await swipeOver(ctx, BELOW_RANGE, 'swipe-range');
 		const reasons = [...swiped.reasons];
 		if (!same(swiped.after, before))
 			reasons.push(`the swipe changed the range from ${json(before)} to ${json(swiped.after)}`);
@@ -51,16 +55,19 @@ export const rows = {
 	},
 
 	'a tap clears a range across blocks': async (ctx) => {
-		await ctx.fresh(SHORT);
+		await ctx.fresh(LONG);
 		await tapCaret(ctx, 0, 'tap-range');
+		await ctx.device.hideKeyboard();
 		const before = await setRange(ctx);
-		// Inside the range's painted region: past the end of block 0's line.
-		const box = await ctx.device.paragraphBox(lineText(await source(ctx), 0), 'tap-range-target');
+		const box = await ctx.device.paragraphBox(
+			lineText(await source(ctx), BELOW_RANGE),
+			'tap-range-target'
+		);
 		const log = await logPointers(ctx, async () => ctx.device.tap(box.x2 - 40, centre(box).y));
 		const after = await ctx.page.evaluate('window.__test.getSelection()');
 		const reasons = [];
-		if (!collapsedIn(after, 0))
-			reasons.push(`the tap left ${json(after)} instead of a caret in block 0`);
+		if (!collapsedIn(after, BELOW_RANGE))
+			reasons.push(`the tap left ${json(after)} instead of a caret in block ${BELOW_RANGE}`);
 		return { reasons, evidence: { before, after, pointerLog: log } };
 	}
 };
@@ -77,6 +84,22 @@ export const probes = {
 		);
 		const typed = await typeWord(ctx, 2, 'spellcheck-on', () => typeOnGboard(ctx, 'spellcheck-on'));
 		return summary(typed);
+	},
+
+	// Whether a tap-tap reaches the editor's own word rule (a mousedown whose detail is 2).
+	'double tap on a word': async (ctx) => {
+		await ctx.fresh(SHORT);
+		const box = await ctx.device.paragraphBox(lineText(await source(ctx), 1), 'double-tap');
+		const x = box.x1 + 60;
+		const y = centre(box).y;
+		const log = await logPointers(ctx, async () => {
+			ctx.device.adb(
+				'shell',
+				`input tap ${Math.round(x)} ${Math.round(y)}; input tap ${Math.round(x)} ${Math.round(y)}`
+			);
+		});
+		ctx.device.screenshot('double-tap');
+		return { after: await ctx.page.evaluate(SELECTION), pointerLog: log };
 	},
 
 	'long press dragged across blocks': async (ctx) => {
@@ -164,7 +187,7 @@ async function logPointers(ctx, gesture) {
 		for (const type of types)
 			document.addEventListener(type, (e) => {
 				if (window.__pointerLog !== log) return;
-				const row = { type, t: Math.round(e.timeStamp), pointerType: e.pointerType, cancelable: e.cancelable };
+				const row = { type, t: Math.round(e.timeStamp), pointerType: e.pointerType, detail: e.detail, cancelable: e.cancelable };
 				log.push(row);
 				setTimeout(() => (row.prevented = e.defaultPrevented));
 			}, true);

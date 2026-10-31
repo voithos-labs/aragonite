@@ -74,6 +74,15 @@ export function createDevice(out) {
 
 	const imeShown = () => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method'));
 
+	// Back closes the keyboard and keeps focus; pressed only while it shows, since otherwise Back
+	// would leave the page.
+	async function hideKeyboard() {
+		if (!imeShown()) return;
+		adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+		for (let i = 0; i < 20 && imeShown(); i++) await sleep(250);
+		await sleep(500);
+	}
+
 	// The last number (or WxH pair) `wm size` and `wm density` print: the override if one is set.
 	const lastReading = (text) => [...text.matchAll(/(\d+)(?:x(\d+))?\s*$/gm)].at(-1);
 
@@ -133,7 +142,18 @@ export function createDevice(out) {
 		throw new Error('Chrome never showed the harness page on port 9222');
 	}
 
-	return { adb, tap, swipe, screenshot, dumpNodes, paragraphBox, imeShown, gboardKeys, connect };
+	return {
+		adb,
+		tap,
+		swipe,
+		screenshot,
+		dumpNodes,
+		paragraphBox,
+		imeShown,
+		hideKeyboard,
+		gboardKeys,
+		connect
+	};
 }
 
 function openPage(url) {

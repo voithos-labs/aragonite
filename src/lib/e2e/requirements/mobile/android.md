@@ -16,7 +16,9 @@ colon is the row's key, and `mobile-rows-lockstep.test.ts` holds the two lists t
 - a swipe after a tap keeps the caret: after a tap, a swipe up that starts on the next
   paragraph's text scrolls, and the caret stays where the tap put it, collapsed.
   - Miss-analysis: no test exercised touch at all, because nothing read `pointerType`.
-- a swipe keeps a range across blocks: a swipe that starts on a third paragraph scrolls and
-  leaves a range across the first two exactly as it was, as Android does with its own selection.
-- a tap clears a range across blocks: a tap inside a range across two paragraphs puts a caret
-  at the tap, collapsed, in the paragraph tapped.
+- a swipe keeps a range across blocks: a swipe that starts on a paragraph below a range across
+  the first two scrolls and leaves the range exactly as it was, as Android does with its own
+  selection.
+- a tap clears a range across blocks: a tap on a paragraph below the range puts a collapsed caret
+  there. Both gestures land clear of the range's formatting toolbar, which takes a tap as a
+  command.
