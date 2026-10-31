@@ -110,7 +110,6 @@ export const rows = {
 		const end = await rangeEndOnScreen(ctx, 0);
 		if (end) ctx.device.swipe(end.x + 4, end.bottom + 25, end.x + 400, end.bottom + 25, 800);
 		await sleep(1000);
-		await dismissMenu(ctx);
 		const atEdge = await ctx.page.evaluate(SNAPSHOT);
 		const handle = await handleOnScreen(ctx, 0, 'end');
 		ctx.device.screenshot('edge-handle');
@@ -149,7 +148,6 @@ export const rows = {
 		await pressReport(ctx, 'cells-press', () =>
 			ctx.device.swipe(press.x, press.y, press.x, press.y, 1500)
 		);
-		await dismissMenu(ctx);
 		const handle = await handleOnScreen(ctx, 0, 'end');
 		ctx.device.screenshot('cells-handle');
 		if (!handle) return { reasons: ['no editor handle at the cell end'], evidence: {} };
@@ -305,14 +303,6 @@ async function pressReport(ctx, name, gesture) {
 	const pointerLog = await logPointers(ctx, async () => gesture());
 	ctx.device.screenshot(name);
 	return { after: await ctx.page.evaluate(SNAPSHOT), pointerLog };
-}
-
-// A short swipe up low on the page: as an outside press it closes the editor's long-press menu,
-// and as a scroll it keeps the range.
-async function dismissMenu(ctx) {
-	const bottom = Math.max(...ctx.device.dumpNodes(null).map((n) => n.box.y2)) - 300;
-	ctx.device.swipe(540, bottom, 540, bottom - 150, 300);
-	await sleep(800);
 }
 
 const SNAPSHOT = `(() => {

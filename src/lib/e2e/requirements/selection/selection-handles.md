@@ -23,7 +23,8 @@ events. The real-device rows are in `requirements/mobile/android.md` and `ios.md
 
 - A range across blocks after a mouse click gets no handles: they are a finger's.
 - Reading mode shows no handles.
-- An open editor menu hides the handles; they come back with the range when it closes.
+- An open editor menu keeps the handles, drawn above it, and a press on one closes the menu as
+  any press outside it does, then drags.
 
 ## User interactions
 

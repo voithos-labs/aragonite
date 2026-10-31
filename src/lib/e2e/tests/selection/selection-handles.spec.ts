@@ -198,11 +198,28 @@ test('the toolbar moves past the end handle when there is no room above', async 
 	expect(barBox.x).toBeGreaterThanOrEqual(end.x + end.width - 1);
 });
 
-test('an open editor menu hides the handles', async ({ page }) => {
-	await open(page);
-	await tapThenSelect(page, RANGE);
-	await expect(page.locator('.selection-handle')).toHaveCount(2);
-	await page.keyboard.press('Shift+F10');
-	await expect(page.locator('.md-menu[role="menu"]')).toBeVisible();
-	await expect(page.locator('.selection-handle')).toHaveCount(0);
+// Android hands a long press's contextmenu to the page, which opens the editor's menu on the word.
+test('an open editor menu keeps the handles, and a press on one closes it', async ({ page }) => {
+	const editor = await open(page);
+	const word = { anchor: { path: [0], offset: 6 }, focus: { path: [0], offset: 10 } };
+	await tapThenSelect(page, word);
+	const at = await pointAtRaw(page, [0], 8);
+	await page.dispatchEvent('[data-block-path="[0]"] [contenteditable="true"]', 'contextmenu', {
+		clientX: at.x,
+		clientY: at.y,
+		bubbles: true
+	});
+	const menu = page.locator('.md-menu[role="menu"]');
+	await expect(menu).toBeVisible();
+	await expect(page.locator(HANDLE('end'))).toHaveCount(1);
+	await dragHandle(
+		page,
+		HANDLE('end'),
+		await pointAtRaw(page, [0], 10),
+		await pointAtRaw(page, [1], 5)
+	);
+	await expect(menu).toHaveCount(0);
+	await expect
+		.poll(() => selection(editor))
+		.toEqual({ anchor: word.anchor, focus: { path: [1], offset: 5 } });
 });

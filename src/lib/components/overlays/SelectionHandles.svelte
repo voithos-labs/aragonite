@@ -59,7 +59,7 @@
 	$effect(() => {
 		void changes;
 		const root = editorDoc.editorRoot();
-		if (!root || !finger() || services.menuPresence.isOpen) {
+		if (!root || !finger()) {
 			range = null;
 			shown = [];
 			return;
@@ -129,7 +129,8 @@
 		position: absolute;
 		width: 44px;
 		height: 44px;
-		z-index: 3;
+		/* Above an open menu, which a press on a handle closes like any press outside it. */
+		z-index: 2001;
 		touch-action: none;
 		user-select: none;
 		-webkit-user-select: none;

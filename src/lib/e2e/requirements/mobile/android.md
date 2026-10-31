@@ -30,10 +30,11 @@ colon is the row's key, and `mobile-rows-lockstep.test.ts` holds the two lists t
   (Chrome hands the long press's menu to the page) cuts the word, and the first two blocks keep
   their text.
 - a long press's edge handle crosses into the next block: a long press on the first word, the
-  browser's end handle dragged to the block's end (where it stops), a short swipe that closes the
-  editor's menu, then a swipe on the editor's handle beside the browser's into the next block. The
-  page hears the swipe's press, so the finger landed on the editor's handle, and the range ends
-  in the next block with no native range left beside the painted one (the screenshot shows no
-  browser handles).
+  browser's end handle dragged to the block's end (where it stops), then, with the editor's
+  long-press menu still open, a swipe on the editor's handle beside the browser's into the next
+  block. The page hears the swipe's press, so the finger landed on the editor's handle, and the
+  range ends in the next block with no native range left beside the painted one (the screenshot
+  shows no browser handles).
 - a handle swipe across cells grows a rectangle: a long press in a table cell selects its word,
-  and a swipe on the editor's edge handle into the cell diagonally below selects the four cells.
+  and a swipe on the editor's edge handle (the long-press menu still open) into the cell
+  diagonally below selects the four cells.
