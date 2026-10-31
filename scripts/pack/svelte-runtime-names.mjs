@@ -63,7 +63,8 @@ export function runtimeEntriesExportWhatPluginsUse(pluginDirs) {
 			const { names, unsupported } = await (used ??= runtimeNamesUsedBy(pluginDirs()));
 			if (unsupported.size > 0) {
 				throw new Error(
-					`no runtime subpath carries the Svelte module ${[...unsupported].join(', ')}`
+					`no runtime subpath carries the Svelte module ${[...unsupported].join(', ')}; add ` +
+						'it to RUNTIME_SUBPATHS, with a src/lib/runtime source and an exports entry'
 				);
 			}
 			const list = [...names[/** @type {keyof typeof names} */ (module)]].sort().join(', ');

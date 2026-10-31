@@ -136,7 +136,10 @@ export async function runtimeMismatch(coreDir, source) {
 	for (const [module, used] of Object.entries(names)) {
 		const missing = [...used].filter((name) => !(name in runtime[module]));
 		if (missing.length > 0) {
-			problems.push(`the core's prebuilt ${module} exports no ${missing.join(', ')}`);
+			problems.push(
+				`the core's prebuilt ${module} exports no ${missing.join(', ')}; rebuild it with ` +
+					'`npm run package`, which exports what the plugins use'
+			);
 		}
 	}
 	return problems;

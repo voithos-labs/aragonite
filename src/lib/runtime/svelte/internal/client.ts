@@ -1,7 +1,8 @@
 /**
- * Svelte's compiled-component runtime from the copy of Svelte this build of the editor runs, for a
- * plugin package's prebuilt build to import in place of `svelte/internal/client`. A prebuild
- * target, not an import for hand-written code. The prebuilt exports only what plugins reach.
+ * The editor's own copy of the runtime compiled Svelte components call, which each bundled plugin's
+ * prebuilt build imports in place of `svelte/internal/client`. Not for hand-written imports: the
+ * prebuilt exports only the names the bundled plugins' components use, and that list changes with
+ * them at any release.
  */
 /* eslint-disable svelte/no-svelte-internal -- re-exporting the runtime is this module's job */
 // @ts-expect-error Svelte publishes no types for the runtime its compiler writes calls into.

@@ -1,7 +1,8 @@
 /**
- * Svelte's public API from the copy of Svelte this build of the editor runs, for a plugin
- * package's prebuilt build to import in place of `svelte`. A prebuild target, not an import for
- * hand-written code. The prebuilt exports only what plugins reach.
+ * The editor's own copy of Svelte's public API, which each bundled plugin's prebuilt build imports
+ * in place of `svelte`, so an app without Svelte runs one copy. Not for hand-written imports: the
+ * prebuilt exports only the names the bundled plugins' components use, and that list changes with
+ * them at any release.
  */
 import svelte from 'svelte/package.json' with { type: 'json' };
 

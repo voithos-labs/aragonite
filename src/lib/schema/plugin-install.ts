@@ -119,6 +119,7 @@ export function definePlugin<Options extends object = Record<never, never>>(
 			`definePlugin: invalid plugin name "${plugin.name}"; lowercase first letter, then letters/digits/hyphens`
 		);
 	}
+	// Marked in every build, not just with checks on: the copy that defined it may run without them.
 	if (Object.isExtensible(plugin)) Object.defineProperty(plugin, DEFINED_BY, { value: THIS_COPY });
 	return plugin;
 }
