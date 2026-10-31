@@ -28,5 +28,5 @@ events. The real-device rows are in `requirements/mobile/android.md` and `ios.md
 ## User interactions
 
 - The toolbar sits above a finger's range, clear of its handles, where a phone puts its own menu.
-- The toolbar drops below the handles when there is no room above, so a finger reaching for a
-  handle never lands on a toolbar button.
+- The toolbar moves past the end handle when there is no room above, so a finger reaching for a
+  handle never lands on a toolbar button, and the bar covers no more of the page than before.

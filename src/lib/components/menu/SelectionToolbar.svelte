@@ -58,7 +58,7 @@
 	];
 	const BUTTONS = [...MARKS, ...ROWS, { command: TURN_INTO_COMMAND }];
 	const BAR_GAP = 6;
-	// Room for the selection handles a finger gets: hung below the range, or above a block's start.
+	// A selection handle's width and height, which a finger's bar keeps clear of.
 	const HANDLE_ROOM = 44;
 
 	let {
@@ -123,12 +123,12 @@
 		const margin = 8;
 		let { x, y } = placement;
 		// A finger's bar keeps clear of the handles hanging below the range: above it where there
-		// is room, otherwise below the handles.
+		// is room, otherwise past the end handle.
 		const above = placement.flipY - size.h - BAR_GAP - HANDLE_ROOM;
 		if (finger() && above >= topInset() + 4) {
 			x = placement.flipX;
 			y = above;
-		} else if (finger()) y += HANDLE_ROOM;
+		} else if (finger()) x += HANDLE_ROOM;
 		if (x + size.w > window.innerWidth - margin)
 			x = Math.max(margin, window.innerWidth - margin - size.w);
 		if (y + size.h > window.innerHeight - margin)

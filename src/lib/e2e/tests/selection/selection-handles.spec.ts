@@ -188,14 +188,14 @@ test("the toolbar sits above a finger's range, clear of its handles", async ({ p
 	}
 });
 
-test('the toolbar drops below the handles when there is no room above', async ({ page }) => {
+test('the toolbar moves past the end handle when there is no room above', async ({ page }) => {
 	await open(page);
 	await tapThenSelect(page, RANGE);
 	const bar = page.locator('[data-testid="selection-toolbar"]');
 	await expect(bar).toBeVisible();
 	const barBox = (await bar.boundingBox())!;
 	const end = (await page.locator(HANDLE('end')).boundingBox())!;
-	expect(barBox.y).toBeGreaterThanOrEqual(end.y + end.height - 1);
+	expect(barBox.x).toBeGreaterThanOrEqual(end.x + end.width - 1);
 });
 
 test('an open editor menu hides the handles', async ({ page }) => {
