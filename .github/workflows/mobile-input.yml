@@ -1,12 +1,30 @@
 name: Mobile input
 # The editor under real phone input: an Android emulator (Chrome, Gboard) and the iOS Simulator
 # (Mobile Safari, driven by Appium), typing and touching through the platform's own keyboard and
-# touch screen. Each job runs the rows in `scripts/mobile/` and uploads its recordings.
+# touch screen. Each job runs the rows in `scripts/mobile/` and uploads its recordings. Android
+# runs on a dev push that touches input code; iOS, on macOS runners that are few, runs nightly on
+# dev (skipping a commit already green) and on pull requests to main.
 on:
   push:
-    branches: [fix/touch-selection]
+    branches: [dev]
+    paths:
+      - 'src/lib/selection/**'
+      - 'src/lib/browser/**'
+      - 'src/lib/caret/**'
+      - 'src/lib/components/editor-root/**'
+      - 'src/lib/components/blocks/text/**'
+      - 'src/lib/components/blocks/editable/**'
+      - 'scripts/mobile/**'
+      - '.github/workflows/mobile-input.yml'
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '43 6 * * *'
   workflow_dispatch:
     inputs:
+      ref:
+        description: The branch or commit to test
+        default: dev
       platform:
         description: Which platform to run
         type: choice
@@ -16,18 +34,20 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
 jobs:
   android:
-    if: inputs.platform != 'ios'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.platform != 'ios')
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        run: [1, 2, 3]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || '' }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
@@ -50,23 +70,49 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-run-${{ matrix.run }}
+          name: android
           path: |
             mobile-out/
             preview.log
 
+  # Which commit iOS tests and whether to. A scheduled run's own sha is main's, never the dev commit
+  # it checks out, so the record of a green nightly is a cache entry keyed on the tested commit.
+  ios-gate:
+    if: github.event_name != 'push' && (github.event_name != 'workflow_dispatch' || inputs.platform != 'android')
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.target.outputs.sha }}
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || inputs.ref || '' }}
+      - id: target
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - id: green
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .mobile-ios-green
+          key: mobile-ios-green-${{ steps.target.outputs.sha }}
+          lookup-only: true
+      - id: decide
+        run: |
+          run=${{ steps.green.outputs.cache-hit != 'true' }}
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          [ "$run" = true ] || echo "Skipped: this commit already ran green (${{ steps.target.outputs.sha }})." >> "$GITHUB_STEP_SUMMARY"
+
   ios:
-    if: inputs.platform != 'android'
+    needs: ios-gate
+    if: needs.ios-gate.outputs.run == 'true'
     runs-on: macos-latest
     timeout-minutes: 60
     env:
       WDA_DERIVED_DATA: ${{ github.workspace }}/../wda
-    strategy:
-      fail-fast: false
-      matrix:
-        run: [1, 2, 3]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name != 'pull_request' && needs.ios-gate.outputs.sha || '' }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
@@ -98,7 +144,19 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ios-run-${{ matrix.run }}
+          name: ios
           path: |
             mobile-out/
             preview.log
+
+  # The nightly passed: the next one skips this commit until dev moves.
+  ios-record:
+    needs: [ios-gate, ios]
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - run: mkdir .mobile-ios-green && echo "${{ needs.ios-gate.outputs.sha }}" > .mobile-ios-green/sha
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .mobile-ios-green
+          key: mobile-ios-green-${{ needs.ios-gate.outputs.sha }}
