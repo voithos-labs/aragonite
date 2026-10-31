@@ -61,9 +61,10 @@ function manifestProblems(pkg: PluginPackage, rootVersion: string): string[] {
 		say(`is at ${manifest.version}, the core at ${rootVersion}`);
 	if (manifest.peerDependencies?.[CORE] !== rootVersion)
 		say(`does not peer the core at ${rootVersion}`);
-	for (const [peer, meta] of Object.entries(manifest.peerDependenciesMeta ?? {})) {
-		if (peer === CORE) say('makes the core an optional peer');
-		else if (!(meta as { optional?: boolean }).optional)
+	const meta: Record<string, { optional?: boolean }> = manifest.peerDependenciesMeta ?? {};
+	if (meta[CORE] !== undefined) say('makes the core an optional peer');
+	for (const peer of Object.keys(manifest.peerDependencies ?? {})) {
+		if (peer !== CORE && meta[peer]?.optional !== true)
 			say(`requires ${peer}, which a host may not have`);
 	}
 	if (manifest.peerDependencies?.svelte === undefined) say('does not peer svelte');
@@ -218,5 +219,11 @@ describe('G4.277 classifier non-vacuity', () => {
 		expect(problems).toMatch(/is at 0\.0\.1/);
 		expect(problems).toMatch(/depends on the core/);
 		expect(problems).toMatch(/requires katex/);
+	});
+
+	it('flags a peer with no optional entry at all, which npm installs as required', () => {
+		const problems = manifestProblems({ ...latex, manifest: { ...latex.manifest } }, ROOT.version);
+		expect(problems.join('\n')).toMatch(/requires katex/);
+		expect(problems.join('\n')).toMatch(/requires svelte/);
 	});
 });
