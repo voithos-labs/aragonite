@@ -31,7 +31,15 @@ This page is the first read: [a working plugin in fifteen minutes](#the-first-fi
 
 All four import paths (`/plugin`, `/svelte`, `/testing` and the root) come with `@voithos-labs/aragonite` itself, so there's nothing else to install.
 
-The parrot below draws itself with a Svelte component, which is how the bundled one ships. Not in Svelte? Everything except the component carries over as is, and the block can be drawn with plain DOM through `defineBlockView` ([Block views](plugin-api.md#block-views)) or with your own components in React or Vue ([React and Vue blocks](plugin-guide/react-and-vue.md)).
+The parrot below draws itself with plain DOM, so it runs in every app the editor runs in: Svelte, React, Vue or no framework at all. Rather draw with your own components? Svelte gets `svelteBlockView` and a leaf factory ([Already in Svelte?](plugin-guide/editable-content.md#already-in-svelte)), and React and Vue get theirs too ([React and Vue blocks](plugin-guide/react-and-vue.md)). Everything else on this page carries over as is.
+
+If you'd rather start from the finished thing, the plugin template is this exact parrot as a package: the build, a conformance test, a page to try it on, and CI that runs the check a plugin listing runs. It lives in the editor's repository, tagged with every release, so fetch it at the tag of the editor version you're building against (swap the version in for yours):
+
+```bash
+npx degit voithos-labs/aragonite/templates/plugin#v0.11.5 my-plugin
+```
+
+Its README walks you from there. This page is how it works.
 
 The plugin we're about to build is an homage to `curl parrot.live`: a line that starts with `%%parrot` renders as an animated ASCII party parrot, and any text after the marker becomes the parrot's caption.
 
@@ -61,24 +69,82 @@ declaredPluginKind('parot'); // throws: "parot" has not been declared
 declarePluginKind('paragraph'); // throws: "paragraph" is a built-in BlockKind
 ```
 
-And all of it together, which is the whole plugin minus its component:
+And all of it together, the whole plugin minus its frames and its stylesheet (both come right after the view):
 
 ```ts
 // parrot-plugin.ts
 import {
 	caretOffsetAtPoint,
 	declarePluginKind,
+	defineBlockView,
 	definePlugin,
 	registerBlockKind,
 	simpleLeafClosure,
-	type BlockView,
+	trimWhitespace,
+	type BlockViewState,
 	type CaretTarget,
 	type EditorPlugin
 } from '@voithos-labs/aragonite/plugin';
-import { svelteBlockView } from '@voithos-labs/aragonite/svelte';
-import ParrotBlock from './ParrotBlock.svelte';
+import { PARROT_FRAMES } from './parrot-frames';
+import './parrot.css';
 
 export const PARROT = 'parrot';
+
+// One strip the CSS scrolls a frame at a time. The closing newline matters: a `pre` drops a
+// trailing blank line, and a strip a row short steps a fraction off every frame.
+const REEL = PARROT_FRAMES.join('\n') + '\n';
+// The clip window's height, which is why every frame has to be the same number of rows.
+const FRAME_ROWS = PARROT_FRAMES[0].split('\n').length;
+
+/** The caption is the rest of the marker line, trimmed, and `start` is where it sits in the
+ *  source, so a press in the caption can be mapped back to a byte. */
+function parrotCaption(raw: string): { text: string; start: number } {
+	const rest = raw.slice('%%parrot'.length);
+	const text = trimWhitespace(rest);
+	return { text, start: '%%parrot'.length + rest.indexOf(text) };
+}
+
+const parrotView = defineBlockView({
+	surface: 'render-primary',
+	singleLine: true,
+	mount(target, ctx) {
+		target.className = 'parrot-block';
+		target.style.setProperty('--parrot-rows', String(FRAME_ROWS));
+		target.style.setProperty('--parrot-frames', String(PARROT_FRAMES.length));
+
+		const bird = document.createElement('div');
+		bird.className = 'parrot';
+		bird.setAttribute('aria-hidden', 'true');
+		const reel = document.createElement('pre');
+		reel.className = 'parrot-reel';
+		reel.textContent = REEL;
+		bird.append(reel);
+
+		const caption = document.createElement('div');
+		caption.className = 'parrot-caption';
+		caption.setAttribute('role', 'button');
+		caption.setAttribute('aria-label', 'Party parrot caption (click to edit)');
+		caption.tabIndex = -1;
+		const source = document.createElement('div');
+		source.className = 'parrot-source';
+		target.append(bird, caption);
+		// The whole folded block takes the click, bird included.
+		ctx.leaf.attachRendered(target);
+
+		const draw = ({ node, revealed }: BlockViewState) => {
+			const { text, start } = parrotCaption(node.raw);
+			caption.textContent = text;
+			caption.dataset.captionStart = String(start);
+			// Only on a flip: a fresh source element mid-edit would lose the typing in it.
+			const shown = revealed ? source : caption;
+			if (shown.isConnected) return;
+			(revealed ? caption : source).replaceWith(shown);
+			ctx.leaf.attach(revealed ? source : null);
+		};
+		draw(ctx.state());
+		return { update: draw };
+	}
+});
 
 /** Where a click in the block puts the caret. The caption says where it starts in the source,
  *  so an offset in it sits that far along; the shown source is the source itself. */
@@ -94,11 +160,11 @@ function parrotCaretAtPoint(
 	return { path: [], offset: source ? offset : offset + Number(view.dataset.captionStart) };
 }
 
-function registerParrotBlock(view: BlockView): void {
+function registerParrotBlock(): void {
 	const parrot = declarePluginKind(PARROT);
 
 	registerBlockKind(parrot, {
-		view,
+		view: parrotView,
 		opener: {
 			priority: 25,
 			interruptsParagraph: (text) => text.startsWith('%%parrot'),
@@ -115,7 +181,7 @@ function registerParrotBlock(view: BlockView): void {
 		conformanceFixture: '%%parrot party responsibly\n',
 		caretTargetAtPoint: parrotCaretAtPoint,
 		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
+			focus: { mode: 'implemented', via: 'the render-primary surface reveals on focus' },
 			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
 			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
 			simOracle: { mode: 'inherit-default' }
@@ -124,10 +190,7 @@ function registerParrotBlock(view: BlockView): void {
 }
 
 export function parrotPlugin(): EditorPlugin {
-	return definePlugin({
-		name: 'parrot',
-		setup: () => registerParrotBlock(svelteBlockView(ParrotBlock))
-	});
+	return definePlugin({ name: 'parrot', setup: registerParrotBlock });
 }
 ```
 
@@ -139,37 +202,30 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Most of 
 - `pageRole` is optional, and it's how your block reads on the page. Say `'prose'` if it reads as part of the text around it, the way a quote or a note does. A prose block gets no drag handle, and right-clicking its text gives the clipboard rows. Leave it out and your block is an object someone picks up whole, with its own handle and menu, which is what the parrot is. (If your block's text would make a silly label on the drag ghost, a formula's source say, give it a `dragLabel` too.)
 - `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click anywhere on the parrot shows the source with the caret on its first byte, which is a letdown when you clicked halfway into the caption.
 
-The parrot's answer is two steps. The caption and the source line are different strings, and `caretOffsetAtPoint` does the pixel half: hand it one of your own elements and the click, and it gives back the character offset nearest that point, clamped into the element's box, so a click on the bird above the caption still lands on the character under it. The arithmetic between the two strings is yours. The parrot's caption is its line minus the marker and the whitespace around the text, so the component works out where the caption starts in the source, puts that on the caption element as `data-caption-start`, and the hook adds it to the offset. (Hardcoding `'%%parrot '.length` works right up until someone types two spaces.)
+The parrot's answer is two steps. The caption and the source line are different strings, and `caretOffsetAtPoint` does the pixel half: hand it one of your own elements and the click, and it gives back the character offset nearest that point, clamped into the element's box, so a click on the bird above the caption still lands on the character under it. The arithmetic between the two strings is yours. The parrot's caption is its line minus the marker and the whitespace around the text, so the view works out where the caption starts in the source, puts that on the caption element as `data-caption-start`, and the hook adds it to the offset. (Hardcoding `'%%parrot '.length` works right up until someone types two spaces.)
 
 On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](plugin-guide/parser.md#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](plugin-guide/parser.md#what-an-opener-returns)).
 
-**Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; [the walkthrough](plugin-guide/container-walkthrough.md) builds one). `createEditableLeaf` hands a leaf a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection, and clipboard. The parrot asks for it in `render-primary` mode, where the caption is what you see at rest and the source line only shows while the caret is in the block. The bird itself is ordinary **chrome** (a block's furniture, as opposed to its content): every frame stacked in one `<pre>` that CSS scrolls a frame at a time. If you ever give your chrome a button that shows on hover in the block's top-right corner (where the bundled diagram block keeps its toolbar), put `data-corner-control` on it. The find bar opens in that same corner, and the attribute is how it knows to move your button below itself instead of sitting on top of it.
+**Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; [the walkthrough](plugin-guide/container-walkthrough.md) builds one). Its view is `parrotView` up there, a `defineBlockView` on the `render-primary` surface: the caption is what you see at rest, and the source line only shows while the caret is in the block. That source line gets everything a built-in text block has, a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection and clipboard. The bird itself is ordinary **chrome** (a block's furniture, as opposed to its content): every frame stacked in one `<pre>` that CSS scrolls a frame at a time. If you ever give your chrome a button that shows on hover in the block's top-right corner (where the bundled diagram block keeps its toolbar), put `data-corner-control` on it. The find bar opens in that same corner, and the attribute is how it knows to move your button below itself instead of sitting on top of it.
 
-```svelte
-<!-- ParrotBlock.svelte -->
-<script lang="ts">
-	import { trimWhitespace, type NodeView } from '@voithos-labs/aragonite/plugin';
-	import { createEditableLeaf } from '@voithos-labs/aragonite/svelte';
+The view has an editing half and a parrot half, and the parrot half never touches the editor.
 
-	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
-	let sourceEl: HTMLDivElement | undefined = $state();
-	let revealed = $state(false);
+The editing half is `mount`, two `ctx.leaf` calls and `draw`:
 
-	const leaf = createEditableLeaf({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getEl: () => sourceEl ?? null,
-		mode: 'render-primary',
-		singleLine: true,
-		isRevealed: () => revealed,
-		setRevealed: (next) => (revealed = next)
-	});
+- `mount` fills `target`, the element the editor made for the block and measures as the block. That's why the parrot puts its class on `target` instead of wrapping a second box inside it.
+- `ctx.leaf.attachRendered(target)` makes the whole folded block one click target, bird included, and a click lands where `caretTargetAtPoint` said.
+- `draw` runs once on mount and again on every `update`. It reads `revealed` off the state the editor hands it (on when a click or an arrow lands in the block, off when the caret leaves) and swaps the caption for the source line when that flips, handing the source to `ctx.leaf.attach` as it shows and `attach(null)` as it folds. The flip check matters: a fresh source element mid-edit would lose whatever you'd typed into it.
+- The commit happens when the caret leaves, not per keystroke. Reveal, type, arrow out: one undo entry, and the caption follows the new raw.
+- `singleLine: true` says the bytes are one line (the opener claims exactly one), so Enter ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. A leaf whose bytes can span lines leaves the flag off and gives its source element `white-space: pre-wrap` instead, for a reason [The editable leaf](plugin-guide/editable-content.md#the-editable-leaf) explains.
 
-	// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;
-	// this is a guide, not an aviary.
-	const FRAMES = [
-		String.raw`
+The parrot half is the frames, the stylesheet, and the caption reading straight off `node.raw`:
+
+```ts
+// parrot-frames.ts
+// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;
+// this is a guide, not an aviary.
+export const PARROT_FRAMES = [
+	String.raw`
                          .cccc;;cc;';c.
                       .,:dkdc:;;:c:,:d:.
                      .loc'.,cc::c:::,..;:.
@@ -189,7 +245,7 @@ On the opener, `priority` decides where you sit in the built-in openers' dispatc
 ,dx:..;lllllllllllllllllllllllllllllllllc'...
 cNO;........................................
 `,
-		String.raw`
+	String.raw`
 
            .,,,,,,,,,.
          .ckKxodooxOOdcc.
@@ -209,141 +265,89 @@ KOc,c;''''''';lldkkkkkkkkkkkkkkkkkc..;lc.
 xx:':;;;;,.,,...,;;cllllllllllllllc;'.;od,
 cNo.....................................oc
 `
-	];
-	// One strip the CSS scrolls a frame at a time. The closing newline matters: a `pre`
-	// drops a trailing blank line, and a strip a row short steps a fraction off every frame.
-	const REEL = FRAMES.join('\n') + '\n';
-	// The clip window's height, which is why every frame has to be the same number of rows.
-	const FRAME_ROWS = FRAMES[0].split('\n').length;
-
-	// The caption is the rest of the marker line, trimmed, and `start` is where it sits in the
-	// source: `parrotCaretAtPoint` reads it off the element to map a press back to a byte.
-	function parrotCaption(raw: string): { text: string; start: number } {
-		const rest = raw.slice('%%parrot'.length);
-		const text = trimWhitespace(rest);
-		return { text, start: '%%parrot'.length + rest.indexOf(text) };
-	}
-
-	const caption = $derived(parrotCaption(node.raw));
-
-	export const blockApi = leaf.blockApi;
-</script>
-
-<div
-	class="parrot-block"
-	{...leaf.renderProps}
-	style:--parrot-rows={FRAME_ROWS}
-	style:--parrot-frames={FRAMES.length}
->
-	<div class="parrot" aria-hidden="true"><pre class="parrot-reel">{REEL}</pre></div>
-	{#if revealed}
-		<div
-			bind:this={sourceEl}
-			{...leaf.surfaceProps}
-			class="parrot-source"
-			aria-label="Party parrot source"
-		></div>
-	{:else}
-		<div
-			class="parrot-caption"
-			data-caption-start={caption.start}
-			role="button"
-			tabindex="-1"
-			aria-label="Party parrot caption (click to edit)"
-		>
-			{caption.text}
-		</div>
-	{/if}
-</div>
-
-<style>
-	.parrot {
-		/* a terminal cell is about twice as tall as it is wide; prose line-height stretches the bird */
-		font-size: 1.1em;
-		line-height: 1.1;
-		letter-spacing: 0.05em;
-		/* one frame tall, in the reel's own rows so a step lands on the next frame exactly; the
-		   em line is the same height for engines without lh (Safari before 16.4) */
-		height: calc(var(--parrot-rows) * 1.1em);
-		height: calc(var(--parrot-rows) * 1lh);
-		/* wider than a phone column, and the editor root pans if it isn't contained; the bar
-		   would sit across the bird, which is decoration rather than a pane to scroll */
-		overflow-x: auto;
-		overflow-y: hidden;
-		scrollbar-width: none;
-		/* decoration, not content: every frame is in the DOM and none of them belong in a copy */
-		user-select: none;
-		animation: parrot-hue 0.49s step-end infinite;
-	}
-	.parrot-reel {
-		/* type and rhythm come from the box above, so its `lh` is this reel's row exactly */
-		margin: 0;
-		animation-name: parrot-reel;
-		animation-duration: calc(var(--parrot-frames) * 70ms);
-		animation-timing-function: steps(var(--parrot-frames));
-		animation-iteration-count: infinite;
-	}
-	@keyframes parrot-reel {
-		to {
-			transform: translateY(-100%);
-		}
-	}
-	/* parrot.live's seven, stepped rather than blended so every run of the dance looks the same */
-	@keyframes parrot-hue {
-		0% {
-			color: #ff5f5f;
-		}
-		14.286% {
-			color: #ffc83d;
-		}
-		28.571% {
-			color: #3fd97a;
-		}
-		42.857% {
-			color: #5aa9ff;
-		}
-		57.143% {
-			color: #ff6ad5;
-		}
-		71.429% {
-			color: #3fd3d3;
-		}
-		85.714% {
-			color: currentColor;
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.parrot,
-		.parrot-reel {
-			animation: none;
-		}
-	}
-	.parrot-caption {
-		margin: 0.25em 0 0;
-		font-weight: 700;
-		cursor: text;
-	}
-	.parrot-source {
-		/* the bytes, dimmed the way the editor dims a marker */
-		opacity: 0.55;
-		font-family: monospace;
-		font-size: 0.9em;
-		outline: none;
-	}
-</style>
+];
 ```
 
-The component has an editing half and a parrot half, and the parrot half never touches the editor.
+```css
+/* parrot.css */
+.parrot {
+	/* a terminal cell is about twice as tall as it is wide; prose line-height stretches the bird */
+	font-size: 1.1em;
+	line-height: 1.1;
+	letter-spacing: 0.05em;
+	/* one frame tall, in the reel's own rows so a step lands on the next frame exactly; the
+	   em line is the same height for engines without lh (Safari before 16.4) */
+	height: calc(var(--parrot-rows) * 1.1em);
+	height: calc(var(--parrot-rows) * 1lh);
+	/* wider than a phone column, and the editor root pans if it isn't contained; the bar
+	   would sit across the bird, which is decoration rather than a pane to scroll */
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+	/* decoration, not content: every frame is in the DOM and none of them belong in a copy */
+	user-select: none;
+	animation: parrot-hue 0.49s step-end infinite;
+}
+.parrot-reel {
+	/* type and rhythm come from the box above, so its `lh` is this reel's row exactly */
+	margin: 0;
+	animation-name: parrot-reel;
+	animation-duration: calc(var(--parrot-frames) * 70ms);
+	animation-timing-function: steps(var(--parrot-frames));
+	animation-iteration-count: infinite;
+}
+@keyframes parrot-reel {
+	to {
+		transform: translateY(-100%);
+	}
+}
+/* parrot.live's seven, stepped rather than blended so every run of the dance looks the same */
+@keyframes parrot-hue {
+	0% {
+		color: #ff5f5f;
+	}
+	14.286% {
+		color: #ffc83d;
+	}
+	28.571% {
+		color: #3fd97a;
+	}
+	42.857% {
+		color: #5aa9ff;
+	}
+	57.143% {
+		color: #ff6ad5;
+	}
+	71.429% {
+		color: #3fd3d3;
+	}
+	85.714% {
+		color: currentColor;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.parrot,
+	.parrot-reel {
+		animation: none;
+	}
+}
+.parrot-caption {
+	margin: 0.25em 0 0;
+	font-weight: 700;
+	cursor: text;
+}
+.parrot-source {
+	/* the bytes, dimmed the way the editor dims a marker */
+	opacity: 0.55;
+	font-family: monospace;
+	font-size: 0.9em;
+	outline: none;
+}
+```
 
-The editing half is the factory call, the `revealed` flag, two spreads, and one export:
+No script runs per frame, and `prefers-reduced-motion` parks the bird on its first frame for free. It does have to do one thing, like every block wider than the text column: scroll inside your own box (`overflow-x: auto`, same as a code block or a table). The editor root scrolls, so an uncontained block pans the whole page sideways and takes the prose with it. Your view also sits under the editor's own CSS reset, so a `<pre>` or a `<p>` in it starts with no margin or padding on any page, and `box-sizing` is `border-box`.
 
-- `revealed` is yours. The factory flips it through `setRevealed` (on when a click or an arrow lands in the block, off when the caret leaves), and the `{#if}` swaps the two views on it.
-- `surfaceProps` goes on the source line. `renderProps` goes on the block wrapper, so a click anywhere in the block reveals, bird included, and lands where `caretTargetAtPoint` said. Spread both; a folded view that takes the click but not the keys swallows undo while it holds focus.
-- `blockApi` is everything the editor calls on your block (focus, the caret reads, and so on). Forget the export and the component doesn't typecheck where it's registered.
-- The commit happens when the caret leaves, not per keystroke. Reveal, type, arrow out: one undo entry, and the caption follows the new raw.
-- `singleLine: true` says the bytes are one line (the opener claims exactly one), so Enter ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. A leaf whose bytes can span lines leaves the flag off and gives its source element `white-space: pre-wrap` instead, for a reason [The editable leaf](plugin-guide/editable-content.md#the-editable-leaf) explains.
-
-The parrot half is the `<pre>`, its CSS, and the caption reading straight off `node.raw`. No script runs per frame, and `prefers-reduced-motion` parks the bird on its first frame for free. It does have to do one thing, like every block wider than the text column: scroll inside your own box (`overflow-x: auto`, same as a code block or a table). The editor root scrolls, so an uncontained block pans the whole page sideways and takes the prose with it. Your view also sits under the editor's own CSS reset, so a `<pre>` or a `<p>` in it starts with no margin or padding on any page, and `box-sizing` is `border-box`.
+`parrot-plugin.ts` imports the stylesheet itself, so any bundler that handles CSS (Vite does, and so does every Svelte app) brings it along. A prebuilt build pulls it out into a `style.css` instead, the way the template's does, and a host imports that file next to the editor's own.
 
 And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
@@ -354,7 +358,7 @@ parse('%%parrot party responsibly\n').children[0];
 // { kind: 'parrot', leadingTrivia: '', raw: '%%parrot party responsibly\n' }
 ```
 
-It dances through your component.
+It dances through your view.
 
 ![The parrot block, mid-party](./plugin-guide/parrot.gif)
 
@@ -482,7 +486,7 @@ Which apps can run your plugin follows from that. An app whose bundler compiles 
 | React or Vue components, through `reactBlockView` or `vueBlockView`                                                                 | Every app with that framework installed                  |
 | Any Svelte component                                                                                                                | An app whose bundler compiles Svelte (a Svelte app, say) |
 
-The bundled plugins run everywhere, since each one's prebuilt build is compiled against the editor's own copy of Svelte. That copy sits on the editor's `runtime/svelte` subpaths, but don't build your plugin against it yet: it only carries the bits of Svelte the bundled plugins happen to use, and that list moves whenever they do. Mount a Svelte component of yours in an app that doesn't compile Svelte, and it fails the way any throwing view does: a block shows a "block failed to render" notice above its source, a widget shows just its source. In a dev build the notice and the console name the cause: the component was compiled against a different copy of Svelte.
+The bundled plugins run everywhere, since each one's prebuilt build is compiled against the editor's own copy of Svelte. That copy sits on the editor's `runtime/svelte` subpaths, which are for the bundled plugins only: they carry just the bits of Svelte those plugins use, and that list moves whenever they do. A plugin of yours that should run everywhere draws with plain DOM, the way the parrot does. Mount a Svelte component of yours in an app that doesn't compile Svelte, and it fails the way any throwing view does: a block shows a "block failed to render" notice above its source, a widget shows just its source. In a dev build the notice and the console name the cause: the component was compiled against a different copy of Svelte.
 
 ## Views: what you read, what you own
 

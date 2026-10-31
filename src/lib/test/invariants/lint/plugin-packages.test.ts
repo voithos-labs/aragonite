@@ -13,7 +13,12 @@ import {
 	publishedEntryPoints,
 	workspacePackages
 } from '../../../../../scripts/lib-alias.mjs';
-import { collectEditorSources, importSpecifiers, type SourceFile } from './scan-source';
+import {
+	collectEditorSources,
+	collectFiles,
+	importSpecifiers,
+	type SourceFile
+} from './scan-source';
 
 const ROOT = JSON.parse(readFileSync('package.json', 'utf8'));
 const CORE: string = ROOT.name;
@@ -99,8 +104,10 @@ function cssImportingBuilds(pkg: PluginPackage, files: SourceFile[]): string[] {
 		});
 }
 
-const hasStyles = (files: SourceFile[]) =>
-	files.some((file) => file.relPath.endsWith('.svelte') && /<style[\s>]/.test(file.text));
+/** Component styles or a stylesheet of its own, either of which the prebuilt build collects. */
+const hasStyles = (pkg: PluginPackage, files: SourceFile[]) =>
+	files.some((file) => file.relPath.endsWith('.svelte') && /<style[\s>]/.test(file.text)) ||
+	collectFiles(path.resolve(pkg.dir, 'src'), { extensions: ['.css'] }).length > 0;
 
 // ── The scan ─────────────────────────────────────────────────────────────────
 
@@ -150,7 +157,9 @@ describe('G4.277 every bundled plugin is a package an outside author could have 
 
 	it('a package with component styles publishes its prebuilt stylesheet', () => {
 		const wrong = packages
-			.filter((pkg) => hasStyles(filesOf(pkg)) !== './style.css' in (pkg.manifest.exports ?? {}))
+			.filter(
+				(pkg) => hasStyles(pkg, filesOf(pkg)) !== './style.css' in (pkg.manifest.exports ?? {})
+			)
 			.map((pkg) => pkg.manifest.name);
 		expect(wrong).toEqual([]);
 	});

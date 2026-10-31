@@ -149,7 +149,7 @@ leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a
 What a DOM view gets by attaching, a component gets from spreads:
 
 - **`<div {...leaf.surfaceProps}>`** on the source contenteditable puts the handlers and attributes on it. Add your own `class` / `aria-label`, plus **`bind:this`**, since the factory only reaches the element through `getEl()`.
-- **`renderProps`** goes on the folded view of a render-primary block, as the quickstart's parrot does. Put it on a wrapper the reveal never unmounts and the whole folded surface, chrome included, is one click target.
+- **`renderProps`** goes on the folded view of a render-primary block, where the quickstart's DOM parrot calls `attachRendered`. Put it on a wrapper the reveal never unmounts and the whole folded surface, chrome included, is one click target.
 - `mode` picks plain or render-primary, and you own the swap flag (`isRevealed` / `setRevealed`) where a DOM view reads `state.revealed`.
 - `renderSource`, `reshapeSource` and `onSourceEdit(text)` (the DOM view's `afterInput`) are deps.
 - `leaf.getOptions<MyOptions>()` returns this editor's options typed as you name them, and just your `defaults` with no editor around (a component mounted bare in a unit test), once your plugin is installed.

@@ -26,7 +26,7 @@ function Memo(_: BlockViewProps<'leaf'>) {
 export const memoView = reactBlockView(Memo, { surface: 'leaf', singleLine: true, className: 'memo' });
 ```
 
-`memoView` goes in the `view` field of your `registerBlockKind` call, the same slot the quickstart filled with `svelteBlockView(ParrotBlock)`. Everything else in the registration (the opener, the descriptor, the closure) doesn't care what drew the block.
+`memoView` goes in the `view` field of your `registerBlockKind` call, the same slot the quickstart filled with `parrotView`. Everything else in the registration (the opener, the descriptor, the closure) doesn't care what drew the block.
 
 **`reactBlockView(Component, options)`** takes the component and the options `defineBlockView` takes, minus `mount`:
 

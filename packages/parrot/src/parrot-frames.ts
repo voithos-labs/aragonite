@@ -1,26 +1,6 @@
-<!-- ParrotBlock.svelte -->
-<script lang="ts">
-	import { trimWhitespace, type NodeView } from '@voithos-labs/aragonite/plugin';
-	import { createEditableLeaf } from '@voithos-labs/aragonite/svelte';
-
-	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
-	let sourceEl: HTMLDivElement | undefined = $state();
-	let revealed = $state(false);
-
-	const leaf = createEditableLeaf({
-		getNode: () => node,
-		getIndex: () => index,
-		getPath: () => myPath,
-		getEl: () => sourceEl ?? null,
-		mode: 'render-primary',
-		singleLine: true,
-		isRevealed: () => revealed,
-		setRevealed: (next) => (revealed = next)
-	});
-
-	// The canonical ten, via terminal-parrot (MIT).
-	const FRAMES = [
-		String.raw`
+// The canonical ten, via terminal-parrot (MIT).
+export const PARROT_FRAMES = [
+	String.raw`
                          .cccc;;cc;';c.
                       .,:dkdc:;;:c:,:d:.
                      .loc'.,cc::c:::,..;:.
@@ -40,7 +20,7 @@
 ,dx:..;lllllllllllllllllllllllllllllllllc'...
 cNO;........................................
 `,
-		String.raw`
+	String.raw`
                 .ckx;'........':c.
              .,:c:::::oxxocoo::::,',.
             .odc'..:lkkoolllllo;..;d,
@@ -60,7 +40,7 @@ cNO;........................................
 :0o...:dxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxo,.:,
 cNo........................................;'
 `,
-		String.raw`
+	String.raw`
             .cc;.  ...  .;c.
          .,,cc:cc:lxxxl:ccc:;,.
         .lo;...lKKklllookl..cO;
@@ -80,7 +60,7 @@ cNo........................................;'
   co..:dddddddddddddddddddddddddddddddddl::',::.
   co...........................................
 `,
-		String.raw`
+	String.raw`
            .ccccccc.
       .,,,;cooolccoo;;,,.
      .dOx;..;lllll;..;xOd.
@@ -100,7 +80,7 @@ cNo..lXXXXXXXXXOolkXXXXXXXXXkl,..;:';.
   ';.:xxxxxocccoxxxxxxxxxxxxxxxxxxxxxxl::'.';;.
   ';........................................;l'
 `,
-		String.raw`
+	String.raw`
 
         .;:;;,.,;;::,.
      .;':;........'co:.
@@ -120,7 +100,7 @@ o..,l;'''''';dkkkkkkkkkkkkkkkkkkkkdlc,..;lc.
 o..;lc;;;;;;,,;clllllllllllllllllllllc'..,:c.
 o..........................................;'
 `,
-		String.raw`
+	String.raw`
 
            .,,,,,,,,,.
          .ckKxodooxOOdcc.
@@ -140,7 +120,7 @@ KOc,c;''''''';lldkkkkkkkkkkkkkkkkkc..;lc.
 xx:':;;;;,.,,...,;;cllllllllllllllc;'.;od,
 cNo.....................................oc
 `,
-		String.raw`
+	String.raw`
 
 
                    .ccccccc.
@@ -160,7 +140,7 @@ cNo.....................................oc
 ,dl,.'cooc:::,....,::coooooooooooc'.c:
 cNo.................................oc
 `,
-		String.raw`
+	String.raw`
 
 
 
@@ -180,7 +160,7 @@ cNo.................................oc
 ,do:'..,:llllll:;;;;;;,..,;:lllllllll;..oc
 cNo.....................................oc
 `,
-		String.raw`
+	String.raw`
 
 
                               .ccccc.
@@ -200,7 +180,7 @@ cNo.....................................oc
 olc,..',:cccccccccccc:;;;;;;;;:ccccccccc,.'c,
 Ol;......................................;l'
 `,
-		String.raw`
+	String.raw`
 
                               ,ddoodd,
                          .cc' ,ooccoo,'cc.
@@ -220,125 +200,4 @@ Ol;......................................;l'
 ,xl::,..,cccccccccccccccccccccccccccccccc:;':xx,
 cNd.........................................;lOc
 `
-	];
-	// One strip the CSS scrolls a frame at a time. The closing newline matters: a `pre`
-	// drops a trailing blank line, and a strip a row short steps a fraction off every frame.
-	const REEL = FRAMES.join('\n') + '\n';
-	// The clip window's height, which is why every frame has to be the same number of rows.
-	const FRAME_ROWS = FRAMES[0].split('\n').length;
-
-	// The caption is the rest of the marker line, trimmed, and `start` is where it sits in the
-	// source: `parrotCaretAtPoint` reads it off the element to map a press back to a byte.
-	function parrotCaption(raw: string): { text: string; start: number } {
-		const rest = raw.slice('%%parrot'.length);
-		const text = trimWhitespace(rest);
-		return { text, start: '%%parrot'.length + rest.indexOf(text) };
-	}
-
-	const caption = $derived(parrotCaption(node.raw));
-
-	export const blockApi = leaf.blockApi;
-</script>
-
-<div
-	class="parrot-block"
-	{...leaf.renderProps}
-	style:--parrot-rows={FRAME_ROWS}
-	style:--parrot-frames={FRAMES.length}
->
-	<div class="parrot" aria-hidden="true"><pre class="parrot-reel">{REEL}</pre></div>
-	{#if revealed}
-		<div
-			bind:this={sourceEl}
-			{...leaf.surfaceProps}
-			class="parrot-source"
-			aria-label="Party parrot source"
-		></div>
-	{:else}
-		<div
-			class="parrot-caption"
-			data-caption-start={caption.start}
-			role="button"
-			tabindex="-1"
-			aria-label="Party parrot caption (click to edit)"
-		>
-			{caption.text}
-		</div>
-	{/if}
-</div>
-
-<style>
-	.parrot {
-		/* a terminal cell is about twice as tall as it is wide; prose line-height stretches the bird */
-		font-size: 1.1em;
-		line-height: 1.1;
-		letter-spacing: 0.05em;
-		/* one frame tall, in the reel's own rows so a step lands on the next frame exactly; the
-		   em line is the same height for engines without lh (Safari before 16.4) */
-		height: calc(var(--parrot-rows) * 1.1em);
-		height: calc(var(--parrot-rows) * 1lh);
-		/* wider than a phone column, and the editor root pans if it isn't contained; the bar
-		   would sit across the bird, which is decoration rather than a pane to scroll */
-		overflow-x: auto;
-		overflow-y: hidden;
-		scrollbar-width: none;
-		/* decoration, not content: every frame is in the DOM and none of them belong in a copy */
-		user-select: none;
-		animation: parrot-hue 0.49s step-end infinite;
-	}
-	.parrot-reel {
-		/* type and rhythm come from the box above, so its `lh` is this reel's row exactly */
-		margin: 0;
-		animation-name: parrot-reel;
-		animation-duration: calc(var(--parrot-frames) * 70ms);
-		animation-timing-function: steps(var(--parrot-frames));
-		animation-iteration-count: infinite;
-	}
-	@keyframes parrot-reel {
-		to {
-			transform: translateY(-100%);
-		}
-	}
-	/* parrot.live's seven, stepped rather than blended so every run of the dance looks the same */
-	@keyframes parrot-hue {
-		0% {
-			color: #ff5f5f;
-		}
-		14.286% {
-			color: #ffc83d;
-		}
-		28.571% {
-			color: #3fd97a;
-		}
-		42.857% {
-			color: #5aa9ff;
-		}
-		57.143% {
-			color: #ff6ad5;
-		}
-		71.429% {
-			color: #3fd3d3;
-		}
-		85.714% {
-			color: currentColor;
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.parrot,
-		.parrot-reel {
-			animation: none;
-		}
-	}
-	.parrot-caption {
-		margin: 0.25em 0 0;
-		font-weight: 700;
-		cursor: text;
-	}
-	.parrot-source {
-		/* the bytes, dimmed the way the editor dims a marker */
-		opacity: 0.55;
-		font-family: monospace;
-		font-size: 0.9em;
-		outline: none;
-	}
-</style>
+];
