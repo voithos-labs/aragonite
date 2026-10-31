@@ -581,7 +581,7 @@ In CI, call the editor's reusable workflow instead of wiring this up yourself. I
 ```yaml
 jobs:
   conformance:
-    uses: voithos-labs/aragonite/.github/workflows/plugin-check.yml@v0.12.0
+    uses: voithos-labs/aragonite/.github/workflows/plugin-check.yml@v0.11.4
 ```
 
 Pin the tag to the editor release you build against. With no inputs it checks your package against the newest editor release your peer range accepts; `editor` takes an npm spec to check another one (a `next` build, say), and `working-directory` points at a package that isn't at your repository's root. The [plugin template](plugin-guide.md#the-first-fifteen-minutes) already calls it.

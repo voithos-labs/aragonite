@@ -59,7 +59,7 @@ describe('G4.278 the plugin template names the editor it ships with', () => {
 	it('holds on this tree', () => {
 		const { root } = readManifests();
 		const { manifest, sites } = readTemplate();
-		expect(sites).toHaveLength(3);
+		expect(sites).toHaveLength(4);
 		expect(templateDrift(root, manifest, sites)).toEqual([]);
 	});
 

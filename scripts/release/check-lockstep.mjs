@@ -42,11 +42,12 @@ export function libraryVersionDrift(root, libraryVersion) {
 const TEMPLATE = 'templates/plugin';
 
 /** Each file outside the template's manifest that names the editor version, with the pattern that
- *  captures it: the workflow tag the template's CI calls and the tag its fetch command names. */
+ *  captures it: the plugin check's workflow tag and the tag the template's fetch command names. */
 export const TEMPLATE_VERSION_SITES = /** @type {const} */ ([
 	[`${TEMPLATE}/.github/workflows/ci.yml`, /plugin-check\.yml@v(\d[\w.-]*)/g],
 	[`${TEMPLATE}/README.md`, /templates\/plugin#v(\d[\w.-]*)|`\^(\d[\w.-]*)`/g],
-	['docs/guide/plugin-guide.md', /templates\/plugin#v(\d[\w.-]*)/g]
+	['docs/guide/plugin-guide.md', /templates\/plugin#v(\d[\w.-]*)/g],
+	['docs/guide/plugin-testing.md', /plugin-check\.yml@v(\d[\w.-]*)/g]
 ]);
 
 /**
