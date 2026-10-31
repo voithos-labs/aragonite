@@ -9,6 +9,7 @@ import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
+import { failedCells } from '../../../../scripts/plugins/check-listing.mjs';
 
 /** A one-line leaf opened by `marker`; with `toEnd`, it reads on to the document's end instead,
  *  so cutting its closing line swallows the block below. */
@@ -59,6 +60,18 @@ describe('runPluginConformance', () => {
 		);
 	});
 
+	// The listing records cells by reading this message, so its reader runs on the real thing.
+	it("writes a failure the listing's recorder reads back as kind: cell", async () => {
+		const swallows = plugin('swallows-recorded', () => {
+			testLeaf('swallow-recorded', markerLeaf('%%s', true));
+		});
+		const message = await runPluginConformance({ plugins: [swallows] }).then(
+			() => '',
+			(error: Error) => error.message
+		);
+		expect(failedCells(message)).toContain('swallow-recorded: rawWrite');
+	});
+
 	it('fails a container kind the suite gives no profile', async () => {
 		const callout = plugin('callout-unprofiled', () => registerCalloutKind(testView()));
 		await expect(runPluginConformance({ plugins: [callout] })).rejects.toThrow(
@@ -77,6 +90,14 @@ describe('runPluginConformance', () => {
 	it('fails an inline kind the suite gives no profile', async () => {
 		await expect(runPluginConformance({ plugins: [emojiPlugin()] })).rejects.toThrow(
 			`inline kind "${EMOJI_KIND}" has no profile in the suite's inline`
+		);
+	});
+
+	it('fails an inline profile naming a kind the plugins never declared', async () => {
+		const pair = plugin('pair-inline-stale', () => testLeaf('inline-stale-a', markerLeaf('%%a')));
+		const profile = { trigger: '~', priority: 110, kind: 'ghost', fixtures: ['~x~'] } as never;
+		await expect(runPluginConformance({ plugins: [pair], inline: [profile] })).rejects.toThrow(
+			`inline names kind "ghost", which these plugins don't declare`
 		);
 	});
 
