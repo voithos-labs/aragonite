@@ -29,6 +29,11 @@
 			"svelte": "./dist/index.js",
 			"default": "./dist/prebuilt/index.js"
 		},
+		"./conformance": {
+			"types": "./dist/conformance.d.ts",
+			"svelte": "./dist/conformance.js",
+			"default": "./dist/prebuilt/conformance.js"
+		},
 		"./renderer": {
 			"types": "./dist/renderer.d.ts",
 			"svelte": "./dist/renderer.js",

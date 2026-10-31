@@ -1,0 +1,74 @@
+/* parrot.css */
+.parrot {
+	/* a terminal cell is about twice as tall as it is wide; prose line-height stretches the bird */
+	font-size: 1.1em;
+	line-height: 1.1;
+	letter-spacing: 0.05em;
+	/* one frame tall, in the reel's own rows so a step lands on the next frame exactly; the
+	   em line is the same height for engines without lh (Safari before 16.4) */
+	height: calc(var(--parrot-rows) * 1.1em);
+	height: calc(var(--parrot-rows) * 1lh);
+	/* wider than a phone column, and the editor root pans if it isn't contained; the bar
+	   would sit across the bird, which is decoration rather than a pane to scroll */
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+	/* decoration, not content: every frame is in the DOM and none of them belong in a copy */
+	user-select: none;
+	animation: parrot-hue 0.49s step-end infinite;
+}
+.parrot-reel {
+	/* type and rhythm come from the box above, so its `lh` is this reel's row exactly */
+	margin: 0;
+	animation-name: parrot-reel;
+	animation-duration: calc(var(--parrot-frames) * 70ms);
+	animation-timing-function: steps(var(--parrot-frames));
+	animation-iteration-count: infinite;
+}
+@keyframes parrot-reel {
+	to {
+		transform: translateY(-100%);
+	}
+}
+/* parrot.live's seven, stepped rather than blended so every run of the dance looks the same */
+@keyframes parrot-hue {
+	0% {
+		color: #ff5f5f;
+	}
+	14.286% {
+		color: #ffc83d;
+	}
+	28.571% {
+		color: #3fd97a;
+	}
+	42.857% {
+		color: #5aa9ff;
+	}
+	57.143% {
+		color: #ff6ad5;
+	}
+	71.429% {
+		color: #3fd3d3;
+	}
+	85.714% {
+		color: currentColor;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.parrot,
+	.parrot-reel {
+		animation: none;
+	}
+}
+.parrot-caption {
+	margin: 0.25em 0 0;
+	font-weight: 700;
+	cursor: text;
+}
+.parrot-source {
+	/* the bytes, dimmed the way the editor dims a marker */
+	opacity: 0.55;
+	font-family: monospace;
+	font-size: 0.9em;
+	outline: none;
+}

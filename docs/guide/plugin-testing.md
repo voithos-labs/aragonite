@@ -29,6 +29,8 @@ And a map, so you can jump straight at your question:
 | [The container checkup](#the-container-checkup-runcontainerconformance)                               | Extra checks for a block that holds other blocks, starring the body line that ends the container early       |
 | [The inline checkup](#the-inline-checkup-runinlinekindconformance)                                    | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's                |
 | [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkinlinemenucommitacrossswap) | One cell for an inline-menu source: a commit that waits writes nothing into a note the host loaded meanwhile |
+| [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance)                            | Every kit over every kind your plugin declares, the check a listing runs                                     |
+| [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check)                          | The same run over your built package, from a terminal or your CI                                             |
 
 ## Verifying your plugin
 
@@ -521,3 +523,65 @@ await checkInlineMenuCommitAcrossSwap({
 // loaded another document; write through the context onCommit hands you, or compare
 // documentGeneration across the wait
 ```
+
+### The whole plugin at once: `runPluginConformance`
+
+**`runPluginConformance(suite)`**
+
+The three kits each take one kind. This one takes your whole plugin: it empties the registries, installs your units the way the `plugins` prop does, and runs every kit over every kind their setups declared. It's also the check a plugin listing runs, so it's strict about what it gets: a container kind needs a container profile and an inline kind needs an inline profile, since without fixtures those kits have nothing to run. Any dev warning raised along the way fails the run, so it wants dev checks on (it's on under Vitest; anywhere else, `configureEditorEnv({ isDev: true })` first).
+
+The suite is your units plus those profiles. A profile names its kind as a string, because the branded kind only exists once your setup has run:
+
+```ts
+import { runPluginConformance, type PluginConformanceSuite } from '@voithos-labs/aragonite/testing';
+import { conspiracyPlugin } from './conspiracy-plugin';
+
+const suite: PluginConformanceSuite = {
+	plugins: [conspiracyPlugin()],
+	containers: { conspiracy: conspiracyProfile } // the profile from the container checkup above
+	// inline: [{ trigger: '!', prefix: '![[', kind: 'embed', ... }] for an inline kind
+};
+
+it('the plugin conforms', async () => {
+	const report = await runPluginConformance(suite);
+	report.kinds.map((k) => k.kind); // ['conspiracy']
+});
+```
+
+It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
+
+```
+Error: plugin conformance failed for "memo":
+  - kind conformance failed for "memo":
+      - rawWrite: "memo" declares no rawWrite, and the closing line cut ("%%memo a\n") swallows the next block ("raw write sentinel\n"): declare rawWrite to put the closer back
+        breaks: any bytes written into your block leave the blocks around it alone (plugin-testing.md#the-kind-checkup-runkindconformance)
+```
+
+A kind left without its profile fails the same way (`container kind "conspiracy" has no profile in the suite's containers`), and so does a profile naming a kind your plugins never declared.
+
+### The check a listing runs: `aragonite-plugin-check`
+
+**`npx aragonite-plugin-check [package | directory] [--json file]`**
+
+The same run from outside your test suite, over your built package the way a host installs it. Your package publishes its suite as a `./conformance` export (a module whose default export is the `PluginConformanceSuite` above), and the command comes with the editor, so it runs the kits of whichever editor version you installed. Pass a directory to check the package it holds (`.` is the default), or a package name to check one installed beside the editor:
+
+```
+$ npx aragonite-plugin-check .
+checking aragonite-parrot@0.1.0 against @voithos-labs/aragonite@0.12.0
+  kind checkup, parrot: 4 asserted, 6 boundary, 1 exempt
+aragonite-plugin-check: passed
+```
+
+It exits 0 when every cell passed, 1 when a contract broke (with the same message `runPluginConformance` throws), and 2 when the package publishes no suite. `--json` also writes the result to a file.
+
+The suite ships in your package, so keep its source to your plugin's own imports plus `import type` from `@voithos-labs/aragonite/testing`: a host never loads it, and it shouldn't drag the test kits into anyone's install.
+
+In CI, call the editor's reusable workflow instead of wiring this up yourself. It packs your repository's package, installs it beside the editor in an empty project with your package's install scripts off, runs the check and writes the result to the job summary:
+
+```yaml
+jobs:
+  conformance:
+    uses: voithos-labs/aragonite/.github/workflows/plugin-check.yml@v0.11.4
+```
+
+Pin the tag to the editor release you build against. With no inputs it checks your package against the newest editor release your peer range accepts; `editor` takes an npm spec to check another one (a `next` build, say), and `working-directory` points at a package that isn't at your repository's root. The [plugin template](plugin-guide.md#the-first-fifteen-minutes) already calls it.

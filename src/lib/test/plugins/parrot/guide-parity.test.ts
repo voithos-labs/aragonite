@@ -5,14 +5,15 @@ import path from 'node:path';
 import { pluginGuidePages } from '../../invariants/lint/scan-source';
 
 /**
- * The shipped parrot is the plugin guide's quickstart with its frames swapped for the canonical
- * ten, derived from the docs so either side drifting fails here rather than in a reader's editor.
+ * The shipped parrot is the plugin guide's quickstart, file for file, with the frames doc's
+ * canonical ten where the guide shows two; derived from the docs so either side drifting fails here.
  */
 
 const PLUGIN_DIR = 'packages/parrot/src';
 
 const PLUGIN_MARKER = '// parrot-plugin.ts';
-const COMPONENT_MARKER = '<!-- ParrotBlock.svelte -->';
+const STYLES_MARKER = '/* parrot.css */';
+const SAMPLE_MARKER = '// parrot-frames.ts';
 const FRAMES_MARKER = '// The canonical ten, via terminal-parrot (MIT).';
 
 const read = (rel: string) => readFileSync(path.resolve(rel), 'utf8');
@@ -63,85 +64,60 @@ function fenceBodyAround(markdown: string, markerLine: string): string {
 
 const fenceIn = (markerLine: string) => fenceBodyAround(pageHolding(markerLine), markerLine);
 
-function spanBetween(lines: string[], startLine: string, endLine: string) {
-	const start = lines.indexOf(startLine);
-	expect(start, `no line ${JSON.stringify(startLine)}`).toBeGreaterThan(-1);
-	const end = lines.indexOf(endLine, start + 1);
-	expect(end, `no line ${JSON.stringify(endLine)} after it`).toBeGreaterThan(-1);
-	return { start, end };
-}
-
-/**
- * One tab onto the lines that are code, never inside a `String.raw` literal: a tab before its
- * closing backtick lands in the string and repaints the bird.
- */
-function nestOneLevel(block: string[]): string[] {
-	let inRaw = false;
-	return block.map((line) => {
-		if (inRaw) {
-			if (line === '`,' || line === '`') inRaw = false;
-			return line;
-		}
-		if (/String\.raw`$/.test(line)) inRaw = true;
-		return line === '' ? line : `\t${line}`;
-	});
-}
-
-/**
- * The guide's two sample frames, comment included, become the frames doc's canonical ten under
- * that doc's own comment, so the shipped file never claims to hold two.
- */
-const SAMPLE_COMMENT =
-	'\t// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;';
-
-function deriveComponent(): string {
-	const component = fenceIn(COMPONENT_MARKER).split('\n');
-	const frames = fenceIn(FRAMES_MARKER).split('\n');
-
-	const canonical = spanBetween(frames, FRAMES_MARKER, '];');
-	const sample = spanBetween(component, SAMPLE_COMMENT, '\t];');
-	return [
-		...component.slice(0, sample.start),
-		...nestOneLevel(frames.slice(canonical.start, canonical.end + 1)),
-		...component.slice(sample.end + 1)
-	].join('\n');
+/** Each `String.raw` frame of a frames file, its closing delimiter left off so a frame reads the
+ *  same whether it ends the array or not. */
+function framesOf(file: string): string[] {
+	return file
+		.split('\tString.raw`')
+		.slice(1)
+		.map((frame) => frame.slice(0, frame.lastIndexOf('`')));
 }
 
 // ── The drift gate ───────────────────────────────────────────────────────────
 
 describe('the bundled parrot is the plugin guide, compiled', () => {
-	it('matches the guide fence byte for byte', () => {
+	it('matches the plugin fence byte for byte', () => {
 		expect(read(`${PLUGIN_DIR}/parrot-plugin.ts`)).toBe(fenceIn(PLUGIN_MARKER));
 	});
 
-	it('matches the component fence byte for byte, with the canonical ten spliced in', () => {
-		expect(read(`${PLUGIN_DIR}/ParrotBlock.svelte`)).toBe(deriveComponent());
+	it('matches the stylesheet fence byte for byte', () => {
+		expect(read(`${PLUGIN_DIR}/parrot.css`)).toBe(fenceIn(STYLES_MARKER));
+	});
+
+	it("matches the frames doc's canonical ten byte for byte", () => {
+		expect(read(`${PLUGIN_DIR}/parrot-frames.ts`)).toBe(fenceIn(FRAMES_MARKER));
+	});
+
+	it("shows frames 0 and 5 of the ten in the guide, in the shipped file's shape", () => {
+		const sample = fenceIn(SAMPLE_MARKER);
+		const canonical = framesOf(fenceIn(FRAMES_MARKER));
+		expect(framesOf(sample)).toEqual([canonical[0], canonical[5]]);
+		expect(sample).toContain('\nexport const PARROT_FRAMES = [\n\tString.raw`');
+		expect(sample.endsWith('`\n];\n')).toBe(true);
 	});
 });
 
-// ── Non-vacuity: the derivation really does the splice ──────────────────────
-// Two byte-equal sides prove nothing about which bytes, and the splice can be wrong in the file
-// and in the derivation at once.
+// ── Non-vacuity ──────────────────────────────────────────────────────────────
 
-describe('the derivation performs the splice', () => {
-	it('splices ten frames where the guide shows two', () => {
-		expect(fenceIn(COMPONENT_MARKER).match(/String\.raw`/g)).toHaveLength(2);
-		expect(deriveComponent().match(/String\.raw`/g)).toHaveLength(10);
+describe('the frames reader is not vacuous', () => {
+	it('reads ten frames from the doc and two from the guide, art untouched', () => {
+		const canonical = framesOf(fenceIn(FRAMES_MARKER));
+		expect(canonical).toHaveLength(10);
+		expect(framesOf(fenceIn(SAMPLE_MARKER))).toHaveLength(2);
+		// A frame's last art row sits at column 0: a stray tab would paint a column down the bird.
+		expect(canonical[0]).toContain('\ncNO;........................................\n');
 	});
+});
 
-	it("swaps the two-frame comment for the frames doc's own", () => {
-		const derived = deriveComponent();
-		expect(derived).not.toContain('Frames 0 and 5');
-		expect(derived).toContain(`\t${FRAMES_MARKER}\n\tconst FRAMES = [`);
-	});
+// ── The template ─────────────────────────────────────────────────────────────
 
-	it('nests the array one level without touching a byte of the art', () => {
-		const derived = deriveComponent();
-		expect(derived).toContain('\tconst FRAMES = [\n\t\tString.raw`\n');
-		// A frame's last art row and its closing delimiter, both at column 0 in the frames
-		// doc: one leading tab here would paint a stray column down the whole bird.
-		expect(derived).toContain(
-			'\ncNO;........................................\n`,\n\t\tString.raw`\n'
-		);
-	});
+describe('G4.278 the plugin template starts from the same parrot', () => {
+	const TEMPLATE_DIR = 'templates/plugin/src';
+
+	it.each(['parrot-plugin.ts', 'parrot-frames.ts', 'parrot.css', 'index.ts', 'conformance.ts'])(
+		'%s matches the bundled package byte for byte',
+		(file) => {
+			expect(read(`${TEMPLATE_DIR}/${file}`)).toBe(read(`${PLUGIN_DIR}/${file}`));
+		}
+	);
 });

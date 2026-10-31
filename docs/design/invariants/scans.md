@@ -224,6 +224,7 @@ unguarded.
 | G4.275 | Words are cut by one rule, read only through `wordSegments`                                      | L       |
 | G4.276 | A widget's raw span is read only through `widgetSourceRange`                                     | L       |
 | G4.277 | Every bundled plugin is a package an outside author could have written                           | L       |
+| G4.278 | The plugin template is the bundled parrot and names the editor release it ships with             | L       |
 
 ### The entries
 
@@ -1456,9 +1457,14 @@ stands for in `data-source-start` and `data-source-end`, and only
 `core/inline/widget-shell.ts :: widgetSourceRange` parses them back. It answers null unless both
 parse, so no reader trusts half a span. Writing them is fine anywhere. `lint/file-rules.test.ts`.
 
-**G4.277 · A bundled plugin is an outside author's package.** Each plugin under `packages/` (the
-`aragonite-plugin` keyword marks one) imports only the core's `/plugin` and `/svelte` entry points,
-`svelte`, its own files and the peers it declares, a rendering engine only from its `renderer.ts`.
-Its manifest carries the core's version and peers on exactly it, keeps every other peer optional,
-and declares each module that imports a stylesheet in `sideEffects`, in both builds. A workspace
-package without the keyword has to be a framework wrapper. `lint/plugin-packages.test.ts`.
+**G4.277 · A bundled plugin is an outside author's package.** Each non-wrapper under `packages/` imports
+only the core's `/plugin` and `/svelte`, `svelte`, its own files and its declared peers, an engine
+only from `renderer.ts`. Its manifest carries the core's version, peers on exactly it, keeps other
+peers optional, lists stylesheet importers in `sideEffects` and publishes `./conformance`, which
+names `/testing`'s types and loads none of it. `lint/plugin-packages.test.ts`.
+
+**G4.278 · The template is the parrot, at the editor's version.** `templates/plugin/src` holds the
+bundled parrot's files byte for byte, as the parrot holds the plugin guide's, so the guide, the
+package and the template can't disagree. Its exact devDependency, its caret peer, the workflow tag it and
+the testing guide call, and the tag the guide and README fetch it by all name the core's version.
+`plugins/parrot/guide-parity.test.ts` · `lint/lockstep-versions.test.ts`.

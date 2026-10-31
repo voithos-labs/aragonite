@@ -25,7 +25,9 @@ export default tseslint.config(
 			'.superpowers/',
 			'tmp/',
 			'static/',
-			'examples/'
+			'examples/',
+			// The plugin template is a starter with its own toolchain, checked by the template smoke.
+			'templates/'
 		]
 	},
 
@@ -46,7 +48,7 @@ export default tseslint.config(
 	},
 
 	{
-		files: ['scripts/**', '*.{js,mjs,cjs,ts}'],
+		files: ['scripts/**', 'bin/**', '*.{js,mjs,cjs,ts}'],
 		languageOptions: { globals: globals.node }
 	},
 

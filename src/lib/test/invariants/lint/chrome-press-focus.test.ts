@@ -118,8 +118,6 @@ const CHROME_PRESS_FOCUS: FileRule = {
 			'the link card holds focus in its field and gives the caret back through `selection/caret-restore.ts`',
 		'src/lib/components/blocks/table/TableActionMenu.svelte':
 			'an ARIA menu with roving focus, which Escape returns to the cell it opened from',
-		'packages/parrot/src/ParrotBlock.svelte':
-			'a press on the caption reveals the source and puts the caret on the character pressed',
 		'packages/toc/src/TocBlock.svelte':
 			'its entries are real buttons for tab order and Enter, and a press moves the caret to the heading'
 	},

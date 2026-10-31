@@ -120,7 +120,7 @@ Two things hold for all three:
   import '@voithos-labs/aragonite/styles/editor-theme.css';
   ```
 
-- **Plugins go in `plugins` as usual.** Every bundled plugin runs here (import its `style.css` too, `@voithos-labs/aragonite-latex/style.css` say, if it has one: admonitions, details, footnotes, latex, mermaid, parrot and toc do), and so does any plugin that draws with plain DOM. One that ships Svelte components of its own (any plugin with a custom block, for now) needs a bundler that compiles Svelte; [the plugin guide](plugin-guide.md#what-draws-your-plugin-and-where-it-runs) says which plugins those are.
+- **Plugins go in `plugins` as usual.** Every bundled plugin runs here (import its `style.css` too, `@voithos-labs/aragonite-latex/style.css` say, if it has one: admonitions, details, footnotes, latex, mermaid, parrot and toc do), and so does any plugin that draws with plain DOM. One that ships Svelte components of its own needs a bundler that compiles Svelte; [the plugin guide](plugin-guide.md#what-draws-your-plugin-and-where-it-runs) says which plugins those are.
 
 ### React
 
@@ -798,7 +798,7 @@ The same rule covers [directive](directives.md) names. A plugin that claims an a
 
 ### Bundled plugins
 
-Ten first-party plugins ship as packages of their own, one per plugin, named `@voithos-labs/aragonite-<plugin>`. Install the ones you want next to the editor:
+Ten first-party plugins ship as packages of their own, one per plugin, named `@voithos-labs/aragonite-<plugin>` (plugins other people wrote are in the [plugin gallery](plugin-gallery.md)). Install the ones you want next to the editor:
 
 ```powershell
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-latex @voithos-labs/aragonite-toc

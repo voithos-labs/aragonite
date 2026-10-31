@@ -4,7 +4,7 @@
 
 ## terminal-parrot (MIT)
 
-`ParrotBlock.svelte` carries the ten ASCII party-parrot frames from terminal-parrot (<https://github.com/jmhobbs/terminal-parrot>), the art `curl parrot.live` serves.
+`parrot-frames.ts` carries the ten ASCII party-parrot frames from terminal-parrot (<https://github.com/jmhobbs/terminal-parrot>), the art `curl parrot.live` serves.
 
 ```
 MIT License

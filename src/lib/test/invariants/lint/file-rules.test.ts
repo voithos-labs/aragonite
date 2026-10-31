@@ -2369,8 +2369,7 @@ const REVEAL_BLOCKS_IN_SVELTE: ManifestRule[] = [
 		matches: /\bmode:\s*['"]render-primary['"]/,
 		declared: {
 			[SOURCE.latexBlockMath]: 'block math, with its layout toggle and live preview',
-			'packages/toc/src/TocBlock.svelte': 'the outline, whose list follows the headings',
-			'packages/parrot/src/ParrotBlock.svelte': 'the plugin guide’s quickstart block'
+			'packages/toc/src/TocBlock.svelte': 'the outline, whose list follows the headings'
 		},
 		reason:
 			'a bundled block that shows a rendered view until clicked can be a `defineBlockView({ surface: "render-primary" })` view; this list is where moving them starts, and it guards nothing inside a listed file',

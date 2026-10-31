@@ -55,6 +55,14 @@ export function pluginKindOwner(kind: string): string | null {
 	return declaredPluginKinds.ownerOf(kind);
 }
 
+/** Every block kind the setup of plugin `owner` declared, in declaration order. */
+export function pluginKindsDeclaredBy(owner: string): PluginBlockKind[] {
+	return declaredPluginKinds
+		.records()
+		.filter((record) => record.owner === owner)
+		.map((record) => record.key as PluginBlockKind);
+}
+
 /**
  * The branded kind for a declared name, without an unchecked cast. Throws for an undeclared name,
  * so a typo cannot quietly register against a kind that does not exist.
@@ -103,6 +111,14 @@ export function declaredPluginInlineKind(name: string): PluginInlineKind {
 /** The inline mirror of {@link pluginKindOwner}. */
 export function pluginInlineKindOwner(kind: string): string | null {
 	return declaredPluginInlineKinds.ownerOf(kind);
+}
+
+/** The inline mirror of {@link pluginKindsDeclaredBy}. */
+export function pluginInlineKindsDeclaredBy(owner: string): PluginInlineKind[] {
+	return declaredPluginInlineKinds
+		.records()
+		.filter((record) => record.owner === owner)
+		.map((record) => record.key as PluginInlineKind);
 }
 
 /** Whether an inline kind name is declared, for the editor's own checks. */

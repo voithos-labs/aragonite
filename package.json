@@ -86,7 +86,11 @@
 		"./style.css": "./dist/prebuilt/style.css",
 		"./package.json": "./package.json"
 	},
+	"bin": {
+		"aragonite-plugin-check": "./bin/aragonite-plugin-check.mjs"
+	},
 	"files": [
+		"bin",
 		"dist",
 		"docs/guide",
 		"THIRD-PARTY-NOTICES.md"

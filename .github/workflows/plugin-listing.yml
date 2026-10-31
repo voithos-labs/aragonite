@@ -1,0 +1,140 @@
+name: Plugin listing
+# The plugin gallery's listing (docs/guide/plugin-gallery/listing.json). On a pull request that
+# adds or changes an entry: check its shape and that the package carries the plugin keyword and
+# names the entry's repository, then run the plugin check over it. On a manual run: check every
+# entry and upload the listing with the results recorded, for the release cut to commit. A bundled
+# plugin is checked from tarballs packed in the same run, since its release may not be on npm yet.
+#
+# The plugin checks run third-party code, so they run with no permissions and no secrets, install
+# with --ignore-scripts (inside plugin-check.yml), and nothing here uses pull_request_target or
+# asks to write the repository.
+on:
+  pull_request:
+    paths:
+      - 'docs/guide/plugin-gallery/listing.json'
+  workflow_dispatch:
+    inputs:
+      editor:
+        description: The editor release to check the outside plugins against (the bundled ones take this commit's)
+        type: string
+        default: latest
+
+permissions: {}
+
+# Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
+jobs:
+  entries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      bundled: ${{ steps.entries.outputs.bundled }}
+      outside: ${{ steps.entries.outputs.outside }}
+      editor: ${{ steps.entries.outputs.editor }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - id: entries
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          EDITOR: ${{ inputs.editor }}
+        run: |
+          node scripts/plugins/listing.mjs
+          node scripts/plugins/listing.mjs --matrix ${BASE:+"$BASE"} >> "$GITHUB_OUTPUT"
+          if [ -n "$EDITOR" ]; then
+            echo "editor=$(npm view "@voithos-labs/aragonite@$EDITOR" version | tail -n 1)" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The core and the bundled plugins, built and packed from this commit.
+  packs:
+    needs: entries
+    if: needs.entries.outputs.bundled != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run package
+      - run: node scripts/pack/pack-workspaces.mjs tmp/plugin-packs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-packs
+          path: tmp/plugin-packs
+          retention-days: 3
+
+  # A cap on each call below, not a grant: the job that runs a plugin asks for none, and the
+  # packing job (which these calls skip) asks to read the repository.
+  check-bundled:
+    needs: [entries, packs]
+    if: needs.entries.outputs.bundled != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.entries.outputs.bundled) }}
+    uses: ./.github/workflows/plugin-check.yml
+    permissions:
+      contents: read
+    with:
+      packs-artifact: plugin-packs
+      package: ${{ format('voithos-labs-aragonite-{0}-[0-9]*.tgz', matrix.plugin) }}
+      editor: voithos-labs-aragonite-[0-9]*.tgz
+
+  check-outside:
+    needs: entries
+    if: needs.entries.outputs.outside != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.entries.outputs.outside) }}
+    uses: ./.github/workflows/plugin-check.yml
+    permissions:
+      contents: read
+    with:
+      package: ${{ matrix.package }}@latest
+      editor: ${{ needs.entries.outputs.editor != '' && format('@voithos-labs/aragonite@{0}', needs.entries.outputs.editor) || '' }}
+
+  # Runs none of a plugin's code: it validates each result file before recording it.
+  record:
+    needs: [entries, check-bundled, check-outside]
+    if: always() && github.event_name == 'workflow_dispatch' && needs.entries.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: plugin-check-*
+          path: results
+      - run: node scripts/plugins/check-listing.mjs --results results
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-listing
+          path: |
+            docs/guide/plugin-gallery/listing.json
+            docs/guide/plugin-gallery.md
+          retention-days: 30

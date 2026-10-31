@@ -1,8 +1,8 @@
 /**
  * Each bundled plugin is a package an outside author could have written (G4.277): it imports only
  * the core's authoring entry points and the packages it declares as peers, ships in lockstep with
- * the core, and declares every module with a side effect. A `#lib` reach-in can't resolve from a
- * package at all; this scan holds the rest.
+ * the core, declares every module with a side effect and publishes its conformance suite. A `#lib`
+ * reach-in can't resolve from a package at all; this scan holds the rest.
  */
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
@@ -13,7 +13,12 @@ import {
 	publishedEntryPoints,
 	workspacePackages
 } from '../../../../../scripts/lib-alias.mjs';
-import { collectEditorSources, importSpecifiers, type SourceFile } from './scan-source';
+import {
+	collectEditorSources,
+	collectFiles,
+	importSpecifiers,
+	type SourceFile
+} from './scan-source';
 
 const ROOT = JSON.parse(readFileSync('package.json', 'utf8'));
 const CORE: string = ROOT.name;
@@ -29,8 +34,16 @@ interface PluginPackage {
 
 const isTestFile = (relPath: string) => /\.test\.ts$|\/test\//.test(relPath);
 
+/** The published conformance suite, which may name the kits' types but load none of them. */
+const CONFORMANCE_SOURCE = 'conformance.ts';
+
 /** Why `specifier` may not appear in `relPath` of `pkg`, or null when it may. */
-function boundaryProblem(pkg: PluginPackage, relPath: string, specifier: string): string | null {
+function boundaryProblem(
+	pkg: PluginPackage,
+	relPath: string,
+	specifier: string,
+	typeOnly = false
+): string | null {
 	const source = `${pkg.dir}/src`;
 	if (specifier.startsWith('.')) {
 		const target = path.posix.normalize(path.posix.join(path.posix.dirname(relPath), specifier));
@@ -38,6 +51,10 @@ function boundaryProblem(pkg: PluginPackage, relPath: string, specifier: string)
 	}
 	if (AUTHORING_ENTRIES.includes(specifier)) return null;
 	if (isTestFile(relPath) && TEST_ENTRIES.includes(specifier)) return null;
+	if (specifier === `${CORE}/testing` && path.posix.basename(relPath) === CONFORMANCE_SOURCE) {
+		// The suite ships in the package, so the test kits must not ride into a host's install with it.
+		return typeOnly ? null : 'the kits loaded at run time by a published module';
+	}
 	if (specifier === 'svelte' || specifier.startsWith('svelte/')) return null;
 	if (specifier === CORE || specifier.startsWith(`${CORE}/`)) {
 		return 'a core entry point other than /plugin and /svelte';
@@ -87,8 +104,10 @@ function cssImportingBuilds(pkg: PluginPackage, files: SourceFile[]): string[] {
 		});
 }
 
-const hasStyles = (files: SourceFile[]) =>
-	files.some((file) => file.relPath.endsWith('.svelte') && /<style[\s>]/.test(file.text));
+/** Component styles or a stylesheet of its own, either of which the prebuilt build collects. */
+const hasStyles = (pkg: PluginPackage, files: SourceFile[]) =>
+	files.some((file) => file.relPath.endsWith('.svelte') && /<style[\s>]/.test(file.text)) ||
+	collectFiles(path.resolve(pkg.dir, 'src'), { extensions: ['.css'] }).length > 0;
 
 // ── The scan ─────────────────────────────────────────────────────────────────
 
@@ -129,9 +148,18 @@ describe('G4.277 every bundled plugin is a package an outside author could have 
 		expect(missing).toEqual([]);
 	});
 
+	it('each package publishes the conformance suite a plugin listing runs', () => {
+		const missing = packages
+			.filter((pkg) => !('./conformance' in (pkg.manifest.exports ?? {})))
+			.map((pkg) => pkg.manifest.name);
+		expect(missing).toEqual([]);
+	});
+
 	it('a package with component styles publishes its prebuilt stylesheet', () => {
 		const wrong = packages
-			.filter((pkg) => hasStyles(filesOf(pkg)) !== './style.css' in (pkg.manifest.exports ?? {}))
+			.filter(
+				(pkg) => hasStyles(pkg, filesOf(pkg)) !== './style.css' in (pkg.manifest.exports ?? {})
+			)
 			.map((pkg) => pkg.manifest.name);
 		expect(wrong).toEqual([]);
 	});
@@ -149,9 +177,9 @@ describe('G4.277 every bundled plugin is a package an outside author could have 
 		const offenders = packages.flatMap((pkg) =>
 			filesOf(pkg).flatMap((file) =>
 				importSpecifiers(file.code)
-					.map(({ specifier }) => ({
+					.map(({ specifier, typeOnly }) => ({
 						specifier,
-						problem: boundaryProblem(pkg, file.relPath, specifier)
+						problem: boundaryProblem(pkg, file.relPath, specifier, typeOnly)
 					}))
 					.filter(({ problem }) => problem !== null)
 					.map(({ specifier, problem }) => `${file.relPath}: ${specifier} (${problem})`)
@@ -200,6 +228,13 @@ describe('G4.277 classifier non-vacuity', () => {
 		expect(
 			boundaryProblem(latex, 'packages/latex/test/kind.test.ts', `${CORE}/testing`)
 		).toBeNull();
+	});
+
+	it('lets the conformance suite name the kits as types only', () => {
+		const suite = 'packages/latex/src/conformance.ts';
+		expect(boundaryProblem(latex, suite, `${CORE}/testing`, true)).toBeNull();
+		expect(boundaryProblem(latex, suite, `${CORE}/testing`)).not.toBeNull();
+		expect(boundaryProblem(latex, file, `${CORE}/testing`, true)).not.toBeNull();
 	});
 
 	it('flags a manifest out of step with the core or carrying the core as a dependency', () => {
