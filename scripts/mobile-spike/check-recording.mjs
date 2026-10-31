@@ -80,6 +80,13 @@ for (const [name, trial] of Object.entries(result.trials)) {
 }
 const { real, control } = verdict.trials;
 verdict.distinguishable = !!real && !!control && signature(real.shape) !== signature(control.shape);
+// The Android selection probes are reported as they came back, without a verdict.
+verdict.probes = Object.fromEntries(
+	Object.entries(result.probes ?? {}).map(([name, probe]) => [
+		name,
+		{ ...probe, recording: undefined, shape: shape(probe.recording) }
+	])
+);
 verdict.pass =
 	platform === 'android'
 		? !!real?.landed && !!real.softKeyboard.pass && !!control && !control.softKeyboard.pass

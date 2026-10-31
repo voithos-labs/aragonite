@@ -1,6 +1,6 @@
 // Types one word into the editor harness through Gboard's on-screen keys on an Android emulator,
-// then once more with `adb shell input text` as the control, recording the input of each. A third
-// paragraph, with spellcheck switched on, shows whether Gboard composes where suggestions are allowed.
+// then once more with `adb shell input text` as the control, recording the input of each. Then
+// probes: spellcheck switched on, a scroll swipe after a tap, a long press dragged across blocks.
 // Every tap and key is a touch on the device (`adb shell input tap`); the page connection over
 // CDP only seeds the document, starts and stops the recording and reads the result back.
 // Usage: node android-type.mjs <out dir>, with Chrome on the harness and port 9222 forwarded.
@@ -10,7 +10,9 @@ import path from 'node:path';
 
 const out = process.argv[2];
 const WORD = 'hello';
-const SOURCE = 'alpha beta\n\ngamma delta\n\nepsilon zeta\n';
+// Filler paragraphs below the three trial paragraphs give the scroll probe a page to scroll.
+const FILLER = Array.from({ length: 24 }, (_, i) => `filler line ${i + 1}`).join('\n\n');
+const SOURCE = `alpha beta\n\ngamma delta\n\nepsilon zeta\n\n${FILLER}\n`;
 const started = Date.now();
 const timings = {};
 const mark = (name) => (timings[name] = Date.now() - started);
@@ -25,13 +27,29 @@ const screenshot = (name) =>
 
 // ── The page, over CDP ──────────────────────────
 
+const URL = 'http://localhost:1430/test/editor';
+
+// Chrome can drop the launch intent while it starts up and show its New Tab page instead, so the
+// intent is re-sent, and as a last resort the open tab is sent to the harness over CDP.
 async function connect() {
+	const intent = ['shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', URL];
 	for (let i = 0; i < 90; i++) {
-		try {
-			const targets = await (await fetch('http://127.0.0.1:9222/json/list')).json();
-			const page = targets.find((t) => t.type === 'page' && t.url.includes('/test/editor'));
-			if (page) return openSocket(page.webSocketDebuggerUrl);
-		} catch {}
+		const targets = await fetch('http://127.0.0.1:9222/json/list')
+			.then((res) => res.json())
+			.catch(() => []);
+		const page = targets.find((t) => t.type === 'page' && t.url.includes('/test/editor'));
+		if (page) return openSocket(page.webSocketDebuggerUrl);
+		if (i % 15 === 14 && i < 45) {
+			try {
+				adb(...intent, 'com.android.chrome');
+			} catch {}
+		}
+		const other = targets.find((t) => t.type === 'page');
+		if (i >= 50 && i % 10 === 0 && other) {
+			const tab = await openSocket(other.webSocketDebuggerUrl).catch(() => null);
+			await tab?.evaluate(`location.href = ${JSON.stringify(URL)}`).catch(() => {});
+			tab?.close();
+		}
 		await sleep(1000);
 	}
 	screenshot('no-page');
@@ -110,7 +128,9 @@ async function paragraphBox(text, name) {
 		const banner = nodes.some((n) => n.id === 'com.android.chrome:id/status_text');
 		const node = nodes.find(
 			(n) =>
-				n.pkg === 'com.android.chrome' && n.cls === 'android.widget.EditText' && n.text === text
+				n.pkg === 'com.android.chrome' &&
+				n.cls === 'android.widget.EditText' &&
+				n.text.trim() === text
 		);
 		if (node && !dismiss && !banner) return node.box;
 		await sleep(500);
@@ -240,6 +260,94 @@ const spellcheckOn = await trial(page, 2, 'spellcheck-on', async () => ({
 	spellcheckAtTap: await page.evaluate(SPELLCHECK),
 	...(await typeOnGboard('spellcheck-on'))
 }));
+
+// ── Selection probes (reported, not judged) ──────────────────────────
+
+const SELECTION = `(() => {
+	const sel = window.__test.getSelection();
+	return { editor: sel, dom: String(document.getSelection()), scrollY: window.scrollY };
+})()`;
+
+// The input recorder keeps no pointermove or pointercancel, so the probes log those on the page,
+// with whether a handler prevented each one, read after its dispatch.
+const POINTER_LOG_START = `(() => {
+	const log = (window.__pointerLog = []);
+	const types = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'selectionchange'];
+	for (const type of types)
+		document.addEventListener(type, (e) => {
+			const row = { type, t: Math.round(e.timeStamp), pointerType: e.pointerType, cancelable: e.cancelable };
+			log.push(row);
+			setTimeout(() => (row.prevented = e.defaultPrevented));
+		}, true);
+})()`;
+const POINTER_LOG_STOP = `(() => {
+	const counts = {};
+	for (const row of window.__pointerLog) counts[row.type] = (counts[row.type] ?? 0) + 1;
+	return { counts, rows: window.__pointerLog.slice(0, 80) };
+})()`;
+
+// A tap, then one touch gesture, then where the selection is. A scroll swipe should leave the caret
+// collapsed; a long press dragged into the next block should select across both blocks.
+async function selectionProbe(name, gesture) {
+	const result = { method: name };
+	try {
+		await page.evaluate('window.__test.startInputRecording({ includeText: true })');
+		result.caretAfterTap = await caretTap(page, 0, name, result);
+		result.before = await page.evaluate(SELECTION);
+		await page.evaluate(POINTER_LOG_START);
+		result.gesture = await gesture();
+		await sleep(1500);
+		result.after = await page.evaluate(SELECTION);
+		result.pointerLog = await page.evaluate(POINTER_LOG_STOP);
+	} catch (error) {
+		result.error = String(error?.stack ?? error);
+	}
+	screenshot(name);
+	result.recording = await page.evaluate('window.__test.stopInputRecording()').catch(() => null);
+	writeFileSync(
+		path.join(out, `${name}.recording.json`),
+		JSON.stringify(result.recording, null, 2)
+	);
+	mark(name);
+	return result;
+}
+
+const paragraph = async (index, name) => {
+	const source = await page.evaluate('window.__test.getSource()');
+	return paragraphBox(source.split('\n\n')[index].trimEnd(), name);
+};
+
+const scrollAfterTap = await selectionProbe('scroll-after-tap', async () => {
+	const box = await paragraph(1, 'scroll-after-tap-target');
+	const x = centre(box).x;
+	adb(
+		'shell',
+		'input',
+		'swipe',
+		String(x),
+		String(box.y1 + 20),
+		String(x),
+		String(box.y1 - 500),
+		'300'
+	);
+	return `swipe up 500px from block 1 at x=${x}, 300 ms`;
+});
+await page.evaluate(`window.scrollTo(0, 0)`);
+const longPressDrag = await selectionProbe('long-press-drag', async () => {
+	const from = await paragraph(0, 'long-press-drag-from');
+	const to = await paragraph(1, 'long-press-drag-to');
+	const args = [from.x1 + 60, centre(from).y, to.x1 + 200, centre(to).y].map((n) =>
+		String(Math.round(n))
+	);
+	try {
+		adb('shell', 'input', 'draganddrop', ...args, '2000');
+		return `draganddrop ${args.join(' ')} over 2000 ms`;
+	} catch (error) {
+		adb('shell', 'input', 'swipe', ...args, '2000');
+		return `swipe ${args.join(' ')} over 2000 ms (draganddrop failed: ${String(error).slice(0, 120)})`;
+	}
+});
+
 page.close();
 
 writeFileSync(
@@ -248,7 +356,8 @@ writeFileSync(
 		{
 			platform: 'android',
 			timings,
-			trials: { real, control, 'spellcheck-on': spellcheckOn }
+			trials: { real, control, 'spellcheck-on': spellcheckOn },
+			probes: { 'scroll-after-tap': scrollAfterTap, 'long-press-drag': longPressDrag }
 		},
 		null,
 		2

@@ -97,7 +97,7 @@ jobs:
       - name: Start Appium
         run: |
           defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
-          nohup appium --address 127.0.0.1 --port 4723 --log-timestamp > mobile-out/appium.log 2>&1 &
+          nohup appium --address 127.0.0.1 --port 4723 --keep-alive-timeout 1800 --log-timestamp > mobile-out/appium.log 2>&1 &
           for _ in $(seq 1 60); do curl -sf http://127.0.0.1:4723/status > /dev/null && exit 0; sleep 1; done
           exit 1
       - run: node scripts/mobile-spike/ios-type.mjs mobile-out

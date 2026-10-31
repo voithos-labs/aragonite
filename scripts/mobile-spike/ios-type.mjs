@@ -66,6 +66,9 @@ function pickSimulator() {
 }
 
 const sim = pickSimulator();
+// Booted before the session request, which Appium's server drops once it runs past its keep-alive.
+execFileSync('xcrun', ['simctl', 'bootstatus', sim.udid, '-b'], { stdio: 'inherit' });
+mark('simulator booted');
 console.log(`simulator: ${sim.name}, iOS ${sim.platformVersion}, ${sim.udid}`);
 const session = await call('POST', '/session', {
 	capabilities: {
@@ -172,15 +175,15 @@ const editable = async (blockIndex) =>
 	(await find('css selector', `[data-block-path="[${blockIndex}]"]`));
 
 // The editable's centre sits past the end of its short line, so the tap leaves the caret at the
-// end. A tap that brings up no keyboard is retried once, and the count is kept as evidence.
+// end. A tap that brings up no keyboard is tried up to three times, and the count is kept.
 async function tapKeys(blockIndex, result) {
 	result.tapAttempts = 0;
-	while (result.tapAttempts < 2) {
+	while (result.tapAttempts < 3) {
 		result.tapAttempts++;
 		await click(await editable(blockIndex));
 		if (await keyboardShown()) break;
 	}
-	if (!(await keyboardShown())) throw new Error('the soft keyboard never showed after two taps');
+	if (!(await keyboardShown())) throw new Error('the soft keyboard never showed after three taps');
 	await expectAtCaret(blockIndex, result);
 	if (result.caret?.focus.path[0] !== blockIndex)
 		throw new Error(
