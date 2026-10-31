@@ -129,6 +129,8 @@ function startSession(
 		begin(down: PointerEvent) {
 			scopeEl?.classList.add('reorder-scope');
 			createPointerDragSession(down, {
+				// The grip sets `touch-action: none`, so a finger on it drags the block.
+				touch: 'own',
 				onMove: (p) => process(p.clientX, p.clientY),
 				// A drop commits only on release, never on cancel, Escape or unmount.
 				onEnd: (reason) => {

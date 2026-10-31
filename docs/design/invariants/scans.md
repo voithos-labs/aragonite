@@ -225,6 +225,7 @@ unguarded.
 | G4.276 | A widget's raw span is read only through `widgetSourceRange`                                     | L       |
 | G4.277 | Every bundled plugin is a package an outside author could have written                           | L       |
 | G4.278 | The plugin template is the bundled parrot and names the editor release it ships with             | L       |
+| G4.279 | What a finger means is read in one place, `selection/pointer-gesture.ts`                         | L       |
 
 ### The entries
 
@@ -1468,3 +1469,10 @@ bundled parrot's files byte for byte, as the parrot holds the plugin guide's, so
 package and the template can't disagree. Its exact devDependency, its caret peer, the workflow tag it and
 the testing guide call, and the tag the guide and README fetch it by all name the core's version.
 `plugins/parrot/guide-parity.test.ts` · `lint/lockstep-versions.test.ts`.
+
+**G4.279 · One answer to "is this a finger?".** On a touch screen the browser owns a press's drag:
+a moved finger scrolls, and a long press selects natively. So `isTouchPointer` in
+`selection/pointer-gesture.ts` is the only place the editor reads `pointerType` (the hover marks and
+the input recorder read it for their own reasons). A drag session names who drags for a finger in
+its required `touch` option, and a press that clears a selection waits for a finger's tap through
+`clearOnPress`. `lint/file-rules.test.ts`.

@@ -12,6 +12,7 @@ import { isInPaddingRow, offsetFromViewportPoint } from '../../browser/point';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { isWholeBlockInputProxy } from '../whole-block-input';
+import { clearOnPress } from '../pointer-gesture';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -44,6 +45,19 @@ export function resetForPointerDown(
 	}
 }
 
+/** `resetForPointerDown` at a press, a finger's at its tap (`clearOnPress`). A Shift press clears no
+ *  range, so it resets at once, ahead of the shift-click that grows the range. */
+export function resetForPress(
+	selection: SelectionState,
+	writer: CaretWriter,
+	caretMemory: Pick<CaretMemory, 'forget'>,
+	e: PointerEvent,
+	lifetime: AbortSignal | null
+): void {
+	if (e.shiftKey) resetForPointerDown(selection, writer, caretMemory, true);
+	else clearOnPress(e, lifetime, () => resetForPointerDown(selection, writer, caretMemory, false));
+}
+
 // ── Pointer ────────────────────────────────────────────────────────────────
 
 function handlePointerDown(
@@ -56,7 +70,7 @@ function handlePointerDown(
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	resetForPointerDown(selection, ctx.caretWriter, ctx.caretMemory, e.shiftKey);
+	resetForPress(selection, ctx.caretWriter, ctx.caretMemory, e, ctx.getEditorLifetime());
 	const padding = armPaddingPress(ctx.caretWriter, el, myPath, e);
 
 	if (e.shiftKey) {

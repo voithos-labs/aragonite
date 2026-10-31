@@ -7,6 +7,7 @@
 
 import { imeOwnsKey } from '../browser/composition';
 import { createAutoScroll, type AutoScrollDeps } from './autoscroll';
+import { isTouchPointer } from './pointer-gesture';
 
 export interface PointerPosition {
 	clientX: number;
@@ -14,6 +15,9 @@ export interface PointerPosition {
 }
 
 export interface PointerDragSessionOptions {
+	/** Who drags for a finger: `own` for a control that takes the touch (`touch-action: none`), or
+	 *  `browser`, where a finger's press opens no session and the browser scrolls or selects. */
+	touch: 'own' | 'browser';
 	/** Coalesced to one call per animation frame with the latest pointer: intermediate positions
 	 *  are dropped, so a consumer must answer the point it gets rather than wait for a better one. */
 	onMove(pointer: PointerPosition): void;
@@ -128,7 +132,7 @@ export function createPointerDragSession(
 		if (e.key === 'Escape') dispose();
 	}
 
-	if (opts.lifetimeSignal?.aborted) {
+	if (opts.lifetimeSignal?.aborted || (opts.touch === 'browser' && isTouchPointer(down))) {
 		return { dispose };
 	}
 

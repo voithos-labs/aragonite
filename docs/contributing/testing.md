@@ -28,6 +28,8 @@ Where to jump:
   over React, Next, Vue and Nuxt apps.
 - [The plugin template and the plugin check](#the-plugin-template-and-the-plugin-check): an
   outside author's path, run on every push over the template and the bundled plugins.
+- [Real phones in CI](#real-phones-in-ci): an Android emulator and the iOS Simulator typing and
+  touching through their own keyboards, and how to add a row.
 - [Size budgets](#size-budgets): the first-load budget that reds when it moves, how to accept a
   move on purpose, and the report numbers that don't gate.
 - [The behavior differential](#the-behavior-differential): every key at every offset of a set of
@@ -1053,6 +1055,18 @@ $env:ADAPTER_PROJECTS = 'react'; npx playwright test -c examples/adapter-suite/p
 ```
 
 Heads up if you're mutating a wrapper to see what reds: outside CI the config reuses any server already on an app's port, so one left over from an earlier run keeps serving the old build. Stop it first, or set `CI=1` for the run.
+
+## Real phones in CI
+
+Playwright's touch and IME are a script's idea of a phone. `mobile-input.yml` runs the editor on the real thing, or as close as a free runner gets: Chrome with Gboard on an Android emulator, and Mobile Safari on the iOS Simulator (driven by Appium). Every tap, swipe and key is a touch on the device's own screen and keyboard. The page connection only seeds the document and reads back the result and an input recording (`shipping.md` § Recording input has the format).
+
+Android runs on a push to `dev` that touches input code (`selection/`, `browser/`, `caret/`, `components/editor-root/`, the text and editable blocks, the input recorder, or the harness). iOS takes a macOS runner, which is scarce, so it runs nightly on `dev` (skipping a commit already green). Both run on pull requests to `main`, and by hand from the Actions tab.
+
+Each job runs a list of rows, and each row is a scenario in `src/lib/e2e/requirements/mobile/<platform>.md`, named the same as the row's key in `scripts/mobile/<platform>-rows.mjs`. `src/lib/e2e/lint/mobile-rows-lockstep.test.ts` fails when the two lists drift. To add one: write the scenario, then a function under that name that returns the reasons it failed (an empty list is a pass). It gets a freshly loaded page and the device helpers in `scripts/mobile/android-device.mjs`. A `probes` entry beside the rows is reported and judges nothing, for when you want to see what a phone does before you know what to assert.
+
+To read a red, open the job summary for the failing row's reasons, then the artifact. It has every recording, a screenshot after each gesture, the screen dumps and a page log of the pointer events, which the input recorder doesn't keep.
+
+Two things a green run doesn't prove. On iOS a tap on the soft keyboard sends the same trusted, named key events a hardware keyboard would, so the recording can't tell them apart (the row checks the keyboard is on screen). And the emulator's keyboard is Gboard on whatever Chrome its image ships: other keyboards and newer Chromes are found by a real phone.
 
 ## Size budgets
 

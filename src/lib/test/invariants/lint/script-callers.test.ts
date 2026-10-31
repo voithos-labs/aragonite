@@ -55,7 +55,7 @@ function spawns(code: string, script: string): boolean {
 	});
 }
 
-/** A workflow or hook with its comment lines dropped, so a comment can't be a caller. */
+/** A workflow, hook or shell script with its comment lines dropped, so a comment can't be a caller. */
 const withoutComments = (text: string): string =>
 	text
 		.split('\n')
@@ -67,13 +67,17 @@ const withoutComments = (text: string): string =>
 const isCode = (relPath: string): boolean => /\.(?:[cm]?[jt]s|svelte)$/.test(relPath);
 
 function callerFiles(): CallerFile[] {
-	const manifests = listed(
-		'package.json',
-		'examples/*/package.json',
-		'packages/*/package.json',
-		'.github/workflows',
-		'.githooks'
-	).map((relPath) => ({
+	// A shell script under scripts/ calls what it runs, as a workflow does (the emulator's setup).
+	const manifests = [
+		...listed(
+			'package.json',
+			'examples/*/package.json',
+			'packages/*/package.json',
+			'.github/workflows',
+			'.githooks'
+		),
+		...listed('scripts').filter((relPath) => relPath.endsWith('.sh'))
+	].map((relPath) => ({
 		relPath,
 		text: readFileSync(relPath, 'utf8')
 	}));

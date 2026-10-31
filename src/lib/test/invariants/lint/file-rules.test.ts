@@ -1570,6 +1570,25 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'G4.279 what a finger means is read in one place',
+		matches: /\.pointerType\b|\{[^}]*\bpointerType\b[^}]*\}\s*=/,
+		allowed: {
+			[`${SOURCE_DIR.selection}pointer-gesture.ts`]:
+				'`isTouchPointer`: a finger leaves its drag to the browser (scroll, native selection)',
+			[`${SOURCE_DIR.decorations}mark-hover.ts`]:
+				'a finger never hovers; a hover is not a selection',
+			[`${SOURCE_DIR.debug}input-recorder.ts`]: 'the recorder keeps each event’s pointer type'
+		},
+		reason:
+			'a press read as a finger here and a mouse there drags a selection the browser is scrolling: ask `isTouchPointer`, and give a drag session its `touch` owner',
+		hits: [
+			"if (e.pointerType === 'touch') return;",
+			'const { pointerType } = event;',
+			"onpointerdown={(e) => e.pointerType !== 'mouse' && start(e)}"
+		],
+		misses: ['pointerType?: string;', 'export interface P { pointerType: string }']
+	},
+	{
 		id: 'G4.225 the drag session hears a release before anything else on the page',
 		// Any phase counts, since a capture flag held in a variable is invisible to a scan.
 		matches:
