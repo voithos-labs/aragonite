@@ -108,3 +108,16 @@ describe('the frames reader is not vacuous', () => {
 		expect(canonical[0]).toContain('\ncNO;........................................\n');
 	});
 });
+
+// ── The template ─────────────────────────────────────────────────────────────
+
+describe('G4.278 the plugin template starts from the same parrot', () => {
+	const TEMPLATE_DIR = 'templates/plugin/src';
+
+	it.each(['parrot-plugin.ts', 'parrot-frames.ts', 'parrot.css', 'index.ts', 'conformance.ts'])(
+		'%s matches the bundled package byte for byte',
+		(file) => {
+			expect(read(`${TEMPLATE_DIR}/${file}`)).toBe(read(`${PLUGIN_DIR}/${file}`));
+		}
+	);
+});

@@ -2,12 +2,13 @@
 
 This guide is for teaching the editor your own block or inline content. The authoring API comes from `@voithos-labs/aragonite/plugin`, plus `@voithos-labs/aragonite/svelte` for the parts typed with Svelte's types (the block factories, and the helpers that turn a Svelte component into a view). The package root, `@voithos-labs/aragonite`, is the embedding side, what a host app mounts the editor with (you'll borrow its `installPlugins` once or twice), and your test suite imports from `@voithos-labs/aragonite/testing`.
 
-Four neighbouring docs carry what this one doesn't:
+Five neighbouring docs carry what this one doesn't:
 
 - [directives.md](directives.md): the `:::name` directive grammar the [container walkthrough](plugin-guide/container-walkthrough.md) builds on.
 - [consumer-guide.md](consumer-guide.md): embedding, theming, and events, the host app's side.
 - [plugin-api.md](plugin-api.md): a catalog of every export named anywhere below, for checking a name is real.
 - [plugin-testing.md](plugin-testing.md): testing what you build.
+- [plugin-gallery.md](plugin-gallery.md): plugins other people wrote, and how to list yours.
 
 This page is the first read: [a working plugin in fifteen minutes](#the-first-fifteen-minutes), then [what a plugin is](#what-a-plugin-is), [what draws it and where it runs](#what-draws-your-plugin-and-where-it-runs), [views](#views-what-you-read-what-you-own), and [what a plugin may and may not do](#what-a-plugin-may-and-may-not-do). The recipes live on pages of their own, one job each, so open whichever matches what you're building:
 
@@ -36,10 +37,12 @@ The parrot below draws itself with plain DOM, so it runs in every app the editor
 If you'd rather start from the finished thing, the plugin template is this exact parrot as a package: the build, a conformance test, a page to try it on, and CI that runs the check a plugin listing runs. It lives in the editor's repository, tagged with every release, so fetch it at the tag of the editor version you're building against (swap the version in for yours):
 
 ```bash
-npx degit voithos-labs/aragonite/templates/plugin#v0.11.5 my-plugin
+npx degit voithos-labs/aragonite/templates/plugin#v0.11.4 my-plugin
 ```
 
 Its README walks you from there. This page is how it works.
+
+The template, the plugin check and the listing are a preview until 0.12.0: the API under them can still change in any 0.11 release.
 
 The plugin we're about to build is an homage to `curl parrot.live`: a line that starts with `%%parrot` renders as an animated ASCII party parrot, and any text after the marker becomes the parrot's caption.
 
@@ -379,6 +382,8 @@ it('parrot conforms', async () => {
 
 That's the loop: describe the kind, render it, install it, verify the bytes. Everything after this is the same four moves at more interesting shapes.
 
+When yours works, publish it as `aragonite-<name>` or `@your-scope/aragonite-<name>` with the `aragonite-plugin` keyword, and the [plugin gallery](plugin-gallery.md#getting-your-plugin-listed) says how to get it listed.
+
 ## What a plugin is
 
 A plugin teaches the editor a new kind, one that parses, renders, and saves alongside the built-ins. You declare the kind, then wire up to three things (the descriptor, the view and a block opener all go in one `registerBlockKind` call):
@@ -469,7 +474,11 @@ The API is going to freeze, and you deserve to know which half of it has settled
 - **The registration base, settled.** Kind declaration, kind registration (descriptor, view and opener in one call), and typed per-node metadata. The model won't change: which calls exist, that each registers once, what a kind is. The exact shapes those calls take (a descriptor field, what an opener returns) can still change before the freeze, and freeze with everything else at the public release.
 - **Pre-freeze, still moving.** Everything else: the plugin unit itself, the authoring tiers (container, editable leaf, inline, directive), the grammar hooks, paste transforms, and the view surfaces (decorations, rects, selection geometry). The [API reference](plugin-api.md) labels each such section _(pre-freeze / unstable)_, and they all freeze at the public release.
 
-After the freeze the version number carries the promise: a breaking change to a frozen surface rides a **major** version, and additive needs ship as **minors**.
+Breaks follow a schedule you can pin a peer range to:
+
+- Until 0.12.0, any release may break the plugin API.
+- From 0.12.0 until 1.0, breaks land only in minor releases, so a plugin that peers on `^0.12.0` keeps working through every 0.12 patch.
+- After the freeze at 1.0, a breaking change to a frozen surface rides a **major** version, and additive needs ship as **minors**.
 
 ## What draws your plugin, and where it runs
 

@@ -1,0 +1,65 @@
+name: Plugins
+# The outside author's path, run on this repo's own plugins: the template built and tested against
+# this commit's editor, then the reusable plugin check over every bundled plugin and the template,
+# so a core change that breaks either reds here before an author sees it.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
+jobs:
+  template-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/smoke/template-smoke.mjs
+      # Every tarball the smoke made, so the check below installs exactly what it tested.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-packs
+          path: tmp/plugin-packs
+          retention-days: 3
+
+  # The same workflow an outside author calls, fed this run's unreleased tarballs. The plugin list
+  # is every bundled package plus the template; a lint holds it to `packages/`.
+  plugin-check:
+    needs: template-smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin:
+          [
+            admonitions,
+            details,
+            emoji,
+            footnotes,
+            highlight-occurrences,
+            latex,
+            mermaid,
+            parrot,
+            slash-commands,
+            toc,
+            template
+          ]
+    uses: ./.github/workflows/plugin-check.yml
+    permissions: {}
+    with:
+      packs-artifact: plugin-packs
+      package: ${{ matrix.plugin == 'template' && 'aragonite-parrot-[0-9]*.tgz' || format('voithos-labs-aragonite-{0}-[0-9]*.tgz', matrix.plugin) }}
+      editor: voithos-labs-aragonite-[0-9]*.tgz
