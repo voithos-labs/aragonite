@@ -146,6 +146,27 @@ describe('a press on a block while a range spans blocks', () => {
 		expect(selection.isCrossBlock).toBe(true);
 	});
 
+	// Android's long press: selectstart while the finger is held, the word, then a pointercancel.
+	// Miss-analysis: the rows only had a press end as a scroll or a tap, never as a selection.
+	it("ends the range, keeping the browser's word, when the held finger starts a selection", () => {
+		pressBlock('touch');
+		document.dispatchEvent(new Event('selectstart', { bubbles: true }));
+		expect(selection.isCrossBlock).toBe(false);
+		const word = selectWord();
+		document.dispatchEvent(press('pointercancel', 'touch'));
+		expect(String(document.getSelection())).toBe(word);
+	});
+
+	// iOS's long press: no selectstart, the word lands while the finger is held, then a pointerup.
+	it("ends the range at the held finger's word and leaves the word to its pointerup", () => {
+		pressBlock('touch');
+		const word = selectWord();
+		document.dispatchEvent(new Event('selectionchange'));
+		expect(selection.isCrossBlock).toBe(false);
+		document.dispatchEvent(press('pointerup', 'touch'));
+		expect(String(document.getSelection())).toBe(word);
+	});
+
 	// An editor that unmounts mid-press must not reset a selection state nobody holds any more.
 	it('lets the press go when the editor unmounts before the finger lifts', () => {
 		const lifetime = new AbortController();
@@ -167,6 +188,15 @@ function press(type: string, pointerType: string, init: MouseEventInit = {}): Po
 		isPrimary: { value: true }
 	});
 	return e as unknown as PointerEvent;
+}
+
+// The word the browser selects under a long press, outside the editor's own blocks.
+function selectWord(): string {
+	const text = document.createElement('p');
+	text.textContent = 'gamma';
+	document.body.appendChild(text);
+	document.getSelection()!.selectAllChildren(text);
+	return 'gamma';
 }
 
 function move(clientX: number, clientY: number): void {

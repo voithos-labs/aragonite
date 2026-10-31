@@ -24,3 +24,13 @@ touch events. The real-device rows are in `requirements/mobile/android.md`.
   as a command.
 - A tap elsewhere clears a selected picture: a tap on a paragraph below a selected picture puts
   the caret there and takes the picture's overlay down.
+
+## Pinned below the browser
+
+A held touch from CDP ends as a tap in desktop Chromium, never a long-press selection, so these
+rows run at the unit layer and on the phones (`requirements/mobile/android.md`, `ios.md`).
+
+- A long press beside a range across blocks ends the range and keeps the word the browser selected,
+  on either phone's order: Android's selectstart before its pointercancel, iOS's word before its
+  pointerup (`test/selection/touch-press.test.ts`).
+  - Miss-analysis: the rows only had a press end as a scroll or a tap, never as a selection.
