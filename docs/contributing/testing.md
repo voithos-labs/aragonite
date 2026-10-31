@@ -1036,7 +1036,7 @@ builds and packs this checkout, installs it into the app the way a user would, a
 
 The wrappers are npm workspaces of the root, so the root `npm install` installs them too, and
 `npm run package` builds them after the core. Each carries the core's version and peers the core at
-exactly that version, since all three packages publish together (`npm run release:publish`);
+exactly that version, since the core, the wrappers and the plugin packages publish together (`npm run release:publish`);
 `src/lib/test/invariants/lint/lockstep-versions.test.ts` fails when one drifts.
 
 `scripts/smoke/adapter-smoke.mjs` packs the core and every wrapper, installs the tarballs into each app,
