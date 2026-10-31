@@ -4,7 +4,7 @@ name: Plugins
 # so a core change that breaks either reds here before an author sees it.
 on:
   push:
-    branches: [main, dev, feat/plugin-pipeline]
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
   workflow_dispatch:

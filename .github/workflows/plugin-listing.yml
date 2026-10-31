@@ -9,8 +9,6 @@ name: Plugin listing
 # with --ignore-scripts (inside plugin-check.yml), and nothing here uses pull_request_target or
 # asks to write the repository.
 on:
-  push:
-    branches: [feat/plugin-pipeline]
   pull_request:
     paths:
       - 'docs/guide/plugin-gallery/listing.json'
@@ -114,7 +112,7 @@ jobs:
   # Runs none of a plugin's code: it validates each result file before recording it.
   record:
     needs: [entries, check-bundled, check-outside]
-    if: always() && github.event_name != 'pull_request' && needs.entries.result == 'success'
+    if: always() && github.event_name == 'workflow_dispatch' && needs.entries.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
