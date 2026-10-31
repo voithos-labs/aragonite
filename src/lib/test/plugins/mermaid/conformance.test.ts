@@ -1,43 +1,12 @@
 // Miss-analysis: no kit cell reached a childless container whose body lives in metadata.
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-	augmentBlockKind,
-	declaredPluginKind,
-	setPluginMetadata,
-	getPluginMetadata
-} from '#lib/plugin.js';
-import { runContainerConformance, type ContainerConformanceProfile } from '#lib/testing.js';
-import {
-	registerMermaidKind,
-	MERMAID,
-	type MermaidMetadata
-} from '#packages/mermaid/src/mermaid-kind.js';
+import { augmentBlockKind, declaredPluginKind } from '#lib/plugin.js';
+import { runContainerConformance } from '#lib/testing.js';
+import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
+import { mermaidProfile } from '#packages/mermaid/src/conformance.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 const MERMAID_KIND = () => declaredPluginKind(MERMAID);
-
-const CHILDLESS =
-	'the diagram is metadata behind a fence, so this container has no child scopes at all — no ' +
-	'local index to address, no ancestry to rebuild through, and no child to bubble focus from';
-
-const mermaidProfile: ContainerConformanceProfile = {
-	deepNesting: { source: '```mermaid\ngraph TD\n```\n', leafPath: [0] },
-	terminatorCollisionFixture: {
-		source: '```mermaid\ngraph TD\n```\n',
-		bodyRaw: 'graph TD\n```\nafter\n',
-		// The body lives in typed metadata, so the kit's write reaches it through the same
-		// shallow merge the edit textarea's commit does.
-		writeBody: (node, body) => {
-			const meta = getPluginMetadata<MermaidMetadata>(node);
-			setPluginMetadata<MermaidMetadata>(node, { ...meta!, code: body });
-		}
-	},
-	localIndex: { mode: 'exempt', reason: CHILDLESS },
-	ancestry: { mode: 'exempt', reason: CHILDLESS },
-	multiScope: { mode: 'exempt', reason: CHILDLESS },
-	focusBubble: { mode: 'exempt', reason: CHILDLESS },
-	terminatorCollision: { mode: 'assert' }
-};
 
 describe('G4.3 conformance kit: the childless opaque container', () => {
 	beforeEach(() => {

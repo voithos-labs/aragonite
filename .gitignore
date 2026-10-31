@@ -30,10 +30,11 @@ playwright-report/
 # outside test-results/ so Playwright doesn't wipe them between runs.
 simulation-captures/
 
-# svelte-package emits a .d.mts beside any scripts/**/*.mjs that a compiled
+# svelte-package emits a .d.mts beside any .mjs (scripts, the bin) that a compiled
 # src/lib/test file imports; scripts/pack/prune-dist.mjs deletes them after packaging.
 scripts/**/*.d.mts
 examples/adapter-suite/*.d.mts
+bin/*.d.mts
 
 # Raw perf harness output; curated numbers live in baseline.json
 perf-results/

@@ -16,19 +16,35 @@
 			],
 			"@voithos-labs/aragonite/testing": ["./src/lib/testing.ts"],
 			"@voithos-labs/aragonite-admonitions": ["./packages/admonitions/src/index.ts"],
+			"@voithos-labs/aragonite-admonitions/conformance": [
+				"./packages/admonitions/src/conformance.ts"
+			],
 			"@voithos-labs/aragonite-details": ["./packages/details/src/index.ts"],
+			"@voithos-labs/aragonite-details/conformance": ["./packages/details/src/conformance.ts"],
 			"@voithos-labs/aragonite-emoji": ["./packages/emoji/src/index.ts"],
+			"@voithos-labs/aragonite-emoji/conformance": ["./packages/emoji/src/conformance.ts"],
 			"@voithos-labs/aragonite-footnotes": ["./packages/footnotes/src/index.ts"],
+			"@voithos-labs/aragonite-footnotes/conformance": ["./packages/footnotes/src/conformance.ts"],
 			"@voithos-labs/aragonite-highlight-occurrences": [
 				"./packages/highlight-occurrences/src/index.ts"
 			],
+			"@voithos-labs/aragonite-highlight-occurrences/conformance": [
+				"./packages/highlight-occurrences/src/conformance.ts"
+			],
 			"@voithos-labs/aragonite-latex": ["./packages/latex/src/index.ts"],
+			"@voithos-labs/aragonite-latex/conformance": ["./packages/latex/src/conformance.ts"],
 			"@voithos-labs/aragonite-latex/renderer": ["./packages/latex/src/renderer.ts"],
 			"@voithos-labs/aragonite-mermaid": ["./packages/mermaid/src/index.ts"],
+			"@voithos-labs/aragonite-mermaid/conformance": ["./packages/mermaid/src/conformance.ts"],
 			"@voithos-labs/aragonite-mermaid/renderer": ["./packages/mermaid/src/renderer.ts"],
 			"@voithos-labs/aragonite-parrot": ["./packages/parrot/src/index.ts"],
+			"@voithos-labs/aragonite-parrot/conformance": ["./packages/parrot/src/conformance.ts"],
 			"@voithos-labs/aragonite-slash-commands": ["./packages/slash-commands/src/index.ts"],
-			"@voithos-labs/aragonite-toc": ["./packages/toc/src/index.ts"]
+			"@voithos-labs/aragonite-slash-commands/conformance": [
+				"./packages/slash-commands/src/conformance.ts"
+			],
+			"@voithos-labs/aragonite-toc": ["./packages/toc/src/index.ts"],
+			"@voithos-labs/aragonite-toc/conformance": ["./packages/toc/src/conformance.ts"]
 		},
 		"sourceMap": true,
 		"strict": true

@@ -13,7 +13,8 @@
 		// This checkout's own core build, wherever npm linked the package from.
 		"paths": {
 			"@voithos-labs/aragonite/plugin": ["../../dist/plugin.d.ts"],
-			"@voithos-labs/aragonite/svelte": ["../../dist/svelte.d.ts"]
+			"@voithos-labs/aragonite/svelte": ["../../dist/svelte.d.ts"],
+			"@voithos-labs/aragonite/testing": ["../../dist/testing.d.ts"]
 		}
 	},
 	"include": ["src"]

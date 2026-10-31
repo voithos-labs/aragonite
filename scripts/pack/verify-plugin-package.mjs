@@ -1,7 +1,7 @@
 // Gates a plugin package's prebuilt build, which a host gets when its bundler doesn't compile
 // Svelte: it imports nothing but its declared peers, installs into the core's prebuilt as the
-// same copy of the core, its types reach no Svelte, and it stays within its size budget. Run by
-// verify-pack.mjs after the build.
+// same copy of the core, passes its own published conformance suite, its types reach no Svelte,
+// and it stays within its size budget. Run by verify-pack.mjs after the build.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -28,6 +28,9 @@ const BUDGET = {
 };
 
 const CORE_HOOK = pathToFileURL(path.resolve('scripts/pack/core-from-checkout.mjs')).href;
+const PLUGIN_CHECK = path.resolve('bin/aragonite-plugin-check.mjs');
+// Only a plugin listing loads the conformance suite, so it isn't JS a host pays for.
+const HOST_UNLOADED = new Set(['conformance.js']);
 const SECOND_COPY = '[aragonite:invariant:plugin-one-core-copy]';
 
 /**
@@ -55,11 +58,12 @@ export function verifyPluginPackage(dir) {
 	}
 
 	failures.push(...installsAsOneCopy(pkg, path.join(prebuilt, 'index.js')));
+	failures.push(...passesItsConformanceSuite(pkg, dir));
 	// A React or Vue host type-checks the declarations with no Svelte and no CSS module types.
 	failures.push(...verifyTypes(dir).map((failure) => `${pkg.name}: ${failure}`));
 
 	const name = path.basename(dir);
-	const js = gzipped(scripts);
+	const js = gzipped(scripts.filter((file) => !HOST_UNLOADED.has(path.basename(file))));
 	const css = gzipped(listFiles(prebuilt).filter((file) => file.endsWith('.css')));
 	console.log(`verify-plugin-package: ${pkg.name} ${js} B of JS and ${css} B of CSS, gzipped`);
 	if (BUDGET[name] === undefined) failures.push(`${pkg.name} has no JS budget`);
@@ -102,6 +106,23 @@ core.installPlugins(factories.map(([, factory]) => factory()));
 		return [`${pkg.name}'s prebuilt fails to install into the core's: ${error ?? run.stderr}`];
 	}
 	return [];
+}
+
+/**
+ * Runs `aragonite-plugin-check` over the package, the check a plugin listing runs on it.
+ * @param {{ name: string }} pkg
+ * @param {string} dir
+ */
+function passesItsConformanceSuite(pkg, dir) {
+	const run = spawnSync(process.execPath, ['--import', CORE_HOOK, PLUGIN_CHECK, dir], {
+		encoding: 'utf8'
+	});
+	return run.status === 0
+		? []
+		: [
+				`${pkg.name} fails its conformance suite:
+${run.stderr}`
+			];
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
