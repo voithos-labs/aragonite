@@ -1,0 +1,12 @@
+{
+	// The suite tests the packed packages, so unlike the root config it maps no package name to source.
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"noEmit": true,
+		"skipLibCheck": true
+	},
+	"include": ["."]
+}
