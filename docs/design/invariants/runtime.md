@@ -707,10 +707,9 @@ browser's own move ran too. An editor write or a pointer press ends the record u
 last step of its keydown (`editor-actions/container-chords.ts`), so no container element carries a
 mark for `claimsChord` to find, and both read one walk.
 
-**G1.166 · One copy of the editor** (`plugin-one-core-copy`). A plugin installs into the copy of
-the editor that defined it. `definePlugin` marks each plugin with the copy it ran in, so a plugin
-package that resolved a second copy of the core (a version that doesn't match, or a bundler that
-didn't dedupe) warns at `installPlugins` instead of registering into registries the editor never
-reads. The mark is written in every build, so an editor running its checks still catches a plugin
-whose copy runs without them. A plugin object built by hand carries no mark and isn't checked. `checkDefinedByThisCopy` ·
+**G1.166 · One copy of the editor** (`plugin-one-core-copy`). `definePlugin` marks each plugin
+with the copy of the core it ran in, so a plugin package that resolved a second copy (a version
+that doesn't match, or a bundler that didn't dedupe) warns at `installPlugins` instead of
+registering where the editor never reads. The mark is written in every build, so a copy running
+without checks is still caught; a hand-built plugin object carries none. `checkDefinedByThisCopy` ·
 `schema/plugin-install.ts` · `plugin-one-core-copy.test.ts`.
