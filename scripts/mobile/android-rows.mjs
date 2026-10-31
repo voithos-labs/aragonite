@@ -20,7 +20,7 @@ const BELOW_RANGE = 6;
 export const rows = {
 	'types a word through Gboard': async (ctx) => {
 		await ctx.fresh(SHORT);
-		const real = await typeWord(ctx, 0, 'gboard', () => typeOnGboard(ctx, 'gboard'));
+		const real = await typeWord(ctx, 0, 'gboard', () => typeOnGboard(ctx, 'gboard', 0));
 		const control = await typeWord(ctx, 1, 'input-text', async () => {
 			ctx.device.adb('shell', 'input', 'text', `%s${WORD}%s`);
 		});
@@ -82,7 +82,9 @@ export const probes = {
 		await ctx.page.evaluate(
 			`document.querySelector('[data-block-path="[2]"] [contenteditable="true"]').spellcheck = true`
 		);
-		const typed = await typeWord(ctx, 2, 'spellcheck-on', () => typeOnGboard(ctx, 'spellcheck-on'));
+		const typed = await typeWord(ctx, 2, 'spellcheck-on', () =>
+			typeOnGboard(ctx, 'spellcheck-on', 2)
+		);
 		return summary(typed);
 	},
 
@@ -201,15 +203,20 @@ async function logPointers(ctx, gesture) {
 	})()`);
 }
 
-async function typeOnGboard(ctx, name) {
+// Types on Gboard's own keys. A keyboard that isn't on screen is brought up by tapping the caret's
+// paragraph again, since a tap at a key's spot would land on the page instead.
+async function typeOnGboard(ctx, name, index) {
+	let keys = ctx.device.gboardKeys(`${name}-windows`);
+	for (let attempt = 1; !keys.has('h') && attempt <= 2; attempt++) {
+		await tapCaret(ctx, index, `${name}-retap`);
+		keys = ctx.device.gboardKeys(`${name}-windows`);
+	}
 	ctx.device.screenshot(`${name}-keyboard`);
-	const keys = ctx.device.gboardKeys(`${name}-windows`);
-	const used = [...` ${WORD} `].map((ch) => keys.get(ch));
-	for (const key of used) {
-		ctx.device.tap(key.x, key.y);
+	if (!keys.has('h') || !keys.has(' ')) throw new Error('Gboard never showed its keys on screen');
+	for (const ch of ` ${WORD} `) {
+		ctx.device.tap(keys.get(ch).x, keys.get(ch).y);
 		await sleep(400);
 	}
-	return { keys: [...new Set(used.map((k) => k.from))].join('+') };
 }
 
 // Taps block `index`, records the typing, and expects the word (between spaces) at the caret.

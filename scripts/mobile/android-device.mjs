@@ -86,32 +86,14 @@ export function createDevice(out) {
 		await sleep(500);
 	}
 
-	// The last number (or WxH pair) `wm size` and `wm density` print: the override if one is set.
-	const lastReading = (text) => [...text.matchAll(/(\d+)(?:x(\d+))?\s*$/gm)].at(-1);
-
-	// Gboard's keys by their accessibility labels, from a dump of every window. The fallback is its
-	// QWERTY grid, measured off a Pixel 6 screenshot at density 420 and anchored to the screen bottom.
-	const ROWS_FROM_BOTTOM = [684, 532, 376, 220];
+	// Gboard's keys by their accessibility labels, from a dump of every window; an empty map when the
+	// keyboard isn't on screen (Gboard can sit collapsed while its input connection is up).
 	function gboardKeys(name) {
-		const [, width, height] = lastReading(adb('shell', 'wm', 'size')).map(Number);
-		const scale = Number(lastReading(adb('shell', 'wm', 'density'))[1]) / 420;
-		const keyWidth = width / 10;
-		const indent = [0, 0.5, 1.5];
 		const keys = new Map();
-		['qwertyuiop', 'asdfghjkl', 'zxcvbnm'].forEach((row, r) =>
-			[...row].forEach((ch, i) =>
-				keys.set(ch, {
-					x: (indent[r] + i + 0.5) * keyWidth,
-					y: height - ROWS_FROM_BOTTOM[r] * scale,
-					from: 'grid'
-				})
-			)
-		);
-		keys.set(' ', { x: 0.55 * width, y: height - ROWS_FROM_BOTTOM[3] * scale, from: 'grid' });
 		for (const n of dumpNodes(name, '--windows')) {
 			if (!n.pkg.includes('inputmethod')) continue;
 			const label = n.desc === 'Space' ? ' ' : n.desc;
-			if (/^[a-z ]$/.test(label)) keys.set(label, { ...centre(n.box), from: 'accessibility' });
+			if (/^[a-z ]$/.test(label)) keys.set(label, centre(n.box));
 		}
 		return keys;
 	}
