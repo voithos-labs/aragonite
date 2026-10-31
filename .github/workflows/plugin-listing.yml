@@ -1,14 +1,13 @@
 name: Plugin listing
 # The plugin gallery's listing (docs/guide/plugin-gallery/listing.json). On a pull request that
-# adds or changes an entry: check its shape, ask npm that the package carries the plugin keyword
-# and names the entry's repository, then run the plugin check over the published package. On a
-# manual run: check every entry against an editor release and open a pull request that records
-# the results in the listing. The release cut runs `scripts/plugins/check-listing.mjs` itself.
+# adds or changes an entry: check its shape and that the package carries the plugin keyword and
+# names the entry's repository, then run the plugin check over it. On a manual run: check every
+# entry and upload the listing with the results recorded, for the release cut to commit. A bundled
+# plugin is checked from tarballs packed in the same run, since its release may not be on npm yet.
 #
 # The plugin checks run third-party code, so they run with no permissions and no secrets, install
-# with --ignore-scripts (inside plugin-check.yml), and nothing here uses pull_request_target. Only
-# the last job writes, it runs none of a plugin's code, and it pushes a branch for its pull
-# request, never `dev` or `main`.
+# with --ignore-scripts (inside plugin-check.yml), and nothing here uses pull_request_target or
+# asks to write the repository.
 on:
   pull_request:
     paths:
@@ -16,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       editor:
-        description: The editor release to check every listed plugin against
+        description: The editor release to check the outside plugins against (the bundled ones take this commit's)
         type: string
         default: latest
 
@@ -30,7 +29,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      packages: ${{ steps.entries.outputs.packages }}
+      bundled: ${{ steps.entries.outputs.bundled }}
+      outside: ${{ steps.entries.outputs.outside }}
       editor: ${{ steps.entries.outputs.editor }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,40 +48,79 @@ jobs:
           EDITOR: ${{ inputs.editor }}
         run: |
           node scripts/plugins/listing.mjs
-          if [ -n "$BASE" ]; then
-            echo "packages=$(node scripts/plugins/listing.mjs --changed-since "$BASE" | tail -n 1)" >> "$GITHUB_OUTPUT"
-            echo "editor=" >> "$GITHUB_OUTPUT"
-          else
-            echo "packages=$(node -p 'JSON.stringify(require("./docs/guide/plugin-gallery/listing.json").map((e) => e.package))')" >> "$GITHUB_OUTPUT"
+          node scripts/plugins/listing.mjs --matrix ${BASE:+"$BASE"} >> "$GITHUB_OUTPUT"
+          if [ -n "$EDITOR" ]; then
             echo "editor=$(npm view "@voithos-labs/aragonite@$EDITOR" version | tail -n 1)" >> "$GITHUB_OUTPUT"
           fi
 
-  check:
+  # The core and the bundled plugins, built and packed from this commit.
+  packs:
     needs: entries
-    if: needs.entries.outputs.packages != '[]'
+    if: needs.entries.outputs.bundled != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run package
+      - run: node scripts/pack/pack-workspaces.mjs tmp/plugin-packs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-packs
+          path: tmp/plugin-packs
+          retention-days: 3
+
+  # A cap on each call below, not a grant: the job that runs a plugin asks for none, and the
+  # packing job (which these calls skip) asks to read the repository.
+  check-bundled:
+    needs: [entries, packs]
+    if: needs.entries.outputs.bundled != '[]'
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJSON(needs.entries.outputs.packages) }}
+        plugin: ${{ fromJSON(needs.entries.outputs.bundled) }}
     uses: ./.github/workflows/plugin-check.yml
-    # A cap, not a grant: the job that runs a plugin asks for none, and the packing job (which
-    # these calls skip) asks to read the repository, which a nested job can't exceed.
+    permissions:
+      contents: read
+    with:
+      packs-artifact: plugin-packs
+      package: ${{ format('voithos-labs-aragonite-{0}-[0-9]*.tgz', matrix.plugin) }}
+      editor: voithos-labs-aragonite-[0-9]*.tgz
+
+  check-outside:
+    needs: entries
+    if: needs.entries.outputs.outside != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.entries.outputs.outside) }}
+    uses: ./.github/workflows/plugin-check.yml
     permissions:
       contents: read
     with:
       package: ${{ matrix.package }}@latest
       editor: ${{ needs.entries.outputs.editor != '' && format('@voithos-labs/aragonite@{0}', needs.entries.outputs.editor) || '' }}
 
-  pull-request:
-    needs: [entries, check]
+  # Runs none of a plugin's code: it validates each result file before recording it.
+  record:
+    needs: [entries, check-bundled, check-outside]
     if: always() && github.event_name == 'workflow_dispatch' && needs.entries.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -91,17 +130,11 @@ jobs:
         with:
           pattern: plugin-check-*
           path: results
-      # Every result is checked against the record's shape before anything is written.
       - run: node scripts/plugins/check-listing.mjs --results results
-      - env:
-          GH_TOKEN: ${{ github.token }}
-          EDITOR: ${{ needs.entries.outputs.editor }}
-        run: |
-          if git diff --quiet; then echo "nothing changed"; exit 0; fi
-          branch="plugin-listing/$EDITOR"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git switch -c "$branch"
-          git commit -am "@ (plugins) the listing's checks on $EDITOR"
-          git push origin "$branch"
-          gh pr create --base dev --head "$branch" --title "@ (plugins) the listing's checks on $EDITOR" --body "The plugin check over every listed plugin, on editor $EDITOR."
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-listing
+          path: |
+            docs/guide/plugin-gallery/listing.json
+            docs/guide/plugin-gallery.md
+          retention-days: 30

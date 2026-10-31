@@ -5,6 +5,7 @@ import {
 	changedPackages,
 	isEditorRange,
 	listingProblems,
+	partitionEntries,
 	readListing,
 	registryProblem,
 	renderTable,
@@ -17,6 +18,7 @@ import {
 	verifiedFrom
 } from '../../../../scripts/plugins/check-listing.mjs';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
+import { pluginPackages } from '../../../../scripts/lib-alias.mjs';
 
 const entry = (name: string, extra: Record<string, unknown> = {}) => ({
 	package: name,
@@ -91,6 +93,15 @@ describe('a pull request against the listing', () => {
 			entry('aragonite-c')
 		];
 		expect(changedPackages(before, after)).toEqual(['aragonite-b', 'aragonite-c']);
+	});
+
+	// The release pull request lists bundled plugins npm doesn't have yet, so none may go to npm.
+	it('checks every bundled plugin from the packed tarballs and only the rest from npm', () => {
+		const names = readListing().map((e) => e.package);
+		expect(partitionEntries([...names, 'aragonite-memo'], pluginPackages())).toEqual({
+			bundled: bundledPluginDirs(),
+			outside: ['aragonite-memo']
+		});
 	});
 
 	it('wants the plugin keyword and the same repository on npm', () => {
@@ -196,4 +207,17 @@ describe('the workflows that run a plugin', () => {
 			expect(triggers).not.toMatch(/^ {2}pull_request_target:/m);
 		}
 	);
+
+	// A listing run hands its results over as an artifact, so nothing here may write the repository.
+	it.each([
+		'.github/workflows/plugin-check.yml',
+		'.github/workflows/plugins.yml',
+		'.github/workflows/plugin-listing.yml',
+		'templates/plugin/.github/workflows/ci.yml'
+	])('%s asks for no write permission', (file) => {
+		const grants = readFileSync(file, 'utf8')
+			.split('\n')
+			.filter((line) => /^\s*(permissions:\s*write-all|[\w-]+:\s*write)\s*(#.*)?$/.test(line));
+		expect(grants).toEqual([]);
+	});
 });

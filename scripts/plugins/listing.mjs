@@ -1,9 +1,10 @@
 // The plugin listing: one JSON file an author adds to by pull request, and the gallery page's table,
 // generated from it. `node scripts/plugins/listing.mjs` checks both; `--write` regenerates the table,
-// and `--changed-since <ref>` prints the packages a pull request adds or changes, once npm agrees.
+// and `--matrix [ref]` prints the entries to check (those changed since `ref`, or all) as CI outputs.
 import { execSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { pluginPackages } from '../lib-alias.mjs';
 
 export const LISTING = 'docs/guide/plugin-gallery/listing.json';
 export const GALLERY = 'docs/guide/plugin-gallery.md';
@@ -147,6 +148,23 @@ export function changedPackages(before, after) {
 }
 
 /**
+ * `names` split into the bundled plugins, by their directory under `packages/` (checked from this
+ * run's tarballs, since the release that publishes them may not exist yet), and everyone else's,
+ * checked as npm has them.
+ * @param {string[]} names
+ * @param {{ dir: string, manifest: { name: string } }[]} bundled
+ */
+export function partitionEntries(names, bundled) {
+	const dirs = new Map(bundled.map(({ dir, manifest }) => [manifest.name, dir.split('/').pop()]));
+	return {
+		bundled: names
+			.filter((name) => dirs.has(name))
+			.map((name) => /** @type {string} */ (dirs.get(name))),
+		outside: names.filter((name) => !dirs.has(name))
+	};
+}
+
+/**
  * Why the registry's record of `entry`'s package keeps it off the listing, or null: it carries the
  * plugin keyword and names the repository the entry does.
  * @param {Entry} entry
@@ -186,29 +204,34 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		console.error(`listing: ${LISTING}\n  ${problems.join('\n  ')}`);
 		process.exit(1);
 	}
-	const since = process.argv.indexOf('--changed-since');
-	if (since !== -1) {
+	const matrix = process.argv.indexOf('--matrix');
+	if (matrix !== -1) {
 		// The base's listing, read from git (none before the listing existed), against this
-		// checkout's; printed as JSON for a CI matrix.
-		const show = spawnSync('git', ['show', `${process.argv[since + 1]}:${LISTING}`], {
-			encoding: 'utf8'
-		});
-		const base = show.status === 0 ? JSON.parse(show.stdout) : [];
-		const changed = changedPackages(base, entries);
-		const registry = changed
+		// checkout's; with no base, every entry.
+		const ref = process.argv[matrix + 1];
+		const show = ref && spawnSync('git', ['show', `${ref}:${LISTING}`], { encoding: 'utf8' });
+		const base = !show ? [] : show.status === 0 ? JSON.parse(show.stdout) : [];
+		const names = ref ? changedPackages(base, entries) : entries.map((entry) => entry.package);
+		const bundled = pluginPackages();
+		const registry = names
 			.map((name) => {
 				const entry = /** @type {Entry} */ (entries.find((e) => e.package === name));
-				const view = execSync(`npm view "${name}" keywords repository --json`, {
-					encoding: 'utf8'
-				});
-				return registryProblem(entry, JSON.parse(view));
+				const local = bundled.find(({ manifest }) => manifest.name === name)?.manifest;
+				// The name passed the schema above, so it holds nothing a shell would read.
+				const published =
+					local ??
+					JSON.parse(
+						execSync(`npm view "${name}" keywords repository --json`, { encoding: 'utf8' })
+					);
+				return registryProblem(entry, published);
 			})
 			.filter((problem) => problem !== null);
 		if (registry.length > 0) {
 			console.error(`listing: ${registry.join('\n  ')}`);
 			process.exit(1);
 		}
-		console.log(JSON.stringify(changed));
+		const { bundled: dirs, outside } = partitionEntries(names, bundled);
+		console.log(`bundled=${JSON.stringify(dirs)}\noutside=${JSON.stringify(outside)}`);
 		process.exit(0);
 	}
 	if (process.argv.includes('--write')) writeListing(entries);

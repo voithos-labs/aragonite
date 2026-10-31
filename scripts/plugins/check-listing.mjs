@@ -1,15 +1,16 @@
-// Runs the plugin check over every listed plugin and writes each one's `verified` record into the
-// listing, then regenerates the gallery table. Run at each release cut, so the release commit
-// carries the results. Each plugin installs with its install scripts off, in a project of its own.
+// Writes each listed plugin's `verified` record into the listing, then regenerates the gallery
+// table, at each release cut. `--packs` checks the bundled plugins from that folder's tarballs;
+// everyone else's run only in CI, so `--results` records the listing workflow's artifacts.
 //
-//   node scripts/plugins/check-listing.mjs [--packs dir] [--editor spec] [--only name] [--dry-run]
-//   node scripts/plugins/check-listing.mjs --results dir   (records the plugin check workflow's results)
+//   node scripts/plugins/check-listing.mjs --packs tmp/plugin-packs [--only name] [--dry-run]
+//   node scripts/plugins/check-listing.mjs --results dir [--dry-run]
 import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { listingProblems, readListing, writeListing } from './listing.mjs';
+import { listingProblems, partitionEntries, readListing, writeListing } from './listing.mjs';
+import { pluginPackages } from '../lib-alias.mjs';
 
 const EDITOR = '@voithos-labs/aragonite';
 
@@ -176,23 +177,24 @@ async function main(argv) {
 			});
 	} else {
 		const packsOption = option(argv, '--packs');
-		const packs = packsOption && path.resolve(packsOption);
+		if (!packsOption) throw new Error('--packs <dir> or --results <dir> is required');
+		const packs = path.resolve(packsOption);
 		const only = option(argv, '--only');
-		const editorSpec = option(argv, '--editor') ?? tarballFor(packs, EDITOR) ?? `${EDITOR}@latest`;
+		const editorSpec = tarballFor(packs, EDITOR);
+		if (!editorSpec) throw new Error(`${packs} holds no ${EDITOR} tarball`);
 		// `npm pack` names a tarball after the version it holds.
-		const editorVersion = existsSync(editorSpec)
-			? (/-(\d[\w.-]*)\.tgz$/.exec(editorSpec)?.[1] ?? '')
-			: execSync(`npm view "${editorSpec}" version`, { encoding: 'utf8' }).trim();
-		results = entries
-			.filter((entry) => !only || entry.package === only)
-			.map((entry) =>
-				checkOne(
-					entry.package,
-					tarballFor(packs, entry.package) ?? `${entry.package}@latest`,
-					editorSpec,
-					editorVersion
-				)
-			);
+		const editorVersion = /-(\d[\w.-]*)\.tgz$/.exec(editorSpec)?.[1] ?? '';
+		const bundled = pluginPackages();
+		const names = entries.map((entry) => entry.package).filter((name) => !only || name === only);
+		const { outside } = partitionEntries(names, bundled);
+		for (const name of outside) console.log(`check-listing: ${name} is checked in CI, not here`);
+		results = names
+			.filter((name) => !outside.includes(name))
+			.map((name) => {
+				const tarball = tarballFor(packs, name);
+				if (!tarball) throw new Error(`${packs} holds no tarball for ${name}`);
+				return checkOne(name, tarball, editorSpec, editorVersion);
+			});
 	}
 	if (!argv.includes('--dry-run')) writeListing(recorded(entries, results));
 	for (const result of results)

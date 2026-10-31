@@ -29,12 +29,12 @@ Start from the [plugin guide](plugin-guide.md#the-first-fifteen-minutes)'s templ
 
 Then open a pull request on the editor's repository that adds one entry to [`listing.json`](plugin-gallery/listing.json), in order by package name, and regenerates the table below with `node scripts/plugins/listing.mjs --write`:
 
-| Field        | What goes there                                                              |
-| ------------ | ---------------------------------------------------------------------------- |
-| `package`    | Your npm package's name                                                      |
-| `repository` | Its source repository's https URL                                            |
-| `editor`     | The editor versions you support, as an npm range (`^0.12.0`)                 |
-| `verified`   | `null`. The check writes this one, on your pull request and at every release |
+| Field        | What goes there                                              |
+| ------------ | ------------------------------------------------------------ |
+| `package`    | Your npm package's name                                      |
+| `repository` | Its source repository's https URL                            |
+| `editor`     | The editor versions you support, as an npm range (`^0.12.0`) |
+| `verified`   | `null`. The check fills this one in at each release          |
 
 The pull request runs the check over your published package. Your code stays in your repository, and so do your releases: the listing never hosts a plugin's source.
 
