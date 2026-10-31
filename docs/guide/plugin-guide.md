@@ -42,7 +42,7 @@ npx degit voithos-labs/aragonite/templates/plugin#v0.11.4 my-plugin
 
 Its README walks you from there. This page is how it works.
 
-The template, the plugin check and the listing are a preview until 0.12.0: the API under them can still change in any 0.11 release.
+The template, the plugin check and the listing are a preview until 0.12.0, since the plugin API under them can still break in any 0.11 release.
 
 The plugin we're about to build is an homage to `curl parrot.live`: a line that starts with `%%parrot` renders as an animated ASCII party parrot, and any text after the marker becomes the parrot's caption.
 

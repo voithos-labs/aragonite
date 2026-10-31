@@ -1,6 +1,6 @@
 # Plugin Gallery
 
-The listing, the plugin check and the plugin template are a preview until 0.12.0: the API under them can still change in any 0.11 release.
+The template, the plugin check and the listing are a preview until 0.12.0, since the plugin API under them can still break in any 0.11 release.
 
 Plugins other people wrote for aragonite, plus the bundled ones. Every one is an ordinary npm package that lives in its author's own repository; this page only lists them, and the editor checks each one against every release. The table is [at the bottom](#the-plugins).
 
@@ -13,7 +13,7 @@ Plugins other people wrote for aragonite, plus the bundled ones. Every one is an
 
 "Passed on 0.12.3" means one thing: on editor release 0.12.3, `aragonite-plugin-check` installed the plugin beside the editor, ran the conformance kits over the suite the package publishes, and every cell passed. Those are the checks every built-in block is held to: the bytes round-trip, one edit is one undo step, a copy invents nothing, and the rest of [the kits](plugin-testing.md#the-conformance-kits).
 
-It isn't a code review, and it isn't a security check. A plugin runs inside your app with everything your app can do, the way any npm package does, so read what you install. A plugin that fails at the next release, or whose peer range leaves that release out, says so in the table instead of "passed".
+It isn't a code review, and it isn't a security check. The plugin's own code runs during the check, so a plugin out to fool it could. A plugin runs inside your app with everything your app can do, the way any npm package does, so read what you install. A plugin that fails at the next release, or whose peer range leaves that release out, says so in the table instead of "passed".
 
 ## Finding more
 

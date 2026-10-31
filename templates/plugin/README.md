@@ -47,7 +47,7 @@ Hosts import `style.css` next to the editor's own stylesheet. Your `src/` import
 
 The plugin asks for the editor through a peer dependency, `^0.11.4`, so the host's copy is the one your plugin talks to. Bump the peer and the devDependency together.
 
-From 0.12.0 the editor's plugin API breaks only in minor releases until 1.0, and only in majors after, so a caret range on the release you tested against is honest. Until 0.12.0 any release may break it, so this template and its check are a preview: rerun your CI on each editor release.
+From 0.12.0 the editor's plugin API can break only in a minor release until 1.0, and only in a major one after, so a `^` range on the release you tested against is honest. The template, the plugin check and the listing are a preview until 0.12.0, since the plugin API under them can still break in any 0.11 release. Rerun your CI on each editor release until then.
 
 ## Getting listed
 
