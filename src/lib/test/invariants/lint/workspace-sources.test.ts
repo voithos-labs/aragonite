@@ -5,11 +5,12 @@
  * loads a second copy of the editor. A suite that tests the packed packages gets none of this.
  */
 import { describe, it, expect } from 'vitest';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { resolveConfig } from 'vite';
 import { workspaceSources } from '../../../../../scripts/lib-alias.mjs';
+import { collectFiles } from './scan-source';
 import { SOURCE } from './source-paths';
 import * as viaLibrary from '#lib/plugin.js';
 import * as viaPackage from '@voithos-labs/aragonite/plugin';
@@ -75,10 +76,12 @@ describe('a Playwright suite that tests the installed packages loads them, not t
 		return { tsconfig: path.relative('.', tsconfig), mapped };
 	}
 
-	const suites = readdirSync('examples', { withFileTypes: true })
-		.filter((entry) => entry.isDirectory())
-		.map((entry) => `examples/${entry.name}`)
-		.filter((dir) => existsSync(`${dir}/playwright.config.ts`));
+	const suites = collectFiles('examples', {
+		extensions: ['playwright.config.ts'],
+		skip: ['node_modules', '.svelte-kit', '.next', '.nuxt', '.output', 'build', 'dist']
+	})
+		.filter((file) => file.split('/').length === 3)
+		.map((file) => path.posix.dirname(file));
 
 	it('finds the example suites', () => {
 		expect(suites).toContain('examples/adapter-suite');
