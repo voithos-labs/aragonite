@@ -23,7 +23,7 @@ The parrot already ships as `@voithos-labs/aragonite-parrot`, so rename before t
 - The plugin's `name` in `definePlugin`, and the kind name (`PARROT`).
 - The marker your opener looks for (`%%parrot`), and the class names in `parrot.css`.
 - `"private": true` in `package.json` stops an accidental `npm publish` of the parrot. Delete it when your plugin is ready.
-- `LICENSE` is 0BSD, which asks nothing of you, so put your own license there. The parrot frames are MIT (`THIRD-PARTY-NOTICES.md`); drop that file along with the frames.
+- `LICENSE` is MIT, which asks only that you keep its notice in what you copy from the template, so put your own license beside it. The parrot frames are MIT (`THIRD-PARTY-NOTICES.md`); drop that file along with the frames.
 
 ## Scripts
 

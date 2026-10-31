@@ -3,6 +3,9 @@
 // `src/lib/test/invariants/lint/branch-protection-contexts.test.ts`, which holds both lists to what
 // the workflows report. Each matrix check is spelled the way GitHub names it.
 
+import path from 'node:path';
+import { pluginPackages } from '../lib-alias.mjs';
+
 /** @param {string} job @param {number} count */
 const shards = (job, count) =>
 	Array.from({ length: count }, (_, i) => `${job} (${i + 1}/${count})`);
@@ -23,7 +26,15 @@ export const CI_CONTEXTS = [
 ];
 
 /** Checks reported from outside ci.yml that `main` requires, by the workflow that reports them. */
-export const EXTERNAL_CONTEXTS = { 'webkit-macos.yml': shards('e2e-webkit-macos', 5) };
+export const EXTERNAL_CONTEXTS = {
+	'webkit-macos.yml': shards('e2e-webkit-macos', 5),
+	'plugins.yml': [
+		'template-smoke',
+		...[...pluginPackages().map(({ dir }) => path.basename(dir)), 'template'].map(
+			(name) => `plugin-check (${name}) / check`
+		)
+	]
+};
 
 /**
  * Engine checks that run red or green but aren't required yet, because the engine still has reds

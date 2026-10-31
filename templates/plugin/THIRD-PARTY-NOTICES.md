@@ -1,6 +1,6 @@
 # Third-party notices
 
-This plugin is licensed under 0BSD (see `LICENSE`). It includes the third-party material below, used under its own license.
+This plugin is licensed under MIT (see `LICENSE`). It includes the third-party material below, used under its own license.
 
 ## terminal-parrot (MIT)
 

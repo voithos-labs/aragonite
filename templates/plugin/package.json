@@ -8,7 +8,7 @@
 		"aragonite",
 		"markdown-editor"
 	],
-	"license": "0BSD",
+	"license": "MIT",
 	"type": "module",
 	"types": "./dist/index.d.ts",
 	"exports": {
