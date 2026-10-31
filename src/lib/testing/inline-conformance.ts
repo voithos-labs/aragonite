@@ -37,6 +37,7 @@ import {
 	type ConformanceCoverage,
 	type KitCell
 } from './conformance-core';
+import { INLINE_CELL_CONTRACTS } from './cell-contracts';
 import { defaultGrammarView } from '../schema/block-openers';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
@@ -137,7 +138,11 @@ export async function runInlineKindConformance(
 	const cells = await runCells(
 		INLINE_CELLS,
 		{ profile, prefix, rung },
-		{ subject: prefix, heading: `inline conformance failed for rung "${prefix}"` }
+		{
+			subject: prefix,
+			heading: `inline conformance failed for rung "${prefix}"`,
+			contracts: INLINE_CELL_CONTRACTS
+		}
 	);
 	return { trigger: profile.trigger, prefix, cells };
 }

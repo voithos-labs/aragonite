@@ -53,6 +53,7 @@ import { installOwnRaw } from '../tree-operations/node-primitives';
 import { defaultGrammarView, type BlockOpener, type OpenContext } from '../schema/block-openers';
 import { createHeadlessActions } from './headless-actions';
 import { kitReading } from './kit-reading';
+import { KIND_CELL_CONTRACTS } from './cell-contracts';
 import { assertParseConverged } from './parse-convergence';
 import { checkWriteRuleKeepsBytes } from '../invariants/write-rule-keeps-bytes';
 import { fenceReading } from '../core/parsers/fence-syntax';
@@ -129,7 +130,8 @@ export async function runKindConformance(
 	];
 	const reports = await runCells(cells, run, {
 		subject: kind,
-		heading: `kind conformance failed for "${kind}"`
+		heading: `kind conformance failed for "${kind}"`,
+		contracts: KIND_CELL_CONTRACTS
 	});
 	return {
 		kind,

@@ -29,6 +29,7 @@ And a map, so you can jump straight at your question:
 | [The container checkup](#the-container-checkup-runcontainerconformance)                               | Extra checks for a block that holds other blocks, starring the body line that ends the container early       |
 | [The inline checkup](#the-inline-checkup-runinlinekindconformance)                                    | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's                |
 | [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkinlinemenucommitacrossswap) | One cell for an inline-menu source: a commit that waits writes nothing into a note the host loaded meanwhile |
+| [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance)                            | Every kit over every kind your plugin declares, the check a listing runs                                     |
 
 ## Verifying your plugin
 
@@ -521,3 +522,38 @@ await checkInlineMenuCommitAcrossSwap({
 // loaded another document; write through the context onCommit hands you, or compare
 // documentGeneration across the wait
 ```
+
+### The whole plugin at once: `runPluginConformance`
+
+**`runPluginConformance(suite)`**
+
+The three kits each take one kind. This one takes your whole plugin: it empties the registries, installs your units the way the `plugins` prop does, and runs every kit over every kind their setups declared. It's also the check a plugin listing runs, so it's strict about what it gets: a container kind needs a container profile and an inline kind needs an inline profile, since without fixtures those kits have nothing to run. Any dev warning raised along the way fails the run, so it wants dev checks on (it's on under Vitest; anywhere else, `configureEditorEnv({ isDev: true })` first).
+
+The suite is your units plus those profiles. A profile names its kind as a string, because the branded kind only exists once your setup has run:
+
+```ts
+import { runPluginConformance, type PluginConformanceSuite } from '@voithos-labs/aragonite/testing';
+import { conspiracyPlugin } from './conspiracy-plugin';
+
+const suite: PluginConformanceSuite = {
+	plugins: [conspiracyPlugin()],
+	containers: { conspiracy: conspiracyProfile } // the profile from the container checkup above
+	// inline: [{ trigger: '!', prefix: '![[', kind: 'embed', ... }] for an inline kind
+};
+
+it('the plugin conforms', async () => {
+	const report = await runPluginConformance(suite);
+	report.kinds.map((k) => k.kind); // ['conspiracy']
+});
+```
+
+It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
+
+```
+Error: plugin conformance failed for "memo":
+  - kind conformance failed for "memo":
+      - rawWrite: "memo" declares no rawWrite, and the closing line cut ("%%memo a\n") swallows the next block ("raw write sentinel\n"): declare rawWrite to put the closer back
+        breaks: any bytes written into your block leave the blocks around it alone (plugin-testing.md#the-kind-checkup-runkindconformance)
+```
+
+A kind left without its profile fails the same way (`container kind "conspiracy" has no profile in the suite's containers`), and so does a profile naming a kind your plugins never declared.
