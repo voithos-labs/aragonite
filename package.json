@@ -87,7 +87,7 @@
 		"./package.json": "./package.json"
 	},
 	"bin": {
-		"aragonite-plugin-check": "./bin/aragonite-plugin-check.mjs"
+		"aragonite-plugin-check": "bin/aragonite-plugin-check.mjs"
 	},
 	"files": [
 		"bin",
@@ -171,7 +171,7 @@
 		"package": "svelte-kit sync && svelte-package && node scripts/pack/prune-dist.mjs && vite build --config vite.prebuilt.config.js && npm run build --workspaces",
 		"prepack": "npm run package && node scripts/pack/verify-pack.mjs",
 		"release:fixme-recheck": "node scripts/release/fixme-recheck.mjs",
-		"release:publish": "node scripts/release/check-lockstep.mjs && node scripts/release/check-release-gates.mjs && npm publish --workspaces --include-workspace-root",
+		"release:publish": "node scripts/release/check-lockstep.mjs && node scripts/release/check-release-gates.mjs && node scripts/release/publish.mjs",
 		"prepare": "git config core.hooksPath .githooks || exit 0",
 		"showcase:react": "node scripts/showcase.mjs react",
 		"showcase:vue": "node scripts/showcase.mjs vue"
