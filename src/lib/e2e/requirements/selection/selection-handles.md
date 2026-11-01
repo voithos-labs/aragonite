@@ -12,7 +12,8 @@ events. The real-device rows are in `requirements/mobile/android.md` and `ios.md
   the start point, and the browser's own selection holds no range beside the painted one.
   - Miss-analysis: a selection across blocks had no touch route at all; nothing drew handles.
 - The end handle dragged into a later block grows the range there, leaving the start where it was
-  and no native range behind.
+  and no native range behind. The handle follows the finger while it's down, though no native
+  selection moves under it.
 - The start handle dragged into an earlier block grows the range there; the old end stays put.
 - A word at its block's end gets one edge handle (the browser's handles cover the rest), and
   dragging it into the next block makes a range across the two. While the finger is still down
@@ -22,8 +23,10 @@ events. The real-device rows are in `requirements/mobile/android.md` and `ios.md
 ## Edge cases
 
 - A range across blocks after a mouse click gets no handles: they are a finger's.
-- A rectangle of cells whose end handle is dragged back into its first cell becomes a range in
-  that cell, from the cell's start to the finger, as a mouse drag back into its cell does.
+- A rectangle of cells whose handle is dragged back into the cell at its other corner becomes a
+  range in that cell, from the cell's edge on the rectangle's side to the finger, as a mouse drag
+  back into its cell does. Either handle: the end handle back into the first cell, the start
+  handle back into the last.
   - Miss-analysis: the cell row only grew a rectangle; no row shrank one, and a rectangle's corner
     handed the drag no cell to select in.
 - Reading mode shows no handles.

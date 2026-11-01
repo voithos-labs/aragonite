@@ -95,12 +95,13 @@ test('a range across blocks after a mouse click gets no handles', async ({ page 
 test('the end handle dragged into a later block grows the range there', async ({ page }) => {
 	const editor = await open(page);
 	await tapThenSelect(page, RANGE);
-	await dragHandle(
-		page,
-		HANDLE('end'),
-		await pointAtRaw(page, [1], 5),
-		await pointAtRaw(page, [2], 4)
-	);
+	const target = await pointAtRaw(page, [2], 4);
+	// The handle follows the finger while it is down, though no native selection moves under it.
+	const handleBelowTarget = async () =>
+		(await page.locator(HANDLE('end')).boundingBox())!.y > target.y;
+	await dragHandle(page, HANDLE('end'), await pointAtRaw(page, [1], 5), target, async () => {
+		await expect.poll(handleBelowTarget).toBe(true);
+	});
 	await expect
 		.poll(() => selection(editor))
 		.toEqual({ anchor: RANGE.anchor, focus: { path: [2], offset: 4 } });
@@ -181,25 +182,48 @@ test('a handle dragged across table cells grows a rectangle', async ({ page }) =
 		.toEqual({ anchor: cell(0), focus: cell(3) });
 });
 
-test('a rectangle shrunk back to its first cell keeps a range in that cell', async ({ page }) => {
-	await open(page, 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n');
-	const cell = (offset: number) => ({ path: [1], offset, cellCoordinate: true });
-	await tapThenSelect(page, { anchor: cell(0), focus: cell(3) });
-	await expect(page.locator('.selection-handle')).toHaveCount(2);
-	const damson = (await page
-		.locator('[role="table"] [data-table-row-idx="1"] > [role="cell"]')
-		.nth(1)
-		.boundingBox())!;
-	await dragHandle(
-		page,
-		HANDLE('end'),
-		{ x: damson.x + damson.width, y: damson.y + damson.height / 2 },
-		await pointAtRaw(page, [1, 0, 0], 5)
-	);
-	await expect
-		.poll(() => page.evaluate(() => (window as any).__test.getSelection()))
-		.toEqual({ anchor: { path: [1, 0, 0], offset: 0 }, focus: { path: [1, 0, 0], offset: 5 } });
-});
+// Each handle shrinks the rectangle into the cell at its other corner: a range there from the
+// cell's edge on the rectangle's side (the first cell's start, the last cell's end) to the finger.
+const SHRINKS = [
+	{ grab: 'end', cell: [0, 0], fromEdge: 'right', to: 5, want: { anchor: 0, focus: 5 } },
+	{ grab: 'start', cell: [1, 1], fromEdge: 'left', to: 1, want: { anchor: 6, focus: 1 } }
+] as const;
+
+for (const {
+	grab,
+	cell: [row, col],
+	fromEdge,
+	to,
+	want
+} of SHRINKS) {
+	test(`a rectangle's ${grab} handle shrunk back into the other corner keeps a range there`, async ({
+		page
+	}) => {
+		await open(page, 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n');
+		const corner = (offset: number) => ({ path: [1], offset, cellCoordinate: true });
+		await tapThenSelect(page, { anchor: corner(0), focus: corner(3) });
+		await expect(page.locator('.selection-handle')).toHaveCount(2);
+		const grabbed = (await page
+			.locator(
+				`[role="table"] [data-table-row-idx="${1 - row}"] > :is([role="cell"], [role="columnheader"])`
+			)
+			.nth(1 - col)
+			.boundingBox())!;
+		const path = [1, row, col];
+		await dragHandle(
+			page,
+			HANDLE(grab),
+			{
+				x: fromEdge === 'right' ? grabbed.x + grabbed.width : grabbed.x,
+				y: grabbed.y + grabbed.height / 2
+			},
+			await pointAtRaw(page, path, to)
+		);
+		await expect
+			.poll(() => page.evaluate(() => (window as any).__test.getSelection()))
+			.toEqual({ anchor: { path, offset: want.anchor }, focus: { path, offset: want.focus } });
+	});
+}
 
 test('reading mode shows no handles', async ({ page }) => {
 	const editor = await open(page);
