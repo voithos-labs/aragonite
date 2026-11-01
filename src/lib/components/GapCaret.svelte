@@ -18,6 +18,7 @@
 	import { runGlobalChord } from '../schema/commands';
 	import { eventToChord } from '../schema/keybindings';
 	import { createCaretHostInput } from '../editor-actions/caret-host-input';
+	import { GAP_CARET_KEYS } from './gap-caret-keys';
 
 	let {
 		index,
@@ -88,26 +89,12 @@
 		if (gap && services?.containerChords.take(event, gap.parentPath)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
-		switch (event.key) {
-			case 'Enter':
-				event.preventDefault();
-				return void mint('');
-			// Shift+Arrow is deliberately the plain arrow here: a single block selected whole
-			// is not a representable cross-block state (docs/design/selection.md § The gap caret).
-			case 'ArrowDown':
-			case 'ArrowRight':
-			case 'Delete':
-				event.preventDefault();
-				return leaveForward();
-			case 'ArrowUp':
-			case 'ArrowLeft':
-			case 'Backspace':
-				event.preventDefault();
-				return leaveBackward();
-			case 'Escape':
-				event.preventDefault();
-				return index === 0 ? leaveForward() : leaveBackward();
-		}
+		const move = GAP_CARET_KEYS.get(event.key);
+		if (!move) return;
+		event.preventDefault();
+		if (move === 'open') return void mint('');
+		if (move === 'forward' || (move === 'away' && index === 0)) return leaveForward();
+		leaveBackward();
 	}
 
 	// Where the composed text's paragraph went, read before the commit moves this gap past it.
