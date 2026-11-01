@@ -41,7 +41,10 @@
 	let range: HandleRange | null = null;
 	let shown: (HandleSpot & { left: number; top: number })[] = $state([]);
 	let changes = $state(0);
-	$effect(() => services.events.on('selectionChange', () => changes++));
+	// Only for a finger, so a mouse's caret moves never re-run the effect below.
+	$effect(() => {
+		if (finger()) return services.events.on('selectionChange', () => changes++);
+	});
 
 	// An end handle hangs below its point, an edge handle beside the browser's own: right of an end
 	// at the line's middle, above and right of a start.
@@ -53,13 +56,13 @@
 	}
 
 	$effect(() => {
-		void changes;
 		const root = editorDoc.editorRoot();
 		if (!root || !finger()) {
 			range = null;
 			shown = [];
 			return;
 		}
+		void changes;
 		const at = root;
 		function measure(): void {
 			range = handleRange(services.selection, at);
