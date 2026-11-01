@@ -1,26 +1,10 @@
-<script lang="ts" module>
+<script lang="ts">
 	/**
 	 * The between-blocks caret: a zero-height element whose proxy takes DOM focus while the gap is
 	 * live, and across which the drawn caret lays its bar. It lives in the BlockList, outside every
 	 * block, so it adds nothing to any block's text content. Text and Enter create a paragraph at
 	 * the boundary; every other input is refused at `beforeinput`.
 	 */
-
-	/** The keys `onKeyDown`'s switch takes, unmodified, which `claimsChord` reads; the claims-chord
-	 *  parity tables catch the two drifting apart. */
-	export const GAP_CARET_KEYS: ReadonlySet<string> = new Set([
-		'Enter',
-		'ArrowDown',
-		'ArrowRight',
-		'Delete',
-		'ArrowUp',
-		'ArrowLeft',
-		'Backspace',
-		'Escape'
-	]);
-</script>
-
-<script lang="ts">
 	import { imeOwnsKey } from '../browser/composition';
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -104,6 +88,7 @@
 		if (gap && services?.containerChords.take(event, gap.parentPath)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		// A key added here goes in `gap-caret-keys.ts` too, which `claimsChord` reads.
 		switch (event.key) {
 			case 'Enter':
 				event.preventDefault();
