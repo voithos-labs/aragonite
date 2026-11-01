@@ -380,6 +380,16 @@ function readsSelectionString(file: SourceFile): boolean {
 /** A file the G4.80 population holds, for its probes. */
 const SELECTION_PROBE = `${SOURCE_DIR.selection}probe.ts`;
 
+// A read of what kind of pointer this is: a press's `pointerType`, or the page's fine or coarse media.
+const POINTER_KIND =
+	/\.pointerType\b|\{[^}]*\bpointerType\b[^}]*\}\s*=|\(\s*pointer\s*:\s*(?:fine|coarse)\s*\)/;
+
+function withoutStyles(file: SourceFile): string {
+	return file.relPath.endsWith('.svelte')
+		? file.code.replace(/<style[\s\S]*?<\/style>/g, '')
+		: file.code;
+}
+
 const RULES: FileRule[] = [
 	{
 		id: 'G4.4 no timing hacks for sequencing',
@@ -1573,22 +1583,33 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.279 what a finger means is read in one place',
-		matches: /\.pointerType\b|\{[^}]*\bpointerType\b[^}]*\}\s*=/,
+		// A Svelte file's style block is styling, so a CSS media query there is not a read.
+		matches: (file) => POINTER_KIND.test(withoutStyles(file)),
 		allowed: {
 			[`${SOURCE_DIR.selection}pointer-gesture.ts`]:
-				'`isTouchPointer`: a finger leaves its drag to the browser (scroll, native selection)',
+				'`isTouchPointer`, `coarsePointer` and `finePointer`: what kind of pointer this is',
 			[`${SOURCE_DIR.decorations}mark-hover.ts`]:
 				'a finger never hovers; a hover is not a selection',
-			[`${SOURCE_DIR.debug}input-recorder.ts`]: 'the recorder keeps each event’s pointer type'
+			[`${SOURCE_DIR.debug}input-recorder.ts`]:
+				'the recorder keeps each event’s pointer type and the page’s pointer media'
 		},
 		reason:
-			'a press read as a finger here and a mouse there drags a selection the browser is scrolling: ask `isTouchPointer`, and give a drag session its `touch` owner',
+			'a press read as a finger here and a mouse there drags a selection the browser is scrolling, or draws a caret the phone never shows: ask `pointer-gesture.ts` (`isTouchPointer`, `coarsePointer`, `finePointer`), and give a drag session its `touch` owner',
 		hits: [
 			"if (e.pointerType === 'touch') return;",
 			'const { pointerType } = event;',
-			"onpointerdown={(e) => e.pointerType !== 'mouse' && start(e)}"
+			"onpointerdown={(e) => e.pointerType !== 'mouse' && start(e)}",
+			"const fine = new MediaQuery('(pointer: fine)');",
+			"if (matchMedia('(pointer: coarse)').matches) return;"
 		],
-		misses: ['pointerType?: string;', 'export interface P { pointerType: string }']
+		misses: [
+			'pointerType?: string;',
+			'export interface P { pointerType: string }',
+			{
+				relPath: 'probe.svelte',
+				code: '<style>\n\t@media (pointer: coarse) { .a { b: c; } }\n</style>'
+			}
+		]
 	},
 	{
 		id: 'G4.225 the drag session hears a release before anything else on the page',
@@ -2879,6 +2900,10 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 	'src/lib/selection/pointer-gesture.ts :: coarsePointer': {
 		branches: 1,
 		reason: 'with no media queries there is no pointer to ask about, so no finger is assumed'
+	},
+	'src/lib/selection/pointer-gesture.ts :: finePointer': {
+		branches: 1,
+		reason: 'with no media queries there is no pointer to watch, so the caller gets none'
 	},
 	'src/lib/selection/caret-landing.ts :: caretBox': {
 		branches: 1,

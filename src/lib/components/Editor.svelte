@@ -144,7 +144,7 @@
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import SelectionGapFill from './overlays/SelectionGapFill.svelte';
 	import SelectionHandles from './overlays/SelectionHandles.svelte';
-	import { coarsePointer, watchPressKind } from '../selection/pointer-gesture';
+	import { coarsePointer, finePointer, watchPressKind } from '../selection/pointer-gesture';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
 	import InlineMenuHost from './menu/InlineMenuHost.svelte';
 	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
@@ -326,7 +326,8 @@
 		isReading: () => effectiveMode === 'reading',
 		selection: selectionState,
 		watchSize: (el, onResize) => scrollOwner.watchSize(el, onResize),
-		composition
+		composition,
+		finePointer: finePointer()
 	});
 	// Reading mode has no caret; one the editor asks for there marks where leaving puts it.
 	const caretWriter = createCaretWriter(drawnCaret.request, (el, raw) => {

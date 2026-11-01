@@ -1,10 +1,11 @@
 /**
- * Who owns a press's drag. A widget claims its own (a diagram's pan) with an attribute, and on a
- * touch screen the browser owns it: a moved finger scrolls, and a long press selects with the
- * browser's own handles. The one place the editor reads `pointerType` (G4.279), so every route that
- * starts, grows or clears a selection from a press agrees on what a finger means.
+ * Who owns a press's drag, and what kind of pointer this is. A widget claims its own drag with an
+ * attribute; on a touch screen the browser owns it (a moved finger scrolls, a long press selects).
+ * The one place the editor reads `pointerType` or asks for a fine or coarse pointer (G4.279), so
+ * every route that starts, grows or clears a selection, or draws a caret, agrees on a finger.
  */
 
+import { MediaQuery } from 'svelte/reactivity';
 import { readNativeSelection } from '../browser/selection-read';
 
 /** Set on the gesture's element; a pointerdown on any descendant counts. An attribute, since a
@@ -30,6 +31,16 @@ export function watchPressKind(root: HTMLElement, onPress: (finger: boolean) => 
 /** Whether the page's primary pointer is coarse: what a finger is taken to mean before any press. */
 export function coarsePointer(): boolean {
 	return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+}
+
+/** A media answer read live as it changes. */
+export interface LiveMedia {
+	readonly current: boolean;
+}
+
+/** Whether the page's primary pointer is fine (a mouse, a pen); null with no media queries to ask. */
+export function finePointer(): LiveMedia | null {
+	return typeof matchMedia === 'function' ? new MediaQuery('(pointer: fine)') : null;
 }
 
 /** What a press that ends the selection clears: the editor's own selection, and the native caret
