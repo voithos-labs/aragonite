@@ -14,6 +14,7 @@ const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 
 // The range's formatting toolbar sits over the first paragraphs and takes a tap as a command, so a
 // gesture meant for the text lands on `filler line 4`, well below it.
 const BELOW_RANGE = 6;
+const TABLE = 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n';
 
 // ── Rows ──────────────────────────
 
@@ -69,6 +70,107 @@ export const rows = {
 		if (!collapsedIn(after, BELOW_RANGE))
 			reasons.push(`the tap left ${json(after)} instead of a caret in block ${BELOW_RANGE}`);
 		return { reasons, evidence: { before, after, pointerLog: log } };
+	},
+
+	'a long press beside a range across blocks ends it': async (ctx) => {
+		const { before, pressed } = await pressBesideRange(ctx, 'press-beside');
+		const { editor, painted } = pressed.after;
+		const reasons = [];
+		const word = editor && !same(editor, { anchor: editor.focus, focus: editor.focus });
+		if (!word || editor.anchor.path[0] !== BELOW_RANGE)
+			reasons.push(`the long press left ${json(editor)}, not the word in block ${BELOW_RANGE}`);
+		if (painted > 0) reasons.push(`the old range still paints ${painted} rect(s)`);
+		return { reasons, evidence: { before, ...pressed } };
+	},
+
+	"the editor menu's cut takes the long-pressed word": async (ctx) => {
+		const { pressed } = await pressBesideRange(ctx, 'menu-cut');
+		const cut = ctx.device
+			.dumpNodes('menu-cut-menu')
+			.find((n) => n.pkg === 'com.android.chrome' && n.text === 'Cut');
+		if (!cut) return { reasons: ['the editor menu showed no Cut'], evidence: pressed };
+		ctx.device.tap(centre(cut.box).x, centre(cut.box).y);
+		await sleep(1000);
+		const text = await source(ctx);
+		const reasons = [];
+		if (!text.startsWith('alpha beta\n\ngamma delta\n\n'))
+			reasons.push('Cut took text from the old range across the first two blocks');
+		if (lineText(text, BELOW_RANGE) === lineText(LONG, BELOW_RANGE))
+			reasons.push(`Cut left block ${BELOW_RANGE} as it was`);
+		return {
+			reasons,
+			evidence: { word: pressed.after.dom.text, after: lineText(text, BELOW_RANGE) }
+		};
+	},
+
+	"a long press's edge handle crosses into the next block": async (ctx) => {
+		await ctx.fresh(LONG);
+		await longPress(ctx, 0, 'edge-press');
+		// The browser's own end handle, dragged to the block's end, where it stops.
+		const end = await rangeEndOnScreen(ctx, 0);
+		if (end) ctx.device.swipe(end.x + 4, end.bottom + 25, end.x + 400, end.bottom + 25, 800);
+		await sleep(1000);
+		await dismissMenu(ctx);
+		const atEdge = await ctx.page.evaluate(SNAPSHOT);
+		const handle = await handleOnScreen(ctx, 0, 'end');
+		ctx.device.screenshot('edge-handle');
+		if (!handle) return { reasons: ['no editor handle at the block end'], evidence: { atEdge } };
+		const next = await ctx.device.paragraphBox(lineText(await source(ctx), 1), 'edge-next');
+		const to = { x: next.x1 + 120, y: centre(next).y };
+		const log = await logPointers(ctx, async () =>
+			ctx.device.swipe(
+				handle.x,
+				handle.y,
+				handle.x + to.x - handle.pointX,
+				handle.y + to.y - handle.pointY,
+				800
+			)
+		);
+		ctx.device.screenshot('edge-crossed');
+		const after = await ctx.page.evaluate(SNAPSHOT);
+		const reasons = [];
+		if (!log.counts.pointerdown) reasons.push("the swipe never reached the editor's handle");
+		if (after.editor?.focus.path[0] !== 1) reasons.push(`the swipe left ${json(after.editor)}`);
+		if (!after.nativeCollapsed) reasons.push('a native range stands beside the painted one');
+		return { reasons, evidence: { atEdge, handle, after, pointerLog: log } };
+	},
+
+	'a handle swipe across cells grows a rectangle': async (ctx) => {
+		await ctx.fresh(TABLE);
+		const toScreen = await screenMap(ctx, 0);
+		const cell = (row, col) =>
+			ctx.page.evaluate(`(() => {
+				const cells = document.querySelectorAll('[role="table"] [data-table-row-idx="${row}"] > :is([role="cell"], [role="columnheader"])');
+				const r = cells[${col}].getBoundingClientRect();
+				return { x: r.left + 24, y: (r.top + r.bottom) / 2, cx: (r.left + r.right) / 2 };
+			})()`);
+		const apple = await cell(0, 0);
+		const press = toScreen(apple.x, apple.y);
+		await pressReport(ctx, 'cells-press', () =>
+			ctx.device.swipe(press.x, press.y, press.x, press.y, 1500)
+		);
+		await dismissMenu(ctx);
+		const handle = await handleOnScreen(ctx, 0, 'end');
+		ctx.device.screenshot('cells-handle');
+		if (!handle) return { reasons: ['no editor handle at the cell end'], evidence: {} };
+		const damson = await cell(1, 1);
+		const to = toScreen(damson.cx, damson.y);
+		ctx.device.swipe(
+			handle.x,
+			handle.y,
+			handle.x + to.x - handle.pointX,
+			handle.y + to.y - handle.pointY,
+			800
+		);
+		await sleep(1200);
+		ctx.device.screenshot('cells-rectangle');
+		const after = await ctx.page.evaluate('window.__test.getSelection()');
+		const want = {
+			anchor: { path: [1], offset: 0, cellCoordinate: true },
+			focus: { path: [1], offset: 3, cellCoordinate: true }
+		};
+		const reasons = json(after) === json(want) ? [] : [`the swipe left ${json(after)}`];
+		return { reasons, evidence: { after } };
 	}
 };
 
@@ -102,27 +204,6 @@ export const probes = {
 		});
 		ctx.device.screenshot('double-tap');
 		return { after: await ctx.page.evaluate(SELECTION), pointerLog: log };
-	},
-
-	'long press dragged across blocks': async (ctx) => {
-		await ctx.fresh(SHORT);
-		const text = await source(ctx);
-		const from = await ctx.device.paragraphBox(lineText(text, 0), 'long-press-from');
-		const to = await ctx.device.paragraphBox(lineText(text, 1), 'long-press-to');
-		const args = [from.x1 + 60, centre(from).y, to.x1 + 200, centre(to).y].map(Math.round);
-		const log = await logPointers(ctx, async () => {
-			try {
-				ctx.device.adb('shell', 'input', 'draganddrop', ...args.map(String), '2000');
-			} catch {
-				ctx.device.swipe(...args, 2000);
-			}
-		});
-		ctx.device.screenshot('long-press-drag');
-		return {
-			gesture: `from ${args.slice(0, 2)} to ${args.slice(2)} over 2000 ms`,
-			after: await ctx.page.evaluate(SELECTION),
-			pointerLog: log
-		};
 	}
 };
 
@@ -185,7 +266,7 @@ async function setRange(ctx) {
 async function logPointers(ctx, gesture) {
 	await ctx.page.evaluate(`(() => {
 		const log = (window.__pointerLog = []);
-		const types = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'mousedown', 'click', 'selectionchange'];
+		const types = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'mousedown', 'click', 'contextmenu', 'selectstart', 'selectionchange'];
 		for (const type of types)
 			document.addEventListener(type, (e) => {
 				if (window.__pointerLog !== log) return;
@@ -201,6 +282,87 @@ async function logPointers(ctx, gesture) {
 		for (const row of window.__pointerLog) counts[row.type] = (counts[row.type] ?? 0) + 1;
 		return { counts, rows: window.__pointerLog.slice(0, 60) };
 	})()`);
+}
+
+// A range across the first two blocks, then a long press on a word in block BELOW_RANGE.
+async function pressBesideRange(ctx, name) {
+	await ctx.fresh(LONG);
+	await tapCaret(ctx, 0, name);
+	await ctx.device.hideKeyboard();
+	const before = await setRange(ctx);
+	return { before, pressed: await longPress(ctx, BELOW_RANGE, name) };
+}
+
+// A held finger: `input swipe` from a point on block `index`'s first word to itself.
+async function longPress(ctx, index, name) {
+	const box = await ctx.device.paragraphBox(lineText(await source(ctx), index), `${name}-target`);
+	const [x, y] = [box.x1 + 50, centre(box).y].map(Math.round);
+	return pressReport(ctx, name, () => ctx.device.swipe(x, y, x, y, 1500));
+}
+
+// What a gesture leaves: the page's selection and the editor's, and what the overlay paints.
+async function pressReport(ctx, name, gesture) {
+	const pointerLog = await logPointers(ctx, async () => gesture());
+	ctx.device.screenshot(name);
+	return { after: await ctx.page.evaluate(SNAPSHOT), pointerLog };
+}
+
+// A short swipe up low on the page: as an outside press it closes the editor's long-press menu,
+// and as a scroll it keeps the range.
+async function dismissMenu(ctx) {
+	const bottom = Math.max(...ctx.device.dumpNodes(null).map((n) => n.box.y2)) - 300;
+	ctx.device.swipe(540, bottom, 540, bottom - 150, 300);
+	await sleep(800);
+}
+
+const SNAPSHOT = `(() => {
+	const s = document.getSelection();
+	return {
+		dom: { text: String(s) },
+		nativeCollapsed: !s || s.rangeCount === 0 || s.isCollapsed,
+		editor: window.__test.getSelection(),
+		painted: document.querySelectorAll('.selection-overlay').length
+	};
+})()`;
+
+// Page coordinates to screen pixels, through block `index`'s editable and its screen box.
+async function screenMap(ctx, index) {
+	const box = await ctx.device.paragraphBox(lineText(await source(ctx), index), 'screen-map');
+	const ed = await ctx.page.evaluate(`(() => {
+		const r = document.querySelector('[data-block-path="[${index}]"] [contenteditable="true"]').getBoundingClientRect();
+		return { left: r.left, top: r.top, width: r.width };
+	})()`);
+	const scale = (box.x2 - box.x1) / ed.width;
+	return (x, y) => ({ x: box.x1 + (x - ed.left) * scale, y: box.y1 + (y - ed.top) * scale });
+}
+
+// The editor's handle at `end` in screen pixels: its centre, and the range end it drags.
+async function handleOnScreen(ctx, index, end) {
+	const toScreen = await screenMap(ctx, index);
+	const r = await ctx.page.evaluate(`(() => {
+		const b = document.querySelector('.selection-handle[data-handle="${end}"]')?.getBoundingClientRect();
+		return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+	})()`);
+	if (!r) return null;
+	const at = toScreen(r.x, r.y);
+	const point = await rangeEndOnScreen(ctx, index);
+	return { x: at.x, y: at.y, pointX: point?.x ?? at.x, pointY: point?.mid ?? at.y };
+}
+
+// The live range's end in screen pixels.
+async function rangeEndOnScreen(ctx, index) {
+	const toScreen = await screenMap(ctx, index);
+	const r = await ctx.page.evaluate(`(() => {
+		const s = document.getSelection();
+		if (!s || s.rangeCount === 0) return null;
+		const rects = s.getRangeAt(0).getClientRects();
+		const last = rects[rects.length - 1];
+		return last && { x: last.right, top: last.top, bottom: last.bottom };
+	})()`);
+	if (!r) return null;
+	const top = toScreen(r.x, r.top);
+	const bottom = toScreen(r.x, r.bottom);
+	return { x: top.x, bottom: bottom.y, mid: (top.y + bottom.y) / 2 };
 }
 
 // Types on Gboard's own keys. A keyboard that isn't on screen is brought up by tapping the caret's

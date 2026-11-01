@@ -7,6 +7,11 @@ import { distinguishable, shape } from './judge.mjs';
 
 const WORD = 'hello';
 const SHORT = 'alpha beta\n\ngamma delta\n\nepsilon zeta\n';
+const LONG = `${SHORT}\n${Array.from({ length: 24 }, (_, i) => `filler line ${i + 1}`).join('\n\n')}\n`;
+const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 } };
+// The first paragraph below the range: a finger's toolbar sits above the range, and the
+// Simulator's screen ends a few paragraphs further down.
+const BELOW_RANGE = 3;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ── Rows ──────────────────────────
@@ -25,6 +30,73 @@ export const rows = {
 		if (!distinguishable(real.recording, control.recording))
 			reasons.push('the keyboard and sendKeys recordings cannot be told apart');
 		return { reasons, evidence: { real: summary(real), control: summary(control) } };
+	},
+
+	'a long press beside a range across blocks ends it': async (ctx) => {
+		await ctx.fresh(ctx.url, LONG);
+		await ctx.run(`window.__test.setSelection(${JSON.stringify(RANGE)}); return true`);
+		await sleep(800);
+		const at = await webToNative(ctx, BELOW_RANGE);
+		if (!at) return { reasons: [`no native element for block ${BELOW_RANGE}`] };
+		const box = await webBox(ctx, BELOW_RANGE);
+		await holdAt(ctx, at(box.left + 20, box.mid));
+		await ctx.screenshot('press-beside').catch(() => {});
+		const after = await ctx.run(SNAPSHOT);
+		const reasons = [];
+		const word =
+			after.editor && JSON.stringify(after.editor.anchor) !== JSON.stringify(after.editor.focus);
+		if (!word || after.editor.anchor.path[0] !== BELOW_RANGE)
+			reasons.push(
+				`the long press left ${JSON.stringify(after.editor)}, not the word in block ${BELOW_RANGE}`
+			);
+		if (after.painted > 0) reasons.push(`the old range still paints ${after.painted} rect(s)`);
+		return { reasons, evidence: { after } };
+	},
+
+	"a range across blocks shows only the editor's handles": async (ctx) => {
+		await ctx.fresh(ctx.url, SHORT);
+		await ctx.run(`window.__test.setSelection(${JSON.stringify(RANGE)}); return true`);
+		await sleep(1200);
+		await ctx.screenshot('range-handles').catch(() => {});
+		const after = await ctx.run(SNAPSHOT);
+		const reasons = [];
+		if (!after.nativeCollapsed) reasons.push('a native range stands beside the painted one');
+		if (after.handles !== 2) reasons.push(`${after.handles} editor handle(s), not 2`);
+		return { reasons, evidence: { after } };
+	},
+
+	"a long press's edge handle crosses into the next block": async (ctx) => {
+		await ctx.fresh(ctx.url, SHORT);
+		const at = await webToNative(ctx, 0);
+		if (!at) return { reasons: ['no native element for block 0'] };
+		const box = await webBox(ctx, 0);
+		// The last word, so the browser's range ends at the block's end.
+		await holdAt(ctx, at(box.right - 14, box.mid));
+		await sleep(800);
+		const handle = await ctx.run(HANDLE_BOX);
+		await ctx.screenshot('edge-handle').catch(() => {});
+		if (!handle)
+			return {
+				reasons: ['no editor handle at the block end'],
+				evidence: { after: await ctx.run(SNAPSHOT) }
+			};
+		const next = await webBox(ctx, 1);
+		const from = at(handle.x, handle.y);
+		const to = at(handle.x + next.left + 40 - handle.pointX, handle.y + next.mid - handle.pointY);
+		await ctx.native();
+		await ctx.call('POST', ctx.s('/execute/sync'), {
+			script: 'mobile: dragFromToForDuration',
+			args: [{ duration: 0.3, fromX: from.x, fromY: from.y, toX: to.x, toY: to.y }]
+		});
+		await sleep(1200);
+		await ctx.web();
+		await ctx.screenshot('edge-crossed').catch(() => {});
+		const after = await ctx.run(SNAPSHOT);
+		const reasons = [];
+		if (after.editor?.focus.path[0] !== 1)
+			reasons.push(`the drag left ${JSON.stringify(after.editor)}`);
+		if (!after.nativeCollapsed) reasons.push('a native range stands beside the painted one');
+		return { reasons, evidence: { handle, after } };
 	}
 };
 
@@ -45,6 +117,62 @@ export const probes = {
 };
 
 // ── Steps ──────────────────────────
+
+const SNAPSHOT = `const s = document.getSelection();
+	return {
+		dom: String(s),
+		nativeCollapsed: !s || s.rangeCount === 0 || s.isCollapsed,
+		editor: window.__test.getSelection(),
+		painted: document.querySelectorAll('.selection-overlay').length,
+		handles: document.querySelectorAll('.selection-handle').length
+	};`;
+
+// The editor's end handle's centre and the range end it drags, in page coordinates.
+const HANDLE_BOX = `const b = document.querySelector('.selection-handle[data-handle="end"]')?.getBoundingClientRect();
+	const s = document.getSelection();
+	const rects = s && s.rangeCount ? s.getRangeAt(0).getClientRects() : [];
+	const last = rects[rects.length - 1];
+	return b && last && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, pointX: last.right, pointY: (last.top + last.bottom) / 2 };`;
+
+// Block `index`'s text in page coordinates: where its text starts and ends, and its line's middle.
+function webBox(ctx, index) {
+	return ctx.run(`const ed = document.querySelector('[data-block-path="[${index}]"] [contenteditable="true"]');
+		const range = document.createRange();
+		range.selectNodeContents(ed);
+		const r = range.getBoundingClientRect();
+		return { left: r.left, right: r.right, mid: (r.top + r.bottom) / 2 };`);
+}
+
+// Page coordinates to native points, through block `index`'s editable and its native element.
+async function webToNative(ctx, index) {
+	const text = (await ctx.source()).split('\n\n')[index].trimEnd();
+	const ed =
+		await ctx.run(`const r = document.querySelector('[data-block-path="[${index}]"] [contenteditable="true"]').getBoundingClientRect();
+		return { left: r.left, top: r.top, width: r.width };`);
+	await ctx.native();
+	const el = await ctx.tryFind(
+		'-ios predicate string',
+		`(label == '${text}' OR value == '${text}') AND type != 'XCUIElementTypeOther'`
+	);
+	const at = el && (await ctx.call('GET', ctx.s(`/element/${el}/rect`)));
+	await ctx.web();
+	if (!at) return null;
+	const scale = at.width / ed.width;
+	return (x, y) => ({
+		x: Math.round(at.x + (x - ed.left) * scale),
+		y: Math.round(at.y + (y - ed.top) * scale)
+	});
+}
+
+async function holdAt(ctx, point) {
+	await ctx.native();
+	await ctx.call('POST', ctx.s('/execute/sync'), {
+		script: 'mobile: touchAndHold',
+		args: [{ ...point, duration: 1.5 }]
+	});
+	await sleep(1000);
+	await ctx.web();
+}
 
 async function keyboardShown(ctx) {
 	await ctx.native();
