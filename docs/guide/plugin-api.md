@@ -561,7 +561,7 @@ Builds the raw-recompute hook (`rebuildRaw`) for a `:::` container. It writes ch
 
 ```ts
 container: {
-	contract: 'strip',
+	contract: 'opaque',
 	rebuildRaw: createDirectiveRebuild(),
 	bodyWrap: DIRECTIVE_BODY_WRAP
 }
@@ -1178,9 +1178,13 @@ The character offset in one of your own elements nearest a viewport point.
 function parrotCaretAtPoint(blockEl: HTMLElement, clientX: number, clientY: number): CaretTarget | null {
 	const caption = blockEl.querySelector<HTMLElement>('.parrot-caption');
 	if (!caption) return null;
-	return { path: [], offset: caretOffsetAtPoint(caption, clientX, clientY) ?? 0 };
+	const offset = caretOffsetAtPoint(caption, clientX, clientY) ?? 0;
+	// The caption starts after `%%parrot ` in the source, so its offsets shift by that much.
+	return { path: [], offset: offset + Number(caption.dataset.captionStart) };
 }
 ```
+
+The quickstart's full version also handles a click while the source is showing ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)).
 
 ### Pointer gestures
 
