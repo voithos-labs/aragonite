@@ -25,7 +25,6 @@ export type LiveRangeEdit = LiveRangeRewrite | { kind: 'swallow' };
 
 export interface LiveRangeRewrite {
 	kind: 'rewrite';
-	range: { start: number; end: number };
 	raw: string;
 	caret: number;
 }
@@ -47,7 +46,7 @@ export function resolveLiveRangeEdit(
 	const insert = replacementText(e);
 	if (insert === null) return { kind: 'swallow' };
 	const edit = replaceDrawnRange(node, target, insert, store);
-	return { kind: 'rewrite', range: edit.range, raw: edit.raw, caret: edit.caret };
+	return { kind: 'rewrite', raw: edit.raw, caret: edit.caret };
 }
 
 /** The wrapper every block runs around {@link resolveLiveRangeEdit}, shared so a new precondition

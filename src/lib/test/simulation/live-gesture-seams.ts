@@ -584,7 +584,7 @@ function wordDelete(
 			edit.raw,
 			'authored',
 			'join-typing',
-			edit.range.start,
+			range.start,
 			edit.caret
 		);
 	}

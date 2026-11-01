@@ -13,6 +13,7 @@ import type { BlockAutoPairs } from '../text/auto-pair-record';
 import type { HeldInsertion, TextEdit } from '../../../caret/next-insertion';
 import { shownKind } from '../../../core/parsers/heading';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
+import { writtenSpan } from '../../../core/written-span';
 import { mayHoldReference, spellReferenceLabels } from '../../../core/inline/link-source-bytes';
 import type { Reading } from '../../../schema/reading';
 
@@ -124,23 +125,18 @@ function keepingReferenceLabels<E extends TextEdit>(
 	reading: Reading
 ): E {
 	if (!reading.hidesDelimitersAtCaret() || !mayHoldReference(display, reading)) return edit;
-	const after = edit.text;
-	const most = Math.min(display.length, after.length);
-	let head = 0;
-	while (head < most && display[head] === after[head]) head++;
-	let tail = 0;
-	while (tail < most - head && display.at(-1 - tail) === after.at(-1 - tail)) tail++;
-	const written = after.slice(head, after.length - tail);
+	const span = writtenSpan(display, edit.text);
+	const written = edit.text.slice(span.start, span.end);
 	// Brackets written with the text are a rewrite of the link itself, which spells its own label.
 	if (/[[\]]/.test(written)) return edit;
-	const range = { start: head, end: display.length - tail };
+	const range = { start: span.start, end: span.removedEnd };
 	const spelled = spellReferenceLabels(node, range, reading);
 	if (!spelled) return edit;
 	const bytes = trimTrailingLineEnding(spelled.raw);
-	const grew = after.length - display.length;
+	const grew = edit.text.length - display.length;
 	const text =
 		bytes.slice(0, spelled.map(range.start)) + written + bytes.slice(spelled.map(range.end));
-	const past = edit.caretAfter > head + written.length;
+	const past = edit.caretAfter > span.end;
 	return {
 		...edit,
 		text,
