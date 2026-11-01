@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { workspacePackages } from '../../../../../scripts/lib-alias.mjs';
+import { workspacePackages } from '../../../../../scripts/workspace.mjs';
 import { publishPlan, releasePackages } from '../../../../../scripts/release/publish.mjs';
 
 describe('release publish', () => {

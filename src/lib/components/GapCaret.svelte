@@ -88,6 +88,7 @@
 		if (gap && services?.containerChords.take(event, gap.parentPath)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		// A key added here goes in `gap-caret-keys.ts` too, which `claimsChord` reads.
 		switch (event.key) {
 			case 'Enter':
 				event.preventDefault();

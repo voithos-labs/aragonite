@@ -4,7 +4,7 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { workspacePackages } from '../lib-alias.mjs';
+import { workspacePackages } from '../workspace.mjs';
 
 /** @typedef {{ name: string, version: string, workspace: string | null }} ReleasePackage */
 

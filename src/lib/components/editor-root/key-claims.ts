@@ -1,7 +1,8 @@
 /**
- * Whether the editor takes a keystroke where it lands, the answer behind `claimsChord`. It asks
- * the questions each keydown handler on the key's way asks, through the resolvers those handlers
- * call, so a host's own shortcut runs exactly where the editor would do nothing with the key.
+ * Whether the editor takes a keystroke where it lands, the answer behind `claimsChord`. For each
+ * keydown handler on the key's way it calls the resolvers and key tables that handler reads, or
+ * mirrors the handler's key list under the claims-chord parity tables, so a host's own shortcut
+ * runs exactly where the editor would do nothing with the key.
  */
 
 import { imeOwnsKey } from '../../browser/composition';
@@ -26,6 +27,7 @@ import { rangeOwnsKey } from '../../selection/cross-block/keydown';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
+import { GAP_CARET_KEYS } from '../gap-caret-keys';
 import {
 	chromeHoldsFocus,
 	focusInEditor,
@@ -68,15 +70,14 @@ export type KeyFocus =
 
 export interface KeyClaims {
 	readKeyFocus(e: KeyboardEvent): KeyFocus;
-	takesKey(e: KeyboardEvent, focus: KeyFocus): boolean;
-	/** `takesKey` at the focus `readKeyFocus` finds: `claimsChord`. */
+	claimsAt(e: KeyboardEvent, focus: KeyFocus): boolean;
+	/** `claimsAt` the focus `readKeyFocus` finds: `claimsChord`. */
 	claims(e: KeyboardEvent): boolean;
 }
 
 export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 	const reading = () => isReadingMode(deps.commands.getPresentationMode);
-	const rangeTakes = (e: KeyboardEvent) =>
-		deps.selection.isCrossBlock && rangeOwnsKey(e, { ...deps, commands: deps.commands });
+	const rangeTakes = (e: KeyboardEvent) => deps.selection.isCrossBlock && rangeOwnsKey(e, deps);
 
 	/** A chord the focused block's keymap, or a container's around it, runs here: the containers
 	 *  answer through the same walk their dispatch takes. */
@@ -146,7 +147,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		if (deps.containerChords.takes(e, gap.parentPath)) return true;
 		if (isPasteKey(e)) return !reading();
 		if (e.ctrlKey || e.metaKey || e.altKey) return false;
-		if (GAP_KEYS.has(e.key)) return true;
+		if (GAP_CARET_KEYS.has(e.key)) return true;
 		return isCharacterKey(e.key) && !reading();
 	}
 
@@ -213,7 +214,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 	}
 
 	/** Whether the editor takes `e` at `focus`: the one decision `claimsChord` reads. */
-	function takesKey(e: KeyboardEvent, focus: KeyFocus): boolean {
+	function claimsAt(e: KeyboardEvent, focus: KeyFocus): boolean {
 		const root = deps.root();
 		if (!root || focus.at === 'host-chrome') return false;
 		const el = keyTargetOf(e, root, deps);
@@ -241,20 +242,8 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		}
 	}
 
-	return { readKeyFocus, takesKey, claims: (e) => takesKey(e, readKeyFocus(e)) };
+	return { readKeyFocus, claimsAt, claims: (e) => claimsAt(e, readKeyFocus(e)) };
 }
-
-// The gap caret's own exits and the Enter that opens a block there.
-const GAP_KEYS = new Set([
-	'Enter',
-	'ArrowDown',
-	'ArrowRight',
-	'ArrowUp',
-	'ArrowLeft',
-	'Backspace',
-	'Delete',
-	'Escape'
-]);
 
 // A plugin's own editor reads these itself, modified or not.
 const PLUGIN_EDITOR_KEYS = new Set(['Enter', 'Tab', 'Escape']);

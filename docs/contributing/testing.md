@@ -1010,11 +1010,9 @@ calls is proven on this repo first. The template's source is the bundled parrot'
 and every version it names follows the core's (G4.278).
 
 The listing in `docs/guide/plugin-gallery/listing.json` gets its `verified` records at each
-release cut. `scripts/plugins/check-listing.mjs` with `--packs tmp/plugin-packs`, run after the template
-smoke, records the bundled plugins from their tarballs. Everyone else's plugins only ever run in CI
-(their code runs in the check, and your machine holds your tokens), so a manual run of
-`plugin-listing.yml` checks them and uploads the listing with every record written, as the
-`plugin-listing` artifact, for the cut to commit. The same workflow checks a pull request that
+release cut, from a manual run of `plugin-listing.yml`. It checks every listed plugin in CI (an
+outside plugin's code runs in the check, and your machine holds your tokens) and uploads the
+listing with every record written, as the `plugin-listing` artifact, for the cut to commit. The same workflow checks a pull request that
 adds or changes an entry. Either way a bundled plugin is checked from tarballs packed in that run,
 since the release it names isn't on npm until the cut ships.
 

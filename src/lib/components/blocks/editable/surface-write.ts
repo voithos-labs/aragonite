@@ -7,7 +7,8 @@
 import type { BlockEditActions, ContentWrite, UndoGrouping } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
 import type { WriteMode } from '../../../schema/block-kind-descriptor';
-import type { LeafRangeEdit } from '../../../tree-operations/leaf-range';
+import { replaceDrawnRange, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
+import type { StoredAs } from '../../../schema/stored-as';
 import type { KindCue } from '../../kind-cue.svelte';
 import type { BlockAutoPairs } from '../text/auto-pair-record';
 import type { HeldInsertion, TextEdit } from '../../../caret/next-insertion';
@@ -159,4 +160,29 @@ export function rangeWrite(
 	const ending = ownTrailingLineEnding(node.raw);
 	const text = ending && edit.raw.endsWith(ending) ? edit.raw.slice(0, -ending.length) : edit.raw;
 	return { text, caretAfter: edit.caret };
+}
+
+/** A selection the user drew in `node`, typed over or deleted, as the text a surface write takes. */
+export function drawnRangeWrite(
+	node: NodeView,
+	range: { start: number; end: number },
+	typed: string,
+	store: StoredAs
+): Pick<TextWrite, 'text' | 'caretAfter'> {
+	return rangeWrite(node, replaceDrawnRange(node, range, typed, store));
+}
+
+/** The removal a typed key makes over a selection, as a write that key's undo step then joins. */
+export function selectionRemoval(
+	node: NodeView,
+	range: { start: number; end: number },
+	store: StoredAs
+): TextWrite {
+	return {
+		...drawnRangeWrite(node, range, '', store),
+		intent: 'command',
+		history: 'join-typing',
+		mode: 'authored',
+		source: 'selection-removal'
+	};
 }

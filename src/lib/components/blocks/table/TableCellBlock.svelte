@@ -9,7 +9,6 @@
 	import { TABLE_CONTEXT_KEY } from '../../../editor-keys';
 	import type { AnyInlineKind, TableAlignment } from '../../../core/nodes';
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
-	import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
@@ -31,7 +30,7 @@
 	import { createTextClipboard } from '../text/text-clipboard';
 	import { createInlineCommands } from '../text/inline-commands';
 	import { createTypedInput } from '../text/typed-input';
-	import { rangeWrite } from '../editable/surface-write';
+	import { selectionRemoval } from '../editable/surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
@@ -212,15 +211,7 @@
 			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)
 		},
 		commandTarget: () => keyTarget,
-		removeSelection: (range) =>
-			writeText({
-				...rangeWrite(node, replaceDrawnRange(node, range, '', storedAs())),
-				intent: 'command',
-				// The removal a typed key makes over a selection, which that key joins.
-				history: 'join-typing',
-				mode: 'authored',
-				source: 'selection-removal'
-			})
+		removeSelection: (range) => writeText(selectionRemoval(node, range, storedAs()))
 	});
 	const { writeText } = editableSurface;
 

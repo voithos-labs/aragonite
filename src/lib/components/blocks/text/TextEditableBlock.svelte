@@ -46,7 +46,6 @@
 		type PendingBreakKeyDeps
 	} from './pending-break-keys';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
-	import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { handleSharedKeydown } from '../../../selection/shared-keydown';
@@ -56,7 +55,7 @@
 		caretOnPendingBreakLine
 	} from '../../../browser/selection-read';
 	import { createEditableSurface, consumePendingRestore } from '../editable/editable-surface';
-	import { rangeWrite } from '../editable/surface-write';
+	import { selectionRemoval } from '../editable/surface-write';
 	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { readContent } from '../../../browser/block-text';
@@ -245,18 +244,7 @@
 		// After a shown source is written: until then the selected text lives in the DOM only.
 		removeSelection: (range) =>
 			new Promise<ContentWrite>((written) =>
-				afterSourceCommit(() =>
-					written(
-						writeText({
-							...rangeWrite(node, replaceDrawnRange(node, range, '', storedAs())),
-							intent: 'command',
-							// The removal a typed key makes over a selection, which that key joins.
-							history: 'join-typing',
-							mode: 'authored',
-							source: 'selection-removal'
-						})
-					)
-				)
+				afterSourceCommit(() => written(writeText(selectionRemoval(node, range, storedAs()))))
 			)
 	});
 	const { writeText, blockEdit, pendingBreak } = editableSurface;

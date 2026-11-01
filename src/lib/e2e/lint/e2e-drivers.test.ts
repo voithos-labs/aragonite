@@ -1,9 +1,7 @@
 /**
- * An e2e spec drives the browser through the shared helpers, each supplying what a raw call skips:
- * the IME driver (G4.49), the clipboard helper (G4.212), `gotoReady` and `reloadReady`, the mode
- * switch that waits (G4.133), the Firefox click-run, insert and in-place helpers (G4.228), the
- * platform's key spelling (G4.226), `endTypingBatch` (G4.232), `waitForImagesDecoded` and a route's
- * `fallback`, past the fixture's off-host block (G4.269). Probe text is spelled in pieces.
+ * An e2e spec drives the browser through the shared helpers, each supplying what a raw call skips;
+ * each row below names its helper and what the raw call misses. The rows' sample text is spelled
+ * in pieces so this file doesn't match its own rows.
  */
 import { it, expect } from 'vitest';
 import { collectFiles, readSource } from '../../test/invariants/lint/scan-source';
@@ -19,6 +17,7 @@ const BRIDGE_HOME = 'src/lib/e2e/editor-page.ts';
 const CONTROL_HOME = 'src/lib/e2e/mode-switch.ts';
 const MULTI_CLICK_HELPER = 'src/lib/e2e/multi-click.ts';
 const INSERT_TEXT_HELPER = 'src/lib/e2e/insert-text.ts';
+const TOUCH_HELPER = 'src/lib/e2e/touch.ts';
 const PLATFORM_KEYS = 'src/lib/e2e/platform-keys.ts';
 const EDGE_CHORDS_SPEC = 'src/lib/e2e/tests/keyboard-navigation/edge-chords.spec.ts';
 const MOTION_CLASS_SPEC = 'src/lib/e2e/tests/caret/motion-class.spec.ts';
@@ -38,6 +37,7 @@ const setter = 'setPresentation' + 'Mode';
 const dbl = 'dbl' + 'click';
 const count = 'click' + 'Count';
 const insert = 'insert' + 'Text';
+const touchEvent = 'Input.dispatch' + 'TouchEvent';
 const home = 'Ho' + 'me';
 const end = 'E' + 'nd';
 const ctrl = 'Contr' + 'ol';
@@ -187,6 +187,17 @@ describeManifests(
 				`await page.mouse.down({ ${count} });`
 			],
 			misses: ['await multiClick(page, at, 2);', 'await page.mouse.click(x, y);', `on${dbl}={open}`]
+		},
+		{
+			id: 'every e2e finger drag rides the shared touch helper',
+			matches: /\bdispatchTouchEvent\b/,
+			declared: { [TOUCH_HELPER]: 'fingerDrag, the CDP touch events a phone sends' },
+			reason: `drag a finger with fingerDrag (${TOUCH_HELPER}): one spelling of the touch sequence`,
+			hits: [`await cdp.send('${touchEvent}', { type: 'touchMove', touchPoints });`],
+			misses: [
+				'await fingerDrag(page, from, to, { steps: 10 });',
+				'await page.touchscreen.tap(x, y);'
+			]
 		},
 		// Miss-analysis: Playwright's Firefox insert fires a bare input no browser sends, and the
 		// specs that typed through it went red only on real Firefox.

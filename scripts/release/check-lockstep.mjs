@@ -4,7 +4,7 @@
 // plugin template names (its editor pins, its workflow tag, the tag authors fetch it by) match too.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { workspacePackages } from '../lib-alias.mjs';
+import { workspacePackages } from '../workspace.mjs';
 
 const CORE = '@voithos-labs/aragonite';
 

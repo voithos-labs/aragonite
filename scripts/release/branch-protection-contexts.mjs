@@ -4,7 +4,7 @@
 // the workflows report. Each matrix check is spelled the way GitHub names it.
 
 import path from 'node:path';
-import { pluginPackages } from '../lib-alias.mjs';
+import { pluginPackages } from '../workspace.mjs';
 
 /** @param {string} job @param {number} count */
 const shards = (job, count) =>
