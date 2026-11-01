@@ -92,7 +92,6 @@
 	"files": [
 		"bin",
 		"dist",
-		"docs/guide",
 		"THIRD-PARTY-NOTICES.md"
 	],
 	"sideEffects": [

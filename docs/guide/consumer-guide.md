@@ -7,7 +7,7 @@ How to embed, theme, and wire the editor as a library. Everything else has its o
 - The [plugin testing guide](plugin-testing.md): proving a plugin behaves before you ship it.
 - The [directive grammar](directives.md): what a `:::name` block may look like.
 
-All of these ship in the npm package under `docs/guide` (this one included), so whatever's in your `node_modules` matches the version you installed.
+They live in the repo under `docs/guide`, and `main` matches the latest release. On an older version? Open its tag on GitHub.
 
 This is gonna be a long one, so here are the sections:
 
