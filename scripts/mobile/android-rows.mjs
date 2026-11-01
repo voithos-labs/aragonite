@@ -113,7 +113,11 @@ export const rows = {
 		const atEdge = await ctx.page.evaluate(SNAPSHOT);
 		const handle = await handleOnScreen(ctx, 0, 'end');
 		ctx.device.screenshot('edge-handle');
-		if (!handle) return { reasons: ['no editor handle at the block end'], evidence: { atEdge } };
+		if (!handle)
+			return {
+				reasons: ['no editor handle at the block end'],
+				evidence: { atEdge, page: await ctx.page.evaluate(HANDLES_STATE) }
+			};
 		const next = await ctx.device.paragraphBox(lineText(await source(ctx), 1), 'edge-next');
 		const to = { x: next.x1 + 120, y: centre(next).y };
 		const log = await logPointers(ctx, async () =>
@@ -150,7 +154,11 @@ export const rows = {
 		);
 		const handle = await handleOnScreen(ctx, 0, 'end');
 		ctx.device.screenshot('cells-handle');
-		if (!handle) return { reasons: ['no editor handle at the cell end'], evidence: {} };
+		if (!handle)
+			return {
+				reasons: ['no editor handle at the cell end'],
+				evidence: { page: await ctx.page.evaluate(HANDLES_STATE) }
+			};
 		const damson = await cell(1, 1);
 		const to = toScreen(damson.cx, damson.y);
 		ctx.device.swipe(
@@ -304,6 +312,19 @@ async function pressReport(ctx, name, gesture) {
 	ctx.device.screenshot(name);
 	return { after: await ctx.page.evaluate(SNAPSHOT), pointerLog };
 }
+
+// What a missing handle leaves to read: the handles drawn, the selection, the end block's markup.
+const HANDLES_STATE = `(() => {
+	const s = document.getSelection();
+	const block = s && s.focusNode && s.focusNode.parentElement?.closest('[contenteditable="true"]');
+	return {
+		handles: [...document.querySelectorAll('.selection-handle')].map((h) => h.dataset.handle + ' ' + h.className + ' ' + h.style.cssText),
+		editor: window.__test.getSelection(),
+		active: document.activeElement?.className ?? null,
+		html: block ? block.innerHTML.slice(-300) : null,
+		focus: s && [s.focusNode?.nodeName, s.focusOffset, s.anchorNode?.nodeName, s.anchorOffset]
+	};
+})()`;
 
 const SNAPSHOT = `(() => {
 	const s = document.getSelection();
