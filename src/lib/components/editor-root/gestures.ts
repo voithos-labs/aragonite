@@ -232,6 +232,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			marginSession = installDragListener(
 				{
 					editorRoot: root,
+					touch: 'browser',
 					scrollContainer: deps.getScrollHost() ?? root,
 					selection: deps.selection,
 					caretWriter: deps.caretWriter,

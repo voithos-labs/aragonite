@@ -49,6 +49,7 @@ describe('a drag that ends off every block', () => {
 			{
 				caretWriter: testCaretWriter,
 				editorRoot,
+				touch: 'browser',
 				// Far larger than every point below, so no edge band starts the autoscroll loop and
 				// the stubbed frame stays the drag's own.
 				scrollContainer: wideScrollport(),

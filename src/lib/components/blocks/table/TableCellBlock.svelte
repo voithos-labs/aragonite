@@ -321,6 +321,7 @@
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
+	export const caretBounds = editableSurface.surface.caretBounds;
 
 	const commands = createInlineCommands({
 		getEl: () => el ?? null,
@@ -427,6 +428,7 @@
 			getSelectedText,
 			setSelection,
 			measurePartialRects,
+			caretBounds,
 			runCommand,
 			isCommandActive,
 			afterSourceCommit,
@@ -724,7 +726,7 @@
 				const editorRoot = getEditorRoot();
 				if (!editorRoot) return;
 				installCellDragListener(
-					{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime },
+					{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime, touch: 'browser' },
 					anchorIn(tableEl),
 					e,
 					padding && { surface: cellEl, press: padding }

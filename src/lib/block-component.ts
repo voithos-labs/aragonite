@@ -229,6 +229,9 @@ export interface BlockComponent {
 	 * which each block reads in its own coordinate system.
 	 */
 	measurePartialRects?(startOffset: number, endOffset: number): DOMRect[];
+	/** The first and last offsets a caret can reach in this block's text, the one answer every
+	 *  check at the block's edge reads: hidden markers put bytes out of reach. */
+	caretBounds?(): { start: number; end: number };
 	/**
 	 * Viewport-space rect of a single cell by row and column: whole-cell highlighting in a
 	 * grid, skipping `measurePartialRects`' selection-aware range logic. Null when the cell
@@ -380,6 +383,7 @@ export type EditableLeafBlockApi = BlockComponent &
 			| 'getSelectedText'
 			| 'setSelection'
 			| 'measurePartialRects'
+			| 'caretBounds'
 			| 'afterSourceCommit'
 			| 'getCommandContext'
 		>

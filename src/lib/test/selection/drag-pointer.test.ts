@@ -20,6 +20,7 @@ describe('installDragListener: lifetime cleanup', () => {
 	function makeCtx(signal?: AbortSignal) {
 		return {
 			editorRoot,
+			touch: 'browser' as const,
 			scrollContainer: editorRoot,
 			selection: createSelectionState(),
 			caretWriter: testCaretWriter,
@@ -121,6 +122,7 @@ describe('installDragListener: where the drag puts the caret its dispatch caret'
 		installDragListener(
 			{
 				editorRoot,
+				touch: 'browser',
 				scrollContainer: editorRoot,
 				selection,
 				caretWriter: testCaretWriter,

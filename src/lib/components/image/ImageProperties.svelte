@@ -88,7 +88,7 @@
 		const open = new AbortController();
 		const handler = (e: PointerEvent) => {
 			if (pressLeavesImage(e, getWidgetEl()?.closest('.editor') ?? null))
-				clearOnPress(e, open.signal, onDismiss);
+				clearOnPress(e, open.signal, { selection: onDismiss });
 		};
 		document.addEventListener('pointerdown', handler, true);
 		return () => {

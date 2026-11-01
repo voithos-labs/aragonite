@@ -3,7 +3,11 @@
 // whole block's layout, though only a widget can move the browser's landing off it; no row timed a
 // long code block. The second row pins the reverse: a block that draws a widget still reads it.
 import { describe, it, expect, vi } from 'vitest';
-import { handleSharedKeydown, type SharedKeydownContext } from '../../selection/shared-keydown';
+import {
+	handleSharedKeydown,
+	type SharedKeydownContext,
+	caretReachableBounds
+} from '../../selection/shared-keydown';
 import { createCaretWriter } from '../../browser/caret-writer';
 import { parse } from '../../core/parser';
 import { createTextRender } from '../../components/blocks/text/text-render';
@@ -37,6 +41,10 @@ async function homeIn(source: string) {
 		getCursorOffset: () => caret,
 		getFocusOffset: () => caret,
 		getTextLen: () => text.length,
+		caretBounds() {
+			const el = this.getEl();
+			return el ? caretReachableBounds(this, el) : { start: 0, end: this.getTextLen() };
+		},
 		getMyPath: () => [0],
 		getIndex: () => 0,
 		crossBlock: {

@@ -13,13 +13,17 @@ import { applyCollapsedCaret, applySingleBlockRange } from './native-bridge';
 import type { CaretWriter } from '../browser/caret-writer';
 import { isWholeBlockEndpoint, type SelectionPoint } from './primitives';
 import { comparePaths } from './path-math';
-import { createPointerDragSession } from './pointer-session';
+import { createPointerDragSession, type PointerPosition } from './pointer-session';
 import { blockNearPoint } from './nearest-block';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface DragContext {
 	editorRoot: HTMLElement;
+	/** Who drags for a finger (`PointerDragSessionOptions.touch`). */
+	touch: 'own' | 'browser';
+	/** The press's distance from the point it drags (`PointerDragSessionOptions.offset`). */
+	offset?: PointerPosition;
 	/** What autoscrolls this drag: an element, or the window (`windowing/scroll-ancestors`). */
 	scrollContainer: UserScrollport;
 	selection: SelectionState;
@@ -81,6 +85,7 @@ export function installDragListener(
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
 		if (isWholeBlockEndpoint(focusPoint) && !reachedCentreLine(near.path, clientY)) return;
+		const painted = ctx.selection.isCustomRendered;
 		// A whole-block range re-enters rather than extends: entering picks the anchor's side
 		// against the new focus, where extending would keep the block's start as the anchor.
 		if (!ctx.selection.isCrossBlock || ctx.selection.wholeUnitPath) {
@@ -88,6 +93,12 @@ export function installDragListener(
 		} else {
 			ctx.selection.extendFocus(focusPoint);
 		}
+		collapseNativeRangeOnTakeover(ctx, painted, () => {
+			if (!('offset' in anchorPoint)) return;
+			const landing = ctx.selection.cellLandingFor(anchorPoint);
+			const el = ctx.getBlockElByPath(landing.path);
+			if (el) applyCollapsedCaret(ctx.caretWriter, el, landing);
+		});
 	}
 
 	// The anchor's side follows the drag's direction (the clicked span ends the range going up,
@@ -191,7 +202,8 @@ export function installDragListener(
 	}
 
 	return createPointerDragSession(down, {
-		touch: 'browser',
+		touch: ctx.touch,
+		offset: ctx.offset,
 		onMove: (p) => processMove(p.clientX, p.clientY),
 		onEnd: () => {
 			if (ctx.selection.isCrossBlock) parkCaretInFocusBlock(ctx);
@@ -209,6 +221,16 @@ export function installDragListener(
 		},
 		lifetimeSignal: ctx.lifetimeSignal
 	});
+}
+
+/** Collapses the native range to a caret where it stood once an owned drag's range turns painted:
+ *  a phone draws handles on a native range and drops its keyboard on an empty selection. */
+export function collapseNativeRangeOnTakeover(
+	ctx: Pick<DragContext, 'touch' | 'selection'>,
+	paintedBefore: boolean,
+	collapse: () => void
+): void {
+	if (ctx.touch === 'own' && !paintedBefore && ctx.selection.isCustomRendered) collapse();
 }
 
 /** Plants a collapsed native caret in the focus block so paste and key events have a target;

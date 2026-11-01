@@ -70,6 +70,25 @@ describe('createPointerDragSession: move coalescing', () => {
 		expect(endedAfter).toBe(1);
 	});
 
+	// A knob held below its line drags the line's point, at every move and at the release.
+	it('adds the offset to every point it resolves', () => {
+		const raf = stubRaf();
+		const seen: [number, number][] = [];
+		createPointerDragSession(pointer('pointerdown', 1, { clientX: 0, clientY: 0 }), {
+			touch: 'own',
+			offset: { clientX: 2, clientY: -20 },
+			onMove: (p) => seen.push([p.clientX, p.clientY]),
+			autoScroll: { getTargets: () => [] }
+		});
+		document.dispatchEvent(pointer('pointermove', 1, { clientX: 5, clientY: 50 }));
+		raf.runFrame();
+		document.dispatchEvent(pointer('pointerup', 1, { clientX: 8, clientY: 60 }));
+		expect(seen).toEqual([
+			[7, 30],
+			[10, 40]
+		]);
+	});
+
 	it('does not replay a move the frame already processed', () => {
 		const raf = stubRaf();
 		const seen: number[] = [];

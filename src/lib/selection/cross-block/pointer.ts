@@ -34,15 +34,9 @@ export function resetForPointerDown(
 	caretMemory: Pick<CaretMemory, 'forget'>,
 	isShift: boolean
 ): void {
-	caretMemory.forget();
-	selection.resetSelectAllCount();
-	// Unconditional, unlike the range branch: a gap caret is always collapsed, so a shift-click
-	// has no range to grow from it. Silent when no gap caret is live.
-	selection.clearGapCaret();
-	if (!isShift && selection.isCrossBlock) {
-		selection.clear();
-		writer.clear();
-	}
+	const ending = !isShift && selection.isCrossBlock;
+	resetSelectionForPress(selection, caretMemory, isShift);
+	if (ending) writer.clear();
 }
 
 /** `resetForPointerDown` at a press, a finger's at its tap (`clearOnPress`). A Shift press clears no
@@ -54,8 +48,29 @@ export function resetForPress(
 	e: PointerEvent,
 	lifetime: AbortSignal | null
 ): void {
-	if (e.shiftKey) resetForPointerDown(selection, writer, caretMemory, true);
-	else clearOnPress(e, lifetime, () => resetForPointerDown(selection, writer, caretMemory, false));
+	if (e.shiftKey) {
+		resetForPointerDown(selection, writer, caretMemory, true);
+		return;
+	}
+	clearOnPress(e, lifetime, {
+		nativeCaret: () => {
+			if (selection.isCrossBlock) writer.clear();
+		},
+		selection: () => resetSelectionForPress(selection, caretMemory, false)
+	});
+}
+
+function resetSelectionForPress(
+	selection: SelectionState,
+	caretMemory: Pick<CaretMemory, 'forget'>,
+	isShift: boolean
+): void {
+	caretMemory.forget();
+	selection.resetSelectAllCount();
+	// Unconditional, unlike the range branch: a gap caret is always collapsed, so a shift-click
+	// has no range to grow from it. Silent when no gap caret is live.
+	selection.clearGapCaret();
+	if (!isShift && selection.isCrossBlock) selection.clear();
 }
 
 // ── Pointer ────────────────────────────────────────────────────────────────
@@ -121,6 +136,7 @@ function handlePointerDown(
 		installDragListener(
 			{
 				editorRoot: root,
+				touch: 'browser',
 				// The root is the hit-test boundary; what scrolls may be an ancestor in host-scroll
 				// mode, so the two resolve separately.
 				scrollContainer: ctx.getScrollHost() ?? root,

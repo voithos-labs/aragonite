@@ -132,6 +132,7 @@ export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 		installDragListener(
 			{
 				editorRoot: deps.editorRoot,
+				touch: 'browser',
 				scrollContainer: deps.getScrollContainer(),
 				selection: deps.selection,
 				caretWriter: deps.caretWriter,

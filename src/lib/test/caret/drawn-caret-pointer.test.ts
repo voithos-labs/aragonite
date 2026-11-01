@@ -4,6 +4,7 @@
 // Forced colors are the target's call (`drawn-caret-target.test.ts`).
 import { afterEach, describe, expect, it } from 'vitest';
 import { caretMedia, drawsCaret } from '#lib/caret/drawn-caret.svelte.js';
+import { finePointer } from '#lib/selection/pointer-gesture.js';
 
 type MatchMedia = (query: string) => MediaQueryList;
 
@@ -33,16 +34,16 @@ describe.each(MEDIA)('on %s', (pointer, install) => {
 
 	it(`auto ${fine ? 'draws' : 'leaves the native caret'}`, () => {
 		install();
-		expect(drawsCaret('auto', caretMedia())).toBe(fine);
+		expect(drawsCaret('auto', caretMedia(finePointer()))).toBe(fine);
 	});
 
 	it('native never draws', () => {
 		install();
-		expect(drawsCaret('native', caretMedia())).toBe(false);
+		expect(drawsCaret('native', caretMedia(finePointer()))).toBe(false);
 	});
 
 	it('drawn always draws', () => {
 		install();
-		expect(drawsCaret('drawn', caretMedia())).toBe(true);
+		expect(drawsCaret('drawn', caretMedia(finePointer()))).toBe(true);
 	});
 });

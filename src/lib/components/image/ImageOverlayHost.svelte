@@ -76,7 +76,7 @@
 			// A right-click on the held widget keeps it for the menu's rows, as one on a range does.
 			if (isSecondaryPress(e) && pressesSelectedWidget(selection, e.target)) return;
 			if (selection.widget !== null && pressLeavesImage(e, root))
-				clearOnPress(e, lifetime, () => selection.clearWidget());
+				clearOnPress(e, lifetime, { selection: () => selection.clearWidget() });
 		};
 		root.addEventListener('pointerdown', handlePointerDown);
 		return () => root.removeEventListener('pointerdown', handlePointerDown);

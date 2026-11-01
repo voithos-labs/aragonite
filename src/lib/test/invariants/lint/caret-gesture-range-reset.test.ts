@@ -61,6 +61,10 @@ const CARET_GESTURE_DOORS: Record<string, Door> = {
 const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/lib/debug/input-recorder.ts': 'records the press into an input recording; places no caret',
 	'src/lib/debug/input-recording.ts': 'names the press a recorded step opened on; places no caret',
+	'src/lib/selection/pointer-gesture.ts':
+		'notes whether a press is a finger, for the selection handles; places no caret',
+	'src/lib/components/overlays/SelectionHandles.svelte':
+		'starts a selection handle drag, which moves a range end; places no caret',
 	'src/lib/components/TailInsert.svelte':
 		'swallows the press so no caret seats under it; the paragraph it mints focuses itself',
 	'src/lib/components/menu/BlockMenu.svelte':

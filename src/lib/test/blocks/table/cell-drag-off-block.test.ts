@@ -47,7 +47,7 @@ describe('a cell drag that leaves the table for dead space', () => {
 		selection = createSelectionState();
 		frame = stubFrame();
 		installCellDragListener(
-			{ caretWriter: testCaretWriter, editorRoot, selection },
+			{ caretWriter: testCaretWriter, editorRoot, selection, touch: 'browser' },
 			anchor,
 			pointerDown()
 		);

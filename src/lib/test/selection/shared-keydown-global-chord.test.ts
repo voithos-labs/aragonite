@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { handleSharedKeydown, type SharedKeydownContext } from '#lib/selection/shared-keydown.js';
+import {
+	handleSharedKeydown,
+	type SharedKeydownContext,
+	caretReachableBounds
+} from '#lib/selection/shared-keydown.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import type { FocusActions } from '#lib/action-contracts.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
@@ -39,6 +43,10 @@ function makeCtx(): SharedKeydownContext {
 		getCursorOffset: () => 0,
 		getFocusOffset: () => null,
 		getTextLen: () => 0,
+		caretBounds() {
+			const el = this.getEl();
+			return el ? caretReachableBounds(this, el) : { start: 0, end: this.getTextLen() };
+		},
 		getMyPath: () => [0],
 		getIndex: () => 0,
 		crossBlock: noCross,
