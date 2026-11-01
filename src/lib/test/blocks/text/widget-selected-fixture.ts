@@ -63,6 +63,7 @@ export function harness(
 		blockEdit,
 		// A selected widget's key names its own undo caret, so the recorded one is never read.
 		writeText: createSurfaceWrite({
+			reading: reading,
 			getNode: () => node,
 			getIndex: () => 0,
 			getPath: () => [0],

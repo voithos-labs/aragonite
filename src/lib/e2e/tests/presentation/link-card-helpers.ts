@@ -6,7 +6,8 @@ import { clickInPlace } from '../../click-in-place';
 // The link card's selectors and the gestures that open and commit it.
 
 export const CARD = '[data-link-card]';
-export const URL_FIELD = `${CARD} input`;
+export const URL_FIELD = `${CARD} input[aria-label="Link URL"]`;
+export const TEXT_FIELD = `${CARD} input[aria-label="Link text"]`;
 
 /** A real click on the rendered link text, the only gesture that opens the card. */
 export async function clickLink(ep: EditorPage, page: Page, word: string): Promise<void> {

@@ -381,7 +381,7 @@ export interface EditableSurface {
 	/** The input commit for an edit the block spliced itself, which has no event to read. */
 	commitInput: () => void;
 	onCompositionStart: () => void;
-	onCompositionEnd: () => void;
+	onCompositionEnd: (e?: CompositionEvent) => void;
 	/** Whether this block's element hosts the composition in progress. */
 	composing(): boolean;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
@@ -643,7 +643,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		requestCaret: deps.requestCaret,
 		ownPairs: deps.ownPairs,
 		holdInsertion,
-		showsSource: deps.showsSource
+		showsSource: deps.showsSource,
+		reading: deps.reading
 	});
 
 	function command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R {
@@ -903,8 +904,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (deps.getEl() && deps.composition.adopt(e, owner)) openComposition();
 	}
 
-	function onCompositionEnd(): void {
+	function onCompositionEnd(e?: CompositionEvent): void {
 		const paired = deps.composition.end(owner);
+		if (e) deps.compositionSeat?.noteCommit(e.data);
 		// A composition opens at its start or at its first run, so an unpaired end means a consumer
 		// wired compositionend without compositionstart.
 		assertInvariant('composition-window', () => checkCompositionEndPaired(paired));

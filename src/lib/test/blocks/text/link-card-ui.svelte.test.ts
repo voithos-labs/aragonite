@@ -52,13 +52,15 @@ describe('IME guard', () => {
 
 	// ── The card's own field ────────────────────────────────────────────────────
 
-	function mountCard() {
+	function mountCard(textEditable = true) {
 		const onCommit = vi.fn();
 		const target = document.createElement('div');
 		document.body.appendChild(target);
 		const app = mount(LinkCard, {
 			target,
 			props: {
+				text: 'example',
+				textEditable,
 				url: 'https://example.com',
 				canWrite: true,
 				focusEpoch: 0,
@@ -70,8 +72,8 @@ describe('IME guard', () => {
 			}
 		});
 		flushSync();
-		const input = target.querySelector('input')!;
-		return { onCommit, input, destroy: trackApp(app) };
+		const [textInput, input] = target.querySelectorAll('input');
+		return { onCommit, input, textInput, destroy: trackApp(app) };
 	}
 
 	describe('IME keystrokes never operate the card', () => {
@@ -80,7 +82,7 @@ describe('IME guard', () => {
 			input.dispatchEvent(key('Enter', true));
 			expect(onCommit).not.toHaveBeenCalled();
 			input.dispatchEvent(key('Enter', false));
-			expect(onCommit).toHaveBeenCalledWith('https://example.com');
+			expect(onCommit).toHaveBeenCalledWith('https://example.com', 'example');
 			void destroy();
 		});
 
@@ -91,6 +93,36 @@ describe('IME guard', () => {
 			expect(document.activeElement).toBe(input);
 			input.dispatchEvent(key('Tab', false));
 			expect(document.activeElement).not.toBe(input);
+			void destroy();
+		});
+	});
+
+	// Miss-analysis: #807, the card had one field, so no row typed a link's text there.
+	describe('the text field', () => {
+		it('commits the text with the url, from either field', () => {
+			const { onCommit, input, textInput, destroy } = mountCard();
+			textInput.value = 'new text';
+			textInput.dispatchEvent(new Event('input'));
+			flushSync();
+			input.dispatchEvent(key('Enter', false));
+			expect(onCommit).toHaveBeenCalledWith('https://example.com', 'new text');
+			void destroy();
+		});
+
+		it('refuses Enter with the text emptied, since a link needs something to click', () => {
+			const { onCommit, textInput, destroy } = mountCard();
+			textInput.value = '  ';
+			textInput.dispatchEvent(new Event('input'));
+			flushSync();
+			textInput.dispatchEvent(key('Enter', false));
+			expect(onCommit).not.toHaveBeenCalled();
+			void destroy();
+		});
+
+		it('is read-only over formatted text', () => {
+			const { textInput, destroy } = mountCard(false);
+			expect(textInput.readOnly).toBe(true);
+			expect(textInput.value).toBe('example');
 			void destroy();
 		});
 	});
@@ -163,6 +195,8 @@ describe('open button', () => {
 		const app = mount(LinkCard, {
 			target,
 			props: {
+				text: 'example',
+				textEditable: true,
 				url,
 				canWrite: true,
 				focusEpoch: 0,
@@ -255,7 +289,9 @@ describe('rebound chord', () => {
 			keybindings: [{ chord: 'Mod+L', command: 'link.openCard' }]
 		});
 		await pressKeyAt(mounted, [0], 5, chord);
-		const field = document.querySelector<HTMLInputElement>('[data-link-card] input');
+		const field = document.querySelector<HTMLInputElement>(
+			'[data-link-card] input[aria-label="Link URL"]'
+		);
 		if (!field) throw new Error('the link card did not open');
 		return field;
 	}

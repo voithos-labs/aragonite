@@ -9,7 +9,8 @@
 	import { TABLE_CONTEXT_KEY } from '../../../editor-keys';
 	import type { AnyInlineKind, TableAlignment } from '../../../core/nodes';
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
-	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+	import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
+	import { createCompositionSeat } from '../text/composition-seat';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 	import { pathsEqual } from '../../../selection/path-math';
@@ -173,6 +174,12 @@
 		insideCloser: () => editableSurface.insideCloser
 	});
 
+	const compositionSeat = createCompositionSeat({
+		getNode: () => node,
+		getRawSelection: () => cursor.getRawSelection(),
+		storedAs
+	});
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -190,6 +197,7 @@
 		inlineUnits: () => edgeDispatch.inlineUnits,
 		readBack: (caret) => ({ text: readCellText(), caret }),
 		repaint: () => cellRender.render({ forceRebuild: true }),
+		compositionSeat,
 		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
 		handleKeydown: onKeyDown,
@@ -206,7 +214,7 @@
 		commandTarget: () => keyTarget,
 		removeSelection: (range) =>
 			writeText({
-				...rangeWrite(node, replaceRangeInLeaf(node, range, '', storedAs())),
+				...rangeWrite(node, replaceDrawnRange(node, range, '', storedAs())),
 				intent: 'command',
 				// The removal a typed key makes over a selection, which that key joins.
 				history: 'join-typing',

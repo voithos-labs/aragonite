@@ -94,20 +94,20 @@
 		return inCard;
 	}
 
-	function commit(url: string): void {
+	function commit(url: string, text: string): void {
 		const target = card.getTarget();
 		if (!target) return;
 		card.close();
-		linkCard.commitUrl(target, url);
+		linkCard.commit(target, url, text);
 	}
 
-	function commitCreate(url: string): void {
+	function commitCreate(url: string, text: string): void {
 		const target = card.getCreateTarget();
 		// An empty draft has nothing to write; Enter does nothing rather than closing the card
 		// having achieved nothing, which would drop the focus the card holds.
 		if (!target || url.trim() === '') return;
 		card.close();
-		linkCard.commitCreate(target, url);
+		linkCard.commitCreate(target, url, text);
 	}
 
 	const opensCard = (e: KeyboardEvent): boolean => opensLinkCard(e, card, getDoc(), commands);
@@ -131,6 +131,8 @@
 		>
 			{#key `${target.path.join(',')}@${target.sourceStart}`}
 				<LinkCard
+					text={resolved.text}
+					textEditable={resolved.textEditable}
 					url={resolved.url}
 					focusEpoch={card.getFocusEpoch()}
 					canWrite={linkCard.buildBytes(target, resolved.url) !== null}
@@ -152,6 +154,8 @@
 	>
 		{#key `${create.path.join(',')}@${create.start}-${create.end}`}
 			<LinkCard
+				text={linkCard.createText(create)}
+				textEditable={true}
 				url=""
 				focusEpoch={card.getFocusEpoch()}
 				canWrite={true}

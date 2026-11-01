@@ -226,6 +226,7 @@ unguarded.
 | G4.277 | Every bundled plugin is a package an outside author could have written                                      | L       |
 | G4.278 | The plugin template is the bundled parrot and names the editor release it ships with                        | L       |
 | G4.279 | What a finger means, and what kind of pointer this is, is read in one place, `selection/pointer-gesture.ts` | L       |
+| G4.280 | Every route into the in-leaf edit is named with its shape, and each shape keeps a reference's destination   | L       |
 
 ### The entries
 
@@ -741,7 +742,7 @@ delete and typing after a cross-block delete are known gaps). `lint/file-rules.t
 
 **G4.90 · A paste cuts like typing.** Pasting over a selection inside one block writes what typing
 the same text over it writes: every file naming the paste's range (`preDelete`) cuts it through
-`replaceRangeInLeaf` with the pasted text, or says why not (the code block's paste stays a literal
+`replaceDrawnRange` with the pasted text, or says why not (the code block's paste stays a literal
 splice). `lint/file-rules.test.ts`.
 
 **G4.91 · A focus call scrolls nothing unless it says why.** `focus()` scrolls an off-screen element
@@ -1476,3 +1477,9 @@ pointer (the drawn caret is handed `finePointer`); the hover marks and the input
 for their own reasons, and a CSS `@media (pointer: …)` is styling. A drag session names who drags
 for a finger in its required `touch`, and a clearing press waits for the tap through `clearOnPress`.
 `lint/file-rules.test.ts`.
+
+**G4.280 · A reference keeps its destination on every route.** A live edit of a shortcut or
+collapsed reference's text spells it `[text][label]` first, inside `replaceRangeInLeaf`, and the
+block's text write does it for a keystroke at a caret. Every file calling the in-leaf edit is named
+with the shapes of edit it makes, so a new route fails until it's listed, and each shape has a row.
+`tree-operations/reference-label-edit.test.ts`.

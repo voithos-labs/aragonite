@@ -54,6 +54,7 @@ const EMPTY: PerfSnapshot = {
 	formatCoverageReads: 0,
 	screenReads: 0,
 	markerRunReads: 0,
+	referenceWalks: 0,
 	undoLiveBytes: 0,
 	undoEntryCount: 0,
 	blockRenderCount: 0,

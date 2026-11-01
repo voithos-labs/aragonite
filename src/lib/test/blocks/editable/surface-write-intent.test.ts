@@ -2,6 +2,7 @@
 // line; a command (a chord, a menu row, a clipboard edit, a shown source's commit) and the
 // editor's own repair ask neither.
 // Miss-analysis: every intent row drove a typed write, so a command running both stayed green.
+import { fixtureReading } from '../../harness/fixture-grammar';
 import { describe, expect, it, vi } from 'vitest';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { NodeView } from '#lib/core/node-views.js';
@@ -25,6 +26,7 @@ function writerFor() {
 		completeLineOnType
 	};
 	const writeText = createSurfaceWrite({
+		reading: fixtureReading(),
 		getNode: () => node,
 		getIndex: () => 0,
 		getPath: () => [0],
@@ -81,6 +83,7 @@ describe('a typed line the on-type completer takes', () => {
 		);
 		const node: NodeView = { kind: 'paragraph', leadingTrivia: '', raw: '$\n' };
 		const writeText = createSurfaceWrite({
+			reading: fixtureReading(),
 			getNode: () => node,
 			getIndex: () => 0,
 			getPath: () => [0],

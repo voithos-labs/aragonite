@@ -8,7 +8,7 @@ import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nod
 import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import { buildPastedReplacement } from './paste-replacement';
 import type { ChildSlot } from '../list/task-paragraph';
-import { replaceRangeInLeaf, type LeafRangeEdit } from '../leaf-range';
+import { replaceDrawnRange, type LeafRangeEdit } from '../leaf-range';
 import { getContentRange, readInline } from '../../core/inline';
 import { CONTENT_VISIBILITY, visibleRuns } from '../../core/inline/visibility';
 import {
@@ -39,11 +39,11 @@ export function defaultInlineHook(
 ): InlinePasteResult {
 	const range = preDelete ?? { start: offset, end: offset };
 	const bare = dropClosingLineEnding(text);
-	const probe = replaceRangeInLeaf(node, range, bare, store);
+	const probe = replaceDrawnRange(node, range, bare, store);
 	const edit =
 		bare === text || endsVisibleLine(node, probe, store)
 			? probe
-			: replaceRangeInLeaf(node, range, text, store);
+			: replaceDrawnRange(node, range, text, store);
 	return {
 		newRaw: trimTrailingLineEnding(edit.raw) + trailingLineEnding(node.raw, lineEnding),
 		caretOffset: edit.caret
@@ -86,7 +86,7 @@ export function defaultStructuralHook(
 	slot: ChildSlot
 ): StructuralPasteResult {
 	// The blocks go in after the cut, as a split does, so the cut takes no text of its own.
-	const cut = preDelete && replaceRangeInLeaf(node, preDelete, '', store);
+	const cut = preDelete && replaceDrawnRange(node, preDelete, '', store);
 	const display = cut && trimTrailingLineEnding(cut.raw);
 	// Compare the bytes rather than the range: a cleanup can drop more than the selection did,
 	// and an empty range leaves them equal, which is exactly when the original node stands.

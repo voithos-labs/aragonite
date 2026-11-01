@@ -30,6 +30,7 @@ export const IMAGE_CROP_APPLY = 'Apply crop';
 export const IMAGE_CROP_CANCEL = 'Cancel crop';
 export const IMAGE_REMOVE = 'Remove image';
 export const LINK_CARD_LABEL = 'Link properties';
+export const LINK_CARD_TEXT = 'Link text';
 export const LINK_CARD_URL = 'Link URL';
 export const LINK_CARD_OPEN = 'Open link';
 export const LINK_CARD_REMOVE = 'Remove link';

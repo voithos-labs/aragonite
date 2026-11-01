@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
+import { replaceDrawnRange, replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
+import { isPlainSplice } from '../harness/plain-splice';
 
 // A range replaced inside one block: when the join cleans and when the plain splice stands, where
 // typed bytes land, and that it returns the block's whole raw, trailing line ending included.
@@ -21,8 +22,10 @@ const editIn = (
 ) => {
 	const node = blockOf(source);
 	const store = topLevelStore(node, fixtureReading({}, mode));
-	const { raw, caret, matchesBrowserEdit } = replaceRangeInLeaf(node, { start, end }, typed, store);
-	return matchesBrowserEdit ? null : { raw, caret };
+	const edit = replaceRangeInLeaf(node, { start, end }, typed, store);
+	return isPlainSplice(node, { start, end }, typed, edit)
+		? null
+		: { raw: edit.raw, caret: edit.caret };
 };
 
 const edit = (source: string, start: number, end: number, typed: string) =>
@@ -40,6 +43,11 @@ describe('a selection edit the join has something to clean', () => {
 	// character before it, and the caret follows it there.
 	it('lands the typed text inside the closed run', () => {
 		expect(edit(MIXED, 9, 21, 'X')).toEqual({ raw: 'Some **boX***alic* words\n', caret: 10 });
+	});
+
+	// The bytes match the plain splice, but the typed text goes past the link's hidden bracket.
+	it('lands typed text outside a link whose text the range starts', () => {
+		expect(edit('see [here](u) now\n', 5, 7, 'X')).toEqual({ raw: 'see X[re](u) now\n', caret: 5 });
 	});
 
 	it('returns the block whole, trailing line ending included', () => {
@@ -131,5 +139,29 @@ describe('text carrying its own runs lands inside a run', () => {
 
 	it('lands byte-literally in source mode', () => {
 		expect(editIn('source', CLOSED, 9, 9, '**ld** an')).toBeNull();
+	});
+});
+
+// Miss-analysis: #809, every drawn range here sat inside the text, so none covered a block's whole
+// text from before its hidden markers, which a select-all or a triple click reads.
+describe('a drawn range over the block’s whole text', () => {
+	const drawn = (source: string, start: number, end: number, typed: string) => {
+		const node = blockOf(source);
+		const store = topLevelStore(node, fixtureReading({}, 'live'));
+		return replaceDrawnRange(node, { start, end }, typed, store).raw;
+	};
+
+	it.each([
+		['keeps a heading, typed over', '# Hi #\n', 0, 4, 'x', '# x #\n'],
+		['keeps a run around it all, typed over', '**Hi**\n', 0, 6, 'x', '**x**\n'],
+		['removes a link that is all of it', '[here](u)\n', 0, 9, 'X', 'X\n'],
+		['leaves a paragraph, deleted', '# Hi #\n', 2, 4, '', '\n'],
+		['leaves a paragraph holding a typed space', '# Hi #\n', 2, 4, ' ', ' \n']
+	])('%s', (_, source, start, end, typed, written) => {
+		expect(drawn(source, start, end, typed)).toBe(written);
+	});
+
+	it('leaves a range inside the text as drawn', () => {
+		expect(drawn('**Hi** there\n', 0, 6, 'x')).toBe('x there\n');
 	});
 });

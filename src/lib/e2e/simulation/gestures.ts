@@ -90,6 +90,7 @@ import {
 	liveRichTextEdge,
 	liveExtendIntoTablePark,
 	liveLinkCardEdit,
+	liveLinkRetitle,
 	liveListHomeSeat,
 	liveMergeLanding,
 	liveSplitInsideConstruct,
@@ -644,6 +645,11 @@ export class Gestures {
 	/** Click a rendered link, rewrite its destination in the card, Enter to commit. */
 	liveLinkCardEdit(linkText: string, url: string): Promise<void> {
 		return liveLinkCardEdit(this.ctx, linkText, url);
+	}
+
+	/** Click a rendered link, give it a new text in the card's Text field, Enter to commit. */
+	liveLinkRetitle(linkText: string, text: string): Promise<void> {
+		return liveLinkRetitle(this.ctx, linkText, text);
 	}
 
 	/** Backspace to merge a block into the one above, then type one byte where the caret landed

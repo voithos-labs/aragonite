@@ -384,7 +384,7 @@ export async function liveLinkCardEdit(
 
 		await clickText(ctx, linkText);
 		await page.locator(CARD).waitFor({ state: 'visible', timeout: 5000 });
-		const field = page.locator(`${CARD} input`);
+		const field = page.locator(`${CARD} input[aria-label="Link URL"]`);
 		await field.click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.type(url);
@@ -392,6 +392,30 @@ export async function liveLinkCardEdit(
 		await editor.bridge.waitForSourceContains(url);
 
 		await undoOnceTo(ctx, before, 'live link-card commit');
+	});
+}
+
+/** A click on a rendered link opens its card, and Enter in the Text field gives the link a new
+ *  text, spaces and all, keeping its destination, as one undo entry. */
+export async function liveLinkRetitle(
+	ctx: SimContext,
+	linkText: string,
+	text: string
+): Promise<void> {
+	await inLiveMode(ctx, async () => {
+		const { page, editor } = ctx;
+		const before = await editor.bridge.getSource();
+
+		await clickText(ctx, linkText);
+		await page.locator(CARD).waitFor({ state: 'visible', timeout: 5000 });
+		const field = page.locator(`${CARD} input[aria-label="Link text"]`);
+		await field.click();
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.type(text);
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains(`[${text}](`);
+
+		await undoOnceTo(ctx, before, 'live link retitle');
 	});
 }
 

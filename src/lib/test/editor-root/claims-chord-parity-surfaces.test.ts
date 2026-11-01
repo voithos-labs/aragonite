@@ -162,7 +162,7 @@ const CONTEXTS: ClaimContext[] = [
 		enter: async (editor) => {
 			const para = await caretInLink(editor);
 			await pressKey(para, { key: 'k', ctrlKey: true });
-			const input = editor.target.querySelector('[data-link-card] input');
+			const input = editor.target.querySelector('[data-link-card] input[aria-label="Link URL"]');
 			expect(document.activeElement).toBe(input);
 			return input as HTMLElement;
 		}

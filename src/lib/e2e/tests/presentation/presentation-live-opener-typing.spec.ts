@@ -313,7 +313,7 @@ test('painted inline chrome: the live rewrites leave what the reader sees alone'
 	await test.step('the card still rewrites the destination the chrome is showing', async () => {
 		await row();
 		await page.keyboard.press('ControlOrMeta+k');
-		await expect(page.locator(`${CARD} input`)).toBeFocused();
+		await expect(page.locator(`${CARD} input[aria-label="Link URL"]`)).toBeFocused();
 
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.type('v');

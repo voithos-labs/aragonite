@@ -1741,7 +1741,7 @@ const SAME_SOURCE_SPLICE = /\b([\w.]+)\.slice\(\s*0\s*,[^;]{0,200}?\+[^;]{0,200}
 
 /** A file naming the paste's selection that cuts nothing through the in-leaf range replace. */
 const namesPasteRangeWithoutReplace = (file: SourceFile): boolean =>
-	/(?<![\w.'"])preDelete\b/.test(file.code) && !/(?<![\w.])replaceRangeInLeaf\s*\(/.test(file.code);
+	/(?<![\w.'"])preDelete\b/.test(file.code) && !/(?<![\w.])replaceDrawnRange\s*\(/.test(file.code);
 
 const LEAF_RANGE_RULES: FileRule[] = [
 	{
@@ -1807,6 +1807,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'a shown source’s own text, where every marker is on screen',
 			'src/lib/components/blocks/editable/editable-surface.ts':
 				'text typed at an offset once a range is gone, which deletes nothing',
+			'src/lib/components/blocks/editable/surface-write.ts':
+				'a reference label spelled around bytes a caret keystroke already wrote',
 			'src/lib/components/image/image-widget-editing.ts':
 				'an image replaced by its own edited bytes, one whole construct for another',
 			'src/lib/core/inline/index.ts': 'a hard break inserted, which deletes nothing',
@@ -1843,13 +1845,13 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'the one literal splice: a fence body has no inline constructs to clean'
 		},
 		reason:
-			'a paste writes what typing writes over the same selection, so its cut is `replaceRangeInLeaf` with the pasted text; a cut of its own strands the runs typing keeps',
+			'a paste writes what typing writes over the same selection, so its cut is `replaceDrawnRange` with the pasted text; a cut of its own strands the runs typing keeps',
 		hits: [
 			'return display.slice(0, preDelete.start) + text + display.slice(preDelete.end);',
 			'const cut = cutRange(node, preDelete, store);'
 		],
 		misses: [
-			'const edit = replaceRangeInLeaf(node, preDelete, text, store);',
+			'const edit = replaceDrawnRange(node, preDelete, text, store);',
 			'// preDelete is the range the paste cuts first'
 		]
 	}

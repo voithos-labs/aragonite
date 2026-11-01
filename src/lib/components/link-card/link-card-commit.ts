@@ -16,9 +16,12 @@ import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { linkConstructAt, type LinkTarget } from '../blocks/text/link-at-point';
 import {
 	buildLinkEditBytes,
+	buildLinkRetitleBytes,
 	buildLinkUnwrapBytes,
 	buildLinkWrapBytes,
 	linkFieldsFromInline,
+	linkTextShown,
+	visibleText,
 	type LinkFields
 } from '../../core/inline/link-source-bytes';
 import type { CreateLinkTarget } from './link-card-state.svelte';
@@ -48,6 +51,10 @@ export interface ResolvedLinkTarget {
 	link: InlineNode;
 	/** The destination as the author wrote it, decoded: what the card's field shows. */
 	url: string;
+	/** The text the link shows, which the card's text field holds. */
+	text: string;
+	/** False where the text holds formatting or code, whose markers the field would break. */
+	textEditable: boolean;
 }
 
 export interface LinkCardCommitter {
@@ -56,9 +63,12 @@ export interface LinkCardCommitter {
 	/** The bytes a url commit would write, or null if the write path would refuse; the card
 	 *  compares against these rather than deciding the bytes itself. */
 	buildBytes(target: LinkTarget, url: string): string | null;
-	commitUrl(target: LinkTarget, url: string): void;
-	/** Write `[selected text](url)` over the create range: the create gesture's one write. */
-	commitCreate(target: CreateLinkTarget, url: string): void;
+	/** Writes a new destination and text as one undo step; an unchanged pair writes nothing. */
+	commit(target: LinkTarget, url: string, text: string): void;
+	/** The text a create range shows, which the card's text field starts from. */
+	createText(target: CreateLinkTarget): string;
+	/** Write a link showing `text` to `url` over the create range: the create gesture's one write. */
+	commitCreate(target: CreateLinkTarget, url: string, text: string): void;
 	removeLink(target: LinkTarget): void;
 	/** Position `getCard()` under the link and keep it there across edits and scrolls. */
 	syncCardToLink(getCard: () => HTMLElement | null): () => void;
@@ -71,7 +81,9 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
 		if (block === null || !isBlockNode(block)) return null;
 		const link = linkConstructAt(block, target.sourceStart, deps.reading);
-		return link === null ? null : { block, link, url: link.url ?? '' };
+		if (link === null) return null;
+		const { text, editable } = linkTextShown(link, block.raw, deps.reading);
+		return { block, link, url: link.url ?? '', text, textEditable: editable };
 	}
 
 	function editBytes(target: LinkTarget, url: string): { bytes: string; link: InlineNode } | null {
@@ -97,22 +109,35 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		return editBytes(target, url)?.bytes ?? null;
 	}
 
-	function commitUrl(target: LinkTarget, url: string): void {
+	function commit(target: LinkTarget, url: string, text: string): void {
+		const resolved = resolve(target);
+		if (!resolved) return;
+		const { block, link } = resolved;
+		const retitled = resolved.textEditable && text !== resolved.text;
 		// An unchanged url just closes the card: a rebuild would respell author bytes the
 		// serializer normalizes (`(<a b>)` to `(a%20b)`) and add an undo entry for nothing.
-		const resolved = resolve(target);
-		if (!resolved || url === resolved.url) return;
-		const edit = editBytes(target, url);
-		if (!edit) return;
-		void write(target.path, edit.link.start, edit.link.end, edit.bytes);
+		if (!retitled && url === resolved.url) return;
+		const bytes = retitled
+			? buildLinkRetitleBytes(link, block.raw, text, url, deps.reading)
+			: editBytes(target, url)?.bytes;
+		if (bytes) void write(target.path, link.start, link.end, bytes);
 	}
 
-	function commitCreate(target: CreateLinkTarget, url: string): void {
+	function createBlock(target: CreateLinkTarget) {
 		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
-		if (block === null || !isBlockNode(block)) return;
-		const bytes = buildLinkWrapBytes(block.raw, target.start, target.end, url, deps.reading);
-		if (bytes === null) return;
-		void write(target.path, target.start, target.end, bytes);
+		return block !== null && isBlockNode(block) ? block : null;
+	}
+
+	function createText(target: CreateLinkTarget): string {
+		const raw = createBlock(target)?.raw.slice(target.start, target.end) ?? '';
+		return visibleText(raw, deps.reading);
+	}
+
+	function commitCreate(target: CreateLinkTarget, url: string, text: string): void {
+		const block = createBlock(target);
+		if (!block) return;
+		const bytes = buildLinkWrapBytes(block.raw, target.start, target.end, url, text, deps.reading);
+		if (bytes !== null) void write(target.path, target.start, target.end, bytes);
 	}
 
 	function removeLink(target: LinkTarget): void {
@@ -184,5 +209,5 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		};
 	}
 
-	return { resolve, buildBytes, commitUrl, commitCreate, removeLink, syncCardToLink };
+	return { resolve, buildBytes, commit, createText, commitCreate, removeLink, syncCardToLink };
 }
