@@ -259,7 +259,8 @@ export interface EditorInstance {
 	 * Every modifier chord `claimsChord` can answer true for somewhere, normalized (`Mod` covers Ctrl
 	 * and Cmd): every block kind's keymap, the text keys, active plugins, `keybindings` and search,
 	 * composed live, for a host's accelerator table. Bare keys aren't listed, nor is a keymap chord
-	 * turned off with `command: null`. For the keystroke in hand, ask `claimsChord`.
+	 * turned off with `command: null`, unless it's also a text key (undo, redo), which stays. For the
+	 * keystroke in hand, ask `claimsChord`.
 	 */
 	reservedChords(): ReadonlySet<string>;
 	/**
