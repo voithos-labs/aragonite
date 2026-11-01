@@ -163,7 +163,15 @@ test('live mode: a write over the whole text is the same however it was selected
 		['a key keeps the heading', () => ep.typeSlowly('x'), '# x #\n\nnext\n'],
 		['a paste keeps the heading', () => ep.clipboard.paste(), '# x #\n\nnext\n'],
 		['a cut leaves an empty paragraph', () => page.keyboard.press('ControlOrMeta+x'), '\nnext\n'],
-		['Backspace leaves an empty paragraph', () => page.keyboard.press('Backspace'), '\nnext\n']
+		['Backspace leaves an empty paragraph', () => page.keyboard.press('Backspace'), '\nnext\n'],
+		[
+			'a line break leaves two, the caret in the second',
+			async () => {
+				await page.keyboard.press('Enter');
+				await ep.typeSlowly('k');
+			},
+			'\nk\n\nnext\n'
+		]
 	];
 	for (const [selection, chord] of selections) {
 		for (const [name, write, written] of writes) {
