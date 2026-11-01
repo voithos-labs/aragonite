@@ -65,6 +65,13 @@ const selection = (editor: EditorPage) => editor.bridge.getSelectionPaths();
 const nativeCollapsed = (page: Page) =>
 	page.evaluate(() => document.getSelection()?.isCollapsed !== false);
 
+const caretInFocusedBlock = (page: Page) =>
+	page.evaluate(() => {
+		const s = document.getSelection();
+		const caret = !!s && s.rangeCount === 1 && s.isCollapsed;
+		return caret && !!document.activeElement?.contains(s.anchorNode);
+	});
+
 test('a range across blocks gets a handle at each end after a tap', async ({ page }) => {
 	await open(page);
 	await tapThenSelect(page, RANGE);
@@ -122,19 +129,28 @@ test("a word at its block's end gets an edge handle that crosses into the next b
 	await tapThenSelect(page, { anchor: { path: [0], offset: 6 }, focus: { path: [0], offset: 10 } });
 	await expect(page.locator('.selection-handle')).toHaveCount(1);
 	await expect(page.locator(`${HANDLE('end')}.selection-handle-edge`)).toHaveCount(1);
+	await page.evaluate(() => {
+		const seen: number[] = ((window as any).__rangeCounts = []);
+		document.addEventListener('selectionchange', () =>
+			seen.push(document.getSelection()?.rangeCount ?? 0)
+		);
+	});
 	await dragHandle(
 		page,
 		HANDLE('end'),
 		await pointAtRaw(page, [0], 10),
 		await pointAtRaw(page, [1], 5),
-		// Mid-drag, the word's native range is gone, or a phone would draw its handles beside ours.
+		// Mid-drag the word's range is a caret in its block: a phone draws handles on a range and
+		// drops its keyboard on none. Miss-analysis: the row asked for no range, and none passed.
 		async () => {
 			await expect
 				.poll(() => page.evaluate(() => (window as any).__test.isCrossBlockActive()))
 				.toBe(true);
-			await expect.poll(() => nativeCollapsed(page)).toBe(true);
+			await expect.poll(() => caretInFocusedBlock(page)).toBe(true);
 		}
 	);
+	// Not even for a moment: the phone's keyboard drops the instant the selection empties.
+	expect(await page.evaluate(() => (window as any).__rangeCounts)).not.toContain(0);
 	await expect
 		.poll(() => selection(editor))
 		.toEqual({ anchor: { path: [0], offset: 6 }, focus: { path: [1], offset: 5 } });

@@ -14,7 +14,7 @@ import {
 import { rowMajorCellIndex } from '../../../core/coordinate-spaces';
 import { createPointerDragSession, type PointerPosition } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
-import { dropNativeRangeOnTakeover } from '../../../selection/drag-pointer';
+import { collapseNativeRangeOnTakeover } from '../../../selection/drag-pointer';
 import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';
 import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
 import { caretOffsetAtPoint, elementAtPoint } from '../../../browser/point';
@@ -111,7 +111,12 @@ export function installCellDragListener(
 	function extendTo(focus: SelectionEndpoint): void {
 		const painted = ctx.selection.isCustomRendered;
 		enterOrExtend(ctx.selection, anchorPoint, focus);
-		dropNativeRangeOnTakeover(ctx, painted);
+		collapseNativeRangeOnTakeover(ctx, painted, () => {
+			if (padding)
+				ctx.caretWriter.placeCaretAtRaw(padding.surface, padding.press.offset, {
+					clamp: 'reachable'
+				});
+		});
 	}
 
 	function extendToForeignBlock(clientX: number, clientY: number): void {

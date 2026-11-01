@@ -93,7 +93,12 @@ export function installDragListener(
 		} else {
 			ctx.selection.extendFocus(focusPoint);
 		}
-		dropNativeRangeOnTakeover(ctx, painted);
+		collapseNativeRangeOnTakeover(ctx, painted, () => {
+			if (!('offset' in anchorPoint)) return;
+			const landing = ctx.selection.cellLandingFor(anchorPoint);
+			const el = ctx.getBlockElByPath(landing.path);
+			if (el) applyCollapsedCaret(ctx.caretWriter, el, landing);
+		});
 	}
 
 	// The anchor's side follows the drag's direction (the clicked span ends the range going up,
@@ -218,15 +223,14 @@ export function installDragListener(
 	});
 }
 
-/** Clears the native range once an owned drag's range turns painted: a phone draws its own handles
- *  on any native range, which would stand beside the editor's (`touch: 'own'` drags only). */
-export function dropNativeRangeOnTakeover(
-	ctx: Pick<DragContext, 'touch' | 'selection' | 'caretWriter'>,
-	paintedBefore: boolean
+/** Collapses the native range to a caret where it stood once an owned drag's range turns painted:
+ *  a phone draws handles on a native range and drops its keyboard on an empty selection. */
+export function collapseNativeRangeOnTakeover(
+	ctx: Pick<DragContext, 'touch' | 'selection'>,
+	paintedBefore: boolean,
+	collapse: () => void
 ): void {
-	if (ctx.touch === 'own' && !paintedBefore && ctx.selection.isCustomRendered) {
-		ctx.caretWriter.clear();
-	}
+	if (ctx.touch === 'own' && !paintedBefore && ctx.selection.isCustomRendered) collapse();
 }
 
 /** Plants a collapsed native caret in the focus block so paste and key events have a target;
