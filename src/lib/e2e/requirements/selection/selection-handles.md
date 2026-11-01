@@ -2,7 +2,7 @@
 
 Each block is its own editable element, and the browser's touch handles never leave one, so on a
 touch screen the editor draws handles where the browser's can't reach: both ends of a range across
-blocks (or a rectangle of table cells), and the end of a one-block range that sits at the block's
+blocks (or a rectangle of table cells), and an end of a one-block range that sits at the block's
 edge. A finger drags them as a mouse drags a selection. Chromium only: the drags are CDP touch
 events. The real-device rows are in `requirements/mobile/android.md` and `ios.md`.
 

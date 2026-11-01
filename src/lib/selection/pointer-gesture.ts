@@ -66,8 +66,8 @@ export function clearOnPress(
 	else tap();
 }
 
-// A tap is the press's pointerup; the browser selecting under the held finger (Android's selectstart,
-// iOS's range) a selection. A pointercancel (a scroll) or the editor unmounting runs nothing.
+// A tap ends in the press's pointerup, a selection in the browser selecting under the held finger
+// (a selectstart, or a range). A pointercancel (a scroll) or the editor unmounting runs nothing.
 function onFingerPress(
 	down: PointerEvent,
 	lifetime: AbortSignal | null,
