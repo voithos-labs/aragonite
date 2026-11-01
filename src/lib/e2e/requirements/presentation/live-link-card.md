@@ -3,10 +3,10 @@
 In live mode a link's destination is not on screen. The construct paints its text and hides
 `](url)` entirely, so the one gesture that used to show those bytes, putting a caret in them,
 now shows nothing. The card is the replacement: click a rendered link and an anchored
-`role="dialog"` opens under it holding the URL, a button that opens the link and a button that
-removes it. The click still puts a caret in the document, because a link's text is edited there
-and not in the card, so the card opens beside a live caret and waits for the user to step into
-it. Enter in its field writes the destination as one undo entry, Escape closes without writing
+`role="dialog"` opens under it holding the link's text and URL, a button that opens the link and a
+button that removes it. The click still puts a caret in the document, because a link's text can be
+typed into there as well as in the card, so the card opens beside a live caret and waits for the
+user to step into it. The text field has its own scenarios in `live-link-card-text.md`. Enter in its field writes the destination as one undo entry, Escape closes without writing
 (putting the caret back when the card was holding it), and a click anywhere else closes it the
 same non-destructive way the search bar dismisses. A blocked-scheme link renders as an inert
 span rather than an anchor and must open the card too, since editing its URL is the only way a
@@ -88,8 +88,8 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
 - Real mouse clicks on the rendered link and on the card's buttons; real keystrokes in the field
 - Escape is a real keypress and the caret it restores is read back through the selection bridge
 - Undo is a real `Mod+Z`, never a programmatic history call
-- Tab is trapped once focus is inside the card, so the field, open-link and remove-link cycle and
-  the document behind never takes the focus mid-edit
+- Tab is trapped once focus is inside the card, so the text field, the URL field, open-link and
+  remove-link cycle and the document behind never takes the focus mid-edit
 - the card is `role="dialog"` with no `aria-modal`: after a click it sits beside a live caret and
   the document behind is still the user's to type in, which is exactly what `aria-modal` would
   wrongly deny; the focus trap engages once the user steps in, where that claim is true

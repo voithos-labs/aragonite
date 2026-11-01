@@ -30,6 +30,8 @@ round-trip and nested-state checks run over every step.
   and reopens the construct instead of cutting the pair open
 - a click on a rendered link opens the link card; `Enter` in its field rewrites
   the destination as one undo entry
+- the same card's Text field gives the link a new text with a space in it, the
+  destination kept, as one undo entry
 - a `#` typed onto a fresh line creates a heading whose marker stands over no
   content, and the space and word behind it are predicted keystroke by keystroke
 - three backticks typed the same way create a fenced block, and its info string

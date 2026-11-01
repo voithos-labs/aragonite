@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../../editor-page';
 import { enterPresentationMode, landAt } from './helpers';
-import { CARD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
+import { CARD, TEXT_FIELD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
 import { findInput } from '../search/helpers';
 import { textRunEnd, textRunStart } from '../../text-runs';
 import { freezeInPageClock, deferImage } from '../../page-probes';
@@ -385,7 +385,7 @@ test.describe('live-mode link card', () => {
 		await page.keyboard.press('Tab');
 		await expect(page.getByRole('button', { name: 'Remove link' })).toBeFocused();
 		await page.keyboard.press('Tab');
-		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await expect(page.locator(TEXT_FIELD)).toBeFocused();
 		await page.keyboard.press('Shift+Tab');
 		await expect(page.getByRole('button', { name: 'Remove link' })).toBeFocused();
 	});

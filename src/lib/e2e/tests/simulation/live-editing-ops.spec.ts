@@ -61,6 +61,9 @@ test.describe('note-taking simulation: live-mode editing ops', () => {
 		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
 		await assertCheckpoint(ctx, 'after-card-commit');
 
+		await g.liveLinkRetitle('syllabus', 'course plan');
+		await assertCheckpoint(ctx, 'after-card-retitle');
+
 		// Every gesture here is built to leave the bytes as they were, so the document ends as
 		// it started, which is the one check they are all answerable to.
 		expect(await editor.bridge.getSource()).toBe(canonical);

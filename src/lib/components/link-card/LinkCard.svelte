@@ -5,13 +5,16 @@
 		LINK_CARD_LABEL,
 		LINK_CARD_OPEN,
 		LINK_CARD_REMOVE,
+		LINK_CARD_TEXT,
 		LINK_CARD_URL
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
 
-	// The URL panel over one link. Enter commits; Escape is the host's. Not `aria-modal`: a
-	// clicked card sits beside a live caret, and its focus trap starts only once focus enters.
+	// The text and URL panel over one link. Enter commits; Escape is the host's. Not `aria-modal`:
+	// a clicked card sits beside a live caret, and its focus trap starts only once focus enters.
 	let {
+		text,
+		textEditable,
 		url,
 		canWrite,
 		focusEpoch,
@@ -21,13 +24,16 @@
 		opensCard,
 		resolveHref
 	}: {
+		/** The text the link shows, and whether the field may change it: not past formatting. */
+		text: string;
+		textEditable: boolean;
 		url: string;
 		/** Bumped by each keyboard entry; the field takes focus when it changes. */
 		focusEpoch: number;
 		/** False when the write path refuses this construct outright: a link owned by an inline
 		 *  syntax handler. Enter then does nothing rather than silently dropping the edit. */
 		canWrite: boolean;
-		onCommit: (url: string) => void;
+		onCommit: (url: string, text: string) => void;
 		onOpenLink: (url: string, event: MouseEvent) => void;
 		/** Absent in create mode: there is no construct to remove until Enter writes one. */
 		onRemove?: () => void;
@@ -39,10 +45,12 @@
 	} = $props();
 
 	let draft = $state(untrack(() => url));
+	let textDraft = $state(untrack(() => text));
 	// Open hands a typed URL to the host's opener, so it gets the render path's scheme check;
 	// an empty draft would resolve as a relative URL, so it is refused too.
 	const openable = $derived(draft.trim() === '' ? undefined : resolveHref(draft));
 	let seed = $state(untrack(() => url));
+	let textSeed = $state(untrack(() => text));
 	let cardEl: HTMLDivElement | undefined = $state();
 	let urlInput: HTMLInputElement | undefined = $state();
 	// Starts at the click's zero rather than at the prop: a card mounted by the chord already
@@ -63,9 +71,11 @@
 	// A write from outside the card (an undo) discards the draft, or Enter would put the earlier
 	// bytes back.
 	$effect(() => {
-		if (url === seed) return;
+		if (url === seed && text === textSeed) return;
 		seed = url;
 		draft = url;
+		textSeed = text;
+		textDraft = text;
 	});
 
 	function focusStops(): HTMLElement[] {
@@ -91,17 +101,16 @@
 			stepTrap(e.shiftKey);
 			return;
 		}
+		// Enter in either field commits; a link with no text has nothing to click, so a text field
+		// the user emptied writes nothing.
+		if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+			e.preventDefault();
+			if (canWrite && (textDraft.trim() !== '' || textDraft === text)) onCommit(draft, textDraft);
+			return;
+		}
 		// The chord that opens the card does nothing inside it, but is still consumed so the
 		// browser never runs its own action for that chord.
 		if (opensCard(e)) e.preventDefault();
-	}
-
-	function handleUrlKeyDown(e: KeyboardEvent): void {
-		if (imeOwnsKey(e)) return;
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			if (canWrite) onCommit(draft);
-		}
 	}
 </script>
 
@@ -114,6 +123,15 @@
 	tabindex="-1"
 	onkeydown={handleKeyDown}
 >
+	<label class="md-link-card-field md-link-card-text">
+		<span class="md-link-card-caption">Text</span>
+		<input
+			bind:value={textDraft}
+			type="text"
+			aria-label={LINK_CARD_TEXT}
+			readonly={!textEditable}
+		/>
+	</label>
 	<label class="md-link-card-field">
 		<span class="md-link-card-caption">URL</span>
 		<input
@@ -122,7 +140,6 @@
 			type="text"
 			aria-label={LINK_CARD_URL}
 			placeholder="https://"
-			onkeydown={handleUrlKeyDown}
 		/>
 	</label>
 	<div class="md-link-card-actions">
@@ -159,8 +176,9 @@
 		left: 0;
 		z-index: 100;
 		display: flex;
+		flex-wrap: wrap;
 		align-items: flex-end;
-		gap: 6px;
+		gap: 10px 6px;
 		width: 300px;
 		padding: 8px 8px 8px 10px;
 		box-sizing: border-box;
@@ -179,6 +197,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 5px;
+	}
+	.md-link-card-text {
+		flex-basis: 100%;
+	}
+	.md-link-card-text input[readonly] {
+		color: var(--color-text-muted);
 	}
 	.md-link-card-caption {
 		font-size: 10.5px;
