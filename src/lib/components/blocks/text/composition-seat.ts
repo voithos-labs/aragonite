@@ -8,8 +8,7 @@
 import type { NodeView } from '../../../core/node-views';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import type { StoredAs } from '../../../schema/stored-as';
-import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
-import { rangeWrite } from '../editable/surface-write';
+import { drawnRangeWrite } from '../editable/surface-write';
 
 export interface CompositionSeatDeps {
 	getNode: () => NodeView;
@@ -57,7 +56,7 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 				replacedRangeInsertion(started.before, after, started.range) ?? started.committed;
 			if (typed === undefined) return null;
 			const node = deps.getNode();
-			const edit = rangeWrite(node, replaceDrawnRange(node, started.range, typed, deps.storedAs()));
+			const edit = drawnRangeWrite(node, started.range, typed, deps.storedAs());
 			return { raw: edit.text, caret: edit.caretAfter };
 		},
 		noteEnd: () => {

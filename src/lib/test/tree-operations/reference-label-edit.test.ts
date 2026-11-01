@@ -75,11 +75,12 @@ describe('the reference walk a keystroke pays for', () => {
 });
 
 // Every in-leaf edit goes through `replaceRangeInLeaf`, which spells the label; a route reaching
-// it names the shape of edit it makes, so a new route is listed and its shape has a row.
+// it, directly or through a surface write's drawn-range helpers, names the shape of edit it makes.
 type Shape =
 	'typed at a caret' | 'a selection deleted' | 'a selection typed over' | 'a link rewritten whole';
 
 const ROUTES: Record<string, Shape[]> = {
+	'components/blocks/editable/surface-write.ts': ['a selection deleted', 'a selection typed over'],
 	'components/blocks/table/table-cell-paste.ts': ['a selection typed over'],
 	'components/blocks/table/TableCellBlock.svelte': ['a selection deleted'],
 	'components/blocks/text/composition-seat.ts': ['a selection typed over'],
@@ -100,6 +101,10 @@ const ROUTES: Record<string, Shape[]> = {
 	'tree-operations/paste/hooks.ts': ['typed at a caret', 'a selection typed over']
 };
 
+const DRAWN_RANGE_EDIT = /\b(?:replaceDrawnRange|drawnRangeWrite|selectionRemoval)\s*\(/;
+const IN_LEAF_EDIT =
+	/\b(?:replaceRangeInLeaf|replaceDrawnRange|drawnRangeWrite|selectionRemoval)\s*\(/;
+
 // The routes whose range is never the user's own selection: a command over a link, a picked widget.
 const NOT_DRAWN = [
 	'components/blocks/text/widget-interaction.ts',
@@ -115,7 +120,7 @@ const SHAPES: Record<Shape, [number, number, string, string]> = {
 
 describe('G4.280 every route into the in-leaf edit keeps a reference’s destination', () => {
 	const sources = collectEditorSources(LIBRARY_ROOTS)
-		.filter((file) => /\b(?:replaceRangeInLeaf|replaceDrawnRange)\s*\(/.test(file.code))
+		.filter((file) => IN_LEAF_EDIT.test(file.code))
 		.map((file) => ({ path: file.relPath.replace(/^src\/lib\//, ''), code: file.code }))
 		.filter((file) => file.path !== 'tree-operations/leaf-range.ts');
 
@@ -126,7 +131,7 @@ describe('G4.280 every route into the in-leaf edit keeps a reference’s destina
 	// The drawn-range edit is the one that keeps a heading's `#` under a selection of all its text.
 	it('sends every route over the user’s selection through the drawn-range edit', () => {
 		const skipping = sources.filter(
-			(file) => !NOT_DRAWN.includes(file.path) && !/\breplaceDrawnRange\s*\(/.test(file.code)
+			(file) => !NOT_DRAWN.includes(file.path) && !DRAWN_RANGE_EDIT.test(file.code)
 		);
 		expect(skipping.map((file) => file.path)).toEqual([]);
 	});
