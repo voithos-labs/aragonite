@@ -27,7 +27,7 @@ import { rangeOwnsKey } from '../../selection/cross-block/keydown';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import { GAP_CARET_KEYS } from '../gap-caret-keys';
+import { GAP_CARET_KEYS } from '../GapCaret.svelte';
 import {
 	chromeHoldsFocus,
 	focusInEditor,

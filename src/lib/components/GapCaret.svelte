@@ -1,10 +1,26 @@
-<script lang="ts">
+<script lang="ts" module>
 	/**
 	 * The between-blocks caret: a zero-height element whose proxy takes DOM focus while the gap is
 	 * live, and across which the drawn caret lays its bar. It lives in the BlockList, outside every
 	 * block, so it adds nothing to any block's text content. Text and Enter create a paragraph at
 	 * the boundary; every other input is refused at `beforeinput`.
 	 */
+
+	/** The keys `onKeyDown`'s switch takes, unmodified, which `claimsChord` reads; the claims-chord
+	 *  parity tables catch the two drifting apart. */
+	export const GAP_CARET_KEYS: ReadonlySet<string> = new Set([
+		'Enter',
+		'ArrowDown',
+		'ArrowRight',
+		'Delete',
+		'ArrowUp',
+		'ArrowLeft',
+		'Backspace',
+		'Escape'
+	]);
+</script>
+
+<script lang="ts">
 	import { imeOwnsKey } from '../browser/composition';
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -18,7 +34,6 @@
 	import { runGlobalChord } from '../schema/commands';
 	import { eventToChord } from '../schema/keybindings';
 	import { createCaretHostInput } from '../editor-actions/caret-host-input';
-	import { GAP_CARET_KEYS } from './gap-caret-keys';
 
 	let {
 		index,
@@ -89,12 +104,26 @@
 		if (gap && services?.containerChords.take(event, gap.parentPath)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
-		const move = GAP_CARET_KEYS.get(event.key);
-		if (!move) return;
-		event.preventDefault();
-		if (move === 'open') return void mint('');
-		if (move === 'forward' || (move === 'away' && index === 0)) return leaveForward();
-		leaveBackward();
+		switch (event.key) {
+			case 'Enter':
+				event.preventDefault();
+				return void mint('');
+			// Shift+Arrow is deliberately the plain arrow here: a single block selected whole
+			// is not a representable cross-block state (docs/design/selection.md § The gap caret).
+			case 'ArrowDown':
+			case 'ArrowRight':
+			case 'Delete':
+				event.preventDefault();
+				return leaveForward();
+			case 'ArrowUp':
+			case 'ArrowLeft':
+			case 'Backspace':
+				event.preventDefault();
+				return leaveBackward();
+			case 'Escape':
+				event.preventDefault();
+				return index === 0 ? leaveForward() : leaveBackward();
+		}
 	}
 
 	// Where the composed text's paragraph went, read before the commit moves this gap past it.
