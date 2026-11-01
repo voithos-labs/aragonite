@@ -474,6 +474,7 @@ const FAMILIES: Family[] = [
 			'components/blocks/table/TableCellBlock.svelte': 1,
 			'components/blocks/text/typed-input.ts': 1
 		},
+		passesOn: ['components/blocks/editable/surface-write.ts'],
 		rows: [
 			{ shape: 'a to-do', run: () => withText(TODO, deleteX), want: ['# y\n'] },
 			{ shape: 'a plain item', run: () => withText(ITEM, deleteX), want: [] },
@@ -876,6 +877,8 @@ const STORE_TAKERS = [
 	'joinLeaves',
 	'replaceRangeInLeaf',
 	'replaceDrawnRange',
+	'drawnRangeWrite',
+	'selectionRemoval',
 	'bytesLeavingLeaf',
 	'applyLiveRangeEdit',
 	'resolveEdgeDeletion',
