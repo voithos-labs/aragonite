@@ -1,8 +1,8 @@
 /**
  * Replacing a range of one leaf, and joining two leaves, the way in-leaf edits and merges
  * write them: cut back to the painted text, off any surrogate pair, and in live mode with each
- * format run the join cuts through closed on the half that keeps it, typed text included
- * (`docs/design/live-mode.md` § 4.5).
+ * format run the join cuts through closed on the half that keeps it, typed text included, and a
+ * reference whose text is its label spelled in full first (`docs/design/live-mode.md` § 4.5).
  */
 
 import type { NodeView } from '../core/node-views';
@@ -15,9 +15,11 @@ import {
 	type ContentRange
 } from '../core/inline';
 import { readsInParts, shownOfSpan } from '../core/inline/live-edit/read-back';
+import { resolvedInlineContent } from '../core/inline/inline-cache';
 import type { ShownSpan } from '../core/inline/live-edit/shown-marks';
 import { closesAndReopens } from '../core/inline/live-edit/close-reopen';
 import {
+	displayLength,
 	ownTrailingLineEnding,
 	snapToScalarBoundary,
 	trimTrailingLineEnding,
@@ -32,6 +34,7 @@ import {
 import type { StoredAs } from '../schema/stored-as';
 import { normalizeOwnRaw } from './node-primitives';
 import { cutBeforeSuffix, joinKeepingSuffix } from './structural-suffix';
+import { spellReferenceLabels } from '../core/inline/link-source-bytes';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -41,9 +44,6 @@ export interface LeafRangeEdit {
 	caret: number;
 	/** The range replaced: a drawn one cut back to the painted text, and off any surrogate pair. */
 	range: { start: number; end: number };
-	/** Whether `raw` is the range asked for spliced with nothing moved or cleaned, the edit the
-	 *  browser makes itself, grapheme and IME handling included. */
-	matchesBrowserEdit: boolean;
 	/** Where the leaf's bytes past the range start in `raw`: after the typed text, and after any
 	 *  closer or opener the join wrote there. */
 	afterRange: number;
@@ -59,6 +59,23 @@ export function replaceRangeInLeaf(
 	typed: string,
 	store: StoredAs
 ): LeafRangeEdit {
+	const edits = typed !== '' || range.start !== range.end;
+	const spelled =
+		edits && store.reading.hidesDelimitersAtCaret()
+			? spellReferenceLabels(node, range, store.reading)
+			: null;
+	if (!spelled) return replaceInLeaf(node, range, typed, store);
+	const moved = { start: spelled.map(range.start), end: spelled.map(range.end) };
+	const edit = replaceInLeaf({ ...node, raw: spelled.raw }, moved, typed, store);
+	return { ...edit, mapOffset: (offset) => edit.mapOffset(spelled.map(offset)) };
+}
+
+function replaceInLeaf(
+	node: NodeView,
+	range: { start: number; end: number },
+	typed: string,
+	store: StoredAs
+): LeafRangeEdit {
 	const edit = spliceInLeaf(node, range, typed, store);
 	if (!store.reading.hidesDelimitersAtCaret() || !carriesRuns(typed, store)) return edit;
 	const content = getContentRange(node);
@@ -67,6 +84,56 @@ export function replaceRangeInLeaf(
 	const parts = partsAround(node.raw, content, from, to, typed, store);
 	if (readsInParts(edit.raw, parts, store)) return edit;
 	return landRuns(node, range, typed, store) ?? edit;
+}
+
+/** A range the user drew, typed or deleted over. One over the block's whole text edits what the
+ *  selection shows, inside a heading's `#` and a run around it all (live-mode.md § 4.5). */
+export function replaceDrawnRange(
+	node: NodeView,
+	range: { start: number; end: number },
+	typed: string,
+	store: StoredAs
+): LeafRangeEdit {
+	const inside = wholeTextInside(node, range, store);
+	if (!inside) return replaceRangeInLeaf(node, range, typed, store);
+	// No block's text opens with whitespace, so the block's markers go with a deleted or
+	// space-led whole text, and what is left is a paragraph holding what was typed.
+	if (!/^\S/.test(typed)) return asWholeBlock(node, typed);
+	return replaceRangeInLeaf(node, inside, typed, store);
+}
+
+/** The block's text inside its own markers and any run around all of it, where `range` covers that
+ *  whole text in a reading that hides them; null for any other range. */
+function wholeTextInside(
+	node: NodeView,
+	range: { start: number; end: number },
+	store: StoredAs
+): { start: number; end: number } | null {
+	const { reading } = store;
+	if (range.start >= range.end || !reading.hidesDelimitersAtCaret()) return null;
+	const content = getContentRange(node);
+	if (range.start > content.start || range.end < content.end || content.start >= content.end) {
+		return null;
+	}
+	let { start, end } = content;
+	// Pre-order is outermost first, so each run around the whole text steps in to the next.
+	for (const inline of inlineDescendants(resolvedInlineContent(node, reading))) {
+		const text = constructContentRange(inline);
+		if (!text || !closesAndReopens(inline.kind)) continue;
+		if (inline.start === start && inline.end === end) ({ start, end } = text);
+	}
+	return { start, end };
+}
+
+function asWholeBlock(node: NodeView, typed: string): LeafRangeEdit {
+	const end = displayLength(node.raw);
+	return {
+		raw: typed + ownTrailingLineEnding(node.raw),
+		caret: typed.length,
+		range: { start: 0, end },
+		afterRange: typed.length,
+		mapOffset: (offset) => (offset >= end ? typed.length + offset - end : 0)
+	};
 }
 
 /** {@link replaceRangeInLeaf} with `typed` written at the join as plain text. */
@@ -97,7 +164,6 @@ function spliceInLeaf(
 				raw,
 				caret: seam + typed.length,
 				range: { start, end },
-				matchesBrowserEdit: false,
 				afterRange,
 				mapOffset: (offset) =>
 					offset === end ? afterRange : afterTyped(offset, join.joined.map(merged(offset)))
@@ -109,7 +175,6 @@ function spliceInLeaf(
 		raw: display.slice(0, start) + typed + display.slice(end) + ownTrailingLineEnding(node.raw),
 		caret: start + typed.length,
 		range: { start, end },
-		matchesBrowserEdit: start === range.start && end === range.end,
 		afterRange: start + typed.length,
 		mapOffset: (offset) => afterTyped(offset, merged(offset))
 	};
@@ -206,7 +271,6 @@ function landRuns(
 			raw: asWritten,
 			caret: at + text.length,
 			range: cut.range,
-			matchesBrowserEdit: cut.matchesBrowserEdit,
 			afterRange: shifted(cut.afterRange),
 			mapOffset: (offset) => (pastRange(offset) ? shifted(inCut(offset)) : inCut(offset))
 		};
@@ -238,7 +302,6 @@ function landRuns(
 		raw: second.raw,
 		caret: second.seam,
 		range: cut.range,
-		matchesBrowserEdit: false,
 		afterRange: after(cut.afterRange),
 		mapOffset: (offset) => (pastRange(offset) ? after(inCut(offset)) : before(inCut(offset)))
 	};
@@ -278,7 +341,7 @@ function cleanJoin(
 		typed,
 		store
 	});
-	return { joined, cleaned: joined.raw !== merged.raw };
+	return { joined, cleaned: joined.raw !== merged.raw || joined.seam !== merged.start };
 }
 
 /** The tail of a range inside one leaf: that leaf's write rule runs once, when the bytes are

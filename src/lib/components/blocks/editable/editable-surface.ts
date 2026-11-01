@@ -643,7 +643,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		requestCaret: deps.requestCaret,
 		ownPairs: deps.ownPairs,
 		holdInsertion,
-		showsSource: deps.showsSource
+		showsSource: deps.showsSource,
+		reading: deps.reading
 	});
 
 	function command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R {

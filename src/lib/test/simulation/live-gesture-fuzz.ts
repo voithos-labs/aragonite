@@ -215,9 +215,13 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
 		const scrub = (bytes: string) => [...inked(bytes)].filter((ch) => !alphabet.has(ch)).join('');
 		return scrub(live) === scrub(before);
 	}
-	// A join closes, reopens or drops delimiter runs and nothing else, and a branch that owns a
-	// keypress but has no sound rewrite writes nothing (live-mode.md § 4.4, § 4.5).
-	return live === before || unformatted(live) === unformatted(literal);
+	// A join closes, reopens or drops delimiter runs and nothing else, a branch with no sound rewrite
+	// writes nothing, and a whole text emptied leaves only what was typed (live-mode.md § 4.5).
+	return (
+		live === before ||
+		unformatted(live) === unformatted(literal) ||
+		inked(live) === inked(typedRun(gesture))
+	);
 }
 
 /** Bytes with what a join may write or drop taken out: delimiter runs and a link's destination,

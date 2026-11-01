@@ -46,7 +46,7 @@
 		type PendingBreakKeyDeps
 	} from './pending-break-keys';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
-	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+	import { replaceDrawnRange, replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { handleSharedKeydown } from '../../../selection/shared-keydown';
@@ -201,12 +201,13 @@
 	const compositionSeat = createCompositionSeat({
 		getDisplayText: () => getDisplayText(),
 		getRawSelection: () => cursor.getRawSelection(),
-		// The in-leaf range replace `handleLiveSelectionEdit` uses, as the displayed text the
-		// composition commit writes.
+		// The range edit a typed key over a selection makes, as the displayed text the composition
+		// commit writes.
 		resolveRangeEdit: (range, typed) => {
-			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
-			if (edit.matchesBrowserEdit) return null;
-			const { text, caretAfter } = rangeWrite(node, edit);
+			const { text, caretAfter } = rangeWrite(
+				node,
+				replaceDrawnRange(node, range, typed, storedAs())
+			);
 			return { raw: text, caret: caretAfter };
 		}
 	});

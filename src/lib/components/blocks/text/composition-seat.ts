@@ -4,18 +4,21 @@
  * write, which places it and spends the caret memory's records like any insertion.
  */
 
+import { checkLiveRangeWritten } from '../../../invariants/live-range-written';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+
 export interface CompositionSeatDeps {
 	/** The block's displayed text, which a commit's reading is compared against. */
 	getDisplayText: () => string;
 	/** The block's selection, read as the composition opens: composing over one goes to
 	 *  `resolveRangeEdit`. Omit to keep ranges as the browser wrote them. */
 	getRawSelection?: () => { start: number; end: number } | null;
-	/** How this block resolves a range replace, in displayed bytes; null keeps the browser's own
-	 *  edit, the same refusal the keydown selection-edit path makes. */
+	/** How this block resolves a range replace, in displayed bytes: the write a typed key over the
+	 *  same selection makes. */
 	resolveRangeEdit?: (
 		range: { start: number; end: number },
 		typed: string
-	) => { raw: string; caret: number } | null;
+	) => { raw: string; caret: number };
 }
 
 export interface CompositionSeat {
@@ -46,7 +49,11 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 			if (!started?.range || started.range.start >= started.range.end) return null;
 			const typed = replacedRangeInsertion(started.before, after, started.range);
 			if (typed === null) return null;
-			return deps.resolveRangeEdit?.(started.range, typed) ?? null;
+			const edit = deps.resolveRangeEdit?.(started.range, typed) ?? null;
+			assertInvariant('live-range-written', () =>
+				checkLiveRangeWritten({ route: 'composition', overSelection: true, written: !!edit })
+			);
+			return edit;
 		},
 		noteEnd: () => {
 			started = null;

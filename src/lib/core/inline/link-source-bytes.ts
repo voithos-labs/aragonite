@@ -9,6 +9,9 @@ import { encodeDestination, escapeTitle } from './destination-bytes';
 import type { Reading } from '../../schema/reading';
 import { CONTENT_VISIBILITY, renderedText } from './visibility';
 import type { InlineNode } from '../nodes';
+import type { NodeView } from '../node-views';
+import { resolvedInlineContent, type InlineReading } from './inline-cache';
+import { recordReferenceWalk } from '../../perf/instruments';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 
 // ── The one write path ──────────────────────────────────────────────────────
@@ -71,6 +74,45 @@ export function buildLinkWrapBytes(
 		.replace(/\\[\s\S]|[[\]]/g, (m) => (m.length === 2 ? m : '\\' + m));
 	return verified(`[${text}](${encodeDestination(url)})`, start, end, display, reading);
 }
+
+// ── A reference's label across an edit of its text ──────────────────────────
+
+/** `node`'s bytes with each shortcut or collapsed reference whose text an edit of `range` changes
+ *  spelled `[text][label]`, so the label still names its definition; null where none is. */
+export function spellReferenceLabels(
+	node: NodeView,
+	range: { start: number; end: number },
+	reading: InlineReading
+): { raw: string; map: (offset: number) => number } | null {
+	if (!mayHoldReference(node.raw, reading)) return null;
+	recordReferenceWalk();
+	const labels: { at: number; text: string }[] = [];
+	for (const link of inlineDescendants(resolvedInlineContent(node, reading))) {
+		if (link.kind !== 'link' || link.label === undefined || link.syntaxClaim) continue;
+		const [start, end] = linkTextRange(link, node.raw);
+		const tail = node.raw.slice(end + 1, link.end);
+		if (tail !== '' && tail !== '[]') continue;
+		if (range.start <= link.start && range.end >= link.end) continue;
+		const changes =
+			range.start === range.end
+				? start <= range.start && range.start <= end
+				: range.start < end && range.end > start;
+		if (!changes) continue;
+		const label = node.raw.slice(start, end);
+		labels.push(tail === '' ? { at: link.end, text: `[${label}]` } : { at: end + 2, text: label });
+	}
+	if (labels.length === 0) return null;
+	let raw = node.raw;
+	for (const { at, text } of [...labels].reverse()) raw = raw.slice(0, at) + text + raw.slice(at);
+	const map = (offset: number) =>
+		labels.reduce((moved, { at, text }) => (offset >= at ? moved + text.length : moved), offset);
+	return { raw, map };
+}
+
+/** Whether `raw` can hold a reference at all: a document without definitions has none, which
+ *  keeps a keystroke off the walk. */
+export const mayHoldReference = (raw: string, reading: InlineReading): boolean =>
+	reading.resolverSignature !== '' && raw.includes('[');
 
 const WRAP_SAFE_KINDS: ReadonlySet<string> = new Set(['text', 'escape', 'entityReference']);
 

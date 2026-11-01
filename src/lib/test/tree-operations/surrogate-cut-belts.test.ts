@@ -16,6 +16,7 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import { fixtureReading, TOP_SLOT, topLevelStore } from '../harness/fixture-grammar';
+import { isPlainSplice } from '../harness/plain-splice';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 /** Both halves read as plain fragments, as they do outside a task item. */
@@ -123,7 +124,7 @@ describe('the in-leaf range replace’s join', () => {
 		const node = parse(SOURCE, { scope: 'fragment' }).children[0] as NodeView;
 		const store = topLevelStore(node, fixtureReading({}, 'live'));
 		const edit = replaceRangeInLeaf(node, { start: 8, end: 22 }, '', store);
-		expect(edit.matchesBrowserEdit).toBe(false);
+		expect(isPlainSplice(node, { start: 8, end: 22 }, '', edit)).toBe(false);
 		expect(isWellFormed(edit.raw)).toBe(true);
 	});
 });

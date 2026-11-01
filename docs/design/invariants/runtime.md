@@ -119,6 +119,7 @@ These checks run in three kinds of place:
 | G1.165 | _Retired upward_: a container's chords run from the block they're pressed in, so no element needs marking | A·N       |
 | G1.166 | A plugin installs into the copy of the editor that defined it                                             | A·N       |
 | G1.167 | A whole-plugin conformance run checks every kind the plugin declares, and a dev warning fails it          | harness·N |
+| G1.168 | A key or a composition over a selection in live mode is written by the editor, never left to the browser  | A·N       |
 
 ### The entries
 
@@ -721,3 +722,10 @@ container checkup on each container and the inline checkup on each inline profil
 inline kind with no profile fails, and so does a profile naming no declared kind. A dev warning
 fails the run, and with dev checks off it won't start. `testing/plugin-conformance.ts` ·
 `plugin-conformance.test.ts`.
+
+**G1.168 · The editor writes a live edit over a selection** (`live-range-written`). The browser
+edits the selection as the DOM holds it, and an end of that can sit on either side of a hidden
+bracket, so in live mode every key and every composition over a selection in one block goes through
+`replaceDrawnRange`. Dev fails the shared range-edit wrapper declining one, and a composition
+commit that read its text but has no range write. `checkLiveRangeWritten` · `live-range-written.test.ts`,
+`live-ranged-edit.test.ts`.

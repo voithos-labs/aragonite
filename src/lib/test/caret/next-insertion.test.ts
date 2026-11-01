@@ -2,6 +2,7 @@
 // record the write extends waits on for the next one, and anything else ends it.
 // Miss-analysis: each record kept its own "deaf while held" flag, so a second record could forget
 // it, and the hold cleared the record it took, so a composition unpainted the pending break.
+import { fixtureReading } from '../harness/fixture-grammar';
 import { describe, it, expect } from 'vitest';
 import {
 	createInsertionRecords,
@@ -195,6 +196,7 @@ describe('writeText and a record the write extends', () => {
 		const records = createInsertionRecords([record]);
 		let raw = 'ab\n';
 		const writeText = createSurfaceWrite({
+			reading: fixtureReading(),
 			getNode: () => ({ kind: 'paragraph', leadingTrivia: '', raw }) as NodeView,
 			getIndex: () => 0,
 			getPath: () => [0],

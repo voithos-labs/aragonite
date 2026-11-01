@@ -13,6 +13,8 @@ import type { BlockAutoPairs } from '../text/auto-pair-record';
 import type { HeldInsertion, TextEdit } from '../../../caret/next-insertion';
 import { shownKind } from '../../../core/parsers/heading';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
+import { mayHoldReference, spellReferenceLabels } from '../../../core/inline/link-source-bytes';
+import type { Reading } from '../../../schema/reading';
 
 /** `typed` is a keystroke's own edit, which can name a new block kind and complete its line;
  *  `command` is a chord, a menu row, a clipboard edit or a shown source's commit, and `repair`
@@ -61,6 +63,7 @@ export interface SurfaceWriteDeps {
 	holdInsertion(): HeldInsertion;
 	/** True while a widget's source is shown, where a typed write completes no line. */
 	showsSource?: () => boolean;
+	reading: Reading;
 }
 
 export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) => ContentWrite {
@@ -79,7 +82,8 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		const began = write.sessionAnchor ?? deps.getPreEditOffset();
 		const spend = (text: string): TextEdit =>
 			write.inPlace ? held.spendInPlace(text, write) : held.spend(text, write, began);
-		const edit = typed && changed ? spend(display) : write;
+		const spent = typed && changed ? spend(display) : write;
+		const edit = changed ? keepingReferenceLabels(node, display, spent, deps.reading) : spent;
 		// The block's own ending only: a last line saved without one stays that way.
 		const bytes = withOwnEnding(node, edit.text);
 		// A typed line an on-type completer takes is written as its completion, never as the line.
@@ -108,6 +112,39 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		}
 		if (typed) void deps.kindCue.afterTypedWrite(written, deps.getPath(), before);
 		return written;
+	};
+}
+
+/** `edit` with the label of each reference whose text it changed spelled out, since a caret's
+ *  keystroke reaches the text without a range edit (`spellReferenceLabels`). */
+function keepingReferenceLabels<E extends TextEdit>(
+	node: NodeView,
+	display: string,
+	edit: E,
+	reading: Reading
+): E {
+	if (!reading.hidesDelimitersAtCaret() || !mayHoldReference(display, reading)) return edit;
+	const after = edit.text;
+	const most = Math.min(display.length, after.length);
+	let head = 0;
+	while (head < most && display[head] === after[head]) head++;
+	let tail = 0;
+	while (tail < most - head && display.at(-1 - tail) === after.at(-1 - tail)) tail++;
+	const written = after.slice(head, after.length - tail);
+	// Brackets written with the text are a rewrite of the link itself, which spells its own label.
+	if (/[[\]]/.test(written)) return edit;
+	const range = { start: head, end: display.length - tail };
+	const spelled = spellReferenceLabels(node, range, reading);
+	if (!spelled) return edit;
+	const bytes = trimTrailingLineEnding(spelled.raw);
+	const grew = after.length - display.length;
+	const text =
+		bytes.slice(0, spelled.map(range.start)) + written + bytes.slice(spelled.map(range.end));
+	const past = edit.caretAfter > head + written.length;
+	return {
+		...edit,
+		text,
+		caretAfter: past ? spelled.map(edit.caretAfter - grew) + grew : edit.caretAfter
 	};
 }
 

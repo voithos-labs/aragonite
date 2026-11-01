@@ -121,8 +121,8 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 	if (best === null) return null;
 	const { raw, seam, seamEnd, map } = best.written;
 	// A candidate that changed nothing is the plain concatenation: refusing says so, and keeps the
-	// caller off a rewrite path it does not need.
-	if (raw === join.mergedRaw) return null;
+	// caller off a rewrite path it does not need. Typed text moved past a run is a change.
+	if (raw === join.mergedRaw && seam === join.seam) return null;
 	// A survivor of whitespace only draws nothing, and would reload as a blank line.
 	if (readsAsBlankLine(raw)) {
 		return { raw: raw.slice(displayLength(raw)), seam: 0, seamEnd: 0, map: () => 0 };
@@ -516,16 +516,38 @@ const sameSpelling = (
 ): boolean => a.opener === b.opener && a.closer === b.closer;
 
 /** How many of the left side's open runs (outermost first) typed text fills: those outside its
- *  outermost never-extend run, unless the cut lies inside that one run, whose text it then replaces. */
+ *  outermost never-extend run, unless the cut leaves its text on both sides or is one whole object. */
 function outsideNeverExtend(join: JoinSeam, left: Side, right: Side): number {
-	const inside = (c: CutConstruct) =>
-		join.start.node === join.end.node &&
-		right.dangling.some((r) => r.start === c.start && r.kind === c.kind);
+	const sameLeaf = join.start.node === join.end.node;
+	const object =
+		sameLeaf &&
+		[...inlineDescendants(left.inlines, isConstruct)].some(
+			(node) =>
+				node.kind !== 'text' &&
+				!closesAndReopens(node.kind) &&
+				node.start === left.cut &&
+				node.end === right.cut
+		);
+	const inside = (c: CutConstruct) => {
+		const twin = right.dangling.find((r) => r.start === c.start && r.kind === c.kind);
+		if (!sameLeaf || twin === undefined) return false;
+		return (
+			object ||
+			(showsText(left, c.contentStart, left.cut) && showsText(right, right.cut, twin.contentEnd))
+		);
+	};
 	const at = left.dangling.findIndex(
 		(c) => getInlineConstructPolicy(c.kind)?.edgeAffinity === 'never-extend' && !inside(c)
 	);
 	return at < 0 ? left.dangling.length : at;
 }
+
+/** Whether `[from, to)` of `side` shows a character, a run's hidden delimiters counting as none. */
+const showsText = (side: Side, from: number, to: number): boolean =>
+	from < to &&
+	visibleRuns(side.inlines, side.raw, CONTENT_VISIBILITY, { grammar: side.grammar }).some(
+		(run) => run.visible && run.text !== '' && run.start < to && run.end > from
+	);
 
 /** Readings that write the same bytes are read once; a dropping one among them lifts the claim to
  *  keep every mark, since a drop may lose one. */

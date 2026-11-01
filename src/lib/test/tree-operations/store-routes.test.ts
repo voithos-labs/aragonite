@@ -870,6 +870,7 @@ const STORE_TAKERS = [
 	'cleanJoinedRaw',
 	'joinLeaves',
 	'replaceRangeInLeaf',
+	'replaceDrawnRange',
 	'bytesLeavingLeaf',
 	'applyLiveRangeEdit',
 	'resolveEdgeDeletion',

@@ -1807,6 +1807,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'a shown source’s own text, where every marker is on screen',
 			'src/lib/components/blocks/editable/editable-surface.ts':
 				'text typed at an offset once a range is gone, which deletes nothing',
+			'src/lib/components/blocks/editable/surface-write.ts':
+				'a reference label spelled around bytes a caret keystroke already wrote',
 			'src/lib/components/image/image-widget-editing.ts':
 				'an image replaced by its own edited bytes, one whole construct for another',
 			'src/lib/core/inline/index.ts': 'a hard break inserted, which deletes nothing',

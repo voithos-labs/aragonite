@@ -37,7 +37,7 @@ import {
 	type TypedPlacement
 } from '#lib/components/blocks/text/edge-seat.js';
 import { resolveLiveRangeEdit } from '#lib/components/blocks/text/live-selection-edit.js';
-import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
+import { replaceDrawnRange } from '#lib/tree-operations/leaf-range.js';
 import { blockNodeAt, nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
 import {
@@ -399,6 +399,7 @@ async function pressEdgeKey(
 	});
 	// The block anchors a key's write at the caret it recorded when the key arrived.
 	const writeText = createSurfaceWrite({
+		reading: fixtureReading({}, mode),
 		getNode: node,
 		getIndex: () => leaf.index,
 		getPath: () => leaf.path,
@@ -590,8 +591,8 @@ function wordDelete(
 	return true;
 }
 
-/** Typing over a selection inside one block: the browser's replace, re-expressed as a join of what
- *  survives on either side (live-mode.md § 4.5). A refusal leaves the browser's own splice. */
+/** Typing over a selection inside one block: in live mode the editor's replace, re-expressed as a
+ *  join of what survives on either side (live-mode.md § 4.5); elsewhere the browser's own splice. */
 function replaceSelection(
 	h: Harness,
 	leaf: LeafAt,
@@ -601,8 +602,9 @@ function replaceSelection(
 	const { node, index, blockEdit } = leaf;
 	const range = drawnRange(node, gesture);
 	if (range === null) return false;
-	const edit = replaceRangeInLeaf(node, range, gesture.char, storeOf(h, leaf, mode));
-	if (!edit.matchesBrowserEdit) {
+	const store = storeOf(h, leaf, mode);
+	if (store.reading.hidesDelimitersAtCaret()) {
+		const edit = replaceDrawnRange(node, range, gesture.char, store);
 		void blockEdit.updateBlockContent(
 			index,
 			edit.raw,

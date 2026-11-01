@@ -16,6 +16,7 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { testLeaf } from '../harness/test-kinds';
+import { isPlainSplice } from '../harness/plain-splice';
 
 interface Row {
 	source: string;
@@ -26,7 +27,8 @@ interface Row {
 	/** The leaf's bytes after the edit, less the line ending it keeps. */
 	display: string;
 	caret: number;
-	matchesBrowserEdit: boolean;
+	/** The range spliced with `typed`, nothing moved or cleaned. */
+	plain: boolean;
 }
 
 const ROWS: Row[] = [
@@ -39,7 +41,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: '',
 		caret: 0,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '__a__\n===\n',
@@ -50,7 +52,7 @@ const ROWS: Row[] = [
 		// `__` can't open after a letter, so the reopened run takes the mark's own `**`.
 		display: '😀**a**\n===',
 		caret: 2,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '- ***a**b*\n',
@@ -60,7 +62,7 @@ const ROWS: Row[] = [
 		typed: ' ',
 		display: ' ***a**b*',
 		caret: 1,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '## *a*)  ##\n',
@@ -70,7 +72,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: '## )  ##',
 		caret: 3,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '- [ ] 42`a`\n',
@@ -80,7 +82,7 @@ const ROWS: Row[] = [
 		typed: '😀',
 		display: '42😀`a`',
 		caret: 4,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '*****a*****汉字\n',
@@ -90,7 +92,7 @@ const ROWS: Row[] = [
 		typed: '~',
 		display: '*~**a***汉字',
 		caret: 2,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '- **a**\n  ===\n',
@@ -100,7 +102,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: '\n===',
 		caret: 0,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '- [ ] ## `a` ##\n',
@@ -110,7 +112,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: '##  ##',
 		caret: 3,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '- ## *a***b** ##\n',
@@ -120,7 +122,7 @@ const ROWS: Row[] = [
 		typed: 'a*b',
 		display: '## aa*bb ##',
 		caret: 7,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '- **a***b*\n  ===\n',
@@ -130,7 +132,7 @@ const ROWS: Row[] = [
 		typed: '**',
 		display: '***b*\n===',
 		caret: 2,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '## [**b**](u) ##\n',
@@ -140,7 +142,7 @@ const ROWS: Row[] = [
 		typed: '**',
 		display: '## ** ##',
 		caret: 5,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '- [ ] ém**a***b*\n',
@@ -150,7 +152,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: 'e',
 		caret: 1,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '| h |\n| - |\n| *a* |\n',
@@ -160,7 +162,7 @@ const ROWS: Row[] = [
 		typed: '~',
 		display: '~',
 		caret: 1,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '| h |\n| - |\n| *a*)  |\n',
@@ -171,7 +173,7 @@ const ROWS: Row[] = [
 		// The typed text fills the italic it replaced, inside the closer the join wrote.
 		display: '*~*)',
 		caret: 2,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	// The typed text refills the pair the range emptied, so nothing is stranded.
 	{
@@ -182,7 +184,7 @@ const ROWS: Row[] = [
 		typed: 'x',
 		display: '**x** b',
 		caret: 3,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '- **a** b\n',
@@ -192,7 +194,7 @@ const ROWS: Row[] = [
 		typed: 'x',
 		display: '**x** b',
 		caret: 3,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '| h |\n| - |\n| **a** b |\n',
@@ -202,7 +204,7 @@ const ROWS: Row[] = [
 		typed: 'x',
 		display: '**x** b',
 		caret: 3,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	// Cut back from a hidden heading suffix the user never saw.
 	{
@@ -213,7 +215,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: '\n===',
 		caret: 0,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '\\*\n===\n',
@@ -223,7 +225,7 @@ const ROWS: Row[] = [
 		typed: '**',
 		display: '**\n===',
 		caret: 2,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	// A caret past the closing run stays there: only a drawn range is cut back.
 	{
@@ -234,7 +236,7 @@ const ROWS: Row[] = [
 		typed: 'x',
 		display: '##  ##x',
 		caret: 7,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '- ##  ##\n',
@@ -244,7 +246,7 @@ const ROWS: Row[] = [
 		typed: '😀',
 		display: '##😀 ##',
 		caret: 4,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	{
 		source: '- ## x ##\n',
@@ -254,7 +256,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: '## x ##',
 		caret: 4,
-		matchesBrowserEdit: false
+		plain: false
 	},
 	// Nothing to clean: the plain splice, which the browser makes too.
 	{
@@ -265,7 +267,7 @@ const ROWS: Row[] = [
 		typed: 'a*b',
 		display: 'a*b',
 		caret: 3,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '\\\\\n',
@@ -275,7 +277,7 @@ const ROWS: Row[] = [
 		typed: '**',
 		display: '\\**',
 		caret: 3,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '~~a~~\n',
@@ -285,7 +287,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: 'a~~',
 		caret: 0,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '- *a*x\n',
@@ -295,7 +297,7 @@ const ROWS: Row[] = [
 		typed: '',
 		display: '**x',
 		caret: 1,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '- [ ] a\n',
@@ -305,7 +307,7 @@ const ROWS: Row[] = [
 		typed: '`',
 		display: '`',
 		caret: 1,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '| h |\n| - |\n| 😀 |\n',
@@ -315,7 +317,7 @@ const ROWS: Row[] = [
 		typed: '😀',
 		display: '😀',
 		caret: 2,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '| h |\n| - |\n| 汉字 |\n',
@@ -325,7 +327,7 @@ const ROWS: Row[] = [
 		typed: 'a*b',
 		display: 'a*b',
 		caret: 3,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '| h |\n| - |\n| x |\n',
@@ -335,7 +337,7 @@ const ROWS: Row[] = [
 		typed: '~',
 		display: '~',
 		caret: 1,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '| h |\n| - |\n| ém |\n',
@@ -345,7 +347,7 @@ const ROWS: Row[] = [
 		typed: '`',
 		display: '`m',
 		caret: 1,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '- x\n',
@@ -355,7 +357,7 @@ const ROWS: Row[] = [
 		typed: 'x',
 		display: 'x',
 		caret: 1,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '- foo\n',
@@ -365,7 +367,7 @@ const ROWS: Row[] = [
 		typed: '**',
 		display: 'fo**',
 		caret: 4,
-		matchesBrowserEdit: true
+		plain: true
 	},
 	{
 		source: '- [ ] ) \n',
@@ -375,7 +377,7 @@ const ROWS: Row[] = [
 		typed: 'a*b',
 		display: 'a*b',
 		caret: 3,
-		matchesBrowserEdit: true
+		plain: true
 	}
 ];
 
@@ -389,11 +391,11 @@ describe('replaceRangeInLeaf', () => {
 		expect({
 			display: trimTrailingLineEnding(edit.raw),
 			caret: edit.caret,
-			matchesBrowserEdit: edit.matchesBrowserEdit
+			plain: isPlainSplice(node, { start, end }, row.typed, edit)
 		}).toEqual({
 			display: row.display,
 			caret: row.caret,
-			matchesBrowserEdit: row.matchesBrowserEdit
+			plain: row.plain
 		});
 		expect(edit.raw.endsWith(ownTrailingLineEnding(node.raw))).toBe(true);
 	});

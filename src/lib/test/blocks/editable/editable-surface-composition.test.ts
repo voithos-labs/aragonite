@@ -12,7 +12,7 @@ import { createUndoController } from '#lib/editor-actions/commit/undo-controller
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { makeEditorActionsDeps, type EditorActionsHarness } from '../../harness/editor-actions';
 import { createCompositionSeat } from '#lib/components/blocks/text/composition-seat.js';
-import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
+import { replaceDrawnRange } from '#lib/tree-operations/leaf-range.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
@@ -323,8 +323,7 @@ describe('composed text placement', () => {
 			getRawSelection: () => rawSelection,
 			resolveRangeEdit: (range, typed) => {
 				const store = topLevelStore(node, fixtureReading({}, 'live'));
-				const edit = replaceRangeInLeaf(node, range, typed, store);
-				if (edit.matchesBrowserEdit) return null;
+				const edit = replaceDrawnRange(node, range, typed, store);
 				return { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 			}
 		});
