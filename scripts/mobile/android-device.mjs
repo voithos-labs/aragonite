@@ -48,9 +48,17 @@ export function createDevice(out) {
 		});
 	}
 
-	// Chrome's first-run and promo screens, and a system app's "isn't responding" dialog (a slow
-	// emulator's), tapped through wherever they show.
-	const DISMISS = ['No thanks', 'Accept & continue', 'Use without an account', 'Got it', 'Wait'];
+	// Chrome's first-run and promo screens, a system app's "isn't responding" dialog (a slow
+	// emulator's) and Gboard's microphone prompt (a typing tap that hit its mic key), tapped through.
+	const DISMISS = [
+		'No thanks',
+		'Accept & continue',
+		'Use without an account',
+		'Got it',
+		'Wait',
+		'Don’t allow',
+		"Don't allow"
+	];
 
 	// Chrome exposes each paragraph to accessibility as an EditText holding its text, and builds
 	// that tree only once something asks, so the lookup polls. It waits out what moves or covers
