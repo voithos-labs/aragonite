@@ -404,6 +404,7 @@ export interface EditableSurfaceMethods {
 	getSelectedText(): string;
 	setSelection(start: number, end: number): void;
 	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
+	caretBounds(): { start: number; end: number };
 	typeText(text: string, offset: number): Promise<boolean>;
 }
 
@@ -444,6 +445,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	const sharedCtx: SharedKeydownContext = {
 		getEl: () => deps.getEl(),
+		caretBounds: () => caretBounds(),
 		getCursorOffset: () => deps.backend.getRaw(),
 		getFocusOffset: deps.getFocusOffset,
 		getTextLen: deps.getTextLen,
@@ -543,6 +545,11 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		});
 	}
 
+	function caretBounds(): { start: number; end: number } {
+		const el = deps.getEl();
+		return el ? caretReachableBounds(sharedCtx, el) : { start: 0, end: deps.getTextLen() };
+	}
+
 	const surface: EditableSurfaceMethods = {
 		focus,
 		parkCaret,
@@ -551,6 +558,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getSelectedText,
 		setSelection,
 		measurePartialRects,
+		caretBounds,
 		typeText
 	};
 
@@ -676,9 +684,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 				}
 			: undefined,
 		atEdge: (caret, direction) => {
-			const el = deps.getEl();
-			if (!el) return false;
-			const bounds = caretReachableBounds(sharedCtx, el);
+			if (!deps.getEl()) return false;
+			const bounds = caretBounds();
 			return direction === 'backward' ? caret <= bounds.start : caret >= bounds.end;
 		},
 		runPlainKey: (key) => {

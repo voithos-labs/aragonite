@@ -6,13 +6,15 @@
  */
 
 import type { EditorRects } from '../../editor-rects';
-import { SELECTION_END } from '../../block-component';
 import type { UserScrollport } from '../../windowing/scroll-ancestors';
 import type { BlockElLookup } from '../../caret/block-el-lookup';
 import type { CaretWriter } from '../../browser/caret-writer';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { normalize, type SelectionEndpoint, type SelectionPoint } from '../../selection/primitives';
 import { installDragListener } from '../../selection/drag-pointer';
+import { readDomPoint } from '../../selection/native-bridge';
+import { pathsEqual } from '../../selection/path-math';
+import { readNativeSelection } from '../../browser/selection-read';
 import { cellDragFrom, installCellDragListener } from '../blocks/table/cell-pointer';
 
 export type HandleEnd = 'start' | 'end';
@@ -40,11 +42,31 @@ export interface HandleSpot {
 
 type Rects = Pick<EditorRects, 'rangeRects' | 'blockRect'>;
 
-/** `cellPath` names the cell a cell end sits in (`SelectionState.cellLandingFor`). */
+/** The range the handles stand on: the editor's while it paints one, otherwise the browser's own,
+ *  read off the native selection rather than the focused block, since a menu can hold focus. */
+export function handleRange(selection: SelectionState, root: HTMLElement): HandleRange | null {
+	if (selection.isCustomRendered && selection.start && selection.end) {
+		return { start: selection.start, end: selection.end, painted: true };
+	}
+	const live = readNativeSelection();
+	if (!live || live.collapsed) return null;
+	const anchor = readDomPoint(root, live.anchor.node, live.anchor.offset);
+	const focus = readDomPoint(root, live.focus.node, live.focus.offset);
+	if (!anchor || !focus || !pathsEqual(anchor.path, focus.path)) return null;
+	return { ...normalize({ anchor, focus }), painted: false };
+}
+
+/** What the spots read besides the rects: the cell a cell end sits in
+ *  (`SelectionState.cellLandingFor`), and a block's caret bounds (`BlockComponent.caretBounds`). */
+export interface HandleReads {
+	cellPath(point: SelectionPoint): number[];
+	caretBounds(path: number[]): { start: number; end: number } | null;
+}
+
 export function handleSpots(
 	range: HandleRange | null,
 	rects: Rects,
-	cellPath: (point: SelectionPoint) => number[]
+	reads: HandleReads
 ): HandleSpot[] {
 	if (!range) return [];
 	const { start, end } = range;
@@ -55,11 +77,11 @@ export function handleSpots(
 				['end', end, true]
 			]
 		: [
-				['start', start, !shows(rects.rangeRects(start.path, 0, start.offset))],
-				['end', end, !shows(rects.rangeRects(end.path, end.offset, SELECTION_END))]
+				['start', start, start.offset <= (reads.caretBounds(start.path)?.start ?? -1)],
+				['end', end, end.offset >= (reads.caretBounds(end.path)?.end ?? Infinity)]
 			];
 	return ends.flatMap(([side, point, stands]) => {
-		const line = stands ? lineAt(rects, point, side, cellPath) : null;
+		const line = stands ? lineAt(rects, point, side, reads.cellPath) : null;
 		return line ? [{ end: side, ...line, edge: !range.painted }] : [];
 	});
 }
@@ -112,11 +134,6 @@ function fixedPaintedEnd(grabbed: HandleEnd, selection: SelectionState): Selecti
 }
 
 // ── Measuring ──────────────────────────────────────────────────────────────
-
-// Hidden markers measure as empty boxes, so only a box with width shows text.
-function shows(rects: DOMRect[]): boolean {
-	return rects.some((r) => r.width > 0);
-}
 
 // A cell end takes its cell's corner, a text end the side of the character it borders, and an end
 // with no character there (a block held whole, an empty block) its block's box.

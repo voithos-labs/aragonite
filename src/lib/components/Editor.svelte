@@ -1499,7 +1499,7 @@
 	/>
 	<SelectionGapFill getEditorEl={() => editorEl ?? null} />
 	{#if effectiveMode !== 'reading'}
-		<SelectionHandles finger={() => fingerPress} {getSelection} />
+		<SelectionHandles finger={() => fingerPress} {getBlockComponent} />
 	{/if}
 	<!-- A sibling of the block list, like the header. -->
 	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />

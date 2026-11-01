@@ -211,6 +211,7 @@ export const MEMBER_SOURCES = {
 	getSelectedText: 'view',
 	setSelection: 'view',
 	measurePartialRects: 'view',
+	caretBounds: 'editor',
 	getCommandContext: 'view',
 	isCommandActive: 'view',
 	runCommand: 'view',

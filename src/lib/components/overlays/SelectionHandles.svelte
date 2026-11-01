@@ -11,10 +11,12 @@
 		type EditorDoc,
 		type EditorServices
 	} from '../../editor-keys';
-	import { normalize, type EditorSelection } from '../../selection/primitives';
+	import type { BlockComponent } from '../../block-component';
+	import type { SelectionPoint } from '../../selection/primitives';
 	import { POINTER_GESTURE_ATTR } from '../../selection/pointer-gesture';
 	import { observeResize } from '../../windowing/observe-resize';
 	import {
+		handleRange,
 		handleSpots,
 		startHandleDrag,
 		type HandleRange,
@@ -23,8 +25,11 @@
 
 	let {
 		finger,
-		getSelection
-	}: { finger: () => boolean; getSelection: () => EditorSelection | null } = $props();
+		getBlockComponent
+	}: {
+		finger: () => boolean;
+		getBlockComponent: (path: number[]) => BlockComponent | null;
+	} = $props();
 
 	const services = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const editorDoc = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -37,15 +42,6 @@
 	let shown: (HandleSpot & { left: number; top: number })[] = $state([]);
 	let changes = $state(0);
 	$effect(() => services.events.on('selectionChange', () => changes++));
-
-	function currentRange(): HandleRange | null {
-		const { selection } = services;
-		if (selection.isCustomRendered && selection.start && selection.end) {
-			return { start: selection.start, end: selection.end, painted: true };
-		}
-		const live = getSelection();
-		return live && { ...normalize(live), painted: false };
-	}
 
 	// An end handle hangs below its point, an edge handle beside the browser's own: right of an end
 	// at the line's middle, above and right of a start.
@@ -66,15 +62,11 @@
 		}
 		const at = root;
 		function measure(): void {
-			range = currentRange();
+			range = handleRange(services.selection, at);
 			const origin = at.getBoundingClientRect();
 			const dx = at.scrollLeft - origin.left - at.clientLeft;
 			const dy = at.scrollTop - origin.top - at.clientTop;
-			shown = handleSpots(
-				range,
-				services.rects,
-				(p) => services.selection.cellLandingFor(p).path
-			).map((spot) => {
+			shown = handleSpots(range, services.rects, reads).map((spot) => {
 				const { left, top } = place(spot);
 				return { ...spot, left: left + dx, top: top + dy };
 			});
@@ -85,15 +77,24 @@
 			await tick();
 			if (live) measure();
 		})();
-		// A scroll can mount an end's block, and an inner scroll moves its text.
-		window.addEventListener('scroll', measure, { capture: true, passive: true });
+		// A scroll can mount an end's block, and an inner scroll moves its text. The browser's own
+		// handles move the range without the editor announcing it while a menu holds focus.
+		const lifetime = editorDoc.lifetime;
+		window.addEventListener('scroll', measure, { capture: true, passive: true, signal: lifetime });
+		document.addEventListener('selectionchange', measure, { signal: lifetime });
 		const stopResize = observeResize(at, measure);
 		return () => {
 			live = false;
 			window.removeEventListener('scroll', measure, { capture: true });
+			document.removeEventListener('selectionchange', measure);
 			stopResize();
 		};
 	});
+
+	const reads = {
+		cellPath: (point: SelectionPoint) => services.selection.cellLandingFor(point).path,
+		caretBounds: (path: number[]) => getBlockComponent(path)?.caretBounds?.() ?? null
+	};
 
 	function press(e: PointerEvent, spot: HandleSpot): void {
 		const root = editorDoc.editorRoot();

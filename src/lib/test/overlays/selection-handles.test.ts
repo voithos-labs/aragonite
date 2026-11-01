@@ -1,5 +1,6 @@
 // Where a touch screen's selection handles stand: both ends of a range the editor paints, and only
 // the block edges of a range the browser holds inside one block, where its own handles stop.
+// Miss-analysis: the edge was read off the rects, which on a phone measure a sliver past the end.
 import { describe, it, expect } from 'vitest';
 import { handleSpots, type HandleRange } from '#lib/components/overlays/selection-handles.js';
 import { SELECTION_END } from '#lib/block-component.js';
@@ -14,6 +15,8 @@ const rects = {
 	rangeRects(path: number[], start: number, end: number): DOMRect[] {
 		const top = path[0] * 30;
 		if (path[0] === 2) return [];
+		// A phone measures a sliver of the line past a block's last character.
+		if (start === CHARS && end === SELECTION_END) return [rect(100, top, 0.4, 20)];
 		const to = end === SELECTION_END ? CHARS : Math.min(end, CHARS);
 		return start < to ? [rect(start * 10, top, (to - start) * 10, 20)] : [];
 	},
@@ -23,11 +26,15 @@ const rects = {
 		return rect(0, path[0] * 30, 100, 20);
 	}
 };
-const cellPath = (p: { path: number[]; offset: number }) => [
-	...p.path,
-	Math.floor(p.offset / 2),
-	p.offset % 2
-];
+const reads = {
+	cellPath: (p: { path: number[]; offset: number }) => [
+		...p.path,
+		Math.floor(p.offset / 2),
+		p.offset % 2
+	],
+	// The caret reaches every character of a text block; a rule has none.
+	caretBounds: (path: number[]) => (path[0] === 2 ? null : { start: 0, end: CHARS })
+};
 
 const at = (path: number[], offset: number, cellCoordinate?: true) => ({
 	path,
@@ -35,7 +42,7 @@ const at = (path: number[], offset: number, cellCoordinate?: true) => ({
 	...(cellCoordinate && { cellCoordinate })
 });
 const spots = (range: HandleRange | null) =>
-	handleSpots(range, rects, cellPath).map(({ end, x, top, edge }) => ({ end, x, top, edge }));
+	handleSpots(range, rects, reads).map(({ end, x, top, edge }) => ({ end, x, top, edge }));
 
 describe('handleSpots', () => {
 	it('stands at both ends of a range across blocks', () => {

@@ -2,7 +2,11 @@
 // Miss-analysis: the e2e rows press only plain arrows on Windows and Linux engines, so nothing
 // showed a macOS Option or Cmd arrow over a selection keeps its own motion.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { handleSharedKeydown, type SharedKeydownContext } from '#lib/selection/shared-keydown.js';
+import {
+	handleSharedKeydown,
+	type SharedKeydownContext,
+	caretReachableBounds
+} from '#lib/selection/shared-keydown.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import type { FocusActions } from '#lib/action-contracts.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
@@ -37,6 +41,10 @@ function mount() {
 		},
 		getFocusOffset: () => window.getSelection()!.focusOffset,
 		getTextLen: () => 6,
+		caretBounds() {
+			const el = this.getEl();
+			return el ? caretReachableBounds(this, el) : { start: 0, end: this.getTextLen() };
+		},
 		getMyPath: () => [1],
 		getIndex: () => 1,
 		crossBlock: { handleKeyDown: async () => false } as unknown as CrossBlockHandlers,
