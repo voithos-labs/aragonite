@@ -1,18 +1,11 @@
 // Writes each listed plugin's `verified` record into the listing, then regenerates the gallery
-// table, at each release cut. `--packs` checks the bundled plugins from that folder's tarballs;
-// everyone else's run only in CI, so `--results` records the listing workflow's artifacts.
+// table, from the result files `plugin-listing.yml`'s manual run downloads.
 //
-//   node scripts/plugins/check-listing.mjs --packs tmp/plugin-packs [--only name] [--dry-run]
 //   node scripts/plugins/check-listing.mjs --results dir [--dry-run]
-import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { listingProblems, partitionEntries, readListing, writeListing } from './listing.mjs';
-import { pluginPackages } from '../lib-alias.mjs';
-
-const EDITOR = '@voithos-labs/aragonite';
+import { listingProblems, readListing, writeListing } from './listing.mjs';
 
 /**
  * @typedef {import('./listing.mjs').Entry} Entry
@@ -93,62 +86,7 @@ export function recorded(entries, results) {
 	});
 }
 
-// ── Running one check ────────────────────────────────────────────────────────
-
-/**
- * The tarball in `packs` for package `name`, as `npm pack` names it, or null.
- * @param {string | null} packs
- * @param {string} name
- */
-function tarballFor(packs, name) {
-	if (!packs) return null;
-	const stem = name.replace(/^@/, '').replace('/', '-');
-	const file = readdirSync(packs).find(
-		(f) => f.startsWith(`${stem}-`) && /^\d/.test(f.slice(stem.length + 1))
-	);
-	return file ? path.join(packs, file) : null;
-}
-
-/**
- * Installs `pluginSpec` beside `editorSpec` in an empty project and runs the plugin check there.
- * @param {string} name
- * @param {string} pluginSpec
- * @param {string} editorSpec
- * @param {string} editorVersion
- * @returns {CheckResult}
- */
-function checkOne(name, pluginSpec, editorSpec, editorVersion) {
-	const dir = mkdtempSync(path.join(tmpdir(), 'aragonite-listing-'));
-	try {
-		execSync('npm init -y', { cwd: dir, stdio: 'ignore' });
-		const install = spawnSync(
-			`npm install --no-save --ignore-scripts "${pluginSpec}" "${editorSpec}"`,
-			{ cwd: dir, encoding: 'utf8', shell: true }
-		);
-		if (install.status !== 0) {
-			if (install.stderr.includes('ERESOLVE')) {
-				return {
-					package: name,
-					version: null,
-					editor: editorVersion,
-					result: 'out-of-range',
-					failures: null
-				};
-			}
-			throw new Error(`installing ${pluginSpec} failed:\n${install.stderr}`);
-		}
-		spawnSync(`npx --no-install aragonite-plugin-check ${name} --json result.json`, {
-			cwd: dir,
-			stdio: 'inherit',
-			shell: true
-		});
-		const file = path.join(dir, 'result.json');
-		if (!existsSync(file)) throw new Error(`the check over ${name} wrote no result`);
-		return JSON.parse(readFileSync(file, 'utf8'));
-	} finally {
-		rmSync(dir, { recursive: true, force: true });
-	}
-}
+// ── Recording a run ──────────────────────────────────────────────────────────
 
 /** @param {string[]} argv @param {string} flag */
 const option = (argv, flag) => {
@@ -157,52 +95,28 @@ const option = (argv, flag) => {
 };
 
 /** @param {string[]} argv */
-async function main(argv) {
+function main(argv) {
 	const entries = readListing();
 	const problems = listingProblems(entries);
 	if (problems.length > 0) throw new Error(problems.join('\n'));
 
-	/** @type {CheckResult[]} */
-	let results;
 	const resultsDir = option(argv, '--results');
-	if (resultsDir) {
-		results = readdirSync(resultsDir, { recursive: true })
-			.map(String)
-			.filter((file) => file.endsWith('.json'))
-			.map((file) => {
-				const value = JSON.parse(readFileSync(path.join(resultsDir, file), 'utf8'));
-				const problem = resultProblem(value);
-				if (problem) throw new Error(`${file}: ${problem}`);
-				return value;
-			});
-	} else {
-		const packsOption = option(argv, '--packs');
-		if (!packsOption) throw new Error('--packs <dir> or --results <dir> is required');
-		const packs = path.resolve(packsOption);
-		const only = option(argv, '--only');
-		const editorSpec = tarballFor(packs, EDITOR);
-		if (!editorSpec) throw new Error(`${packs} holds no ${EDITOR} tarball`);
-		// `npm pack` names a tarball after the version it holds.
-		const editorVersion = /-(\d[\w.-]*)\.tgz$/.exec(editorSpec)?.[1] ?? '';
-		const bundled = pluginPackages();
-		const names = entries.map((entry) => entry.package).filter((name) => !only || name === only);
-		const { outside } = partitionEntries(names, bundled);
-		for (const name of outside) console.log(`check-listing: ${name} is checked in CI, not here`);
-		results = names
-			.filter((name) => !outside.includes(name))
-			.map((name) => {
-				const tarball = tarballFor(packs, name);
-				if (!tarball) throw new Error(`${packs} holds no tarball for ${name}`);
-				return checkOne(name, tarball, editorSpec, editorVersion);
-			});
-	}
+	if (!resultsDir) throw new Error('--results <dir> is required');
+	/** @type {CheckResult[]} */
+	const results = readdirSync(resultsDir, { recursive: true })
+		.map(String)
+		.filter((file) => file.endsWith('.json'))
+		.map((file) => {
+			const value = JSON.parse(readFileSync(path.join(resultsDir, file), 'utf8'));
+			const problem = resultProblem(value);
+			if (problem) throw new Error(`${file}: ${problem}`);
+			return value;
+		});
 	if (!argv.includes('--dry-run')) writeListing(recorded(entries, results));
 	for (const result of results)
 		console.log(`check-listing: ${result.package} ${result.result} on ${result.editor}`);
-	// Recording results is no verdict on them; a run of the checks fails when one didn't pass.
-	return resultsDir || results.every((result) => result.result === 'pass') ? 0 : 1;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	process.exitCode = await main(process.argv.slice(2));
+	main(process.argv.slice(2));
 }
