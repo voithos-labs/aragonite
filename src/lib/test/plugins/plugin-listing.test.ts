@@ -18,7 +18,7 @@ import {
 	verifiedFrom
 } from '../../../../scripts/plugins/check-listing.mjs';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
-import { pluginPackages } from '../../../../scripts/lib-alias.mjs';
+import { pluginPackages } from '../../../../scripts/workspace.mjs';
 
 const entry = (name: string, extra: Record<string, unknown> = {}) => ({
 	package: name,

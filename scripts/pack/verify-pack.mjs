@@ -11,7 +11,7 @@ import { checkBudgets, readBaseline } from './size-budget.mjs';
 import { verifyPrebuilt } from './verify-prebuilt.mjs';
 import { verifyTypes } from './verify-types.mjs';
 import { verifyPluginPackage } from './verify-plugin-package.mjs';
-import { PLUGIN_KEYWORD, workspacePackages } from '../lib-alias.mjs';
+import { PLUGIN_KEYWORD, workspacePackages } from '../workspace.mjs';
 
 // `npm pack --json` reports files[].path relative to the package root (`dist/index.js`), with no
 // `package/` prefix.

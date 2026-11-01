@@ -7,12 +7,12 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { publishedEntryPoints } from '../../../../../scripts/lib-alias.mjs';
 import {
 	PLUGIN_KEYWORD,
 	pluginPackages,
-	publishedEntryPoints,
 	workspacePackages
-} from '../../../../../scripts/lib-alias.mjs';
+} from '../../../../../scripts/workspace.mjs';
 import {
 	collectEditorSources,
 	collectFiles,

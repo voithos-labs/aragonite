@@ -2,10 +2,11 @@
 // the entry points its `exports` publishes, and the subpaths the library imports by its own name.
 // The source scans and the consumer plugin sync read all three through here, so each is spelled in
 // package.json alone.
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pluginPackages } from './workspace.mjs';
 
 // A path, not a URL: under a jsdom test the global URL is jsdom's, which `fs` refuses.
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,42 +55,6 @@ export function resolveSelfImportsFromSource() {
 			});
 		}
 	});
-}
-
-// ── Workspace packages ───────────────────────────────────────────────────────
-
-/** The npm keyword that marks a package as an aragonite plugin. */
-export const PLUGIN_KEYWORD = 'aragonite-plugin';
-
-/**
- * @typedef {object} WorkspacePackage
- * @property {string} dir Its directory from the repo root, e.g. `packages/latex`.
- * @property {Record<string, any>} manifest Its package.json.
- */
-
-/** Every package the root's `workspaces` globs (each `<dir>/*`) name. */
-export function workspacePackages() {
-	/** @type {WorkspacePackage[]} */
-	const found = [];
-	for (const glob of PACKAGE.workspaces ?? []) {
-		const parent = glob.replace(/\/\*$/, '');
-		for (const entry of readdirSync(path.join(ROOT, parent), { withFileTypes: true })) {
-			const manifest = path.join(ROOT, parent, entry.name, 'package.json');
-			if (!entry.isDirectory() || !existsSync(manifest)) continue;
-			found.push({
-				dir: `${parent}/${entry.name}`,
-				manifest: JSON.parse(readFileSync(manifest, 'utf8'))
-			});
-		}
-	}
-	return found.sort((a, b) => a.dir.localeCompare(b.dir));
-}
-
-/** The workspace packages carrying the plugin keyword. */
-export function pluginPackages() {
-	return workspacePackages().filter(({ manifest }) =>
-		(manifest.keywords ?? []).includes(PLUGIN_KEYWORD)
-	);
 }
 
 /**

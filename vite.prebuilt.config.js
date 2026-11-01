@@ -5,7 +5,8 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { pluginPackages, publishedEntryPoints } from './scripts/lib-alias.mjs';
+import { publishedEntryPoints } from './scripts/lib-alias.mjs';
+import { pluginPackages } from './scripts/workspace.mjs';
 import { prebuiltExternals } from './scripts/pack/pack-manifest.mjs';
 import { runtimeEntriesExportWhatPluginsUse } from './scripts/pack/svelte-runtime-names.mjs';
 

@@ -11,9 +11,9 @@ import path from 'node:path';
 import {
 	importedFile,
 	isAliasSpelling,
-	pluginPackages,
 	workspaceSources
 } from '../../../../../scripts/lib-alias.mjs';
+import { pluginPackages } from '../../../../../scripts/workspace.mjs';
 import { ignoredPaths, isIgnoredBy } from '../../../../../scripts/docs/doc-corpus.mjs';
 export { aliasPath, aliasSpecifier, isAliasSpelling } from '../../../../../scripts/lib-alias.mjs';
 import { SOURCE, SOURCE_DIR } from './source-paths';

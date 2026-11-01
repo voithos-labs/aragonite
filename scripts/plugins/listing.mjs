@@ -4,7 +4,7 @@
 import { execSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { pluginPackages } from '../lib-alias.mjs';
+import { pluginPackages } from '../workspace.mjs';
 
 export const LISTING = 'docs/guide/plugin-gallery/listing.json';
 export const GALLERY = 'docs/guide/plugin-gallery.md';
@@ -152,7 +152,7 @@ export function changedPackages(before, after) {
  * run's tarballs, since the release that publishes them may not exist yet), and everyone else's,
  * checked as npm has them.
  * @param {string[]} names
- * @param {import('../lib-alias.mjs').WorkspacePackage[]} bundled
+ * @param {import('../workspace.mjs').WorkspacePackage[]} bundled
  */
 export function partitionEntries(names, bundled) {
 	const dirs = new Map(bundled.map(({ dir, manifest }) => [manifest.name, dir.split('/').pop()]));

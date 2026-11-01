@@ -2,11 +2,8 @@ import { configDefaults, defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { existsSync, readFileSync } from 'fs';
 import { defaultServerConditions, type Plugin } from 'vite';
-import {
-	SOURCE_CONDITION,
-	workspacePackages,
-	workspaceSourceAliases
-} from './scripts/lib-alias.mjs';
+import { SOURCE_CONDITION, workspaceSourceAliases } from './scripts/lib-alias.mjs';
+import { workspacePackages } from './scripts/workspace.mjs';
 
 const DEEP_STACK = 'src/lib/**/*.deep.test.ts';
 // Files that hand objects to a native addon, which rejects objects made in another VM context.
