@@ -82,12 +82,6 @@ describe('collectReservedChords: per-instance overrides', () => {
 		expect(withOverrides([{ chord: 'Mod+B', command: null }]).has('Mod+B')).toBe(false);
 	});
 
-	// Disabling Mod+Z releases it to the host while focus is outside the editor; inside the editor
-	// the keypress is still swallowed.
-	it('drops a disabled keymap chord', () => {
-		expect(withOverrides([{ chord: 'Mod+B', command: null }]).has('Mod+B')).toBe(false);
-	});
-
 	it('keeps a text key a global disable cannot reach', () => {
 		// The browser's own undo and copy would run on them, so the editor still takes them.
 		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(true);
