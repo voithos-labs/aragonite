@@ -40,11 +40,6 @@
 
 	let range: HandleRange | null = null;
 	let shown: (HandleSpot & { left: number; top: number })[] = $state([]);
-	let changes = $state(0);
-	// Only for a finger, so a mouse's caret moves never re-run the effect below.
-	$effect(() => {
-		if (finger()) return services.events.on('selectionChange', () => changes++);
-	});
 
 	// An end handle hangs below its point, an edge handle beside the browser's own: right of an end
 	// at the line's middle, above and right of a start.
@@ -62,7 +57,6 @@
 			shown = [];
 			return;
 		}
-		void changes;
 		const at = root;
 		function measure(): void {
 			range = handleRange(services.selection, at);
@@ -75,19 +69,21 @@
 			});
 		}
 		let live = true;
-		// The blocks write the range in their own effects, so the first read waits for their flush.
-		(async () => {
+		// The blocks write the range in their own effects, so a read after a change waits for them.
+		async function measureAfterFlush(): Promise<void> {
 			await tick();
 			if (live) measure();
-		})();
+		}
+		void measureAfterFlush();
+		const stopChanges = services.events.on('selectionChange', measureAfterFlush);
 		// A scroll can mount an end's block, and an inner scroll moves its text. The browser's own
 		// handles move the range without the editor announcing it while a menu holds focus.
-		const lifetime = editorDoc.lifetime;
-		window.addEventListener('scroll', measure, { capture: true, passive: true, signal: lifetime });
-		document.addEventListener('selectionchange', measure, { signal: lifetime });
+		window.addEventListener('scroll', measure, { capture: true, passive: true });
+		document.addEventListener('selectionchange', measure);
 		const stopResize = observeResize(at, measure);
 		return () => {
 			live = false;
+			stopChanges();
 			window.removeEventListener('scroll', measure, { capture: true });
 			document.removeEventListener('selectionchange', measure);
 			stopResize();
@@ -148,7 +144,7 @@
 		width: 20px;
 		height: 20px;
 		border-radius: 50%;
-		background: var(--md-color-selection, #567b67);
+		background: var(--md-color-selection);
 	}
 	.selection-handle-start::after {
 		right: 0;
