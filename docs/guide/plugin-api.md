@@ -19,53 +19,53 @@ Each group is a table with a row per export. An export that takes more than a se
 
 The groups, in page order:
 
-| Group                                                   | What it covers                                                                               |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [The plugin unit](#the-plugin-unit)                     | Packaging your extension, installing it, and what each mounted editor hands it back          |
-| [Kind declaration](#kind-declaration)                   | Creating a new block type's identity                                                         |
-| [The block-kind descriptor](#the-block-kind-descriptor) | Telling the editor how your block type behaves, and the checklist every one must fill in     |
-| [Block views](#block-views)                             | Binding a block type to what draws it                                                        |
-| [The parser opener](#the-parser-opener)                 | Teaching the parser to recognize your block's syntax                                         |
-| [Enter completion](#enter-completion)                   | Letting one typed line become a construct whose lines must sit together                      |
-| [Directive authoring](#directive-authoring)             | Owning a `:::name` block without writing your own parsing                                    |
-| [Container authoring](#container-authoring)             | Blocks that hold other blocks, plus their title line                                         |
-| [Editable-leaf authoring](#editable-leaf-authoring)     | A text-editing block with the editor's own caret, undo, and selection                        |
-| [Code-block languages](#code-block-languages)           | Adding syntax-highlighting grammars beyond the bundled set                                   |
-| [Plugin views](#plugin-views)                           | What an inline widget, a decoration's widget and an inline menu row are drawn with           |
-| [Inline authoring](#inline-authoring)                   | Your own syntax inside a paragraph, rendered as a widget                                     |
-| [Commands and keybindings](#commands-and-keybindings)   | Keyboard shortcuts and commands, per block type or editor-wide                               |
-| [Paste transforms](#paste-transforms)                   | Rewriting pasted text before the editor parses it                                            |
-| [Decorations](#decorations)                             | View-only annotations over content your plugin does not own                                  |
-| [Inline menus](#inline-menus)                           | A list under the caret that a typed trigger opens                                            |
-| [Insert catalogue](#insert-catalogue)                   | The blocks the insert menus offer, and adding your own                                       |
-| [Events](#events)                                       | What the editor tells your plugin has happened, and the shapes it says it in                 |
-| [Rects](#rects)                                         | Where things are on screen: block boxes, ranges, the caret, scrolling to a block             |
-| [Caret geometry](#caret-geometry)                       | Answering where a press inside your block puts the caret                                     |
-| [Pointer gestures](#pointer-gestures)                   | Keeping a drag that belongs to your block (a pan, a brush) from starting a selection         |
-| [Selection geometry](#selection-geometry)               | The shapes that describe what the user has selected                                          |
-| [Parse and serialize](#parse-and-serialize)             | Markdown in, tree out, and back again                                                        |
-| [Grammar scanners](#grammar-scanners)                   | The editor's own code-fence, HTML-tag, and blockquote rules, reusable so you never fork them |
-| [Node access and metadata](#node-access-and-metadata)   | Reading the document tree, and storing your own data on a block                              |
-| [Injected renderers](#injected-renderers)               | A library the host hands you to draw your block (KaTeX, mermaid), cached per theme           |
-| [Performance helpers](#performance-helpers)             | A small cache and a scan index for render and recognition work                               |
+| Group | What it covers |
+| --- | --- |
+| [The plugin unit](#the-plugin-unit) | Packaging your extension, installing it, and what each mounted editor hands it back |
+| [Kind declaration](#kind-declaration) | Creating a new block type's identity |
+| [The block-kind descriptor](#the-block-kind-descriptor) | Telling the editor how your block type behaves, and the checklist every one must fill in |
+| [Block views](#block-views) | Binding a block type to what draws it |
+| [The parser opener](#the-parser-opener) | Teaching the parser to recognize your block's syntax |
+| [Enter completion](#enter-completion) | Letting one typed line become a construct whose lines must sit together |
+| [Directive authoring](#directive-authoring) | Owning a `:::name` block without writing your own parsing |
+| [Container authoring](#container-authoring) | Blocks that hold other blocks, plus their title line |
+| [Editable-leaf authoring](#editable-leaf-authoring) | A text-editing block with the editor's own caret, undo, and selection |
+| [Code-block languages](#code-block-languages) | Adding syntax-highlighting grammars beyond the bundled set |
+| [Plugin views](#plugin-views) | What an inline widget, a decoration's widget and an inline menu row are drawn with |
+| [Inline authoring](#inline-authoring) | Your own syntax inside a paragraph, rendered as a widget |
+| [Commands and keybindings](#commands-and-keybindings) | Keyboard shortcuts and commands, per block type or editor-wide |
+| [Paste transforms](#paste-transforms) | Rewriting pasted text before the editor parses it |
+| [Decorations](#decorations) | View-only annotations over content your plugin does not own |
+| [Inline menus](#inline-menus) | A list under the caret that a typed trigger opens |
+| [Insert catalogue](#insert-catalogue) | The blocks the insert menus offer, and adding your own |
+| [Events](#events) | What the editor tells your plugin has happened, and the shapes it says it in |
+| [Rects](#rects) | Where things are on screen: block boxes, ranges, the caret, scrolling to a block |
+| [Caret geometry](#caret-geometry) | Answering where a press inside your block puts the caret |
+| [Pointer gestures](#pointer-gestures) | Keeping a drag that belongs to your block (a pan, a brush) from starting a selection |
+| [Selection geometry](#selection-geometry) | The shapes that describe what the user has selected |
+| [Parse and serialize](#parse-and-serialize) | Markdown in, tree out, and back again |
+| [Grammar scanners](#grammar-scanners) | The editor's own code-fence, HTML-tag, and blockquote rules, reusable so you never fork them |
+| [Node access and metadata](#node-access-and-metadata) | Reading the document tree, and storing your own data on a block |
+| [Injected renderers](#injected-renderers) | A library the host hands you to draw your block (KaTeX, mermaid), cached per theme |
+| [Performance helpers](#performance-helpers) | A small cache and a scan index for render and recognition work |
 
 ### The plugin unit
 
 _(pre-freeze / unstable)_ The installable package, and the per-editor context it gets back. Wiring and the traps: [The plugin unit](plugin-guide.md#the-plugin-unit) and [One process, many editors](plugin-guide/per-editor.md#one-process-many-editors).
 
-| Export                            | Role                                                                                                                                                                                                                                   |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`definePlugin`](#defineplugin)   | Validate a plugin unit and return it, ready for the editor's `plugins` prop                                                                                                                                                            |
-| `isPluginInstalled`               | Has a plugin of this name installed? For the rare setup that has to branch on it                                                                                                                                                       |
-| `EditorPlugin`                    | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these                                                                                                                                                  |
-| The `plugins` prop                | Installs once per process, and activates per editor: an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all activates every installed one)                                     |
-| `EditorPluginEntry`               | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor. A field you pass replaces the plugin's default for it (arrays too); the rest keep theirs                                                   |
-| `PluginSetupContext`              | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously)                                                                                                                   |
-| `OnEditorCallback`                | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount                                                                             |
-| [`EditorContext`](#editorcontext) | One editor's view for your plugin, handed to your `onEditor` callback                                                                                                                                                                  |
-| `InsertMarkdownOptions`           | `insertMarkdown`'s second argument: `placement: 'below'` puts the text into a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret                                           |
-| `PresentationMode`                | The union of the editor's view modes (source, reading, the two previews, live). Switch on it with a default branch, since a new mode would join the union. [Presentation modes](plugin-guide/presentation-modes.md#presentation-modes) |
-| `ClickInput`                      | What `isActivationClick` reads off a click: its Ctrl and Cmd keys, its click count and its target. A `MouseEvent` is one, so pass the event                                                                                            |
+| Export | Role |
+| --- | --- |
+| [`definePlugin`](#defineplugin) | Validate a plugin unit and return it, ready for the editor's `plugins` prop |
+| `isPluginInstalled` | Has a plugin of this name installed? For the rare setup that has to branch on it |
+| `EditorPlugin` | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these |
+| The `plugins` prop | Installs once per process, and activates per editor: an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all activates every installed one) |
+| `EditorPluginEntry` | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor. A field you pass replaces the plugin's default for it (arrays too); the rest keep theirs |
+| `PluginSetupContext` | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously) |
+| `OnEditorCallback` | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount |
+| [`EditorContext`](#editorcontext) | One editor's view for your plugin, handed to your `onEditor` callback |
+| `InsertMarkdownOptions` | `insertMarkdown`'s second argument: `placement: 'below'` puts the text into a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret |
+| `PresentationMode` | The union of the editor's view modes (source, reading, the two previews, live). Switch on it with a default branch, since a new mode would join the union. [Presentation modes](plugin-guide/presentation-modes.md#presentation-modes) |
+| `ClickInput` | What `isActivationClick` reads off a click: its Ctrl and Cmd keys, its click count and its target. A `MouseEvent` is one, so pass the event |
 
 #### `definePlugin`
 
@@ -124,30 +124,30 @@ Per-editor state, and the closure trap that comes with it: [One process, many ed
 
 Every kind starts here. No other call accepts a bare string where a kind goes.
 
-| Export                            | Role                                                                                                                                                                                                                                             |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `declarePluginKind`               | Create a block kind from a name and get the kind back; a collision with a built-in or a prior kind throws, and so do the reserved names `document` and `global` and a name that isn't a lowercase letter followed by letters, digits and hyphens |
-| `declaredPluginKind`              | Recover an already-declared kind in another module, no cast; throws for a name nobody declared                                                                                                                                                   |
-| `PluginBlockKind`, `AnyBlockKind` | The plugin-declared kind type, and the union of built-in and plugin kinds a node can carry                                                                                                                                                       |
+| Export | Role |
+| --- | --- |
+| `declarePluginKind` | Create a block kind from a name and get the kind back; a collision with a built-in or a prior kind throws, and so do the reserved names `document` and `global` and a name that isn't a lowercase letter followed by letters, digits and hyphens |
+| `declaredPluginKind` | Recover an already-declared kind in another module, no cast; throws for a name nobody declared |
+| `PluginBlockKind`, `AnyBlockKind` | The plugin-declared kind type, and the union of built-in and plugin kinds a node can carry |
 
 ### The block-kind descriptor
 
 The **descriptor** is a kind's written behavior: how it merges, whether it's editable, its container shape. Its required `closure` field is the kind's answer to each cross-cutting editor system (undo, search, selection, clipboard and friends), so a new kind can't ship silently broken under a subsystem nobody asked about. Cell by cell: [The closure block](plugin-guide/container-walkthrough.md#the-closure-block).
 
-| Export                                                  | Role                                                                                                                                                                                                                                |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `registerBlockKind`                                     | Register a kind: its descriptor, the `view` that draws it and, for a kind a line starts, the `opener` that recognizes it, in one call. A registration with no view doesn't compile, and a kind never registered errors at first use |
-| `augmentBlockKind`                                      | Merge extra fields into a kind your own plugin registered; built-in kinds and another plugin's kinds are refused with a throw                                                                                                       |
-| [`BlockKindRegistration`](#blockkindregistration)       | What `registerBlockKind` accepts                                                                                                                                                                                                    |
-| `HeightEstimateEnv`                                     | What `estimateHeight` reads besides the block: the editor's width, its line heights and character width, the frame it adds to every block, and the floor for an unsized image                                                       |
-| [`BlockKindAugmentation`](#blockkindaugmentation)       | The patch `augmentBlockKind` merges                                                                                                                                                                                                 |
-| [`WriteRule`, `WriteContext`](#writerule-writecontext)  | A kind's rule for making written bytes legal, and what it reads besides them                                                                                                                                                        |
-| [`ContainerDescriptorGroup`](#containerdescriptorgroup) | The descriptor's container-only half                                                                                                                                                                                                |
-| `MergeRole`, `ContainerUnwrapRole`                      | Closed sets naming how a kind merges on Backspace, and how a container releases a child at its edge                                                                                                                                 |
-| `ChildRawChange`                                        | `rebuildRaw`'s optional second argument: which one child's bytes just moved, for a rebuilder that re-emits only that region. Ignoring it and re-deriving the whole raw is always correct, just slower                               |
-| `ClosureBlock`, `ClosureColumn`, `ClosureCell`          | The closure matrix: nine columns, one cell each, and a cell is `implemented` (name the mechanism), `inherit-default`, or `not-supported` (name the degradation). A missing column fails the typecheck                               |
-| `simpleLeafClosure`, `SimpleLeafClosureCells`           | Closure preset for a plain text leaf: bakes the five cells every such leaf answers alike, requires the four your component determines (`focus`, `searchPaint`, `undo`, `simOracle`)                                                 |
-| `containerClosure`, `ContainerClosureCells`             | Closure preset for a container of real child blocks: bakes the four structural cells plus `roundTrip: implemented`, requires the round trip's `via` string and the four the container determines                                    |
+| Export | Role |
+| --- | --- |
+| `registerBlockKind` | Register a kind: its descriptor, the `view` that draws it and, for a kind a line starts, the `opener` that recognizes it, in one call. A registration with no view doesn't compile, and a kind never registered errors at first use |
+| `augmentBlockKind` | Merge extra fields into a kind your own plugin registered; built-in kinds and another plugin's kinds are refused with a throw |
+| [`BlockKindRegistration`](#blockkindregistration) | What `registerBlockKind` accepts |
+| `HeightEstimateEnv` | What `estimateHeight` reads besides the block: the editor's width, its line heights and character width, the frame it adds to every block, and the floor for an unsized image |
+| [`BlockKindAugmentation`](#blockkindaugmentation) | The patch `augmentBlockKind` merges |
+| [`WriteRule`, `WriteContext`](#writerule-writecontext) | A kind's rule for making written bytes legal, and what it reads besides them |
+| [`ContainerDescriptorGroup`](#containerdescriptorgroup) | The descriptor's container-only half |
+| `MergeRole`, `ContainerUnwrapRole` | Closed sets naming how a kind merges on Backspace, and how a container releases a child at its edge |
+| `ChildRawChange` | `rebuildRaw`'s optional second argument: which one child's bytes just moved, for a rebuilder that re-emits only that region. Ignoring it and re-deriving the whole raw is always correct, just slower |
+| `ClosureBlock`, `ClosureColumn`, `ClosureCell` | The closure matrix: nine columns, one cell each, and a cell is `implemented` (name the mechanism), `inherit-default`, or `not-supported` (name the degradation). A missing column fails the typecheck |
+| `simpleLeafClosure`, `SimpleLeafClosureCells` | Closure preset for a plain text leaf: bakes the five cells every such leaf answers alike, requires the four your component determines (`focus`, `searchPaint`, `undo`, `simOracle`) |
+| `containerClosure`, `ContainerClosureCells` | Closure preset for a container of real child blocks: bakes the four structural cells plus `roundTrip: implemented`, requires the round trip's `via` string and the four the container determines |
 
 #### `BlockKindRegistration`
 
@@ -236,26 +236,26 @@ A declared title line already decides what Backspace does at its start, so its `
 
 ### Block views
 
-| Export                                                                   | Role                                                                                                                                                                                                                                                                            |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`defineBlockView`](#defineblockview)                                    | Make a view that draws into an element the editor makes for the block, no framework needed                                                                                                                                                                                      |
-| [`BlockViewSpec`](#blockviewspec)                                        | What `defineBlockView` takes, one shape per surface                                                                                                                                                                                                                             |
-| [`BlockViewContext`](#blockviewcontext)                                  | What `mount` gets                                                                                                                                                                                                                                                               |
-| `LeafSurface`                                                            | `attach(el)`, the element whose text the editor edits. It holds nothing of yours, since the editor owns its text, so chrome goes beside it. Also `reveal(offset?)` to focus it, `commitSource(text)` to replace the block's text as one undo step, and `setCommandHooks(hooks)` |
-| [`RenderPrimarySurface`](#renderprimarysurface)                          | A render-primary leaf's `ctx.leaf`: the `LeafSurface` calls plus the rendered half                                                                                                                                                                                              |
-| [`ContainerSurface`](#containersurface)                                  | A container's `ctx.container`: where the child blocks mount, plus the container helpers                                                                                                                                                                                         |
-| [`BlockViewHandle`, `LeafViewHandle`](#blockviewhandle-leafviewhandle)   | What `mount` returns                                                                                                                                                                                                                                                            |
-| `CommandHooksSurface`                                                    | `setCommandHooks(hooks)`, on the leaf and container surfaces: what a block command running on this block gets as `ctx.hooks` (open your own editor, say). The last value set wins ([commands](plugin-guide/commands.md))                                                        |
-| `AmbientPrefix`, `AmbientInteractiveRange`                               | What `ambientPrefix` returns: the marker's text, or `{ text, interactive }` with ranges of it clickable, each with its class, click handler, role and an optional tab stop ([the container walkthrough](plugin-guide/container-walkthrough.md))                                 |
-| [`HandBuiltSurface`, `HandBuiltBlock`](#handbuiltsurface-handbuiltblock) | A `'none'` view's `ctx.block`, and what you publish through it                                                                                                                                                                                                                  |
-| `svelteBlockView`                                                        | _(from `/svelte`)_ Make a view from your Svelte component, plus an optional per-node extra-props hook; a component that forgot to publish its surface fails the typecheck here                                                                                                  |
-| [`reactBlockView`, `vueBlockView`](#reactblockview-vueblockview)         | _(from `@voithos-labs/aragonite-react` and `-vue`)_ Make a view from a React or Vue component                                                                                                                                                                                   |
-| `LeafContent`, `BlockChildren`                                           | _(from the same two packages)_ The element the editor edits a leaf's text in, and the one it mounts a container's children into. Both render empty, so your chrome goes beside them                                                                                             |
-| [`useBlockHandle`](#useblockhandle)                                      | _(from the same two packages)_ How a `'none'` block's component hands the editor `focus` and friends                                                                                                                                                                            |
-| `textBlockView`                                                          | The editor's own plain text block as a view, with an optional `blockClass` on its element: for a kind that's just editable text                                                                                                                                                 |
-| `BlockView`                                                              | What draws a kind, the registration's `view`. You can't look inside one: `defineBlockView`, `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included                                                        |
-| `BlockComponent`, `BlockComponentExports`                                | The surface a block component publishes: a factory leaf's single `blockApi` export, a container's single `containerApi` export, or a hand-built leaf's own members                                                                                                              |
-| [`BlockComponentProps`](#blockcomponentprops)                            | The props every block component receives                                                                                                                                                                                                                                        |
+| Export | Role |
+| --- | --- |
+| [`defineBlockView`](#defineblockview) | Make a view that draws into an element the editor makes for the block, no framework needed |
+| [`BlockViewSpec`](#blockviewspec) | What `defineBlockView` takes, one shape per surface |
+| [`BlockViewContext`](#blockviewcontext) | What `mount` gets |
+| `LeafSurface` | `attach(el)`, the element whose text the editor edits. It holds nothing of yours, since the editor owns its text, so chrome goes beside it. Also `reveal(offset?)` to focus it, `commitSource(text)` to replace the block's text as one undo step, and `setCommandHooks(hooks)` |
+| [`RenderPrimarySurface`](#renderprimarysurface) | A render-primary leaf's `ctx.leaf`: the `LeafSurface` calls plus the rendered half |
+| [`ContainerSurface`](#containersurface) | A container's `ctx.container`: where the child blocks mount, plus the container helpers |
+| [`BlockViewHandle`, `LeafViewHandle`](#blockviewhandle-leafviewhandle) | What `mount` returns |
+| `CommandHooksSurface` | `setCommandHooks(hooks)`, on the leaf and container surfaces: what a block command running on this block gets as `ctx.hooks` (open your own editor, say). The last value set wins ([commands](plugin-guide/commands.md)) |
+| `AmbientPrefix`, `AmbientInteractiveRange` | What `ambientPrefix` returns: the marker's text, or `{ text, interactive }` with ranges of it clickable, each with its class, click handler, role and an optional tab stop ([the container walkthrough](plugin-guide/container-walkthrough.md)) |
+| [`HandBuiltSurface`, `HandBuiltBlock`](#handbuiltsurface-handbuiltblock) | A `'none'` view's `ctx.block`, and what you publish through it |
+| `svelteBlockView` | _(from `/svelte`)_ Make a view from your Svelte component, plus an optional per-node extra-props hook; a component that forgot to publish its surface fails the typecheck here |
+| [`reactBlockView`, `vueBlockView`](#reactblockview-vueblockview) | _(from `@voithos-labs/aragonite-react` and `-vue`)_ Make a view from a React or Vue component |
+| `LeafContent`, `BlockChildren` | _(from the same two packages)_ The element the editor edits a leaf's text in, and the one it mounts a container's children into. Both render empty, so your chrome goes beside them |
+| [`useBlockHandle`](#useblockhandle) | _(from the same two packages)_ How a `'none'` block's component hands the editor `focus` and friends |
+| `textBlockView` | The editor's own plain text block as a view, with an optional `blockClass` on its element: for a kind that's just editable text |
+| `BlockView` | What draws a kind, the registration's `view`. You can't look inside one: `defineBlockView`, `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included |
+| `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a factory leaf's single `blockApi` export, a container's single `containerApi` export, or a hand-built leaf's own members |
+| [`BlockComponentProps`](#blockcomponentprops) | The props every block component receives |
 
 #### `defineBlockView`
 
@@ -265,12 +265,12 @@ function defineBlockView(spec: BlockViewSpec): BlockView;
 
 Makes a view that draws into an element the editor makes for the block, no framework needed. Its `surface` says what the editor builds in there for you:
 
-| `surface`          | What the editor builds                                                                     | What you call                                                  |
-| ------------------ | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| `'none'`           | Nothing: you draw all of it                                                                | `ctx.block.publish`, to hand over `focus` and friends          |
-| `'leaf'`           | Editable text, caret, IME and undo included                                                | `ctx.leaf.attach(el)`, with the element to edit in             |
-| `'render-primary'` | The same text, behind a rendered view you draw until a click opens it (block math's shape) | `ctx.leaf.attach` and `ctx.leaf.attachRendered`                |
-| `'container'`      | The child blocks                                                                           | `ctx.container.mountChildren(box)`, with the box they mount in |
+| `surface` | What the editor builds | What you call |
+| --- | --- | --- |
+| `'none'` | Nothing: you draw all of it | `ctx.block.publish`, to hand over `focus` and friends |
+| `'leaf'` | Editable text, caret, IME and undo included | `ctx.leaf.attach(el)`, with the element to edit in |
+| `'render-primary'` | The same text, behind a rendered view you draw until a click opens it (block math's shape) | `ctx.leaf.attach` and `ctx.leaf.attachRendered` |
+| `'container'` | The child blocks | `ctx.container.mountChildren(box)`, with the box they mount in |
 
 `registerBlockKind` refuses a surface that doesn't fit the kind: a container kind takes `'container'`, anything else `'none'`, `'leaf'` or `'render-primary'`.
 
@@ -468,12 +468,12 @@ The props every block component receives:
 
 The `opener` a kind registers with teaches the parser its Markdown syntax. Where your opener sits in the priority order, and the two placement rules: [Opener priority](plugin-guide/parser.md#opener-priority).
 
-| Export                                                                                          | Role                                                                                                                   |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [`BlockOpener`, `OpenContext`, `UnfinishedReading`](#blockopener-opencontext-unfinishedreading) | The opener contract, the line cursor it inspects, and the declaration for a reading a later line can change            |
-| `BlockOpenerResult`                                                                             | A claim: the node built, plus `consumed`, the count of lines it took                                                   |
-| `OPENER_PRIORITIES`                                                                             | The built-in priorities your opener picks its own number relative to; lower dispatches first _(pre-freeze / unstable)_ |
-| [`lineStartsOuterBlock`, `OuterBlockScan`](#linestartsouterblock-outerblockscan)                | "Does this line start a block at the outer level?" _(pre-freeze / unstable)_                                           |
+| Export | Role |
+| --- | --- |
+| [`BlockOpener`, `OpenContext`, `UnfinishedReading`](#blockopener-opencontext-unfinishedreading) | The opener contract, the line cursor it inspects, and the declaration for a reading a later line can change |
+| `BlockOpenerResult` | A claim: the node built, plus `consumed`, the count of lines it took |
+| `OPENER_PRIORITIES` | The built-in priorities your opener picks its own number relative to; lower dispatches first _(pre-freeze / unstable)_ |
+| [`lineStartsOuterBlock`, `OuterBlockScan`](#linestartsouterblock-outerblockscan) | "Does this line start a block at the outer level?" _(pre-freeze / unstable)_ |
 
 #### `BlockOpener`, `OpenContext`, `UnfinishedReading`
 
@@ -526,30 +526,30 @@ lineStartsOuterBlock(lazy, { paragraphOpen: true, grammar: ctx.grammar }); // fa
 
 _(pre-freeze / unstable)_ The recipe: [Typing a multi-line construct into existence](plugin-guide/parser.md#typing-a-multi-line-construct-into-existence).
 
-| Export                   | Role                                                                                                                                                             |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `registerBlockCompleter` | Let one typed line complete into a grammar whose lines must sit adjacent, which Enter alone can never type                                                       |
-| `BlockCompleter`         | The contract: `tryComplete(line)` claims with a result, or declines with null; `onType: true` also consults it as the line is typed                              |
-| `CompletionResult`       | A claim: the lines to insert, endings omitted (the editor attaches the block's own ending, else the document's), plus where the caret lands inside the insertion |
+| Export | Role |
+| --- | --- |
+| `registerBlockCompleter` | Let one typed line complete into a grammar whose lines must sit adjacent, which Enter alone can never type |
+| `BlockCompleter` | The contract: `tryComplete(line)` claims with a result, or declines with null; `onType: true` also consults it as the line is typed |
+| `CompletionResult` | A claim: the lines to insert, endings omitted (the editor attaches the block's own ending, else the document's), plus where the caret lands inside the insertion |
 
 ### Directive authoring
 
 _(pre-freeze / unstable)_ The `:::name` grammar itself is the [directives guide](directives.md)'s subject; the worked container is [the walkthrough](plugin-guide/container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end).
 
-| Export                                                   | Role                                                                                                                                                                          |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activateDirectives`                                     | Turn the `:::name` grammar on, once at startup, before the first parse; until it runs no `:::` line parses as a directive (the pure helpers below work either way)            |
-| `registerDirective`                                      | Map a `(tier, name)` pair to one of your kinds; a container mapping must bring its node factory (`fromDirective`) and a text mapping must not, or registration throws         |
-| `isDirectiveRegistered`                                  | The is-it-there check for a directive, asked as `(tier, name)`                                                                                                                |
-| `parseDirectiveAttributes`                               | Opt-in reader pulling a `[label]` and a `{#id .class key=val}` block out of a directive's info string; one-way, it reads and never writes back                                |
-| `serializeDirective`                                     | Re-emit a directive's exact bytes from its parts (colon count, name, verbatim info string, body, closer shape), growing the fences itself so no body line reads as the closer |
-| `escalatedColonCount`                                    | The fence length a body forces, for an emitter building `:::name` text by hand instead of through `serializeDirective`                                                        |
-| [`createDirectiveRebuild`](#createdirectiverebuild)      | Build the `rebuildRaw` hook for a `:::` container                                                                                                                             |
-| `withDirectiveName`                                      | Rename a `:::` container by rewriting its opener line, for a command that switches variants through `replaceRaw`                                                              |
-| `DIRECTIVE_BODY_WRAP`                                    | The wrap every `:::` body parses with; declare it as your container kind's `bodyWrap` so a blank line against the fence stays with the fence                                  |
-| `DIRECTIVE_OPENER_LINE`                                  | The kind of every `:::` container's first row, its opener line; a `:::` kind that folds names it as `reservedChrome.kind`                                                     |
-| `DirectiveDefinition`, `ParsedDirective`                 | The registration's shape, and the parsed fence your factory receives: the fence parts, the parsed body, the exact consumed bytes                                              |
-| `DirectiveTier`, `DirectiveFence`, `DirectiveAttributes` | The three tiers (container, leaf, text), one parsed opener line, and what the attribute reader returns                                                                        |
+| Export | Role |
+| --- | --- |
+| `activateDirectives` | Turn the `:::name` grammar on, once at startup, before the first parse; until it runs no `:::` line parses as a directive (the pure helpers below work either way) |
+| `registerDirective` | Map a `(tier, name)` pair to one of your kinds; a container mapping must bring its node factory (`fromDirective`) and a text mapping must not, or registration throws |
+| `isDirectiveRegistered` | The is-it-there check for a directive, asked as `(tier, name)` |
+| `parseDirectiveAttributes` | Opt-in reader pulling a `[label]` and a `{#id .class key=val}` block out of a directive's info string; one-way, it reads and never writes back |
+| `serializeDirective` | Re-emit a directive's exact bytes from its parts (colon count, name, verbatim info string, body, closer shape), growing the fences itself so no body line reads as the closer |
+| `escalatedColonCount` | The fence length a body forces, for an emitter building `:::name` text by hand instead of through `serializeDirective` |
+| [`createDirectiveRebuild`](#createdirectiverebuild) | Build the `rebuildRaw` hook for a `:::` container |
+| `withDirectiveName` | Rename a `:::` container by rewriting its opener line, for a command that switches variants through `replaceRaw` |
+| `DIRECTIVE_BODY_WRAP` | The wrap every `:::` body parses with; declare it as your container kind's `bodyWrap` so a blank line against the fence stays with the fence |
+| `DIRECTIVE_OPENER_LINE` | The kind of every `:::` container's first row, its opener line; a `:::` kind that folds names it as `reservedChrome.kind` |
+| `DirectiveDefinition`, `ParsedDirective` | The registration's shape, and the parsed fence your factory receives: the fence parts, the parsed body, the exact consumed bytes |
+| `DirectiveTier`, `DirectiveFence`, `DirectiveAttributes` | The three tiers (container, leaf, text), one parsed opener line, and what the attribute reader returns |
 
 #### `createDirectiveRebuild`
 
@@ -571,26 +571,26 @@ container: {
 
 _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the border, the title line, an icon if you like. The factory hides everything else (child-list state, ancestor wiring, the mounting of only what's visible), so your component only has to supply the chrome. Worked end to end in [the walkthrough](plugin-guide/container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end).
 
-| Export                                                                                 | Role                                                                                                                                                                                                                                                   |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `createContainerBlock`                                                                 | _(from `/svelte`)_ Wire a nested-child-list container so your component is as thin as the built-in blockquote's                                                                                                                                        |
-| `BlockList`                                                                            | _(from `/svelte`)_ The child-list component your container renders, spread with the factory's props, as a direct child of your box                                                                                                                     |
-| `registerChromeLeaf`                                                                   | Register a container's title or summary line as a kind of its own, with a sensible default keymap. Not for a `:::` container, whose title row is its opener line (`directiveOpenerLine`), built by the grammar                                         |
-| `chromeChild`                                                                          | Build the reserved child-0 node for that line: the title text plus its newline (an empty title keeps the bare newline). Again not for a `:::` container                                                                                                |
-| `isCollapsedContainer`                                                                 | Read a container's collapse state through its descriptor, so your component and the editor's own walks agree                                                                                                                                           |
-| `rowContentRange`                                                                      | Where the title sits on a container's title line, past a `:::name` and the spaces after it, so a view reading the title skips the name                                                                                                                 |
-| [`ContainerBlock`, `ContainerBlockComponent`](#containerblock-containerblockcomponent) | _(from `/svelte`)_ What the factory returns, and the shape its `containerApi` must satisfy                                                                                                                                                             |
-| `ContainerBlockDeps`, `ContainerBlockListProps`                                        | _(from `/svelte`)_ The factory's inputs, live getters rather than captured values, and the props `BlockList` takes                                                                                                                                     |
-| [`Draft`, `DraftSpec`, `DraftCloseCause`](#draft-draftspec-draftclosecause)            | An edit your plugin holds outside the document (a textarea's text)                                                                                                                                                                                     |
-| `RefSlots`                                                                             | The per-child reference accessors the child-list props carry                                                                                                                                                                                           |
-| `ChildList`                                                                            | A container's children as the editor walks down to one: their references, their render window, and whether the body is collapsed. `containerApi.childList()` returns it; the factory builds yours, so you'd only write one for a hand-rolled container |
-| `ChromeLeafOptions`                                                                    | `registerChromeLeaf`'s options: the name a screen reader and the block menu give the line, a CSS class for styling it, keymap overrides, the merge role                                                                                                |
-| [`rebuildStripRaw`](#rebuildstripraw)                                                  | Your `rebuildRaw` for a container that puts a prefix on every line                                                                                                                                                                                     |
-| `StripRebuild`                                                                         | What `rebuildStripRaw` returns: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole. Your `rebuildRaw` returns it as it came                                                                                 |
-| `StripRebuildOptions`                                                                  | `rebuildStripRaw`'s last argument: the `changed` hint, the `previous` codec when your metadata changed the prefix, and an `opener` line                                                                                                                |
-| `quoteLines`                                                                           | The codec for `>`-prefixed lines, the one the built-in blockquote uses                                                                                                                                                                                 |
-| [`hangingIndentLines`](#hangingindentlines)                                            | Build the codec for a container written like a list item                                                                                                                                                                                               |
-| [`LineCodec`, `LinePlace`, `BodyLine`](#linecodec-lineplace-bodyline)                  | What a codec is, if neither of the two fits                                                                                                                                                                                                            |
+| Export | Role |
+| --- | --- |
+| `createContainerBlock` | _(from `/svelte`)_ Wire a nested-child-list container so your component is as thin as the built-in blockquote's |
+| `BlockList` | _(from `/svelte`)_ The child-list component your container renders, spread with the factory's props, as a direct child of your box |
+| `registerChromeLeaf` | Register a container's title or summary line as a kind of its own, with a sensible default keymap. Not for a `:::` container, whose title row is its opener line (`directiveOpenerLine`), built by the grammar |
+| `chromeChild` | Build the reserved child-0 node for that line: the title text plus its newline (an empty title keeps the bare newline). Again not for a `:::` container |
+| `isCollapsedContainer` | Read a container's collapse state through its descriptor, so your component and the editor's own walks agree |
+| `rowContentRange` | Where the title sits on a container's title line, past a `:::name` and the spaces after it, so a view reading the title skips the name |
+| [`ContainerBlock`, `ContainerBlockComponent`](#containerblock-containerblockcomponent) | _(from `/svelte`)_ What the factory returns, and the shape its `containerApi` must satisfy |
+| `ContainerBlockDeps`, `ContainerBlockListProps` | _(from `/svelte`)_ The factory's inputs, live getters rather than captured values, and the props `BlockList` takes |
+| [`Draft`, `DraftSpec`, `DraftCloseCause`](#draft-draftspec-draftclosecause) | An edit your plugin holds outside the document (a textarea's text) |
+| `RefSlots` | The per-child reference accessors the child-list props carry |
+| `ChildList` | A container's children as the editor walks down to one: their references, their render window, and whether the body is collapsed. `containerApi.childList()` returns it; the factory builds yours, so you'd only write one for a hand-rolled container |
+| `ChromeLeafOptions` | `registerChromeLeaf`'s options: the name a screen reader and the block menu give the line, a CSS class for styling it, keymap overrides, the merge role |
+| [`rebuildStripRaw`](#rebuildstripraw) | Your `rebuildRaw` for a container that puts a prefix on every line |
+| `StripRebuild` | What `rebuildStripRaw` returns: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole. Your `rebuildRaw` returns it as it came |
+| `StripRebuildOptions` | `rebuildStripRaw`'s last argument: the `changed` hint, the `previous` codec when your metadata changed the prefix, and an `opener` line |
+| `quoteLines` | The codec for `>`-prefixed lines, the one the built-in blockquote uses |
+| [`hangingIndentLines`](#hangingindentlines) | Build the codec for a container written like a list item |
+| [`LineCodec`, `LinePlace`, `BodyLine`](#linecodec-lineplace-bodyline) | What a codec is, if neither of the two fits |
 
 #### `ContainerBlock`, `ContainerBlockComponent`
 
@@ -708,15 +708,15 @@ What a codec is, if neither of the two fits:
 
 _(pre-freeze / unstable)_ The container factory's sibling for leaves; the full story is [The editable leaf](plugin-guide/editable-content.md#the-editable-leaf).
 
-| Export                                                | Role                                                                                                                                                                      |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createEditableLeaf`                                  | _(from `/svelte`)_ Wire a text-editing leaf with the editor's own caret, IME, undo, selection and clipboard; one spread wires the whole surface                           |
-| [`EditableLeaf`](#editableleaf)                       | _(from `/svelte`)_ What the factory returns                                                                                                                               |
-| `EditableLeafBlockApi`                                | The type of `leaf.blockApi`: a `BlockComponent` whose caret, selection, insert and source-commit methods are all there, so you call them without a `?.`                   |
-| `EditableLeafMode`                                    | _(from `/svelte`)_ The two modes: `'plain'` (always-editable source, per-keystroke commits) and `'render-primary'` (rendered view, reveal to edit, one commit on leaving) |
-| `EditableLeafSurfaceProps`, `EditableLeafRenderProps` | _(from `/svelte`)_ The two spreads: the source surface's, and the folded rendered view's (a render-primary block spreads both)                                            |
-| [`EditableLeafDeps`](#editableleafdeps)               | _(from `/svelte`)_ The factory's inputs                                                                                                                                   |
-| `StickyColumnDirection`                               | Which vertical direction the caret is entering your block from, handed to `focusAtColumn` so the column carries across lines                                              |
+| Export | Role |
+| --- | --- |
+| `createEditableLeaf` | _(from `/svelte`)_ Wire a text-editing leaf with the editor's own caret, IME, undo, selection and clipboard; one spread wires the whole surface |
+| [`EditableLeaf`](#editableleaf) | _(from `/svelte`)_ What the factory returns |
+| `EditableLeafBlockApi` | The type of `leaf.blockApi`: a `BlockComponent` whose caret, selection, insert and source-commit methods are all there, so you call them without a `?.` |
+| `EditableLeafMode` | _(from `/svelte`)_ The two modes: `'plain'` (always-editable source, per-keystroke commits) and `'render-primary'` (rendered view, reveal to edit, one commit on leaving) |
+| `EditableLeafSurfaceProps`, `EditableLeafRenderProps` | _(from `/svelte`)_ The two spreads: the source surface's, and the folded rendered view's (a render-primary block spreads both) |
+| [`EditableLeafDeps`](#editableleafdeps) | _(from `/svelte`)_ The factory's inputs |
+| `StickyColumnDirection` | Which vertical direction the caret is entering your block from, handed to `focusAtColumn` so the column carries across lines |
 
 #### `EditableLeaf`
 
@@ -761,18 +761,18 @@ _(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. T
 
 Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error: the fence still authors, commits and round-trips, and its body renders untokenized. A language your plugin's `setup` registers highlights, and shows in the picker, only in the editors that list your plugin. `listLanguages`, `getLanguageAliases` and `highlightCode` have no editor to ask, so they answer for every installed plugin.
 
-| Export                              | Role                                                                                                                                                                                                                                                             |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `registerLanguage`                  | Add a grammar under a name, with optional aliases; register-once, so a repeat call with the same name throws                                                                                                                                                     |
-| `listLanguages`                     | Every registered language once, under its canonical name, sorted: the rows a picker with every installed plugin offers                                                                                                                                           |
-| `getLanguageAliases`                | The other spellings a language answers to, asked by any of them: what a picker's filter matches on                                                                                                                                                               |
-| `highlightCode`                     | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface                                                                                                                            |
-| `LanguageGrammar`                   | The registry's read shape: the resolved name and its definition                                                                                                                                                                                                  |
-| `LanguageFn`                        | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep)                                                                                                                           |
-| `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence                                                                                                                           |
-| `renderFencedSource`                | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`highlightCode`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
-| `fenceBodyAsDrawn`                  | The body as `renderFencedSource` draws it: the line break before the closer belongs to the closer's line, unless the body is blank or nothing closes the fence                                                                                                   |
-| `fencedBodyRange`                   | Where the body sits in a fenced source, its line ending left out, or null while the fence has no body line yet. It's what a fenced kind returns from its descriptor's `bodyRange`                                                                                |
+| Export | Role |
+| --- | --- |
+| `registerLanguage` | Add a grammar under a name, with optional aliases; register-once, so a repeat call with the same name throws |
+| `listLanguages` | Every registered language once, under its canonical name, sorted: the rows a picker with every installed plugin offers |
+| `getLanguageAliases` | The other spellings a language answers to, asked by any of them: what a picker's filter matches on |
+| `highlightCode` | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface |
+| `LanguageGrammar` | The registry's read shape: the resolved name and its definition |
+| `LanguageFn` | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
+| `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence |
+| `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`highlightCode`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
+| `fenceBodyAsDrawn` | The body as `renderFencedSource` draws it: the line break before the closer belongs to the closer's line, unless the body is blank or nothing closes the fence |
+| `fencedBodyRange` | Where the body sits in a fenced source, its line ending left out, or null while the fence has no body line yet. It's what a fenced kind returns from its descriptor's `bodyRange` |
 
 ```ts
 import { registerLanguage } from '@voithos-labs/aragonite/plugin';
@@ -787,32 +787,32 @@ The picker shows `elixir` once, and `ex` and `exs` are search keys for that row,
 
 _(pre-freeze / unstable)_ What an inline widget, a decoration's widget or badge, and an inline menu row are drawn with. The editor makes an element, hands it to your view with that slot's props, calls `update` when the props change and `destroy` when the slot drops it. A view that throws anywhere in there costs only itself: its slot draws the fallback (the source, no widget, the default row) and the `error` event gets one report. The recipe: [Rendering it as a widget](plugin-guide/inline-kinds.md#rendering-it-as-a-widget).
 
-| Export                          | Role                                                                                                                                                                                                                                                     |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PluginView`                    | `(target, props) => handle`: draw into `target`, an element the editor made for you and removes once you're destroyed                                                                                                                                    |
-| `PluginViewHandle`              | What a view hands back, both optional: `update(props)` takes the slot's next props (leave it out and what you first drew stays), `destroy()` releases what you hold, a framework root or a listener, and a promise it returns has its rejection reported |
-| `svelteView`                    | _(from `/svelte`)_ A Svelte component as a view for any of these slots, as long as the props it declares are ones the slot passes: it's mounted into the target with the props live, so `update` re-renders only what reads a prop that changed          |
-| `reactView`, `ReactViewOptions` | _(from `@voithos-labs/aragonite-react`)_ A React component as a view for any of these slots, with the slot's props as its props; `update` re-renders it, `destroy` unmounts its root, and `wrap` hands it your providers                                 |
-| `vueView`, `VueViewOptions`     | _(from `@voithos-labs/aragonite-vue`)_ A Vue component as a view for any of these slots, given the props it declares; `update` re-renders it, and `app` hands it your app's `provide`s and plugins                                                       |
+| Export | Role |
+| --- | --- |
+| `PluginView` | `(target, props) => handle`: draw into `target`, an element the editor made for you and removes once you're destroyed |
+| `PluginViewHandle` | What a view hands back, both optional: `update(props)` takes the slot's next props (leave it out and what you first drew stays), `destroy()` releases what you hold, a framework root or a listener, and a promise it returns has its rejection reported |
+| `svelteView` | _(from `/svelte`)_ A Svelte component as a view for any of these slots, as long as the props it declares are ones the slot passes: it's mounted into the target with the props live, so `update` re-renders only what reads a prop that changed |
+| `reactView`, `ReactViewOptions` | _(from `@voithos-labs/aragonite-react`)_ A React component as a view for any of these slots, with the slot's props as its props; `update` re-renders it, `destroy` unmounts its root, and `wrap` hands it your providers |
+| `vueView`, `VueViewOptions` | _(from `@voithos-labs/aragonite-vue`)_ A Vue component as a view for any of these slots, given the props it declares; `update` re-renders it, and `app` hands it your app's `provide`s and plugins |
 
 ### Inline authoring
 
 _(pre-freeze / unstable)_ Syntax inside a paragraph: recognize it at a trigger character, render it as an **atomic widget** (one indivisible rendered thing the caret can sit beside but not inside), give it an editing policy. Several recognizers can share one trigger character; the editor asks them in priority order, and a **prefix handler** is one that's only asked where its multi-character prefix matches. The render paths and the tier's limits: [Inline kinds](plugin-guide/inline-kinds.md#inline-kinds).
 
-| Export                                                                                                             | Role                                                                                                                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `declarePluginInlineKind`                                                                                          | Create an inline kind, the one-level-down twin of `declarePluginKind`                                                                                                                                                                                     |
-| `declaredPluginInlineKind`                                                                                         | Recover a declared inline kind in another module                                                                                                                                                                                                          |
-| `registerInlineSyntax`                                                                                             | Hook the inline scanner on one trigger character with your recognizer; a reserved trigger (one a built-in owns, like `[`) takes only a prefix handler, priced below `INLINE_PRIORITIES.builtin`                                                           |
-| `INLINE_PRIORITIES`                                                                                                | The inline priority order, lower asked first: `prefixOverride` (40) outranks a reserved trigger's built-in case, `builtin` (50) is where that case sits and the ceiling a reserved-trigger prefix stays under, `plugin` (100) is the bare-trigger default |
-| `InlineSyntaxRecognizer`                                                                                           | The recognizer contract: inspect the raw at the trigger, claim a span by returning a node, or decline with null                                                                                                                                           |
-| `InlineSyntaxOptions`                                                                                              | The options bag: the multi-character `prefix`, the `priority`, `rewriteImage`, and `autoPair`                                                                                                                                                             |
-| `ImageSyntaxRewriter`, `ImageFields`                                                                               | The `rewriteImage` contract, for a registration whose recognizer builds built-in image nodes and must write edits back in its own syntax, and the edited fields it receives                                                                               |
-| `registerInlineWidgetKind`                                                                                         | Render an inline kind as a live atomic widget, drawn by the descriptor's `view`                                                                                                                                                                           |
-| `PluginInlineKind`, `InlineNode`                                                                                   | The inline kind type, and the node your recognizer builds                                                                                                                                                                                                 |
-| `InlineWidgetDescriptor`                                                                                           | The widget registration: the is-this-a-widget test, the `view` that draws it, the editing policy, and `frame` for a widget that stands as a box taller than its text, the way a picture does                                                              |
-| [`InlineWidgetComponentProps`](#inlinewidgetcomponentprops)                                                        | A widget view's props                                                                                                                                                                                                                                     |
-| [`InlineWidgetEditingPolicy`, `InlineWidgetEditingContext`](#inlinewidgeteditingpolicy-inlinewidgeteditingcontext) | How the caret, a click and the delete keys treat your widget                                                                                                                                                                                              |
+| Export | Role |
+| --- | --- |
+| `declarePluginInlineKind` | Create an inline kind, the one-level-down twin of `declarePluginKind` |
+| `declaredPluginInlineKind` | Recover a declared inline kind in another module |
+| `registerInlineSyntax` | Hook the inline scanner on one trigger character with your recognizer; a reserved trigger (one a built-in owns, like `[`) takes only a prefix handler, priced below `INLINE_PRIORITIES.builtin` |
+| `INLINE_PRIORITIES` | The inline priority order, lower asked first: `prefixOverride` (40) outranks a reserved trigger's built-in case, `builtin` (50) is where that case sits and the ceiling a reserved-trigger prefix stays under, `plugin` (100) is the bare-trigger default |
+| `InlineSyntaxRecognizer` | The recognizer contract: inspect the raw at the trigger, claim a span by returning a node, or decline with null |
+| `InlineSyntaxOptions` | The options bag: the multi-character `prefix`, the `priority`, `rewriteImage`, and `autoPair` |
+| `ImageSyntaxRewriter`, `ImageFields` | The `rewriteImage` contract, for a registration whose recognizer builds built-in image nodes and must write edits back in its own syntax, and the edited fields it receives |
+| `registerInlineWidgetKind` | Render an inline kind as a live atomic widget, drawn by the descriptor's `view` |
+| `PluginInlineKind`, `InlineNode` | The inline kind type, and the node your recognizer builds |
+| `InlineWidgetDescriptor` | The widget registration: the is-this-a-widget test, the `view` that draws it, the editing policy, and `frame` for a widget that stands as a box taller than its text, the way a picture does |
+| [`InlineWidgetComponentProps`](#inlinewidgetcomponentprops) | A widget view's props |
+| [`InlineWidgetEditingPolicy`, `InlineWidgetEditingContext`](#inlinewidgeteditingpolicy-inlinewidgeteditingcontext) | How the caret, a click and the delete keys treat your widget |
 
 #### `InlineWidgetComponentProps`
 
@@ -863,24 +863,24 @@ The policy field by field: [The editing policy](plugin-guide/inline-kinds.md#the
 
 _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-guide/commands.md#block-commands).
 
-| Export                                                                                   | Role                                                                                                                                                                                                                                                                              |
-| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`registerBlockCommand`](#registerblockcommand)                                          | Create a `(kind, name)` command and get back its id, for a keymap binding to target                                                                                                                                                                                               |
-| `registerRangeIndent`                                                                    | Let your kind's own indent command work over a selection spanning blocks: `(kind, command, shift)`, where `shift` rewrites the lines the selection covers in each of your blocks. Without it, an indent key over a range leaves your blocks alone                                 |
-| `RangeLineShift`                                                                         | That `shift`: `(node, range) => { text, selection } \| null`, over the block's text without its final line ending; null when no line changes                                                                                                                                      |
-| `registerBlockContextActions`                                                            | Add, under a name unique to `kind`, the actions a right-click on a block of `kind` offers (its context menu), ahead of the editor's own copy, replace and remove rows; listed only in the editors that activate your plugin                                                       |
-| `BlockContextAction`                                                                     | One such action: id, label, optional glyph and danger flag, and `run(ctx)`                                                                                                                                                                                                        |
-| [`BlockActionContext`](#blockactioncontext)                                              | What a context action's `run` receives                                                                                                                                                                                                                                            |
-| `BlockContextActionProvider`                                                             | The registered function: `(node, path, noun) => BlockContextAction[]`, consulted on every open; `noun` is what the menu calls the block                                                                                                                                           |
-| `registerGlobalCommand`                                                                  | Create a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id. The handler receives that editor's `EditorContext` and the argument `runCommand(id, arg)` or the chord's binding carried                             |
-| `CommandId`                                                                              | A built-in command's id; a vocabulary your keymaps may bind too. `decorations.activateAtCaret` ships with no chord at all: it runs the `onActivate` of the mark under the caret ([Interactive marks](plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)) |
-| `KeyBinding`                                                                             | One keymap entry: a chord (`Mod` / `Alt` / `Shift` plus the key, normalized to that order), a command id, an optional baked argument. A chord with an unknown modifier or no key throws when the kind registers or is augmented                                                   |
-| [`CommandRun`](#commandrun)                                                              | The third argument a block's `runCommand` gets: `afterRemoval`                                                                                                                                                                                                                    |
-| [`BlockCommandContext`, `BlockCommandHandler`](#blockcommandcontext-blockcommandhandler) | What a block command's handler receives, and the handler's signature                                                                                                                                                                                                              |
-| `BlockCommandTarget`                                                                     | What a block hands a block command to run against (the node, `updateMetadata`, `replaceRaw`, the component's hooks), and what `BlockComponent.getCommandContext` returns, so a hand-built component can let the editor run your `afterRemoval` commands in it                     |
-| `BlockCommandOptions`                                                                    | That fourth argument's type                                                                                                                                                                                                                                                       |
-| `PluginCommandId`, `AnyCommandId`                                                        | The id `registerBlockCommand` or `registerGlobalCommand` hands back, and the union of that and a built-in `CommandId`                                                                                                                                                             |
-| [`imeOwnsKey`](#imeownskey)                                                              | Whether a keydown belongs to the IME                                                                                                                                                                                                                                              |
+| Export | Role |
+| --- | --- |
+| [`registerBlockCommand`](#registerblockcommand) | Create a `(kind, name)` command and get back its id, for a keymap binding to target |
+| `registerRangeIndent` | Let your kind's own indent command work over a selection spanning blocks: `(kind, command, shift)`, where `shift` rewrites the lines the selection covers in each of your blocks. Without it, an indent key over a range leaves your blocks alone |
+| `RangeLineShift` | That `shift`: `(node, range) => { text, selection } \| null`, over the block's text without its final line ending; null when no line changes |
+| `registerBlockContextActions` | Add, under a name unique to `kind`, the actions a right-click on a block of `kind` offers (its context menu), ahead of the editor's own copy, replace and remove rows; listed only in the editors that activate your plugin |
+| `BlockContextAction` | One such action: id, label, optional glyph and danger flag, and `run(ctx)` |
+| [`BlockActionContext`](#blockactioncontext) | What a context action's `run` receives |
+| `BlockContextActionProvider` | The registered function: `(node, path, noun) => BlockContextAction[]`, consulted on every open; `noun` is what the menu calls the block |
+| `registerGlobalCommand` | Create a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id. The handler receives that editor's `EditorContext` and the argument `runCommand(id, arg)` or the chord's binding carried |
+| `CommandId` | A built-in command's id; a vocabulary your keymaps may bind too. `decorations.activateAtCaret` ships with no chord at all: it runs the `onActivate` of the mark under the caret ([Interactive marks](plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)) |
+| `KeyBinding` | One keymap entry: a chord (`Mod` / `Alt` / `Shift` plus the key, normalized to that order), a command id, an optional baked argument. A chord with an unknown modifier or no key throws when the kind registers or is augmented |
+| [`CommandRun`](#commandrun) | The third argument a block's `runCommand` gets: `afterRemoval` |
+| [`BlockCommandContext`, `BlockCommandHandler`](#blockcommandcontext-blockcommandhandler) | What a block command's handler receives, and the handler's signature |
+| `BlockCommandTarget` | What a block hands a block command to run against (the node, `updateMetadata`, `replaceRaw`, the component's hooks), and what `BlockComponent.getCommandContext` returns, so a hand-built component can let the editor run your `afterRemoval` commands in it |
+| `BlockCommandOptions` | That fourth argument's type |
+| `PluginCommandId`, `AnyCommandId` | The id `registerBlockCommand` or `registerGlobalCommand` hands back, and the union of that and a built-in `CommandId` |
+| [`imeOwnsKey`](#imeownskey) | Whether a keydown belongs to the IME |
 
 #### `registerBlockCommand`
 
@@ -978,41 +978,41 @@ textarea.addEventListener('keydown', (e) => {
 
 _(pre-freeze / unstable)_ The recipe: [Paste transforms](plugin-guide/paste-transforms.md#paste-transforms).
 
-| Export                   | Role                                                                                                                                                                                                             |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Export | Role |
+| --- | --- |
 | `registerPasteTransform` | Register a pre-parse rewrite of pasted text; transforms run at every paste site, in install order, each seeing the previous one's output (the first gets CRLF already turned to LF), and never on load or typing |
-| `PasteTransform`         | The unit: a process-unique `name`, plus `transform(text)` returning the replacement or null for "not mine"                                                                                                       |
+| `PasteTransform` | The unit: a process-unique `name`, plus `transform(text)` returning the replacement or null for "not mine" |
 
 ### Decorations
 
 _(pre-freeze / unstable)_ View-only annotations drawn over the rendered document. They live outside the tree, so they reach neither the saved bytes nor the undo stack. You register a source per editor through `editor.decorations` (your `onEditor` context). The recipe and both authoring contracts: [Decorations](plugin-guide/decorations.md#decorations).
 
-| Export                                                                       | Role                                                                                                                                                                                                                                                                                |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DecorationRegistry`                                                         | The `editor.decorations` surface; `addSource` registers a source and returns its handle                                                                                                                                                                                             |
-| `DecorationSource`                                                           | A named, pure source: `provide(document, ctx)` returns the decorations to render, and is re-run after every edit                                                                                                                                                                    |
-| `DecorationSourceHandle`                                                     | The handle back: `invalidate()` re-runs just your source, synchronously, except from an `edit` handler, where it waits for the commit to publish; `dispose()` removes it                                                                                                            |
-| `ProvideContext`                                                             | `provide`'s second argument, carrying `editEpoch`: a counter that bumps once per document change and never on `invalidate()`. Key a cached scan on it                                                                                                                               |
-| `Decoration`                                                                 | The union of the four decoration types a source may return                                                                                                                                                                                                                          |
-| `MarkDecoration`, `WidgetDecoration`, `ReplaceDecoration`, `BlockDecoration` | The four: a styled span over an inline range, a zero-width widget at an offset, a widget covering a range whose bytes stay in the document, and a whole-block treatment with an optional badge                                                                                      |
-| `MarkInteractions`                                                           | What a mark's `interactive` field takes: `onClick`, `onHover` and `onActivate`, at least one of them. A mark with `onClick` takes the click; a hover-only mark lets it through to the text. `onActivate` is the keyboard's way in, run by the `decorations.activateAtCaret` command |
-| `MarkHover`                                                                  | What `onHover` gets when the pointer enters a mark: `anchor`, the rect it entered (put your popup here), and `rects`, every rect the mark paints, all in viewport coordinates. It gets `null` once the hover's over                                                                 |
-| `DecorationWidgetSpec`                                                       | How a decoration's widget or badge renders: `{ view }`, a `PluginView` given `{ decoration }`. A widget that stays put across a re-run keeps its view, which gets `update` with the new decoration                                                                                  |
+| Export | Role |
+| --- | --- |
+| `DecorationRegistry` | The `editor.decorations` surface; `addSource` registers a source and returns its handle |
+| `DecorationSource` | A named, pure source: `provide(document, ctx)` returns the decorations to render, and is re-run after every edit |
+| `DecorationSourceHandle` | The handle back: `invalidate()` re-runs just your source, synchronously, except from an `edit` handler, where it waits for the commit to publish; `dispose()` removes it |
+| `ProvideContext` | `provide`'s second argument, carrying `editEpoch`: a counter that bumps once per document change and never on `invalidate()`. Key a cached scan on it |
+| `Decoration` | The union of the four decoration types a source may return |
+| `MarkDecoration`, `WidgetDecoration`, `ReplaceDecoration`, `BlockDecoration` | The four: a styled span over an inline range, a zero-width widget at an offset, a widget covering a range whose bytes stay in the document, and a whole-block treatment with an optional badge |
+| `MarkInteractions` | What a mark's `interactive` field takes: `onClick`, `onHover` and `onActivate`, at least one of them. A mark with `onClick` takes the click; a hover-only mark lets it through to the text. `onActivate` is the keyboard's way in, run by the `decorations.activateAtCaret` command |
+| `MarkHover` | What `onHover` gets when the pointer enters a mark: `anchor`, the rect it entered (put your popup here), and `rects`, every rect the mark paints, all in viewport coordinates. It gets `null` once the hover's over |
+| `DecorationWidgetSpec` | How a decoration's widget or badge renders: `{ view }`, a `PluginView` given `{ decoration }`. A widget that stays put across a re-run keeps its view, which gets `update` with the new decoration |
 
 ### Inline menus
 
 _(pre-freeze / unstable)_ A list the editor opens under the caret while the author types after a trigger: `#` for a tag, `[[` for a link to another document. You register a source per editor through `editor.inlineMenus` (your `onEditor` context); a host that owns the data reaches the same registry as `getInlineMenus()`. The editor owns the session: it notices the typed trigger, holds the arrow keys, Enter, Tab and Escape while a list is up, anchors the list to the typed range, and writes the pick over the trigger and the query as one undo entry. The caret never leaves the document. The recipe: [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu).
 
-| Export                                      | Role                                                                                                                                                                                     |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`InlineMenuRegistry`](#inlinemenuregistry) | The `editor.inlineMenus` surface                                                                                                                                                         |
-| [`InlineMenuSource`](#inlinemenusource)     | A named source: its trigger, its list, and what happens around a pick                                                                                                                    |
-| `InlineMenuOpenOptions`                     | `open`'s second argument: a `query` typed after the trigger, so the list opens already narrowed                                                                                          |
-| `InlineMenuSourceHandle`                    | The handle back: `dispose()` removes the source and closes its list                                                                                                                      |
-| [`InlineMenuItem`](#inlinemenuitem)         | One row of the list                                                                                                                                                                      |
-| [`InlineMenuCommit`](#inlinemenucommit)     | What `onCommit` gets as its third argument                                                                                                                                               |
-| `InlineMenuQuery`                           | What `items` is asked: the `query` typed so far, the leaf's `path`, the raw range `[start, end)` a pick would replace, and a `signal` aborted once a later keystroke supersedes the read |
-| `InlineMenuRowProps`                        | What a `row` view receives, at mount and on each `update`: the `item`, whether it is `active`, and the `query` (for highlighting the match)                                              |
+| Export | Role |
+| --- | --- |
+| [`InlineMenuRegistry`](#inlinemenuregistry) | The `editor.inlineMenus` surface |
+| [`InlineMenuSource`](#inlinemenusource) | A named source: its trigger, its list, and what happens around a pick |
+| `InlineMenuOpenOptions` | `open`'s second argument: a `query` typed after the trigger, so the list opens already narrowed |
+| `InlineMenuSourceHandle` | The handle back: `dispose()` removes the source and closes its list |
+| [`InlineMenuItem`](#inlinemenuitem) | One row of the list |
+| [`InlineMenuCommit`](#inlinemenucommit) | What `onCommit` gets as its third argument |
+| `InlineMenuQuery` | What `items` is asked: the `query` typed so far, the leaf's `path`, the raw range `[start, end)` a pick would replace, and a `signal` aborted once a later keystroke supersedes the read |
+| `InlineMenuRowProps` | What a `row` view receives, at mount and on each `update`: the `item`, whether it is `active`, and the `query` (for highlighting the match) |
 
 #### `InlineMenuRegistry`
 
@@ -1104,23 +1104,23 @@ What `onCommit` gets as its third argument: your plugin's `EditorContext` scoped
 
 _(pre-freeze / unstable)_ The blocks the insert menus offer: the built-in lists, quote, divider, code block and table, then the blocks plugins add. Read it through `editor.insertCatalogue` (your `onEditor` context); a host reads the same list as `getInsertCatalogue()`.
 
-| Export                | Role                                                                                                                                                                               |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Export | Role |
+| --- | --- |
 | `registerInsertEntry` | Add your block to every insert menu, called from `setup`. It is listed only in the editors that activate your plugin. Throws on a duplicate id and on an icon the menu cannot draw |
-| `InsertEntry`         | One entry: an `id`, a `label`, an `icon`, `keywords` a filter should also match, its `markdown`, and an optional `withArgument` giving the Markdown and dim text for `/table 3x4`  |
-| `MenuIconName`        | The glyph names a menu row can draw                                                                                                                                                |
+| `InsertEntry` | One entry: an `id`, a `label`, an `icon`, `keywords` a filter should also match, its `markdown`, and an optional `withArgument` giving the Markdown and dim text for `/table 3x4` |
+| `MenuIconName` | The glyph names a menu row can draw |
 
 ### Events
 
 _(pre-freeze / unstable)_ The payloads `EditorContext.events` delivers to an `on(name, handler)` subscription. The channel itself: [The plugin unit](plugin-guide.md#the-plugin-unit).
 
-| Export                                | Role                                                                                                                                                                  |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EditorEventMap`                      | Event name to payload, so a handler you declare apart from the `on` call still types                                                                                  |
-| `EditEvent`                           | The `edit` payload: `op`, the `path` it landed at, a per-op `detail`, and a `timestamp`. `op` and `detail` are correlated, so narrowing `op` narrows `detail` with it |
-| `OperationKind`                       | The structural-operation vocabulary `EditEvent.op` draws from                                                                                                         |
-| `SelectionChangeEvent`, `EditorError` | The other two payloads worth naming: the anchor/focus pair (or null), and a contained failure with its `origin` and context                                           |
-| `SourceSwapEvent`                     | The `sourceSwap` payload: the `generation` a `source` write replaced the document at                                                                                  |
+| Export | Role |
+| --- | --- |
+| `EditorEventMap` | Event name to payload, so a handler you declare apart from the `on` call still types |
+| `EditEvent` | The `edit` payload: `op`, the `path` it landed at, a per-op `detail`, and a `timestamp`. `op` and `detail` are correlated, so narrowing `op` narrows `detail` with it |
+| `OperationKind` | The structural-operation vocabulary `EditEvent.op` draws from |
+| `SelectionChangeEvent`, `EditorError` | The other two payloads worth naming: the anchor/focus pair (or null), and a contained failure with its `origin` and context |
+| `SourceSwapEvent` | The `sourceSwap` payload: the `generation` a `source` write replaced the document at |
 
 ### Rects
 
@@ -1156,11 +1156,11 @@ await editor.rects.navigateTo([4], 12); // true once block 4 is on screen with t
 
 _(pre-freeze / unstable)_ What a kind fills its descriptor's `caretTargetAtPoint` with. The rendered view and the source are different strings, so only your kind knows how a press on one lines up with the other; these three are the pieces that don't depend on your grammar. The worked example is the quickstart's parrot: [The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes).
 
-| Export                                      | Role                                                                                                                      |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| [`caretOffsetAtPoint`](#caretoffsetatpoint) | The character offset in one of your own elements nearest a viewport point                                                 |
-| `CaretTarget`                               | What the hook answers: the child path to the leaf (empty when your block is the leaf) and the offset inside it            |
-| `CURSOR_END`, `CursorEnd`                   | The offset meaning "wherever that leaf ends", and its type; a plain `0` is the other end, since that one is a real offset |
+| Export | Role |
+| --- | --- |
+| [`caretOffsetAtPoint`](#caretoffsetatpoint) | The character offset in one of your own elements nearest a viewport point |
+| `CaretTarget` | What the hook answers: the child path to the leaf (empty when your block is the leaf) and the offset inside it |
+| `CURSOR_END`, `CursorEnd` | The offset meaning "wherever that leaf ends", and its type; a plain `0` is the other end, since that one is a real offset |
 
 #### `caretOffsetAtPoint`
 
@@ -1208,10 +1208,10 @@ That is what mermaid does: unfocused, a drag on the diagram selects like it woul
 
 _(pre-freeze / unstable)_ The selection shapes a decoration source or geometry consumer reads.
 
-| Export                                                                 | Role                                                                                                                  |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| [`EditorSelection`, `SelectionPoint`](#editorselection-selectionpoint) | The `selectionChange` payload, and one endpoint of it                                                                 |
-| `SELECTION_END`, `SelectionEnd`                                        | The importable "through the end of this block's measurable content" value `rangeRects` accepts as `end`, and its type |
+| Export | Role |
+| --- | --- |
+| [`EditorSelection`, `SelectionPoint`](#editorselection-selectionpoint) | The `selectionChange` payload, and one endpoint of it |
+| `SELECTION_END`, `SelectionEnd` | The importable "through the end of this block's measurable content" value `rangeRects` accepts as `end`, and its type |
 
 #### `EditorSelection`, `SelectionPoint`
 
@@ -1237,31 +1237,31 @@ The consumer side of the same shape: [the consumer guide](consumer-guide.md#read
 
 _(pre-freeze / unstable)_ The editor's own parse and serialize entries, re-exported here so an opener or a transform never digs into the package's internals.
 
-| Export                                                                             | Role                                                                                                                                                                                                                                      |
-| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parse`                                                                            | Parse a body of Markdown into a document you can lift children from                                                                                                                                                                       |
-| `ParseScope`                                                                       | What a parse entry is told about its input: a whole document, or one block's bytes (`'fragment'`)                                                                                                                                         |
-| [`parseContainerBody`, `ContainerBodyWrap`](#parsecontainerbody-containerbodywrap) | Parse a body that sits between your container's own fence lines                                                                                                                                                                           |
-| `serialize`                                                                        | A whole document back to its exact source bytes                                                                                                                                                                                           |
-| `serializeChildren`                                                                | Child nodes joined back into their exact source bytes                                                                                                                                                                                     |
-| `Document`                                                                         | The parsed-document shape both parse entries return                                                                                                                                                                                       |
-| `splitLines`                                                                       | Split source into the parsed lines every line-scoped helper here consumes                                                                                                                                                                 |
-| `ParsedLine`                                                                       | One source line: its text, its bytes with the ending, the ending itself, its offsets                                                                                                                                                      |
-| `isBlankLine`                                                                      | The GFM blank-line test, spaces and tabs only. `trim()` isn't a stand-in: it would let a pasted non-breaking space split a block                                                                                                          |
-| `isBlankText`                                                                      | The same test over a whole block's text, line breaks allowed: the "is this block empty?" check, where a non-breaking space someone typed still counts as content                                                                          |
-| `isWhitespaceChar`                                                                 | Whether one character is Markdown whitespace: a space, a tab, a line-break character, a vertical tab or a form feed, never a non-breaking space. Ask this where your grammar would've reached for `/\s/`                                  |
-| `trimWhitespace`                                                                   | `trim()`, but Markdown's: the characters `isWhitespaceChar` accepts come off both ends, and a non-breaking space stays. Use it on an info string or a caption before you show it                                                          |
-| `isUnicodeWhitespace`                                                              | Whether one character is the Unicode whitespace emphasis reads beside a `*`: a space, a tab, a line break, a form feed or any space separator, the non-breaking space included. Ask this beside a delimiter of your own, like latex's `$` |
-| `trimTrailingLineEnding`                                                           | Cut the one trailing line ending (LF or CRLF) off a block's bytes, giving the text you display                                                                                                                                            |
-| `ownTrailingLineEnding`                                                            | The ending a block's bytes close with (`''` when they have none): what you put back after editing the display                                                                                                                             |
-| `trailingLineEnding`                                                               | The ending a line rebuilt from a block's bytes takes: the block's own, else the fallback you pass (a write rule's or a context action's `ctx.lineEnding`, or `documentLineEnding` of a document you hold)                                 |
-| `firstLineEnding`                                                                  | The first line break in some bytes, or `null`. In a document with one ending (nearly all of them), any break in your block's bytes is the document's                                                                                      |
-| `documentLineEnding`                                                               | The ending every line written into a document takes: its first line break, else LF                                                                                                                                                        |
-| `LineEnding`                                                                       | `'\n'` or `'\r\n'`                                                                                                                                                                                                                        |
-| `displayLines`                                                                     | A block's display as lines, each line's text apart from its ending, so a `\r` never reaches a line match                                                                                                                                  |
-| `joinDisplayLines`                                                                 | Lines from `displayLines` back into their exact bytes                                                                                                                                                                                     |
-| `normalizeLineEndings`                                                             | CRLF to LF, for text arriving from outside the document (a plugin-owned input surface)                                                                                                                                                    |
-| `withLineEnding`                                                                   | Every line break in some LF text rewritten as the ending you pass, for text coming back from a plugin-owned input into the document                                                                                                       |
+| Export | Role |
+| --- | --- |
+| `parse` | Parse a body of Markdown into a document you can lift children from |
+| `ParseScope` | What a parse entry is told about its input: a whole document, or one block's bytes (`'fragment'`) |
+| [`parseContainerBody`, `ContainerBodyWrap`](#parsecontainerbody-containerbodywrap) | Parse a body that sits between your container's own fence lines |
+| `serialize` | A whole document back to its exact source bytes |
+| `serializeChildren` | Child nodes joined back into their exact source bytes |
+| `Document` | The parsed-document shape both parse entries return |
+| `splitLines` | Split source into the parsed lines every line-scoped helper here consumes |
+| `ParsedLine` | One source line: its text, its bytes with the ending, the ending itself, its offsets |
+| `isBlankLine` | The GFM blank-line test, spaces and tabs only. `trim()` isn't a stand-in: it would let a pasted non-breaking space split a block |
+| `isBlankText` | The same test over a whole block's text, line breaks allowed: the "is this block empty?" check, where a non-breaking space someone typed still counts as content |
+| `isWhitespaceChar` | Whether one character is Markdown whitespace: a space, a tab, a line-break character, a vertical tab or a form feed, never a non-breaking space. Ask this where your grammar would've reached for `/\s/` |
+| `trimWhitespace` | `trim()`, but Markdown's: the characters `isWhitespaceChar` accepts come off both ends, and a non-breaking space stays. Use it on an info string or a caption before you show it |
+| `isUnicodeWhitespace` | Whether one character is the Unicode whitespace emphasis reads beside a `*`: a space, a tab, a line break, a form feed or any space separator, the non-breaking space included. Ask this beside a delimiter of your own, like latex's `$` |
+| `trimTrailingLineEnding` | Cut the one trailing line ending (LF or CRLF) off a block's bytes, giving the text you display |
+| `ownTrailingLineEnding` | The ending a block's bytes close with (`''` when they have none): what you put back after editing the display |
+| `trailingLineEnding` | The ending a line rebuilt from a block's bytes takes: the block's own, else the fallback you pass (a write rule's or a context action's `ctx.lineEnding`, or `documentLineEnding` of a document you hold) |
+| `firstLineEnding` | The first line break in some bytes, or `null`. In a document with one ending (nearly all of them), any break in your block's bytes is the document's |
+| `documentLineEnding` | The ending every line written into a document takes: its first line break, else LF |
+| `LineEnding` | `'\n'` or `'\r\n'` |
+| `displayLines` | A block's display as lines, each line's text apart from its ending, so a `\r` never reaches a line match |
+| `joinDisplayLines` | Lines from `displayLines` back into their exact bytes |
+| `normalizeLineEndings` | CRLF to LF, for text arriving from outside the document (a plugin-owned input surface) |
+| `withLineEnding` | Every line break in some LF text rewritten as the ending you pass, for text coming back from a plugin-owned input into the document |
 
 #### `parseContainerBody`, `ContainerBodyWrap`
 
@@ -1291,20 +1291,20 @@ const body = parseContainerBody(
 
 _(pre-freeze / unstable)_ The built-in rules for three grammars a plugin commonly claims, exported so you reuse them instead of forking the spec (the spec is longer than it looks, every time, trust me).
 
-| Export                                                                                        | Role                                                                                                                                                                                                                                                       |
-| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `matchFenceOpen`                                                                              | Recognize a CommonMark code-fence opener line, keeping the verbatim indent and info bytes a byte-exact rebuild needs                                                                                                                                       |
-| `matchFenceClose`                                                                             | Is this line the closer for a matched opener (same marker, at least its run length)?                                                                                                                                                                       |
-| `escalatedFenceLength`                                                                        | The fence run a body forces so none of its lines reads as the closer; a floor, never a shortening. A kind that rebuilds its own raw around a body has to apply it, and grow the closer to match                                                            |
-| `FenceOpen`                                                                                   | A matched opener: marker, run length, trimmed `info`, verbatim `indent` and `infoRaw`                                                                                                                                                                      |
-| `matchFenceInfo`                                                                              | Build an opener matcher that claims only fences whose info string's first word is your token: `matchFenceInfo('mermaid')` is how the bundled diagram kind takes ` ```mermaid ` from the code block                                                         |
-| `findFenceCloser`, `FenceRun`                                                                 | The index of the first line in a range that closes a fence of that marker and run length (the closer the parser would pick), or -1                                                                                                                         |
-| `scanFence`, `FenceScan`                                                                      | A fence's extent from its opener line, as an opener's `tryOpen` needs it: the closer's index (-1 when nothing closes it), the lines consumed, the exact bytes, and the body between the fence lines                                                        |
-| `fenceAnatomy`, `FenceAnatomy`                                                                | Where a fenced block's parts sit in its bytes: the opener's indent, marker run and info string, the body, and the closer line; null when the first line opens no fence                                                                                     |
-| [`fenceRawWrite`, `fenceShapeOfRaw`, `FenceShape`](#fencerawwrite-fenceshapeofraw-fenceshape) | The code block's write rule, for any kind that holds its own fence                                                                                                                                                                                         |
-| `fenceReading`                                                                                | The fence's `readingNotFinal`: declare it on an opener that claims a fence, and an edit that moves where your fence closes re-pairs every fence below it the way a reload does                                                                             |
-| `htmlBlockTagLineMatcher`                                                                     | Build a recognizer answering `'open'`, `'close'`, or null for one tag name's HTML block line, in every spelling the spec passes through (indented, upper-cased, trailing space), not just the canonical one                                                |
-| `blockquoteExtent`                                                                            | Scan a blockquote's full extent (CommonMark lazy continuation) from a start line: its exact bytes plus the index past it (a slice bound, not a consumed count), no child decomposition. Its optional grammar argument defaults to every installed plugin's |
+| Export | Role |
+| --- | --- |
+| `matchFenceOpen` | Recognize a CommonMark code-fence opener line, keeping the verbatim indent and info bytes a byte-exact rebuild needs |
+| `matchFenceClose` | Is this line the closer for a matched opener (same marker, at least its run length)? |
+| `escalatedFenceLength` | The fence run a body forces so none of its lines reads as the closer; a floor, never a shortening. A kind that rebuilds its own raw around a body has to apply it, and grow the closer to match |
+| `FenceOpen` | A matched opener: marker, run length, trimmed `info`, verbatim `indent` and `infoRaw` |
+| `matchFenceInfo` | Build an opener matcher that claims only fences whose info string's first word is your token: `matchFenceInfo('mermaid')` is how the bundled diagram kind takes ` ```mermaid ` from the code block |
+| `findFenceCloser`, `FenceRun` | The index of the first line in a range that closes a fence of that marker and run length (the closer the parser would pick), or -1 |
+| `scanFence`, `FenceScan` | A fence's extent from its opener line, as an opener's `tryOpen` needs it: the closer's index (-1 when nothing closes it), the lines consumed, the exact bytes, and the body between the fence lines |
+| `fenceAnatomy`, `FenceAnatomy` | Where a fenced block's parts sit in its bytes: the opener's indent, marker run and info string, the body, and the closer line; null when the first line opens no fence |
+| [`fenceRawWrite`, `fenceShapeOfRaw`, `FenceShape`](#fencerawwrite-fenceshapeofraw-fenceshape) | The code block's write rule, for any kind that holds its own fence |
+| `fenceReading` | The fence's `readingNotFinal`: declare it on an opener that claims a fence, and an edit that moves where your fence closes re-pairs every fence below it the way a reload does |
+| `htmlBlockTagLineMatcher` | Build a recognizer answering `'open'`, `'close'`, or null for one tag name's HTML block line, in every spelling the spec passes through (indented, upper-cased, trailing space), not just the canonical one |
+| `blockquoteExtent` | Scan a blockquote's full extent (CommonMark lazy continuation) from a start line: its exact bytes plus the index past it (a slice bound, not a consumed count), no child decomposition. Its optional grammar argument defaults to every installed plugin's |
 
 #### `fenceRawWrite`, `fenceShapeOfRaw`, `FenceShape`
 
@@ -1331,17 +1331,17 @@ rule.normalize('```\na\n```\nb\n```\n', ctx); // '````\na\n```\nb\n````\n', both
 
 _(pre-freeze / unstable, beyond the stable metadata pair `setPluginMetadata` / `getPluginMetadata`)_ The document tree from a plugin's side of the glass: what you read arrives read-only, and what you build yourself stays writable ([Views](plugin-guide.md#views-what-you-read-what-you-own)).
 
-| Export                                                 | Role                                                                                                                           |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `CstNode`                                              | The writable tree-node shape you construct: what a factory builds and a `rebuildRaw` mutates                                   |
-| `NodeView`, `DocumentView`                             | The read-only views every read surface hands you. Writing bytes through one is a compile error                                 |
-| `setPluginMetadata`, `getPluginMetadata`               | Store and read your kind's own typed per-node data, no casting; keep the stored shape primitive-valued                         |
-| `getContentRange`, `ContentRange`                      | The content span inside a block's raw, syntax markers excluded (a heading's `#`s at either end, a setext underline)            |
-| `headingLevel`                                         | A heading's level, ATX or setext, null for anything else: the outline read a table-of-contents plugin wants                    |
-| [`computeInlineContent`](#computeinlinecontent)        | Inline-parse a prose leaf with every installed plugin's syntax, for a pipeline with no editor mounted                          |
-| `isProseKind`                                          | Does this kind host inline content? The gate that keeps a code block's bytes out of an inline walk                             |
-| [`walkBlocks`, `WalkControl`](#walkblocks-walkcontrol) | Visit every block under a document or a block, parents first                                                                   |
-| `blockNodeAt`                                          | The block at a path, or null when there's none. The empty path is the document itself, which isn't a block, so that's null too |
+| Export | Role |
+| --- | --- |
+| `CstNode` | The writable tree-node shape you construct: what a factory builds and a `rebuildRaw` mutates |
+| `NodeView`, `DocumentView` | The read-only views every read surface hands you. Writing bytes through one is a compile error |
+| `setPluginMetadata`, `getPluginMetadata` | Store and read your kind's own typed per-node data, no casting; keep the stored shape primitive-valued |
+| `getContentRange`, `ContentRange` | The content span inside a block's raw, syntax markers excluded (a heading's `#`s at either end, a setext underline) |
+| `headingLevel` | A heading's level, ATX or setext, null for anything else: the outline read a table-of-contents plugin wants |
+| [`computeInlineContent`](#computeinlinecontent) | Inline-parse a prose leaf with every installed plugin's syntax, for a pipeline with no editor mounted |
+| `isProseKind` | Does this kind host inline content? The gate that keeps a code block's bytes out of an inline walk |
+| [`walkBlocks`, `WalkControl`](#walkblocks-walkcontrol) | Visit every block under a document or a block, parents first |
+| `blockNodeAt` | The block at a path, or null when there's none. The empty path is the document itself, which isn't a block, so that's null too |
 
 #### `computeInlineContent`
 
@@ -1381,15 +1381,15 @@ walkBlocks(parse('# Plans\n\n> ## Secret plans\n> nap\n'), (node, path) => {
 
 _(pre-freeze / unstable)_ For a block or widget drawn by a library the host hands your plugin (KaTeX, mermaid). A **renderer slot** is the one place that library plugs in: your plugin's setup calls `set`, your component calls `render`, and the slot handles the caching and the fallbacks. The [render-primary recipe](plugin-guide/render-primary.md#recipe-a-render-primary-block) walks through one.
 
-| Export                                          | Role                                                                                                                                                                                                                                                       |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`createRendererSlot`](#createrendererslot)     | A slot for a renderer that answers right away                                                                                                                                                                                                              |
-| `createAsyncRendererSlot`                       | The same for a renderer that returns a promise. The promise is what's cached, so two blocks asking for one diagram share a single call, and a rejection resolves through `failed`                                                                          |
-| `RendererSlot`, `AsyncRendererSlot`             | What the two hand back: `set(renderer)` (`null` removes it, and either way the cache empties), `configured`, and `render(input, ctx)`. `resetPluginPlatformForTests` removes the renderer too                                                              |
-| `RendererSlotSpec`                              | What you pass either one: `key`, `missing`, `failed`, and an optional `cap` (256 renders by default)                                                                                                                                                       |
-| `SyncRendererSlotSpec`                          | `createRendererSlot`'s spec: a `RendererSlotSpec` plus an optional `cloneOnRead(value)`, which hands each caller its own copy of a cached value. The async slot caches a promise, so it has no use for one                                                 |
-| `RenderContext`                                 | `{ theme }`, the second argument to every `render` and to your renderer. It's required, so nothing gets drawn or cached without a theme. Read the theme with `getTheme()` inside your render effect, since that read is what redraws the block on a switch |
-| [`renderSourceFallback`](#rendersourcefallback) | The typed source in the code font, with a message on hover: a decent fallback output                                                                                                                                                                       |
+| Export | Role |
+| --- | --- |
+| [`createRendererSlot`](#createrendererslot) | A slot for a renderer that answers right away |
+| `createAsyncRendererSlot` | The same for a renderer that returns a promise. The promise is what's cached, so two blocks asking for one diagram share a single call, and a rejection resolves through `failed` |
+| `RendererSlot`, `AsyncRendererSlot` | What the two hand back: `set(renderer)` (`null` removes it, and either way the cache empties), `configured`, and `render(input, ctx)`. `resetPluginPlatformForTests` removes the renderer too |
+| `RendererSlotSpec` | What you pass either one: `key`, `missing`, `failed`, and an optional `cap` (256 renders by default) |
+| `SyncRendererSlotSpec` | `createRendererSlot`'s spec: a `RendererSlotSpec` plus an optional `cloneOnRead(value)`, which hands each caller its own copy of a cached value. The async slot caches a promise, so it has no use for one |
+| `RenderContext` | `{ theme }`, the second argument to every `render` and to your renderer. It's required, so nothing gets drawn or cached without a theme. Read the theme with `getTheme()` inside your render effect, since that read is what redraws the block on a switch |
+| [`renderSourceFallback`](#rendersourcefallback) | The typed source in the code font, with a message on hover: a decent fallback output |
 
 #### `createRendererSlot`
 
@@ -1436,11 +1436,11 @@ el.style.color = 'var(--color-error)'; // a span reading `$x^$`, the message in 
 
 _(pre-freeze / unstable)_ Two small tools: the cache under the renderer slot, and a scan index the inline recognizers lean on.
 
-| Export               | Role                                                                                                                                                                                                           |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createBoundedMemo`  | A bounded, least-recently-used memo for per-source work. Async work stores the promise (in-flight renders shared, failures cached like successes); `cloneOnRead` covers a cached value holding a live DOM node |
-| `BoundedMemoOptions` | The memo's options: the entry `cap`, the optional `cloneOnRead`                                                                                                                                                |
-| `createScanIndex`    | Turn a per-block position collector into a "first candidate at or after this offset" lookup (-1 when none), so a recognizer's decline costs one block scan instead of one per trigger                          |
+| Export | Role |
+| --- | --- |
+| `createBoundedMemo` | A bounded, least-recently-used memo for per-source work. Async work stores the promise (in-flight renders shared, failures cached like successes); `cloneOnRead` covers a cached value holding a live DOM node |
+| `BoundedMemoOptions` | The memo's options: the entry `cap`, the optional `cloneOnRead` |
+| `createScanIndex` | Turn a per-block position collector into a "first candidate at or after this offset" lookup (-1 when none), so a recognizer's decline costs one block scan instead of one per trigger |
 
 ---
 

@@ -83,27 +83,27 @@ Over a grid the walk is per covered cell: a whole-table selection across a 180k-
 
 Three commands measure the editor over shared deterministic fixtures, and exactly one of them is a gate. Work out which one you're looking at before you panic about a number.
 
-| Command               | Layer          | What it does                                                                                                               |
-| --------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `npm run perf:editor` | bench (Vitest) | parse / clone / ancestry-rebuild / snapshot-push timings, written to `perf-results/`                                       |
-| `npm run perf:e2e`    | browser        | fixture load wall-time plus per-keystroke p50/p95 through real Chromium; report only                                       |
-| `npm run perf:check`  | **the gate**   | builds the app, previews it, and gates keystroke p50 against `baseline.json` on that production build; fails on regression |
+| Command | Layer | What it does |
+| --- | --- | --- |
+| `npm run perf:editor` | bench (Vitest) | parse / clone / ancestry-rebuild / snapshot-push timings, written to `perf-results/` |
+| `npm run perf:e2e` | browser | fixture load wall-time plus per-keystroke p50/p95 through real Chromium; report only |
+| `npm run perf:check` | **the gate** | builds the app, previews it, and gates keystroke p50 against `baseline.json` on that production build; fails on regression |
 
 The browser and gate scripts arm their own env switches (`PERF`, plus `PERF_GATE` and `PERF_PROD` for the gate). Outside them, in the full `npm test` suite for instance, the `e2e-perf` specs self-skip in seconds.
 
 ### What is gated, what is report-only
 
-| Rows                                                                                                     | Status          | Enforced by                                                                                                                                                                                                                                                  |
-| -------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `e2e` keystroke p50 (`GATED_ROWS` and `CONTAINER_INTERIOR_ROWS`)                                         | **Gated**       | `npm run perf:check`, over a production build; deliberate, not in `npm test`. Ceiling = baseline × 1.1 + 5 ms, × `PERF_RUNNER_SCALE` (1 locally, the tight gate; CI sets 2.5)                                                                                |
-| `flat-prose-10MB-structural` (a top-level Enter and Backspace)                                           | **Gated**       | `npm run perf:check`, the same ceiling formula over the p50 per edit. A top-level split or merge rebuilds the whole windowing model, which no typed character does, so a change that makes one read the whole document reds this row                         |
-| `caret-frame` rows A and B (the drawn caret lands with the letter, on the browser's caret box)           | **Gated**       | `npm run perf:check` and `perf:e2e`, as counts with no baseline, typing a key a frame into 1MB documents: zero frames where the drawn caret trails the letter by a pixel, a largest difference of a pixel, and zero frame paints that moved the bar          |
-| `caret-frame` row C (moves the browser makes: arrows, ArrowDown in a block, clicks)                      | **Gated**       | The same runs, at most the blessed `caretFrame.browserMoves.lagFramesPerMove` lagging frames per move in `baseline.json`                                                                                                                                     |
-| `counters` (structural amplification, clone byte parity, quote and list item line reads)                 | **Gated**       | Hard ceilings in `counters.test.ts`, inside the commit gate (`test:editor:perf`, which `npm test` runs); `amplification.test.ts` is its report-only sibling that logs the factors. Clone byte parity: a clone serializes to exactly its source's byte length |
-| `parse`, `snapshot*`, `ancestryRebuild`                                                                  | **Report-only** | Nothing; dev references, environment-sensitive, read them as orders of magnitude, not targets (see baseline.json's own note)                                                                                                                                 |
-| p95, and the `single-giant-paragraph` rows                                                               | **Report-only** | Nothing; p95 catches single GC-pause keystrokes and is noisy, and the giant paragraph is the first axis above                                                                                                                                                |
-| `rung-*` (an installed inline syntax handler)                                                            | **Report-only** | Nothing; printed by `npm run perf:e2e`, skipped by the gate (why: below)                                                                                                                                                                                     |
-| `arrival-widget-only`, `arrival-mixed` (an arrow into a paragraph of widgets, alone or after one letter) | **Report-only** | Nothing; printed by `npm run perf:e2e`, skipped by the gate. The two rows that time an arrow rather than a keystroke                                                                                                                                         |
+| Rows | Status | Enforced by |
+| --- | --- | --- |
+| `e2e` keystroke p50 (`GATED_ROWS` and `CONTAINER_INTERIOR_ROWS`) | **Gated** | `npm run perf:check`, over a production build; deliberate, not in `npm test`. Ceiling = baseline × 1.1 + 5 ms, × `PERF_RUNNER_SCALE` (1 locally, the tight gate; CI sets 2.5) |
+| `flat-prose-10MB-structural` (a top-level Enter and Backspace) | **Gated** | `npm run perf:check`, the same ceiling formula over the p50 per edit. A top-level split or merge rebuilds the whole windowing model, which no typed character does, so a change that makes one read the whole document reds this row |
+| `caret-frame` rows A and B (the drawn caret lands with the letter, on the browser's caret box) | **Gated** | `npm run perf:check` and `perf:e2e`, as counts with no baseline, typing a key a frame into 1MB documents: zero frames where the drawn caret trails the letter by a pixel, a largest difference of a pixel, and zero frame paints that moved the bar |
+| `caret-frame` row C (moves the browser makes: arrows, ArrowDown in a block, clicks) | **Gated** | The same runs, at most the blessed `caretFrame.browserMoves.lagFramesPerMove` lagging frames per move in `baseline.json` |
+| `counters` (structural amplification, clone byte parity, quote and list item line reads) | **Gated** | Hard ceilings in `counters.test.ts`, inside the commit gate (`test:editor:perf`, which `npm test` runs); `amplification.test.ts` is its report-only sibling that logs the factors. Clone byte parity: a clone serializes to exactly its source's byte length |
+| `parse`, `snapshot*`, `ancestryRebuild` | **Report-only** | Nothing; dev references, environment-sensitive, read them as orders of magnitude, not targets (see baseline.json's own note) |
+| p95, and the `single-giant-paragraph` rows | **Report-only** | Nothing; p95 catches single GC-pause keystrokes and is noisy, and the giant paragraph is the first axis above |
+| `rung-*` (an installed inline syntax handler) | **Report-only** | Nothing; printed by `npm run perf:e2e`, skipped by the gate (why: below) |
+| `arrival-widget-only`, `arrival-mixed` (an arrow into a paragraph of widgets, alone or after one letter) | **Report-only** | Nothing; printed by `npm run perf:e2e`, skipped by the gate. The two rows that time an arrow rather than a keystroke |
 
 A gated row and the ceiling the formula gives it, from the 2026-08-26 bless:
 

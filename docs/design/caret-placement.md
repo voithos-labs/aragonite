@@ -98,12 +98,12 @@ Below the verbs:
 
 For the second, `src/lib/caret/widget-edge-snap.ts` :: `nearestWidgetEdgeSeat` decides which edge of which widget the caret meant:
 
-| Where the click is                                           | The edge                                                                                                          |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| inside a character-like widget                               | the one on the side the click landed                                                                              |
-| inside one that selects whole (an image)                     | none; the widget's own click handling owns it                                                                     |
-| beside one                                                   | the nearest, comparing rows before columns, so a click past a line's end never reaches a widget on the line below |
-| above or below one (the strip a box leaves around a picture) | the one on the side the click landed                                                                              |
+| Where the click is | The edge |
+| --- | --- |
+| inside a character-like widget | the one on the side the click landed |
+| inside one that selects whole (an image) | none; the widget's own click handling owns it |
+| beside one | the nearest, comparing rows before columns, so a click past a line's end never reaches a widget on the line below |
+| above or below one (the strip a box leaves around a picture) | the one on the side the click landed |
 
 The widgets it measures are every widget the block draws, a picture inside a link or emphasis included (`src/lib/components/blocks/text/widget-adjacency.ts` :: `widgetsIn`). Where no text node sits beside that edge, the drawn caret draws the caret there and hides the browser's. The block asks for it, and beside a picture the paint would draw it anyway (`docs/design/selection.md` § The drawn caret); asking keeps the edge across a range the browser drops.
 

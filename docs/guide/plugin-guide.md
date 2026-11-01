@@ -12,21 +12,21 @@ Five neighbouring docs carry what this one doesn't:
 
 This page is the first read: [a working plugin in fifteen minutes](#the-first-fifteen-minutes), then [what a plugin is](#what-a-plugin-is), [what draws it and where it runs](#what-draws-your-plugin-and-where-it-runs), [views](#views-what-you-read-what-you-own), and [what a plugin may and may not do](#what-a-plugin-may-and-may-not-do). The recipes live on pages of their own, one job each, so open whichever matches what you're building:
 
-| Page                                                                                         | Reach for it when                                                                                                                                    |
-| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [One process, many editors](plugin-guide/per-editor.md)                                      | Your plugin keeps state per editor, listens for edits, or takes options that differ between two editors on one page                                  |
-| [Walkthrough: a `:::conspiracy` container end to end](plugin-guide/container-walkthrough.md) | Your block holds other blocks (a callout, a box with a title), or you're filling in a descriptor's `closure` cells. It's the biggest worked example  |
-| [Teaching the parser](plugin-guide/parser.md)                                                | Your syntax needs an opener of its own: its place among the built-ins, a construct that spans lines, one that only counts at the top of the document |
-| [Editable-content tiers](plugin-guide/editable-content.md)                                   | You're picking how your block hosts editable content, or building a text block (block math's shape)                                                  |
-| [Recipe: a render-primary block](plugin-guide/render-primary.md)                             | Your block is a picture (a diagram, a chart) that's edited through your own UI                                                                       |
-| [React and Vue blocks](plugin-guide/react-and-vue.md)                                        | Your app is React or Vue, and you'd rather draw your blocks with its components                                                                      |
-| [Presentation modes](plugin-guide/presentation-modes.md)                                     | Your block has to render right in reading, preview, or live mode, or owns a button that should go inert there                                        |
-| [Recipe: reading the document above your block](plugin-guide/reading-the-document.md)        | Your block is built from the rest of the document, like a table of contents                                                                          |
-| [Inline kinds](plugin-guide/inline-kinds.md)                                                 | Your syntax lives mid-paragraph (`:shortcode:`, `[^1]`, `$x$`)                                                                                       |
-| [Decorations](plugin-guide/decorations.md)                                                   | You want to paint over content you don't own: highlights, ghost text, badges                                                                         |
-| [Block commands](plugin-guide/commands.md)                                                   | Your block (or the whole editor) needs keyboard shortcuts, commands, or rows in the right-click menu                                                 |
-| [Paste transforms](plugin-guide/paste-transforms.md)                                         | Pasted text should turn into something else before it parses                                                                                         |
-| [Recipe: a kind only a menu creates](plugin-guide/menu-only-kinds.md)                        | A block should come from a menu instead of being typed, and still survive a reload                                                                   |
+| Page | Reach for it when |
+| --- | --- |
+| [One process, many editors](plugin-guide/per-editor.md) | Your plugin keeps state per editor, listens for edits, or takes options that differ between two editors on one page |
+| [Walkthrough: a `:::conspiracy` container end to end](plugin-guide/container-walkthrough.md) | Your block holds other blocks (a callout, a box with a title), or you're filling in a descriptor's `closure` cells. It's the biggest worked example |
+| [Teaching the parser](plugin-guide/parser.md) | Your syntax needs an opener of its own: its place among the built-ins, a construct that spans lines, one that only counts at the top of the document |
+| [Editable-content tiers](plugin-guide/editable-content.md) | You're picking how your block hosts editable content, or building a text block (block math's shape) |
+| [Recipe: a render-primary block](plugin-guide/render-primary.md) | Your block is a picture (a diagram, a chart) that's edited through your own UI |
+| [React and Vue blocks](plugin-guide/react-and-vue.md) | Your app is React or Vue, and you'd rather draw your blocks with its components |
+| [Presentation modes](plugin-guide/presentation-modes.md) | Your block has to render right in reading, preview, or live mode, or owns a button that should go inert there |
+| [Recipe: reading the document above your block](plugin-guide/reading-the-document.md) | Your block is built from the rest of the document, like a table of contents |
+| [Inline kinds](plugin-guide/inline-kinds.md) | Your syntax lives mid-paragraph (`:shortcode:`, `[^1]`, `$x$`) |
+| [Decorations](plugin-guide/decorations.md) | You want to paint over content you don't own: highlights, ghost text, badges |
+| [Block commands](plugin-guide/commands.md) | Your block (or the whole editor) needs keyboard shortcuts, commands, or rows in the right-click menu |
+| [Paste transforms](plugin-guide/paste-transforms.md) | Pasted text should turn into something else before it parses |
+| [Recipe: a kind only a menu creates](plugin-guide/menu-only-kinds.md) | A block should come from a menu instead of being typed, and still survive a reload |
 
 ## The first fifteen minutes
 
@@ -395,11 +395,11 @@ declare a kind ──┬─▶ descriptor   how it merges, its container shape, 
 
 Each part has a defined absence, which is prob the easiest way to remember what each one is for:
 
-| Part       | It makes the kind       | Leave it out and                                                                                                                                                                           |
-| ---------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| descriptor | behave                  | the kind errors at first use; this one is never optional                                                                                                                                   |
-| view       | visible                 | the registration doesn't compile (and throws from plain JavaScript); an editor that leaves your plugin out shows the kind as a raw-text fallback                                           |
-| grammar    | parseable from Markdown | nothing ever parses to the kind, so it doesn't survive a reload ([the menu recipe](plugin-guide/menu-only-kinds.md#recipe-a-kind-only-a-menu-creates) is the route to a kind nobody types) |
+| Part | It makes the kind | Leave it out and |
+| --- | --- | --- |
+| descriptor | behave | the kind errors at first use; this one is never optional |
+| view | visible | the registration doesn't compile (and throws from plain JavaScript); an editor that leaves your plugin out shows the kind as a raw-text fallback |
+| grammar | parseable from Markdown | nothing ever parses to the kind, so it doesn't survive a reload ([the menu recipe](plugin-guide/menu-only-kinds.md#recipe-a-kind-only-a-menu-creates) is the route to a kind nobody types) |
 
 ### Registration is global, and register-once
 
@@ -489,11 +489,11 @@ Two shapes draw everything a plugin puts on screen. (Not to be confused with the
 
 Which apps can run your plugin follows from that. An app whose bundler compiles Svelte (a Svelte app, say) compiles the editor from source, along with your components. An app whose bundler doesn't (most React, Vue and plain JavaScript apps) runs a prebuilt copy with its own Svelte compiled in, and a Svelte component of yours can't run on that copy's Svelte. So:
 
-| Your plugin draws with                                                                                                              | It runs in                                               |
-| ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Plain DOM views (`defineBlockView` blocks, widgets, decorations, menu rows), or nothing at all (syntax, commands, paste transforms) | Every app                                                |
-| React or Vue components, through `reactBlockView` or `vueBlockView`                                                                 | Every app with that framework installed                  |
-| Any Svelte component                                                                                                                | An app whose bundler compiles Svelte (a Svelte app, say) |
+| Your plugin draws with | It runs in |
+| --- | --- |
+| Plain DOM views (`defineBlockView` blocks, widgets, decorations, menu rows), or nothing at all (syntax, commands, paste transforms) | Every app |
+| React or Vue components, through `reactBlockView` or `vueBlockView` | Every app with that framework installed |
+| Any Svelte component | An app whose bundler compiles Svelte (a Svelte app, say) |
 
 The bundled plugins run everywhere, since each one's prebuilt build is compiled against the editor's own copy of Svelte. That copy sits on the editor's `runtime/svelte` subpaths, which are for the bundled plugins only: they carry just the bits of Svelte those plugins use, and that list moves whenever they do. A plugin of yours that should run everywhere draws with plain DOM, the way the parrot does. Mount a Svelte component of yours in an app that doesn't compile Svelte, and it fails the way any throwing view does: a block shows a "block failed to render" notice above its source, a widget shows just its source. In a dev build the notice and the console name the cause: the component was compiled against a different copy of Svelte.
 
@@ -538,10 +538,10 @@ One rule holds either way: an edit to one child rewrites that child's lines and 
 
 **An editor plugin isn't an app plugin.** If you're extending an app that embeds aragonite, that app almost certainly has a plugin layer of its own, and the two own different halves:
 
-| Layer                           | Owns                                                                                                                         |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **aragonite plugins**           | Anything touching the document or the editing surface: kinds, grammar, decorations, commands over the document, presentation |
-| **The embedding app's plugins** | Anything touching the app: ribbon, sidebar, status bar, settings tabs, modals, the command palette UI, the vault, sync       |
+| Layer | Owns |
+| --- | --- |
+| **aragonite plugins** | Anything touching the document or the editing surface: kinds, grammar, decorations, commands over the document, presentation |
+| **The embedding app's plugins** | Anything touching the app: ribbon, sidebar, status bar, settings tabs, modals, the command palette UI, the vault, sync |
 
 Vault-wide indexing sits on the app's side of that line: aragonite hands you the raw material (`getEvents()` and `parse()`) and never the index. It's not simply "editor = view", though. Derived state over the _one_ document you're editing (a table of contents, footnote numbering, the tasks in this note) is an editor plugin's to build, which is why a block component is handed its document ([the document recipe](plugin-guide/reading-the-document.md#recipe-reading-the-document-above-your-block)).
 
@@ -560,13 +560,13 @@ Most of that is enforced by **shape**: the factories never hand you a way to mak
 
 What each mistake does in each build:
 
-| Misuse                                    | Dev build                                                                                                                                                         | Production build                                    |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `rebuildRaw` writes the wrong bytes       | Warns at edit time, naming the kind                                                                                                                               | Silent until the bytes surface in a round-trip      |
-| A component throws while rendering        | Contained as a failed-block fallback plus an `error` event, by path                                                                                               | Same containment (the boundary ships in production) |
-| `rebuildRaw` throws                       | The edit rolls back, a typed key included (its character goes away), fires an `error` of origin `commit`, then rethrows                                           | Same rollback and `error`; nothing rethrown         |
-| An opener claims no line (`consumed < 1`) | Warns, naming the kind, and declines the opener                                                                                                                   | Declines the same way, silently; no hang            |
-| An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind                                                                                                                                      | Silent round-trip break                             |
-| An opener throws                          | Propagates uncaught (parse runs at init and on every edit)                                                                                                        | Same; uncaught                                      |
-| A register call outside a plugin's setup  | Throws, naming `definePlugin`                                                                                                                                     | Runs, unchecked and unsupported                     |
-| `attachFocus` on a kind not focused whole | Throws, naming `blockFocus: 'whole-block'`; from a view's `mount` or `update` (a framework's ref included) that's the failed-block fallback plus an `error` event | Same                                                |
+| Misuse | Dev build | Production build |
+| --- | --- | --- |
+| `rebuildRaw` writes the wrong bytes | Warns at edit time, naming the kind | Silent until the bytes surface in a round-trip |
+| A component throws while rendering | Contained as a failed-block fallback plus an `error` event, by path | Same containment (the boundary ships in production) |
+| `rebuildRaw` throws | The edit rolls back, a typed key included (its character goes away), fires an `error` of origin `commit`, then rethrows | Same rollback and `error`; nothing rethrown |
+| An opener claims no line (`consumed < 1`) | Warns, naming the kind, and declines the opener | Declines the same way, silently; no hang |
+| An opener's `raw` ≠ the lines it consumed | Parse warns, naming the kind | Silent round-trip break |
+| An opener throws | Propagates uncaught (parse runs at init and on every edit) | Same; uncaught |
+| A register call outside a plugin's setup | Throws, naming `definePlugin` | Runs, unchecked and unsupported |
+| `attachFocus` on a kind not focused whole | Throws, naming `blockFocus: 'whole-block'`; from a view's `mount` or `update` (a framework's ref included) that's the failed-block fallback plus an `error` event | Same |

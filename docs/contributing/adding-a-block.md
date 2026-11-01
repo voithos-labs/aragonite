@@ -4,16 +4,16 @@ So you want the editor to understand a new kind of Markdown block: a callout, a 
 
 The plugin guide is also where the concepts live: what a kind is, what a descriptor declares, how an opener claims lines, what the closure block promises. This doc glosses each and covers only what a built-in author touches that a plugin author never sees. Orient from `docs/design/editor.md` first if you haven't; it'll save you at least one wrong turn.
 
-| Section                                                       | What it covers                                                                                      |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [The shape of it](#the-shape-of-it)                           | The four pieces a built-in block is made of, and why the list is that short                         |
-| [Registration](#registration)                                 | The edit sites, in order: the type union, the behavior record, the component, the parser hook       |
-| [Commands](#commands)                                         | Keyboard shortcuts your block answers, and the one rule their handlers follow                       |
-| [Reading parent contexts](#reading-parent-contexts)           | What the editor hands your component, and the two entries everyone misses                           |
-| [Container blocks](#container-blocks)                         | The internal primitives a container is assembled from, and the mutation contract that protects undo |
-| [Sticky-column participation](#sticky-column-participation)   | Keeping the caret's pixel column stable while arrowing through ragged lines                         |
-| [Adding a code-block language](#adding-a-code-block-language) | Not a block kind, but this is where everyone looks for it                                           |
-| [Testing](#testing)                                           | The requirement files, and the two enrolment maps that keep coverage honest                         |
+| Section | What it covers |
+| --- | --- |
+| [The shape of it](#the-shape-of-it) | The four pieces a built-in block is made of, and why the list is that short |
+| [Registration](#registration) | The edit sites, in order: the type union, the behavior record, the component, the parser hook |
+| [Commands](#commands) | Keyboard shortcuts your block answers, and the one rule their handlers follow |
+| [Reading parent contexts](#reading-parent-contexts) | What the editor hands your component, and the two entries everyone misses |
+| [Container blocks](#container-blocks) | The internal primitives a container is assembled from, and the mutation contract that protects undo |
+| [Sticky-column participation](#sticky-column-participation) | Keeping the caret's pixel column stable while arrowing through ragged lines |
+| [Adding a code-block language](#adding-a-code-block-language) | Not a block kind, but this is where everyone looks for it |
+| [Testing](#testing) | The requirement files, and the two enrolment maps that keep coverage honest |
 
 ## The shape of it
 
@@ -33,10 +33,10 @@ The **union member** is what makes the rest type-check. The **descriptor** says 
 
 First decision, before any code: which category is yours?
 
-| Category      | Editing surface                                         | Copy from                                        |
-| ------------- | ------------------------------------------------------- | ------------------------------------------------ |
-| **Leaf**      | Own editing surface (contenteditable, textarea, static) | TextEditableBlock, CodeBlock, ThematicBreakBlock |
-| **Container** | Hosts a recursive BlockList of child blocks             | BlockquoteBlock, ListBlock, ListItemBlock        |
+| Category | Editing surface | Copy from |
+| --- | --- | --- |
+| **Leaf** | Own editing surface (contenteditable, textarea, static) | TextEditableBlock, CodeBlock, ThematicBreakBlock |
+| **Container** | Hosts a recursive BlockList of child blocks | BlockquoteBlock, ListBlock, ListItemBlock |
 
 Pick the closest reference and read it fully before you start. It'll answer more of your questions than this doc will, and I say that as the person who wrote this doc. Where things live:
 
@@ -253,12 +253,12 @@ const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 const { controller, selection } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 ```
 
-| Context                     | Gives you                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| `BLOCK_EDIT_KEY`            | `BlockEditActions`: split, merge, delete, content/metadata edits, replace         |
-| `FOCUS_KEY`                 | `FocusActions`: `moveFocus`                                                       |
-| `HISTORY_KEY`               | `HistoryActions`: `requestUndo` / `requestRedo`                                   |
-| `CONTAINER_EDIT_KEY`        | `ContainerEditActions`: the container commit surface (below)                      |
+| Context | Gives you |
+| --- | --- |
+| `BLOCK_EDIT_KEY` | `BlockEditActions`: split, merge, delete, content/metadata edits, replace |
+| `FOCUS_KEY` | `FocusActions`: `moveFocus` |
+| `HISTORY_KEY` | `HistoryActions`: `requestUndo` / `requestRedo` |
+| `CONTAINER_EDIT_KEY` | `ContainerEditActions`: the container commit surface (below) |
 | `EDITOR_SERVICES_KEY` facet | `.controller` is the multi-scope commit primitive, for cross-container operations |
 
 Every member is listed in `src/lib/action-contracts.ts`, so read the list there. The keys themselves are in `src/lib/editor-keys.ts`, in case you grep the contracts file for `BLOCK_EDIT_KEY` and come up empty. Two members are easy to miss:
@@ -350,8 +350,7 @@ export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverr
 
 A trivial container passes no overrides and is done, as the table and the table row do. `list-overrides.ts` (the list's, and the list item's Enter) and `container-exit-overrides.ts` under `editor-actions/` are the shipped examples.
 
-**`dispatchFocusByPath` / `dispatchFocusAtColumn`** (`editor-actions/focus/focus-dispatch.ts`) are the pure dispatchers your `focusByPath` / `focusAtColumn` exports delegate to.
-Two things containers don't do: they don't set `HISTORY_KEY` (undo/redo walks up to the editor root), and they don't rebuild their own raw. The commit primitives rebuild the unshared spine (the chain of parents from the root down to the edited node, already copied out of sharing) after every structural mutation, invoking the `rebuildRaw` you declared at registration.
+**`dispatchFocusByPath` / `dispatchFocusAtColumn`** (`editor-actions/focus/focus-dispatch.ts`) are the pure dispatchers your `focusByPath` / `focusAtColumn` exports delegate to. Two things containers don't do: they don't set `HISTORY_KEY` (undo/redo walks up to the editor root), and they don't rebuild their own raw. The commit primitives rebuild the unshared spine (the chain of parents from the root down to the edited node, already copied out of sharing) after every structural mutation, invoking the `rebuildRaw` you declared at registration.
 
 ### The owned-scope contract
 
@@ -405,12 +404,12 @@ const windowing = useContainerWindowing({
 });
 ```
 
-| Getter                        | Supplies                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------ |
-| `getParentPath`               | This scope's own path                                                                |
-| `getChildren` / `getChildIds` | The live child nodes and their ids                                                   |
-| `getListEl`                   | The content-origin element that scrolls with the children, not the viewport          |
-| `isCollapsed`                 | Optional: `true` while only the chrome row should be mounted (a collapsed container) |
+| Getter | Supplies |
+| --- | --- |
+| `getParentPath` | This scope's own path |
+| `getChildren` / `getChildIds` | The live child nodes and their ids |
+| `getListEl` | The content-origin element that scrolls with the children, not the viewport |
+| `isCollapsed` | Optional: `true` while only the chrome row should be mounted (a collapsed container) |
 
 You don't report the container's own height anywhere: the block list your container sits in measures its box like any other block's. The one case with work in it is a child that isn't a BlockHost, like a list's items or a table's rows. Each of those measures itself with `useMeasuredChild` (`src/lib/windowing/use-measured-child.svelte.ts`), handing over the element whose height is the child's (an item's box, a row's first cell). Call it before the child's own `useContainerWindowing`: the hook finds its list through context, and after that call it'd find the child's inner list instead (a dev check catches that one).
 

@@ -8,13 +8,13 @@ Two facts about the type first. `PresentationMode` is `'source' | 'reading' | 'p
 
 How each tier reads it:
 
-| Tier                       | Mode read                                                                                                                                                                                                                                                                                      |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plugin instance logic      | `editor.presentationMode` on your `EditorContext` (a live getter); subscribe to the `presentationModeChange` event for flips                                                                                                                                                                   |
-| Editable leaf              | `leaf.getPresentationMode()` on the `createEditableLeaf` surface                                                                                                                                                                                                                               |
-| Container block (factory)  | `container.getPresentationMode()` on the `createContainerBlock` surface                                                                                                                                                                                                                        |
-| Inline widget (rendering)  | The `getPresentationMode` prop your view is mounted with, a **live getter** beside `{ inline, source }`                                                                                                                                                                                        |
-| Inline widget (editing)    | `ctx.presentationMode` on the `InlineWidgetEditingContext` your `onSelectedKey` handler receives ([Inline kinds](inline-kinds.md#inline-kinds))                                                                                                                                                |
+| Tier | Mode read |
+| --- | --- |
+| Plugin instance logic | `editor.presentationMode` on your `EditorContext` (a live getter); subscribe to the `presentationModeChange` event for flips |
+| Editable leaf | `leaf.getPresentationMode()` on the `createEditableLeaf` surface |
+| Container block (factory) | `container.getPresentationMode()` on the `createContainerBlock` surface |
+| Inline widget (rendering) | The `getPresentationMode` prop your view is mounted with, a **live getter** beside `{ inline, source }` |
+| Inline widget (editing) | `ctx.presentationMode` on the `InlineWidgetEditingContext` your `onSelectedKey` handler receives ([Inline kinds](inline-kinds.md#inline-kinds)) |
 | Block component (DOM tier) | The `data-presentation` attribute on the editor root (`el.closest('[data-presentation]')`); **absent means `'source'`**. The fallback for a component holding only a DOM handle, and the one read that isn't live ([What is live, what is point-in-time](#what-is-live-what-is-point-in-time)) |
 
 ```ts
