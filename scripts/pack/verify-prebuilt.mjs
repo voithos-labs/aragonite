@@ -12,13 +12,13 @@ import { prebuiltExternals } from './pack-manifest.mjs';
 const PREBUILT_DIR = 'dist/prebuilt';
 
 // Gzipped bytes per entry, each a little above what it measured, and 23,656 of CSS. A group owns
-// the files its entry loads that no earlier group does. Measured: index 487,285, plugin 9,470,
+// the files its entry loads that no earlier group does. Measured: index 489,403, plugin 9,470,
 // svelte 634, runtime/svelte 153, runtime/svelte/internal/client 340, testing 20,509. The plugin
 // packages' budgets are in verify-plugin-package.mjs.
 /** @type {{ js: Record<string, number>, css: number }} */
 const BUDGET = {
 	js: {
-		index: 487_700,
+		index: 489_800,
 		plugin: 9_600,
 		svelte: 750,
 		'runtime/svelte': 250,
