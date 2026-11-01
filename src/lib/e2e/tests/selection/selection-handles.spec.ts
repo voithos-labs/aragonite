@@ -1,27 +1,17 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
-import { pointAtRaw } from '../../text-runs';
-import { skipUnlessSupported } from '../../browser-engine';
+import type { EditorPage } from '../../editor-page';
+import { pointAtRaw, type Point } from '../../text-runs';
+import { fingerDrag, openTouch, PARAGRAPHS, RANGE } from '../../touch';
 
 // On a touch screen the editor draws selection handles where the browser's can't reach, and a
 // finger drags them across blocks and cells. Requirements: `e2e/requirements/selection/selection-handles.md`.
 
-const DOC = 'alpha beta\n\ngamma delta\n\nepsilon zeta\n\nfiller line\n';
+const DOC = `${PARAGRAPHS}filler line\n`;
 const TABLE_DOC = 'lead line\n\n| a | b |\n| --- | --- |\n| c | d |\n';
-const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 } };
 const HANDLE = (end: 'start' | 'end') => `.selection-handle[data-handle="${end}"]`;
 
 test.use({ hasTouch: true });
-
-async function open(page: Page, doc = DOC): Promise<EditorPage> {
-	skipUnlessSupported(page, 'touch');
-	skipUnlessSupported(page, 'cdp');
-	const editor = new EditorPage(page);
-	await editor.goto();
-	await editor.loadContent(doc);
-	return editor;
-}
 
 /** A tap on block 0, which makes the last press a finger, then `selection` through the bridge. */
 async function tapThenSelect(page: Page, selection: object): Promise<void> {
@@ -30,33 +20,19 @@ async function tapThenSelect(page: Page, selection: object): Promise<void> {
 	await page.evaluate((s) => (window as any).__test.setSelection(s), selection);
 }
 
-/** A finger on `handle`, moved so the point the handle drags travels from `from` to `to`;
- *  `held` runs before the finger lifts. */
+/** A finger on `handle`, moved so the point the handle drags travels from `from` to `to`. */
 async function dragHandle(
 	page: Page,
 	handle: string,
-	from: { x: number; y: number },
-	to: { x: number; y: number },
+	from: Point,
+	to: Point,
 	held?: () => Promise<void>
 ): Promise<void> {
 	const box = await page.locator(handle).boundingBox();
 	if (!box) throw new Error(`no ${handle} on the page`);
 	const x = Math.round(box.x + box.width / 2);
 	const y = Math.round(box.y + box.height / 2);
-	const cdp = await page.context().newCDPSession(page);
-	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-	for (let step = 1; step <= 8; step++) {
-		const touchPoints = [
-			{
-				x: Math.round(x + ((to.x - from.x) * step) / 8),
-				y: Math.round(y + ((to.y - from.y) * step) / 8)
-			}
-		];
-		await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints });
-	}
-	await held?.();
-	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-	await cdp.detach();
+	await fingerDrag(page, { x, y }, { x: x + to.x - from.x, y: y + to.y - from.y }, { held });
 }
 
 const selection = (editor: EditorPage) => editor.bridge.getSelectionPaths();
@@ -73,7 +49,7 @@ const caretInFocusedBlock = (page: Page) =>
 	});
 
 test('a range across blocks gets a handle at each end after a tap', async ({ page }) => {
-	await open(page);
+	await openTouch(page, DOC);
 	await tapThenSelect(page, RANGE);
 	await expect(page.locator('.selection-handle')).toHaveCount(2);
 	await expect(page.locator('.selection-handle-edge')).toHaveCount(0);
@@ -84,7 +60,7 @@ test('a range across blocks gets a handle at each end after a tap', async ({ pag
 });
 
 test('a range across blocks after a mouse click gets no handles', async ({ page }) => {
-	await open(page);
+	await openTouch(page, DOC);
 	const point = await pointAtRaw(page, [0], 1);
 	await page.mouse.click(point.x, point.y);
 	await page.evaluate((s) => (window as any).__test.setSelection(s), RANGE);
@@ -93,7 +69,7 @@ test('a range across blocks after a mouse click gets no handles', async ({ page 
 });
 
 test('the end handle dragged into a later block grows the range there', async ({ page }) => {
-	const editor = await open(page);
+	const editor = await openTouch(page, DOC);
 	await tapThenSelect(page, RANGE);
 	const target = await pointAtRaw(page, [2], 4);
 	// The handle follows the finger while it is down, though no native selection moves under it.
@@ -109,7 +85,7 @@ test('the end handle dragged into a later block grows the range there', async ({
 });
 
 test('the start handle dragged into an earlier block grows the range there', async ({ page }) => {
-	const editor = await open(page);
+	const editor = await openTouch(page, DOC);
 	const range = { anchor: { path: [1], offset: 2 }, focus: { path: [2], offset: 5 } };
 	await tapThenSelect(page, range);
 	await dragHandle(
@@ -126,7 +102,7 @@ test('the start handle dragged into an earlier block grows the range there', asy
 test("a word at its block's end gets an edge handle that crosses into the next block", async ({
 	page
 }) => {
-	const editor = await open(page);
+	const editor = await openTouch(page, DOC);
 	await tapThenSelect(page, { anchor: { path: [0], offset: 6 }, focus: { path: [0], offset: 10 } });
 	await expect(page.locator('.selection-handle')).toHaveCount(1);
 	await expect(page.locator(`${HANDLE('end')}.selection-handle-edge`)).toHaveCount(1);
@@ -158,7 +134,7 @@ test("a word at its block's end gets an edge handle that crosses into the next b
 });
 
 test('a handle dragged across table cells grows a rectangle', async ({ page }) => {
-	await open(page, TABLE_DOC);
+	await openTouch(page, TABLE_DOC);
 	const cell = (offset: number) => ({ path: [1], offset, cellCoordinate: true });
 	await tapThenSelect(page, { anchor: cell(0), focus: cell(1) });
 	await expect(page.locator('.selection-handle')).toHaveCount(2);
@@ -199,7 +175,7 @@ for (const {
 	test(`a rectangle's ${grab} handle shrunk back into the other corner keeps a range there`, async ({
 		page
 	}) => {
-		await open(page, 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n');
+		await openTouch(page, 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n');
 		const corner = (offset: number) => ({ path: [1], offset, cellCoordinate: true });
 		await tapThenSelect(page, { anchor: corner(0), focus: corner(3) });
 		await expect(page.locator('.selection-handle')).toHaveCount(2);
@@ -226,7 +202,7 @@ for (const {
 }
 
 test('reading mode shows no handles', async ({ page }) => {
-	const editor = await open(page);
+	const editor = await openTouch(page, DOC);
 	await tapThenSelect(page, RANGE);
 	await expect(page.locator('.selection-handle')).toHaveCount(2);
 	await editor.setPresentationMode('reading');
@@ -234,7 +210,7 @@ test('reading mode shows no handles', async ({ page }) => {
 });
 
 test("the toolbar sits above a finger's range, clear of its handles", async ({ page }) => {
-	await open(page, `${'filler\n\n'.repeat(6)}${DOC}`);
+	await openTouch(page, `${'filler\n\n'.repeat(6)}${DOC}`);
 	await tapThenSelect(page, { anchor: { path: [6], offset: 2 }, focus: { path: [7], offset: 5 } });
 	const bar = page.locator('[data-testid="selection-toolbar"]');
 	await expect(bar).toBeVisible();
@@ -248,7 +224,7 @@ test("the toolbar sits above a finger's range, clear of its handles", async ({ p
 });
 
 test('the toolbar moves past the end handle when there is no room above', async ({ page }) => {
-	await open(page);
+	await openTouch(page, DOC);
 	await tapThenSelect(page, RANGE);
 	const bar = page.locator('[data-testid="selection-toolbar"]');
 	await expect(bar).toBeVisible();
@@ -259,7 +235,7 @@ test('the toolbar moves past the end handle when there is no room above', async 
 
 // Android hands a long press's contextmenu to the page, which opens the editor's menu on the word.
 test('an open editor menu keeps the handles, and a press on one closes it', async ({ page }) => {
-	const editor = await open(page);
+	const editor = await openTouch(page, DOC);
 	const word = { anchor: { path: [0], offset: 6 }, focus: { path: [0], offset: 10 } };
 	await tapThenSelect(page, word);
 	const at = await pointAtRaw(page, [0], 8);

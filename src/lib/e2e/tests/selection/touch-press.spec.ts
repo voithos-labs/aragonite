@@ -1,16 +1,14 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
 import { pointAtRaw } from '../../text-runs';
-import { skipUnlessSupported } from '../../browser-engine';
+import { fingerDrag, openTouch, PARAGRAPHS, RANGE } from '../../touch';
 import { waitForFirstImageLoaded } from '../blocks/image/helpers';
 
 // On a touch screen a swipe scrolls and never selects, and only a tap clears a range or a picture.
 // Requirements: `e2e/requirements/selection/touch-press.md`.
 
 const FILLER = Array.from({ length: 30 }, (_, i) => `filler line ${i + 1}`).join('\n\n');
-const DOC = `alpha beta\n\ngamma delta\n\nepsilon zeta\n\n${FILLER}\n`;
-const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 } };
+const DOC = `${PARAGRAPHS}${FILLER}\n`;
 // The range's formatting toolbar sits over the first paragraphs, so a gesture meant for the text
 // lands on `filler line 4`, well below it.
 const BELOW_RANGE = [6];
@@ -20,15 +18,6 @@ ${FILLER}
 `;
 
 test.use({ hasTouch: true });
-
-async function open(page: Page, doc = DOC): Promise<EditorPage> {
-	skipUnlessSupported(page, 'touch');
-	skipUnlessSupported(page, 'cdp');
-	const editor = new EditorPage(page);
-	await editor.goto();
-	await editor.loadContent(doc);
-	return editor;
-}
 
 /** How far every scrolled element on the page has scrolled, summed. */
 function scrolled(page: Page): Promise<number> {
@@ -40,23 +29,12 @@ function scrolled(page: Page): Promise<number> {
 	);
 }
 
-/** A finger swipe up from `path`'s text as touch events, which Chromium ends with a pointercancel as
- *  it scrolls, the order a phone gives. A swipe that never scrolled proves nothing, so it fails. */
+/** A finger swipe up from `path`'s text, which Chromium ends with a pointercancel as it scrolls,
+ *  the order a phone gives. A swipe that never scrolled proves nothing, so it fails. */
 async function swipeUpFrom(page: Page, path: number[]): Promise<void> {
 	const before = await scrolled(page);
 	const start = await pointAtRaw(page, path, 3);
-	const x = Math.round(start.x);
-	const y = Math.round(start.y);
-	const cdp = await page.context().newCDPSession(page);
-	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-	for (let step = 1; step <= 10; step++) {
-		await cdp.send('Input.dispatchTouchEvent', {
-			type: 'touchMove',
-			touchPoints: [{ x, y: y - step * 30 }]
-		});
-	}
-	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-	await cdp.detach();
+	await fingerDrag(page, start, { x: start.x, y: start.y - 300 }, { steps: 10 });
 	await expect.poll(() => scrolled(page), 'the swipe scrolled').toBeGreaterThan(before);
 }
 
@@ -66,7 +44,7 @@ async function tapEndOf(page: Page, path: number[], offset: number): Promise<voi
 }
 
 test('a swipe after a tap keeps the caret', async ({ page }) => {
-	const editor = await open(page);
+	const editor = await openTouch(page, DOC);
 	await tapEndOf(page, [0], 10);
 	const caret = { path: [0], offset: 10 };
 	await expect
@@ -80,7 +58,7 @@ test('a swipe after a tap keeps the caret', async ({ page }) => {
 });
 
 test('a swipe keeps a range across blocks', async ({ page }) => {
-	const editor = await open(page);
+	const editor = await openTouch(page, DOC);
 	await tapEndOf(page, [0], 10);
 	await page.evaluate((range) => (window as any).__test.setSelection(range), RANGE);
 	await expect.poll(() => editor.bridge.getSelectionPaths()).toEqual(RANGE);
@@ -92,7 +70,7 @@ test('a swipe keeps a range across blocks', async ({ page }) => {
 });
 
 test('a tap clears a range across blocks', async ({ page }) => {
-	const editor = await open(page);
+	const editor = await openTouch(page, DOC);
 	await tapEndOf(page, [0], 10);
 	await page.evaluate((range) => (window as any).__test.setSelection(range), RANGE);
 	await expect.poll(() => editor.bridge.getSelectionPaths()).toEqual(RANGE);
@@ -106,7 +84,7 @@ test('a tap clears a range across blocks', async ({ page }) => {
 });
 
 test('a swipe keeps a selected picture', async ({ page }) => {
-	await open(page, PICTURE_DOC);
+	await openTouch(page, PICTURE_DOC);
 	await waitForFirstImageLoaded(page);
 	await tapPicture(page);
 
@@ -116,7 +94,7 @@ test('a swipe keeps a selected picture', async ({ page }) => {
 });
 
 test('a tap elsewhere clears a selected picture', async ({ page }) => {
-	await open(page, PICTURE_DOC);
+	await openTouch(page, PICTURE_DOC);
 	await waitForFirstImageLoaded(page);
 	await tapPicture(page);
 
