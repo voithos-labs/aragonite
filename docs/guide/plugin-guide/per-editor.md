@@ -16,23 +16,23 @@ setup(ctx) {
 }
 ```
 
-| Field                          | What it gives you                                                                                                                                                                                                                                                                    |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `editorId`                     | A stable per-mount id. Key your own `Map` / `WeakMap` on it for per-editor state                                                                                                                                                                                                     |
-| `document`                     | A live getter for the root document, as a read-only `DocumentView` ([Views](../plugin-guide.md#views-what-you-read-what-you-own))                                                                                                                                                    |
-| `documentGeneration`           | How many times a `source` write has replaced the document, live but not reactive: subscribe to the `sourceSwap` event to hear a change                                                                                                                                               |
-| `events`                       | The subscribe-only event view; `events.on('edit', …)` returns a disposer                                                                                                                                                                                                             |
-| `options`                      | Your `defaults` with this editor's options merged over them (just the defaults if it passed none), typed by your `defaults` or by `definePlugin<Options>` (recipe below)                                                                                                             |
-| `decorations`                  | This editor's decoration registry, where you register a source ([Decorations](decorations.md#decorations))                                                                                                                                                                           |
-| `rects`                        | This editor's viewport-space geometry: block box, range rects, caret, reveal, `scrollTo`, `navigateTo`                                                                                                                                                                               |
-| `inlineMenus`                  | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](../consumer-guide/recipes.md#recipe-a-typed-trigger-menu))                                                                                                                                |
-| `insertCatalogue`              | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup`                                                                                                                                                                        |
-| `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](../consumer-guide.md#inserting-markdown-at-the-caret)); a promise that resolves false where that call would                                                                                  |
-| `runCommand(id, arg?)`         | Run a command by id the way the instance's own call does; false where that would be                                                                                                                                                                                                  |
-| `openDraft(spec)`              | Hold an edit outside the document (a textarea's text) so a host loading another note can't land it in the wrong one ([What your own editing surface has to do](render-primary.md#what-your-own-editing-surface-has-to-do))                                                           |
-| `computeInlineContent(node)`   | Parse a prose block's inline content the way this editor draws it: syntax from a plugin its `plugins` prop left out comes back as plain text, and reference links resolve against the document's link definitions (its `[r]: /x` lines). Reach for it wherever you walk inline nodes |
-| `presentationMode`             | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](presentation-modes.md#presentation-modes))                                                                                                                               |
-| `theme`                        | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints                                                                                                                                                                        |
+| Field | What it gives you |
+| --- | --- |
+| `editorId` | A stable per-mount id. Key your own `Map` / `WeakMap` on it for per-editor state |
+| `document` | A live getter for the root document, as a read-only `DocumentView` ([Views](../plugin-guide.md#views-what-you-read-what-you-own)) |
+| `documentGeneration` | How many times a `source` write has replaced the document, live but not reactive: subscribe to the `sourceSwap` event to hear a change |
+| `events` | The subscribe-only event view; `events.on('edit', …)` returns a disposer |
+| `options` | Your `defaults` with this editor's options merged over them (just the defaults if it passed none), typed by your `defaults` or by `definePlugin<Options>` (recipe below) |
+| `decorations` | This editor's decoration registry, where you register a source ([Decorations](decorations.md#decorations)) |
+| `rects` | This editor's viewport-space geometry: block box, range rects, caret, reveal, `scrollTo`, `navigateTo` |
+| `inlineMenus` | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](../consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
+| `insertCatalogue` | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup` |
+| `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](../consumer-guide.md#inserting-markdown-at-the-caret)); a promise that resolves false where that call would |
+| `runCommand(id, arg?)` | Run a command by id the way the instance's own call does; false where that would be |
+| `openDraft(spec)` | Hold an edit outside the document (a textarea's text) so a host loading another note can't land it in the wrong one ([What your own editing surface has to do](render-primary.md#what-your-own-editing-surface-has-to-do)) |
+| `computeInlineContent(node)` | Parse a prose block's inline content the way this editor draws it: syntax from a plugin its `plugins` prop left out comes back as plain text, and reference links resolve against the document's link definitions (its `[r]: /x` lines). Reach for it wherever you walk inline nodes |
+| `presentationMode` | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](presentation-modes.md#presentation-modes)) |
+| `theme` | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is synchronous-only: call `onEditor` from `setup`, since a call after `setup` returns throws.
 

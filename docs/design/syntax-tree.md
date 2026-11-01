@@ -93,18 +93,18 @@ Two rules keep the union honest:
 
 The fields, by category:
 
-| Field                  | On                                                            | Meaning                                                                                                                                                                                                                                               |
-| ---------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `kind`                 | every node                                                    | `AnyBlockKind`: the built-in union plus branded plugin kinds. Every registry lookup keys off it.                                                                                                                                                      |
-| `raw`, `leadingTrivia` | every node                                                    | What serialization reads.                                                                                                                                                                                                                             |
-| `metadata`             | most kinds                                                    | Derived from `raw`; never part of the round trip. Typed to the kind once `switch (node.kind)` narrows; `metadataOf` reads it without narrowing.                                                                                                       |
-| `children`             | containers                                                    | The decomposition of the inner content.                                                                                                                                                                                                               |
-| `innerPrefix`          | containers whose body opens under an opener line of their own | The blank line the parse strips off between that opener line and the body (the `:::` / `<details>` family). A container with no such line (blockquote, list, list item) parses it empty, and a dev check on the node's shape fails one that fills it. |
-| `innerSuffix`          | containers                                                    | Whitespace inside the container, after its last child.                                                                                                                                                                                                |
-| `childIds`             | containers                                                    | Stable per-child IDs for keyed rendering (so Svelte reuses each child's component by ID, not by position). Carried on the node, so undo restores them with `children`.                                                                                |
-| `childSpans`           | containers                                                    | Where each child's bytes sit inside the container's own `raw`, so rewriting one child re-emits one region. Derived; dropped whenever the children change shape.                                                                                       |
-| `markerWidths`         | lists                                                         | How many items open with a marker of each width, which sizes the list's marker column without reading every item. Derived; the parse fills it and the list's rebuild keeps it.                                                                        |
-| `ownerEpoch`           | every node                                                    | Whether an undo snapshot still shares this node, so a write copies it first. See `commit-and-undo.md` § Undo / redo.                                                                                                                                  |
+| Field | On | Meaning |
+| --- | --- | --- |
+| `kind` | every node | `AnyBlockKind`: the built-in union plus branded plugin kinds. Every registry lookup keys off it. |
+| `raw`, `leadingTrivia` | every node | What serialization reads. |
+| `metadata` | most kinds | Derived from `raw`; never part of the round trip. Typed to the kind once `switch (node.kind)` narrows; `metadataOf` reads it without narrowing. |
+| `children` | containers | The decomposition of the inner content. |
+| `innerPrefix` | containers whose body opens under an opener line of their own | The blank line the parse strips off between that opener line and the body (the `:::` / `<details>` family). A container with no such line (blockquote, list, list item) parses it empty, and a dev check on the node's shape fails one that fills it. |
+| `innerSuffix` | containers | Whitespace inside the container, after its last child. |
+| `childIds` | containers | Stable per-child IDs for keyed rendering (so Svelte reuses each child's component by ID, not by position). Carried on the node, so undo restores them with `children`. |
+| `childSpans` | containers | Where each child's bytes sit inside the container's own `raw`, so rewriting one child re-emits one region. Derived; dropped whenever the children change shape. |
+| `markerWidths` | lists | How many items open with a marker of each width, which sizes the list's marker column without reading every item. Derived; the parse fills it and the list's rebuild keeps it. |
+| `ownerEpoch` | every node | Whether an undo snapshot still shares this node, so a write copies it first. See `commit-and-undo.md` § Undo / redo. |
 
 `innerPrefix` is the one field you won't see on a built-in. With the bundled admonitions plugin installed:
 
@@ -128,10 +128,10 @@ parse(':::note My title\n\nbody\n:::\n').children[0];
 
 Containers don't all relate to their children the same way, so each declares a `containerContract` on its block-kind descriptor. **There are three**, and a new container kind has to pick one:
 
-| Contract   | `raw` vs children                                                                                                                   | Kinds                                 |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `'strip'`  | `strip(raw) === serialize(children)`: the container syntax is a strippable prefix on each line                                      | blockquote, list, listItem            |
-| `'grid'`   | Cells parse straight from `raw`; there is no strippable prefix. Children are addressed by coordinate (row, cell)                    | table, tableRow                       |
+| Contract | `raw` vs children | Kinds |
+| --- | --- | --- |
+| `'strip'` | `strip(raw) === serialize(children)`: the container syntax is a strippable prefix on each line | blockquote, list, listItem |
+| `'grid'` | Cells parse straight from `raw`; there is no strippable prefix. Children are addressed by coordinate (row, cell) | table, tableRow |
 | `'opaque'` | `raw` is authoritative and is _not_ a strip decomposition: some bytes live only in the container's own `raw` (a `:::` closing line) | directive containers, plugin callouts |
 
 The strip equation, on a quote holding a paragraph and a list:
@@ -324,21 +324,21 @@ parseInline('**bold *and italic***', 0, 21);
 
 The built-in kinds:
 
-| Kind                  | Fields                                               | Syntax                                                                                                                                                                                                                                         |
-| --------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `text`                | `text`                                               | Plain text, no markup                                                                                                                                                                                                                          |
-| `emphasis`            | `children`                                           | `*text*` or `_text_`                                                                                                                                                                                                                           |
-| `strong`              | `children`                                           | `**text**` or `__text__`                                                                                                                                                                                                                       |
-| `strikethrough`       | `children`                                           | `~~text~~` (GFM)                                                                                                                                                                                                                               |
-| `inlineCode`          | `text`                                               | `` `code` ``; never has children                                                                                                                                                                                                               |
-| `link`                | `children`, `url`, `title?`                          | `[text](url "title")` or `[text][ref]`; the reference form reuses the kind                                                                                                                                                                     |
-| `image`               | `alt`, `url`, `title?`, `width?`, `height?`, `crop?` | `![alt](url)` or `![alt][ref]`. Size is read from a `\|WxH` hint in the alt (an Obsidian extension, not GFM) and sizes the rendered widget; a `@X,Y[,Z]` tail on the `WxH` form (this editor's own) pans and zooms the image inside that frame |
-| `autolink`            | `url`                                                | `<url>` or a GFM bare URL                                                                                                                                                                                                                      |
-| `hardLineBreak`       | none                                                 | A trailing `\` or two spaces before `\n`                                                                                                                                                                                                       |
-| `escape`              | none                                                 | `\<punct>`: a backslash neutralizing the next ASCII-punctuation character                                                                                                                                                                      |
-| `entityReference`     | `decoded`                                            | `&name;`, `&#dec;`, `&#xhex;`                                                                                                                                                                                                                  |
-| `unresolvedReference` | `label`, `refKind`                                   | `[text][ref]` / `![alt][ref]` with no matching definition; `refKind` says which form it would have been                                                                                                                                        |
-| `rawHtml`             | none                                                 | An inline raw HTML tag. Allowlisted tags (`<br>`) render as atomic widgets (non-editable spans; `inline-parsing.md` § Widget render paths)                                                                                                     |
+| Kind | Fields | Syntax |
+| --- | --- | --- |
+| `text` | `text` | Plain text, no markup |
+| `emphasis` | `children` | `*text*` or `_text_` |
+| `strong` | `children` | `**text**` or `__text__` |
+| `strikethrough` | `children` | `~~text~~` (GFM) |
+| `inlineCode` | `text` | `` `code` ``; never has children |
+| `link` | `children`, `url`, `title?` | `[text](url "title")` or `[text][ref]`; the reference form reuses the kind |
+| `image` | `alt`, `url`, `title?`, `width?`, `height?`, `crop?` | `![alt](url)` or `![alt][ref]`. Size is read from a `\|WxH` hint in the alt (an Obsidian extension, not GFM) and sizes the rendered widget; a `@X,Y[,Z]` tail on the `WxH` form (this editor's own) pans and zooms the image inside that frame |
+| `autolink` | `url` | `<url>` or a GFM bare URL |
+| `hardLineBreak` | none | A trailing `\` or two spaces before `\n` |
+| `escape` | none | `\<punct>`: a backslash neutralizing the next ASCII-punctuation character |
+| `entityReference` | `decoded` | `&name;`, `&#dec;`, `&#xhex;` |
+| `unresolvedReference` | `label`, `refKind` | `[text][ref]` / `![alt][ref]` with no matching definition; `refKind` says which form it would have been |
+| `rawHtml` | none | An inline raw HTML tag. Allowlisted tags (`<br>`) render as atomic widgets (non-editable spans; `inline-parsing.md` § Widget render paths) |
 
 **The set is open.** A plugin registers its own inline kind (`PluginInlineKind`, the inline mirror of `PluginBlockKind`) and hooks the scanner on a trigger character; that's how inline math ships. `AnyInlineKind` spans both. An inline kind nobody recognizes falls back to its verbatim source, so bytes survive a plugin being uninstalled.
 
@@ -348,20 +348,20 @@ The built-in kinds:
 
 Every GFM block type is implemented with its own kind:
 
-| Block type                 | Kind                      | Notes                                                                                                                                                                                             |
-| -------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ATX headings               | `heading`                 | `# ` through `###### ` (a tab after the `#`s works too). A closing run (`# Hi #`) isn't content, so it's drawn dimmed like the opening `#`s and hides with them in live mode                      |
-| Setext headings            | `setextHeading`           | Underline-style `===` / `---`; an editor can switch it off (`syntax` prop)                                                                                                                        |
-| Paragraphs                 | `paragraph`               | The fallback for unstructured text                                                                                                                                                                |
-| Fenced code                | `fencedCode`              | ` ``` ` and `~~~`; the info string is the text after the opening fence                                                                                                                            |
-| Indented code              | `indentedCode`            | 4-space indent; an editor can switch it off (`syntax` prop)                                                                                                                                       |
-| Blockquotes                | `blockquote`              | Strip container, recursive                                                                                                                                                                        |
-| Lists / list items         | `list` / `listItem`       | Ordered, unordered, task checkboxes (the rest of a task marker's line is paragraph text). Strip containers                                                                                        |
-| Thematic breaks            | `thematicBreak`           | `---`, `***`, `___`                                                                                                                                                                               |
-| HTML blocks                | `htmlBlock`               | Raw `<div>`, `<table>`, ...                                                                                                                                                                       |
+| Block type | Kind | Notes |
+| --- | --- | --- |
+| ATX headings | `heading` | `# ` through `###### ` (a tab after the `#`s works too). A closing run (`# Hi #`) isn't content, so it's drawn dimmed like the opening `#`s and hides with them in live mode |
+| Setext headings | `setextHeading` | Underline-style `===` / `---`; an editor can switch it off (`syntax` prop) |
+| Paragraphs | `paragraph` | The fallback for unstructured text |
+| Fenced code | `fencedCode` | ` ``` ` and `~~~`; the info string is the text after the opening fence |
+| Indented code | `indentedCode` | 4-space indent; an editor can switch it off (`syntax` prop) |
+| Blockquotes | `blockquote` | Strip container, recursive |
+| Lists / list items | `list` / `listItem` | Ordered, unordered, task checkboxes (the rest of a task marker's line is paragraph text). Strip containers |
+| Thematic breaks | `thematicBreak` | `---`, `***`, `___` |
+| HTML blocks | `htmlBlock` | Raw `<div>`, `<table>`, ... |
 | Link reference definitions | `linkReferenceDefinition` | `[ref]: url "title"`. The label and title may span lines, and all three parts read with the inline link grammar (`inline-parsing.md` § One grammar per construct), processed values in `metadata` |
-| Tables                     | `table`                   | GFM pipe syntax. A header/delimiter cell-count mismatch is not a table                                                                                                                            |
-| Unrecognized               | `unrecognized`            | Reserved; not parser-emitted (see § 2)                                                                                                                                                            |
+| Tables | `table` | GFM pipe syntax. A header/delimiter cell-count mismatch is not a table |
+| Unrecognized | `unrecognized` | Reserved; not parser-emitted (see § 2) |
 
 Inline: emphasis and strong (`*`, `_`, `**`, `__`), strikethrough, inline code, links, images, autolinks (bare URLs and emails), hard line breaks, and reference-style links and images.
 
@@ -377,11 +377,11 @@ parse('| a | b |\n| - |\n').children.map((c) => c.kind); // ['paragraph']
 
 Coverage is by block type; agreement with the reference implementation is close but not total. These three differences are pinned, not accidental, and each is byte-safe (the round trip holds either way):
 
-| Source                                  | Here                                   | cmark-gfm                         |
-| --------------------------------------- | -------------------------------------- | --------------------------------- |
+| Source | Here | cmark-gfm |
+| --- | --- | --- |
 | `-` followed by five spaces and content | a list item whose content is that text | a list item holding indented code |
-| A bare `-` on its own line              | a paragraph                            | an empty list item                |
-| `- a`, blank line, `- b`                | two sibling `list` nodes               | one loose list of two items       |
+| A bare `-` on its own line | a paragraph | an empty list item |
+| `- a`, blank line, `- b` | two sibling `list` nodes | one loose list of two items |
 
 ```ts
 parse('-     text\n').children[0].children[0].children[0].raw; // 'text\n'

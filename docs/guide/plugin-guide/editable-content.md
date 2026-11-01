@@ -4,12 +4,12 @@ Part of the [plugin guide](../plugin-guide.md). Its worked examples are the parr
 
 Content that's _itself editable_ comes in four tiers, all of them pre-freeze:
 
-| Tier              | What it hosts                                                                    |
-| ----------------- | -------------------------------------------------------------------------------- |
-| **Container**     | Real document blocks in a nested child list; the walkthrough's body              |
-| **Chrome leaf**   | One reserved, single-line, plain-text child whose bytes the container's raw owns |
-| **Editable leaf** | A standalone text surface with native caret/IME/undo/selection/clipboard parity  |
-| **Atomic widget** | An opaque, non-text embed, which the caret can address only at its edges         |
+| Tier | What it hosts |
+| --- | --- |
+| **Container** | Real document blocks in a nested child list; the walkthrough's body |
+| **Chrome leaf** | One reserved, single-line, plain-text child whose bytes the container's raw owns |
+| **Editable leaf** | A standalone text surface with native caret/IME/undo/selection/clipboard parity |
+| **Atomic widget** | An opaque, non-text embed, which the caret can address only at its edges |
 
 The chrome leaf is deliberately narrow, and each limit is a guarantee its container can lean on:
 

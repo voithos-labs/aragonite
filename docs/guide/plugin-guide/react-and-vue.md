@@ -30,15 +30,15 @@ export const memoView = reactBlockView(Memo, { surface: 'leaf', singleLine: true
 
 **`reactBlockView(Component, options)`** takes the component and the options `defineBlockView` takes, minus `mount`:
 
-| Option                          | What it does                                                                                                                                                                                            |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `surface`                       | `'leaf'` (editable text, always shown), `'render-primary'` (a rendered view until a click opens the text), `'container'` (child blocks) or `'none'` (you draw it all, [below](#a-block-you-draw-whole)) |
-| `singleLine`                    | Leaf surfaces: the bytes are one line, so Enter ends the block instead of typing a newline                                                                                                              |
-| `renderSource`, `reshapeSource` | Render-primary: draw the shown text as DOM, and put an edited text back in the shape your kind keeps ([the editable leaf](editable-content.md#the-editable-leaf))                                       |
-| `watchDocument`                 | Re-render on every change to the document, not just to this block (a table of contents wants this)                                                                                                      |
-| `className`                     | Classes for the element the editor made for the block                                                                                                                                                   |
-| `afterInput(text, ctx)`         | Leaf surfaces: hears each change to the shown text once, never mid-composition; on a click-to-edit block that's before anything is committed                                                            |
-| `wrap(block)`                   | Wraps your component, for providers ([below](#providers-and-app-context))                                                                                                                               |
+| Option | What it does |
+| --- | --- |
+| `surface` | `'leaf'` (editable text, always shown), `'render-primary'` (a rendered view until a click opens the text), `'container'` (child blocks) or `'none'` (you draw it all, [below](#a-block-you-draw-whole)) |
+| `singleLine` | Leaf surfaces: the bytes are one line, so Enter ends the block instead of typing a newline |
+| `renderSource`, `reshapeSource` | Render-primary: draw the shown text as DOM, and put an edited text back in the shape your kind keeps ([the editable leaf](editable-content.md#the-editable-leaf)) |
+| `watchDocument` | Re-render on every change to the document, not just to this block (a table of contents wants this) |
+| `className` | Classes for the element the editor made for the block |
+| `afterInput(text, ctx)` | Leaf surfaces: hears each change to the shown text once, never mid-composition; on a click-to-edit block that's before anything is committed |
+| `wrap(block)` | Wraps your component, for providers ([below](#providers-and-app-context)) |
 
 `<LeafContent>` is the element the editor edits your text in. It renders empty, and it has to stay that way: the editor puts its own text node in there, so your badge, icon or whatever else goes beside it, never inside. It takes the usual HTML attributes plus `as` (`'div'` by default, or `'span'`, `'p'`, `'pre'`).
 
@@ -65,12 +65,12 @@ On a plain leaf every keystroke commits, so `state.node.raw` changes, and the me
 
 `ctx` is the editor's side. `ctx.editor` is your plugin's `EditorContext` in the editor drawing the block (its options, its document, its events, the same object the [per-editor recipes](per-editor.md#one-process-many-editors) use). The rest depends on the surface:
 
-| Surface            | `ctx` also has                                                                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `'leaf'`           | `ctx.leaf.reveal(offset?)` to put the caret in the text, `ctx.leaf.commitSource(text)` to replace it as one undo step                                                                                  |
-| `'render-primary'` | the same `ctx.leaf` calls                                                                                                                                                                              |
-| `'container'`      | `ctx.container.updateOwnMetadata(patch)`, `moveFocusOut(event)`, `captureScrollPosition()` and `openDraft(spec)`, the container helpers the [walkthrough](container-walkthrough.md#the-component) uses |
-| `'none'`           | nothing more: what the editor calls on your block goes the other way, through `useBlockHandle` ([below](#a-block-you-draw-whole))                                                                      |
+| Surface | `ctx` also has |
+| --- | --- |
+| `'leaf'` | `ctx.leaf.reveal(offset?)` to put the caret in the text, `ctx.leaf.commitSource(text)` to replace it as one undo step |
+| `'render-primary'` | the same `ctx.leaf` calls |
+| `'container'` | `ctx.container.updateOwnMetadata(patch)`, `moveFocusOut(event)`, `captureScrollPosition()` and `openDraft(spec)`, the container helpers the [walkthrough](container-walkthrough.md#the-component) uses |
+| `'none'` | nothing more: what the editor calls on your block goes the other way, through `useBlockHandle` ([below](#a-block-you-draw-whole)) |
 
 ## A click-to-edit block
 
