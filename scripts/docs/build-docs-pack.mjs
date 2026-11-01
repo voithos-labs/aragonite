@@ -1,25 +1,14 @@
-// Two documentation checks, run on every invocation; with a <dir> argument the pack is also
-// written there, into a cleared directory. Gate 1: every relative link inside the public pack
-// (docs/guide/) lands on a file the pack carries, and every `#fragment` outside code names a heading
-// that doc still has. Gate 2: every relative link in README, CONTRIBUTING and docs/ resolves.
-import {
-	copyFileSync,
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	readdirSync,
-	rmSync,
-	statSync,
-	unlinkSync
-} from 'node:fs';
-import { dirname, join, posix, resolve } from 'node:path';
+// Two documentation link checks. Gate 1: every relative link inside the published guide
+// (docs/guide/) lands on a file the guide carries, and every `#fragment` outside code names a
+// heading that doc still has. Gate 2: every relative link in README, CONTRIBUTING and docs/ resolves.
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, join, posix } from 'node:path';
 import { anchorsOf } from './check-codebase-map.mjs';
 import { citationProblem, corpusFiles, ignoredPaths } from './doc-corpus.mjs';
 
 const SOURCE_DIR = 'docs/guide';
 
-// The pack is the whole directory tree, docs and assets alike: package.json already ships
-// `docs/guide` to npm wholesale, so one set keeps the two publishing paths in agreement.
+// The pack is the whole directory tree, since a doc's links to its own assets must land too.
 function listPack(dir, prefix = '') {
 	const out = [];
 	for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -173,64 +162,5 @@ if (deadLinks.length > 0) {
 	process.exit(1);
 }
 
-const target = process.argv[2];
-// A dash-leading "target" is a mistyped flag; writing it mints a directory every git command
-// then parses as a flag.
-if (target?.startsWith('-')) {
-	console.error(`docs-pack: refusing target "${target}" — looks like a flag, not a directory`);
-	process.exit(1);
-}
-if (!target) {
-	console.log(`docs-pack: ${packNames.length} docs link-closed (${packNames.join(', ')})`);
-	console.log(`docs-links: ${corpus.length} corpus docs, every relative link resolves`);
-	process.exit(0);
-}
-
-// ── Pack write ──────────────────────────────────────────────────────────
-
-// The clear must not be able to take a tree with it on a mistyped argument, so two refusals
-// bound what is clearable: the pack's own source, which would pass a shape test alone, and any
-// directory holding an entry the pack never writes, checked down through the pack's subfolders.
-const packDirs = new Set();
-for (const name of packFiles) {
-	for (let dir = posix.dirname(name); dir !== '.'; dir = posix.dirname(dir)) packDirs.add(dir);
-}
-function foreignEntries(dir, prefix = '') {
-	const foreign = [];
-	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		const rel = prefix + entry.name;
-		if (entry.isDirectory() && packDirs.has(rel)) {
-			foreign.push(...foreignEntries(join(dir, entry.name), rel + '/'));
-		} else if (!entry.isFile() || !packFiles.includes(rel)) foreign.push(rel);
-	}
-	return foreign;
-}
-function refusalReason(dir) {
-	if (dir === resolve(SOURCE_DIR)) return 'it is the pack source directory';
-	if (!existsSync(dir)) return null;
-	if (!statSync(dir).isDirectory()) return 'it is not a directory';
-	const foreign = foreignEntries(dir);
-	return foreign.length === 0
-		? null
-		: `it holds entries the pack never writes: ${foreign.join(', ')}`;
-}
-
-const packDir = resolve(target);
-const refusal = refusalReason(packDir);
-if (refusal) {
-	console.error(`docs-pack: refusing to write the pack to ${target} — ${refusal}`);
-	process.exit(1);
-}
-
-mkdirSync(packDir, { recursive: true });
-for (const entry of readdirSync(packDir, { withFileTypes: true })) {
-	const path = join(packDir, entry.name);
-	if (entry.isDirectory()) rmSync(path, { recursive: true });
-	else unlinkSync(path);
-}
-for (const name of packFiles) {
-	const dest = join(packDir, name);
-	mkdirSync(dirname(dest), { recursive: true });
-	copyFileSync(join(SOURCE_DIR, name), dest);
-}
-console.log(`docs-pack: ${packFiles.length} files → ${target}`);
+console.log(`docs-pack: ${packNames.length} docs link-closed (${packNames.join(', ')})`);
+console.log(`docs-links: ${corpus.length} corpus docs, every relative link resolves`);

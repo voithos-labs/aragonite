@@ -47,7 +47,7 @@ Hosts import `style.css` next to the editor's own stylesheet. Your `src/` import
 
 The plugin asks for the editor through a peer dependency, `^0.11.4`, so the host's copy is the one your plugin talks to. Bump the peer and the devDependency together.
 
-From 0.12.0 the editor's plugin API can break only in a minor release until 1.0, and only in a major one after, so a `^` range on the release you tested against is honest. The template, the plugin check and the listing are a preview until 0.12.0, since the plugin API under them can still break in any 0.11 release. Rerun your CI on each editor release until then.
+The template, the plugin check and the listing are a preview until 0.12.0, since any editor release before it may break the plugin API, so rerun your CI on each one. The plugin guide's [What is stable, what is not](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide.md#what-is-stable-what-is-not) has the schedule after that.
 
 ## Getting listed
 

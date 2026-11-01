@@ -36,7 +36,7 @@ One spec per subsystem, for anyone changing the editor's insides. Start with `ed
 
 ## `guide/`: using aragonite
 
-The published pack. This folder ships inside the npm package (the only docs folder that does), so whatever's in a plugin author's `node_modules` matches the version they installed.
+The published pack: the docs people outside the repo read, on GitHub. Its links never leave this folder (a lint checks), and `main` matches the latest release, so someone on an older version reads its tag.
 
 | Doc                                                                                          | Scope                                                                                                                                   |
 | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |

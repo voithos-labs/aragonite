@@ -42,8 +42,6 @@ npx degit voithos-labs/aragonite/templates/plugin#v0.11.4 my-plugin
 
 Its README walks you from there. This page is how it works.
 
-The template, the plugin check and the listing are a preview until 0.12.0, since the plugin API under them can still break in any 0.11 release.
-
 The plugin we're about to build is an homage to `curl parrot.live`: a line that starts with `%%parrot` renders as an animated ASCII party parrot, and any text after the marker becomes the parrot's caption.
 
 Before the code, two terms everything below leans on.
@@ -479,6 +477,8 @@ Breaks follow a schedule you can pin a peer range to:
 - Until 0.12.0, any release may break the plugin API.
 - From 0.12.0 until 1.0, breaks land only in minor releases, so a plugin that peers on `^0.12.0` keeps working through every 0.12 patch.
 - After the freeze at 1.0, a breaking change to a frozen surface rides a **major** version, and additive needs ship as **minors**.
+
+A break is anything the changelog files under its breaking entries for plugins.
 
 ## What draws your plugin, and where it runs
 
