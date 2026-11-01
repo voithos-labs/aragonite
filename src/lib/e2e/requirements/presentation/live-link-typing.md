@@ -9,7 +9,7 @@ every edit over a selection itself, since the browser edits the selection as the
 and its ends can sit on either side of a hidden bracket. A reference whose label is its own text
 (`[foo]`, `[foo][]`) is spelled `[text][foo]` before its text changes, so it keeps its
 destination and the definition stays as written. Driven on `/test/editor` via
-`?presentationMode=live` with real clicks, arrows, typing, Backspace, paste and `Mod+Z`.
+`?presentationMode=live` with real clicks, arrows, typing, an IME, Backspace, paste and `Mod+Z`.
 
 Miss-analysis (#809, #807): no spec typed over a link's text. The one unit row over a link's whole
 text pinned it as the link's new text, so only the first letter stayed linked; no row put a link at
@@ -38,6 +38,11 @@ edited a shortcut or collapsed reference's text.
   byte is left behind
 - a paragraph or heading that is only a link, selected with Ctrl+A or a triple click, then typed
   over: the link goes and the heading stays a heading
+- an IME composition over each selection under Happy paths, at each of the four places: the same
+  bytes a typed key writes
+
+Miss-analysis: no composition row selected link text, so none saw a table cell keep the browser's
+own edit, or the browser take a hidden `[` or `# ` with a selection at a block's start.
 
 ## References
 

@@ -82,6 +82,7 @@ type Shape =
 const ROUTES: Record<string, Shape[]> = {
 	'components/blocks/table/table-cell-paste.ts': ['a selection typed over'],
 	'components/blocks/table/TableCellBlock.svelte': ['a selection deleted'],
+	'components/blocks/text/composition-seat.ts': ['a selection typed over'],
 	'components/blocks/text/edge-policy-dispatch.ts': [
 		'a selection deleted',
 		'a selection typed over'
@@ -91,16 +92,19 @@ const ROUTES: Record<string, Shape[]> = {
 		'a selection typed over'
 	],
 	'components/blocks/text/text-clipboard.ts': ['a selection deleted'],
-	'components/blocks/text/TextEditableBlock.svelte': [
-		'a selection deleted',
-		'a selection typed over'
-	],
+	'components/blocks/text/TextEditableBlock.svelte': ['a selection deleted'],
 	'components/blocks/text/widget-interaction.ts': ['a selection typed over'],
 	'editor-actions/inline-range-commit.ts': ['a link rewritten whole'],
 	'selection/selection-drop.ts': ['typed at a caret', 'a selection deleted'],
 	'tree-operations/paste/dispatch.ts': ['a selection deleted'],
 	'tree-operations/paste/hooks.ts': ['typed at a caret', 'a selection typed over']
 };
+
+// The routes whose range is never the user's own selection: a command over a link, a picked widget.
+const NOT_DRAWN = [
+	'components/blocks/text/widget-interaction.ts',
+	'editor-actions/inline-range-commit.ts'
+];
 
 const SHAPES: Record<Shape, [number, number, string, string]> = {
 	'typed at a caret': [4, 4, 'Z', 'a [fZoo][foo] b\n'],
@@ -110,13 +114,21 @@ const SHAPES: Record<Shape, [number, number, string, string]> = {
 };
 
 describe('G4.280 every route into the in-leaf edit keeps a reference’s destination', () => {
-	const callers = collectEditorSources(LIBRARY_ROOTS)
+	const sources = collectEditorSources(LIBRARY_ROOTS)
 		.filter((file) => /\b(?:replaceRangeInLeaf|replaceDrawnRange)\s*\(/.test(file.code))
-		.map((file) => file.relPath.replace(/^src\/lib\//, ''))
-		.filter((file) => file !== 'tree-operations/leaf-range.ts');
+		.map((file) => ({ path: file.relPath.replace(/^src\/lib\//, ''), code: file.code }))
+		.filter((file) => file.path !== 'tree-operations/leaf-range.ts');
 
 	it('names every file that calls the in-leaf edit, with the shapes of edit it makes', () => {
-		expect(callers.sort()).toEqual(Object.keys(ROUTES).sort());
+		expect(sources.map((file) => file.path).sort()).toEqual(Object.keys(ROUTES).sort());
+	});
+
+	// The drawn-range edit is the one that keeps a heading's `#` under a selection of all its text.
+	it('sends every route over the user’s selection through the drawn-range edit', () => {
+		const skipping = sources.filter(
+			(file) => !NOT_DRAWN.includes(file.path) && !/\breplaceDrawnRange\s*\(/.test(file.code)
+		);
+		expect(skipping.map((file) => file.path)).toEqual([]);
 	});
 
 	it.each(Object.entries(SHAPES))('%s inside a shortcut reference', (_, row) => {

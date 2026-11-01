@@ -6,7 +6,7 @@
 import { CURSOR_END } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
 import { blockNodeAt } from '../../../tree-operations/node-primitives';
-import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
@@ -34,12 +34,7 @@ export function tableCellInlinePaste(
 ): InlinePasteResult {
 	// The kind's pipe escaping runs over whatever the join writes, when the cell is written.
 	const cleaned = normalizeWhitespace(text);
-	const edit = replaceRangeInLeaf(
-		node,
-		preDelete ?? { start: offset, end: offset },
-		cleaned,
-		store
-	);
+	const edit = replaceDrawnRange(node, preDelete ?? { start: offset, end: offset }, cleaned, store);
 	return { newRaw: trimTrailingLineEnding(edit.raw), caretOffset: edit.caret };
 }
 

@@ -81,6 +81,12 @@ markers hidden only, so none deleted a shown `# ` on its own.
 Miss-analysis: the blank-text row replaced the text with a space, and no scenario typed a space
 into a heading that was already empty.
 
+- live mode: the whole text selected with Ctrl+A or with End then Shift+Home, then a key or a
+  paste of `x`, keeps the heading (`# x #`); a cut or Backspace leaves an empty paragraph either way
+
+Miss-analysis: the whole-text rows selected one way and wrote one way, so none saw a paste over
+Ctrl+A take the `#` while a key kept it, or a cut over Shift+Home keep an empty heading.
+
 ## User interactions
 
 - a placed caret, then End, Backspace, Shift+Home, Shift+Enter, a paste and typed keys

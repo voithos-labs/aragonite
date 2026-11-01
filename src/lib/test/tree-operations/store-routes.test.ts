@@ -482,7 +482,7 @@ const FAMILIES: Family[] = [
 	},
 	{
 		name: 'a composition over a selection',
-		stores: { 'components/blocks/text/TextEditableBlock.svelte': 1 },
+		stores: { 'components/blocks/text/composition-seat.ts': 1 },
 		// A link never grows at its edge, so the composed text lands outside the one the range
 		// emptied, and the link's runs go with it.
 		rows: [
@@ -503,6 +503,11 @@ const FAMILIES: Family[] = [
 						(m) => () => compose(m.el, { start: 1, end: 6 }, '[[ ] y')
 					),
 				want: ['[[ ] y\n']
+			},
+			{
+				shape: 'a table cell',
+				run: () => withCell('[x](u) y', (m) => () => compose(m.el, { start: 1, end: 6 }, '[# y')),
+				want: ['# y']
 			}
 		]
 	},

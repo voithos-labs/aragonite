@@ -65,12 +65,12 @@ export function applyLiveRangeEdit(
 	if (!edit) {
 		assertInvariant('live-range-written', () => {
 			const selection = cursor.getRawSelection();
-			const overSelection =
+			return checkLiveRangeWritten(
 				store.reading.hidesDelimitersAtCaret() &&
-				rewritesTargetRange(e) &&
-				selection !== null &&
-				selection.start < selection.end;
-			return checkLiveRangeWritten({ route: 'key', overSelection, written: false });
+					rewritesTargetRange(e) &&
+					selection !== null &&
+					selection.start < selection.end
+			);
 		});
 		return false;
 	}

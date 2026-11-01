@@ -4,6 +4,7 @@ import type { EditorPage } from '../../editor-page';
 import { clickEnd, enterPresentationMode, keys, nextRow } from './helpers';
 import { multiClick } from '../../multi-click';
 import { textRunCenter } from '../../text-runs';
+import { attachIme } from '../../simulation/ime';
 
 // Typing into and over a link's text in live mode, the way Google Docs does it.
 // Requirements: e2e/requirements/presentation/live-link-typing.md.
@@ -71,6 +72,25 @@ test.describe('live mode: typing into and over a link’s text', () => {
 			}
 		});
 	}
+
+	// A composition over a selection is written as the key it stands for, cells included.
+	test('an IME composition over a selection writes what a typed key does, at every place', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', PLACES[0].doc(LINK));
+		for (const gesture of GESTURES.filter((g) => g.grow > 0)) {
+			for (const place of PLACES) {
+				await nextRow(ep, place.doc(LINK));
+				await selectIn(ep, page, gesture.back, gesture.grow);
+				const ime = await attachIme(page);
+				await ime.compose('か');
+				await ime.commit('か');
+				await ep.waitForRenderFlush();
+				const written = place.doc(gesture.written.replace('a b', 'か'));
+				expect(await ep.bridge.getSource(), `${gesture.name}, ${place.name}`).toBe(written);
+			}
+		}
+	});
 
 	test('typing over part of the text then undoing restores the link in one step', async ({
 		page

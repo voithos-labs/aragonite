@@ -149,6 +149,37 @@ test('live mode: emptying the text', async ({ page }) => {
 	});
 });
 
+// Select-all puts the selection's start before the hidden `# `, the line-start extend after it;
+// neither changes what a write over the whole text does.
+test('live mode: a write over the whole text is the same however it was selected', async ({
+	page
+}) => {
+	const ep = await enterPresentationMode(page, 'live', DOC);
+	const selections: [string, string][] = [
+		['select all', 'ControlOrMeta+a'],
+		['the line-start extend', extendKey('lineStart')]
+	];
+	const writes: [string, () => Promise<void>, string][] = [
+		['a key keeps the heading', () => ep.typeSlowly('x'), '# x #\n\nnext\n'],
+		['a paste keeps the heading', () => ep.clipboard.paste(), '# x #\n\nnext\n'],
+		['a cut leaves an empty paragraph', () => page.keyboard.press('ControlOrMeta+x'), '\nnext\n'],
+		['Backspace leaves an empty paragraph', () => page.keyboard.press('Backspace'), '\nnext\n']
+	];
+	for (const [selection, chord] of selections) {
+		for (const [name, write, written] of writes) {
+			await test.step(`${selection}, ${name}`, async () => {
+				await ep.clipboard.seed('x');
+				await nextRow(ep, DOC);
+				await ep.focusBlockAtPath([0], 3);
+				await page.keyboard.press(edgeKey('lineEnd'));
+				await page.keyboard.press(chord);
+				await write();
+				await ep.bridge.waitForSourceEquals(written);
+			});
+		}
+	}
+});
+
 // Where the run is on screen, an edit takes it only when the selection did.
 async function selectPrefixAndBackspace(ep: EditorPage, page: Page): Promise<void> {
 	await ep.focusBlockAtPath([0], 0);

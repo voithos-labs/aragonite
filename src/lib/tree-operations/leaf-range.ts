@@ -86,8 +86,8 @@ function replaceInLeaf(
 	return landRuns(node, range, typed, store) ?? edit;
 }
 
-/** A range the user drew, typed or deleted over. One over the block's whole text edits what the
- *  selection shows, inside a heading's `#` and a run around it all (live-mode.md § 4.5). */
+/** A selection typed or deleted over, or a delete span read as one. One over the block's whole
+ *  text edits what it shows, inside a heading's `#` and a bold around it all (live-mode.md § 4.5). */
 export function replaceDrawnRange(
 	node: NodeView,
 	range: { start: number; end: number },

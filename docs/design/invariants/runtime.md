@@ -726,6 +726,6 @@ fails the run, and with dev checks off it won't start. `testing/plugin-conforman
 **G1.168 · The editor writes a live edit over a selection** (`live-range-written`). The browser
 edits the selection as the DOM holds it, and an end of that can sit on either side of a hidden
 bracket, so in live mode every key and every composition over a selection in one block goes through
-`replaceDrawnRange`. Dev fails the shared range-edit wrapper declining one, and a composition
-commit that read its text but has no range write. `checkLiveRangeWritten` · `live-range-written.test.ts`,
-`live-ranged-edit.test.ts`.
+`replaceDrawnRange`. Dev fails the shared range-edit wrapper declining a key over one; the
+composition commit takes the block's node and store, so it has no way to skip the write.
+`checkLiveRangeWritten` · `live-range-written.test.ts`, `live-ranged-edit.test.ts`.

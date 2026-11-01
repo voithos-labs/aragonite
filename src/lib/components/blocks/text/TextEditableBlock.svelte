@@ -46,7 +46,7 @@
 		type PendingBreakKeyDeps
 	} from './pending-break-keys';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
-	import { replaceDrawnRange, replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+	import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { handleSharedKeydown } from '../../../selection/shared-keydown';
@@ -199,17 +199,9 @@
 	let caretHasEntered = false;
 
 	const compositionSeat = createCompositionSeat({
-		getDisplayText: () => getDisplayText(),
+		getNode: () => node,
 		getRawSelection: () => cursor.getRawSelection(),
-		// The range edit a typed key over a selection makes, as the displayed text the composition
-		// commit writes.
-		resolveRangeEdit: (range, typed) => {
-			const { text, caretAfter } = rangeWrite(
-				node,
-				replaceDrawnRange(node, range, typed, storedAs())
-			);
-			return { raw: text, caret: caretAfter };
-		}
+		storedAs
 	});
 
 	const editableSurface = createEditableSurface({
@@ -256,7 +248,7 @@
 				afterSourceCommit(() =>
 					written(
 						writeText({
-							...rangeWrite(node, replaceRangeInLeaf(node, range, '', storedAs())),
+							...rangeWrite(node, replaceDrawnRange(node, range, '', storedAs())),
 							intent: 'command',
 							// The removal a typed key makes over a selection, which that key joins.
 							history: 'join-typing',

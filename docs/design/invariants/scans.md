@@ -742,7 +742,7 @@ delete and typing after a cross-block delete are known gaps). `lint/file-rules.t
 
 **G4.90 · A paste cuts like typing.** Pasting over a selection inside one block writes what typing
 the same text over it writes: every file naming the paste's range (`preDelete`) cuts it through
-`replaceRangeInLeaf` with the pasted text, or says why not (the code block's paste stays a literal
+`replaceDrawnRange` with the pasted text, or says why not (the code block's paste stays a literal
 splice). `lint/file-rules.test.ts`.
 
 **G4.91 · A focus call scrolls nothing unless it says why.** `focus()` scrolls an off-screen element

@@ -35,7 +35,7 @@ import { caretIsInTextContent, readNativeSelection } from '../../../browser/sele
 import { createMarkerCompletion } from './marker-completion';
 import { resolveEdgeDeletion, type EdgeDeletion } from './construct-edge-delete';
 
-import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 import { widgetAtCursor, widgetsIn, type WidgetAtCursor } from './widget-adjacency';
 import type { CaretUnitSource } from '../../../caret/caret-motion';
 import type { Reading } from '../../../schema/reading';
@@ -221,9 +221,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		});
 	}
 
-	/** `span` replaced by `insert` through the in-leaf range replace, the store read at the key. */
+	/** `span` replaced by `insert` as a selection of it would be, the store read at the key: a word
+	 *  delete leaves what selecting the word and pressing Delete leaves. */
 	function rangeEdit(span: DeleteSpan, insert: string): Pick<TextWrite, 'text' | 'caretAfter'> {
-		return rangeWrite(deps.node, replaceRangeInLeaf(deps.node, span, insert, deps.storedAs()));
+		return rangeWrite(deps.node, replaceDrawnRange(deps.node, span, insert, deps.storedAs()));
 	}
 
 	function editDisplay(start: number, end: number, insert: string, source = 'island'): void {
