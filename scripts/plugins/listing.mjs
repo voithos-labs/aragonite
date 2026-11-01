@@ -97,27 +97,20 @@ function checkedCell(verified) {
 }
 
 /**
- * The gallery's table, one row per entry, its columns padded the way Prettier pads them so the
- * page stays in step with the formatter.
+ * The gallery's table, one row per entry, unpadded: Prettier prints a docs table wider than its
+ * print width compact, and an npm link alone is wider than that.
  * @param {Entry[]} entries
  */
 export function renderTable(entries) {
-	const rows = [
-		['Plugin', 'Source', 'Supports the editor at', 'Conformance check'],
-		...entries.map((entry) => [
-			`[\`${entry.package}\`](https://www.npmjs.com/package/${entry.package})`,
-			`[repository](${entry.repository})`,
-			`\`${entry.editor}\``,
-			checkedCell(entry.verified)
-		])
-	];
-	const widths = rows[0].map((_, column) =>
-		rows.reduce((widest, row) => Math.max(widest, row[column].length), 0)
-	);
-	const line = (/** @type {string[]} */ cells) =>
-		`| ${cells.map((cell, column) => cell.padEnd(widths[column])).join(' | ')} |`;
-	const divider = line(widths.map((width) => '-'.repeat(width)));
-	return [line(rows[0]), divider, ...rows.slice(1).map(line)].join('\n');
+	const header = ['Plugin', 'Source', 'Supports the editor at', 'Conformance check'];
+	const rows = entries.map((entry) => [
+		`[\`${entry.package}\`](https://www.npmjs.com/package/${entry.package})`,
+		`[repository](${entry.repository})`,
+		`\`${entry.editor}\``,
+		checkedCell(entry.verified)
+	]);
+	const line = (/** @type {string[]} */ cells) => `| ${cells.join(' | ')} |`;
+	return [line(header), line(header.map(() => '---')), ...rows.map(line)].join('\n');
 }
 
 /**

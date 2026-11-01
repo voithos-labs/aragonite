@@ -25,7 +25,6 @@
 				"docs/contributing/casebook.md",
 				"docs/contributing/commit-conventions.md",
 				"docs/contributing/rules.md",
-				"docs/guide/plugin-gallery.md",
 				"docs/design/invariants/tested.md"
 			],
 			"options": {
