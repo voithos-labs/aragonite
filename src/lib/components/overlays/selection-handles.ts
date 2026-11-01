@@ -93,6 +93,7 @@ export interface HandleDragDeps {
 	selection: SelectionState;
 	caretWriter: CaretWriter;
 	getBlockElByPath: BlockElLookup;
+	caretBounds: HandleReads['caretBounds'];
 	lifetimeSignal: AbortSignal;
 }
 
@@ -109,8 +110,10 @@ export function startHandleDrag(
 		: range[other(grabbed.end)];
 	if (!fixed) return;
 	const offset = { clientX: grabbed.x - down.clientX, clientY: grabbed.y - down.clientY };
-	const blockEl = deps.getBlockElByPath(fixed.path);
-	const cell = blockEl && 'offset' in fixed ? cellDragFrom(blockEl, fixed) : null;
+	const from =
+		'offset' in fixed && fixed.cellCoordinate ? cellText(fixed, grabbed.end, deps) : fixed;
+	const blockEl = from && deps.getBlockElByPath(from.path);
+	const cell = blockEl && from && 'offset' in from ? cellDragFrom(blockEl, from) : null;
 	if (cell) {
 		installCellDragListener({ ...deps, touch: 'own', offset }, cell.anchor, down, cell.padding);
 		return;
@@ -119,6 +122,19 @@ export function startHandleDrag(
 }
 
 const other = (end: HandleEnd): HandleEnd => (end === 'start' ? 'end' : 'start');
+
+// A rectangle's fixed corner as the edge of its cell's text facing the range, so a drag back into
+// that cell selects from there as a press in the cell would.
+function cellText(
+	corner: SelectionPoint,
+	grabbed: HandleEnd,
+	deps: Pick<HandleDragDeps, 'selection' | 'caretBounds'>
+): SelectionPoint | null {
+	const { path } = deps.selection.cellLandingFor(corner);
+	const bounds = deps.caretBounds(path);
+	if (!bounds) return null;
+	return { path, offset: grabbed === 'end' ? bounds.start : bounds.end };
+}
 
 // A drag moves the stored range's focus, so a grabbed anchor first trades places with the focus.
 // A block held whole is re-entered by the drag itself, from the block as a whole.

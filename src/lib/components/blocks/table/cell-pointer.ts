@@ -140,29 +140,12 @@ export function installCellDragListener(
 	});
 }
 
-/** The cell drag a selection handle starts from the range's fixed end and that end's element: its
- *  cell anchors it, and a text end paints from its offset. Null outside every table. */
+/** The cell drag a selection handle starts from a text point in a cell: the cell anchors it, and a
+ *  drag back into the cell selects from the point. Null outside every table. */
 export function cellDragFrom(
 	el: HTMLElement,
 	point: SelectionPoint
-): { anchor: CellAnchor; padding: CellPaddingPress | null } | null {
-	if (point.cellCoordinate) {
-		const tableEl = el.matches('[role="table"]')
-			? el
-			: el.querySelector<HTMLElement>('[role="table"]');
-		const firstRow = tableEl && mountedRowEls(tableEl)[0];
-		const columnCount = firstRow ? rowCellEls(firstRow).length : 0;
-		if (!tableEl || columnCount === 0) return null;
-		const rowIdx = Math.floor(point.offset / columnCount);
-		const anchor = {
-			tableEl,
-			tablePath: point.path.slice(),
-			rowIdx,
-			colIdx: point.offset % columnCount,
-			columnCount
-		};
-		return { anchor, padding: null };
-	}
+): { anchor: CellAnchor; padding: CellPaddingPress } | null {
 	const cellEl = el.closest<HTMLElement>(TABLE_CELL_SELECTOR);
 	const tableEl = cellEl?.closest<HTMLElement>('[role="table"]');
 	const coords = tableEl ? cellCoordsOfElement(cellEl!, tableEl) : null;

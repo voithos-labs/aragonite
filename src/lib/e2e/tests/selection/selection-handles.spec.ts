@@ -157,7 +157,7 @@ test("a word at its block's end gets an edge handle that crosses into the next b
 });
 
 test('a handle dragged across table cells grows a rectangle', async ({ page }) => {
-	const editor = await open(page, TABLE_DOC);
+	await open(page, TABLE_DOC);
 	const cell = (offset: number) => ({ path: [1], offset, cellCoordinate: true });
 	await tapThenSelect(page, { anchor: cell(0), focus: cell(1) });
 	await expect(page.locator('.selection-handle')).toHaveCount(2);
@@ -179,7 +179,26 @@ test('a handle dragged across table cells grows a rectangle', async ({ page }) =
 	await expect
 		.poll(() => page.evaluate(() => (window as any).__test.getSelection()))
 		.toEqual({ anchor: cell(0), focus: cell(3) });
-	void editor;
+});
+
+test('a rectangle shrunk back to its first cell keeps a range in that cell', async ({ page }) => {
+	await open(page, 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n');
+	const cell = (offset: number) => ({ path: [1], offset, cellCoordinate: true });
+	await tapThenSelect(page, { anchor: cell(0), focus: cell(3) });
+	await expect(page.locator('.selection-handle')).toHaveCount(2);
+	const damson = (await page
+		.locator('[role="table"] [data-table-row-idx="1"] > [role="cell"]')
+		.nth(1)
+		.boundingBox())!;
+	await dragHandle(
+		page,
+		HANDLE('end'),
+		{ x: damson.x + damson.width, y: damson.y + damson.height / 2 },
+		await pointAtRaw(page, [1, 0, 0], 5)
+	);
+	await expect
+		.poll(() => page.evaluate(() => (window as any).__test.getSelection()))
+		.toEqual({ anchor: { path: [1, 0, 0], offset: 0 }, focus: { path: [1, 0, 0], offset: 5 } });
 });
 
 test('reading mode shows no handles', async ({ page }) => {

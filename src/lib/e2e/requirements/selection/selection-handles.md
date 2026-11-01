@@ -22,6 +22,10 @@ events. The real-device rows are in `requirements/mobile/android.md` and `ios.md
 ## Edge cases
 
 - A range across blocks after a mouse click gets no handles: they are a finger's.
+- A rectangle of cells whose end handle is dragged back into its first cell becomes a range in
+  that cell, from the cell's start to the finger, as a mouse drag back into its cell does.
+  - Miss-analysis: the cell row only grew a rectangle; no row shrank one, and a rectangle's corner
+    handed the drag no cell to select in.
 - Reading mode shows no handles.
 - An open editor menu keeps the handles, drawn above it, and a press on one closes the menu as
   any press outside it does, then drags.

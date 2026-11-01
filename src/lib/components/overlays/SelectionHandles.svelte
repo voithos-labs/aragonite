@@ -106,6 +106,7 @@
 			selection: services.selection,
 			caretWriter: services.caretWriter,
 			getBlockElByPath: editorDoc.blockElLookup,
+			caretBounds: reads.caretBounds,
 			lifetimeSignal: editorDoc.lifetime
 		});
 	}
