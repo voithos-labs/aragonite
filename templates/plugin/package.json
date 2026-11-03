@@ -39,11 +39,11 @@
 		"prepack": "npm run build"
 	},
 	"peerDependencies": {
-		"@voithos-labs/aragonite": "^0.11.4"
+		"@voithos-labs/aragonite": "^0.11.5"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.64.0",
-		"@voithos-labs/aragonite": "0.11.4",
+		"@voithos-labs/aragonite": "0.11.5",
 		"typescript": "^6.0.3",
 		"vite": "^8.3.4",
 		"vitest": "^5.0.0"

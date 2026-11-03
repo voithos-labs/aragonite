@@ -1,6 +1,6 @@
 {
 	"name": "@voithos-labs/aragonite-emoji",
-	"version": "0.11.4",
+	"version": "0.11.5",
 	"description": "github :shortcode: emoji for aragonite, the cute markdown editor lib",
 	"keywords": [
 		"aragonite-plugin",
@@ -48,7 +48,7 @@
 		"prepack": "npm run build"
 	},
 	"peerDependencies": {
-		"@voithos-labs/aragonite": "0.11.4",
+		"@voithos-labs/aragonite": "0.11.5",
 		"svelte": "^5.29.0"
 	},
 	"peerDependenciesMeta": {

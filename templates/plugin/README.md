@@ -7,7 +7,7 @@ A starter for an [aragonite](https://github.com/voithos-labs/aragonite) plugin. 
 Fetch the template at the tag of the editor release you're building against, then install and open the playground:
 
 ```bash
-npx degit voithos-labs/aragonite/templates/plugin#v0.11.4 my-plugin
+npx degit voithos-labs/aragonite/templates/plugin#v0.11.5 my-plugin
 cd my-plugin
 npm install
 npm run dev
@@ -45,7 +45,7 @@ Hosts import `style.css` next to the editor's own stylesheet. Your `src/` import
 
 ## Versions
 
-The plugin asks for the editor through a peer dependency, `^0.11.4`, so the host's copy is the one your plugin talks to. Bump the peer and the devDependency together.
+The plugin asks for the editor through a peer dependency, `^0.11.5`, so the host's copy is the one your plugin talks to. Bump the peer and the devDependency together.
 
 The template, the plugin check and the listing are a preview until 0.12.0, since any editor release before it may break the plugin API, so rerun your CI on each one. The plugin guide's [What is stable, what is not](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide.md#what-is-stable-what-is-not) has the schedule after that.
 

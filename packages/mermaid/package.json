@@ -1,6 +1,6 @@
 {
 	"name": "@voithos-labs/aragonite-mermaid",
-	"version": "0.11.4",
+	"version": "0.11.5",
 	"description": "mermaid diagrams for aragonite, the cute markdown editor lib",
 	"keywords": [
 		"aragonite-plugin",
@@ -53,7 +53,7 @@
 		"prepack": "npm run build"
 	},
 	"peerDependencies": {
-		"@voithos-labs/aragonite": "0.11.4",
+		"@voithos-labs/aragonite": "0.11.5",
 		"mermaid": "^11.16.0 || ^12.0.0",
 		"svelte": "^5.29.0"
 	},

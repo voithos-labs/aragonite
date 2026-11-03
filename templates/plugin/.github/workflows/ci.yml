@@ -25,4 +25,4 @@ jobs:
   # The check a plugin listing runs: your packed package through the editor's conformance kits.
   # Pin it to the editor release you build against, the same version as your devDependency.
   conformance:
-    uses: voithos-labs/aragonite/.github/workflows/plugin-check.yml@v0.11.4
+    uses: voithos-labs/aragonite/.github/workflows/plugin-check.yml@v0.11.5

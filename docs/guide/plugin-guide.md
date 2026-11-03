@@ -37,7 +37,7 @@ The parrot below draws itself with plain DOM, so it runs in every app the editor
 If you'd rather start from the finished thing, the plugin template is this exact parrot as a package: the build, a conformance test, a page to try it on, and CI that runs the check a plugin listing runs. It lives in the editor's repository, tagged with every release, so fetch it at the tag of the editor version you're building against (swap the version in for yours):
 
 ```bash
-npx degit voithos-labs/aragonite/templates/plugin#v0.11.4 my-plugin
+npx degit voithos-labs/aragonite/templates/plugin#v0.11.5 my-plugin
 ```
 
 Its README walks you from there. This page is how it works.
