@@ -344,7 +344,7 @@
 	});
 
 	let selectionDescription = $derived(
-		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
+		selectionState.ownsRange && selectionState.anchor && selectionState.focus
 			? createSelectionDescription({ anchor: selectionState.anchor, focus: selectionState.focus })
 			: ''
 	);
@@ -498,9 +498,9 @@
 	// them. Each refuses a cross-block range; a click also refuses a selection, which create needs.
 	const linkCard = createLinkCardState({
 		onOpen: () => linkCardCaret.saveCurrent(),
-		canOpen: () => !selectionState.isCrossBlock && !holdsNativeRange(),
-		canEnter: () => !selectionState.isCrossBlock,
-		canOpenCreate: () => !selectionState.isCrossBlock && holdsNativeRange()
+		canOpen: () => !selectionState.ownsRange && !holdsNativeRange(),
+		canEnter: () => !selectionState.ownsRange,
+		canOpenCreate: () => !selectionState.ownsRange && holdsNativeRange()
 	});
 
 	// ── Hidden-run class check ──────────────────────────────────────────
@@ -665,7 +665,7 @@
 		revealPath: (path) => caretLanding.mount(path, { openCollapsed: true }),
 		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollOwner,
-		isCrossBlock: () => selectionState.isCrossBlock,
+		ownsRange: () => selectionState.ownsRange,
 		isHostChrome,
 		landCaretAt: navigateCaret,
 		caretRectAt,
@@ -826,7 +826,7 @@
 		pluginEditor: pluginEditorLookup,
 		activation: activePlugins,
 		getPresentationMode: reading.mode,
-		isCrossBlockRange: () => selectionState.isCrossBlock,
+		ownsRange: () => selectionState.ownsRange,
 		holdsNativeRange,
 		crossBlockCommands,
 		markActivation,
@@ -1093,8 +1093,8 @@
 		get canReplace() {
 			return canReplace;
 		},
-		get isCrossBlock() {
-			return selectionState.isCrossBlock;
+		get ownsRange() {
+			return selectionState.ownsRange;
 		},
 		search: searchState,
 		commands,
@@ -1432,7 +1432,7 @@
 		getBlockComponent,
 		getUndoStack: () => undoManager.getStacks(),
 		getOperationsLog: () => operationsLog,
-		isCrossBlockActive: () => selectionState.isCrossBlock,
+		isCrossBlockActive: () => selectionState.ownsRange,
 		getGapCaret: () => selectionState.gapCaret,
 		getKeyFocus: (e) => keyClaims.readKeyFocus(e),
 		getDecorationEngine: () => decorationEngine,

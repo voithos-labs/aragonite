@@ -23,7 +23,7 @@ export interface LinkCardTargetQuery extends LinkPointQuery {
 	selection: { start: number; end: number } | null;
 	/** True while a range crosses blocks: `selection`, measured against this block's DOM, reports
 	 *  an endpoint in another block as this block's end. */
-	crossBlockRange: boolean;
+	ownedRange: boolean;
 }
 
 export interface LinkCardEntryQuery extends LinkCardTargetQuery {
@@ -42,7 +42,7 @@ export type EditTarget =
 /** The construct under the caret or wholly containing the range, or a widget a collapsed caret
  *  touches; null where the chord edits nothing, so the pressed state matches the chord. */
 export function editTargetAt(query: LinkCardTargetQuery): EditTarget | null {
-	if (query.crossBlockRange) return null;
+	if (query.ownedRange) return null;
 	const hit = followTargetAtCaret(query);
 	if (hit === null) return null;
 	const range = query.selection;
@@ -58,7 +58,7 @@ export function editTargetAt(query: LinkCardTargetQuery): EditTarget | null {
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
 	// Command dispatch already refuses a cross-block range; checked again because the offsets
 	// here would be made up in that state.
-	if (query.crossBlockRange) return;
+	if (query.ownedRange) return;
 	// Edit before create, since create refuses a range already inside a construct: going the
 	// create way there leaves the click doing nothing under a button painted as pressed.
 	const target = editTargetAt(query);

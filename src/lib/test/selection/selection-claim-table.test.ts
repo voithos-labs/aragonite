@@ -146,7 +146,7 @@ const WRITERS: Writer[] = [
 
 function liveKinds(s: SelectionState): Kind[] {
 	const kinds: Kind[] = [];
-	if (s.isCrossBlock) kinds.push('range');
+	if (s.ownsRange) kinds.push('range');
 	if (s.gapCaret !== null) kinds.push('gap');
 	if (s.widget !== null) kinds.push('widget');
 	return kinds;

@@ -27,7 +27,7 @@ export function crossBlockClipboardArm(deps: CrossBlockClipboardDeps): Clipboard
 
 function copyCrossBlock(e: ClipboardEvent, deps: CrossBlockClipboardDeps): boolean {
 	const { selection } = deps;
-	if (!selection.isCrossBlock || !selection.anchor || !selection.focus) return false;
+	if (!selection.ownsRange || !selection.anchor || !selection.focus) return false;
 	const doc = deps.getDoc();
 	const coverage = rangeCoverage(doc, coverRange(doc, selection.anchor, selection.focus));
 	const cells = coverage.grid && gridClipboard(doc, coverage.grid);

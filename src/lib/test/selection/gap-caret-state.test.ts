@@ -28,7 +28,7 @@ describe('SelectionState: the gap caret as a third mode', () => {
 		h.selection.setGapCaret(GAP);
 
 		expect(h.selection.gapCaret).toEqual(GAP);
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 		expect(h.selection.anchor).toBeNull();
 		expect(h.emissions).toBe(1);
 	});

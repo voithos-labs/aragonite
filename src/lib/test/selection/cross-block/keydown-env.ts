@@ -101,7 +101,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		commands: commandContextWith(overrides, {
 			history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 			getPresentationMode: () => opts.presentationMode ?? 'source',
-			isCrossBlockRange: () => selection.isCrossBlock,
+			ownsRange: () => selection.ownsRange,
 			holdsNativeRange,
 			crossBlockCommands,
 			onCommandError

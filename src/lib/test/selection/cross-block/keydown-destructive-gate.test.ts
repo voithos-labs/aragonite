@@ -23,7 +23,7 @@ describe('cross-block keydown: destructive branch', () => {
 
 			expect(event.defaultPrevented).toBe(true);
 			expect(env.source()).toBe('ata\n\ngamma\n');
-			expect(env.selection.isCrossBlock).toBe(false);
+			expect(env.selection.ownsRange).toBe(false);
 		});
 
 		it(`${key} consumes the key but changes nothing in reading mode`, async () => {
@@ -35,7 +35,7 @@ describe('cross-block keydown: destructive branch', () => {
 
 			expect(event.defaultPrevented).toBe(true);
 			expect(env.source()).toBe(SOURCE);
-			expect(env.selection.isCrossBlock).toBe(true);
+			expect(env.selection.ownsRange).toBe(true);
 		});
 	}
 

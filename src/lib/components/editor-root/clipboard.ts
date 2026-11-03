@@ -72,7 +72,7 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		const widget = deps.selection.widget;
 		const block = widget && deps.getBlockComponent(widget.paragraphPath);
 		if (block) return { arm: 'widget', block };
-		return deps.selection.isCrossBlock ? { arm: 'cross-block' } : null;
+		return deps.selection.ownsRange ? { arm: 'cross-block' } : null;
 	}
 
 	return {

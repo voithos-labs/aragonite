@@ -229,7 +229,7 @@ describe('create entry', () => {
 			source: string,
 			selection: { start: number; end: number } | null,
 			mode: 'live' | 'source' = 'live',
-			crossBlockRange = false
+			ownedRange = false
 		): void {
 			enterLinkCardAtCaret({
 				contentEl: document.createElement('div'),
@@ -239,7 +239,7 @@ describe('create entry', () => {
 				enterWidget: () => {},
 				placeCaretInText: () => {},
 				selection,
-				crossBlockRange,
+				ownedRange,
 				reading: fixtureReading({}, mode)
 			});
 		}
@@ -319,11 +319,11 @@ describe('range entry', () => {
 		source: string,
 		start: number,
 		end: number,
-		crossBlockRange = false
+		ownedRange = false
 	): ReturnType<typeof makeCard> {
 		const { el, node, reading } = mount(source);
 		seat(el, start, end);
-		const card = makeCard(crossBlockRange);
+		const card = makeCard(ownedRange);
 		enterLinkCardAtCaret({
 			contentEl: el,
 			block: node,
@@ -333,7 +333,7 @@ describe('range entry', () => {
 			enterWidget: () => {},
 			placeCaretInText: () => {},
 			selection: start === end ? null : { start, end },
-			crossBlockRange
+			ownedRange
 		});
 		return card;
 	}

@@ -185,7 +185,7 @@ export interface CommandGates {
 	/** The plugins the editor activated: a plugin's command resolves only where it is listed. */
 	activation: PluginActivation;
 	/** True while a cross-block range is painted. */
-	isCrossBlockRange(): boolean;
+	ownsRange(): boolean;
 	/** Whether the browser holds a selected range, which a command that can't remove it warns about. */
 	holdsNativeRange(): boolean;
 	crossBlockCommands: CrossBlockCommandRouter;
@@ -320,11 +320,7 @@ function runBlockLocalCommand(
 ): boolean {
 	const target = 'target' in resolved ? resolved.target : null;
 	// Under a range spanning blocks the range owns the selection; the block holds none of its own.
-	if (
-		!target ||
-		ctx.isCrossBlockRange() ||
-		!commandOverSelection(target.kind, id, ctx.activation)
-	) {
+	if (!target || ctx.ownsRange() || !commandOverSelection(target.kind, id, ctx.activation)) {
 		return runAtCaret(resolved, id, arg, path, ctx, run);
 	}
 	if (!target.afterSelectionRemoved) {
@@ -408,7 +404,7 @@ type RangeRoute =
  */
 function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	// Called directly, not optionally: a caller without the getter throws rather than skipping.
-	if (!gates.isCrossBlockRange()) return { kind: 'block-local', ranged: false };
+	if (!gates.ownsRange()) return { kind: 'block-local', ranged: false };
 	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
 	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) return { kind: 'block-local', ranged: true };
 	const router = gates.crossBlockCommands;
@@ -503,7 +499,7 @@ export function leafKeyCommandRuns(id: AnyCommandId, kind: AnyBlockKind, gates: 
 /** A command meant to run once a range is removed, reached by a key the range didn't claim (the
  *  block it would land in binds the key otherwise): run here, it would write under the live range. */
 function leftUnderLiveRange(id: AnyCommandId, kind: AnyBlockKind, gates: CommandGates): boolean {
-	return gates.isCrossBlockRange() && commandOverRange(kind, id, gates.activation) !== undefined;
+	return gates.ownsRange() && commandOverRange(kind, id, gates.activation) !== undefined;
 }
 
 /** A chord at a container, against its kind's bindings only: undo/redo and the range commands

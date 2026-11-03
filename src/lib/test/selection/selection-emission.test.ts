@@ -17,7 +17,7 @@ import { extendCtx } from './extend-walk-env';
 interface Emission {
 	/** The block the native caret sat in, which is what a subscriber's read-back resolves. */
 	caretBlock: number | null;
-	isCrossBlock: boolean;
+	ownsRange: boolean;
 }
 
 function emissionHarness() {
@@ -40,7 +40,7 @@ function emissionHarness() {
 	};
 	const selectionState = createSelectionState({
 		onChange: () =>
-			emissions.push({ caretBlock: caretBlock(), isCrossBlock: selectionState.isCrossBlock })
+			emissions.push({ caretBlock: caretBlock(), ownsRange: selectionState.ownsRange })
 	});
 
 	return {
@@ -70,7 +70,7 @@ describe('the restore path settles before it notifies', () => {
 
 		h.restore({ anchor: at(1, 2), focus: at(1, 2) });
 
-		expect(h.emissions).toEqual([{ caretBlock: 1, isCrossBlock: false }]);
+		expect(h.emissions).toEqual([{ caretBlock: 1, ownsRange: false }]);
 	});
 
 	it('a single-block range restore reports the restored block', () => {
@@ -79,7 +79,7 @@ describe('the restore path settles before it notifies', () => {
 
 		h.restore({ anchor: at(1, 0), focus: at(1, 4) });
 
-		expect(h.emissions).toEqual([{ caretBlock: 1, isCrossBlock: false }]);
+		expect(h.emissions).toEqual([{ caretBlock: 1, ownsRange: false }]);
 	});
 
 	// The documented exception, pinned so changing it is a visible decision: a collapsed restore
@@ -94,7 +94,7 @@ describe('the restore path settles before it notifies', () => {
 		);
 
 		expect(placed).toBe(false);
-		expect(h.emissions).toEqual([{ caretBlock: 0, isCrossBlock: false }]);
+		expect(h.emissions).toEqual([{ caretBlock: 0, ownsRange: false }]);
 	});
 
 	it('a cross-block restore notifies once, with the gap caret already landed', () => {
@@ -103,7 +103,7 @@ describe('the restore path settles before it notifies', () => {
 
 		h.restore({ anchor: at(0, 1), focus: at(1, 2) });
 
-		expect(h.emissions).toEqual([{ caretBlock: 1, isCrossBlock: true }]);
+		expect(h.emissions).toEqual([{ caretBlock: 1, ownsRange: true }]);
 	});
 });
 
@@ -179,7 +179,7 @@ describe('unbatched entry-path emission counts', () => {
 
 		// The counter was already 0, so only the clear is a real mutation.
 		expect(notifies).toBe(1);
-		expect(state.isCrossBlock).toBe(false);
+		expect(state.ownsRange).toBe(false);
 	});
 
 	it('a pointerdown with no cross-block selection standing notifies nothing', () => {
@@ -269,7 +269,7 @@ describe('unbatched entry-path emission counts', () => {
 		// enterCrossBlockFromKeyboard seeds a collapsed pair, then extendFocus reaches
 		// the next leaf. Two mutations, two emissions, both reporting real state.
 		expect(h.emissions).toHaveLength(2);
-		expect(h.emissions.map((e) => e.isCrossBlock)).toEqual([true, true]);
+		expect(h.emissions.map((e) => e.ownsRange)).toEqual([true, true]);
 		expect(h.selectionState.focus).toEqual({ path: [1], offset: 0 });
 	});
 });

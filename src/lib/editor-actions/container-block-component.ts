@@ -101,7 +101,7 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	getRaw: () => string;
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock' | 'insertParagraph'>;
 	isReading: () => boolean;
-	selection: Pick<SelectionState, 'isCrossBlock'>;
+	selection: Pick<SelectionState, 'ownsRange'>;
 	caretMemory: Pick<CaretMemory, 'noteKey'>;
 	/** What the keypress resolves to at this block's kind, overrides included. */
 	commandOf: (e: KeyboardEvent) => AnyCommandId | null;
@@ -139,7 +139,7 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	// A range across blocks is left to the copy event the editor's handlers take.
 	const clipboard = wholeBlockClipboardKey(e);
 	if (clipboard) {
-		if (deps.selection.isCrossBlock) return;
+		if (deps.selection.ownsRange) return;
 		e.preventDefault();
 		void copyFocusedWholeBlock(deps, clipboard === 'cut');
 		return;

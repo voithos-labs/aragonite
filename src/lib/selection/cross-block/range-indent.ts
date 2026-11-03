@@ -40,7 +40,7 @@ export type RangeIndentContext = Pick<
 
 export async function indentRange(ctx: RangeIndentContext, e: KeyboardEvent): Promise<void> {
 	const { anchor, focus, start } = ctx.selection;
-	if (!ctx.selection.isCrossBlock || !anchor || !focus || !start) return;
+	if (!ctx.selection.ownsRange || !anchor || !focus || !start) return;
 	if (!ctx.controller.admitsGesture('rangeIndent')) return;
 	ctx.caretMemory.forget();
 	ctx.selection.resetSelectAllCount();

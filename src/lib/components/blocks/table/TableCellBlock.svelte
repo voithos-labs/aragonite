@@ -242,7 +242,7 @@
 		setSnapTarget: () => {},
 		setPendingCursor: parkCursor,
 		activationClick,
-		isCrossBlock: () => selection.isCrossBlock,
+		ownsRange: () => selection.ownsRange,
 		shownSource,
 		renderedWidgets: () => cellRender.renderedWidgets(),
 		caretMemory,
@@ -541,7 +541,7 @@
 
 		// Must run before `cellKeydownPlan`, which takes arrows and calls `preventDefault`
 		// without reaching here, leaving a live selection the next keystroke would replace.
-		if (selection.isCrossBlock && (await crossBlock.handleKeyDown(e))) return;
+		if (selection.ownsRange && (await crossBlock.handleKeyDown(e))) return;
 
 		// The source-showing and selection handlers run before the plan, which would otherwise
 		// read an ArrowUp or ArrowDown inside a shown source as cell navigation.
@@ -573,7 +573,7 @@
 				// The first Shift+ArrowUp or Down at a cell's vertical edge takes a whole row;
 				// the shared prose extend would instead go to the next block in document order.
 				if (
-					!selection.isCrossBlock &&
+					!selection.ownsRange &&
 					e.shiftKey &&
 					!e.altKey &&
 					!e.ctrlKey &&
@@ -810,7 +810,7 @@
 			// The cell can unmount while the read waits (a delete, a `source` swap).
 			if (!el || !raw) return;
 			// A live range stays as it is; otherwise the paste replaces what the menu was opened on.
-			if (!selection.isCrossBlock) setSelection(sel.start, sel.end);
+			if (!selection.ownsRange) setSelection(sel.start, sel.end);
 			// The same paste step Ctrl+V runs.
 			await clipboard.insertMarkdown(raw);
 			return;

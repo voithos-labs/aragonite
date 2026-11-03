@@ -25,7 +25,7 @@ export interface ModeFlipDeps {
 	/** Getters, never values: the root binds after construction and the mode moves. */
 	get editorEl(): HTMLElement | undefined;
 	get mode(): PresentationMode;
-	selection: Pick<SelectionState, 'isCrossBlock' | 'gapCaret' | 'clearGapCaret'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'gapCaret' | 'clearGapCaret'>;
 	/** The public snapshot, which also answers for a native caret no block reports. */
 	getSelection(): EditorSelection | null;
 	/** Sends the current selection to subscribers. */
@@ -71,7 +71,7 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 	/** The focused block's caret as (path, raw offset): the block's own answer while it holds
 	 *  focus, else the native range a toggle click leaves behind while the button has focus. */
 	function captureCaret(): FlipCaret | null {
-		if (deps.selection.isCrossBlock || deps.selection.gapCaret) return null;
+		if (deps.selection.ownsRange || deps.selection.gapCaret) return null;
 		const focused = deps.getSelection()?.focus;
 		if (focused) return { path: focused.path, offset: focused.offset };
 		const focus = readNativeSelection()?.focus;

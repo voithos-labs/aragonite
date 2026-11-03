@@ -110,7 +110,7 @@ describe('handleShiftClick out of a table cell', () => {
 		expect(
 			handleShiftClick(s, testCaretWriter, cells[1][2], [0, 1, 2], 0, 0, cells[1][2], [0], null)
 		).toBe(false);
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 	});
 
 	it('leaves a non-table anchor element on its own block path', () => {

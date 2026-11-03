@@ -74,7 +74,7 @@ export function installCellDragListener(
 		if (cellHit) {
 			if (cellHit.rowIdx === anchor.rowIdx && cellHit.colIdx === anchor.colIdx) {
 				// Back in the anchor cell: collapse so the browser resumes selecting inside it.
-				if (ctx.selection.isCrossBlock) {
+				if (ctx.selection.ownsRange) {
 					ctx.selection.collapse();
 				}
 				paintInAnchorCell(clientX, clientY);

@@ -53,7 +53,7 @@ describe('handleShiftClick', () => {
 		clickOffset.mockReturnValue(3);
 
 		expect(handleShiftClick(s, testCaretWriter, el(), [0], 0, 0, el(), [2], null)).toBe(true);
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 		expect(s.focus).toBeNull();
 	});
 
@@ -63,7 +63,7 @@ describe('handleShiftClick', () => {
 		anchorCaret.mockReturnValue({ path: [1], offset: 0 });
 
 		expect(handleShiftClick(s, testCaretWriter, el(), [1], 0, 0, el(), [1], null)).toBe(false);
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 	});
 
 	it('enters cross-block from the previous caret when the click crosses blocks', () => {
@@ -72,7 +72,7 @@ describe('handleShiftClick', () => {
 		anchorCaret.mockReturnValue({ path: [0], offset: 2 });
 
 		expect(handleShiftClick(s, testCaretWriter, el(), [2], 0, 0, el(), [0], null)).toBe(true);
-		expect(s.isCrossBlock).toBe(true);
+		expect(s.ownsRange).toBe(true);
 		expect(s.anchor).toEqual({ path: [0], offset: 2 });
 		expect(s.focus).toEqual({ path: [2], offset: 1 });
 	});
@@ -106,7 +106,7 @@ describe('handleShiftClick with an image selected whole', () => {
 		expect(handleShiftClick(s, testCaretWriter, block, [0], 0, 0, null, null, null)).toBe(true);
 		expect(sameBlockRange).toHaveBeenCalledWith(testCaretWriter, block, anchorAt, pressAt);
 		expect(s.widget).toBeNull();
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 	});
 
 	it('a press in a later block enters a cross-block range from the image start', () => {

@@ -41,7 +41,7 @@ export function createEditorRects(deps: {
 	revealPath: (path: number[]) => Promise<unknown>;
 	getEditorRoot: () => HTMLElement | null;
 	scroll: Pick<ScrollOwner, 'place'>;
-	isCrossBlock: () => boolean;
+	ownsRange: () => boolean;
 	/** True for nodes in the host's `header` snippet: inside the root, but not this
 	 *  editor's content. */
 	isHostChrome: (node: Node | null) => boolean;
@@ -63,7 +63,7 @@ export function createEditorRects(deps: {
 		caretRect() {
 			// Read `SelectionState`, not the `data-cross-block` attribute: a deferred `$effect`
 			// writes the attribute, so it lags the synchronous `selectionChange` emit.
-			if (deps.isCrossBlock()) return null;
+			if (deps.ownsRange()) return null;
 			const root = deps.getEditorRoot();
 			if (!root) return null;
 			const range = deps.readSelection()?.range;

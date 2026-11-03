@@ -301,7 +301,7 @@ describe('the other entry points', () => {
 			await landing.showSelectionEnd();
 		}
 		expect(placements).toEqual([]);
-		expect(selectionState.isCrossBlock).toBe(true);
+		expect(selectionState.ownsRange).toBe(true);
 		expect(calls).toEqual(['showRect', 'showRect']);
 	});
 

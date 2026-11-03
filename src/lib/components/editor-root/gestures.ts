@@ -302,7 +302,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		// across blocks is painted by the editor, so the browser's rectangles don't show it.
 		const range =
 			pressesSelectedWidget(deps.selection, e.target) ||
-			(deps.selection.isCrossBlock
+			(deps.selection.ownsRange
 				? nativeRangeIn(root)
 				: rangeCoversPoint(root, e.clientX, e.clientY));
 		const onWidget = e.target instanceof Element && !!e.target.closest('[data-inline-widget]');
@@ -318,7 +318,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	// Before any menu reads the caret: Safari's word select stays for the clipboard rows, while a
 	// widget it selected whole gives way to the caret every other engine puts beside it.
 	function placeCaretForMenu(): void {
-		if (!contextPress || contextPress.range || deps.selection.isCrossBlock) return;
+		if (!contextPress || contextPress.range || deps.selection.ownsRange) return;
 		if (deps.reading.mode() === 'reading') return;
 		if (contextPress.onWidget) contextPress.atPoint?.();
 		else contextPress.inPadding?.();

@@ -19,9 +19,9 @@ export function dumpSelection(state: SelectionState | null): string {
 	const parts = [
 		`anchor=${formatPoint(state.anchor)}`,
 		`focus=${formatPoint(state.focus)}`,
-		`cross-block=${state.isCrossBlock}`
+		`cross-block=${state.ownsRange}`
 	];
-	if (state.isCrossBlock && state.start && state.end) {
+	if (state.ownsRange && state.start && state.end) {
 		parts.push(`start=${formatPoint(state.start)}`);
 		parts.push(`end=${formatPoint(state.end)}`);
 	}

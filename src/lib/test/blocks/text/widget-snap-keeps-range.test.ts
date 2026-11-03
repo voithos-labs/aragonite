@@ -29,7 +29,7 @@ function mountSnapBlock() {
 					}
 				},
 				setSnapTarget: () => {},
-				isCrossBlock: () => false,
+				ownsRange: () => false,
 				getPendingClickPoint: () => null
 			}
 		)

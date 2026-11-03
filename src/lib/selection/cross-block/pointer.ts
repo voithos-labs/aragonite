@@ -34,7 +34,7 @@ export function resetForPointerDown(
 	caretMemory: Pick<CaretMemory, 'forget'>,
 	isShift: boolean
 ): void {
-	const ending = !isShift && selection.isCrossBlock;
+	const ending = !isShift && selection.ownsRange;
 	resetSelectionForPress(selection, caretMemory, isShift);
 	if (ending) writer.clear();
 }
@@ -54,7 +54,7 @@ export function resetForPress(
 	}
 	clearOnPress(e, lifetime, {
 		nativeCaret: () => {
-			if (selection.isCrossBlock) writer.clear();
+			if (selection.ownsRange) writer.clear();
 		},
 		selection: () => resetSelectionForPress(selection, caretMemory, false)
 	});
@@ -70,7 +70,7 @@ function resetSelectionForPress(
 	// Unconditional, unlike the range branch: a gap caret is always collapsed, so a shift-click
 	// has no range to grow from it. Silent when no gap caret is live.
 	selection.clearGapCaret();
-	if (!isShift && selection.isCrossBlock) selection.clear();
+	if (!isShift && selection.ownsRange) selection.clear();
 }
 
 // ── Pointer ────────────────────────────────────────────────────────────────

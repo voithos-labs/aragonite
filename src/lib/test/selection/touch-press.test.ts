@@ -72,21 +72,21 @@ describe('a press dragged into the next block', () => {
 		drag('mouse');
 		move(10, 40);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	it('opens a range from a pen, which selects text the way a mouse does', () => {
 		drag('pen');
 		move(10, 40);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	it('opens no range from a finger, whose move is a scroll', () => {
 		drag('touch');
 		move(10, 40);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 
 	// A selection knob takes the finger (`touch-action: none`), so its drag is the editor's.
@@ -94,7 +94,7 @@ describe('a press dragged into the next block', () => {
 		drag('touch', 'own');
 		move(10, 40);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	// The emulator's swipe: a move or two inside one frame, then the browser takes the scroll.
@@ -102,7 +102,7 @@ describe('a press dragged into the next block', () => {
 		drag('touch');
 		move(10, 40);
 		document.dispatchEvent(press('pointercancel', 'touch'));
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 });
 
@@ -132,27 +132,27 @@ describe('a press on a block while a range spans blocks', () => {
 
 	it('clears the range at a mouse press', () => {
 		pressBlock('mouse');
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 
 	it('keeps the range through a finger press the browser turns into a scroll', () => {
 		pressBlock('touch');
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 		document.dispatchEvent(press('pointercancel', 'touch'));
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	it('clears the range once a finger press ends as a tap', () => {
 		pressBlock('touch');
 		document.dispatchEvent(press('pointerup', 'touch'));
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 
 	// A tablet with a keyboard: a Shift press grows the range, and its lift must not clear it.
 	it('keeps the range through a finger press with Shift held', () => {
 		pressBlock('touch', undefined, { shiftKey: true });
 		document.dispatchEvent(press('pointerup', 'touch'));
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	// Android's long press: selectstart while the finger is held, the word, then a pointercancel.
@@ -160,7 +160,7 @@ describe('a press on a block while a range spans blocks', () => {
 	it("ends the range, keeping the browser's word, when the held finger starts a selection", () => {
 		pressBlock('touch');
 		document.dispatchEvent(new Event('selectstart', { bubbles: true }));
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 		const word = selectWord();
 		document.dispatchEvent(press('pointercancel', 'touch'));
 		expect(String(document.getSelection())).toBe(word);
@@ -171,7 +171,7 @@ describe('a press on a block while a range spans blocks', () => {
 		pressBlock('touch');
 		const word = selectWord();
 		document.dispatchEvent(new Event('selectionchange'));
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 		document.dispatchEvent(press('pointerup', 'touch'));
 		expect(String(document.getSelection())).toBe(word);
 	});
@@ -182,7 +182,7 @@ describe('a press on a block while a range spans blocks', () => {
 		pressBlock('touch', lifetime.signal);
 		lifetime.abort();
 		document.dispatchEvent(press('pointerup', 'touch'));
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 });
 

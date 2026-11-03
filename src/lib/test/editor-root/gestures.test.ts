@@ -213,7 +213,7 @@ describe('editor-root gestures: the margin drag', () => {
 		const h = harness();
 		h.withRange();
 		h.press(h.root);
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 		expect(h.startDragAtPoint).toHaveBeenCalledWith(10, 40, expect.any(MouseEvent));
 		expect(h.mouseDown(h.root).defaultPrevented).toBe(true);
 	});
@@ -238,7 +238,7 @@ describe('editor-root gestures: the margin drag', () => {
 		const h = harness();
 		h.withRange();
 		h.press(h.root, init);
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 		expect(h.mouseDown(h.root, init).defaultPrevented).toBe(false);
 	});
 
@@ -246,23 +246,23 @@ describe('editor-root gestures: the margin drag', () => {
 		const h = harness({ mode: 'reading' });
 		h.withRange();
 		h.press(h.root);
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 	});
 
 	it("a press inside a widget's own gesture surface declines", () => {
 		const h = harness();
 		h.withRange();
 		h.press(h.widget);
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 	});
 
 	it('a press on an editable surface declines; a whole-block input proxy does not', () => {
 		const h = harness();
 		h.withRange();
 		h.press(h.editable);
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 		h.press(h.proxy);
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 	});
 
 	it('the second press of a click run hands the gesture to the priority order', () => {
@@ -357,7 +357,7 @@ describe('editor-root gestures: the click priority order', () => {
 		h.withRange();
 		expect(h.gestures.placeCaretAtPoint(h.root, BOX.left + 5, 40)).toBe(true);
 		expect(h.focus).toHaveBeenCalledOnce();
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 	});
 });
 

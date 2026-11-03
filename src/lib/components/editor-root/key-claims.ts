@@ -51,7 +51,7 @@ export interface KeyClaimsDeps extends KeyFocusDeps {
 	inlineMenu: Pick<InlineMenuState, 'listKey'>;
 	/** The chord an open link card swallows: the one that opens it. */
 	opensLinkCard(e: KeyboardEvent): boolean;
-	selection: Pick<SelectionState, 'gapCaret' | 'isCrossBlock' | 'anchor' | 'focus'>;
+	selection: Pick<SelectionState, 'gapCaret' | 'ownsRange' | 'anchor' | 'focus'>;
 	containerChords: Pick<ContainerChords, 'takes'>;
 	getDoc(): Document;
 	commands: CommandDispatchContext;
@@ -77,7 +77,7 @@ export interface KeyClaims {
 
 export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 	const reading = () => isReadingMode(deps.commands.getPresentationMode);
-	const rangeTakes = (e: KeyboardEvent) => deps.selection.isCrossBlock && rangeOwnsKey(e, deps);
+	const rangeTakes = (e: KeyboardEvent) => deps.selection.ownsRange && rangeOwnsKey(e, deps);
 
 	/** A chord the focused block's keymap, or a container's around it, runs here: the containers
 	 *  answer through the same walk their dispatch takes. */
@@ -114,7 +114,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		const ownsCaret = ownsWindowedOutCaret(root, el);
 		if (!ownsCaret && !chromeHoldsFocus(root, el, deps)) return false;
 		if (chord && takesGlobalChord(chord, deps.commands)) return true;
-		if (!ownsCaret || !deps.selection.isCrossBlock) return false;
+		if (!ownsCaret || !deps.selection.ownsRange) return false;
 		return (isCharacterKey(e.key) && !e.ctrlKey && !e.metaKey) || rangeTakes(e);
 	}
 
@@ -136,7 +136,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		if (chord && takesGlobalChordOnKind(chord, kind, deps.commands)) return true;
 		if (chord && keymapTakes(e, chord, kind, path, true)) return true;
 		if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') return true;
-		if (wholeBlockClipboardKey(e) && !deps.selection.isCrossBlock) return true;
+		if (wholeBlockClipboardKey(e) && !deps.selection.ownsRange) return true;
 		if (isPasteKey(e)) return !reading();
 		if (e.ctrlKey || e.metaKey || e.altKey) return false;
 		return isCharacterKey(e.key) || e.key.startsWith('Arrow');

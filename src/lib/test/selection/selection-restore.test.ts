@@ -111,7 +111,7 @@ describe('restoring a stored selection', () => {
 		// viewport on the way to reporting failure.
 		expect(outcome).toBe('unresolvable');
 		expect(h.revealed).toEqual([]);
-		expect(h.selectionState.isCrossBlock).toBe(false);
+		expect(h.selectionState.ownsRange).toBe(false);
 	});
 
 	it('declines when only the anchor is stale', async () => {
@@ -138,7 +138,7 @@ describe('restoring a stored selection', () => {
 
 		expect(outcome).toBe('unplaced');
 		expect(h.revealed).toEqual([[1]]);
-		expect(h.selectionState.isCrossBlock).toBe(true);
+		expect(h.selectionState.ownsRange).toBe(true);
 	});
 
 	it('reveals the focus block for a prose caret', async () => {
@@ -191,6 +191,6 @@ describe('restoring a stored selection', () => {
 		await h.restore({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 3 } });
 
 		expect(h.selectionState.wholeUnitPath).toEqual([1]);
-		expect(h.selectionState.isCrossBlock).toBe(true);
+		expect(h.selectionState.ownsRange).toBe(true);
 	});
 });

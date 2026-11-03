@@ -77,7 +77,7 @@ async function handleKeyDown(ctx: CrossBlockDispatchContext, e: KeyboardEvent): 
 	if (page?.extend) return handlePageExtend(ctx, e, page.direction);
 	if (page) return handlePageMove(ctx, e, page.direction);
 
-	if (selection.isCrossBlock) {
+	if (selection.ownsRange) {
 		const handled = await handleCrossBlockActive(ctx, e);
 		if (handled) return true;
 	} else if (takesIdleTab(ctx, e)) {
@@ -222,7 +222,7 @@ export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): b
 
 /** What reading a key over a live range takes: the range, its document and the keymap. */
 export interface RangeKeyReads {
-	selection: Pick<SelectionState, 'isCrossBlock' | 'anchor' | 'focus'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'anchor' | 'focus'>;
 	getDoc: () => Document;
 	commands: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
 }
@@ -230,7 +230,7 @@ export interface RangeKeyReads {
 /** Every key the range's own handler claims, which a container the key bubbles through must leave
  *  to it: the range's handler awaits before claiming, so the key can reach the container first. */
 export function rangeOwnsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
-	if (!reads.selection.isCrossBlock) return false;
+	if (!reads.selection.ownsRange) return false;
 	return caretEdgeKey(e)?.to === 'doc' || rangeKeyRole(e, reads) !== null;
 }
 
@@ -356,7 +356,7 @@ async function handlePageMove(
 /** Unawaited: the replace only awaits ticks, so the range is gone and the caret is in the block
  *  the removal kept before the IME writes, and the composed text joins its undo entry. */
 function handleCompositionStart(ctx: CrossBlockDispatchContext): boolean {
-	if (!ctx.selection.isCrossBlock) return false;
+	if (!ctx.selection.ownsRange) return false;
 	void replaceRange(ctx, { kind: 'composition' });
 	return true;
 }

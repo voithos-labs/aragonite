@@ -108,7 +108,7 @@ gamma
 			// The dispatcher routes ahead of the block's own handler, so the focused block is never asked.
 			expect(runCommand).not.toHaveBeenCalled();
 			// A delete would drop the range, and the marks would land on shifted indices.
-			expect(env.selection.isCrossBlock).toBe(true);
+			expect(env.selection.ownsRange).toBe(true);
 		});
 	}
 

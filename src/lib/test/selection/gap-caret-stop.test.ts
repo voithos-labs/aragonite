@@ -56,7 +56,7 @@ describe('placeGapCaret: the gap entry point', () => {
 
 		placeGapCaret(selection, testCaretWriter, { parentPath: [], index: 2 });
 
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 		expect(selection.gapCaret).toEqual({ parentPath: [], index: 2 });
 	});
 

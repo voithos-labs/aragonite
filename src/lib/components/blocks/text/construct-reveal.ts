@@ -53,7 +53,7 @@ export interface ConstructRevealDeps {
 	getEl: () => HTMLElement | null;
 	/** A cross-block selection freezes what is shown, so a drag anchored in visible marker
 	 *  text keeps its layout. */
-	isCrossBlock: () => boolean;
+	ownsRange: () => boolean;
 	/** Told whenever a marker shows or hides, since that moves the text after it. */
 	textMoves: Pick<TextMoves, 'movedWithin'>;
 	/** Writes the caret again when a marker beside it shows or hides, so the browser's next key
@@ -159,14 +159,14 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 			} finally {
 				foldRecheckQueued = false;
 			}
-			if (deps.isCrossBlock()) return;
+			if (deps.ownsRange()) return;
 			const chain = evaluateChain();
 			if (chain.length === 0 && appliedKey !== '') apply([], '');
 		})();
 	}
 
 	function update(force = false): void {
-		if (deps.isCrossBlock()) return;
+		if (deps.ownsRange()) return;
 		const chain = evaluateChain();
 		const key = chainKey(chain);
 		if (force) {
@@ -182,7 +182,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 	}
 
 	function prepareStep(delta: -1 | 0 | 1): void {
-		if (deps.isCrossBlock()) return;
+		if (deps.ownsRange()) return;
 		const offset = caretOffset();
 		if (offset === null) return;
 		const tree = inlines();

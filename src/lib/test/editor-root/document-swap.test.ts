@@ -104,7 +104,7 @@ describe('the swap commit sequence', () => {
 		h.order.length = 0;
 		h.swap.swapTo('[x]: https://x.example\n');
 		expect(h.order.filter((name) => name === 'announce')).toHaveLength(1);
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 		expect(h.links()!.resolver('x')?.url).toBe('https://x.example');
 	});
 

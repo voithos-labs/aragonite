@@ -74,7 +74,7 @@ test.describe('image paste: cross-block replacement', () => {
 		await editor.bridge.waitForBlockCount(3);
 	});
 
-	// `isCrossBlock` is read when the import arrives, so what gets replaced is whatever is
+	// `ownsRange` is read when the import arrives, so what gets replaced is whatever is
 	// selected then. The within-block branch is deliberately different: it anchors at paste time.
 	test('a selection made while the import is in flight is the one replaced', async ({ page }) => {
 		await editor.loadContent(THREE_PARAGRAPHS);

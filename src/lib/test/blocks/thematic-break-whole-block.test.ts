@@ -50,7 +50,7 @@ describe('thematic break: the whole-block focus surface', () => {
 
 		mounted.instance.focus(0);
 
-		expect(mounted.selection.isCrossBlock).toBe(false);
+		expect(mounted.selection.ownsRange).toBe(false);
 		expect(mounted.el.contains(document.activeElement)).toBe(true);
 	});
 });

@@ -37,7 +37,7 @@ function mountRun() {
 				caretWriter: testCaretWriter,
 				cursor: { setRaw: (offset: number) => snapped.push(offset) },
 				setSnapTarget: () => {},
-				isCrossBlock: () => false,
+				ownsRange: () => false,
 				getPendingClickPoint: () => null
 			}
 		)

@@ -53,7 +53,7 @@ export type RestoreRoute = 'collapsed' | 'single-block' | 'whole-block' | 'custo
 export interface SelectionState {
 	readonly anchor: SelectionPoint | null;
 	readonly focus: SelectionPoint | null;
-	readonly isCrossBlock: boolean;
+	readonly ownsRange: boolean;
 	/**
 	 * True when the overlay paints instead of the native browser highlight: every
 	 * cross-block selection, plus a rectangle of two or more cells inside one table.
@@ -211,7 +211,7 @@ class SelectionStateImpl implements SelectionState {
 		return gap && { parentPath: gap.parentPath.slice(), index: gap.index };
 	}
 
-	get isCrossBlock(): boolean {
+	get ownsRange(): boolean {
 		return this.#anchor !== null && this.#focus !== null;
 	}
 

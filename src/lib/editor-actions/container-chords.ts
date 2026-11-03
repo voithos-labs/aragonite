@@ -21,7 +21,7 @@ import type { SelectionState } from '../selection/selection-state.svelte';
 export interface ContainerChordDeps {
 	commands: CommandDispatchContext;
 	getBlockComponent(path: number[]): BlockComponent | null;
-	selection: Pick<SelectionState, 'isCrossBlock' | 'anchor' | 'focus'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'anchor' | 'focus'>;
 	getDoc(): Document;
 }
 
@@ -53,7 +53,7 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 	function containerChordOf(e: KeyboardEvent): string | null {
 		const chord = eventToChord(e);
 		if (!chord || !containerMayBind(chord, deps.commands.keybindingOverrides())) return null;
-		const rangeOwns = deps.selection.isCrossBlock && rangeOwnsKey(e, deps);
+		const rangeOwns = deps.selection.ownsRange && rangeOwnsKey(e, deps);
 		return rangeOwns ? null : chord;
 	}
 

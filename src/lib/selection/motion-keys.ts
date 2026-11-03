@@ -29,7 +29,7 @@ export interface MotionKeyContext {
 	getCursorOffset(): number | null;
 	/** Shift-selection focus offset in raw-content coordinates (the marker prefix excluded). */
 	getFocusOffset(): number | null;
-	selection: Pick<SelectionState, 'isCrossBlock'>;
+	selection: Pick<SelectionState, 'ownsRange'>;
 	caretWriter: CaretWriter;
 	/** Shows each end a Shift+Arrow moves, and restores a range folded back into one block. */
 	caretLanding: Pick<CaretLanding, 'restore' | 'showSelectionEnd'>;
@@ -49,7 +49,7 @@ export function handleMotion(
 	ctx: MotionKeyContext,
 	el: HTMLElement
 ): boolean {
-	if (ctx.selection.isCrossBlock) return false;
+	if (ctx.selection.ownsRange) return false;
 	// Over a range a Mac's Cmd+Shift+Arrow grows the range's own end, the platform's way, left to it.
 	if (key.arrow && key.extend && usesMacEditingConventions() && heldRange(el)) return false;
 	if (key.unit === 'word' && !hasWordSegmenter()) return false;

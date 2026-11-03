@@ -33,7 +33,7 @@ export interface InlineCommandsDeps {
 	get path(): number[];
 	reading: Reading;
 	cursor: SurfaceBackend;
-	selection: Pick<SelectionState, 'isCrossBlock'>;
+	selection: Pick<SelectionState, 'ownsRange'>;
 	widgets: Pick<WidgetInteraction, 'isRevealing' | 'foldRevealBeforeMutation' | 'enterWidget'>;
 	surface: Pick<EditableSurface, 'blockEdit' | 'pendingMarks' | 'insideCloser'>;
 	controller: Pick<UndoController, 'flushDebouncedCheckpoint'>;
@@ -67,7 +67,7 @@ export function createInlineCommands(deps: InlineCommandsDeps): InlineCommands {
 		path: deps.path,
 		reading: deps.reading,
 		selection: range,
-		crossBlockRange: deps.selection.isCrossBlock
+		ownedRange: deps.selection.ownsRange
 	});
 
 	// A toolbar asks once per button on every selection change, so the buttons share the parse.

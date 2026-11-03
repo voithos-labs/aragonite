@@ -223,7 +223,7 @@ describe('composing gate', () => {
 		// no composition open.
 		it('a compositionstart over a range across blocks opens nothing here', () => {
 			const { surface, commits, el } = makeSurface({
-				overrides: { selection: { isCrossBlock: true } as EditableSurfaceDeps['selection'] }
+				overrides: { selection: { ownsRange: true } as EditableSurfaceDeps['selection'] }
 			});
 			el.textContent = 'hello';
 			surface.onCompositionStart();

@@ -25,7 +25,7 @@ function mountMathBlock() {
 				setPendingCursor: (offset: number | null) => {
 					pendingCursors.push(offset);
 				},
-				isCrossBlock: () => crossBlock
+				ownsRange: () => crossBlock
 			}
 		)
 	);

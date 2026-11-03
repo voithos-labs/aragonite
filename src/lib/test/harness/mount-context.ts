@@ -111,9 +111,9 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// back. The checks mirror production, so a component test runs the ones it ships with.
 		linkCard: createLinkCardState({
 			onOpen: () => {},
-			canOpen: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed !== false,
-			canEnter: () => !selection.isCrossBlock,
-			canOpenCreate: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed === false
+			canOpen: () => !selection.ownsRange && window.getSelection()?.isCollapsed !== false,
+			canEnter: () => !selection.ownsRange,
+			canOpenCreate: () => !selection.ownsRange && window.getSelection()?.isCollapsed === false
 		}),
 		// A bare mount has no inline menu, so no block is ever a combobox.
 		inlineMenuCombobox: () => null,
@@ -264,7 +264,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		pluginEditor: doc.pluginEditor,
 		activation: services.activePlugins,
 		getPresentationMode: () => doc.reading.mode(),
-		isCrossBlockRange: () => services.selection.isCrossBlock,
+		ownsRange: () => services.selection.ownsRange,
 		holdsNativeRange,
 		// Inert: a bare mount has no cross-block range, so every member answers no.
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },

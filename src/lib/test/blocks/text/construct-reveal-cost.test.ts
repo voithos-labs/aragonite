@@ -26,7 +26,7 @@ function readsFor(raw: string, mode: PresentationMode): number {
 			return harness.deps.reading;
 		},
 		getEl: () => harness.el,
-		isCrossBlock: () => false,
+		ownsRange: () => false,
 		textMoves: { movedWithin: () => {} },
 		caretWriter: { rewriteCaret: () => false }
 	});

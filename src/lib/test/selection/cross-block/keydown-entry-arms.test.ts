@@ -17,7 +17,7 @@ describe('cross-block keydown: Ctrl+A priority order', () => {
 		expect(await env.keydown.handleKeyDown(press('a', { ctrlKey: true }))).toBe(true);
 
 		expect(env.selection.selectAllCount).toBe(1);
-		expect(env.selection.isCrossBlock).toBe(false);
+		expect(env.selection.ownsRange).toBe(false);
 	});
 
 	it('second press escalates to the whole document', async () => {
@@ -26,7 +26,7 @@ describe('cross-block keydown: Ctrl+A priority order', () => {
 		await env.keydown.handleKeyDown(press('a', { ctrlKey: true }));
 		expect(await env.keydown.handleKeyDown(press('a', { ctrlKey: true }))).toBe(true);
 
-		expect(env.selection.isCrossBlock).toBe(true);
+		expect(env.selection.ownsRange).toBe(true);
 		expect(env.selection.anchor?.path).toEqual([0]);
 		expect(env.selection.focus?.path).toEqual([2]);
 	});
@@ -60,7 +60,7 @@ describe('cross-block keydown: compositionstart', () => {
 		expect(env.keydown.handleCompositionStart()).toBe(true);
 
 		expect(env.source()).toBe('ata\n\ngamma\n');
-		expect(env.selection.isCrossBlock).toBe(false);
+		expect(env.selection.ownsRange).toBe(false);
 	});
 
 	it('declines with no range active, leaving the composition to the block', () => {

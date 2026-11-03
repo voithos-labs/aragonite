@@ -73,7 +73,7 @@ export function installDragListener(
 				if (ctx.paintSameBlock?.()) takeAnchorBlockWhole();
 				return;
 			}
-			if (ctx.selection.isCrossBlock) {
+			if (ctx.selection.ownsRange) {
 				// Back in the anchor block: the browser's drag has been extending the native
 				// selection all along, so collapsing the cross-block range restores its highlight.
 				ctx.selection.collapse();
@@ -88,7 +88,7 @@ export function installDragListener(
 		const painted = ctx.selection.isCustomRendered;
 		// A whole-block range re-enters rather than extends: entering picks the anchor's side
 		// against the new focus, where extending would keep the block's start as the anchor.
-		if (!ctx.selection.isCrossBlock || ctx.selection.wholeUnitPath) {
+		if (!ctx.selection.ownsRange || ctx.selection.wholeUnitPath) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {
 			ctx.selection.extendFocus(focusPoint);
@@ -112,7 +112,7 @@ export function installDragListener(
 	): void {
 		const anchorIsChar = 'offset' in anchorPoint && !anchorPoint.cellCoordinate;
 		if (!anchorIsChar || comparePaths(near.path, anchorPoint.path) === 0) {
-			if (ctx.selection.isCrossBlock) ctx.selection.collapse();
+			if (ctx.selection.ownsRange) ctx.selection.collapse();
 			anchorAfter = null;
 			const offset = caretOffsetAtPoint(unit.surface, clientX, clientY);
 			if (offset === null) return;
@@ -133,7 +133,7 @@ export function installDragListener(
 		const focus = isWholeBlockEndpoint(focusPoint)
 			? focusPoint
 			: unit.expandFocus(focusPoint, after ? 'after' : 'before');
-		if (!ctx.selection.isCrossBlock || anchorAfter !== after) {
+		if (!ctx.selection.ownsRange || anchorAfter !== after) {
 			anchorAfter = after;
 			ctx.selection.enterCrossBlock(
 				{
@@ -206,7 +206,7 @@ export function installDragListener(
 		offset: ctx.offset,
 		onMove: (p) => processMove(p.clientX, p.clientY),
 		onEnd: () => {
-			if (ctx.selection.isCrossBlock) parkCaretInFocusBlock(ctx);
+			if (ctx.selection.ownsRange) parkCaretInFocusBlock(ctx);
 		},
 		autoScroll: {
 			getTargets: (clientX, clientY) => {
