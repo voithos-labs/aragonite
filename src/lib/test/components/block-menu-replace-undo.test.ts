@@ -52,6 +52,7 @@ async function typeThenRewrite() {
 		placeMenuCaret: () => true,
 		rangeAtContextPress: () => false,
 		holdsWidget: () => false,
+		finger: () => false,
 		insertMarkdown: async () => true,
 		aimInsertAtFocus: () => null,
 		insertCatalogue: () => [],

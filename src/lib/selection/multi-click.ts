@@ -22,6 +22,8 @@ import type { CaretWriter } from '../browser/caret-writer';
 import { blockNearPoint, type NearestBlock } from './nearest-block';
 import type { SelectionEndpoint, SelectionPoint } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
+import { fingerPress } from './pointer-gesture';
+import { takeOverBrowserRange } from './finger-takeover';
 
 export type ClickGranularity = 'word' | 'block';
 
@@ -126,6 +128,13 @@ export function installMultiClickSelect(deps: MultiClickDeps): () => void {
 		if (!anchorSpan) return;
 		e.preventDefault();
 		claimed = true;
+		// A finger's double tap picks the word as a long press does, so it's the editor's range too;
+		// a finger's drag after it is a scroll, not a selection.
+		const finger = lastPointerDown && fingerPress(lastPointerDown);
+		if (finger) {
+			takeOverBrowserRange({ ...deps, lifetimeSignal: deps.lifetimeSignal ?? null }, finger);
+			return;
+		}
 		const anchor =
 			press.anchor ?? blockNearPoint(deps.editorRoot, e.clientX, e.clientY)?.endpointHere();
 		if (!anchor || !lastPointerDown) return;

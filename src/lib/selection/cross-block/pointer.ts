@@ -13,6 +13,8 @@ import { installDragListener } from '../drag-pointer';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { isWholeBlockInputProxy } from '../whole-block-input';
 import { clearOnPress } from '../pointer-gesture';
+import { takeOverBrowserRange } from '../finger-takeover';
+import type { BlockElLookup } from '../../caret/block-el-lookup';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -39,24 +41,34 @@ export function resetForPointerDown(
 	if (ending) writer.clear();
 }
 
-/** `resetForPointerDown` at a press, a finger's at its tap (`clearOnPress`). A Shift press clears no
- *  range, so it resets at once, ahead of the shift-click that grows the range. */
-export function resetForPress(
-	selection: SelectionState,
-	writer: CaretWriter,
-	caretMemory: Pick<CaretMemory, 'forget'>,
-	e: PointerEvent,
-	lifetime: AbortSignal | null
-): void {
+/** What a press resets, and what a finger's press needs to take the browser's range over. */
+export interface PressReset {
+	selection: SelectionState;
+	caretWriter: CaretWriter;
+	caretMemory: Pick<CaretMemory, 'forget'>;
+	/** Null in a harness with no editor root, where nothing is taken over. */
+	editorRoot: HTMLElement | null;
+	getBlockElByPath: BlockElLookup;
+	lifetimeSignal: AbortSignal | null;
+}
+
+/** `resetForPointerDown` at a press, a finger's at its tap (`clearOnPress`), whose selection the
+ *  editor takes over once the press ends. A Shift press resets at once, ahead of its shift-click. */
+export function resetForPress(reset: PressReset, e: PointerEvent): void {
+	const { selection, caretWriter, caretMemory } = reset;
 	if (e.shiftKey) {
-		resetForPointerDown(selection, writer, caretMemory, true);
+		resetForPointerDown(selection, caretWriter, caretMemory, true);
 		return;
 	}
-	clearOnPress(e, lifetime, {
+	clearOnPress(e, reset.lifetimeSignal, {
 		nativeCaret: () => {
-			if (selection.ownsRange) writer.clear();
+			if (selection.ownsRange) caretWriter.clear();
 		},
-		selection: () => resetSelectionForPress(selection, caretMemory, false)
+		selection: () => resetSelectionForPress(selection, caretMemory, false),
+		takeOver: (press) => {
+			const { editorRoot } = reset;
+			if (editorRoot) takeOverBrowserRange({ ...reset, editorRoot }, press);
+		}
 	});
 }
 
@@ -85,7 +97,17 @@ function handlePointerDown(
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	resetForPress(selection, ctx.caretWriter, ctx.caretMemory, e, ctx.getEditorLifetime());
+	resetForPress(
+		{
+			selection,
+			caretWriter: ctx.caretWriter,
+			caretMemory: ctx.caretMemory,
+			editorRoot: ctx.getEditorRoot(),
+			getBlockElByPath: ctx.getBlockElByPath,
+			lifetimeSignal: ctx.getEditorLifetime()
+		},
+		e
+	);
 	const padding = armPaddingPress(ctx.caretWriter, el, myPath, e);
 
 	if (e.shiftKey) {

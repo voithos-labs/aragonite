@@ -29,7 +29,12 @@ function hostAt(path: number[]): HTMLElement {
 
 /** `rangeAtPress` stands in for the record of the right button's press; absent, the live selection. */
 function harness(
-	opts: { mode?: PresentationMode; editsLink?: boolean; rangeAtPress?: boolean } = {}
+	opts: {
+		mode?: PresentationMode;
+		editsLink?: boolean;
+		rangeAtPress?: boolean;
+		finger?: boolean;
+	} = {}
 ) {
 	const root = document.createElement('div');
 	const header = document.createElement('div');
@@ -73,6 +78,7 @@ function harness(
 		placeMenuCaret,
 		rangeAtContextPress: () => opts.rangeAtPress ?? !(window.getSelection()?.isCollapsed ?? true),
 		holdsWidget: () => false,
+		finger: () => opts.finger ?? false,
 		insertMarkdown,
 		aimInsertAtFocus,
 		insertCatalogue: () => insertCatalogue(everyInstalledPlugin),
@@ -135,6 +141,16 @@ describe('editor-root menus: the right-click', () => {
 		expect(h.menu()).toBeNull();
 		// No key, so the caret goes to the end of the block above.
 		await vi.waitFor(() => expect(h.blockEdit.deleteBlock).toHaveBeenCalledWith(0, 'keyless'));
+	});
+
+	// Android hands a long press's contextmenu to the page; the editor takes the word over and its
+	// toolbar is the menu, so this one cancels the browser's and opens nothing of its own.
+	it("a finger's long press opens no menu and cancels the browser's", () => {
+		const h = harness({ finger: true });
+		const event = h.rightClick(h.prose.firstElementChild!);
+		expect(event.defaultPrevented).toBe(true);
+		expect(h.menu()).toBeNull();
+		expect(h.placeMenuCaret).not.toHaveBeenCalled();
 	});
 
 	it('prose places the caret at the press and gets the clipboard rows plus the insert flyout', async () => {

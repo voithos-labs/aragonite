@@ -974,6 +974,7 @@
 		get editorEl() {
 			return editorEl;
 		},
+		finger: () => fingerPress,
 		get mode() {
 			return reading.mode();
 		},
@@ -1529,6 +1530,7 @@
 			}}
 			root={editorEl}
 			finger={() => fingerPress}
+			paste={() => focusedSurface.aimInsertAtFocus()}
 			{menuPresence}
 		/>
 	{/if}

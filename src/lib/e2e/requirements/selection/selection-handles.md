@@ -1,10 +1,11 @@
 # Feature: selection handles on a touch screen
 
-Each block is its own editable element, and the browser's touch handles never leave one, so on a
-touch screen the editor draws handles where the browser's can't reach: both ends of a range across
-blocks (or a rectangle of table cells), and an end of a one-block range that sits at the block's
-edge. A finger drags them as a mouse drags a selection. Chromium only: the drags are CDP touch
-events. The real-device rows are in `requirements/mobile/android.md` and `ios.md`.
+On a touch screen a finger's range is always the editor's own: across blocks, a rectangle of table
+cells, or a word a long press picked inside one block, which the editor takes over once the press
+ends. So the editor draws a handle at each end of every range it paints, and no phone draws its
+own. A finger drags them as a mouse drags a selection. Chromium only: the drags are CDP touch
+events, and a held touch from CDP never becomes a long press, so the takeover itself is pinned at
+the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`).
 
 ## Happy paths
 
@@ -15,9 +16,11 @@ events. The real-device rows are in `requirements/mobile/android.md` and `ios.md
   and no native range behind. The handle follows the finger while it's down, though no native
   selection moves under it.
 - The start handle dragged into an earlier block grows the range there; the old end stays put.
-- A word at its block's end gets one edge handle (the browser's handles cover the rest), and
-  dragging it into the next block makes a range across the two. While the finger is still down
-  the word's native range is gone, so a phone draws no handles of its own beside the editor's.
+- The end handle dragged back into the range's first block keeps the range the editor's, painted
+  inside that block with its two handles and no native range under it. While the finger is down a
+  caret stays in a focused block, so a phone neither draws its own handles nor drops its keyboard.
+- A finger's double tap makes its word the editor's range, as a long press does: the word the
+  editor's own word rule picks is painted, with a handle at each end and no native range under it.
 - A handle dragged across table cells grows a rectangle of cells, as a mouse drag does.
 
 ## Edge cases
@@ -30,11 +33,13 @@ events. The real-device rows are in `requirements/mobile/android.md` and `ios.md
   - Miss-analysis: the cell row only grew a rectangle; no row shrank one, and a rectangle's corner
     handed the drag no cell to select in.
 - Reading mode shows no handles.
-- An open editor menu keeps the handles, drawn above it, and a press on one closes the menu as
-  any press outside it does, then drags.
 
 ## User interactions
 
 - The toolbar sits above a finger's range, clear of its handles, where a phone puts its own menu.
 - The toolbar moves past the end handle when there is no room above, so a finger reaching for a
   handle never lands on a toolbar button, and the bar covers no more of the page than before.
+- A finger's toolbar is the range's one menu, so it cuts and pastes as well as copies, and its Cut
+  takes the range.
+- A mouse's toolbar only copies, since a mouse's range has the keyboard's Cut and Paste and the
+  right-click menu.

@@ -55,6 +55,9 @@ export interface RootMenusDeps {
 	rangeAtContextPress(): boolean;
 	/** Whether the editor holds an inline widget selected, which Cut and Copy act on as on a range. */
 	holdsWidget(): boolean;
+	/** Whether the last press was a finger's (`selection/pointer-gesture.ts`), whose long press
+	 *  the editor takes over, its toolbar the one menu over the word. */
+	finger(): boolean;
 	/** The public insert entry point; a flyout row inserts `below` the block the caret is in. */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/** An insert at the caret aimed at the block focused now, which a Paste row runs once the
@@ -208,7 +211,9 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		if (e.defaultPrevented || deps.mode === 'reading' || !root) return;
 		const target = e.target instanceof Element ? e.target : null;
 		if (!target || deps.isHostChrome(target)) return;
+		// Cancelled for a finger too, or the phone's own menu shows beside the toolbar.
 		e.preventDefault();
+		if (deps.finger()) return;
 		// The keyboard's contextmenu event (Windows fires it on the ContextMenu key's release)
 		// lands on the item the keydown's own menu already focused: that menu is the answer.
 		if (target.closest('.md-menu')) return;

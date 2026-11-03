@@ -52,7 +52,6 @@ test('a range across blocks gets a handle at each end after a tap', async ({ pag
 	await openTouch(page, DOC);
 	await tapThenSelect(page, RANGE);
 	await expect(page.locator('.selection-handle')).toHaveCount(2);
-	await expect(page.locator('.selection-handle-edge')).toHaveCount(0);
 	expect(await nativeCollapsed(page)).toBe(true);
 	const start = await pointAtRaw(page, [0], 2);
 	const box = await page.locator(HANDLE('start')).boundingBox();
@@ -99,13 +98,11 @@ test('the start handle dragged into an earlier block grows the range there', asy
 		.toEqual({ anchor: range.focus, focus: { path: [0], offset: 3 } });
 });
 
-test("a word at its block's end gets an edge handle that crosses into the next block", async ({
+test("the end handle dragged back into the range's first block keeps the range the editor's", async ({
 	page
 }) => {
 	const editor = await openTouch(page, DOC);
-	await tapThenSelect(page, { anchor: { path: [0], offset: 6 }, focus: { path: [0], offset: 10 } });
-	await expect(page.locator('.selection-handle')).toHaveCount(1);
-	await expect(page.locator(`${HANDLE('end')}.selection-handle-edge`)).toHaveCount(1);
+	await tapThenSelect(page, { anchor: { path: [0], offset: 6 }, focus: { path: [1], offset: 5 } });
 	await page.evaluate(() => {
 		const seen: number[] = ((window as any).__rangeCounts = []);
 		document.addEventListener('selectionchange', () =>
@@ -115,14 +112,11 @@ test("a word at its block's end gets an edge handle that crosses into the next b
 	await dragHandle(
 		page,
 		HANDLE('end'),
-		await pointAtRaw(page, [0], 10),
 		await pointAtRaw(page, [1], 5),
-		// Mid-drag the word's range is a caret in its block: a phone draws handles on a range and
-		// drops its keyboard on none. Miss-analysis: the row asked for no range, and none passed.
+		await pointAtRaw(page, [0], 9),
+		// Mid-drag a caret stays in a focused block: a phone draws handles on a native range and
+		// drops its keyboard on an empty selection.
 		async () => {
-			await expect
-				.poll(() => page.evaluate(() => (window as any).__test.isCrossBlockActive()))
-				.toBe(true);
 			await expect.poll(() => caretInFocusedBlock(page)).toBe(true);
 		}
 	);
@@ -130,7 +124,26 @@ test("a word at its block's end gets an edge handle that crosses into the next b
 	expect(await page.evaluate(() => (window as any).__rangeCounts)).not.toContain(0);
 	await expect
 		.poll(() => selection(editor))
-		.toEqual({ anchor: { path: [0], offset: 6 }, focus: { path: [1], offset: 5 } });
+		.toEqual({ anchor: { path: [0], offset: 6 }, focus: { path: [0], offset: 9 } });
+	expect(await nativeCollapsed(page)).toBe(true);
+	await expect(page.locator('[data-block-path="[0]"] .selection-overlay-endpoint')).not.toHaveCount(
+		0
+	);
+	await expect(page.locator('.selection-handle')).toHaveCount(2);
+});
+
+test("a finger's double tap makes its word the editor's range, with a handle at each end", async ({
+	page
+}) => {
+	const editor = await openTouch(page, DOC);
+	const point = await pointAtRaw(page, [1], 2);
+	await page.touchscreen.tap(point.x, point.y);
+	await page.touchscreen.tap(point.x, point.y);
+	await expect
+		.poll(() => selection(editor))
+		.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 5 } });
+	expect(await nativeCollapsed(page)).toBe(true);
+	await expect(page.locator('.selection-handle')).toHaveCount(2);
 });
 
 test('a handle dragged across table cells grows a rectangle', async ({ page }) => {
@@ -210,11 +223,11 @@ test('reading mode shows no handles', async ({ page }) => {
 });
 
 test("the toolbar sits above a finger's range, clear of its handles", async ({ page }) => {
-	await openTouch(page, `${'filler\n\n'.repeat(6)}${DOC}`);
-	await tapThenSelect(page, { anchor: { path: [6], offset: 2 }, focus: { path: [7], offset: 5 } });
+	await openTouch(page, `${'filler\n\n'.repeat(9)}${DOC}`);
+	await tapThenSelect(page, { anchor: { path: [9], offset: 2 }, focus: { path: [10], offset: 5 } });
 	const bar = page.locator('[data-testid="selection-toolbar"]');
 	await expect(bar).toBeVisible();
-	const first = await pointAtRaw(page, [6], 2);
+	const first = await pointAtRaw(page, [9], 2);
 	const barBox = (await bar.boundingBox())!;
 	expect(barBox.y + barBox.height).toBeLessThan(first.y);
 	for (const end of ['start', 'end'] as const) {
@@ -233,28 +246,26 @@ test('the toolbar moves past the end handle when there is no room above', async 
 	expect(barBox.x).toBeGreaterThanOrEqual(end.x + end.width - 1);
 });
 
-// Android hands a long press's contextmenu to the page, which opens the editor's menu on the word.
-test('an open editor menu keeps the handles, and a press on one closes it', async ({ page }) => {
-	const editor = await openTouch(page, DOC);
-	const word = { anchor: { path: [0], offset: 6 }, focus: { path: [0], offset: 10 } };
-	await tapThenSelect(page, word);
-	const at = await pointAtRaw(page, [0], 8);
-	await page.dispatchEvent('[data-block-path="[0]"] [contenteditable="true"]', 'contextmenu', {
-		clientX: at.x,
-		clientY: at.y,
-		bubbles: true
-	});
-	const menu = page.locator('.md-menu[role="menu"]');
-	await expect(menu).toBeVisible();
-	await expect(page.locator(HANDLE('end'))).toHaveCount(1);
-	await dragHandle(
-		page,
-		HANDLE('end'),
-		await pointAtRaw(page, [0], 10),
-		await pointAtRaw(page, [1], 5)
-	);
-	await expect(menu).toHaveCount(0);
+test("a finger's toolbar cuts and pastes as well as copies, and its Cut takes the range", async ({
+	page
+}) => {
+	await openTouch(page, `${'filler\n\n'.repeat(9)}${DOC}`);
+	await tapThenSelect(page, { anchor: { path: [9], offset: 2 }, focus: { path: [10], offset: 5 } });
+	const row = (action: string) => page.locator(`[data-testid="toolbar-${action}"]`);
+	for (const action of ['cut', 'copy', 'paste']) await expect(row(action)).toBeVisible();
+	const cut = (await row('cut').boundingBox())!;
+	await page.touchscreen.tap(cut.x + cut.width / 2, cut.y + cut.height / 2);
 	await expect
-		.poll(() => selection(editor))
-		.toEqual({ anchor: word.anchor, focus: { path: [1], offset: 5 } });
+		.poll(() => page.evaluate(() => (window as any).__test.getSource()))
+		.toContain('al delta');
+});
+
+test("a mouse's toolbar copies, leaving cut and paste to the keyboard", async ({ page }) => {
+	await openTouch(page, DOC);
+	const point = await pointAtRaw(page, [0], 1);
+	await page.mouse.click(point.x, point.y);
+	await page.evaluate((s) => (window as any).__test.setSelection(s), RANGE);
+	await expect(page.locator('[data-testid="toolbar-copy"]')).toBeVisible();
+	await expect(page.locator('[data-testid="toolbar-cut"]')).toHaveCount(0);
+	await expect(page.locator('[data-testid="toolbar-paste"]')).toHaveCount(0);
 });

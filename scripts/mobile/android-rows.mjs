@@ -135,46 +135,28 @@ export const rows = {
 		return { reasons, evidence: { handle, after, pointerLog: log } };
 	},
 
-	'a handle swipe across cells grows a rectangle': async (ctx) => {
+	"a long press in a table cell keeps the browser's word": async (ctx) => {
 		await ctx.fresh(TABLE);
 		const toScreen = await screenMap(ctx, 0);
-		const cell = (row, col) =>
-			ctx.page.evaluate(`(() => {
-				const cells = document.querySelectorAll('[role="table"] [data-table-row-idx="${row}"] > :is([role="cell"], [role="columnheader"])');
-				const r = cells[${col}].getBoundingClientRect();
-				return { x: r.left + 24, y: (r.top + r.bottom) / 2, cx: (r.left + r.right) / 2 };
-			})()`);
-		const apple = await cell(0, 0);
+		const apple = await ctx.page.evaluate(`(() => {
+			const cell = document.querySelector('[role="table"] [data-table-row-idx="0"] > :is([role="cell"], [role="columnheader"])');
+			const r = cell.getBoundingClientRect();
+			return { x: r.left + 24, y: (r.top + r.bottom) / 2 };
+		})()`);
 		const press = toScreen(apple.x, apple.y);
-		await pressReport(ctx, 'cells-press', () =>
+		const pressed = await pressReport(ctx, 'cells-press', () =>
 			ctx.device.swipe(press.x, press.y, press.x, press.y, 1500)
 		);
-		const handle = await handleOnScreen(ctx, 0, 'end');
-		ctx.device.screenshot('cells-handle');
-		const drawn = await ctx.page.evaluate(HANDLES_STATE);
-		if (!handle || drawn.handles.length !== 2)
-			return {
-				reasons: [`${drawn.handles.length} editor handle(s) on the cell's word, not 2`],
-				evidence: { page: drawn }
-			};
-		const damson = await cell(1, 1);
-		const to = toScreen(damson.cx, damson.y);
-		ctx.device.swipe(
-			handle.x,
-			handle.y,
-			handle.x + to.x - handle.pointX,
-			handle.y + to.y - handle.pointY,
-			800
-		);
-		await sleep(1200);
-		ctx.device.screenshot('cells-rectangle');
-		const after = await ctx.page.evaluate('window.__test.getSelection()');
-		const want = {
-			anchor: { path: [1], offset: 0, cellCoordinate: true },
-			focus: { path: [1], offset: 3, cellCoordinate: true }
-		};
-		const reasons = json(after) === json(want) ? [] : [`the swipe left ${json(after)}`];
-		return { reasons, evidence: { after } };
+		const nodes = menuNodes(ctx, 'cells-menus');
+		const { after } = pressed;
+		const reasons = [];
+		if (after.nativeCollapsed || !after.dom.text.includes('apple'))
+			reasons.push(`the long press left ${json(after.dom.text)} natively, not the cell's word`);
+		if (nodes.some((n) => !n.inPage)) reasons.push("Chrome's own menu shows");
+		const menus = after.menus.map((m) => (m.toolbar ? 'toolbar' : 'menu'));
+		if (json(menus) !== json(['toolbar']))
+			reasons.push(`the editor shows ${json(menus)}, not the toolbar alone`);
+		return { reasons, evidence: { ...pressed, nodes } };
 	}
 };
 

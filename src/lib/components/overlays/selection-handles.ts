@@ -1,8 +1,7 @@
 /**
- * Where a touch screen's selection handles stand, and the drag a handle starts. The editor's
- * handles stand only where the browser's can't reach: both ends of a range the editor paints, and
- * an end of a range inside one block that sits at the block's edge, which the browser's own handle
- * can't drag past. See `docs/design/selection.md` § Cross-block selection.
+ * Where a touch screen's selection handles stand, and the drag a handle starts. A finger's range is
+ * always the editor's, so the handles stand at both ends of the range the editor paints and no
+ * phone draws its own. See `docs/design/selection.md` § Cross-block selection.
  */
 
 import type { EditorRects } from '../../editor-rects';
@@ -12,19 +11,16 @@ import type { CaretWriter } from '../../browser/caret-writer';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { normalize, type SelectionEndpoint, type SelectionPoint } from '../../selection/primitives';
 import { installDragListener } from '../../selection/drag-pointer';
-import { readDomPoint } from '../../selection/native-bridge';
 import { pathsEqual } from '../../selection/path-math';
-import { readNativeSelection } from '../../browser/selection-read';
+import { fingerPress, type FingerPress } from '../../selection/pointer-gesture';
 import { cellDragFrom, installCellDragListener } from '../blocks/table/cell-pointer';
 
 export type HandleEnd = 'start' | 'end';
 
-/** A range in document order and whether the editor paints it (across blocks, a cell rectangle, a
- *  block held whole) rather than the browser. */
+/** The painted range the handles stand on, in document order. */
 export interface HandleRange {
 	start: SelectionPoint;
 	end: SelectionPoint;
-	painted: boolean;
 }
 
 /** One handle, in viewport coordinates. */
@@ -36,53 +32,32 @@ export interface HandleSpot {
 	/** The end's line box. */
 	top: number;
 	bottom: number;
-	/** Beside the browser's own handle at a block's edge, rather than under the point. */
-	edge: boolean;
 }
 
 type Rects = Pick<EditorRects, 'rangeRects' | 'blockRect'>;
 
-/** The range the handles stand on: the editor's while it paints one, otherwise the browser's own,
- *  read off the native selection rather than the focused block, since a menu can hold focus. */
-export function handleRange(selection: SelectionState, root: HTMLElement): HandleRange | null {
-	if (selection.isCustomRendered && selection.start && selection.end) {
-		return { start: selection.start, end: selection.end, painted: true };
-	}
-	const live = readNativeSelection();
-	if (!live || live.collapsed) return null;
-	const anchor = readDomPoint(root, live.anchor.node, live.anchor.offset);
-	const focus = readDomPoint(root, live.focus.node, live.focus.offset);
-	if (!anchor || !focus || !pathsEqual(anchor.path, focus.path)) return null;
-	return { ...normalize({ anchor, focus }), painted: false };
+/** The range the editor paints, or null while it paints none. */
+export function handleRange(selection: SelectionState): HandleRange | null {
+	if (!selection.isCustomRendered || !selection.start || !selection.end) return null;
+	return { start: selection.start, end: selection.end };
 }
 
-/** What the spots read besides the rects: the cell a cell end sits in
- *  (`SelectionState.cellLandingFor`), and a block's caret bounds (`BlockComponent.caretBounds`). */
-export interface HandleReads {
-	cellPath(point: SelectionPoint): number[];
-	caretBounds(path: number[]): { start: number; end: number } | null;
-}
+/** The cell a cell end sits in (`SelectionState.cellLandingFor`), where its handle stands. */
+export type CellPathOf = (point: SelectionPoint) => number[];
 
 export function handleSpots(
 	range: HandleRange | null,
 	rects: Rects,
-	reads: HandleReads
+	cellPath: CellPathOf
 ): HandleSpot[] {
 	if (!range) return [];
-	const { start, end } = range;
-	if (!range.painted && !(start.offset < end.offset)) return [];
-	const ends: [HandleEnd, SelectionPoint, boolean][] = range.painted
-		? [
-				['start', start, true],
-				['end', end, true]
-			]
-		: [
-				['start', start, start.offset <= (reads.caretBounds(start.path)?.start ?? -1)],
-				['end', end, end.offset >= (reads.caretBounds(end.path)?.end ?? Infinity)]
-			];
-	return ends.flatMap(([side, point, stands]) => {
-		const line = stands ? lineAt(rects, point, side, reads.cellPath) : null;
-		return line ? [{ end: side, ...line, edge: !range.painted }] : [];
+	const ends: [HandleEnd, SelectionPoint][] = [
+		['start', range.start],
+		['end', range.end]
+	];
+	return ends.flatMap(([side, point]) => {
+		const line = lineAt(rects, point, side, cellPath);
+		return line ? [{ end: side, ...line }] : [];
 	});
 }
 
@@ -93,7 +68,8 @@ export interface HandleDragDeps {
 	selection: SelectionState;
 	caretWriter: CaretWriter;
 	getBlockElByPath: BlockElLookup;
-	caretBounds: HandleReads['caretBounds'];
+	/** A block's caret bounds (`BlockComponent.caretBounds`), where a rectangle's fixed corner is. */
+	caretBounds(path: number[]): { start: number; end: number } | null;
 	lifetimeSignal: AbortSignal;
 }
 
@@ -105,9 +81,7 @@ export function startHandleDrag(
 	range: HandleRange,
 	deps: HandleDragDeps
 ): void {
-	const fixed = range.painted
-		? fixedPaintedEnd(grabbed.end, deps.selection)
-		: range[other(grabbed.end)];
+	const fixed = fixedEnd(grabbed.end, deps.selection, fingerPress(down));
 	if (!fixed) return;
 	const offset = { clientX: grabbed.x - down.clientX, clientY: grabbed.y - down.clientY };
 	const from =
@@ -136,16 +110,23 @@ function cellText(
 	return { path, offset: grabbed === 'end' ? bounds.start : bounds.end };
 }
 
-// A drag moves the stored range's focus, so a grabbed anchor first trades places with the focus.
-// A block held whole is re-entered by the drag itself, from the block as a whole.
-function fixedPaintedEnd(grabbed: HandleEnd, selection: SelectionState): SelectionEndpoint | null {
+// A drag moves the stored range's focus, so a grabbed anchor first trades places with the focus,
+// a range inside one block keeping it the editor's. A block held whole is re-entered by the drag.
+function fixedEnd(
+	grabbed: HandleEnd,
+	selection: SelectionState,
+	press: FingerPress | null
+): SelectionEndpoint | null {
 	const { anchor, focus } = selection;
 	const whole = selection.wholeUnitPath;
 	if (!anchor || !focus) return null;
 	if (whole) return { path: whole, wholeBlock: true };
 	const ordered = normalize({ anchor, focus });
 	const fixed = ordered[other(grabbed)];
-	if (fixed !== anchor) selection.enterCrossBlock(fixed, ordered[grabbed]);
+	if (fixed === anchor) return fixed;
+	if (press && pathsEqual(fixed.path, ordered[grabbed].path))
+		selection.ownBlockRange(fixed, ordered[grabbed], press);
+	else selection.enterCrossBlock(fixed, ordered[grabbed]);
 	return fixed;
 }
 

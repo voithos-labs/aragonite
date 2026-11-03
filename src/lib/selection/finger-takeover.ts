@@ -1,0 +1,70 @@
+/**
+ * Turns a range the browser made under a finger into the editor's own: the editor paints it and
+ * draws its handles, and the native selection collapses to a caret, so no phone draws its own
+ * handles or menu on it. See `docs/design/selection.md` § Cross-block selection.
+ */
+
+import type { SelectionState } from './selection-state.svelte';
+import type { FingerPress } from './pointer-gesture';
+import type { CaretWriter } from '../browser/caret-writer';
+import type { BlockElLookup } from '../caret/block-el-lookup';
+import { readNativeSelection } from '../browser/selection-read';
+import { applyCollapsedCaret, readDomPoint } from './native-bridge';
+import { pathsEqual } from './path-math';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkFingerRangeLeavesCaret } from '../invariants/finger-range-leaves-caret';
+
+export interface TakeoverDeps {
+	editorRoot: HTMLElement;
+	selection: SelectionState;
+	caretWriter: CaretWriter;
+	getBlockElByPath: BlockElLookup;
+	lifetimeSignal: AbortSignal | null;
+}
+
+/** Takes the native range inside one block over, and until the next press every range the browser
+ *  writes in that block (Safari's word written back, Android's held drag). A cell's stays native. */
+export function takeOverBrowserRange(deps: TakeoverDeps, press: FingerPress): void {
+	const path = takeOnce(deps, press, null);
+	if (!path || deps.lifetimeSignal?.aborted) return;
+	const done = new AbortController();
+	const opts = { capture: true, signal: done.signal };
+	deps.lifetimeSignal?.addEventListener('abort', () => done.abort(), { signal: done.signal });
+	document.addEventListener('pointerdown', () => done.abort(), opts);
+	document.addEventListener(
+		'selectionchange',
+		() => {
+			// Anything that ended the range (a key, a command) ends the adopting too.
+			if (!deps.selection.isCustomRendered) return done.abort();
+			if (takeOnce(deps, press, path)) return;
+			const live = readNativeSelection();
+			assertInvariant('finger-range-leaves-caret', () =>
+				checkFingerRangeLeavesCaret(!live || live.collapsed)
+			);
+		},
+		opts
+	);
+}
+
+// The block the range was taken in, or null when the native selection held nothing to take: no
+// range, a range across blocks or in another block than `inBlock`, or one inside a table cell.
+function takeOnce(
+	deps: TakeoverDeps,
+	press: FingerPress,
+	inBlock: number[] | null
+): number[] | null {
+	const live = readNativeSelection();
+	if (!live || live.collapsed) return null;
+	const anchor = readDomPoint(deps.editorRoot, live.anchor.node, live.anchor.offset);
+	const focus = readDomPoint(deps.editorRoot, live.focus.node, live.focus.offset);
+	if (!anchor || !focus || !pathsEqual(anchor.path, focus.path)) return null;
+	if (inBlock && !pathsEqual(anchor.path, inBlock)) return null;
+	deps.selection.ownBlockRange(anchor, focus, press);
+	if (!deps.selection.isCustomRendered) {
+		deps.selection.collapse();
+		return null;
+	}
+	const blockEl = deps.getBlockElByPath(focus.path);
+	if (blockEl) applyCollapsedCaret(deps.caretWriter, blockEl, focus);
+	return anchor.path;
+}

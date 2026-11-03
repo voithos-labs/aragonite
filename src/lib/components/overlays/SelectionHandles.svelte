@@ -36,18 +36,13 @@
 
 	// The hit box is a fingertip; the dot drawn inside it is smaller.
 	const BOX = 44;
-	const EDGE_GAP = 40;
 
 	let range: HandleRange | null = null;
 	let shown: (HandleSpot & { left: number; top: number })[] = $state([]);
 
-	// An end handle hangs below its point, an edge handle beside the browser's own: right of an end
-	// at the line's middle, above and right of a start.
+	// Each handle hangs below its point, a start to the left of it and an end to the right.
 	function place(spot: HandleSpot): { left: number; top: number } {
-		if (!spot.edge) return { left: spot.end === 'start' ? spot.x - BOX : spot.x, top: spot.bottom };
-		return spot.end === 'end'
-			? { left: spot.x + EDGE_GAP - BOX / 2, top: spot.y - BOX / 2 }
-			: { left: spot.x, top: spot.top - BOX };
+		return { left: spot.end === 'start' ? spot.x - BOX : spot.x, top: spot.bottom };
 	}
 
 	$effect(() => {
@@ -59,11 +54,11 @@
 		}
 		const at = root;
 		function measure(): void {
-			range = handleRange(services.selection, at);
+			range = handleRange(services.selection);
 			const origin = at.getBoundingClientRect();
 			const dx = at.scrollLeft - origin.left - at.clientLeft;
 			const dy = at.scrollTop - origin.top - at.clientTop;
-			shown = handleSpots(range, services.rects, reads).map((spot) => {
+			shown = handleSpots(range, services.rects, cellPath).map((spot) => {
 				const { left, top } = place(spot);
 				return { ...spot, left: left + dx, top: top + dy };
 			});
@@ -76,24 +71,19 @@
 		}
 		void measureAfterFlush();
 		const stopChanges = services.events.on('selectionChange', measureAfterFlush);
-		// A scroll can mount an end's block, and an inner scroll moves its text. The browser's own
-		// handles move the range without the editor announcing it while a menu holds focus.
+		// A scroll can mount an end's block, and an inner scroll moves its text.
 		window.addEventListener('scroll', measure, { capture: true, passive: true });
-		document.addEventListener('selectionchange', measure);
 		const stopResize = observeResize(at, measure);
 		return () => {
 			live = false;
 			stopChanges();
 			window.removeEventListener('scroll', measure, { capture: true });
-			document.removeEventListener('selectionchange', measure);
 			stopResize();
 		};
 	});
 
-	const reads = {
-		cellPath: (point: SelectionPoint) => services.selection.cellLandingFor(point).path,
-		caretBounds: (path: number[]) => getBlockComponent(path)?.caretBounds?.() ?? null
-	};
+	const cellPath = (point: SelectionPoint) => services.selection.cellLandingFor(point).path;
+	const caretBounds = (path: number[]) => getBlockComponent(path)?.caretBounds?.() ?? null;
 
 	function press(e: PointerEvent, spot: HandleSpot): void {
 		const root = editorDoc.editorRoot();
@@ -105,7 +95,7 @@
 			selection: services.selection,
 			caretWriter: services.caretWriter,
 			getBlockElByPath: editorDoc.blockElLookup,
-			caretBounds: reads.caretBounds,
+			caretBounds,
 			lifetimeSignal: editorDoc.lifetime
 		});
 	}
@@ -116,7 +106,6 @@
 {#each shown as spot (spot.end)}
 	<div
 		class="selection-handle selection-handle-{spot.end}"
-		class:selection-handle-edge={spot.edge}
 		data-handle={spot.end}
 		aria-hidden="true"
 		{...ownPresses}
@@ -153,9 +142,5 @@
 	.selection-handle-end::after {
 		left: 0;
 		border-top-left-radius: 0;
-	}
-	.selection-handle-edge::after {
-		inset: 12px;
-		border-radius: 50%;
 	}
 </style>
