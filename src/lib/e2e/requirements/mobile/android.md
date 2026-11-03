@@ -36,6 +36,6 @@ colon is the row's key, and `mobile-rows-lockstep.test.ts` holds the two lists t
   handle on the first word into the next block grows the range there. The page hears the swipe's
   press, so the finger landed on the editor's handle, and no native range stands beside the
   painted one.
-- a long press in a table cell keeps the browser's word: a cell's text is no block the editor can
-  hold a range inside, so the word Chrome picked there stays native, and the toolbar is still the
-  only menu (neither Chrome's floating menu nor the editor's clipboard menu shows).
+- a long press in a table cell keeps the browser's word and opens the cell menu: the word Chrome
+  picked in the cell stays native, and the cell menu (with its row and column actions) is the one
+  menu there. The toolbar doesn't show, and Chrome draws no menu of its own.

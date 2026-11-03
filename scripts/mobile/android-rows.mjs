@@ -135,7 +135,7 @@ export const rows = {
 		return { reasons, evidence: { handle, after, pointerLog: log } };
 	},
 
-	"a long press in a table cell keeps the browser's word": async (ctx) => {
+	"a long press in a table cell keeps the browser's word and opens the cell menu": async (ctx) => {
 		await ctx.fresh(TABLE);
 		const toScreen = await screenMap(ctx, 0);
 		const apple = await ctx.page.evaluate(`(() => {
@@ -153,9 +153,10 @@ export const rows = {
 		if (after.nativeCollapsed || !after.dom.text.includes('apple'))
 			reasons.push(`the long press left ${json(after.dom.text)} natively, not the cell's word`);
 		if (nodes.some((n) => !n.inPage)) reasons.push("Chrome's own menu shows");
-		const menus = after.menus.map((m) => (m.toolbar ? 'toolbar' : 'menu'));
-		if (json(menus) !== json(['toolbar']))
-			reasons.push(`the editor shows ${json(menus)}, not the toolbar alone`);
+		// The cell menu, the one with the row and column actions, and nothing else of the editor's.
+		const cellMenu = (m) => !m.toolbar && m.items.includes('Row') && m.items.includes('Column');
+		if (after.menus.length !== 1 || !cellMenu(after.menus[0]))
+			reasons.push(`the editor shows ${json(after.menus)}, not the cell menu alone`);
 		return { reasons, evidence: { ...pressed, nodes } };
 	}
 };
