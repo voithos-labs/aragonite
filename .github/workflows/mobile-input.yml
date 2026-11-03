@@ -2,19 +2,17 @@ name: Mobile input
 # The editor under real phone input: an Android emulator (Chrome, Gboard) and the iOS Simulator
 # (Mobile Safari, driven by Appium), typing and touching through the platform's own keyboard and
 # touch screen. Each job runs the rows in `scripts/mobile/` and uploads its recordings. Android
-# runs on a dev push that touches input code; iOS, on macOS runners that are few, runs nightly on
-# dev (skipping a commit already green). Both run on pull requests to main.
+# runs on a dev push that touches the editor's code; iOS, on macOS runners that are few, runs
+# nightly on dev (skipping a commit already green). Both run on pull requests to main. Neither job
+# is a required check on main, so a red here blocks nothing.
 on:
   push:
     branches: [dev]
     paths:
-      - 'src/lib/selection/**'
-      - 'src/lib/browser/**'
-      - 'src/lib/caret/**'
-      - 'src/lib/components/editor-root/**'
-      - 'src/lib/components/blocks/text/**'
-      - 'src/lib/components/blocks/editable/**'
-      - 'src/lib/debug/input-recorder.ts'
+      - 'src/lib/**'
+      - '!src/lib/test/**'
+      - '!src/lib/e2e/**'
+      - 'packages/*/src/**'
       - 'src/routes/test/editor/**'
       - 'scripts/mobile/**'
       - '.github/workflows/mobile-input.yml'

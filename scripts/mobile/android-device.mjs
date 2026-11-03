@@ -95,7 +95,7 @@ export function createDevice(out) {
 	}
 
 	// Gboard's keys by their accessibility labels, from a dump of every window; an empty map when the
-	// keyboard isn't on screen (Gboard can sit collapsed while its input connection is up).
+	// keyboard isn't on screen, which includes Gboard's hardware mode (no keys, input still connected).
 	function gboardKeys(name) {
 		const keys = new Map();
 		for (const n of dumpNodes(name, '--windows')) {
@@ -105,6 +105,12 @@ export function createDevice(out) {
 		}
 		return keys;
 	}
+
+	// The keyboard type Gboard last logged: `SOFT` draws keys, `HARD_QWERTY` (its hardware mode) none.
+	const gboardMode = () =>
+		adb('logcat', '-d', '-s', 'NormalModeController:I')
+			.match(/currentPrimeKeyboardType:\w+/g)
+			?.at(-1) ?? 'no keyboard type logged';
 
 	// Chrome can drop the launch intent while it starts up and show its New Tab page, so the
 	// intent is re-sent, and as a last resort the open tab is sent to the harness over CDP.
@@ -145,6 +151,7 @@ export function createDevice(out) {
 		imeShown,
 		hideKeyboard,
 		gboardKeys,
+		gboardMode,
 		connect
 	};
 }

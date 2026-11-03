@@ -7,9 +7,14 @@ OUT="$1"
 mkdir -p "$OUT"
 URL=http://localhost:1430/test/editor
 
+# The emulator's built-in PS/2 keyboard makes Android report a hardware keyboard, and Gboard can
+# then start in its hardware mode, which draws no keys. This keeps the on-screen keyboard regardless.
+adb shell settings put secure show_ime_with_hard_keyboard 1
+
 {
 	echo "fingerprint: $(adb shell getprop ro.build.fingerprint)"
 	echo "default keyboard: $(adb shell settings get secure default_input_method)"
+	echo "on-screen keyboard beside a hardware one: $(adb shell settings get secure show_ime_with_hard_keyboard)"
 	echo "keyboards:"
 	adb shell ime list -a -s
 	echo "chrome: $(adb shell dumpsys package com.android.chrome | grep -m1 versionName)"

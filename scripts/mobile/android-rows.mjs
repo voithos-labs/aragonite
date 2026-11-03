@@ -385,7 +385,8 @@ async function typeOnGboard(ctx, name, index) {
 		keys = ctx.device.gboardKeys(`${name}-windows`);
 	}
 	ctx.device.screenshot(`${name}-keyboard`);
-	if (!keys.has('h') || !keys.has(' ')) throw new Error('Gboard never showed its keys on screen');
+	if (!keys.has('h') || !keys.has(' '))
+		throw new Error(`Gboard never showed its keys on screen (${ctx.device.gboardMode()})`);
 	for (const ch of ` ${WORD} `) {
 		ctx.device.tap(keys.get(ch).x, keys.get(ch).y);
 		await sleep(400);
