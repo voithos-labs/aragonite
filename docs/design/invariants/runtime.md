@@ -113,6 +113,7 @@ These checks run in three kinds of place:
 | G1.166 | A plugin installs into the copy of the editor that defined it | A·N |
 | G1.167 | A whole-plugin conformance run checks every kind the plugin declares, and a dev warning fails it | harness·N |
 | G1.168 | A key or a composition over a selection in live mode is written by the editor, never left to the browser | A·N |
+| G1.169 | While a finger's range is the editor's, the DOM holds only a caret | A·N |
 | G1.170 | The editor owns a range inside one block only when a finger's press made it | A·N |
 
 ### The entries
@@ -308,5 +309,7 @@ These checks run in three kinds of place:
 **G1.167 · A plugin's conformance covers all of it** (`runPluginConformance`). The run installs a plugin's units on a blank platform and runs the kind checkup on every block kind they declared, the container checkup on each container and the inline checkup on each inline profile. A container or inline kind with no profile fails, and so does a profile naming no declared kind. A dev warning fails the run, and with dev checks off it won't start. `testing/plugin-conformance.ts` · `plugin-conformance.test.ts`.
 
 **G1.168 · The editor writes a live edit over a selection** (`live-range-written`). The browser edits the selection as the DOM holds it, and an end of that can sit on either side of a hidden bracket, so in live mode every key and every composition over a selection in one block goes through `replaceDrawnRange`. Dev fails the shared range-edit wrapper declining a key over one; the composition commit takes the block's node and store, so it has no way to skip the write. `checkLiveRangeWritten` · `live-range-written.test.ts`, `live-ranged-edit.test.ts`.
+
+**G1.169 · A finger's range leaves only a caret** (`finger-range-leaves-caret`). A phone draws its own handles and menu on any native range, so once the editor takes a finger's range over, the native selection is a caret. Until the next press, `selection/finger-takeover.ts` adopts every range the browser writes in that block (Safari writes its word back once, Android's held drag grows it); dev fails one it can't adopt, a native range beside the painted one. `checkFingerRangeLeavesCaret` · `touch-press.test.ts`.
 
 **G1.170 · A range inside one block is the editor's only from a finger** (`owned-range-from-finger`). A mouse's or a keyboard's range inside one block is the browser's, and the overlay paints only what the editor owns, so a route that took one would paint over the browser's highlight and route its keys through the range handlers. `SelectionState.ownBlockRange` takes a `FingerPress`, which only `selection/pointer-gesture.ts :: fingerPress` makes, and dev fails one it didn't make. `checkOwnedRangeFromFinger` · `owned-block-range.test.ts`.
