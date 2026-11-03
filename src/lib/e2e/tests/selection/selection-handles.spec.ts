@@ -146,6 +146,30 @@ test("a finger's double tap makes its word the editor's range, with a handle at 
 	await expect(page.locator('.selection-handle')).toHaveCount(2);
 });
 
+// Miss-analysis: every desktop handle row started from a range across blocks; none dragged a
+// finger's word, owned inside one block, out of that block.
+test("the end handle of a finger's word dragged into the next block grows the range there", async ({
+	page
+}) => {
+	const editor = await openTouch(page, DOC);
+	const point = await pointAtRaw(page, [0], 2);
+	await page.touchscreen.tap(point.x, point.y);
+	await page.touchscreen.tap(point.x, point.y);
+	await expect
+		.poll(() => selection(editor))
+		.toEqual({ anchor: { path: [0], offset: 0 }, focus: { path: [0], offset: 5 } });
+	await dragHandle(
+		page,
+		HANDLE('end'),
+		await pointAtRaw(page, [0], 5),
+		await pointAtRaw(page, [1], 4)
+	);
+	await expect
+		.poll(() => selection(editor))
+		.toEqual({ anchor: { path: [0], offset: 0 }, focus: { path: [1], offset: 4 } });
+	expect(await nativeCollapsed(page)).toBe(true);
+});
+
 test('a handle dragged across table cells grows a rectangle', async ({ page }) => {
 	await openTouch(page, TABLE_DOC);
 	const cell = (offset: number) => ({ path: [1], offset, cellCoordinate: true });

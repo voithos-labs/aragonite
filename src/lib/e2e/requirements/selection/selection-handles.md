@@ -21,6 +21,11 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
   caret stays in a focused block, so a phone neither draws its own handles nor drops its keyboard.
 - A finger's double tap makes its word the editor's range, as a long press does: the word the
   editor's own word rule picks is painted, with a handle at each end and no native range under it.
+- The end handle of a finger's word dragged into the next block grows the range there. For the
+  drag's length the handles and the toolbar take no hit test, so the point under the finger names
+  the text, not the handle being dragged.
+  - Miss-analysis: every desktop handle row started from a range across blocks; none dragged a
+    finger's word, owned inside one block, out of it, where the point runs into its own handle.
 - A handle dragged across table cells grows a rectangle of cells, as a mouse drag does.
 
 ## Edge cases

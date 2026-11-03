@@ -83,6 +83,7 @@ export function startHandleDrag(
 ): void {
 	const fixed = fixedEnd(grabbed.end, deps.selection, fingerPress(down));
 	if (!fixed) return;
+	passChromeThrough(deps.editorRoot, down, deps.lifetimeSignal);
 	const offset = { clientX: grabbed.x - down.clientX, clientY: grabbed.y - down.clientY };
 	const from =
 		'offset' in fixed && fixed.cellCoordinate ? cellText(fixed, grabbed.end, deps) : fixed;
@@ -96,6 +97,26 @@ export function startHandleDrag(
 }
 
 const other = (end: HandleEnd): HandleEnd => (end === 'start' ? 'end' : 'start');
+
+/** On the editor root while a handle drags; `editor.css` lets the drag's point through the
+ *  handles and the toolbar to the text under them. */
+export const HANDLE_DRAG_ATTR = 'data-handle-drag';
+
+// The drag hit-tests the point under the finger, which the dragged handle's own box (and the
+// toolbar beside it) would otherwise cover, so the range never moves.
+function passChromeThrough(root: HTMLElement, down: PointerEvent, lifetime: AbortSignal): void {
+	root.setAttribute(HANDLE_DRAG_ATTR, '');
+	const done = new AbortController();
+	const opts = { capture: true, signal: done.signal };
+	const end = () => {
+		done.abort();
+		root.removeAttribute(HANDLE_DRAG_ATTR);
+	};
+	const mine = (e: PointerEvent) => e.pointerId === down.pointerId && end();
+	lifetime.addEventListener('abort', end, { signal: done.signal });
+	document.addEventListener('pointerup', mine, opts);
+	document.addEventListener('pointercancel', mine, opts);
+}
 
 // A rectangle's fixed corner as the edge of its cell's text facing the range, so a drag back into
 // that cell selects from there as a press in the cell would.
