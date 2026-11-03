@@ -80,7 +80,7 @@ function harness(
 		holdsWidget: () => false,
 		finger: () => opts.finger ?? false,
 		insertMarkdown,
-		aimInsertAtFocus,
+		clipboard: { take: () => null, pasteTarget: aimInsertAtFocus },
 		insertCatalogue: () => insertCatalogue(everyInstalledPlugin),
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),

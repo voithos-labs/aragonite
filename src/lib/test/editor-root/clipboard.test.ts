@@ -338,3 +338,31 @@ describe('editor-root clipboard routing', () => {
 		});
 	});
 });
+
+// A menu row has no copy event to answer, so the root takes the range as Ctrl+C would.
+describe("a menu's Cut or Copy of the range the editor holds", () => {
+	beforeEach(() => {
+		__resetActiveEditorForTests();
+		document.body.replaceChildren();
+	});
+
+	it('Copy hands back the range’s text and leaves the range', () => {
+		const h = harness();
+		h.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 3 });
+		expect(h.clipboard.takeForMenu('copy')?.['text/plain']).toContain('llo');
+		expect(h.deleted).not.toHaveBeenCalled();
+	});
+
+	it('Cut hands back the text and removes the range', async () => {
+		const h = harness();
+		h.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 3 });
+		expect(h.clipboard.takeForMenu('cut')?.['text/plain']).toContain('llo');
+		await vi.waitFor(() => expect(h.deleted).toHaveBeenCalledOnce());
+	});
+
+	it('takes nothing while the browser holds the selection or a widget is selected', () => {
+		expect(harness().clipboard.takeForMenu('copy')).toBeNull();
+		const widget = harness({ widgetBlock: {} as BlockComponent });
+		expect(widget.clipboard.takeForMenu('copy')).toBeNull();
+	});
+});

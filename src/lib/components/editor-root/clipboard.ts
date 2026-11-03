@@ -16,6 +16,7 @@ import { createImagePasteArm } from '../paste-image-arm';
 import { runClipboardCut, takeCopy } from '../blocks/editable/clipboard-step';
 import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
+import type { ClipboardPayload } from '../../editor-actions/system-clipboard';
 
 export interface EditorRootClipboardDeps {
 	selection: SelectionState;
@@ -35,6 +36,21 @@ export interface EditorRootClipboard {
 	handleCopy(event: ClipboardEvent, root: HTMLElement): void;
 	handleCut(event: ClipboardEvent, root: HTMLElement): void;
 	handlePaste(event: ClipboardEvent, root: HTMLElement): void;
+	/** A menu's Cut or Copy of the range the editor holds, taken as Ctrl+C takes it (a Cut removes
+	 *  the range too); null for anything else, which the browser's own command copies. */
+	takeForMenu(action: 'cut' | 'copy'): ClipboardPayload | null;
+}
+
+// The copy step writes into whatever event it is handed; a menu has none, so it hands one whose
+// clipboard only records, never a constructed `ClipboardEvent` (Firefox empties those).
+function collectingEvent(): { event: ClipboardEvent; written: Map<string, string> } {
+	const written = new Map<string, string>();
+	const clipboardData = {
+		setData: (type: string, value: string) => void written.set(type, value),
+		getData: (type: string) => written.get(type) ?? ''
+	};
+	const event = { clipboardData, preventDefault: () => {} } as unknown as ClipboardEvent;
+	return { event, written };
 }
 
 /** The two states whose events land here, in the order they are tried. */
@@ -93,6 +109,14 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 			if (!target) return;
 			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
 			else void paste(event);
+		},
+		takeForMenu(action) {
+			if (!deps.selection.ownsRange || deps.selection.widget) return null;
+			const { event, written } = collectingEvent();
+			if (action === 'copy') takeCopy(event, crossBlockArms);
+			else void runClipboardCut(event, crossBlockArms);
+			const text = written.get('text/plain');
+			return text ? { 'text/plain': text, 'text/html': written.get('text/html') } : null;
 		}
 	};
 

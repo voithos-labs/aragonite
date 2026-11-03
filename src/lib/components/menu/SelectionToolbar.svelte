@@ -12,11 +12,10 @@
 	import { TOOLBAR_COMMANDS } from '../../schema/commands';
 	import { SELECTION_TOOLBAR_LABEL } from '../../a11y-strings';
 	import { keepFlyoutOnScreen } from './flyout-placement';
-	import { runClipboardAction } from './clipboard-actions';
+	import { runClipboardAction, type MenuClipboard } from './clipboard-actions';
 	import MenuIcon from './MenuIcon.svelte';
 	import type { MenuIconName } from '../../menu-icons';
 	import type { MenuPresence } from './menu-presence.svelte';
-	import type { AimedInsert } from '../editor-root/focused-surface';
 
 	type ToolbarEditor = Pick<
 		EditorInstance,
@@ -74,7 +73,7 @@
 		editor,
 		root,
 		finger,
-		paste,
+		clipboard,
 		menuPresence
 	}: {
 		editor: ToolbarEditor;
@@ -82,8 +81,8 @@
 		/** Whether the last press was a finger: the bar then sits above the range, clear of the
 		 *  selection handles below it, and is that range's one menu, with Cut and Paste too. */
 		finger: () => boolean;
-		/** Where Paste inserts: the block focused now, or null with none. */
-		paste: () => AimedInsert | null;
+		/** What the Cut, Copy and Paste rows act through. */
+		clipboard: MenuClipboard;
 		menuPresence: MenuPresence;
 	} = $props();
 
@@ -118,7 +117,7 @@
 	// The document's own copy and cut, so a range the editor paints lands as the Markdown Ctrl+C
 	// would write; a paste reads the clipboard into the focused block.
 	function clip(action: 'cut' | 'copy' | 'paste'): void {
-		void runClipboardAction(action, action === 'paste' ? paste() : null);
+		void runClipboardAction(action, clipboard);
 		placement = null;
 	}
 

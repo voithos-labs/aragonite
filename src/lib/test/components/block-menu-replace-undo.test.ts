@@ -54,7 +54,7 @@ async function typeThenRewrite() {
 		holdsWidget: () => false,
 		finger: () => false,
 		insertMarkdown: async () => true,
-		aimInsertAtFocus: () => null,
+		clipboard: { take: () => null, pasteTarget: () => null },
 		insertCatalogue: () => [],
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),

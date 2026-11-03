@@ -21,8 +21,11 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import type { InsertEntry } from '../../schema/insert-catalogue';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
-import { runClipboardAction, type ClipboardAction } from '../menu/clipboard-actions';
-import type { AimedInsert } from './focused-surface';
+import {
+	runClipboardAction,
+	type ClipboardAction,
+	type MenuClipboard
+} from '../menu/clipboard-actions';
 import { blockNoun } from '../menu/default-context-actions';
 import { isProseLeaf } from '../../schema/page-role';
 import type { Reading } from '../../schema/reading';
@@ -60,9 +63,8 @@ export interface RootMenusDeps {
 	finger(): boolean;
 	/** The public insert entry point; a flyout row inserts `below` the block the caret is in. */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
-	/** An insert at the caret aimed at the block focused now, which a Paste row runs once the
-	 *  clipboard read lands; null with no block focused. */
-	aimInsertAtFocus(): AimedInsert | null;
+	/** What the clipboard rows cut, copy and paste through. */
+	clipboard: MenuClipboard;
 	/** The insert entries this editor lists, read fresh per menu. */
 	insertCatalogue(): readonly InsertEntry[];
 	/** The plugins this editor lists, whose block actions and paste transforms the menu offers. */
@@ -124,7 +126,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 
 	function runClipboardRow(id: string): boolean {
 		if (!id.startsWith('clip.')) return false;
-		void runClipboardAction(id.slice('clip.'.length) as ClipboardAction, deps.aimInsertAtFocus());
+		void runClipboardAction(id.slice('clip.'.length) as ClipboardAction, deps.clipboard);
 		return true;
 	}
 

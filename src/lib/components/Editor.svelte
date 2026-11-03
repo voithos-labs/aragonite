@@ -141,6 +141,7 @@
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
+	import type { MenuClipboard } from './menu/clipboard-actions';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import SelectionGapFill from './overlays/SelectionGapFill.svelte';
 	import SelectionHandles from './overlays/SelectionHandles.svelte';
@@ -970,6 +971,11 @@
 		);
 	});
 
+	// Read at a row's press, when both halves exist.
+	const menuClipboard: MenuClipboard = {
+		take: (action) => rootClipboard.takeForMenu(action),
+		pasteTarget: () => focusedSurface.aimInsertAtFocus()
+	};
 	const rootMenus = createRootMenus({
 		get editorEl() {
 			return editorEl;
@@ -986,7 +992,7 @@
 		rangeAtContextPress: () => (editorEl ? rootGestures.rangeAtContextPress(editorEl) : false),
 		holdsWidget: () => selectionState.widget !== null,
 		insertMarkdown,
-		aimInsertAtFocus: () => focusedSurface.aimInsertAtFocus(),
+		clipboard: menuClipboard,
 		insertCatalogue: getInsertCatalogue,
 		activation: activePlugins,
 		reading,
@@ -1530,7 +1536,7 @@
 			}}
 			root={editorEl}
 			finger={() => fingerPress}
-			paste={() => focusedSurface.aimInsertAtFocus()}
+			clipboard={menuClipboard}
 			{menuPresence}
 		/>
 	{/if}

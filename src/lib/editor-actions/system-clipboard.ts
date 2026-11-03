@@ -18,6 +18,27 @@ export async function readClipboardText(): Promise<string | null> {
 	}
 }
 
+/** What a copy writes: its text, and the HTML beside it when the copy has one. */
+export interface ClipboardPayload {
+	'text/plain': string;
+	'text/html'?: string;
+}
+
+/** Whether `payload` reached the clipboard: both of its types where the browser takes several,
+ *  its text alone where it takes only text. Call it inside the press's click, as every write. */
+export async function writeClipboardPayload(payload: ClipboardPayload): Promise<boolean> {
+	if (typeof ClipboardItem !== 'function') return writeClipboardText(payload['text/plain']);
+	const items: Record<string, Blob> = {};
+	for (const [type, value] of Object.entries(payload))
+		if (value) items[type] = new Blob([value], { type });
+	try {
+		await navigator.clipboard.write([new ClipboardItem(items)]);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 /** Whether `text` reached the clipboard. */
 export async function writeClipboardText(text: string): Promise<boolean> {
 	try {
