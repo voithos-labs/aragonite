@@ -113,19 +113,20 @@ export const CARET_BOX = `(() => {
 	return b.height > 0 ? { x: b.left, y: (b.top + b.bottom) / 2, top: b.top, bottom: b.bottom } : null;
 })()`;
 
-// Collapses the native range to a caret at its focus, once: at the first range under a held finger,
-// or at the press's `end` event, a microtask, a task, the next range or `ms` after it.
+// Collapses the native range to a caret at its focus: at the first range under a held finger, or at
+// the press's end (any event `end` names), a microtask, a task, the next range or `ms` after it.
 export function collapseAt({ end, moment, ms = 0 }) {
 	return `(() => {
 		const p = window.__probe;
 		const moment = ${JSON.stringify(moment)};
+		const again = moment === 'sync, then the next range';
 		let pressed = false;
 		let ended = false;
-		let done = false;
+		let left = again ? 2 : 1;
 		const collapse = (why) => {
 			const s = document.getSelection();
-			if (done || !s || s.rangeCount === 0 || s.isCollapsed) return p.mark('nothing to collapse', { why });
-			done = true;
+			if (left === 0 || !s || s.rangeCount === 0 || s.isCollapsed) return p.mark('nothing to collapse', { why });
+			left--;
 			const word = p.sel();
 			s.collapse(s.focusNode, s.focusOffset);
 			p.mark('collapsed', { why, word, after: p.sel() });
@@ -133,19 +134,20 @@ export function collapseAt({ end, moment, ms = 0 }) {
 		document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') pressed = true; }, true);
 		document.addEventListener('selectionchange', () => {
 			const s = document.getSelection();
-			if (!s || s.rangeCount === 0 || s.isCollapsed || done) return;
+			if (!s || s.rangeCount === 0 || s.isCollapsed || left === 0) return;
 			if (moment === 'first range' && pressed) collapse('the first range');
-			if (moment === 'next range' && ended) collapse('the next range');
+			if ((moment === 'next range' || again) && ended) collapse('the next range');
 		});
-		document.addEventListener(${JSON.stringify(end)}, (e) => {
-			if (e.pointerType !== 'touch' || ended) return;
-			ended = true;
-			p.mark(${JSON.stringify(end)} + ' ended the press');
-			if (moment === 'sync') collapse(${JSON.stringify(end)});
-			else if (moment === 'microtask') queueMicrotask(() => collapse('a microtask after'));
-			else if (moment === 'task') setTimeout(() => collapse('a task after'));
-			else if (moment === 'delay') setTimeout(() => collapse(${ms} + ' ms after'), ${ms});
-		}, true);
+		for (const type of ${JSON.stringify(end.split(' '))})
+			document.addEventListener(type, (e) => {
+				if (e.pointerType !== 'touch' || ended) return;
+				ended = true;
+				p.mark(type + ' ended the press');
+				if (moment === 'sync' || again) collapse(type);
+				else if (moment === 'microtask') queueMicrotask(() => collapse('a microtask after'));
+				else if (moment === 'task') setTimeout(() => collapse('a task after'));
+				else if (moment === 'delay') setTimeout(() => collapse(${ms} + ' ms after'), ${ms});
+			}, true);
 		return true;
 	})()`;
 }
@@ -172,8 +174,8 @@ export function caretColour(selector, value, { atPress = false } = {}) {
 	})()`;
 }
 
-// A stand-in editor handle at the native range's end (below it, on it or right of it). A move on it
-// writes the block's first three characters, a range no browser handle would leave.
+// A stand-in editor handle at the native range's end: below it, on it, on Safari's knob or right of
+// it. A move on it writes the block's first three characters, a range no browser handle leaves.
 export function drawHandle(place, selector) {
 	return `(() => {
 		const p = window.__probe;
@@ -183,7 +185,12 @@ export function drawHandle(place, selector) {
 		const end = rects[rects.length - 1];
 		const mid = (end.top + end.bottom) / 2;
 		const place = ${JSON.stringify(place)};
-		const box = place === 'below' ? { left: end.right, top: end.bottom } : place === 'on' ? { left: end.right - 22, top: mid - 22 } : { left: end.right + 18, top: mid - 22 };
+		const box = {
+			below: { left: end.right, top: end.bottom },
+			on: { left: end.right - 22, top: mid - 22 },
+			knob: { left: end.right - 22, top: end.bottom - 16 },
+			right: { left: end.right + 18, top: mid - 22 }
+		}[place];
 		const h = document.createElement('div');
 		h.id = 'probe-handle';
 		h.style.cssText = 'position:fixed;width:44px;height:44px;z-index:2147483647;background:rgba(255,0,128,0.35);border-radius:50%;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;left:' + box.left + 'px;top:' + box.top + 'px';
@@ -204,49 +211,6 @@ export function drawHandle(place, selector) {
 		return { box: { ...box, width: 44, height: 44 }, end: [end.left, end.top, end.right, end.bottom].map(Math.round) };
 	})()`;
 }
-
-// Buttons whose taps run the async clipboard calls, each call's outcome marked in the log.
-export const CLIPBOARD_BUTTONS = `(() => {
-	const p = window.__probe;
-	const bar = document.createElement('div');
-	bar.style.cssText = 'position:fixed;left:8px;right:8px;top:45vh;display:flex;gap:8px;z-index:2147483647';
-	const add = (id, run) => {
-		const b = document.createElement('button');
-		b.id = id;
-		b.textContent = id.replace(/-/g, ' ');
-		b.style.cssText = 'flex:1;height:52px;font-size:15px';
-		b.addEventListener('click', () => {
-			const at = p.now();
-			p.mark(id + ' tapped');
-			run().then(
-				(value) => p.mark(id + ' resolved', { value, ms: p.now() - at }),
-				(e) => p.mark(id + ' rejected', { error: String(e && e.name) + ': ' + String(e && e.message), ms: p.now() - at })
-			);
-		});
-		bar.appendChild(b);
-	};
-	add('probe-write', () =>
-		navigator.clipboard.write([new ClipboardItem({
-			'text/plain': new Blob(['probe plain words'], { type: 'text/plain' }),
-			'text/html': new Blob(['<b>probe</b> html words'], { type: 'text/html' })
-		})]).then(() => 'written'));
-	add('probe-read', async () => {
-		const out = [];
-		for (const item of await navigator.clipboard.read()) {
-			const entry = {};
-			for (const type of item.types) entry[type] = await (await item.getType(type)).text();
-			out.push(entry);
-		}
-		return out;
-	});
-	add('probe-read-text', () => navigator.clipboard.readText());
-	document.body.appendChild(bar);
-	const area = document.createElement('textarea');
-	area.id = 'probe-area';
-	area.style.cssText = 'position:fixed;left:8px;right:8px;top:calc(45vh + 64px);height:64px;font-size:16px;z-index:2147483647';
-	document.body.appendChild(area);
-	return true;
-})()`;
 
 // Keeps a tap's pointer, mouse and touch events from the editor, stopped at the window before any
 // editor listener, so what the browser does on its own reads apart from the editor's tap rule.
@@ -362,7 +326,8 @@ export function timeline(log) {
 // When the browser wrote the selection, against the touch press's end (`pointerup` on iOS,
 // `pointercancel` on Android): its first and last ranges and every selectionchange after the end.
 export function writes(log, end) {
-	const ended = log.find((r) => r.type === end && r.pointer === 'touch')?.at ?? null;
+	const ended =
+		log.find((r) => end.split(' ').includes(r.type) && r.pointer === 'touch')?.at ?? null;
 	const changes = log.filter((r) => r.type === 'selectionchange');
 	const ranged = changes.filter((r) => r.sel && !r.sel.collapsed);
 	return {

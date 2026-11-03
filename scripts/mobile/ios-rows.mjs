@@ -8,7 +8,6 @@ import {
 	BARE_HOST,
 	BARE_TEXT,
 	CARET_BOX,
-	CLIPBOARD_BUTTONS,
 	FENCE_CHIP,
 	HIDE_PRESSES,
 	INSTALL_LOG,
@@ -127,52 +126,21 @@ export const rows = {
 
 // ── Probes ──────────────────────────
 
-// Whether the editor can take a long press's word over: Safari's last write, a transparent caret,
-// whose handle gets the finger, the clipboard, one shared host. Each saves `<slug>.json`.
+// Whether the editor can take a long press's word over, the questions a first round left open.
+// Safari's readText prompt is left out, since it stalls the WebDriver session.
 export const probes = {
-	'1 collapse timing: no collapse, when Safari last writes': async (ctx) => {
-		const outcome = await collapseTiming(ctx, 'p1-none', null);
-		lastWriteAfterLift = outcome.timing.lastRangeAfterEnd;
-		return outcome;
-	},
-	'1 collapse timing: at the first range under the finger': (ctx) =>
-		collapseTiming(ctx, 'p1-first-range', { end: 'pointerup', moment: 'first range' }),
-	'1 collapse timing: at the pointerup': (ctx) =>
-		collapseTiming(ctx, 'p1-pointerup', { end: 'pointerup', moment: 'sync' }),
-	'1 collapse timing: a microtask after the pointerup': (ctx) =>
-		collapseTiming(ctx, 'p1-microtask', { end: 'pointerup', moment: 'microtask' }),
-	'1 collapse timing: a task after the pointerup': (ctx) =>
-		collapseTiming(ctx, 'p1-task', { end: 'pointerup', moment: 'task' }),
-	'1 collapse timing: at the next range after the pointerup': (ctx) =>
-		collapseTiming(ctx, 'p1-next-range', { end: 'pointerup', moment: 'next range' }),
-	"1 collapse timing: once Safari's measured last write is past": (ctx) =>
-		collapseTiming(ctx, 'p1-measured', {
-			end: 'pointerup',
-			moment: 'delay',
-			ms: Math.max(0, lastWriteAfterLift ?? 200) + 100
-		}),
+	'2 caret colour: read live on a caret, or once': (ctx) => caretColourOnACaret(ctx, 'p2-caret'),
 
-	'2 caret colour: transparent on the block before the press': (ctx) =>
-		caretColourProbe(ctx, 'p2-block-before', { on: blockOf(0), when: 'before' }),
-	'2 caret colour: transparent on the editor root before the press': (ctx) =>
-		caretColourProbe(ctx, 'p2-root-before', { on: '.editor', when: 'before' }),
-	'2 caret colour: transparent at the touch press': (ctx) =>
-		caretColourProbe(ctx, 'p2-block-press', { on: blockOf(0), when: 'press' }),
-	'2 caret colour: transparent once the range stands': (ctx) =>
-		caretColourProbe(ctx, 'p2-block-range', { on: blockOf(0), when: 'range' }),
+	"3 who gets the finger: a handle on Safari's hidden knob": (ctx) =>
+		drawnHandle(ctx, 'p3-knob-hidden', { place: 'knob', hidden: true }),
+	"3 who gets the finger: a handle on Safari's shown knob": (ctx) =>
+		drawnHandle(ctx, 'p3-knob-shown', { place: 'knob', hidden: false }),
 
-	"3 who gets the finger: a handle below the end, Safari's hidden": (ctx) =>
-		drawnHandle(ctx, 'p3-below-hidden', { place: 'below', hidden: true }),
-	"3 who gets the finger: a handle on the end, Safari's hidden": (ctx) =>
-		drawnHandle(ctx, 'p3-on-hidden', { place: 'on', hidden: true }),
-	"3 who gets the finger: a handle right of the end, Safari's hidden": (ctx) =>
-		drawnHandle(ctx, 'p3-right-hidden', { place: 'right', hidden: true }),
-	"3 who gets the finger: a handle on the end, Safari's shown": (ctx) =>
-		drawnHandle(ctx, 'p3-on-shown', { place: 'on', hidden: false }),
+	'1 collapse timing: at the press end, then at the range Safari writes back': (ctx) =>
+		collapseTiming(ctx, 'p1-twice', { end: PRESS_END, moment: 'sync, then the next range' }),
+	'1 collapse timing: a task after the press end': (ctx) =>
+		collapseTiming(ctx, 'p1-task', { end: PRESS_END, moment: 'task' }),
 
-	'4 clipboard: the page writes and reads, Safari pastes into a textarea': (ctx) =>
-		pageClipboard(ctx, 'p4-page'),
-	"4 clipboard: readText of another app's copy": (ctx) => readTextPrompt(ctx, 'p4-read-text'),
 	"4 clipboard: Safari's paste on the caret beside a painted range": (ctx) =>
 		caretPaste(ctx, 'p4-caret-paste', { hidden: false }),
 	"4 clipboard: Safari's paste on that caret, the taps kept from the editor": (ctx) =>
@@ -190,8 +158,8 @@ export const probes = {
 		sharedHost(ctx, 'p7-caption', { into: 'caption' })
 };
 
-// What the first timing probe measured, for the last one to wait out.
-let lastWriteAfterLift = null;
+// A long press on iOS ends in a pointerup, or now and then a pointercancel.
+const PRESS_END = 'pointerup pointercancel';
 
 async function collapseTiming(ctx, slug, collapse) {
 	await ctx.fresh(ctx.url, PROBE_DOC);
@@ -203,7 +171,7 @@ async function collapseTiming(ctx, slug, collapse) {
 	await sleep(1000);
 	const later = await look(ctx, `${slug}-1500ms`);
 	const log = await page(ctx, READ_LOG);
-	const timing = writes(log, 'pointerup');
+	const timing = writes(log, PRESS_END);
 	const file = save(ctx.out, slug, {
 		collapse,
 		pressed,
@@ -216,47 +184,30 @@ async function collapseTiming(ctx, slug, collapse) {
 	return { file, collapse, timing, soon: brief(soon), later: brief(later) };
 }
 
-// `when`: before the press, at the touch press, or once the long press's range stands. Then the
-// colour goes back, and a tap shows whether the caret is visible again.
-async function caretColourProbe(ctx, slug, { on, when }) {
+// Whether Safari reads the caret colour live on a caret: transparent before a tap, restored with
+// the caret standing, then transparent again; three shots each span a blink.
+async function caretColourOnACaret(ctx, slug) {
 	await ctx.fresh(ctx.url, PROBE_DOC);
 	await page(ctx, INSTALL_LOG);
-	const at = await mapBlock(ctx, 0);
-	if (when !== 'range')
-		await page(ctx, caretColour(on, 'transparent', { atPress: when === 'press' }));
-	const pressed = await holdWord(ctx, blockOf(0), 'two', at);
+	await page(ctx, caretColour(blockOf(0), 'transparent'));
+	await ctx.click(await ctx.editable(0));
 	await sleep(600);
-	const end = await page(ctx, RANGE_END);
-	const steps = { range: await look(ctx, `${slug}-range`) };
-	if (when === 'range') {
-		await page(ctx, caretColour(on, 'transparent'));
-		await sleep(600);
-		steps.hiddenOnTheRange = await look(ctx, `${slug}-hidden`);
-	} else {
-		await page(ctx, caretColour(on, ''));
-		await sleep(600);
-		steps.restoredOnTheRange = await look(ctx, `${slug}-restored`);
-		// A tap past the end of the first block's line leaves the caret there; three shots span a blink.
-		await ctx.click(await ctx.editable(0));
+	const steps = {};
+	for (const [step, colour] of [
+		['hidden', null],
+		['restored', ''],
+		['hidden-again', 'transparent']
+	]) {
+		if (colour !== null) await page(ctx, caretColour(blockOf(0), colour));
 		for (const n of [1, 2, 3]) {
 			await sleep(350);
-			await ctx.screenshot(`${slug}-caret-${n}`).catch(() => {});
+			await ctx.screenshot(`${slug}-${step}-${n}`).catch(() => {});
 		}
-		steps.caret = await look(ctx, `${slug}-caret`);
+		steps[step] = await look(ctx, `${slug}-${step}`);
 	}
 	const log = await page(ctx, READ_LOG);
-	const rangeEnd = end && { page: end, native: at(end.x, end.y) };
-	const file = save(ctx.out, slug, {
-		on,
-		when,
-		pressed,
-		rangeEnd,
-		steps,
-		timeline: timeline(log),
-		log
-	});
-	const briefs = Object.fromEntries(Object.entries(steps).map(([k, v]) => [k, brief(v)]));
-	return { file, rangeEndNative: rangeEnd?.native ?? null, ...briefs };
+	const file = save(ctx.out, slug, { steps, timeline: timeline(log), log });
+	return { file, ...Object.fromEntries(Object.entries(steps).map(([k, v]) => [k, brief(v)])) };
 }
 
 // A long press on a word mid-block, a stand-in handle at its end, then a drag from that handle
@@ -313,95 +264,6 @@ async function drawnHandle(ctx, slug, { place, hidden }) {
 		before: brief(before),
 		after: brief(after)
 	};
-}
-
-// The page's own write and read, from its buttons, then Safari's Paste into a plain textarea.
-async function pageClipboard(ctx, slug) {
-	await ctx.fresh(ctx.url, SHORT);
-	await page(ctx, INSTALL_LOG);
-	await page(ctx, CLIPBOARD_BUTTONS);
-	const tap = async (id) => ctx.click(await ctx.find('css selector', `#${id}`));
-	const seeded = await setPasteboard(ctx, 'before the write');
-	await tap('probe-write');
-	await sleep(1000);
-	const pasteboard = await mobile(ctx, 'getPasteboard', { encoding: 'utf8' }).catch(
-		(error) => `unread: ${String(error).slice(0, 200)}`
-	);
-	await tap('probe-read');
-	await sleep(700);
-	const read = await look(ctx, `${slug}-read`);
-	await sleep(800);
-	// One tap focuses the textarea; a second on its caret opens Safari's menu.
-	await tap('probe-area');
-	await sleep(1000);
-	await tap('probe-area');
-	await sleep(1000);
-	const areaMenu = await look(ctx, `${slug}-area-menu`);
-	const pasted = await tapNativeMenu(ctx, 'Paste');
-	await sleep(1000);
-	const area = await page(ctx, `document.getElementById('probe-area').value`);
-	const log = await page(ctx, READ_LOG);
-	const file = save(ctx.out, slug, {
-		pasteboard,
-		read,
-		areaMenu,
-		pasted,
-		area,
-		timeline: timeline(log),
-		log
-	});
-	return {
-		file,
-		seeded,
-		pasteboardAfterWrite: pasteboard,
-		menuOnRead: brief(read).menu,
-		menuOnTheArea: brief(areaMenu).menu,
-		pastedIntoTheArea: pasted,
-		area,
-		calls: timeline(log.filter((r) => r.what))
-	};
-}
-
-// readText with the pasteboard set from outside the page, as another app's copy: Safari's Paste
-// tapped at once, tapped a second after it shows, and dismissed by a tap elsewhere.
-async function readTextPrompt(ctx, slug) {
-	await ctx.fresh(ctx.url, SHORT);
-	await page(ctx, INSTALL_LOG);
-	await page(ctx, CLIPBOARD_BUTTONS);
-	const attempts = [];
-	for (const how of ['at once', 'after a second', 'dismissed']) {
-		const seeded = await setPasteboard(ctx, `other app words, ${how}`);
-		const from = await now(ctx);
-		await ctx.click(await ctx.find('css selector', '#probe-read-text'));
-		const shownAfterMs = await waitForNativeMenu(ctx, 'Paste', 4000);
-		await ctx.screenshot(`${slug}-${how.replace(/ /g, '-')}`).catch(() => {});
-		const taps = [];
-		if (how === 'dismissed') await ctx.click(await ctx.editable(2));
-		else {
-			if (how === 'after a second') await sleep(1200);
-			taps.push(await tapNativeMenu(ctx, 'Paste'));
-			await sleep(800);
-			const settled = (await page(ctx, READ_LOG)).some(
-				(r) => r.at >= from && /probe-read-text (resolved|rejected)/.test(r.what ?? '')
-			);
-			if (!settled) {
-				await sleep(600);
-				taps.push(await tapNativeMenu(ctx, 'Paste'));
-			}
-		}
-		await sleep(1000);
-		const log = await page(ctx, READ_LOG);
-		attempts.push({
-			how,
-			seeded,
-			shownAfterMs,
-			tappedPaste: taps,
-			calls: timeline(log.filter((r) => r.at >= from && r.what))
-		});
-	}
-	const log = await page(ctx, READ_LOG);
-	const file = save(ctx.out, slug, { attempts, timeline: timeline(log), log });
-	return { file, attempts };
 }
 
 // A range across two blocks leaves a collapsed native caret; a tap on it, then Safari's own Paste.
@@ -634,17 +496,6 @@ async function tapNativeMenu(ctx, label) {
 	if (id) await ctx.click(id);
 	await ctx.web();
 	return !!id;
-}
-
-// How long Safari's menu item `label` took to show, polled up to `ms`, or null.
-async function waitForNativeMenu(ctx, label, ms) {
-	const started = Date.now();
-	await ctx.native();
-	let id = null;
-	while (!id && Date.now() - started < ms)
-		id = await ctx.tryFind('-ios predicate string', menuItem(label));
-	await ctx.web();
-	return id ? Date.now() - started : null;
 }
 
 // ── Steps ──────────────────────────
