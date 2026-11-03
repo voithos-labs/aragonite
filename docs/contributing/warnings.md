@@ -1,7 +1,6 @@
 # Dev warnings
 
-In a dev build the editor talks to you through the console - don't ignore them, most of what shows up is a guard telling you something is wrong. This document will introduce
-you to three relevant concepts:
+In a dev build the editor talks to you through the console - don't ignore them, most of what shows up is a guard telling you something is wrong. This document will introduce you to three relevant concepts:
 
 1. the three kinds of console output (a.k.a the three channels) the editor produces in dev (a **guard** warning, a subsystem **diagnostic**, a **Svelte runtime** warning) and how to tell them apart by their prefix.
 2. for each channel, which test gate goes red when it fires (i.e. unit run, e2e run, or nothing).
@@ -24,11 +23,11 @@ fyi:
 
 ## The three channels
 
-| Channel        | Looks like                     | What it means                                                                                                                                                                                                                                      |
-| -------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Guard          | `[aragonite:invariant:<name>]` | A contract was violated. Always a defect, yours or one you just uncovered.                                                                                                                                                                         |
-| Diagnostic     | `[aragonite:<subsystem>]`      | A subsystem refused something and degraded gracefully. Usually a defect upstream of it, occasionally benign.                                                                                                                                       |
-| Svelte runtime | `[svelte] <code>`              | Svelte's own runtime complaining about how the editor drives it (a derived read past its owner's death, a raw object compared against its proxy, and so on). Every code is gated; the one you'll meet most is in "The proxy-versus-raw one" below. |
+| Channel | Looks like | What it means |
+| --- | --- | --- |
+| Guard | `[aragonite:invariant:<name>]` | A contract was violated. Always a defect, yours or one you just uncovered. |
+| Diagnostic | `[aragonite:<subsystem>]` | A subsystem refused something and degraded gracefully. Usually a defect upstream of it, occasionally benign. |
+| Svelte runtime | `[svelte] <code>` | Svelte's own runtime complaining about how the editor drives it (a derived read past its owner's death, a raw object compared against its proxy, and so on). Every code is gated; the one you'll meet most is in "The proxy-versus-raw one" below. |
 
 To find **guards**, understand that guard sites use `assertInvariant` in `src/lib/dev-checks.ts`. Also note that guards don't throw, because we don't want a false positive to crash the editor.
 
@@ -46,12 +45,12 @@ Four things watch the console for these warnings. The unit suite and the e2e spe
 
 One mechanism to know before the table: under Vitest the console line never happens at all. The test setup registers a **sink** (a function `devWarn` hands entries to instead of printing), and the gate reads that. Svelte has no sink to register, so the same setup wraps `console.warn`, and a `[svelte] <code>` line lands in those same records under the tag `svelte:<code>`.
 
-| Gate                    | Watches                                                                                                                                                                                     | What goes red                                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Unit suite (Vitest)     | every `devWarn` fire and every `[svelte]` code, through the sink                                                                                                                            | the test that provoked it, unless that test claims it (next section)                                                      |
-| E2E specs (Playwright)  | console lines carrying either prefix, uncaught page errors and rejections (tag `pageerror`), and errors only `window.onerror` sees, such as a ResizeObserver loop (tag `onerror:<message>`) | the spec whose page emitted one, at teardown                                                                              |
-| Simulation sessions     | either prefix, plus every console error and page error, the `window.onerror` relay included                                                                                                 | the checkpoint the session was at (sessions assert at checkpoints mid-run), so a fire surfaces in context, not at the end |
-| Playwright's app server | that server's own console, for a fire during SSR (the page rendering on the server, so the warning lands there, not in the browser)                                                         | the whole run, at teardown; only when Playwright started the server itself rather than reusing one already running        |
+| Gate | Watches | What goes red |
+| --- | --- | --- |
+| Unit suite (Vitest) | every `devWarn` fire and every `[svelte]` code, through the sink | the test that provoked it, unless that test claims it (next section) |
+| E2E specs (Playwright) | console lines carrying either prefix, uncaught page errors and rejections (tag `pageerror`), and errors only `window.onerror` sees, such as a ResizeObserver loop (tag `onerror:<message>`) | the spec whose page emitted one, at teardown |
+| Simulation sessions | either prefix, plus every console error and page error, the `window.onerror` relay included | the checkpoint the session was at (sessions assert at checkpoints mid-run), so a fire surfaces in context, not at the end |
+| Playwright's app server | that server's own console, for a fire during SSR (the page rendering on the server, so the warning lands there, not in the browser) | the whole run, at teardown; only when Playwright started the server itself rather than reusing one already running |
 
 Though, two consequences of the sink:
 

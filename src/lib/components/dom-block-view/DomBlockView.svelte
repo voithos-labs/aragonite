@@ -282,18 +282,20 @@
 		}
 	};
 
-	// Keys in the view's own text field stay there; a plain arrow anywhere else in the block leaves it.
+	// A plain arrow outside the view's own text field leaves the block; any other key goes to the
+	// containers around it.
 	function handBuiltKeydown(e: KeyboardEvent): void {
 		if (imeOwnsKey(e)) return;
-		if (e.defaultPrevented || isEditableEventTarget(e.target) || !services) return;
-		const { caretMemory, commands } = services;
+		if (e.defaultPrevented || !services) return;
+		const { caretMemory, commands, containerChords } = services;
 		const exit = {
 			getIndex: () => index,
 			focus: focusActions,
 			caretMemory,
 			commandOf: (press: KeyboardEvent) => commandForKey(press, node.kind, commands)
 		};
-		if (moveFocusOutByArrow(e, exit)) e.preventDefault();
+		if (!isEditableEventTarget(e.target) && moveFocusOutByArrow(e, exit)) e.preventDefault();
+		else containerChords.take(e, myPath);
 	}
 
 	// ── Mount, update, destroy ────────────────────────────────────────────────

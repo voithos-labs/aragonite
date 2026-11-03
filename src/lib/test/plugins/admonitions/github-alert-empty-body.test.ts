@@ -2,7 +2,7 @@ import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { checkStaleRaw } from '#lib/invariants/node-shape.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 

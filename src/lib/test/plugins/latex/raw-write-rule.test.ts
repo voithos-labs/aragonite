@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib';
 import { normalizeOwnRaw } from '#lib/tree-operations/node-primitives.js';
 import { documentLineEnding } from '#lib/plugin.js';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { testView } from '#lib/test/harness/test-view.js';
 

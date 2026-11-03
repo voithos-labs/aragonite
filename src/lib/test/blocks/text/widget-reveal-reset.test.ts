@@ -4,7 +4,7 @@
 // `settling` flag stuck true or a stale range, shows up as a broken second cycle.
 import { describe, it, expect, vi } from 'vitest';
 import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
-import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 import {
 	installMathInline,
 	mountWidgetBlock,

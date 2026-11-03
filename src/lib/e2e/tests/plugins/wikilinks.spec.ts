@@ -184,7 +184,7 @@ test.describe('wikilinks that follow on a plain click', () => {
 		await page.getByRole('menuitem', { name: 'Edit link' }).click();
 
 		await expect(page.locator('[data-link-card]')).toBeVisible();
-		await expect(page.locator('[data-link-card] input')).toBeFocused();
+		await expect(page.locator('[data-link-card] input[aria-label="Link URL"]')).toBeFocused();
 		expect(await opened()).toEqual([]);
 	});
 

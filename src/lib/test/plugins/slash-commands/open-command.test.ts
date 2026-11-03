@@ -5,7 +5,7 @@ import {
 	SLASH_COMMANDS_MENU,
 	SLASH_COMMANDS_OPEN,
 	slashCommandsPlugin
-} from '#lib/plugins/slash-commands/index.js';
+} from '#packages/slash-commands/src/index.js';
 import { getCommand, resolveGlobalBinding } from '#lib/schema/commands.js';
 import { eventToChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';

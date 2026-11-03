@@ -4,17 +4,17 @@
  * caret rows the day it is registered. A kind with a content span names the spec that holds it.
  */
 import { it, expect } from 'vitest';
-import { collectFiles, readSource } from '../../test/invariants/lint/scan-source';
+import { collectFiles, LIBRARY_ROOTS, readSource } from '../../test/invariants/lint/scan-source';
 
 const SPEC = 'src/lib/e2e/tests/plugins/widget-reveal-caret.spec.ts';
 
 // The registering file, and the kind name its row carries, or the spec that covers a spanned kind.
 const REGISTRATIONS: Record<string, { kind: string } | { coveredBy: string }> = {
 	'src/lib/core/directive/kinds.ts': { kind: 'directiveText' },
-	'src/lib/plugins/footnotes/footnote-reference.ts': { kind: 'footnote-ref' },
+	'packages/footnotes/src/footnote-reference.ts': { kind: 'footnote-ref' },
 	'src/routes/test/plugins/tags/tag-plugin.ts': { kind: 'harness-tag' },
 	'src/routes/test/plugins/wikilinks/link-plugin.ts': { kind: 'harness-wikilink' },
-	'src/lib/plugins/latex/latex-kind.ts': {
+	'packages/latex/src/latex-kind.ts': {
 		coveredBy: 'src/lib/e2e/tests/plugins/inline-delimiter-autopair.spec.ts'
 	}
 };
@@ -24,7 +24,7 @@ const REVEALS = /\brevealSource:\s*true\b/;
 const TEST_DIRS = ['test', 'e2e', 'testing'];
 
 function registeringFiles(): string[] {
-	return ['src/lib', 'src/routes/test/plugins']
+	return [...LIBRARY_ROOTS, 'src/routes/test/plugins']
 		.flatMap((root) => collectFiles(root, { extensions: ['.ts', '.svelte'], skip: TEST_DIRS }))
 		.map(readSource)
 		.filter((file) => REVEALS.test(file.code))

@@ -32,7 +32,8 @@ const inLibrary = (code: string): Probe => ({ relPath: `${SOURCE_DIR.library}pro
 
 const ENGINE_SNIFFING: FileRule = {
 	id: 'G4.223 the library names no browser engine in code',
-	population: (file) => under(SOURCE_DIR.library)(file) && notUnder(SOURCE_DIR.debug)(file),
+	population: (file) =>
+		under(SOURCE_DIR.library, SOURCE_DIR.plugins)(file) && notUnder(SOURCE_DIR.debug)(file),
 	matches: namesAnEngine,
 	allowed: {},
 	reason:

@@ -20,7 +20,11 @@ import {
 	writeOwnRaw
 } from '../tree-operations/node-primitives';
 import { cloneNode } from '../tree-operations/clone';
-import { bytesLeavingLeaf, replaceRangeInLeaf } from '../tree-operations/leaf-range';
+import {
+	bytesLeavingLeaf,
+	replaceDrawnRange,
+	replaceRangeInLeaf
+} from '../tree-operations/leaf-range';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
@@ -345,7 +349,7 @@ function cutFrom(deps: SelectionDropDeps, from: DragSource): ScopeCut | null {
 	if (from.inCell) return cutFromCell(deps, from, node);
 	const before = trimTrailingLineEnding(node.raw);
 	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
-	const edit = replaceRangeInLeaf(node, { start: from.start, end: from.end }, '', store);
+	const edit = replaceDrawnRange(node, { start: from.start, end: from.end }, '', store);
 	const raw = trimTrailingLineEnding(edit.raw);
 	return { path: from.path, raw, shrunkBy: before.length - raw.length };
 }
@@ -358,7 +362,7 @@ function cutFromCell(deps: SelectionDropDeps, from: DragSource, cell: CstNode): 
 	const table = blockNodeAt(deps.getDoc(), tablePath);
 	if (!table || table.kind !== 'table') return null;
 	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
-	const cut = replaceRangeInLeaf(cell, { start: from.start, end: from.end }, '', store);
+	const cut = replaceDrawnRange(cell, { start: from.start, end: from.end }, '', store);
 	const rebuilt = cloneNode(table);
 	const inner = from.path.slice(-2);
 	const [rowIdx, colIdx] = inner;

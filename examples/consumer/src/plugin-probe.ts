@@ -11,7 +11,7 @@ export const _probe = (): { kind: string; describe: (r: BlockKindRegistration) =
 // Type-level proof the mermaid renderer subpath resolves, type-only by necessity: a runtime
 // import pulls renderer.ts's `import('mermaid')` into a consumer with no engine (routes/plugins).
 export type MermaidRendererProbe =
-	typeof import('@voithos-labs/aragonite/plugins/mermaid/renderer').mermaidRenderer;
+	typeof import('@voithos-labs/aragonite-mermaid/renderer').mermaidRenderer;
 
 // The seam a third-party plugin's own suite installs against; type-only because the barrel is
 // test-process-only. One entry per re-export cluster: each pulls a different declaration file.

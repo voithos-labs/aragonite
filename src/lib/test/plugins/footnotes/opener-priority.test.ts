@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 
 describe('footnote definition opener priority', () => {
 	beforeEach(() => {

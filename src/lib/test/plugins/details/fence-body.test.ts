@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // The close-scan must track fenced code in the body: inside a fence, `</details>` is

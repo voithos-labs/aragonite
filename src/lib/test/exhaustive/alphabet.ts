@@ -3,9 +3,9 @@
 // lengths `npm test` runs keep each suite to seconds; `npm run test:exhaustive` raises them.
 
 import type { EditorPlugin } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
 
 export const EXHAUSTIVE_ALPHABET = [
 	'#',

@@ -9,7 +9,11 @@ import type { AnyCommandId } from './command-id';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { enrollTestReset } from './registry-reset';
 import { createPluginRegistry } from './plugin-registry';
-import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import {
+	getAllRegisteredKinds,
+	onBlockKindChange,
+	tryGetBlockKindDescriptor
+} from './block-kind-descriptor';
 import { eventToChord, isMotionChord, registeredChord, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
@@ -53,6 +57,7 @@ export const BLOCK_COMMAND_IDS = [
 	'list.toggleTask',
 	'cell.enter',
 	'cell.lineBreak',
+	'cell.openMenu',
 	'cell.tab',
 	'cell.shiftTab',
 	// Bound on `tableCell` (the block that holds the caret) but named for their subject: each takes
@@ -456,6 +461,24 @@ export function resolveKindBinding(
 	return builtinKindBinding(chord, kind);
 }
 
+// Rebuilt when a kind registers, so a plugin's container keymap is never missed.
+let containerKeymapChords: ReadonlySet<string> | null = null;
+onBlockKindChange(() => (containerKeymapChords = null));
+
+/** Whether any container could bind `chord`: a container kind's keymap, or any `keybindings`
+ *  override. False means no container walk can find it, so none is made. */
+export function containerMayBind(
+	chord: string,
+	overrides: KeybindingOverrideMap | undefined
+): boolean {
+	containerKeymapChords ??= new Set(
+		getAllRegisteredKinds()
+			.filter((kind) => tryGetBlockKindDescriptor(kind)?.containerContract !== undefined)
+			.flatMap((kind) => kindKeymap(kind).map((binding) => binding.chord))
+	);
+	return containerKeymapChords.has(chord) || !!overrides?.chords.has(chord);
+}
+
 /**
  * Leaf precedence: override(kind) → override(global) → built-in kind → built-in global. Override
  * source dominates specificity, so a global disable suppresses a chord a kind defines.
@@ -558,8 +581,39 @@ export function runGlobalChordOnKind(
 	return runClaimedGlobalChord(binding, chord, context, true);
 }
 
+/** Whether `runGlobalChord` takes `chord` here, without running it. */
+export function takesGlobalChord(
+	chord: string,
+	context: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+): boolean {
+	const binding = resolveGlobalBinding(chord, context.keybindingOverrides(), context.activation);
+	return consumesGlobalChord(binding, chord, context.activation);
+}
+
+/** Whether `runGlobalChordOnKind` takes `chord` at `kind`, without running it. */
+export function takesGlobalChordOnKind(
+	chord: string,
+	kind: AnyBlockKind,
+	context: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+): boolean {
+	const binding = resolveBinding(chord, kind, context.keybindingOverrides(), context.activation);
+	return consumesGlobalChord(binding, chord, context.activation);
+}
+
 /** A chord the built-in tables bind is consumed whatever an override resolves it to, since the
- *  browser's own undo would bypass the CST undo stack; reading mode consumes it, runs nothing. */
+ *  browser's own undo would bypass the CST undo stack. */
+function consumesGlobalChord(
+	binding: KeyBinding | null,
+	chord: string,
+	activation: PluginActivation
+): boolean {
+	return (
+		(binding !== null && !!getCommand(binding.command, activation)) ||
+		isDefaultGlobalChord(chord, activation)
+	);
+}
+
+/** Reading mode consumes a taken chord and runs nothing. */
 function runClaimedGlobalChord(
 	binding: KeyBinding | null,
 	chord: string,
@@ -567,7 +621,7 @@ function runClaimedGlobalChord(
 	kindDispatchBelow: boolean
 ): boolean {
 	const run = binding ? getCommand(binding.command, context.activation) : undefined;
-	const consumed = !!run || isDefaultGlobalChord(chord, context.activation);
+	const consumed = consumesGlobalChord(binding, chord, context.activation);
 	// A binding no global command backs is dead only where nothing else can answer it; a kind
 	// keymap chord declining into the block's own dispatch is the normal handoff.
 	if (binding && !run && (consumed || !kindDispatchBelow)) {

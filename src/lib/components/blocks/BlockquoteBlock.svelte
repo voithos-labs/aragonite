@@ -8,7 +8,6 @@
 	let boxEl: HTMLElement | undefined = $state();
 
 	// A plain container with a left border: `createContainerBlock` wires it end to end.
-	// `handleKeydown` is deliberately left unwired, since a blockquote takes no chords.
 	const { blockListProps, containerApi } = createContainerBlock({
 		getNode: () => node,
 		getIndex: () => index,

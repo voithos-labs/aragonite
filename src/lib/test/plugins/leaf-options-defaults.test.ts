@@ -9,11 +9,11 @@ import { resolveBlockSurface } from '#lib/block-component.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountBlock, type MountedBlock } from '../harness/mount-block';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import BlockMath from '#lib/plugins/latex/BlockMath.svelte';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
-import TocBlock from '#lib/plugins/toc/TocBlock.svelte';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import BlockMath from '#packages/latex/src/BlockMath.svelte';
+import { tocPlugin } from '#packages/toc/src/index.js';
+import TocBlock from '#packages/toc/src/TocBlock.svelte';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 

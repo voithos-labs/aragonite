@@ -175,22 +175,22 @@ renderInlineNodes(parseInline(raw, 0, raw.length), raw, { grammar: defaultGramma
 //  and <span class="md-marker">`</span><code class="inline-code-content">code</code><span class="md-marker">`</span>
 ```
 
-| Kind                  | DOM output                                                                                                                                                                                                                                                                 |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `text`                | Text node                                                                                                                                                                                                                                                                  |
-| `inlineCode`          | Dim marker spans around a `<code>` element holding the content                                                                                                                                                                                                             |
-| `emphasis`            | Dim marker spans around `<em>` wrapping the children, rendered recursively                                                                                                                                                                                                 |
-| `strong`              | Dim marker spans around `<strong>`                                                                                                                                                                                                                                         |
-| `strikethrough`       | Dim marker spans around `<s>`                                                                                                                                                                                                                                              |
-| `link`                | Markers sliced from `raw` around an `<a>` wrapping the children, when the resolved URL passes the scheme allowlist (only safe schemes, `https` and friends, get a live link). A blocked scheme renders an inert `span` instead: markers and text preserved, no live `href` |
-| `autolink`            | The same policy: a live `<a>` for an allowlisted scheme, an inert span otherwise                                                                                                                                                                                           |
-| `image`               | An atomic `<img>` widget, unless the kind opts out via `renderImagesAsWidgets` (table cells do, and fall back to alt text)                                                                                                                                                 |
-| `hardLineBreak`       | Marker span for the `\` or the spaces, plus a `\n` **text node** (never a `<br>`)                                                                                                                                                                                          |
-| `escape`              | Dim marker span for the `\`, plus a text node for the escaped character                                                                                                                                                                                                    |
-| `entityReference`     | An atomic widget of the decoded glyph (`&copy;` → ©) when it renders visibly; a whitespace/control/zero-width decoding keeps a styled span over the `&…;` source, so no invisible atomic widget is created                                                                 |
-| `unresolvedReference` | Styled span over the literal source of a reference with no matching definition                                                                                                                                                                                             |
-| `rawHtml`             | Allowlisted tags (`<br>`) render as atomic widgets; everything else as a styled source span                                                                                                                                                                                |
-| _plugin kinds_        | A registered widget (§ 6). Anything still unrecognized falls back to a `span.md-unknown-inline` holding its verbatim source, the inline mirror of the unknown-block fallback, so bytes survive a plugin being uninstalled                                                  |
+| Kind | DOM output |
+| --- | --- |
+| `text` | Text node |
+| `inlineCode` | Dim marker spans around a `<code>` element holding the content |
+| `emphasis` | Dim marker spans around `<em>` wrapping the children, rendered recursively |
+| `strong` | Dim marker spans around `<strong>` |
+| `strikethrough` | Dim marker spans around `<s>` |
+| `link` | Markers sliced from `raw` around an `<a>` wrapping the children, when the resolved URL passes the scheme allowlist (only safe schemes, `https` and friends, get a live link). A blocked scheme renders an inert `span` instead: markers and text preserved, no live `href` |
+| `autolink` | The same policy: a live `<a>` for an allowlisted scheme, an inert span otherwise |
+| `image` | An atomic `<img>` widget, unless the kind opts out via `renderImagesAsWidgets` (table cells do, and fall back to alt text) |
+| `hardLineBreak` | Marker span for the `\` or the spaces, plus a `\n` **text node** (never a `<br>`) |
+| `escape` | Dim marker span for the `\`, plus a text node for the escaped character |
+| `entityReference` | An atomic widget of the decoded glyph (`&copy;` → ©) when it renders visibly; a whitespace/control/zero-width decoding keeps a styled span over the `&…;` source, so no invisible atomic widget is created |
+| `unresolvedReference` | Styled span over the literal source of a reference with no matching definition |
+| `rawHtml` | Allowlisted tags (`<br>`) render as atomic widgets; everything else as a styled source span |
+| _plugin kinds_ | A registered widget (§ 6). Anything still unrecognized falls back to a `span.md-unknown-inline` holding its verbatim source, the inline mirror of the unknown-block fallback, so bytes survive a plugin being uninstalled |
 
 A few rows, rendered (each fragment's `textContent` is its `raw`, which is the point):
 

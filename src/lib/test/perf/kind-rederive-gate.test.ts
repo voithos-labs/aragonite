@@ -4,7 +4,7 @@
 // the container-size axis: typing into a list's first item or a directive's title parses nothing.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { parse } from '#lib/core/parser.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { ensureUnsharedPath } from '#lib/tree-operations/unshare.js';

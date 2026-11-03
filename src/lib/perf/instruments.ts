@@ -37,6 +37,10 @@ export interface PerfSnapshot {
 	screenReads: number;
 	/** Reads of a block's hidden marker runs for its edge rules: one per key press, not per question. */
 	markerRunReads: number;
+	/** Walks of a block's links for a reference whose text an edit changes: none in a plain block. */
+	referenceWalks: number;
+	/** Walks up a block's containers for a chord one of them may bind: none for a typed letter. */
+	containerChordWalks: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -101,6 +105,8 @@ function emptySnapshot(): PerfSnapshot {
 		formatCoverageReads: 0,
 		screenReads: 0,
 		markerRunReads: 0,
+		referenceWalks: 0,
+		containerChordWalks: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -229,6 +235,16 @@ export function recordScreenRead(): void {
 export function recordMarkerRunRead(): void {
 	if (!enabled) return;
 	counters.markerRunReads++;
+}
+
+export function recordReferenceWalk(): void {
+	if (!enabled) return;
+	counters.referenceWalks++;
+}
+
+export function recordContainerChordWalk(): void {
+	if (!enabled) return;
+	counters.containerChordWalks++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {

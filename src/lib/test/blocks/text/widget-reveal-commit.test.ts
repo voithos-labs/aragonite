@@ -4,7 +4,7 @@
 // undo entry, and the cross-block rule moving from the blur caller into the close.
 import { describe, it, expect, vi } from 'vitest';
 import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
-import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { settleEditor } from '#lib/test/harness/settle.js';
 

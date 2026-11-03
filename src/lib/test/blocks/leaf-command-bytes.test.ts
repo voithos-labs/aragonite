@@ -13,8 +13,8 @@ import {
 import { pressKey } from '#lib/test/harness/settle.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { ADMONITION } from '#lib/plugins/admonitions/kinds.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { ADMONITION } from '#packages/admonitions/src/kinds.js';
 import { definePlugin, registerBlockCommand, type PluginBlockKind } from '#lib/plugin.js';
 import type { PluginCommandId } from '#lib/schema/command-id.js';
 import { TAG_KEY, tagLeafPlugin } from './fixtures/tag-leaf';

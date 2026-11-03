@@ -3,7 +3,7 @@ import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-a
 import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
 import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import {
 	makeNestedActionsDeps,
 	makeStubBlockEdit,

@@ -2,7 +2,7 @@
 // none checked that a rollback puts back metadata re-read from the bytes.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { parse } from '#lib/core/parser.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createBlockListState } from '#lib/block-lists/block-list-state.svelte.js';

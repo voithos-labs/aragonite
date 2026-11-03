@@ -34,7 +34,7 @@ const FOCUS_LOSS: FileRule = {
 			'announces the editor losing focus, and ends a press as the window loses it',
 		'src/lib/components/menu/InlineMenuHost.svelte':
 			'the inline menu session ends as the caret leaves the editor with focus',
-		'src/lib/plugins/mermaid/MermaidBlock.svelte':
+		'packages/mermaid/src/MermaidBlock.svelte':
 			'the edit box commits as it loses focus, and the pan gesture arms only while focus is inside'
 	},
 	reason:

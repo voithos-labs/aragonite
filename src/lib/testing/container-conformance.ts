@@ -32,6 +32,7 @@ import type { EditEvent } from '../editor-events';
 import { isDirectiveKind } from '../core/directive/registry';
 import { defaultGrammarView, unfinishedReadings, waitingReading } from '../schema/block-openers';
 import { kitReading } from './kit-reading';
+import { cellFailure, CONTAINER_CELL_CONTRACTS } from './cell-contracts';
 import {
 	getBlockKindDescriptor,
 	isGridDescriptor,
@@ -242,13 +243,18 @@ export async function runContainerConformance(
 	try {
 		assertProfileCoverageFloor(kind, profile);
 	} catch (error) {
-		earlier.push(`coverageFloor: ${(error as Error).message}`);
+		const floor = CONTAINER_CELL_CONTRACTS.coverageFloor;
+		earlier.push(cellFailure('coverageFloor', (error as Error).message, floor));
 	}
 	const cells = await runCells(
 		CONTAINER_CONFORMANCE_CELLS,
 		// A published profile never supplies drivers: no published API can perform their ops.
 		{ kind, profile: { ...profile, drivers: undefined } },
-		{ subject: kind, heading: `container conformance failed for "${kind}"` },
+		{
+			subject: kind,
+			heading: `container conformance failed for "${kind}"`,
+			contracts: CONTAINER_CELL_CONTRACTS
+		},
 		earlier
 	);
 	return { kind, cells };

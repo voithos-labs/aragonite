@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { parse } from '#lib/core/parser.js';

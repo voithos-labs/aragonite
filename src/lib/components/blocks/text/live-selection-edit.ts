@@ -1,15 +1,17 @@
 /**
- * What a browser range edit writes in live mode, read off the `beforeinput` event. The range can
- * span delimiter runs the user never saw, which contenteditable would take literally, so the edit
- * goes through `replaceRangeInLeaf` (`docs/design/live-mode.md` § 4.5). Every prose block routes
- * its `beforeinput` through {@link resolveLiveRangeEdit}.
+ * What a browser range edit writes in live mode, read off the `beforeinput` event. The editor
+ * writes every one itself through `replaceDrawnRange` (`docs/design/live-mode.md` § 4.5): the
+ * browser edits the selection as the DOM holds it, whose ends can sit on either side of a hidden
+ * run. Every prose block routes its `beforeinput` through {@link resolveLiveRangeEdit}.
  */
 
 import { imeOwnsInput } from '../../../browser/composition';
 import type { NodeView } from '../../../core/node-views';
 import type { StoredAs } from '../../../schema/stored-as';
-import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 import { decidedDelete, isDeleteInput, readInput, targetRange } from '../../../browser/input';
+import { checkLiveRangeWritten } from '../../../invariants/live-range-written';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 
 /** The raw-offset lookups a browser range edit needs from the block. */
 export interface LiveEditCursor {
@@ -23,13 +25,12 @@ export type LiveRangeEdit = LiveRangeRewrite | { kind: 'swallow' };
 
 export interface LiveRangeRewrite {
 	kind: 'rewrite';
-	range: { start: number; end: number };
 	raw: string;
 	caret: number;
 }
 
-/** What a prose block does with a `beforeinput` in live mode. Null where there is nothing to clean,
- *  so the browser keeps its own edit and its grapheme and IME behavior. */
+/** What a prose block does with a `beforeinput` in live mode. Null where the input is no range
+ *  edit, which leaves it to the steps after this one. */
 export function resolveLiveRangeEdit(
 	e: InputEvent,
 	node: NodeView,
@@ -43,11 +44,9 @@ export function resolveLiveRangeEdit(
 	const target = pendingEditRange(e, cursor);
 	if (!target || target.start === target.end) return null;
 	const insert = replacementText(e);
-	const edit = replaceRangeInLeaf(node, target, insert ?? '', store);
-	if (edit.matchesBrowserEdit) return null;
-	return insert === null
-		? { kind: 'swallow' }
-		: { kind: 'rewrite', range: edit.range, raw: edit.raw, caret: edit.caret };
+	if (insert === null) return { kind: 'swallow' };
+	const edit = replaceDrawnRange(node, target, insert, store);
+	return { kind: 'rewrite', raw: edit.raw, caret: edit.caret };
 }
 
 /** The wrapper every block runs around {@link resolveLiveRangeEdit}, shared so a new precondition
@@ -62,7 +61,18 @@ export function applyLiveRangeEdit(
 ): boolean {
 	if (isRevealing()) return false;
 	const edit = resolveLiveRangeEdit(e, node, cursor, store);
-	if (!edit) return false;
+	if (!edit) {
+		assertInvariant('live-range-written', () => {
+			const selection = cursor.getRawSelection();
+			return checkLiveRangeWritten(
+				store.reading.hidesDelimitersAtCaret() &&
+					rewritesTargetRange(e) &&
+					selection !== null &&
+					selection.start < selection.end
+			);
+		});
+		return false;
+	}
 	e.preventDefault();
 	if (edit.kind === 'rewrite') commit(edit);
 	return true;

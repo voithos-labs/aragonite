@@ -9,6 +9,9 @@ import { encodeDestination, escapeTitle } from './destination-bytes';
 import type { Reading } from '../../schema/reading';
 import { CONTENT_VISIBILITY, renderedText } from './visibility';
 import type { InlineNode } from '../nodes';
+import type { NodeView } from '../node-views';
+import { resolvedInlineContent, type InlineReading } from './inline-cache';
+import { recordReferenceWalk } from '../../perf/instruments';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 
 // ── The one write path ──────────────────────────────────────────────────────
@@ -55,22 +58,106 @@ export function buildLinkUnwrapBytes(
 	);
 }
 
-/** Bytes that write `[text](url)` over `[start, end)`, or null for an empty url, a range crossing
- *  another construct, or a wrap that changes the render (a `!` before it makes an image). */
+/** Bytes that write a link showing `text` to `url` over `[start, end)`, or null for an empty text or
+ *  url, a range crossing another construct, or a wrap that reads otherwise (a `!` before it). */
 export function buildLinkWrapBytes(
 	display: string,
 	start: number,
 	end: number,
 	url: string,
+	text: string,
 	reading: Reading
 ): string | null {
-	if (url.trim() === '' || !canWrapRangeAsLink(display, start, end, reading)) return null;
+	if (text === '' || url.trim() === '' || !canWrapRangeAsLink(display, start, end, reading)) {
+		return null;
+	}
+	const destination = encodeDestination(url);
+	const range = display.slice(start, end);
+	if (text !== visibleText(range, reading)) {
+		return showsLink(`[${asLinkText(text)}](${destination})`, start, end, display, text, reading);
+	}
 	// A bare bracket would close the construct early; an existing `\x` pair passes through whole.
-	const text = display
-		.slice(start, end)
-		.replace(/\\[\s\S]|[[\]]/g, (m) => (m.length === 2 ? m : '\\' + m));
-	return verified(`[${text}](${encodeDestination(url)})`, start, end, display, reading);
+	const kept = range.replace(/\\[\s\S]|[[\]]/g, (m) => (m.length === 2 ? m : '\\' + m));
+	return verified(`[${kept}](${destination})`, start, end, display, reading);
 }
+
+/** Bytes giving `link` the plain `text` and `url`, or null where they would not read as that link;
+ *  an unchanged url keeps a reference, `[t]` and `[t][]` spelled `[text][t]` (live-mode.md § 4.6). */
+export function buildLinkRetitleBytes(
+	link: InlineNode,
+	display: string,
+	text: string,
+	url: string,
+	reading: Reading
+): string | null {
+	if (declineClaimed(link, 'edit') || text === '') return null;
+	const { reference, title, url: current } = linkFieldsFromInline(link, display);
+	const [start, end] = linkTextRange(link, display);
+	const label =
+		reference === '' || reference === '[]' ? `[${display.slice(start, end)}]` : reference;
+	const fields: LinkFields = {
+		text: asLinkText(text),
+		url,
+		...(title !== undefined ? { title } : {}),
+		...(url === current && label !== undefined ? { reference: label } : {})
+	};
+	return showsLink(buildLinkSourceBytes(fields), link.start, link.end, display, text, reading);
+}
+
+/** The text a link shows, and whether the card's field may edit it: not where it holds formatting
+ *  or code, whose markers an edit would break. */
+export function linkTextShown(
+	link: InlineNode,
+	display: string,
+	reading: Reading
+): { text: string; editable: boolean } {
+	const [start, end] = linkTextRange(link, display);
+	const editable = (link.children ?? []).every((c) => WRAP_SAFE_KINDS.has(c.kind));
+	return { text: visibleText(display.slice(start, end), reading), editable };
+}
+
+/** Plain text as the bytes of a link's text: a bracket, a parenthesis, a pipe or a backslash would
+ *  end the link or bend a byte, and an inline marker would format what was typed. */
+const asLinkText = (text: string): string => text.replace(/[\\[\]()|*_`~<&]/g, '\\$&');
+
+// ── A reference's label across an edit of its text ──────────────────────────
+
+/** `node`'s bytes with each shortcut or collapsed reference whose text an edit of `range` changes
+ *  spelled `[text][label]`, so the label still names its definition; null where none is. */
+export function spellReferenceLabels(
+	node: NodeView,
+	range: { start: number; end: number },
+	reading: InlineReading
+): { raw: string; map: (offset: number) => number } | null {
+	if (!mayHoldReference(node.raw, reading)) return null;
+	recordReferenceWalk();
+	const labels: { at: number; text: string }[] = [];
+	for (const link of inlineDescendants(resolvedInlineContent(node, reading))) {
+		if (link.kind !== 'link' || link.label === undefined || link.syntaxClaim) continue;
+		const [start, end] = linkTextRange(link, node.raw);
+		const tail = node.raw.slice(end + 1, link.end);
+		if (tail !== '' && tail !== '[]') continue;
+		if (range.start <= link.start && range.end >= link.end) continue;
+		const changes =
+			range.start === range.end
+				? start <= range.start && range.start <= end
+				: range.start < end && range.end > start;
+		if (!changes) continue;
+		const label = node.raw.slice(start, end);
+		labels.push(tail === '' ? { at: link.end, text: `[${label}]` } : { at: end + 2, text: label });
+	}
+	if (labels.length === 0) return null;
+	let raw = node.raw;
+	for (const { at, text } of [...labels].reverse()) raw = raw.slice(0, at) + text + raw.slice(at);
+	const map = (offset: number) =>
+		labels.reduce((moved, { at, text }) => (offset >= at ? moved + text.length : moved), offset);
+	return { raw, map };
+}
+
+/** Whether `raw` can hold a reference at all: a document without definitions has none, which
+ *  keeps a keystroke off the walk. */
+export const mayHoldReference = (raw: string, reading: InlineReading): boolean =>
+	reading.resolverSignature !== '' && raw.includes('[');
 
 const WRAP_SAFE_KINDS: ReadonlySet<string> = new Set(['text', 'escape', 'entityReference']);
 
@@ -123,7 +210,7 @@ function declineClaimed(link: InlineNode, what: string): boolean {
 
 /** What the user sees for `raw` in the content reading: the link editor may edit a destination
  *  whose markers are on screen, which the block's own reading would count as a visible change. */
-function visibleText(raw: string, reading: Reading): string {
+export function visibleText(raw: string, reading: Reading): string {
 	return renderedText(
 		readInline(raw, 0, raw.length, reading.resolver, reading.grammar),
 		raw,
@@ -145,6 +232,25 @@ function verified(
 	const before = visibleText(display, reading);
 	const after = visibleText(spliced(candidate, start, end, display), reading);
 	return before === after ? candidate : null;
+}
+
+/** A retitle's own check, where `verified` would refuse the visible change it makes: spliced over
+ *  `[start, end)`, the candidate reads as one link there, no wider, showing exactly `text`. */
+function showsLink(
+	candidate: string,
+	start: number,
+	end: number,
+	display: string,
+	text: string,
+	reading: Reading
+): string | null {
+	const raw = spliced(candidate, start, end, display);
+	const link = flattenInline(
+		readInline(raw, 0, raw.length, reading.resolver, reading.grammar)
+	).find((node) => node.kind === 'link' && node.start === start);
+	if (!link || link.end !== start + candidate.length) return null;
+	const shown = linkTextShown(link, raw, reading);
+	return shown.editable && shown.text === text ? candidate : null;
 }
 
 function spliced(candidate: string, start: number, end: number, display: string): string {

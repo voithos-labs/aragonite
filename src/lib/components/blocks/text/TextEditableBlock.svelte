@@ -46,17 +46,16 @@
 		type PendingBreakKeyDeps
 	} from './pending-break-keys';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
-	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
-	import { caretReachableBounds, handleSharedKeydown } from '../../../selection/shared-keydown';
+	import { handleSharedKeydown } from '../../../selection/shared-keydown';
 	import {
 		rawSelectionIn,
 		rawSelectionFocus,
 		caretOnPendingBreakLine
 	} from '../../../browser/selection-read';
 	import { createEditableSurface, consumePendingRestore } from '../editable/editable-surface';
-	import { rangeWrite } from '../editable/surface-write';
+	import { selectionRemoval } from '../editable/surface-write';
 	import type { ContentWrite } from '../../../action-contracts';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { readContent } from '../../../browser/block-text';
@@ -199,16 +198,9 @@
 	let caretHasEntered = false;
 
 	const compositionSeat = createCompositionSeat({
-		getDisplayText: () => getDisplayText(),
+		getNode: () => node,
 		getRawSelection: () => cursor.getRawSelection(),
-		// The in-leaf range replace `handleLiveSelectionEdit` uses, as the displayed text the
-		// composition commit writes.
-		resolveRangeEdit: (range, typed) => {
-			const edit = replaceRangeInLeaf(node, range, typed, storedAs());
-			if (edit.matchesBrowserEdit) return null;
-			const { text, caretAfter } = rangeWrite(node, edit);
-			return { raw: text, caret: caretAfter };
-		}
+		storedAs
 	});
 
 	const editableSurface = createEditableSurface({
@@ -252,18 +244,7 @@
 		// After a shown source is written: until then the selected text lives in the DOM only.
 		removeSelection: (range) =>
 			new Promise<ContentWrite>((written) =>
-				afterSourceCommit(() =>
-					written(
-						writeText({
-							...rangeWrite(node, replaceRangeInLeaf(node, range, '', storedAs())),
-							intent: 'command',
-							// The removal a typed key makes over a selection, which that key joins.
-							history: 'join-typing',
-							mode: 'authored',
-							source: 'selection-removal'
-						})
-					)
-				)
+				afterSourceCommit(() => written(writeText(selectionRemoval(node, range, storedAs()))))
 			)
 	});
 	const { writeText, blockEdit, pendingBreak } = editableSurface;
@@ -489,11 +470,7 @@
 		return getDisplayText().length;
 	}
 
-	/** The offsets a caret can reach here, as the arrow exits read them: a mode that draws no marker
-	 *  puts the block's own marker bytes out of reach, so 0 and the length are wrong there. */
-	function caretBounds(): { start: number; end: number } {
-		return el ? caretReachableBounds(sharedCtx, el) : { start: 0, end: caretReach() };
-	}
+	export const caretBounds = editableSurface.surface.caretBounds;
 
 	/** The structural bytes this key gives up before any merge: a declared kind's, in a mode
 	 *  that draws none of them. Null everywhere else, and the merge below takes the key. */

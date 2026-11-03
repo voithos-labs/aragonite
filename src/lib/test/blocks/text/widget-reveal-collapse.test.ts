@@ -6,7 +6,7 @@
 import { recordingWrite } from '#lib/test/harness/editor-actions.js';
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '#lib/components/blocks/text/widget-interaction.js';
-import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 import {
 	installMathInline,
 	mountWidgetBlock,

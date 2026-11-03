@@ -26,6 +26,7 @@ const MATRIX_DIMENSION = /^ {8}([A-Za-z0-9_-]+):\s*\[(.+)\]\s*$/;
 const MATRIX_KEYS_UNPARSED = /^ {8}(include|exclude):/;
 const CONTINUE_ON_ERROR = /^ {4}continue-on-error:/;
 const JOB_IF = /^ {4}if:/;
+const CALLS_WORKFLOW = /^ {4}uses:\s*\.\/\.github\/workflows\/(\S+\.yml)\s*$/;
 
 /** The `jobs:` mapping's own lines, ending at the next top-level key. */
 function jobsBlock(yaml: string): string[] {
@@ -81,6 +82,8 @@ interface JobChecks {
 	/** A matrix job with a job-level `if:`, which reports one bare check when skipped. */
 	skipsWholeMatrix: boolean;
 	continuesOnError: boolean;
+	/** The workflow file a job calls, whose jobs report under the caller's name. */
+	calls: string | null;
 }
 
 /** Each job's check names, matrix jobs expanded. */
@@ -90,10 +93,11 @@ function readJobs(yaml: string): JobChecks[] {
 	let dimensions: string[][] = [];
 	let conditional = false;
 	let continuesOnError = false;
+	let calls: string | null = null;
 	const flush = () => {
 		if (label === null) return;
 		const skipsWholeMatrix = conditional && dimensions.length > 0;
-		jobs.push({ names: expand(label, dimensions), skipsWholeMatrix, continuesOnError });
+		jobs.push({ names: expand(label, dimensions), skipsWholeMatrix, continuesOnError, calls });
 	};
 	for (const line of jobsBlock(yaml)) {
 		const job = JOB_ID.exec(line);
@@ -103,11 +107,13 @@ function readJobs(yaml: string): JobChecks[] {
 			dimensions = [];
 			conditional = false;
 			continuesOnError = false;
+			calls = null;
 			continue;
 		}
 		if (label === null) continue;
 		if (JOB_IF.test(line)) conditional = true;
 		if (CONTINUE_ON_ERROR.test(line)) continuesOnError = true;
+		calls = CALLS_WORKFLOW.exec(line)?.[1] ?? calls;
 		const name = JOB_NAME.exec(line);
 		if (name) label = name[1].replace(/^['"]|['"]$/g, '');
 		if (MATRIX_KEYS_UNPARSED.test(line)) {
@@ -120,9 +126,18 @@ function readJobs(yaml: string): JobChecks[] {
 	return jobs;
 }
 
-/** Every check name the workflow reports. */
-export function checkNames(yaml: string): string[] {
-	return readJobs(yaml).flatMap((job) => job.names);
+/** Every check name the workflow reports; a job calling a reusable workflow reports each of its
+ *  jobs as `<caller> / <job>`, so `calleeYaml` reads the called file. */
+export function checkNames(
+	yaml: string,
+	calleeYaml?: (file: string) => string | undefined
+): string[] {
+	return readJobs(yaml).flatMap((job) => {
+		const callee = job.calls === null ? undefined : calleeYaml?.(job.calls);
+		if (callee === undefined) return job.names;
+		const inner = checkNames(callee, calleeYaml);
+		return job.names.flatMap((name) => inner.map((child) => `${name} / ${child}`));
+	});
 }
 
 /** Required matrix jobs a job-level `if:` can skip whole, leaving their shard checks unreported. */
@@ -204,7 +219,10 @@ const workflowYaml = new Map(
 	])
 );
 const workflowChecks = new Map(
-	[...workflowYaml].map(([file, yaml]): [string, string[]] => [file, checkNames(yaml)])
+	[...workflowYaml].map(([file, yaml]): [string, string[]] => [
+		file,
+		checkNames(yaml, (callee) => workflowYaml.get(callee))
+	])
 );
 const ci = workflowChecks.get(CI) ?? [];
 const declaredExternal = new Map<string, string[]>(Object.entries(EXTERNAL_CONTEXTS));
@@ -328,6 +346,24 @@ describe('branch-protection context readers: self-tests', () => {
 		expect(redHidingJobs(yaml)).toEqual(['engine (1/2)']);
 		expect(wholeMatrixSkips(yaml, ['engine (2/2)'])).toEqual(['engine (1/2)']);
 		expect(wholeMatrixSkips(yaml, ['unit'])).toEqual([]);
+	});
+
+	it('names a reusable workflow’s jobs under the matrix job that calls it', () => {
+		const caller = [
+			'jobs:',
+			'  check:',
+			'    strategy:',
+			'      matrix:',
+			'        plugin: [a, b]',
+			'    uses: ./.github/workflows/inner.yml'
+		].join('\n');
+		const inner = 'jobs:\n  pack:\n    runs-on: x\n  run:\n    runs-on: x\n';
+		expect(checkNames(caller, (file) => (file === 'inner.yml' ? inner : undefined))).toEqual([
+			'check (a) / pack',
+			'check (a) / run',
+			'check (b) / pack',
+			'check (b) / run'
+		]);
 	});
 
 	it('sees a path filter on a trigger, not on a step', () => {

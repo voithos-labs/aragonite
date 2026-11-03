@@ -1,15 +1,16 @@
 /**
- * The hardcoded-chord manifest (`schema/reserved-chords.ts`) covers every library file that
- * reads a KeyboardEvent modifier flag, and each entry's key evidence still matches the file
- * (G4.29). A branch cannot claim a chord without reading a modifier flag and comparing a key, so
- * a new claim fails the gate until the manifest names it.
+ * The hardcoded-chord manifest (`hardcoded-chord-sites.ts`) covers every library file that reads a
+ * KeyboardEvent modifier flag, each entry's key evidence still matches the file, and every chord an
+ * entry takes names a key its file compares and is one `reservedChords()` lists (G4.29). A branch
+ * cannot take a chord without reading a modifier flag and comparing a key, so a new one fails here.
  */
 import { describe, it, expect } from 'vitest';
-import { collectReservedChords, HARDCODED_CHORD_SITES } from '#lib/schema/reserved-chords.js';
+import { collectReservedChords } from '#lib/schema/reserved-chords.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import { registeredChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
+import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
+import { collectEditorSources, LIBRARY_ROOTS, type SourceFile } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
 // ── The scan ─────────────────────────────────────────────────────────────────
@@ -44,9 +45,10 @@ export function harvestKeys(code: string): string[] {
 
 // Library-internal by design: the rule binds aragonite's own keydown branches, and a plugin
 // or example author's handlers are theirs to publish, not ours to manifest.
-const sources: SourceFile[] = collectEditorSources(EDITOR_SRC);
-// The manifest names its files from the library root.
-const libRelative = (relPath: string) => relPath.slice(SOURCE_DIR.library.length);
+const sources: SourceFile[] = collectEditorSources(LIBRARY_ROOTS);
+// The manifest names a library file from the library root and a plugin's from the repo root.
+const libRelative = (relPath: string) =>
+	relPath.startsWith(SOURCE_DIR.library) ? relPath.slice(SOURCE_DIR.library.length) : relPath;
 const relToLib = (file: SourceFile) => libRelative(file.relPath);
 const modifierReaders = sources.filter((file) => MODIFIER_READ.test(file.code));
 const byPath = new Map(sources.map((file) => [relToLib(file), file]));
@@ -59,7 +61,7 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 		const unnamed = modifierReaders.map(relToLib).filter((path) => !manifested.has(path));
 		expect(
 			unnamed,
-			`these files read a KeyboardEvent modifier flag but are absent from HARDCODED_CHORD_SITES: add an entry naming the chords each claims (or none, with the reason): ${unnamed.join(', ')}`
+			`these files read a KeyboardEvent modifier flag but are absent from HARDCODED_CHORD_SITES: add an entry with the keys each compares and the chords it takes: ${unnamed.join(', ')}`
 		).toEqual([]);
 	});
 
@@ -78,8 +80,11 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 		).toEqual([...site.keys].sort());
 	});
 
-	it.each(HARDCODED_CHORD_SITES)('$file: every claimed chord is evidenced', (site) => {
-		for (const chord of site.chords) {
+	const takers = HARDCODED_CHORD_SITES.filter((site) => site.takes);
+	it.each(takers)('$file: every chord it takes is evidenced and published', (site) => {
+		registerBuiltInDescriptors();
+		const reserved = collectReservedChords({ searchBar: true, activation: everyInstalledPlugin });
+		for (const chord of site.takes!) {
 			expect(
 				() => registeredChord(chord, site.file),
 				`${site.file}: malformed chord`
@@ -92,6 +97,10 @@ describe('G4.29 hardcoded-chord manifest ↔ library keydown sites', () => {
 					(recorded.endsWith('*') && key.startsWith(recorded.slice(0, -1)))
 			);
 			expect(evidenced, `${site.file}: "${chord}" names a key the file never compares`).toBe(true);
+			expect(
+				reserved.has(chord),
+				`${site.file} takes "${chord}", which no keymap or text key gives reservedChords()`
+			).toBe(true);
 		}
 	});
 });
@@ -105,7 +114,7 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(found.length).toBeGreaterThan(10);
 		expect(found).toContain(libRelative(SOURCE.crossBlockKeydown));
 		expect(found).toContain(libRelative(SOURCE.containerBlockComponent));
-		expect(found).toContain(libRelative(SOURCE.tableBlock));
+		expect(found).toContain(libRelative(SOURCE.searchBar));
 		// A .svelte file must survive collection, or every component site goes unscanned.
 		expect(found.some((path) => path.endsWith('.svelte'))).toBe(true);
 	});

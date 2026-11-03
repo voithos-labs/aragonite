@@ -88,13 +88,13 @@ A write that leaves its own construct open is closed first (`editor.md` § Readi
 
 Eligibility derives from a per-kind **merge role**, so adding a kind doesn't mean editing an enumerated pair set:
 
-| Role             | Meaning                                                 | Kinds                                                                                                   |
-| ---------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `prose`          | Leaf text block                                         | paragraph                                                                                               |
-| `prose-absorber` | Prose leaf that keeps its own kind when absorbing prose | heading, setextHeading                                                                                  |
-| `container`      | Merge target is its deepest reachable prose leaf        | blockquote, list, listItem                                                                              |
-| `self-merge`     | Merges only with another block of the same role         | unrecognized                                                                                            |
-| `not-mergeable`  | Backspace deletes (if non-editable) or moves focus      | fencedCode, indentedCode, htmlBlock, linkReferenceDefinition, table, tableRow, tableCell, thematicBreak |
+| Role | Meaning | Kinds |
+| --- | --- | --- |
+| `prose` | Leaf text block | paragraph |
+| `prose-absorber` | Prose leaf that keeps its own kind when absorbing prose | heading, setextHeading |
+| `container` | Merge target is its deepest reachable prose leaf | blockquote, list, listItem |
+| `self-merge` | Merges only with another block of the same role | unrecognized |
+| `not-mergeable` | Backspace deletes (if non-editable) or moves focus | fencedCode, indentedCode, htmlBlock, linkReferenceDefinition, table, tableRow, tableCell, thematicBreak |
 
 `prose + prose`, `prose-absorber + prose`, `container + prose`, and `self-merge + self-merge` are eligible; every other pairing isn't. Read each pair as "the block above, then the block Backspace was pressed in":
 
@@ -209,11 +209,11 @@ One function holds the rule, `src/lib/schema/container-raw.ts :: followBytes`, a
 <details>
 <summary>What a moved line costs, and what the re-read can find</summary>
 
-| Contract | Where its metadata lives                      | What a moved line costs                                                                                                                                                                                                |
-| -------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| opaque   | any outer line, except a title row's title    | one parse of the container. A keystroke in a title row that left the closing line alone skips it (no metadata comes from a title, the promise every title row makes), unless it changed a `:::name`, which is the kind |
-| strip    | the first line, and only the first line       | one parse of that line alone. The container parses its whole bytes only when the line's reading disagrees with the metadata it holds                                                                                   |
-| grid     | the delimiter row, which no keystroke reaches | nothing (a table has no opener, so there's no kind check either)                                                                                                                                                       |
+| Contract | Where its metadata lives | What a moved line costs |
+| --- | --- | --- |
+| opaque | any outer line, except a title row's title | one parse of the container. A keystroke in a title row that left the closing line alone skips it (no metadata comes from a title, the promise every title row makes), unless it changed a `:::name`, which is the kind |
+| strip | the first line, and only the first line | one parse of that line alone. The container parses its whole bytes only when the line's reading disagrees with the metadata it holds |
+| grid | the delimiter row, which no keystroke reaches | nothing (a table has no opener, so there's no kind check either) |
 
 So typing in a list item's first line reads one line per keystroke, and the rare keystroke that widens the marker reads the item. Only when the wider marker pushes lines out of the item does more get read: the list, and each container around it whose shape changed. That second read matters, because a wider marker moves the item's content column, and with it how the item's other lines read. What the read finds decides what happens:
 

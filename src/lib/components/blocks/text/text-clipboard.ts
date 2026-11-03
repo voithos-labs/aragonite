@@ -10,7 +10,7 @@ import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { EditableSurface } from '../editable/editable-surface';
 import type { BlockClipboard, ClipboardHandlers, RevealFold } from '../editable/surface-clipboard';
 import type { ClipboardCopy } from '../editable/clipboard-step';
-import { bytesLeavingLeaf, replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+import { bytesLeavingLeaf, replaceDrawnRange } from '../../../tree-operations/leaf-range';
 import { replaceSelectedWidget } from './widget-interaction';
 import { widgetSpanIn, type WidgetRange } from './widget-adjacency';
 import type { RawRange } from '../../../browser/offsets';
@@ -100,7 +100,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 	// A cut is a delete, so it goes through the same join rules: in live mode the range can span
 	// delimiter runs the user never saw, and a plain splice would print them.
 	function removeRange(range: RawRange): void {
-		const edit = replaceRangeInLeaf(deps.node, range, '', deps.storedAs());
+		const edit = replaceDrawnRange(deps.node, range, '', deps.storedAs());
 		const write = deps.surface.blockEdit.updateBlockContent(
 			deps.index,
 			edit.raw,

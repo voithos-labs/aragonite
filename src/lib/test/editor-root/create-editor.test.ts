@@ -14,7 +14,7 @@ import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor, pressKey } from '#lib/test/harness/settle.js';
 import { CODE_RUN_LABEL } from '#lib/a11y-strings.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
 
 installLayoutStubs();
 

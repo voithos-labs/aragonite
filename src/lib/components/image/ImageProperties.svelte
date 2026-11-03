@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
 	import { pressLeavesImage } from './image-press';
+	import { clearOnPress } from '../../selection/pointer-gesture';
 	import type { WidgetTarget } from '../../selection/primitives';
 	import {
 		IMAGE_ALT_FIELD,
@@ -18,7 +19,7 @@
 	import type { CaretWriter } from '../../browser/caret-writer';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
-	import { eventToChord } from '../../schema/keybindings';
+	import { eventToChord, textKeyRole } from '../../schema/keybindings';
 	import { isReservedUiChord } from '../../schema/commands';
 	import { isPlainTypingKey } from '../blocks/text/click-snap-guard';
 
@@ -56,8 +57,8 @@
 		caretWriter: CaretWriter;
 		/** The alt field borrows focus from the image's paragraph and gives it back through here. */
 		fieldCaret: CaretRestore;
-		/** Whether the editor acts on this chord itself (`claimsChord`): during a crop, those are the
-		 *  chords that would write over the image. */
+		/** Whether the editor acts on this keystroke where it lands (`claimsChord`): during a crop,
+		 *  the ones that write would write over the image. */
 		editorTakesChord: (e: KeyboardEvent) => boolean;
 		cropping?: boolean;
 	} = $props();
@@ -83,11 +84,17 @@
 
 	$effect(() => {
 		if (!rootEl) return;
+		// A finger's tap that lands after the popover closed has nothing left to dismiss.
+		const open = new AbortController();
 		const handler = (e: PointerEvent) => {
-			if (pressLeavesImage(e, getWidgetEl()?.closest('.editor') ?? null)) onDismiss();
+			if (pressLeavesImage(e, getWidgetEl()?.closest('.editor') ?? null))
+				clearOnPress(e, open.signal, { selection: onDismiss });
 		};
 		document.addEventListener('pointerdown', handler, true);
-		return () => document.removeEventListener('pointerdown', handler, true);
+		return () => {
+			open.abort();
+			document.removeEventListener('pointerdown', handler, true);
+		};
 	});
 
 	// In the effect's cleanup, so every way the popover closes commits here; an open crop is
@@ -337,11 +344,14 @@
 		const aimedAtEditor = (t: EventTarget | null): boolean =>
 			t === document.body ||
 			(t instanceof Node && !!getWidgetEl()?.closest('.editor')?.contains(t));
-		// Typing and deleting over the selected image, and the editor's own chords, minus the find bar's.
+		// Typing and deleting over the selected image, and the editor's own chords, minus the find
+		// bar's and the unshifted caret keys and copy, which read; Shift+Arrow resizes the image.
 		const writes = (e: KeyboardEvent): boolean => {
 			if (isPlainTypingKey(e) || e.key === 'Backspace' || e.key === 'Delete') return true;
 			const chord = eventToChord(e);
-			return chord !== null && !isReservedUiChord(chord) && editorTakesChord(e);
+			if (chord === null || isReservedUiChord(chord)) return false;
+			if (textKeyRole(e) === 'reads' && !e.shiftKey) return false;
+			return editorTakesChord(e);
 		};
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === 'Escape' || e.key === 'Tab' || !aimedAtEditor(e.target)) return;

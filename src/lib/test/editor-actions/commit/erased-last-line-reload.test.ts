@@ -12,7 +12,7 @@ import { createTopLevelScope } from '#lib/editor-actions/block-edit-scope.js';
 import { commitLeafText } from '#lib/editor-actions/block-edit-core.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
-import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
+import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
 import { makeContainerHarness, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence, describeRunDivergence } from '#lib/test/harness/parse-converged.js';
 import { testView } from '#lib/test/harness/test-view.js';

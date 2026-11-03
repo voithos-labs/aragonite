@@ -45,29 +45,42 @@ describe('commit', () => {
 		return {
 			committer,
 			raw,
+			harness,
+			undoDepth: () => harness.deps.undoManager.getStacks().undo.length,
 			landings: harness.landings,
 			target: { path: [0], sourceStart: raw().indexOf('[') } as LinkTarget
 		};
 	}
 
+	/** The card's Enter with the text field as it opened: a url edit alone. */
+	function commitUrl(card: ReturnType<typeof makeCard>, url: string): void {
+		card.committer.commit(card.target, url, card.committer.resolve(card.target)!.text);
+	}
+
+	/** The card's Enter after the text field changed, the url as it opened unless given. */
+	function commitText(card: ReturnType<typeof makeCard>, text: string, url?: string): void {
+		const resolved = card.committer.resolve(card.target)!;
+		card.committer.commit(card.target, url ?? resolved.url, text);
+	}
+
 	describe('link card commit: which fields survive a url edit', () => {
 		it('keeps a title the card never showed', async () => {
 			const card = makeCard('Visit [x](old "Ti") now\n');
-			card.committer.commitUrl(card.target, 'new');
+			commitUrl(card, 'new');
 			await settleEditor();
 			expect(card.raw()).toBe('Visit [x](new "Ti") now\n');
 		});
 
 		it('keeps the link text bytes, nested constructs and all', async () => {
 			const card = makeCard('Visit [**b** c](old) now\n');
-			card.committer.commitUrl(card.target, 'new');
+			commitUrl(card, 'new');
 			await settleEditor();
 			expect(card.raw()).toBe('Visit [**b** c](new) now\n');
 		});
 
 		it('an unchanged url writes nothing at all', async () => {
 			const card = makeCard('Visit [x](old) now\n');
-			card.committer.commitUrl(card.target, 'old');
+			commitUrl(card, 'old');
 			await settleEditor();
 			expect(card.raw()).toBe('Visit [x](old) now\n');
 		});
@@ -77,7 +90,7 @@ describe('commit', () => {
 			const card = makeCard('Visit [x](<a b>) now\n');
 			// What the field shows for the angle form, committed back untouched.
 			expect(card.committer.resolve(card.target)?.url).toBe('a%20b');
-			card.committer.commitUrl(card.target, 'a%20b');
+			commitUrl(card, 'a%20b');
 			await settleEditor();
 			expect(card.raw()).toBe('Visit [x](<a b>) now\n');
 		});
@@ -86,7 +99,7 @@ describe('commit', () => {
 	describe('link card commit: the create half', () => {
 		it('creates the wrap over the range and lands the caret at the construct start', async () => {
 			const card = makeCard('Alpha bravo charlie\n');
-			card.committer.commitCreate({ path: [0], start: 6, end: 11 }, 'https://n.test/x');
+			card.committer.commitCreate({ path: [0], start: 6, end: 11 }, 'https://n.test/x', 'bravo');
 			await settleEditor();
 			await settleEditor();
 			expect(card.raw()).toBe('Alpha [bravo](https://n.test/x) charlie\n');
@@ -95,7 +108,7 @@ describe('commit', () => {
 
 		it('a range the join declines writes nothing', async () => {
 			const card = makeCard('Visit [x](old) now\n');
-			card.committer.commitCreate({ path: [0], start: 2, end: 9 }, 'https://n.test/x');
+			card.committer.commitCreate({ path: [0], start: 2, end: 9 }, 'https://n.test/x', 'sit [x');
 			await settleEditor();
 			expect(card.raw()).toBe('Visit [x](old) now\n');
 			expect(card.landings).toEqual([]);
@@ -112,7 +125,7 @@ describe('commit', () => {
 
 		it('a new url inlines the form and leaves the definition alone', async () => {
 			const card = makeCard(DOC);
-			card.committer.commitUrl(card.target, 'https://example.com/new');
+			commitUrl(card, 'https://example.com/new');
 			await settleEditor();
 			expect(card.raw()).toBe('Read [docs](https://example.com/new) later\n');
 		});
@@ -122,6 +135,45 @@ describe('commit', () => {
 			card.committer.removeLink(card.target);
 			await settleEditor();
 			expect(card.raw()).toBe('Read docs later\n');
+		});
+	});
+
+	// Miss-analysis: #807, the committer took a url alone, so nothing wrote a link's text.
+	describe('link card commit: the text field', () => {
+		it('writes a new text and a new url together as one undo step', async () => {
+			const card = makeCard('Visit [x](old) now\n');
+			commitText(card, 'new text', 'https://n.test/');
+			await settleEditor();
+			expect(card.raw()).toBe('Visit [new text](https://n.test/) now\n');
+			expect(card.undoDepth()).toBe(1);
+		});
+
+		it('keeps a shortcut reference’s destination, its definition untouched', async () => {
+			const card = makeCard('Read [ref] later\n\n[ref]: https://example.com/d\n');
+			commitText(card, 'the docs');
+			await settleEditor();
+			expect(card.raw()).toBe('Read [the docs][ref] later\n');
+			expect(card.harness.doc.children[1].raw).toBe('[ref]: https://example.com/d\n');
+		});
+
+		it('writes nothing for text the field may not change', async () => {
+			const card = makeCard('Visit [**b** c](u) now\n');
+			expect(card.committer.resolve(card.target)).toMatchObject({
+				text: 'b c',
+				textEditable: false
+			});
+			commitText(card, 'other');
+			await settleEditor();
+			expect(card.raw()).toBe('Visit [**b** c](u) now\n');
+		});
+
+		it('creates a link over a selection showing the field’s text', async () => {
+			const card = makeCard('Alpha bravo charlie\n');
+			const range = { path: [0], start: 6, end: 11 };
+			expect(card.committer.createText(range)).toBe('bravo');
+			card.committer.commitCreate(range, 'https://n.test/x', 'delta');
+			await settleEditor();
+			expect(card.raw()).toBe('Alpha [delta](https://n.test/x) charlie\n');
 		});
 	});
 });

@@ -1,5 +1,5 @@
 import { type ConsoleMessage, type Page, type Request, type Response } from '@playwright/test';
-import { TYPING_PAUSE_MS } from '../plugins/highlight-occurrences/typing-pause';
+import { TYPING_PAUSE_MS } from '../../../packages/highlight-occurrences/src/typing-pause';
 
 // Page-level checks shared across the e2e suites. Whether a spec asserts on what a probe
 // collected is its own decision: this module hands it back and never asserts.

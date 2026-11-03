@@ -1,14 +1,14 @@
 <script module lang="ts">
 	import { calloutPlugin } from '../../plugins/callout/register';
-	import { detailsPlugin } from '@voithos-labs/aragonite/plugins/details';
-	import { admonitionsPlugin } from '@voithos-labs/aragonite/plugins/admonitions';
-	import { latexPlugin } from '@voithos-labs/aragonite/plugins/latex';
-	import { katexRenderer } from '@voithos-labs/aragonite/plugins/latex/renderer';
-	import { mermaidPlugin } from '@voithos-labs/aragonite/plugins/mermaid';
-	import { tocPlugin } from '@voithos-labs/aragonite/plugins/toc';
-	import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite/plugins/highlight-occurrences';
-	import { emojiPlugin } from '@voithos-labs/aragonite/plugins/emoji';
-	import { footnotesPlugin } from '@voithos-labs/aragonite/plugins/footnotes';
+	import { detailsPlugin } from '@voithos-labs/aragonite-details';
+	import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+	import { latexPlugin } from '@voithos-labs/aragonite-latex';
+	import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
+	import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
+	import { tocPlugin } from '@voithos-labs/aragonite-toc';
+	import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-occurrences';
+	import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+	import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
 
 	// Module scope so the factories run once per process, not once per (SSR) render: a
 	// re-render minting fresh same-name plugins trips installPlugins' first-wins dev-warn.

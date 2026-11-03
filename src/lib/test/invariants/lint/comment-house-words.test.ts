@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, collectFiles, EDITOR_SRC, ROUTES_SRC } from './scan-source';
+import { collectEditorSources, collectFiles, LIBRARY_ROOTS, ROUTES_SRC } from './scan-source';
 import { corpusFiles } from '../../../../../scripts/docs/doc-corpus.mjs';
 import { findCommentBlocks } from './comment-lines';
 import { SOURCE_DIR } from './source-paths';
@@ -70,7 +70,7 @@ export function countHouseWords(text: string, relPath: string): number {
 
 describe('G4.26 no house word in a comment', () => {
 	const sources = [
-		...collectEditorSources(EDITOR_SRC, { includeTests: true, includeStyles: true }),
+		...collectEditorSources(LIBRARY_ROOTS, { includeTests: true, includeStyles: true }),
 		...collectEditorSources(ROUTES_SRC, { includeTests: true, includeStyles: true })
 	];
 

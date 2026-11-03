@@ -5,7 +5,7 @@ import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { firstLineEnding, trailingLineEnding } from '#lib/core/lines.js';
 import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
 import { installPlugins } from '#lib';
-import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { detailsPlugin } from '#packages/details/src/index.js';
 import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';

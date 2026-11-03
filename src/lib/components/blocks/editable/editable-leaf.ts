@@ -864,6 +864,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setSelection: (start, end) => {
 			if (isRevealed()) surface.setSelection(start, end);
 		},
+		caretBounds: surface.caretBounds,
 		measurePartialRects: (startOffset, endOffset) => {
 			if (isRevealed()) return surface.measurePartialRects(startOffset, endOffset);
 			// A hidden source has no text to measure, so any non-empty range covers the rendered box.

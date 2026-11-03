@@ -3,15 +3,15 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { detailsPlugin, DETAILS } from '#lib/plugins/details/index.js';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
-import { latexPlugin, MATH_BLOCK } from '#lib/plugins/latex/index.js';
-import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
-import { parrotPlugin } from '#lib/plugins/parrot/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
+import { tocPlugin } from '#packages/toc/src/index.js';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
+import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
+import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
+import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { parrotPlugin } from '#packages/parrot/src/index.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
 /**

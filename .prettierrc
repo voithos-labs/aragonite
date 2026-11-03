@@ -16,6 +16,20 @@
 			"options": {
 				"embeddedLanguageFormatting": "off"
 			}
+		},
+		{
+			"files": "docs/**/*.md",
+			"excludeFiles": [
+				"docs/changelog.md",
+				"docs/changelog/**",
+				"docs/contributing/casebook.md",
+				"docs/contributing/commit-conventions.md",
+				"docs/contributing/rules.md",
+				"docs/design/invariants/tested.md"
+			],
+			"options": {
+				"proseWrap": "never"
+			}
 		}
 	]
 }

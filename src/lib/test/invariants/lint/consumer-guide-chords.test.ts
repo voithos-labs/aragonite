@@ -20,20 +20,20 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { normalizeChord } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { HARDCODED_CHORD_SITES } from '#lib/schema/reserved-chords.js';
+import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { ADMONITION } from '#lib/plugins/admonitions/kinds.js';
-import { detailsPlugin, DETAILS_SUMMARY } from '#lib/plugins/details/index.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
-import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { mermaidPlugin, MERMAID } from '#lib/plugins/mermaid/index.js';
-import { parrotPlugin } from '#lib/plugins/parrot/index.js';
-import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '#lib/plugins/slash-commands/index.js';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { ADMONITION } from '#packages/admonitions/src/kinds.js';
+import { detailsPlugin, DETAILS_SUMMARY } from '#packages/details/src/index.js';
+import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
+import { parrotPlugin } from '#packages/parrot/src/index.js';
+import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '#packages/slash-commands/src/index.js';
+import { tocPlugin } from '#packages/toc/src/index.js';
 import { readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
@@ -191,6 +191,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 		commands: ['block.moveUp', 'block.moveDown']
 	},
 	'Cycle column alignment': { kind: 'tableCell', commands: ['table.cycleAlignment'] },
+	'Open the cell menu': { kind: 'tableCell', commands: ['cell.openMenu'] },
 	// The header-row completion rides the paragraph's own Enter, which is why it is a row here.
 	'Create a table': { kind: 'paragraph', commands: ['block.split'] },
 	// A plugin-global chord resolves on any kind that binds nothing of its own.
@@ -253,12 +254,8 @@ const TOKEN_FAMILIES: Record<string, TokenFamily> = {
 	Clipboard: {
 		files: [SOURCE.containerBlockComponent, SOURCE.textClipboard],
 		tokens: {
-			'Mod+C': ['(e.ctrlKey || e.metaKey)', "e.key === 'c'", 'widget.inline.start'],
-			'Mod+X': [
-				'(e.ctrlKey || e.metaKey)',
-				"e.key === 'x'",
-				"replaceSelectedWidget(deps, inline, ''"
-			]
+			'Mod+C': ["chord === 'Mod+C'", 'widget.inline.start'],
+			'Mod+X': ["chord === 'Mod+X'", "replaceSelectedWidget(deps, inline, ''"]
 		}
 	},
 	Images: {
@@ -325,7 +322,7 @@ function boundClaims(): BoundClaim[] {
 }
 
 const hardcodedClaims = HARDCODED_CHORD_SITES.flatMap((site) =>
-	site.chords.map((chord) => claimKey(chord, site.file))
+	(site.takes ?? []).map((chord) => claimKey(chord, site.file))
 );
 
 /** Whether some row lists the claim's chord for its command: the row's chord cell and its target
@@ -354,8 +351,9 @@ function rowCoversKind(rowKind: AnyBlockKind, ownerKind: AnyBlockKind | undefine
  */
 export function familyRowFor(docRows: DocRow[], key: ClaimKey): string | null {
 	const [chord, owner] = key.split(' @ ');
-	// A file owner is named from the library root, as the chord manifest names it.
-	const file = `${SOURCE_DIR.library}${owner}`;
+	// A file owner is named as the chord manifest names it: from the library root, or a plugin's
+	// from the repo root.
+	const file = owner.startsWith(SOURCE_DIR.plugins) ? owner : `${SOURCE_DIR.library}${owner}`;
 	const row = docRows.find(
 		(candidate) =>
 			TOKEN_FAMILIES[candidate.family]?.files.includes(file) && candidate.chords.includes(chord)
@@ -424,39 +422,18 @@ const UNLISTED_BY_DESIGN: Record<ClaimKey, string> = {
 	...unlisted(['Shift+Tab'], 'components/link-card/LinkCard.svelte', FOCUS_TRAP),
 	...unlisted(['Shift+Tab'], 'components/blocks/table/TableActionMenu.svelte', FOCUS_TRAP),
 	...unlisted(
-		['Shift+F10'],
-		'components/blocks/table/TableBlock.svelte',
-		'the Tables preamble documents it in prose as the keyboard route to the cell menu'
+		['Mod+ArrowUp', 'Mod+ArrowDown'],
+		'components/blocks/table/cell-keydown-plan.ts',
+		'arrow navigation between cells, which § Rebinding chords says sits outside the keymap'
 	),
 	...unlisted(
-		[
-			'Mod+A',
-			'Mod+Shift+Home',
-			'Mod+Shift+End',
-			'Mod+Shift+ArrowUp',
-			'Mod+Shift+ArrowDown',
-			'Shift+PageUp',
-			'Shift+PageDown'
-		],
+		['Mod+A', 'Mod+Shift+Home', 'Mod+Shift+End', 'Shift+PageUp', 'Shift+PageDown'],
 		'schema/keybindings.ts',
 		SELECTION_PREAMBLE
 	),
 	...unlisted(SHIFT_ARROWS, 'selection/cross-block/keydown.ts', SELECTION_PREAMBLE),
 	...unlisted(SHIFT_ARROWS, 'selection/shared-keydown.ts', SELECTION_PREAMBLE),
-	...unlisted(
-		[
-			'Shift+Home',
-			'Mod+Home',
-			'Mod+End',
-			'Mod+ArrowLeft',
-			'Mod+ArrowRight',
-			'Mod+ArrowUp',
-			'Mod+ArrowDown',
-			'Mod+Shift+ArrowLeft'
-		],
-		'schema/keybindings.ts',
-		CARET_MOTION
-	),
+	...unlisted(['Shift+Home', 'Mod+Home', 'Mod+End'], 'schema/keybindings.ts', CARET_MOTION),
 	...unlisted(
 		['Shift+ArrowUp', 'Shift+ArrowDown'],
 		'components/blocks/table/TableCellBlock.svelte',
@@ -624,11 +601,11 @@ describe('consumer-guide chord coherence: self-tests', () => {
 
 	// Miss-analysis: a file-owned exemption was checked against the claim list, never the rows.
 	it('rows a keydown claim through the token family that reads its file, and only that one', () => {
-		expect(familyRowFor(rows, 'Mod+Enter @ plugins/mermaid/MermaidBlock.svelte')).toBe(
+		expect(familyRowFor(rows, 'Mod+Enter @ packages/mermaid/src/MermaidBlock.svelte')).toBe(
 			'Finish editing a diagram'
 		);
 		expect(familyRowFor(rows, 'Mod+Enter @ components/blocks/table/TableBlock.svelte')).toBeNull();
-		expect(familyRowFor(rows, 'Shift+F10 @ components/blocks/table/TableBlock.svelte')).toBeNull();
+		expect(familyRowFor(rows, 'Shift+Tab @ components/link-card/LinkCard.svelte')).toBeNull();
 	});
 
 	// Miss-analysis: chords were keyed by string alone, and no case held one chord with two meanings.

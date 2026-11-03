@@ -4,11 +4,11 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { installPlugins } from '#lib';
 import { isBlockKindRegistered } from '../../schema/block-kind-descriptor';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { latexPlugin, MATH_BLOCK } from '#lib/plugins/latex/index.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { detailsPlugin, DETAILS } from '#lib/plugins/details/index.js';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
+import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { detailsPlugin, DETAILS } from '#packages/details/src/index.js';
 import { arbPluginGfmDoc, arbPluginInlineSource, freshOrFixedSeed } from './arbitraries';
 
 /**

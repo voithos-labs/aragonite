@@ -66,7 +66,9 @@ function focusedRuleKey(blockEdit: BlockEditActions, key: string, mods = {}): vo
 		selection: { isCrossBlock: false },
 		caretMemory: createCaretMemory(),
 		commandOf: () => null,
-		takesKey: () => false
+		takesKey: () => false,
+		getPath: () => [0],
+		containerChords: { take: () => false }
 	});
 }
 

@@ -6,7 +6,7 @@ import { createUndoController } from '#lib/editor-actions/commit/undo-controller
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,

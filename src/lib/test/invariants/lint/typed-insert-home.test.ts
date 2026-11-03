@@ -12,7 +12,7 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 const inLibrary = (code: string): Probe => ({ relPath: `${SOURCE_DIR.library}probe.ts`, code });
 
 const inShippedEditor = (file: SourceFile): boolean =>
-	under(SOURCE_DIR.library)(file) && notUnder(SOURCE_DIR.debug)(file);
+	under(SOURCE_DIR.library, SOURCE_DIR.plugins)(file) && notUnder(SOURCE_DIR.debug)(file);
 
 const RULES: FileRule[] = [
 	{

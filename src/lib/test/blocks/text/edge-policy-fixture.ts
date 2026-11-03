@@ -98,6 +98,9 @@ export function makeEdgeDispatch(
 		hasIslands: () => false,
 		getRawSelection: () => null,
 		writeText: createSurfaceWrite({
+			get reading() {
+				return deps.reading;
+			},
 			getNode: readNode,
 			getIndex: () => 0,
 			getPath: () => [0],

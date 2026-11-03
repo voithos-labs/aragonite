@@ -10,7 +10,7 @@ import { registerDirective } from '#lib/core/directive/registry.js';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
 import { registerBlockCompleter } from '#lib/schema/block-completions.js';
 import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { parse } from '#lib/core/parser.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { installReorderDrag } from '#lib/editor-actions/reorder-drag.js';
 import { parse } from '#lib/core/parser.js';
 import { fixtureReading } from '../harness/fixture-grammar';

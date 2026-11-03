@@ -61,6 +61,10 @@ const CARET_GESTURE_DOORS: Record<string, Door> = {
 const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/lib/debug/input-recorder.ts': 'records the press into an input recording; places no caret',
 	'src/lib/debug/input-recording.ts': 'names the press a recorded step opened on; places no caret',
+	'src/lib/selection/pointer-gesture.ts':
+		'notes whether a press is a finger, for the selection handles; places no caret',
+	'src/lib/components/overlays/SelectionHandles.svelte':
+		'starts a selection handle drag, which moves a range end; places no caret',
 	'src/lib/components/TailInsert.svelte':
 		'swallows the press so no caret seats under it; the paragraph it mints focuses itself',
 	'src/lib/components/menu/BlockMenu.svelte':
@@ -95,15 +99,13 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/lib/editor-actions/reorder-drag.ts': 'starts a block reorder drag off the handle',
 	'src/lib/components/dom-block-view/DomBlockView.svelte':
 		'binds the shared editable-leaf reveal handler on a render-primary view’s rendered half; the reset lives there',
-	'src/lib/plugins/details/DetailsBlock.svelte':
+	'packages/details/src/DetailsBlock.svelte':
 		'preventDefault on the summary so the disclosure toggle takes no focus',
-	'src/lib/plugins/latex/BlockMath.svelte':
+	'packages/latex/src/BlockMath.svelte':
 		'binds the shared editable-leaf reveal handler; the reset lives there',
-	'src/lib/plugins/parrot/ParrotBlock.svelte':
-		'binds the shared editable-leaf reveal handler on its caption; the reset lives there',
-	'src/lib/plugins/toc/TocBlock.svelte':
+	'packages/toc/src/TocBlock.svelte':
 		'binds the shared editable-leaf reveal handler, plus entry navigation',
-	'src/lib/plugins/mermaid/MermaidBlock.svelte':
+	'packages/mermaid/src/MermaidBlock.svelte':
 		'stopPropagation on its toolbar and a diagram-surface press that selects the block',
 	'src/routes/test/plugins/+page.svelte':
 		'harness chrome — preventDefault on a mode toggle so the press takes no focus'

@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	collectEditorSources,
-	EDITOR_SRC,
+	LIBRARY_ROOTS,
 	publishedEntrySources,
 	resolveSpecifier,
 	sourceFile,
@@ -21,7 +21,7 @@ const VALUE_REEXPORT = /^\s*(?:import|export)\s+(?!type\b)[\s\S]*?\bfrom\s*['"](
 
 // Library-scoped, not repo-wide: only the library holds modules a published entry can reach.
 function buildGraph(
-	sources: SourceFile[] = collectEditorSources(EDITOR_SRC)
+	sources: SourceFile[] = collectEditorSources(LIBRARY_ROOTS)
 ): Map<string, string[]> {
 	const graph = new Map<string, string[]>();
 	for (const file of sources) {

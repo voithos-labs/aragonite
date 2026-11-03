@@ -91,6 +91,8 @@ export interface WholeBlockInputProxyDeps {
 	holdTabStop: (el: HTMLElement) => () => void;
 	/** Commit the bytes the host produced: the same paragraph the keydown path creates. */
 	mint: (text: string) => unknown;
+	/** Paste the clipboard's blocks after the block, as the gap caret does at its boundary. */
+	paste: (markdown: string) => unknown;
 	composition: CompositionTracker;
 }
 
@@ -106,7 +108,7 @@ export interface WholeBlockInputProxy {
 
 export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): WholeBlockInputProxy {
 	let proxy: HTMLElement | null = null;
-	const hostInput = createCaretHostInput(() => proxy, deps.mint, deps.composition);
+	const hostInput = createCaretHostInput(() => proxy, deps.mint, deps.composition, deps.paste);
 
 	/** Every read of the declared element inside the proxy goes through the demotion, so a kind
 	 *  supplying its own `getFocusEl` (without the composed fallback) is held to the rule too. */
@@ -163,6 +165,7 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 		proxy.addEventListener('beforeinput', hostInput.onBeforeInput as EventListener);
 		proxy.addEventListener('compositionstart', hostInput.onCompositionStart);
 		proxy.addEventListener('compositionend', hostInput.onCompositionEnd);
+		proxy.addEventListener('paste', hostInput.onPaste);
 		box.addEventListener('focusin', onFocusIn);
 		box.appendChild(proxy);
 		return () => {

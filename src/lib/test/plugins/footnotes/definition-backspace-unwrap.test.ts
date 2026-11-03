@@ -5,7 +5,7 @@
 // Miss-analysis: no test asserted what Backspace did, only that the bytes stayed unchanged.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import type { Document } from '#lib/plugin.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import {
 	installLayoutStubs,
 	mountEditor,

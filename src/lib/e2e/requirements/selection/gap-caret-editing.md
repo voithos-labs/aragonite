@@ -42,9 +42,9 @@ reaches would be invisible to every other spec.
 
 ## Limits
 
-- **Paste is declined rather than guessed at.** Mod+V at the gap changes nothing and keeps
-  the caret there, since the clipboard can carry block structure the boundary has no place
-  for. Every input type but `insertText` is declined the same way, and `insertMarkdown`
+- **A paste lands as blocks.** Mod+V at the gap inserts the clipboard's Markdown there as
+  blocks, and the caret leaves the gap for them (`clipboard/boundary-paste.md` holds the undo
+  and CRLF rows). Every other input type but `insertText` is declined, and `insertMarkdown`
   returns `false` there.
 - **IME is a unit-level contract only.** Between `compositionstart` and `compositionend` the
   browser owns the proxy element, which is the editor's standing rule for composition; the

@@ -11,15 +11,15 @@ import {
 import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
-import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
-import { FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
-import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
-import { ADMONITION, GITHUB_ALERT } from '#lib/plugins/admonitions/kinds.js';
-import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
-import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.js';
-import { registerTocBlock, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
-import { parrotPlugin, PARROT } from '#lib/plugins/parrot/index.js';
+import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
+import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
+import { FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
+import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
+import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#packages/latex/src/latex-kind.js';
+import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerTocBlock, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
+import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
 import { installPlugins } from '#lib';
 import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockView } from '#lib/schema/block-view.js';
@@ -182,7 +182,7 @@ describe('kind conformance: a backing-out kind names its closer', () => {
 });
 
 // ── Bundled plugins: the shipped kinds enroll too ────────────────────────────
-// The `src/lib/plugins` directory listing is the bundled set, so a plugin directory added or
+// The workspace's plugin packages are the bundled set, so a plugin directory added or
 // dropped outside this table fails the check below at once.
 const BUNDLED_INSTALLS: { dir: string; kind: string; install: (view: BlockView) => void }[] = [
 	{ dir: 'details', kind: DETAILS, install: registerDetailsKind },

@@ -327,7 +327,9 @@ test.describe('selection toolbar in live mode', () => {
 		await link.click();
 
 		await expect(page.locator('[data-link-card]')).toBeVisible();
-		await expect(page.locator('[data-link-card] input')).toHaveValue('https://x.test');
-		await expect(page.locator('[data-link-card] input')).toBeFocused();
+		await expect(page.locator('[data-link-card] input[aria-label="Link URL"]')).toHaveValue(
+			'https://x.test'
+		);
+		await expect(page.locator('[data-link-card] input[aria-label="Link URL"]')).toBeFocused();
 	});
 });

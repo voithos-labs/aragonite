@@ -6,10 +6,10 @@
  */
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { collectEditorSources, readSource } from './scan-source';
+import { collectEditorSources, PLUGIN_SOURCE_ROOTS, readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
 
-const PLUGIN_ROOTS = [path.resolve(SOURCE_DIR.plugins), path.resolve(SOURCE_DIR.referencePlugins)];
+const PLUGIN_ROOTS = [...PLUGIN_SOURCE_ROOTS, path.resolve(SOURCE_DIR.referencePlugins)];
 
 /** Tokens a `var(--x)` read references, ignoring any inline fallback. */
 function readsIn(code: string): string[] {

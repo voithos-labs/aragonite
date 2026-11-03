@@ -5,7 +5,7 @@ import {
 	previewContentReparse
 } from '#lib/editor-actions/replacement-focus.js';
 import { parse } from '#lib/core/parser.js';
-import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';

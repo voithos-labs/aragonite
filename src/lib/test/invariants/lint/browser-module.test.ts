@@ -30,7 +30,7 @@ const inBrowser = (code: string): Probe => at(`${SOURCE_DIR.browser}probe.ts`, c
 // The input recorder in debug/ reads what it records, and ships in no editor path; the writer
 // reads the live selection it writes.
 const bindsSelectionRead = (file: SourceFile): boolean =>
-	under(SOURCE_DIR.library)(file) &&
+	under(SOURCE_DIR.library, SOURCE_DIR.plugins)(file) &&
 	notUnder(SOURCE_DIR.debug)(file) &&
 	except(SOURCE.selectionRead, SOURCE.caretWriter)(file);
 

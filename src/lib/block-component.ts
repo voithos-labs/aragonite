@@ -9,7 +9,7 @@ import type { DocumentView, NodeView } from './core/node-views';
 import type { EditorRects } from './editor-rects';
 import type { ChildList } from './block-lists/child-list';
 import type { AnyCommandId } from './schema/command-id';
-import type { BlockCommandTarget, CommandRun } from './schema/block-commands';
+import type { BlockCommandTarget, CommandRun, KindCommandTarget } from './schema/block-commands';
 
 // ── Sentinels ──────────────────────────────────────────────────────────────
 
@@ -229,6 +229,9 @@ export interface BlockComponent {
 	 * which each block reads in its own coordinate system.
 	 */
 	measurePartialRects?(startOffset: number, endOffset: number): DOMRect[];
+	/** The first and last offsets a caret can reach in this block's text, the one answer every
+	 *  check at the block's edge reads: hidden markers put bytes out of reach. */
+	caretBounds?(): { start: number; end: number };
 	/**
 	 * Viewport-space rect of a single cell by row and column: whole-cell highlighting in a
 	 * grid, skipping `measurePartialRects`' selection-aware range logic. Null when the cell
@@ -261,6 +264,9 @@ export interface BlockComponent {
 	 * through to later keydown branches.
 	 */
 	runCommand?(id: AnyCommandId, arg?: unknown, run?: CommandRun): boolean;
+	/** What a chord this container's kind binds runs against when it's pressed in the block at
+	 *  `from`, inside it or in this block's own controls; null or absent, it takes none from there. */
+	containerChordTarget?(from: readonly number[]): KindCommandTarget | null;
 	/** What a plugin's block command runs against at this block, for a command the editor runs
 	 *  here itself (a key over a selection, after the selection's removal). Its `replaceRaw`
 	 *  rewrites the block's bytes in the block's own list. */
@@ -377,6 +383,7 @@ export type EditableLeafBlockApi = BlockComponent &
 			| 'getSelectedText'
 			| 'setSelection'
 			| 'measurePartialRects'
+			| 'caretBounds'
 			| 'afterSourceCommit'
 			| 'getCommandContext'
 		>

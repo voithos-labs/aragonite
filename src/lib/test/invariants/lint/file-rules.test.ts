@@ -304,7 +304,7 @@ const MOUNTS_PLUGIN_VIEW =
 
 const PLUGIN_VIEW_FALLBACK: FileRule = {
 	id: 'G4.178 every route that mounts a plugin view contains its failure',
-	population: under(SOURCE_DIR.library),
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches: (file) =>
 		MOUNTS_PLUGIN_VIEW.test(file.code) && !/\bwarnIfForeignRuntime\(/.test(file.code),
 	allowed: {
@@ -338,7 +338,7 @@ const CALLS_PLUGIN_VIEW =
 
 const ONE_VIEW_WRAPPER: FileRule = {
 	id: 'G4.186 a plugin view is drawn only through mountPluginView',
-	population: under(SOURCE_DIR.library),
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches: CALLS_PLUGIN_VIEW,
 	allowed: {
 		'src/lib/plugin-view.ts': 'the wrapper itself, the one place a view is called'
@@ -380,6 +380,16 @@ function readsSelectionString(file: SourceFile): boolean {
 /** A file the G4.80 population holds, for its probes. */
 const SELECTION_PROBE = `${SOURCE_DIR.selection}probe.ts`;
 
+// A read of what kind of pointer this is: a press's `pointerType`, or the page's fine or coarse media.
+const POINTER_KIND =
+	/\.pointerType\b|\{[^}]*\bpointerType\b[^}]*\}\s*=|\(\s*pointer\s*:\s*(?:fine|coarse)\s*\)/;
+
+function withoutStyles(file: SourceFile): string {
+	return file.relPath.endsWith('.svelte')
+		? file.code.replace(/<style[\s\S]*?<\/style>/g, '')
+		: file.code;
+}
+
 const RULES: FileRule[] = [
 	{
 		id: 'G4.4 no timing hacks for sequencing',
@@ -396,7 +406,7 @@ const RULES: FileRule[] = [
 				'rAF pointermove coalescing: the one place every drag lifecycle runs',
 			'src/lib/editor-actions/commit/text-batch.ts':
 				'setTimeout wall-clock undo debounce, a pause detection tick() cannot express',
-			'src/lib/plugins/highlight-occurrences/highlight-occurrences-plugin.ts':
+			'packages/highlight-occurrences/src/highlight-occurrences-plugin.ts':
 				'setTimeout typing pause before the occurrence marks return, a pause detection tick() cannot express',
 			'src/lib/search/regex-executor.ts':
 				'setTimeout regex-scan cancellation deadline: nothing waits on the timer, and no main-thread budget can interrupt one RegExp.exec'
@@ -767,7 +777,7 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.175 every library component compiles in runes mode',
-		population: (file) => svelteOnly(file) && file.relPath.startsWith(SOURCE_DIR.library),
+		population: (file) => svelteOnly(file) && under(SOURCE_DIR.library, SOURCE_DIR.plugins)(file),
 		matches: (file) => !RUNES_MODE_RE.test(file.code),
 		reason:
 			'a component with no rune compiles in legacy mode in a Svelte host, which turns on the legacy flag in the Svelte runtime of that app: add `<svelte:options runes />`',
@@ -898,7 +908,7 @@ const RULES: FileRule[] = [
 				'the caret between blocks holds no text, so a press there has no line to land on',
 			'src/lib/editor-actions/whole-block-focus-surface.svelte.ts':
 				'the hidden editing host behind a whole block takes focus, never a press',
-			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+			'packages/mermaid/src/MermaidBlock.svelte':
 				'the diagram source is a textarea, a form control that places its own caret, with no DOM text for the probe',
 			'src/lib/invariants/marker-css-parity.ts':
 				'the dev check measures a detached probe element nobody presses'
@@ -1111,9 +1121,9 @@ const RULES: FileRule[] = [
 			'src/lib/components/link-card/LinkCard.svelte': 'a URL typed into the link card',
 			'src/lib/components/link-card/LinkCardHost.svelte': 'a URL typed into the link card',
 			'src/lib/core/inline/link-source-bytes.ts': 'the URL the link command was given',
-			'src/lib/plugins/latex/BlockMath.svelte':
+			'packages/latex/src/BlockMath.svelte':
 				'whether the render shows ink, not whether the Markdown is blank',
-			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+			'packages/mermaid/src/MermaidBlock.svelte':
 				'whether the render shows ink, not whether the Markdown is blank'
 		},
 		reason:
@@ -1139,14 +1149,12 @@ const RULES: FileRule[] = [
 			PLUGIN_GRAMMAR_DIRS.some((dir) => under(dir)(file)),
 		matches: /\\[sS]|\.trim(?:Start|End)?\(/,
 		allowed: {
-			'src/lib/plugins/latex/flanking.ts':
-				'the `$` flanking rule reads Unicode whitespace, as emphasis does',
-			'src/lib/plugins/latex/renderer.ts': 'the text of a KaTeX error message',
-			'src/lib/plugins/latex/BlockMath.svelte': SHOWS_INK,
-			'src/lib/plugins/mermaid/MermaidBlock.svelte': SHOWS_INK,
-			'src/lib/plugins/slash-commands/slash-source.ts':
+			'packages/latex/src/renderer.ts': 'the text of a KaTeX error message',
+			'packages/latex/src/BlockMath.svelte': SHOWS_INK,
+			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
+			'packages/slash-commands/src/slash-source.ts':
 				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
-			'src/lib/plugins/slash-commands/filter.ts': 'the words of a menu query the user typed'
+			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed'
 		},
 		reaches: [...GRAMMAR_FILES, SOURCE.directiveGrammar],
 		reason:
@@ -1169,7 +1177,7 @@ const RULES: FileRule[] = [
 			at(PARSER_PROBE, 'isWhitespaceChar(ch); // JS \\s is too wide'),
 			at(PARSER_PROBE, 'const info = trimWhitespace(raw);'),
 			at('src/lib/core/inline/scan/emphasis.ts', 'return /\\s/.test(ch);'),
-			at('src/lib/plugins/mermaid/mermaid-kind.ts', 'const match = /^([`~]+)(.*)$/s.exec(raw);')
+			at('packages/mermaid/src/mermaid-kind.ts', 'const match = /^([`~]+)(.*)$/s.exec(raw);')
 		]
 	},
 	{
@@ -1501,7 +1509,7 @@ const RULES: FileRule[] = [
 				'a modified Enter or arrow is a shortcut, not the plain key the cell handles',
 			'src/lib/components/menu/BlockMenu.svelte':
 				'a modified key is left to the editor, not read as menu navigation',
-			'src/lib/plugins/mermaid/MermaidBlock.svelte':
+			'packages/mermaid/src/MermaidBlock.svelte':
 				'Ctrl/Cmd+wheel zooms the diagram and Mod+Enter commits its edit: shortcuts, not a click that follows',
 			'src/lib/selection/dead-space-caret.ts': 'a modified click places no caret in empty space',
 			'src/lib/selection/multi-click.ts': 'a modified press is not a multi-click select'
@@ -1552,6 +1560,8 @@ const RULES: FileRule[] = [
 			'src/lib/components/blocks/table/cell-pointer.ts':
 				'a pointer drag across cells, whose end is under the pointer',
 			'src/lib/selection/native-bridge.ts': 'the restore, whose landing shows the caret itself',
+			'src/lib/components/overlays/selection-handles.ts':
+				'a selection handle trading the anchor for the focus before its drag, which moves no end',
 			'src/lib/selection/cross-block/range-indent.ts':
 				'an indent keeping a block held whole, which moves no end',
 			'src/lib/testing/kind-conformance.ts': 'the conformance kit, which sets up a range'
@@ -1569,6 +1579,36 @@ const RULES: FileRule[] = [
 			'extendWithinBlock(deps.extend, el, bounds.start);',
 			'extendFocusToNextBlock(ctx, el, path);',
 			'extendFocus(point: SelectionEndpoint): void;'
+		]
+	},
+	{
+		id: 'G4.279 what a finger means is read in one place',
+		// A Svelte file's style block is styling, so a CSS media query there is not a read.
+		matches: (file) => POINTER_KIND.test(withoutStyles(file)),
+		allowed: {
+			[`${SOURCE_DIR.selection}pointer-gesture.ts`]:
+				'`isTouchPointer`, `coarsePointer` and `finePointer`: what kind of pointer this is',
+			[`${SOURCE_DIR.decorations}mark-hover.ts`]:
+				'a finger never hovers; a hover is not a selection',
+			[`${SOURCE_DIR.debug}input-recorder.ts`]:
+				'the recorder keeps each event’s pointer type and the page’s pointer media'
+		},
+		reason:
+			'a press read as a finger here and a mouse there drags a selection the browser is scrolling, or draws a caret the phone never shows: ask `pointer-gesture.ts` (`isTouchPointer`, `coarsePointer`, `finePointer`), and give a drag session its `touch` owner',
+		hits: [
+			"if (e.pointerType === 'touch') return;",
+			'const { pointerType } = event;',
+			"onpointerdown={(e) => e.pointerType !== 'mouse' && start(e)}",
+			"const fine = new MediaQuery('(pointer: fine)');",
+			"if (matchMedia('(pointer: coarse)').matches) return;"
+		],
+		misses: [
+			'pointerType?: string;',
+			'export interface P { pointerType: string }',
+			{
+				relPath: 'probe.svelte',
+				code: '<style>\n\t@media (pointer: coarse) { .a { b: c; } }\n</style>'
+			}
 		]
 	},
 	{
@@ -1701,7 +1741,7 @@ const SAME_SOURCE_SPLICE = /\b([\w.]+)\.slice\(\s*0\s*,[^;]{0,200}?\+[^;]{0,200}
 
 /** A file naming the paste's selection that cuts nothing through the in-leaf range replace. */
 const namesPasteRangeWithoutReplace = (file: SourceFile): boolean =>
-	/(?<![\w.'"])preDelete\b/.test(file.code) && !/(?<![\w.])replaceRangeInLeaf\s*\(/.test(file.code);
+	/(?<![\w.'"])preDelete\b/.test(file.code) && !/(?<![\w.])replaceDrawnRange\s*\(/.test(file.code);
 
 const LEAF_RANGE_RULES: FileRule[] = [
 	{
@@ -1767,6 +1807,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'a shown source’s own text, where every marker is on screen',
 			'src/lib/components/blocks/editable/editable-surface.ts':
 				'text typed at an offset once a range is gone, which deletes nothing',
+			'src/lib/components/blocks/editable/surface-write.ts':
+				'a reference label spelled around bytes a caret keystroke already wrote',
 			'src/lib/components/image/image-widget-editing.ts':
 				'an image replaced by its own edited bytes, one whole construct for another',
 			'src/lib/core/inline/index.ts': 'a hard break inserted, which deletes nothing',
@@ -1803,13 +1845,13 @@ const LEAF_RANGE_RULES: FileRule[] = [
 				'the one literal splice: a fence body has no inline constructs to clean'
 		},
 		reason:
-			'a paste writes what typing writes over the same selection, so its cut is `replaceRangeInLeaf` with the pasted text; a cut of its own strands the runs typing keeps',
+			'a paste writes what typing writes over the same selection, so its cut is `replaceDrawnRange` with the pasted text; a cut of its own strands the runs typing keeps',
 		hits: [
 			'return display.slice(0, preDelete.start) + text + display.slice(preDelete.end);',
 			'const cut = cutRange(node, preDelete, store);'
 		],
 		misses: [
-			'const edit = replaceRangeInLeaf(node, preDelete, text, store);',
+			'const edit = replaceDrawnRange(node, preDelete, text, store);',
 			'// preDelete is the range the paste cuts first'
 		]
 	}
@@ -2371,18 +2413,17 @@ const REVEAL_BLOCKS_IN_SVELTE: ManifestRule[] = [
 		matches: /\bmode:\s*['"]render-primary['"]/,
 		declared: {
 			[SOURCE.latexBlockMath]: 'block math, with its layout toggle and live preview',
-			'src/lib/plugins/toc/TocBlock.svelte': 'the outline, whose list follows the headings',
-			'src/lib/plugins/parrot/ParrotBlock.svelte': 'the plugin guide’s quickstart block'
+			'packages/toc/src/TocBlock.svelte': 'the outline, whose list follows the headings'
 		},
 		reason:
 			'a bundled block that shows a rendered view until clicked can be a `defineBlockView({ surface: "render-primary" })` view; this list is where moving them starts, and it guards nothing inside a listed file',
-		hits: [at('src/lib/plugins/x/XBlock.svelte', "mode: 'render-primary',")],
+		hits: [at('packages/x/src/XBlock.svelte', "mode: 'render-primary',")],
 		misses: [
 			at(
-				'src/lib/plugins/x/x-kind.ts',
+				'packages/x/src/x-kind.ts',
 				"focus: { mode: 'implemented', via: 'render-primary reveal' },"
 			),
-			at('src/lib/plugins/x/x-view.ts', "surface: 'render-primary',")
+			at('packages/x/src/x-view.ts', "surface: 'render-primary',")
 		]
 	}
 ];
@@ -2463,8 +2504,10 @@ const RANGE_INDENT: ManifestRule[] = [
 		population: notUnder(SOURCE_DIR.schema),
 		matches: /(?<![\w.])(?:dispatchKindCommand|dispatchKeyCommand|commandForKey)\s*\(/,
 		declared: {
+			'src/lib/editor-actions/container-chords.ts':
+				'the containers around a block, which leave a key a live range owns to the range, whose handler claims it only after an await',
 			'src/lib/editor-actions/container-block-component.ts':
-				'the container dispatch, which leaves a key a live range owns to the range, whose handler claims it only after an await',
+				'a block focused as a whole, against its own kind',
 			'src/lib/components/blocks/editable/surface-wiring.svelte.ts':
 				'a leaf’s own chords, which the leaf runs once the range’s handler has passed on the key',
 			'src/lib/components/blocks/editable/editable-surface.ts':
@@ -2479,21 +2522,21 @@ const RANGE_INDENT: ManifestRule[] = [
 				'reads what a key means for the caret memory, and never runs it',
 			'src/lib/components/dom-block-view/DomBlockView.svelte':
 				'reads what an arrow leaving a hand-built block means for the caret memory, and never runs it',
-			'src/lib/components/link-card/LinkCardHost.svelte':
+			'src/lib/components/link-card/opens-card.ts':
 				'asks only whether the key is the one that opens the link card'
 		},
 		reason:
-			'a container that resolves a chord itself runs Tab on its own item while the range below indents every item: call `dispatchContainerChord`',
+			'a container that resolves a chord itself runs Tab on its own item while the range below indents every item: let `editor-actions/container-chords.ts` run it',
 		hits: [
 			at(ROGUE_INDENT_ROUTE, 'dispatchKindCommand(chord, target, commands);'),
 			at(ROGUE_INDENT_ROUTE, 'if (dispatchKeyCommand(chord, target, commands)) return;'),
 			at(ROGUE_INDENT_ROUTE, "if (commandForKey(e, kind, commands) === 'list.indent') indent();")
 		],
-		misses: [at(ROGUE_INDENT_ROUTE, 'dispatchContainerChord(e, target, commands, range);')]
+		misses: [at(ROGUE_INDENT_ROUTE, 'containerChords.take(e, from);')]
 	},
 	{
 		id: 'G4.112 a command key over a range is pressed from the keydown handler only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: /\{\s*kind:\s*'command',/,
 		declared: {
 			'src/lib/selection/cross-block/keydown.ts':
@@ -2597,12 +2640,12 @@ const SYNTAX_MODULES: FileRule[] = [
 			at(ROGUE_MATH_READER, 'const closer = mathCloserLine(ctx.lines, ctx.index, ctx.end);'),
 			at(ROGUE_MATH_READER, "if (opener === '$') return null;"),
 			at(ROGUE_MATH_READER, "const price = '$' + amount;"),
-			at('src/lib/plugins/mermaid/x.ts', "if (text.startsWith('$$')) return null;")
+			at('packages/mermaid/src/x.ts', "if (text.startsWith('$$')) return null;")
 		]
 	},
 	{
 		id: 'G4.131 a table row’s pipes are read and written in `table-line.ts` only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: new RegExp(`${PADDED_PIPE}|${TEMPLATE_ROW}|${EDGE_PIPE_READ}|${DELIMITER_CELL}`),
 		allowed: {
 			[TABLE_LINE_HOME]:
@@ -2651,7 +2694,7 @@ const SYNTAX_MODULES: FileRule[] = [
 	},
 	{
 		id: 'G4.131 whether two lines open a table is decided in `matchTableOpening` only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: OPENING_ARITY,
 		allowed: {
 			[SOURCE.tableParser]: '`matchTableOpening`, which the parser and the grid paste both ask'
@@ -2748,7 +2791,7 @@ const ITEM_PIECES: ManifestRule[] = [
 	},
 	{
 		id: 'G4.123 a list is rebuilt around a dissolved item in the dissolve module only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: /(?<![\w.])(?<!function\s+)assembleListHalf\s*\(/,
 		declared: {
 			[DISSOLVE_HOME]: '`dissolveItem`, the list halves around a dissolving item',
@@ -2770,7 +2813,7 @@ const ITEM_PIECES: ManifestRule[] = [
 
 const PIECES_UNDER_ORDER_CHECK: FileRule = {
 	id: 'G4.123 an item’s children are split inside the list order check only',
-	population: under(SOURCE_DIR.library),
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches: splitsOutsideOrderCheck,
 	reaches: [DISSOLVE_HOME],
 	reason:
@@ -2855,6 +2898,14 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 	'src/lib/editor-actions/replacement-focus.ts :: focusMovedOutsideReplacement': {
 		branches: 1,
 		reason: 'with no document nothing holds focus, so the caret goes back where the write left it'
+	},
+	'src/lib/selection/pointer-gesture.ts :: coarsePointer': {
+		branches: 1,
+		reason: 'with no media queries there is no pointer to ask about, so no finger is assumed'
+	},
+	'src/lib/selection/pointer-gesture.ts :: finePointer': {
+		branches: 1,
+		reason: 'with no media queries there is no pointer to watch, so the caller gets none'
 	},
 	'src/lib/selection/caret-landing.ts :: caretBox': {
 		branches: 1,
@@ -2985,7 +3036,7 @@ function readsFenceLinesByHand(file: SourceFile): boolean {
 const CODE_EDIT_SPAN: FileRule[] = [
 	{
 		id: 'G4.130 a code block range is clamped to its body in `code-fence-boundary.ts` only',
-		population: under(SOURCE_DIR.library),
+		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: /(?<![\w.])(?<!function\s+)clampRangeToBody\s*\(/,
 		allowed: {
 			[EDIT_SPAN_HOME]: '`editSpan` and the caret clamp',

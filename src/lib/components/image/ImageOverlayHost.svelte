@@ -20,6 +20,7 @@
 	import type { MenuPresence } from '../menu/menu-presence.svelte';
 	import { pressLeavesImage } from './image-press';
 	import { isSecondaryPress, pressesSelectedWidget } from '../../selection/widget-press';
+	import { clearOnPress } from '../../selection/pointer-gesture';
 	import type { WidgetTarget } from '../../selection/primitives';
 	import type { CaretRestore } from '../../selection/caret-restore';
 
@@ -74,7 +75,8 @@
 		const handlePointerDown = (e: PointerEvent) => {
 			// A right-click on the held widget keeps it for the menu's rows, as one on a range does.
 			if (isSecondaryPress(e) && pressesSelectedWidget(selection, e.target)) return;
-			if (pressLeavesImage(e, root)) selection.clearWidget();
+			if (selection.widget !== null && pressLeavesImage(e, root))
+				clearOnPress(e, lifetime, { selection: () => selection.clearWidget() });
 		};
 		root.addEventListener('pointerdown', handlePointerDown);
 		return () => root.removeEventListener('pointerdown', handlePointerDown);

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 // Plugin-internal: this lookup answers a reference widget's jump, which only a mounted
 // widget makes.
-import { findFootnoteDefinitionLanding } from '#lib/plugins/footnotes/footnote-lookup.js';
+import { findFootnoteDefinitionLanding } from '#packages/footnotes/src/footnote-lookup.js';
 
 describe('footnote definition lookup (where a reference jump lands)', () => {
 	beforeEach(() => {

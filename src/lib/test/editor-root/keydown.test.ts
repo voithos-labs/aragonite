@@ -105,7 +105,8 @@ function harness(): Harness {
 		isHostChrome: (node) => !!node && header.contains(node),
 		isFindBar: (node) => !!node && findBar.contains(node),
 		saveSearchCaret: () => searchCaretSaves++,
-		setReplaceExpanded: (expanded) => replaceExpanded.push(expanded)
+		setReplaceExpanded: (expanded) => replaceExpanded.push(expanded),
+		takeContainerChord: () => {}
 	};
 
 	const handler = createEditorRootKeydown(deps);

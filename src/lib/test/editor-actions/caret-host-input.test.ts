@@ -24,7 +24,8 @@ function host() {
 	const input = createCaretHostInput(
 		() => el,
 		(text) => inserted.push(text),
-		composition
+		composition,
+		() => {}
 	);
 	el.addEventListener('beforeinput', (e) => input.onBeforeInput(e as InputEvent));
 	el.addEventListener('compositionstart', input.onCompositionStart);

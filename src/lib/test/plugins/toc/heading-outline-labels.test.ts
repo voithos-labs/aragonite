@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { computeInlineContent } from '#lib/plugin.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { projectInlineText } from '#lib/plugins/toc/heading-outline.js';
+import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { projectInlineText } from '#packages/toc/src/heading-outline.js';
 
 // The label projection turns a heading's inline parse into clean display text: markers
 // gone, links/images reduced to their text, value nodes shown as what they render to.

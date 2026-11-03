@@ -4,8 +4,8 @@
 // Miss-analysis: Chromium ends a commit on a composing input, and no row composed in a shown math source.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import {
 	destroyMountedEditors,
 	mountEditor,

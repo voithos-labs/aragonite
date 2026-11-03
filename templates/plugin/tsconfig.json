@@ -1,0 +1,15 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"strict": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		// Vite's client types say what a stylesheet import is.
+		"types": ["vite/client"]
+	},
+	"include": ["src", "test", "e2e", "dev", "vite.config.ts", "playwright.config.ts"]
+}

@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../../../core/parser';
 import { blockNodeAt } from '../../../../tree-operations/node-primitives';
-import { registerDetailsKind } from '../../../../plugins/details/details-kind';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import type { CellSelectionPoint } from '../../../../selection/primitives';
 import { deleteRange } from '../../../harness/range-delete';
 import { testView } from '#lib/test/harness/test-view.js';

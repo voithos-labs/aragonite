@@ -9,7 +9,6 @@
 	import MenuIcon from './MenuIcon.svelte';
 	import InlineMenuRowView from './InlineMenuRowView.svelte';
 	import type { MenuPresence } from './menu-presence.svelte';
-	import { eventToChord } from '../../schema/keybindings';
 	import type { BlockElLookup } from '../../caret/block-el-lookup';
 
 	// Mounted unconditionally by Editor: the key handling and the anchoring must observe the session
@@ -83,12 +82,10 @@
 		const onKeyDown = (e: KeyboardEvent) => {
 			// A composing Enter belongs to the IME's candidate window.
 			if (imeOwnsKey(e)) return;
-			// The bare key alone: a chorded arrow (Shift to extend, Mod to jump) stays the document's.
-			const chord = eventToChord(e);
-			if (chord === 'ArrowDown') menu.move(1);
-			else if (chord === 'ArrowUp') menu.move(-1);
-			else if (chord === 'Enter' || chord === 'Tab') menu.commit();
-			else return;
+			const key = menu.listKey(e);
+			if (key === null) return;
+			if (key === 'commit') menu.commit();
+			else menu.move(key === 'down' ? 1 : -1);
 			e.preventDefault();
 			e.stopPropagation();
 		};

@@ -5,8 +5,8 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const APPS = {
-	react: { dir: 'examples/react', wrapper: 'react', port: 1490 },
-	vue: { dir: 'examples/vue', wrapper: 'vue', port: 1495 }
+	react: { dir: 'examples/react', port: 1490 },
+	vue: { dir: 'examples/vue', port: 1495 }
 };
 
 const app = APPS[/** @type {keyof typeof APPS} */ (process.argv[2])];
@@ -26,9 +26,11 @@ run(
 );
 
 const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
-const tarballs = ['aragonite', `aragonite-${app.wrapper}`].map((name) =>
-	path.join(packs, `voithos-labs-${name}-${version}.tgz`)
-);
+// Every aragonite package the app depends on: the core, its wrapper and the showcase's plugins.
+const { dependencies } = JSON.parse(readFileSync(path.join(app.dir, 'package.json'), 'utf8'));
+const tarballs = Object.keys(dependencies)
+	.filter((name) => name.startsWith('@voithos-labs/'))
+	.map((name) => path.join(packs, `${name.slice(1).replace('/', '-')}-${version}.tgz`));
 if (!existsSync(path.join(app.dir, 'node_modules'))) run('npm ci', app.dir);
 run(`npm install --no-save ${tarballs.map((file) => `"${file}"`).join(' ')}`, app.dir);
 

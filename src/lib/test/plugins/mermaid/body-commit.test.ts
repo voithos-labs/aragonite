@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { joinMermaidBody } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { joinMermaidBody } from '#packages/mermaid/src/mermaid-kind.js';
 
 // The edit textarea rewrites its value to LF, so a commit appending a bare `\n` turns a CRLF
 // diagram's body to LF while its fence lines keep `\r\n`: one edit, a block with mixed
@@ -16,6 +16,11 @@ describe('joinMermaidBody rejoins the draft with the authored line ending', () =
 
 	it('leaves an LF draft as `value + \\n` (unchanged behavior)', () => {
 		expect(joinMermaidBody('graph TD\n\tA --> B', '\n')).toBe('graph TD\n\tA --> B\n');
+	});
+
+	// An opener on the document's last line has no ending of its own to copy.
+	it('joins with LF when the opener line has no ending', () => {
+		expect(joinMermaidBody('graph TD\n\tA --> B', '')).toBe('graph TD\n\tA --> B\n');
 	});
 
 	it('commits an emptied body as the empty string (no stray line)', () => {

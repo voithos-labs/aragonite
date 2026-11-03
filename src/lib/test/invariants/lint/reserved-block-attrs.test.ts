@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, EDITOR_SRC, splitTopLevel, type SourceFile } from './scan-source';
+import { collectEditorSources, LIBRARY_ROOTS, splitTopLevel, type SourceFile } from './scan-source';
 import { RESERVED_BLOCK_ATTRS } from '#lib/decorations/reserved-attrs.js';
 
 // ── Derivation ──────────────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ const HOST = file(
 );
 
 describe('G4.70 a block decoration keeps off the attributes the editor uses on its element', () => {
-	const derived = deriveReserved(collectEditorSources(EDITOR_SRC, { includeStyles: true }));
+	const derived = deriveReserved(collectEditorSources(LIBRARY_ROOTS, { includeStyles: true }));
 
 	it('finds the decorated elements, so an empty scan cannot pass', () => {
 		expect(derived.has('data-block-path')).toBe(true);

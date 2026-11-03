@@ -8,7 +8,7 @@ Every piece of GFM syntax this editor handles, on one page, so you don't have to
 
 Sections 1 and 2 are the core, handled by the editor itself and in scope for 1.0. Section 3 is mostly plugins:
 
-- Alerts, diagrams, math, footnotes, collapsible sections and emoji shortcodes ship as bundled plugins (`@voithos-labs/aragonite/plugins/<name>`; each entry below names its plugin), written against the same API a third-party plugin gets.
+- Alerts, diagrams, math, footnotes, collapsible sections and emoji shortcodes ship as bundled plugins (`@voithos-labs/aragonite-<name>`; each entry below names its plugin), written against the same API a third-party plugin gets.
 - Syntax-highlighting aliases are the built-in code block's job.
 - Relative links aren't a syntax. The embedding app resolves them through the `resolveLinkUrl` prop, a function that takes the URL as written and returns the one the link should open.
 - GitHub-specific autolinks (`#123`, `@user`, bare commit SHAs) are left out on purpose, since they resolve against a repo the editor doesn't own ([plugin-contract.md § Explicitly excluded](../design/plugin-contract.md) has the ruling).

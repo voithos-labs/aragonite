@@ -11,8 +11,7 @@
 	import type { TextMoves } from '../overlays/text-moves';
 	import type { Reading } from '../../schema/reading';
 	import type { CommandDispatchContext } from '../../schema/block-commands';
-	import { commandForKey } from '../../schema/commands';
-	import { blockNodeAt } from '../../tree-operations/node-primitives';
+	import { opensLinkCard } from './opens-card';
 
 	// Mounted unconditionally by Editor: the anchoring and dismiss effects must observe the card's
 	// target changing, so the open/closed `{#if}` lives here rather than at the mount site.
@@ -95,29 +94,23 @@
 		return inCard;
 	}
 
-	function commit(url: string): void {
+	function commit(url: string, text: string): void {
 		const target = card.getTarget();
 		if (!target) return;
 		card.close();
-		linkCard.commitUrl(target, url);
+		linkCard.commit(target, url, text);
 	}
 
-	function commitCreate(url: string): void {
+	function commitCreate(url: string, text: string): void {
 		const target = card.getCreateTarget();
 		// An empty draft has nothing to write; Enter does nothing rather than closing the card
 		// having achieved nothing, which would drop the focus the card holds.
 		if (!target || url.trim() === '') return;
 		card.close();
-		linkCard.commitCreate(target, url);
+		linkCard.commitCreate(target, url, text);
 	}
 
-	// Resolved at the block the card edits, so a consumer's rebinding of the chord is the one
-	// the card takes.
-	function opensCard(e: KeyboardEvent): boolean {
-		const path = card.getTarget()?.path ?? card.getCreateTarget()?.path;
-		const kind = path ? (blockNodeAt(getDoc(), path)?.kind ?? null) : null;
-		return commandForKey(e, kind, commands) === 'link.openCard';
-	}
+	const opensCard = (e: KeyboardEvent): boolean => opensLinkCard(e, card, getDoc(), commands);
 
 	function remove(): void {
 		const target = card.getTarget();
@@ -138,6 +131,8 @@
 		>
 			{#key `${target.path.join(',')}@${target.sourceStart}`}
 				<LinkCard
+					text={resolved.text}
+					textEditable={resolved.textEditable}
 					url={resolved.url}
 					focusEpoch={card.getFocusEpoch()}
 					canWrite={linkCard.buildBytes(target, resolved.url) !== null}
@@ -159,6 +154,8 @@
 	>
 		{#key `${create.path.join(',')}@${create.start}-${create.end}`}
 			<LinkCard
+				text={linkCard.createText(create)}
+				textEditable={true}
 				url=""
 				focusEpoch={card.getFocusEpoch()}
 				canWrite={true}

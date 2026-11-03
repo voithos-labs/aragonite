@@ -11,16 +11,16 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { installPlugins, type EditorPlugin } from '#lib/schema/plugin-install.js';
 import { pluginKindOwner } from '#lib/schema/plugin-kind.js';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { detailsPlugin } from '#lib/plugins/details/index.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
-import { highlightOccurrencesPlugin } from '#lib/plugins/highlight-occurrences/index.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { mermaidPlugin } from '#lib/plugins/mermaid/index.js';
-import { parrotPlugin } from '#lib/plugins/parrot/index.js';
-import { slashCommandsPlugin } from '#lib/plugins/slash-commands/index.js';
-import { tocPlugin } from '#lib/plugins/toc/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { detailsPlugin } from '#packages/details/src/index.js';
+import { emojiPlugin } from '#packages/emoji/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { parrotPlugin } from '#packages/parrot/src/index.js';
+import { slashCommandsPlugin } from '#packages/slash-commands/src/index.js';
+import { tocPlugin } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
 const BUNDLED: Record<string, () => EditorPlugin> = {

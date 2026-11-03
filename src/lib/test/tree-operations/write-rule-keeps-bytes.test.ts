@@ -11,8 +11,8 @@ import { createUndoController } from '#lib/editor-actions/commit/undo-controller
 import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';

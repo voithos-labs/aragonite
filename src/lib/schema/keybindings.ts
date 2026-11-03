@@ -180,6 +180,88 @@ export function isMotionChord(chord: string): boolean {
 	);
 }
 
+/** What a key does by a focused text field's own default, whatever a keymap binds: `writes` types,
+ *  deletes, cuts, pastes or steps the history; `reads` moves the caret, grows a selection or copies. */
+export type TextKeyRole = 'writes' | 'reads';
+
+const TEXT_READ_CHORDS = new Set(['Mod+A', 'Mod+C', 'Mod+Insert']);
+const TEXT_WRITE_CHORDS = new Set([
+	'Mod+X',
+	'Mod+V',
+	'Mod+Shift+V',
+	'Shift+Insert',
+	'Mod+Z',
+	'Mod+Y',
+	'Mod+Shift+Z'
+]);
+
+// The keys `textKeyRole` reads with a modifier, letters only where Ctrl or Cmd makes them a command.
+const TEXT_KEY_CANDIDATES = [
+	'ArrowLeft',
+	'ArrowRight',
+	'ArrowUp',
+	'ArrowDown',
+	'Home',
+	'End',
+	'PageUp',
+	'PageDown',
+	'Backspace',
+	'Delete',
+	'Insert',
+	'A',
+	'C',
+	'X',
+	'V',
+	'Z',
+	'Y'
+];
+
+/** Every modifier chord `textKeyRole` names on this platform: what `reservedChords()` lists for
+ *  the text keys, read off the role itself. */
+export function textKeyChords(): string[] {
+	const mac = usesMacEditingConventions();
+	const chords = new Set<string>();
+	for (const key of TEXT_KEY_CANDIDATES) {
+		for (let mods = 1; mods < 8; mods++) {
+			const mod = (mods & 1) !== 0;
+			if (key.length === 1 && !mod) continue;
+			const e = {
+				key,
+				ctrlKey: mod && !mac,
+				metaKey: mod && mac,
+				altKey: (mods & 2) !== 0,
+				shiftKey: (mods & 4) !== 0
+			};
+			if (textKeyRole(e) !== null) chords.add(eventToChord(e)!);
+		}
+	}
+	return [...chords];
+}
+
+/** A paste chord: what the gap caret and a block focused whole take as a paste of blocks. */
+export function isPasteKey(e: ChordKeys): boolean {
+	const chord = eventToChord(e);
+	return chord === 'Mod+V' || chord === 'Mod+Shift+V' || chord === 'Shift+Insert';
+}
+
+/** The role a key plays in a text field, or null for a key no text field acts on by default. */
+export function textKeyRole(e: ChordKeys): TextKeyRole | null {
+	// Alt+ArrowUp and Down are no text field's: the editor's keymaps move blocks with them.
+	const vertical = (e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.altKey;
+	if (vertical || caretEdgeKey(e) || pageKey(e) || motionKey(e)) return 'reads';
+	const chord = eventToChord(e);
+	if (chord === null) return null;
+	if (TEXT_READ_CHORDS.has(chord)) return 'reads';
+	if (TEXT_WRITE_CHORDS.has(chord) || e.key === 'Backspace' || e.key === 'Delete') return 'writes';
+	return typesCharacter(e) ? 'writes' : null;
+}
+
+/** A key that types its character: no command modifier, or Ctrl+Alt, which is AltGr off a Mac. */
+function typesCharacter(e: ChordKeys): boolean {
+	if (!isCharacterKey(e.key) || e.metaKey) return false;
+	return !e.ctrlKey || (e.altKey && !usesMacEditingConventions());
+}
+
 export function normalizeChord(chord: string): string {
 	const parts = chord.split('+');
 	const key = parts.pop() ?? '';

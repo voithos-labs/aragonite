@@ -211,6 +211,7 @@ export const MEMBER_SOURCES = {
 	getSelectedText: 'view',
 	setSelection: 'view',
 	measurePartialRects: 'view',
+	caretBounds: 'editor',
 	getCommandContext: 'view',
 	isCommandActive: 'view',
 	runCommand: 'view',
@@ -231,7 +232,8 @@ export const MEMBER_SOURCES = {
 	mountedRowWindow: 'editor',
 	getSelectionOffsets: 'editor',
 	applyMenuClipboard: 'editor',
-	claimRootClipboard: 'editor'
+	claimRootClipboard: 'editor',
+	containerChordTarget: 'editor'
 } as const satisfies Record<keyof BlockComponent, MemberSource>;
 
 type HandBuiltMember = {

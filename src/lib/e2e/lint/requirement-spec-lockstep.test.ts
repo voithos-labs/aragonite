@@ -18,6 +18,8 @@ import {
 
 const SPEC_DIR = 'src/lib/e2e/tests';
 const REQUIREMENT_DIR = 'src/lib/e2e/requirements';
+// The device rows' requirements pair with `scripts/mobile/` instead (`mobile-rows-lockstep.test.ts`).
+const MOBILE_ROWS_DIR = 'mobile/';
 
 // ── Rule 3's named divergences ──────────────────────────────────────────────
 
@@ -242,7 +244,7 @@ function scanLockstep(): Lockstep {
 		pairs,
 		specsWithoutRequirement,
 		requirementsWithoutSpec: requirements.filter(
-			(file) => !claimedBy.has(file.replace(/\.md$/, ''))
+			(file) => !file.startsWith(MOBILE_ROWS_DIR) && !claimedBy.has(file.replace(/\.md$/, ''))
 		),
 		stemCollisions: [...claimedBy]
 			.filter(([, claimants]) => claimants.length > 1)

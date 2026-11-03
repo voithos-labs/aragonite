@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
-import { collectReservedChords, chordIsClaimed } from '#lib/schema/reserved-chords.js';
+import { collectReservedChords } from '#lib/schema/reserved-chords.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
@@ -11,10 +11,6 @@ registerBuiltInDescriptors();
 
 const chords = (searchBar = true) =>
 	collectReservedChords({ searchBar, activation: everyInstalledPlugin });
-
-function ke(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
-	return new KeyboardEvent('keydown', init);
-}
 
 describe('collectReservedChords: sources', () => {
 	it('unions the kind keymaps and the editor-global keymap', () => {
@@ -86,14 +82,9 @@ describe('collectReservedChords: per-instance overrides', () => {
 		expect(withOverrides([{ chord: 'Mod+B', command: null }]).has('Mod+B')).toBe(false);
 	});
 
-	// Disabling Mod+Z releases it to the host while focus is outside the editor; inside the editor
-	// the keypress is still swallowed.
-	it('drops a disabled global chord even though the branches still consume it', () => {
-		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(false);
-	});
-
-	it('keeps a hardcoded chord a global disable cannot reach', () => {
-		// Mod+C is read straight off the keydown, so unbinding it in the keymap changes nothing.
+	it('keeps a text key a global disable cannot reach', () => {
+		// The browser's own undo and copy would run on them, so the editor still takes them.
+		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(true);
 		expect(withOverrides([{ chord: 'Mod+C', command: null }]).has('Mod+C')).toBe(true);
 	});
 
@@ -104,54 +95,22 @@ describe('collectReservedChords: per-instance overrides', () => {
 	});
 });
 
-describe('chordIsClaimed: the editor normalization, not the caller', () => {
-	const set = chords();
-
-	it('folds Ctrl and Cmd to one answer', () => {
-		expect(chordIsClaimed(ke({ key: 'b', ctrlKey: true }), set)).toBe(true);
-		expect(chordIsClaimed(ke({ key: 'b', metaKey: true }), set)).toBe(true);
-	});
-
-	it('matches a CapsLock-uppercased letter', () => {
-		expect(chordIsClaimed(ke({ key: 'B', ctrlKey: true }), set)).toBe(true);
-	});
-
-	it('reads modifiers in any order the platform reports them', () => {
-		expect(chordIsClaimed(ke({ key: 'z', ctrlKey: true, shiftKey: true }), set)).toBe(true);
-		expect(chordIsClaimed(ke({ key: 'ArrowUp', altKey: true }), set)).toBe(true);
-	});
-
-	it('declines an unclaimed chord, a bare key, and a lone modifier', () => {
-		expect(chordIsClaimed(ke({ key: 'q', ctrlKey: true }), set)).toBe(false);
-		expect(chordIsClaimed(ke({ key: 'b' }), set)).toBe(false);
-		expect(chordIsClaimed(ke({ key: 'Enter' }), set)).toBe(false);
-		expect(chordIsClaimed(ke({ key: 'Control', ctrlKey: true }), set)).toBe(false);
-	});
-
-	it('declines a modified variant of a claimed chord', () => {
-		expect(chordIsClaimed(ke({ key: 'b', ctrlKey: true, altKey: true }), set)).toBe(false);
-	});
-});
-
 // Cmd+Arrow is macOS's Home and End, which the edge sites take; the chord form folds Ctrl+Arrow, the
-// word motion of Windows and Linux, into the same `Mod+Arrow`, so a keystroke is read for itself.
-describe('the Cmd+Arrow edge chords', () => {
-	const set = (cmdEdgeChords: boolean) =>
-		collectReservedChords({ searchBar: true, activation: everyInstalledPlugin, cmdEdgeChords });
+// word motion of Windows and Linux, into the same `Mod+Arrow`.
+describe('the text keys', () => {
+	afterEach(() => vi.unstubAllGlobals());
 
-	it('are listed only where Cmd is the command key', () => {
-		expect(set(true).has('Mod+ArrowLeft')).toBe(true);
-		expect(set(false).has('Mod+ArrowLeft')).toBe(false);
+	// Ctrl+← is the word key off a Mac and Cmd+← a line edge on one: either way the caret's.
+	it('list the caret keys on every platform, read off the platform', () => {
+		expect(chords().has('Mod+ArrowLeft')).toBe(true);
+		vi.stubGlobal('navigator', { platform: 'MacIntel' });
+		expect(chords().has('Mod+ArrowLeft')).toBe(true);
+		expect(chords().has('Alt+Shift+ArrowRight')).toBe(true);
 	});
 
-	it('claim Cmd+Arrow and leave Ctrl+Arrow to the browser', () => {
-		expect(chordIsClaimed(ke({ key: 'ArrowLeft', metaKey: true }), set(false))).toBe(true);
-		expect(chordIsClaimed(ke({ key: 'ArrowUp', metaKey: true, shiftKey: true }), set(false))).toBe(
-			true
-		);
-		expect(chordIsClaimed(ke({ key: 'ArrowLeft', ctrlKey: true }), set(false))).toBe(false);
-		expect(
-			chordIsClaimed(ke({ key: 'ArrowRight', metaKey: true, shiftKey: true }), set(false))
-		).toBe(false);
+	it('list the clipboard chords', () => {
+		for (const chord of ['Mod+C', 'Mod+X', 'Mod+V', 'Shift+Insert']) {
+			expect(chords().has(chord), chord).toBe(true);
+		}
 	});
 });

@@ -39,6 +39,7 @@ const RANGE_SAFE: Record<string, string> = {
 	'cell.tab': 'grid navigation between cells',
 	'cell.shiftTab': 'grid navigation between cells',
 	'cell.lineBreak': 'inserts a `<br>` at the caret the range collapses to, never across the range',
+	'cell.openMenu': 'opens the cell menu, which reads no range',
 	'table.insertRowBelow': 'grid structure, addressed by row index',
 	'table.insertRowAbove': 'grid structure, addressed by row index',
 	'table.insertColumnRight': 'grid structure, addressed by column index',

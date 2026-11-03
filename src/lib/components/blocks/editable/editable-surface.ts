@@ -5,6 +5,7 @@
  * handling. Each block supplies a SurfaceBackend for its offsets; live state comes as functions.
  */
 
+import type { ContainerChords } from '../../../editor-actions/container-chords';
 import { tick } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type {
@@ -262,6 +263,7 @@ export interface EditableSurfaceDeps {
 	/** What the editor shows, for an arrow in a block taller than that with no caret, and where a
 	 *  page key steps to. */
 	scrollOwner: Pick<ScrollOwner, 'port' | 'visibleBand' | 'showRect' | 'pathAt'>;
+	containerChords: Pick<ContainerChords, 'take'>;
 
 	// ── The per-block reads `SharedKeydownContext` needs ──────────────────────
 	/** The selection's focus endpoint as a raw offset; each block converts its own DOM read. */
@@ -379,7 +381,7 @@ export interface EditableSurface {
 	/** The input commit for an edit the block spliced itself, which has no event to read. */
 	commitInput: () => void;
 	onCompositionStart: () => void;
-	onCompositionEnd: () => void;
+	onCompositionEnd: (e?: CompositionEvent) => void;
 	/** Whether this block's element hosts the composition in progress. */
 	composing(): boolean;
 	/** The caret before the edit in progress: what an edit a block commits itself anchors on. */
@@ -402,6 +404,7 @@ export interface EditableSurfaceMethods {
 	getSelectedText(): string;
 	setSelection(start: number, end: number): void;
 	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
+	caretBounds(): { start: number; end: number };
 	typeText(text: string, offset: number): Promise<boolean>;
 }
 
@@ -442,6 +445,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	const sharedCtx: SharedKeydownContext = {
 		getEl: () => deps.getEl(),
+		caretBounds: () => caretBounds(),
 		getCursorOffset: () => deps.backend.getRaw(),
 		getFocusOffset: deps.getFocusOffset,
 		getTextLen: deps.getTextLen,
@@ -541,6 +545,11 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		});
 	}
 
+	function caretBounds(): { start: number; end: number } {
+		const el = deps.getEl();
+		return el ? caretReachableBounds(sharedCtx, el) : { start: 0, end: deps.getTextLen() };
+	}
+
 	const surface: EditableSurfaceMethods = {
 		focus,
 		parkCaret,
@@ -549,6 +558,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getSelectedText,
 		setSelection,
 		measurePartialRects,
+		caretBounds,
 		typeText
 	};
 
@@ -633,7 +643,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		requestCaret: deps.requestCaret,
 		ownPairs: deps.ownPairs,
 		holdInsertion,
-		showsSource: deps.showsSource
+		showsSource: deps.showsSource,
+		reading: deps.reading
 	});
 
 	function command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R {
@@ -674,9 +685,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 				}
 			: undefined,
 		atEdge: (caret, direction) => {
-			const el = deps.getEl();
-			if (!el) return false;
-			const bounds = caretReachableBounds(sharedCtx, el);
+			if (!deps.getEl()) return false;
+			const bounds = caretBounds();
 			return direction === 'backward' ? caret <= bounds.start : caret >= bounds.end;
 		},
 		runPlainKey: (key) => {
@@ -716,10 +726,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			return;
 		}
 		recordPreEditOffset();
+		// Read before the handler, which may unmount this block.
+		const from = deps.getMyPath();
 		if (e.key === 'Enter') enterKeydown = e;
 		deleteKeydown = e.key === 'Backspace' || e.key === 'Delete' ? e : null;
 		try {
 			await deps.handleKeydown(e);
+			// Last, once the block's own keys passed: what the containers around it bind.
+			deps.containerChords.take(e, from);
 			if (deleteKeydown === e) decideDeleteChord(e, deleteReads);
 			else decideTypedKey(e, typedReads);
 		} finally {
@@ -890,8 +904,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (deps.getEl() && deps.composition.adopt(e, owner)) openComposition();
 	}
 
-	function onCompositionEnd(): void {
+	function onCompositionEnd(e?: CompositionEvent): void {
 		const paired = deps.composition.end(owner);
+		if (e) deps.compositionSeat?.noteCommit(e.data);
 		// A composition opens at its start or at its first run, so an unpaired end means a consumer
 		// wired compositionend without compositionstart.
 		assertInvariant('composition-window', () => checkCompositionEndPaired(paired));

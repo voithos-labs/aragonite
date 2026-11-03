@@ -256,14 +256,19 @@ export interface EditorInstance {
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
 	/**
-	 * Every modifier chord this instance consumes, normalized (`Mod` covers Ctrl and Cmd), composed
-	 * live from the kind keymaps, command tables, active plugins, `keybindings` overrides and search,
-	 * so a host's accelerator table is derived. Bare keys aren't listed, nor is a chord turned off
-	 * with `command: null`, which the editor still swallows so it can't bypass the undo stack.
+	 * Every modifier chord `claimsChord` can answer true for somewhere, normalized (`Mod` covers Ctrl
+	 * and Cmd): every block kind's keymap, the text keys, active plugins, `keybindings` and search,
+	 * composed live, for a host's accelerator table. Bare keys aren't listed, nor is a keymap chord
+	 * turned off with `command: null`, unless it's also a text key (undo, redo), which stays. For the
+	 * keystroke in hand, ask `claimsChord`.
 	 */
 	reservedChords(): ReadonlySet<string>;
-	/** Whether this instance consumes that keystroke, answered with the editor's own chord
-	 *  normalization so a host never re-implements the Ctrl-equals-Cmd rule. */
+	/**
+	 * Whether this instance takes that keystroke where it lands, bare or chorded: the target block's
+	 * keymap and its containers', the global chords, and the keys a block edits or moves through
+	 * itself. Read off the event's target, or focus for an event never dispatched; `false` in a host's
+	 * own field, and with nothing focused only undo and redo. Ctrl and Cmd read alike.
+	 */
 	claimsChord(event: KeyboardEvent): boolean;
 }
 

@@ -4,7 +4,7 @@
 // edit, ran its caret-edge gestures on top-level blocks only, and no unit gave the join a container.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { parseInline, getContentRange } from '#lib/core/inline/index.js';

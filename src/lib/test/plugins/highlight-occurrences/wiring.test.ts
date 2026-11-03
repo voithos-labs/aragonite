@@ -12,9 +12,9 @@ import { resetPluginPlatformForTests } from '#lib/testing.js';
 import {
 	highlightOccurrencesPlugin,
 	type HighlightOccurrencesOptions
-} from '#lib/plugins/highlight-occurrences/index.js';
-import { TYPING_PAUSE_MS } from '#lib/plugins/highlight-occurrences/typing-pause.js';
-import { OCCURRENCE_CLASS } from '#lib/plugins/highlight-occurrences/occurrences.js';
+} from '#packages/highlight-occurrences/src/index.js';
+import { TYPING_PAUSE_MS } from '#packages/highlight-occurrences/src/typing-pause.js';
+import { OCCURRENCE_CLASS } from '#packages/highlight-occurrences/src/occurrences.js';
 import { onEditorCallbacks } from '#lib/schema/plugin-install.js';
 
 function caret(path: number[], offset: number): EditorSelection {

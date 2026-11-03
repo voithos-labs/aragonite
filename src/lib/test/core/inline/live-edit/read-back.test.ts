@@ -10,8 +10,8 @@ import { keepsKindAt, readBack, shownOf } from '#lib/core/inline/live-edit/read-
 import { fixtureReading } from '../../../harness/fixture-grammar';
 import { testView } from '../../../harness/test-view';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
 
 function at(source: string, path: number[]) {
 	const doc = parse(source);

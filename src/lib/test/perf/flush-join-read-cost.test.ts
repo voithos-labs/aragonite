@@ -10,9 +10,9 @@ import { legalizeWrite, type WriteTarget } from '#lib/tree-operations/content-wr
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { installPlugins } from '#lib';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { detailsPlugin } from '#packages/details/src/index.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

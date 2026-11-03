@@ -11,7 +11,7 @@ import {
 	createAutoPairRecord,
 	type AutoPairRecord
 } from '#lib/components/blocks/text/auto-pair-record.js';
-import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathInline } from '#packages/latex/src/latex-kind.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 /** A block's line under the handler, with the browser's own edit where the handler declines. */

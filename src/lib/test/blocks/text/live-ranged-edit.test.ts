@@ -109,15 +109,15 @@ describe('a destructive chord at a collapsed caret reaches the join', () => {
 		expect(committed(mounted.blockEdit)).toEqual(['**X**ail\n']);
 	});
 
-	// The payload is part of what the cleanup checks: `**brave**` strands nothing, so it
-	// refuses and the replacement stays inside the run the user saw.
-	it('leaves a replacement that fills the run to the browser', async () => {
+	// The browser edits the selection as the DOM holds it, which can sit on either side of a
+	// hidden run, so the editor writes a replacement that fills the run too.
+	it('writes a replacement that fills the run itself', async () => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 6, 6);
 		const e = await press(mounted.el, 'insertReplacementText', { start: 2, end: 6 }, 'brave');
 
-		expect(e.defaultPrevented).toBe(false);
-		expect(committed(mounted.blockEdit)).toEqual([]);
+		expect(e.defaultPrevented).toBe(true);
+		expect(committed(mounted.blockEdit)).toEqual(['**brave** tail\n']);
 	});
 
 	// A payload carried only on a `dataTransfer` would reach the reparse without the paste
@@ -145,16 +145,31 @@ describe('the same gestures over a real selection', () => {
 	});
 });
 
-describe('what the branch leaves to the browser', () => {
+// Miss-analysis: #809, every row here wrote a range the browser's DOM edit agreed with, so a
+// selection reaching a hidden run at the block's start or end was left to the browser.
+describe('a range the editor writes, never the browser', () => {
 	it('a range crossing no hidden run', async () => {
 		mounted = mountText('plain words here\n');
 		seat(mounted.el, 0, 6);
 		const e = await press(mounted.el, 'deleteContentBackward', { start: 0, end: 6 });
 
-		expect(e.defaultPrevented).toBe(false);
-		expect(committed(mounted.blockEdit)).toEqual([]);
+		expect(e.defaultPrevented).toBe(true);
+		expect(committed(mounted.blockEdit)).toEqual(['words here\n']);
 	});
 
+	// A select-all reads from before the hidden `[` to past `](u)`; the typed text replaces what
+	// the selection shows, which is the link's whole text, so the link goes.
+	it('a whole block that is one link, typed over', async () => {
+		mounted = mountText('[here](u)\n');
+		mounted.el.focus();
+		const e = await press(mounted.el, 'insertText', { start: 0, end: 9 }, 'X');
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(committed(mounted.blockEdit)).toEqual(['X\n']);
+	});
+});
+
+describe('what the branch leaves to the browser', () => {
 	// Paste and composition have their own handling, so taking one here writes the block twice;
 	// the composition's delete types are what an insert-only list misses.
 	it.each([

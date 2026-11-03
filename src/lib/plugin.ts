@@ -210,7 +210,7 @@ export { registerGlobalCommand } from './schema/global-commands';
 export { parse, type ParseScope } from './core/parser';
 export type { Document } from './core/nodes';
 export { serialize, concatChildren as serializeChildren } from './core/serializer';
-export { trimTrailingLineEnding, normalizeLineEndings } from './core/lines';
+export { trimTrailingLineEnding, normalizeLineEndings, withLineEnding } from './core/lines';
 // The `ParsedLine[]` every line-based helper here takes; without it a `source →
 // source` transform holding nothing but a string could not reach `blockquoteExtent`.
 export { splitLines } from './core/lines';
@@ -230,6 +230,8 @@ export type { LineEnding } from './core/lines';
 // `String.trim()` and JS `\s` would also take a non-breaking space, which is content.
 export { isBlankLine } from './core/parser';
 export { isBlankText, isWhitespaceChar, trimWhitespace } from './core/lines';
+// The Unicode whitespace emphasis reads beside a delimiter, for a plugin's own delimiter run.
+export { isUnicodeWhitespace } from './core/inline/scan/chars';
 // A body between marker lines of its own (`:::note` … `:::`) parses here, not with `parse`: the
 // blank line against a marker line is a separator (`docs/design/syntax-tree.md` § Blank lines).
 export { parseContainerBody } from './core/parser';
@@ -267,6 +269,7 @@ export { blockquoteExtent } from './core/parsers/blockquote';
 // A container whose every line carries a prefix rebuilds through `rebuildStripRaw`, which keeps
 // every line an edit didn't touch; a `LineCodec` (`quoteLines`, `hangingIndentLines`) is the prefix.
 export { rebuildStripRaw } from './schema/strip-rebuild';
+export type { StripRebuild, StripRebuildOptions } from './schema/strip-rebuild';
 export { quoteLines } from './core/parsers/blockquote';
 export { hangingIndentLines } from './core/strip-lines';
 export type { LineCodec, LinePlace, BodyLine } from './core/strip-lines';

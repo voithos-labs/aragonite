@@ -2,10 +2,10 @@
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { computeInlineContent } from '#lib/plugin.js';
 import { buildCoreInlineWidget, getInlineWidgetEditing } from '#lib/core/inline/inline-widgets.js';
-import { registerMathInline, MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathInline, MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 
 const isMath = (n: InlineNode) => n.kind === MATH_INLINE;
 const mathNodesIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isMath);
@@ -55,6 +55,17 @@ describe('$ flanking recognition', () => {
 		expect(mathNodesIn('$\u00a0x$')).toHaveLength(0);
 		expect(mathNodesIn('$x\u00a0$')).toHaveLength(0);
 	});
+
+	// Miss-analysis: the cases drew only ASCII and the non-breaking space, never a character where
+	// JS `\s` and Markdown's Unicode whitespace disagree.
+	for (const ch of [' ', ' ', '　', '\u000b', ' ', '﻿', '​']) {
+		const code = `U+${ch.codePointAt(0)?.toString(16).padStart(4, '0')}`;
+		it(`reads ${code} beside a delimiter as emphasis does`, () => {
+			const emphasis = parseInline(`*${ch}x*`, 0, 3 + ch.length).some((n) => n.kind === 'emphasis');
+			expect(mathNodesIn(`$${ch}x$`).length > 0).toBe(emphasis);
+			expect(mathNodesIn(`$x${ch}$`).length > 0).toBe(emphasis);
+		});
+	}
 
 	it('spans the full $…$ with start at the open $', () => {
 		const [node] = mathNodesIn('a $x^2$ b');

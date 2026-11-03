@@ -4,12 +4,12 @@ Part of the [plugin guide](../plugin-guide.md). Its worked examples are the parr
 
 Content that's _itself editable_ comes in four tiers, all of them pre-freeze:
 
-| Tier              | What it hosts                                                                    |
-| ----------------- | -------------------------------------------------------------------------------- |
-| **Container**     | Real document blocks in a nested child list; the walkthrough's body              |
-| **Chrome leaf**   | One reserved, single-line, plain-text child whose bytes the container's raw owns |
-| **Editable leaf** | A standalone text surface with native caret/IME/undo/selection/clipboard parity  |
-| **Atomic widget** | An opaque, non-text embed, which the caret can address only at its edges         |
+| Tier | What it hosts |
+| --- | --- |
+| **Container** | Real document blocks in a nested child list; the walkthrough's body |
+| **Chrome leaf** | One reserved, single-line, plain-text child whose bytes the container's raw owns |
+| **Editable leaf** | A standalone text surface with native caret/IME/undo/selection/clipboard parity |
+| **Atomic widget** | An opaque, non-text embed, which the caret can address only at its edges |
 
 The chrome leaf is deliberately narrow, and each limit is a guarantee its container can lean on:
 
@@ -149,9 +149,9 @@ leaf.getEditor(); // this editor's EditorContext for your plugin, undefined in a
 What a DOM view gets by attaching, a component gets from spreads:
 
 - **`<div {...leaf.surfaceProps}>`** on the source contenteditable puts the handlers and attributes on it. Add your own `class` / `aria-label`, plus **`bind:this`**, since the factory only reaches the element through `getEl()`.
-- **`renderProps`** goes on the folded view of a render-primary block, as the quickstart's parrot does. Put it on a wrapper the reveal never unmounts and the whole folded surface, chrome included, is one click target.
+- **`renderProps`** goes on the folded view of a render-primary block, where the quickstart's DOM parrot calls `attachRendered`. Put it on a wrapper the reveal never unmounts and the whole folded surface, chrome included, is one click target.
 - `mode` picks plain or render-primary, and you own the swap flag (`isRevealed` / `setRevealed`) where a DOM view reads `state.revealed`.
 - `renderSource`, `reshapeSource` and `onSourceEdit(text)` (the DOM view's `afterInput`) are deps.
 - `leaf.getOptions<MyOptions>()` returns this editor's options typed as you name them, and just your `defaults` with no editor around (a component mounted bare in a unit test), once your plugin is installed.
 
-Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example, and it's smaller than you'd expect: the factory call with a painted source, one render effect (KaTeX), the spread, and the `blockApi` export. Registration is the ordinary leaf recipe plus an on-type completer for a lone `$$`. Its `caretTargetAtPoint` is worth a look too: KaTeX paints glyphs no offset maps back to, so the render effect stamps the formula's span on the rendered element and the hook walks that span in proportion to how far along the click fell.
+Block math (`$$…$$` in the bundled `@voithos-labs/aragonite-latex` plugin) is the worked example, and it's smaller than you'd expect: the factory call with a painted source, one render effect (KaTeX), the spread, and the `blockApi` export. Registration is the ordinary leaf recipe plus an on-type completer for a lone `$$`. Its `caretTargetAtPoint` is worth a look too: KaTeX paints glyphs no offset maps back to, so the render effect stamps the formula's span on the rendered element and the hook walks that span in proportion to how far along the click fell.

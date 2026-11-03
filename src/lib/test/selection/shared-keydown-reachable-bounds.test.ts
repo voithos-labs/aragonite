@@ -9,7 +9,11 @@ vi.mock('../../selection/keyboard-extend', () => ({
 	extendWithinBlock: vi.fn()
 }));
 
-import { handleSharedKeydown, type SharedKeydownContext } from '../../selection/shared-keydown';
+import {
+	handleSharedKeydown,
+	type SharedKeydownContext,
+	caretReachableBounds
+} from '../../selection/shared-keydown';
 import { extendFocusToPreviousBlock } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
@@ -62,6 +66,10 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			getCursorOffset: () => offset,
 			getFocusOffset: () => offset,
 			getTextLen: () => source.replace(/\n+$/, '').length,
+			caretBounds() {
+				const el = this.getEl();
+				return el ? caretReachableBounds(this, el) : { start: 0, end: this.getTextLen() };
+			},
 			getMyPath: () => [0],
 			getIndex: () => 1,
 			crossBlock: {

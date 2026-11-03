@@ -4,7 +4,7 @@
  * Miss-analysis: no scan read the CSS for newer syntax, so a bare `color-mix` shipped in 0.11.0.
  */
 import { describe, it, expect } from 'vitest';
-import { balancedBlock, collectEditorSources, EDITOR_SRC } from './scan-source';
+import { balancedBlock, collectEditorSources, LIBRARY_ROOTS } from './scan-source';
 import { SOURCE } from './source-paths';
 
 const FEATURES: ReadonlyArray<[RegExp, string]> = [
@@ -55,7 +55,7 @@ function floorViolations(relPath: string, code: string): string[] {
 }
 
 describe('G4.207 shipped CSS keeps newer syntax behind @supports', () => {
-	const files = collectEditorSources(EDITOR_SRC, { includeStyles: true });
+	const files = collectEditorSources(LIBRARY_ROOTS, { includeStyles: true });
 	const found = files
 		.filter((f) => f.relPath.endsWith('.css') || f.relPath.endsWith('.svelte'))
 		.flatMap((f) => floorViolations(f.relPath, f.code));

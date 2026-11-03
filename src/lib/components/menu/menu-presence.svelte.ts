@@ -30,6 +30,8 @@ export interface MenuTrackOptions {
 export interface MenuPresence {
 	/** A getter, so a reader re-runs when a menu opens or closes. */
 	readonly isOpen: boolean;
+	/** Whether a press of Escape now goes to a menu, an uncounted one included. */
+	readonly takesEscape: boolean;
 	/** Attach to a menu's root element with the menu's own close. */
 	track(close: MenuClose, opts?: MenuTrackOptions): Attachment;
 	/** As `track`, for a popover that hangs off chrome which itself steps aside on `menuChange`:
@@ -122,6 +124,9 @@ export function createMenuPresence(deps: MenuPresenceDeps): MenuPresence {
 	return {
 		get isOpen() {
 			return count > 0;
+		},
+		get takesEscape() {
+			return open.length > 0;
 		},
 		track: (close, opts) => attach(close, opts, true),
 		trackUncounted: (close, opts) => attach(close, opts, false),

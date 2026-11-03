@@ -7,12 +7,12 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { activateDirectives } from '#lib/components/blocks/directive/activate-directives.js';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
-import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#lib/plugins/latex/latex-kind.js';
-import { registerMermaidKind, MERMAID } from '#lib/plugins/mermaid/mermaid-kind.js';
-import { registerDetailsKind, DETAILS } from '#lib/plugins/details/details-kind.js';
-import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
-import { ADMONITION } from '#lib/plugins/admonitions/kinds.js';
-import { registerTocBlock, TOC_BLOCK } from '#lib/plugins/toc/toc-plugin.js';
+import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#packages/latex/src/latex-kind.js';
+import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
+import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
+import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
+import { ADMONITION } from '#packages/admonitions/src/kinds.js';
+import { registerTocBlock, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // Every declared `conformanceFixture` parses to a tree containing the kind that declared it

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { setPluginMetadata } from '#lib/plugin.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { reclassifyContainer } from '#lib/tree-operations/index.js';
 import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
 import { createGrammarView, defaultGrammarView } from '#lib/schema/block-openers.js';

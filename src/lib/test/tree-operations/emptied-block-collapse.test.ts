@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { Document } from '#lib/core/nodes.js';
-import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
+import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';

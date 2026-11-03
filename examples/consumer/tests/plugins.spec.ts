@@ -49,7 +49,7 @@ test('inline math renders as a widget, not literal dollars', async ({ page }) =>
 });
 
 test('math paints once — katex.min.css rides the packaged renderer adapter', async ({ page }) => {
-	// The stylesheet rides `@voithos-labs/aragonite/plugins/latex/renderer` as a bare side-effect import.
+	// The stylesheet rides `@voithos-labs/aragonite-latex/renderer` as a bare side-effect import.
 	// Without it KaTeX's `.katex-mathml` a11y half lays out at glyph size beside the render.
 	const widget = page.locator('.math-inline-widget').first();
 	await expect(widget.locator('.katex-html')).toHaveCount(1);
@@ -99,9 +99,9 @@ test('unregistered directive round-trips byte-for-byte through the generic fallb
 });
 
 // The two below assert resolution, not emoji/footnote behavior (the in-repo plugin e2e suites
-// own that): the packaged subpath installs and paints from outside the repo.
+// own that): the published package installs and paints from outside the repo.
 
-test('emoji paints the glyph from the packaged subpath while the shortcode stays in the source', async ({
+test('emoji paints the glyph from its package while the shortcode stays in the source', async ({
 	page
 }) => {
 	await expect(page.locator('.md-emoji-widget')).toHaveText('✨');

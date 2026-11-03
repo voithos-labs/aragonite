@@ -18,18 +18,18 @@ it(
 		const { registerEditorBuiltIns } = await import('#lib/components/editor-built-ins.js');
 		const { installPlugins } = await import('#lib/schema/plugin-install.js');
 		const plugins = await Promise.all([
-			import('#lib/plugins/admonitions/index.js').then((m) => m.admonitionsPlugin()),
-			import('#lib/plugins/details/index.js').then((m) => m.detailsPlugin()),
-			import('#lib/plugins/emoji/index.js').then((m) => m.emojiPlugin()),
-			import('#lib/plugins/footnotes/index.js').then((m) => m.footnotesPlugin()),
-			import('#lib/plugins/highlight-occurrences/index.js').then((m) =>
+			import('#packages/admonitions/src/index.js').then((m) => m.admonitionsPlugin()),
+			import('#packages/details/src/index.js').then((m) => m.detailsPlugin()),
+			import('#packages/emoji/src/index.js').then((m) => m.emojiPlugin()),
+			import('#packages/footnotes/src/index.js').then((m) => m.footnotesPlugin()),
+			import('#packages/highlight-occurrences/src/index.js').then((m) =>
 				m.highlightOccurrencesPlugin()
 			),
-			import('#lib/plugins/latex/index.js').then((m) => m.latexPlugin()),
-			import('#lib/plugins/mermaid/index.js').then((m) => m.mermaidPlugin()),
-			import('#lib/plugins/parrot/index.js').then((m) => m.parrotPlugin()),
-			import('#lib/plugins/slash-commands/index.js').then((m) => m.slashCommandsPlugin()),
-			import('#lib/plugins/toc/index.js').then((m) => m.tocPlugin())
+			import('#packages/latex/src/index.js').then((m) => m.latexPlugin()),
+			import('#packages/mermaid/src/index.js').then((m) => m.mermaidPlugin()),
+			import('#packages/parrot/src/index.js').then((m) => m.parrotPlugin()),
+			import('#packages/slash-commands/src/index.js').then((m) => m.slashCommandsPlugin()),
+			import('#packages/toc/src/index.js').then((m) => m.tocPlugin())
 		]);
 
 		expect(() => {

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
 import { getPluginMetadata, rowContentRange, type CstNode } from '#lib/plugin.js';
-import { admonitionsPlugin, convertGithubAlerts } from '#lib/plugins/admonitions/index.js';
-import type { AdmonitionMetadata } from '#lib/plugins/admonitions/kinds.js';
+import { admonitionsPlugin, convertGithubAlerts } from '#packages/admonitions/src/index.js';
+import type { AdmonitionMetadata } from '#packages/admonitions/src/kinds.js';
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
 
 beforeEach(() => {

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { WORD_CHAR } from '../plugins/highlight-occurrences/word-char';
+import { WORD_CHAR } from '../../../packages/highlight-occurrences/src/word-char';
 
 /**
  * The `/` demo document as bytes. It is rewritten by hand, so the specs on that route work out

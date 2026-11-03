@@ -5,10 +5,10 @@
 // Miss-analysis (#800): every fresh row typed a fence, so none typed an opener that backs out.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { typingOver } from '#lib/test/harness/typing.js';
 

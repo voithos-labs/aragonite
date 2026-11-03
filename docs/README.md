@@ -6,11 +6,11 @@ New here? Run it with the root [`README.md`](../README.md) (which also argues wh
 
 ## Start here
 
-| If you want to…                     | Read                                                                                                                                   |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Understand how the editor works** | [`design/editor.md`](design/editor.md)                                                                                                 |
-| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md)                                                                                   |
-| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md), then its [testing](guide/plugin-testing.md) and [API](guide/plugin-api.md) pages     |
+| If you want to… | Read |
+| --- | --- |
+| **Understand how the editor works** | [`design/editor.md`](design/editor.md) |
+| **Embed the editor in an app** | [`guide/consumer-guide.md`](guide/consumer-guide.md) |
+| **Write a plugin** | [`guide/plugin-guide.md`](guide/plugin-guide.md), then its [testing](guide/plugin-testing.md) and [API](guide/plugin-api.md) pages |
 | **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) to set up, then [`contributing/first-hour.md`](contributing/first-hour.md) for what to read |
 
 Everything else hangs off those four. The folders are split by **audience**, not by topic, so don't be surprised when the same subsystem shows up in two of them wearing different hats.
@@ -19,74 +19,74 @@ Everything else hangs off those four. The folders are split by **audience**, not
 
 One spec per subsystem, for anyone changing the editor's insides. Start with `editor.md` whatever the task, and open another only when your task touches its subsystem. Working through all twelve up front is a great way to feel productive without becoming useful; let the other eleven be somebody else's afternoon.
 
-| Doc                                                          | Scope                                                                                                                    |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| [`design/editor.md`](design/editor.md)                       | The orientation point: the whole system's shape, and where each subsystem's spec lives. **Start here**                   |
-| [`design/structural-edits.md`](design/structural-edits.md)   | Split, merge, delete, move, the keys that trigger them, and the containers (quotes, lists, tables) that nest blocks      |
-| [`design/commit-and-undo.md`](design/commit-and-undo.md)     | The commit every structural edit runs through, the undo stack, and the events a host can subscribe to                    |
-| [`design/syntax-tree.md`](design/syntax-tree.md)             | The document tree, where every node keeps its exact source bytes: the node model, the parser, the Markdown covered       |
-| [`design/inline-parsing.md`](design/inline-parsing.md)       | How the text inside a block (`**bold**` and friends) becomes styled spans, markers still visible                         |
-| [`design/virtual-rendering.md`](design/virtual-rendering.md) | Why a 10 MB document types like a small one: only the blocks on screen are rendered                                      |
-| [`design/live-mode.md`](design/live-mode.md)                 | The fully rendered mode that stays editable: the rules for editing around markers nobody can see                         |
-| [`design/caret-placement.md`](design/caret-placement.md)     | How a click becomes a caret, and what the caret does on the next key: nine stages, one file each                         |
-| [`design/selection.md`](design/selection.md)                 | Selecting across blocks, the caret the editor draws, the caret between two blocks, find and replace, copy, cut and paste |
-| [`design/invariants.md`](design/invariants.md)               | Every rule the repo checks with code, numbered, and where each is checked                                                |
-| [`design/plugin-contract.md`](design/plugin-contract.md)     | What the plugin API promises: the shapes already settled, the ones still moving before 1.0, what was left out            |
-| [`design/performance.md`](design/performance.md)             | Why typing cost does not grow with document size, the exceptions, and the checks that enforce the numbers                |
+| Doc | Scope |
+| --- | --- |
+| [`design/editor.md`](design/editor.md) | The orientation point: the whole system's shape, and where each subsystem's spec lives. **Start here** |
+| [`design/structural-edits.md`](design/structural-edits.md) | Split, merge, delete, move, the keys that trigger them, and the containers (quotes, lists, tables) that nest blocks |
+| [`design/commit-and-undo.md`](design/commit-and-undo.md) | The commit every structural edit runs through, the undo stack, and the events a host can subscribe to |
+| [`design/syntax-tree.md`](design/syntax-tree.md) | The document tree, where every node keeps its exact source bytes: the node model, the parser, the Markdown covered |
+| [`design/inline-parsing.md`](design/inline-parsing.md) | How the text inside a block (`**bold**` and friends) becomes styled spans, markers still visible |
+| [`design/virtual-rendering.md`](design/virtual-rendering.md) | Why a 10 MB document types like a small one: only the blocks on screen are rendered |
+| [`design/live-mode.md`](design/live-mode.md) | The fully rendered mode that stays editable: the rules for editing around markers nobody can see |
+| [`design/caret-placement.md`](design/caret-placement.md) | How a click becomes a caret, and what the caret does on the next key: nine stages, one file each |
+| [`design/selection.md`](design/selection.md) | Selecting across blocks, the caret the editor draws, the caret between two blocks, find and replace, copy, cut and paste |
+| [`design/invariants.md`](design/invariants.md) | Every rule the repo checks with code, numbered, and where each is checked |
+| [`design/plugin-contract.md`](design/plugin-contract.md) | What the plugin API promises: the shapes already settled, the ones still moving before 1.0, what was left out |
+| [`design/performance.md`](design/performance.md) | Why typing cost does not grow with document size, the exceptions, and the checks that enforce the numbers |
 
 ## `guide/`: using aragonite
 
-The published pack. This folder ships inside the npm package (the only docs folder that does), so whatever's in a plugin author's `node_modules` matches the version they installed.
+The published pack: the docs people outside the repo read, on GitHub. Its links never leave this folder (a lint checks), and `main` matches the latest release, so someone on an older version reads its tag.
 
-| Doc                                                                                          | Scope                                                                                                                                   |
-| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| [`guide/consumer-guide.md`](guide/consumer-guide.md)                                         | Embedding the editor in Svelte, React, Vue or plain JavaScript: props, events, theming, and everything else a host app touches          |
-| [`guide/consumer-guide/recipes.md`](guide/consumer-guide/recipes.md)                         | Worked UI built from the public calls: jump to a block, a selection toolbar, an insert toolbar, a `#` or `[[` menu, a bulk rewrite      |
-| [`guide/consumer-guide/shipping.md`](guide/consumer-guide/shipping.md)                       | Running inside a desktop shell (Tauri, Electron), and getting a bug report out of a user's session                                      |
-| [`guide/plugin-guide.md`](guide/plugin-guide.md)                                             | Teaching the editor your own blocks and inline syntax: a first working plugin, the model behind it, and a map of the recipe pages below |
-| [`guide/plugin-guide/per-editor.md`](guide/plugin-guide/per-editor.md)                       | Per-editor state, events and options, for a page with more than one editor on it                                                        |
-| [`guide/plugin-guide/container-walkthrough.md`](guide/plugin-guide/container-walkthrough.md) | The biggest worked example, a `:::conspiracy` box end to end, then the `closure` checklist every block kind fills in                    |
-| [`guide/plugin-guide/parser.md`](guide/plugin-guide/parser.md)                               | Openers in full: what one returns, where it sits in the order, multi-line constructs, document position                                 |
-| [`guide/plugin-guide/editable-content.md`](guide/plugin-guide/editable-content.md)           | The four ways a block hosts editable content, and the text-leaf factory in depth                                                        |
-| [`guide/plugin-guide/render-primary.md`](guide/plugin-guide/render-primary.md)               | A diagram-shaped block: a rendered picture, edited through the plugin's own UI                                                          |
-| [`guide/plugin-guide/presentation-modes.md`](guide/plugin-guide/presentation-modes.md)       | Rendering right in reading, preview and live modes                                                                                      |
-| [`guide/plugin-guide/reading-the-document.md`](guide/plugin-guide/reading-the-document.md)   | A block built from the rest of the document, like a table of contents                                                                   |
-| [`guide/plugin-guide/inline-kinds.md`](guide/plugin-guide/inline-kinds.md)                   | Your own syntax inside a paragraph, rendered as a widget                                                                                |
-| [`guide/plugin-guide/decorations.md`](guide/plugin-guide/decorations.md)                     | View-only highlights, ghost text and badges over content a plugin doesn't own                                                           |
-| [`guide/plugin-guide/commands.md`](guide/plugin-guide/commands.md)                           | Keyboard shortcuts, commands and right-click rows, for one block kind or the whole editor                                               |
-| [`guide/plugin-guide/paste-transforms.md`](guide/plugin-guide/paste-transforms.md)           | Rewriting pasted text before it parses                                                                                                  |
-| [`guide/plugin-guide/menu-only-kinds.md`](guide/plugin-guide/menu-only-kinds.md)             | A block that comes from a menu instead of typing, and still survives a reload                                                           |
-| [`guide/plugin-testing.md`](guide/plugin-testing.md)                                         | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks pass, run against yours           |
-| [`guide/plugin-api.md`](guide/plugin-api.md)                                                 | Every `/plugin` and `/svelte` export, grouped by job; a page for Ctrl+F, not for reading                                                |
-| [`guide/directives.md`](guide/directives.md)                                                 | The `:::name` fence: a named box in Markdown, and how a plugin claims a name                                                            |
-| [`guide/plugin-guide/parrot-frames.md`](guide/plugin-guide/parrot-frames.md)                 | All ten party-parrot frames, ready to paste over the quickstart's two                                                                   |
+| Doc | Scope |
+| --- | --- |
+| [`guide/consumer-guide.md`](guide/consumer-guide.md) | Embedding the editor in Svelte, React, Vue or plain JavaScript: props, events, theming, and everything else a host app touches |
+| [`guide/consumer-guide/recipes.md`](guide/consumer-guide/recipes.md) | Worked UI built from the public calls: jump to a block, a selection toolbar, an insert toolbar, a `#` or `[[` menu, a bulk rewrite |
+| [`guide/consumer-guide/shipping.md`](guide/consumer-guide/shipping.md) | Running inside a desktop shell (Tauri, Electron), and getting a bug report out of a user's session |
+| [`guide/plugin-guide.md`](guide/plugin-guide.md) | Teaching the editor your own blocks and inline syntax: a first working plugin, the model behind it, and a map of the recipe pages below |
+| [`guide/plugin-guide/per-editor.md`](guide/plugin-guide/per-editor.md) | Per-editor state, events and options, for a page with more than one editor on it |
+| [`guide/plugin-guide/container-walkthrough.md`](guide/plugin-guide/container-walkthrough.md) | The biggest worked example, a `:::conspiracy` box end to end, then the `closure` checklist every block kind fills in |
+| [`guide/plugin-guide/parser.md`](guide/plugin-guide/parser.md) | Openers in full: what one returns, where it sits in the order, multi-line constructs, document position |
+| [`guide/plugin-guide/editable-content.md`](guide/plugin-guide/editable-content.md) | The four ways a block hosts editable content, and the text-leaf factory in depth |
+| [`guide/plugin-guide/render-primary.md`](guide/plugin-guide/render-primary.md) | A diagram-shaped block: a rendered picture, edited through the plugin's own UI |
+| [`guide/plugin-guide/presentation-modes.md`](guide/plugin-guide/presentation-modes.md) | Rendering right in reading, preview and live modes |
+| [`guide/plugin-guide/reading-the-document.md`](guide/plugin-guide/reading-the-document.md) | A block built from the rest of the document, like a table of contents |
+| [`guide/plugin-guide/inline-kinds.md`](guide/plugin-guide/inline-kinds.md) | Your own syntax inside a paragraph, rendered as a widget |
+| [`guide/plugin-guide/decorations.md`](guide/plugin-guide/decorations.md) | View-only highlights, ghost text and badges over content a plugin doesn't own |
+| [`guide/plugin-guide/commands.md`](guide/plugin-guide/commands.md) | Keyboard shortcuts, commands and right-click rows, for one block kind or the whole editor |
+| [`guide/plugin-guide/paste-transforms.md`](guide/plugin-guide/paste-transforms.md) | Rewriting pasted text before it parses |
+| [`guide/plugin-guide/menu-only-kinds.md`](guide/plugin-guide/menu-only-kinds.md) | A block that comes from a menu instead of typing, and still survives a reload |
+| [`guide/plugin-testing.md`](guide/plugin-testing.md) | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks pass, run against yours |
+| [`guide/plugin-api.md`](guide/plugin-api.md) | Every `/plugin` and `/svelte` export, grouped by job; a page for Ctrl+F, not for reading |
+| [`guide/directives.md`](guide/directives.md) | The `:::name` fence: a named box in Markdown, and how a plugin claims a name |
+| [`guide/plugin-guide/parrot-frames.md`](guide/plugin-guide/parrot-frames.md) | All ten party-parrot frames, ready to paste over the quickstart's two |
 
 The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs live in a folder named after it, and so do the plugin guide's recipe pages and the consumer guide's two extra pages), so a markdown link inside it may only point at a file the pack carries. Name any other doc as inline code instead. `npm run lint` fails on a link that'd dangle once the pack leaves the repo.
 
 ## `contributing/`: how we work
 
-| Doc                                                                          | Scope                                                                                                                                       |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`contributing/first-hour.md`](contributing/first-hour.md)                   | What to read in your first hour, in order, and the file behind each of the five things a first change touches                               |
-| [`contributing/glossary.md`](contributing/glossary.md)                       | Every word the repo coined, one line each, and what to write instead: keep it open beside any other doc here                                |
-| [`contributing/rules.md`](contributing/rules.md)                             | Five rules, each one paid for by a real bug: **read before your first edit**                                                                |
-| [`contributing/casebook.md`](contributing/casebook.md)                       | The eight incidents behind the rules: read before your first structural change                                                              |
-| [`contributing/anatomy-of-a-change.md`](contributing/anatomy-of-a-change.md) | One real feature traced from first design decision to ship, for the shape of a change here                                                  |
-| [`contributing/codebase-map.md`](contributing/codebase-map.md)               | From the behavior you watched break to the one file to open                                                                                 |
-| [`contributing/testing.md`](contributing/testing.md)                         | Where a test goes, how the unit and browser layers run, and the heavier machinery (fuzzers, a typing simulation)                            |
-| [`contributing/debugging.md`](contributing/debugging.md)                     | Dumping the editor's state (tree, selection, undo) instead of hand-tracing it: the panel, the console helpers, the same dumps inside a test |
-| [`contributing/warnings.md`](contributing/warnings.md)                       | The three kinds of console output a dev build emits, and which test run goes red when each fires                                            |
-| [`contributing/adding-a-block.md`](contributing/adding-a-block.md)           | Adding a block type to the editor itself; plugin authors want the plugin guide instead                                                      |
-| [`contributing/code-style.md`](contributing/code-style.md)                   | How we name, shape, comment, and format code; nothing exotic                                                                                |
-| [`contributing/commit-conventions.md`](contributing/commit-conventions.md)   | Commit message format: the symbols, the 72-character line, what a body may carry                                                            |
+| Doc | Scope |
+| --- | --- |
+| [`contributing/first-hour.md`](contributing/first-hour.md) | What to read in your first hour, in order, and the file behind each of the five things a first change touches |
+| [`contributing/glossary.md`](contributing/glossary.md) | Every word the repo coined, one line each, and what to write instead: keep it open beside any other doc here |
+| [`contributing/rules.md`](contributing/rules.md) | Five rules, each one paid for by a real bug: **read before your first edit** |
+| [`contributing/casebook.md`](contributing/casebook.md) | The eight incidents behind the rules: read before your first structural change |
+| [`contributing/anatomy-of-a-change.md`](contributing/anatomy-of-a-change.md) | One real feature traced from first design decision to ship, for the shape of a change here |
+| [`contributing/codebase-map.md`](contributing/codebase-map.md) | From the behavior you watched break to the one file to open |
+| [`contributing/testing.md`](contributing/testing.md) | Where a test goes, how the unit and browser layers run, and the heavier machinery (fuzzers, a typing simulation) |
+| [`contributing/debugging.md`](contributing/debugging.md) | Dumping the editor's state (tree, selection, undo) instead of hand-tracing it: the panel, the console helpers, the same dumps inside a test |
+| [`contributing/warnings.md`](contributing/warnings.md) | The three kinds of console output a dev build emits, and which test run goes red when each fires |
+| [`contributing/adding-a-block.md`](contributing/adding-a-block.md) | Adding a block type to the editor itself; plugin authors want the plugin guide instead |
+| [`contributing/code-style.md`](contributing/code-style.md) | How we name, shape, comment, and format code; nothing exotic |
+| [`contributing/commit-conventions.md`](contributing/commit-conventions.md) | Commit message format: the symbols, the 72-character line, what a body may carry |
 
 ## Records and reference
 
 The moving state, and the background material behind it. Forward-looking plans aren't kept in the repo. A decision lives with the contract it binds, and everything shipped is in the changelog.
 
-| Doc                                                                              | Scope                                                                                                           |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| [`changelog.md`](changelog.md)                                                   | Everything shipped, newest first: an index page, with the entries one file per 0.x line under `changelog/`      |
-| [GitHub Issues](https://github.com/voithos-labs/aragonite/issues)                | Every known defect as an issue, labelled by area and severity, closed by naming the commit that shipped the fix |
-| [`research/gfm-reference.md`](research/gfm-reference.md)                         | Every piece of GFM syntax the editor handles, on one page                                                       |
-| [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What everyone else's plugin systems expose, and where aragonite stands against them                             |
+| Doc | Scope |
+| --- | --- |
+| [`changelog.md`](changelog.md) | Everything shipped, newest first: an index page, with the entries one file per 0.x line under `changelog/` |
+| [GitHub Issues](https://github.com/voithos-labs/aragonite/issues) | Every known defect as an issue, labelled by area and severity, closed by naming the commit that shipped the fix |
+| [`research/gfm-reference.md`](research/gfm-reference.md) | Every piece of GFM syntax the editor handles, on one page |
+| [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What everyone else's plugin systems expose, and where aragonite stands against them |

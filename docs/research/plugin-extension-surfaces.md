@@ -34,16 +34,16 @@ The ordinary capabilities a plugin needs just to reach the document at all (the 
 
 What "add a plugin" means, across the field. Systems differ in ergonomics, not in content. The aragonite column names the actual calls, all from `@voithos-labs/aragonite/plugin`, so it reads the way the other columns do.
 
-| Category               | ProseMirror / TipTap       | Lexical                       | CodeMirror 6    | Obsidian         | aragonite                                          |
-| ---------------------- | -------------------------- | ----------------------------- | --------------- | ---------------- | -------------------------------------------------- |
-| **Type / schema**      | `NodeSpec`, `Node.create`  | `ElementNode`/`DecoratorNode` | none            | none             | `declarePluginKind` + `registerBlockKind` ✅       |
-| **Recognizer**         | `parseDOM`, input rules    | `ElementTransformer`          | Lezer grammar   | code fence       | `registerBlockOpener`, `registerDirective` ✅      |
-| **Serializer**         | `toDOM`, `toMarkdown`      | `.export()`                   | (text is truth) | (text is truth)  | `rebuildRaw` ✅                                    |
-| **View**               | `NodeView`                 | `createDOM`                   | `WidgetType`    | `toDOM`          | a Svelte component ✅                              |
-| **Commands + keymap**  | Command + keymap           | `registerCommand`             | keymap facet    | `addCommand`     | `registerBlockCommand`, `registerGlobalCommand` ✅ |
-| **Decorations**        | `Decoration`               | `decorate`                    | `Decoration`    | editor extension | `decorations.addSource` ✅                         |
-| **Plugin-local state** | `StateField` / `PluginKey` | `addStorage`                  | `StateField`    | `addStorage`     | metadata on the node (§ Plugin-local state)        |
-| **Clipboard / paste**  | `addPasteRules`            | none                          | none            | none             | `registerPasteTransform` ✅                        |
+| Category | ProseMirror / TipTap | Lexical | CodeMirror 6 | Obsidian | aragonite |
+| --- | --- | --- | --- | --- | --- |
+| **Type / schema** | `NodeSpec`, `Node.create` | `ElementNode`/`DecoratorNode` | none | none | `declarePluginKind` + `registerBlockKind` ✅ |
+| **Recognizer** | `parseDOM`, input rules | `ElementTransformer` | Lezer grammar | code fence | `registerBlockOpener`, `registerDirective` ✅ |
+| **Serializer** | `toDOM`, `toMarkdown` | `.export()` | (text is truth) | (text is truth) | `rebuildRaw` ✅ |
+| **View** | `NodeView` | `createDOM` | `WidgetType` | `toDOM` | a Svelte component ✅ |
+| **Commands + keymap** | Command + keymap | `registerCommand` | keymap facet | `addCommand` | `registerBlockCommand`, `registerGlobalCommand` ✅ |
+| **Decorations** | `Decoration` | `decorate` | `Decoration` | editor extension | `decorations.addSource` ✅ |
+| **Plugin-local state** | `StateField` / `PluginKey` | `addStorage` | `StateField` | `addStorage` | metadata on the node (§ Plugin-local state) |
+| **Clipboard / paste** | `addPasteRules` | none | none | none | `registerPasteTransform` ✅ |
 
 Two lessons the field agrees on, and aragonite already honors both:
 
@@ -64,11 +64,11 @@ aragonite has no such problem. A position is a path plus an offset (the path bei
 
 **So the shape is three primitives, and no state API at all.** They shipped in 0.9.21 as the per-instance `EditorContext` an `onEditor` callback receives:
 
-| Give a plugin                                        | And it can                                            |
-| ---------------------------------------------------- | ----------------------------------------------------- |
-| the **document** (a live getter)                     | compute anything derived from it                      |
-| an **editor identity** (`editorId`)                  | key its own `Map`: per-instance state, config, caches |
-| a **change signal** (the subscribe-only events view) | invalidate that cache                                 |
+| Give a plugin | And it can |
+| --- | --- |
+| the **document** (a live getter) | compute anything derived from it |
+| an **editor identity** (`editorId`) | key its own `Map`: per-instance state, config, caches |
+| a **change signal** (the subscribe-only events view) | invalidate that cache |
 
 (The context has since grown more read surfaces: the decoration registry, the rect API, presentation mode, theme. The state story is still these three rows.)
 
@@ -80,23 +80,23 @@ Copying `StateField` would be importing a solution to a problem this architectur
 
 Obsidian's most-installed plugins, classified by _mechanism_ rather than feature. The denominator first: roughly half never touch the editing surface at all. (limestone, in the last column, is the note app aragonite ships inside; § The two plugin systems draws the full line.)
 
-| Layer                        | Examples                                              | Whose problem   |
-| ---------------------------- | ----------------------------------------------------- | --------------- |
-| **App shell**                | sync, git, calendar, quick-capture, theme settings    | limestone's     |
-| **Alternate view of a file** | Kanban, Excalidraw                                    | limestone's     |
-| **Editing surface**          | Dataview, Tasks, Templater, Outliner, Advanced Tables | **aragonite's** |
+| Layer | Examples | Whose problem |
+| --- | --- | --- |
+| **App shell** | sync, git, calendar, quick-capture, theme settings | limestone's |
+| **Alternate view of a file** | Kanban, Excalidraw | limestone's |
+| **Editing surface** | Dataview, Tasks, Templater, Outliner, Advanced Tables | **aragonite's** |
 
 Of those that touch the editing surface, by share of that set:
 
-| Mechanism                                                           | Share                                                  | aragonite                                                          |
-| ------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
-| **Document mutation** (insert at caret, reformat a region, rewrite) | over half                                              | **gap**: a command can only write metadata on its own node         |
-| **Decorations**                                                     | ~half                                                  | **have**: a pure per-instance decoration source                    |
-| **A custom block kind** from custom syntax                          | ~a third                                               | **have, best in class**                                            |
-| **Document lifecycle** (on load / change / save)                    | ~a third                                               | **have**: `onEditor` plus the per-instance events view             |
-| **Single-document derived state** (ToC, footnote numbering)         | smaller share, but the two largest plugins by installs | **have**: `BlockComponentProps.document` (the toc plugin reads it) |
-| **Context-sensitive keymap** (Tab means "next cell" inside a table) | smaller share, but the two most-loved editing plugins  | **have**                                                           |
-| **Trigger-character suggest** (`/`, `@`, `[[`)                      | table stakes                                           | **have**: inline menus (`editor.inlineMenus.addSource`)            |
+| Mechanism | Share | aragonite |
+| --- | --- | --- |
+| **Document mutation** (insert at caret, reformat a region, rewrite) | over half | **gap**: a command can only write metadata on its own node |
+| **Decorations** | ~half | **have**: a pure per-instance decoration source |
+| **A custom block kind** from custom syntax | ~a third | **have, best in class** |
+| **Document lifecycle** (on load / change / save) | ~a third | **have**: `onEditor` plus the per-instance events view |
+| **Single-document derived state** (ToC, footnote numbering) | smaller share, but the two largest plugins by installs | **have**: `BlockComponentProps.document` (the toc plugin reads it) |
+| **Context-sensitive keymap** (Tab means "next cell" inside a table) | smaller share, but the two most-loved editing plugins | **have** |
+| **Trigger-character suggest** (`/`, `@`, `[[`) | table stakes | **have**: inline menus (`editor.inlineMenus.addSource`) |
 
 The custom-block-kind row is the one to sit with. It's the mechanism aragonite is _strongest_ at, and it's a third of the demand. Being excellent at a third of the demand isn't a platform.
 
@@ -104,11 +104,11 @@ The custom-block-kind row is the one to sit with. It's the mechanism aragonite i
 
 Every editor answers "custom content that is itself editable" one of three ways, and only one of them was ever open to aragonite.
 
-| Archetype                                                                                                 | Who                 | Verdict for aragonite                                                                                                                  |
-| --------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **contentDOM / NodeView**: the editor owns an editable hole whose children are real nodes in the one tree | ProseMirror, TipTap | **Adopted.** The nested block list a container factory renders _is_ the contentDOM. The crown jewel.                                   |
-| **Nested editor**: the editable interior is a separate editor state serialized as an opaque blob          | Lexical, CM6        | **Rejected permanently.** A parallel source of truth that can't round-trip byte for byte. The single most important thing not to copy. |
-| **Decorations**: view-only overlays; "editing" reveals hidden source                                      | CM6, Obsidian       | **Presentational only.** Never enters the tree. Exposed as a pure per-instance decoration source.                                      |
+| Archetype | Who | Verdict for aragonite |
+| --- | --- | --- |
+| **contentDOM / NodeView**: the editor owns an editable hole whose children are real nodes in the one tree | ProseMirror, TipTap | **Adopted.** The nested block list a container factory renders _is_ the contentDOM. The crown jewel. |
+| **Nested editor**: the editable interior is a separate editor state serialized as an opaque blob | Lexical, CM6 | **Rejected permanently.** A parallel source of truth that can't round-trip byte for byte. The single most important thing not to copy. |
+| **Decorations**: view-only overlays; "editing" reveals hidden source | CM6, Obsidian | **Presentational only.** Never enters the tree. Exposed as a pure per-instance decoration source. |
 
 One validated result worth keeping. Model a container's editable chrome (the parts of a block that are furniture rather than content: a callout title, a `<details>` summary) as a **reserved child-0 leaf inside the container's own child list**, and native cross-block selection into that chrome comes _for free_: caret, selection and undo all reach it with no changes to the core selection layer. The alternative (chrome as metadata behind a bounded field surface) would have made click-type-blur a permanent ceiling. That's why the chrome-leaf tier is shaped the way it is.
 
@@ -129,10 +129,10 @@ Both shapes that wanted deciding were decided, and built, in 0.9.21:
 
 There will be two, and the boundary has to be stated, or the app half reads as a hole in the editor half.
 
-| Layer                 | Owns                                                                                                        |
-| --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Layer | Owns |
+| --- | --- |
 | **aragonite plugins** | The document and the editing surface: kinds, grammar, decorations, commands over the document, presentation |
-| **limestone plugins** | The app: ribbon, sidebar, status bar, settings tabs, modals, palette UI, the vault, sync                    |
+| **limestone plugins** | The app: ribbon, sidebar, status bar, settings tabs, modals, palette UI, the vault, sync |
 
 Obsidian conflates the two only because it _is_ the app. An editor library that grows a ribbon API has lost the plot. Vault-wide indexing is limestone's too; the editor supplies the raw material (an event stream and a parser), not the index.
 

@@ -9,7 +9,7 @@
 	import { TABLE_CONTEXT_KEY } from '../../../editor-keys';
 	import type { AnyInlineKind, TableAlignment } from '../../../core/nodes';
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
-	import { replaceRangeInLeaf } from '../../../tree-operations/leaf-range';
+	import { createCompositionSeat } from '../text/composition-seat';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
 	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 	import { pathsEqual } from '../../../selection/path-math';
@@ -30,7 +30,7 @@
 	import { createTextClipboard } from '../text/text-clipboard';
 	import { createInlineCommands } from '../text/inline-commands';
 	import { createTypedInput } from '../text/typed-input';
-	import { rangeWrite } from '../editable/surface-write';
+	import { selectionRemoval } from '../editable/surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
@@ -173,6 +173,12 @@
 		insideCloser: () => editableSurface.insideCloser
 	});
 
+	const compositionSeat = createCompositionSeat({
+		getNode: () => node,
+		getRawSelection: () => cursor.getRawSelection(),
+		storedAs
+	});
+
 	const editableSurface = createEditableSurface({
 		...wiring.deps,
 		getEl: () => el ?? null,
@@ -190,6 +196,7 @@
 		inlineUnits: () => edgeDispatch.inlineUnits,
 		readBack: (caret) => ({ text: readCellText(), caret }),
 		repaint: () => cellRender.render({ forceRebuild: true }),
+		compositionSeat,
 		placement: typedPlacement,
 		getInlines: () => resolvedInlineContent(node, reading),
 		handleKeydown: onKeyDown,
@@ -204,15 +211,7 @@
 			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)
 		},
 		commandTarget: () => keyTarget,
-		removeSelection: (range) =>
-			writeText({
-				...rangeWrite(node, replaceRangeInLeaf(node, range, '', storedAs())),
-				intent: 'command',
-				// The removal a typed key makes over a selection, which that key joins.
-				history: 'join-typing',
-				mode: 'authored',
-				source: 'selection-removal'
-			})
+		removeSelection: (range) => writeText(selectionRemoval(node, range, storedAs()))
 	});
 	const { writeText } = editableSurface;
 
@@ -321,6 +320,7 @@
 	export const getSelectedText = editableSurface.surface.getSelectedText;
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
+	export const caretBounds = editableSurface.surface.caretBounds;
 
 	const commands = createInlineCommands({
 		getEl: () => el ?? null,
@@ -385,6 +385,7 @@
 				void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);
 		}
 		if (id === 'cell.lineBreak') return writeLineBreak;
+		if (id === 'cell.openMenu') return () => tableContext.openCellMenu(rowIdx, colIdx);
 		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return null;
 		const plan = cellCommandPlan(id, cellPlanState(cursor.getRaw() ?? 0));
 		return () => void applyCellPlan(plan);
@@ -426,6 +427,7 @@
 			getSelectedText,
 			setSelection,
 			measurePartialRects,
+			caretBounds,
 			runCommand,
 			isCommandActive,
 			afterSourceCommit,
@@ -556,7 +558,7 @@
 
 		const caretBeforeKey = cursor.getRaw();
 
-		// Before the plan, whose edge branches ignore modifiers and would eat a column move. A move
+		// Before the plan, whose vertical branches ignore modifiers and would eat a row move. A move
 		// from a cell moves the whole table, since a table's grid rows are not reorderable children.
 		if (wiring.dispatchChord(e, keyTarget)) return;
 
@@ -723,7 +725,7 @@
 				const editorRoot = getEditorRoot();
 				if (!editorRoot) return;
 				installCellDragListener(
-					{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime },
+					{ editorRoot, selection, caretWriter, lifetimeSignal: editorLifetime, touch: 'browser' },
 					anchorIn(tableEl),
 					e,
 					padding && { surface: cellEl, press: padding }

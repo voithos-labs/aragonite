@@ -18,8 +18,8 @@ import {
 	freshOrFixedSeed
 } from './arbitraries';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import {
 	displayLength,
 	documentLineEnding,

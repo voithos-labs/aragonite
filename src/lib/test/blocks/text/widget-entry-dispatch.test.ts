@@ -13,7 +13,7 @@ import { domTextOffsetAtNode } from '#lib/browser/offsets.js';
 import { asRawOffset } from '#lib/core/coordinate-spaces.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { AnyInlineKind } from '#lib/core/nodes.js';
-import { MATH_INLINE } from '#lib/plugins/latex/latex-kind.js';
+import { MATH_INLINE } from '#packages/latex/src/latex-kind.js';
 import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 import { key, makeEdgeDispatch } from './edge-policy-fixture';
 import { settleEditor } from '#lib/test/harness/settle.js';

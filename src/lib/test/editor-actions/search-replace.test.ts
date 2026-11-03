@@ -5,7 +5,7 @@ import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { createGrammarView } from '#lib/schema/block-openers.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { testLeaf, testContainer } from '#lib/test/harness/test-kinds.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';

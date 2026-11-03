@@ -41,6 +41,7 @@ describe('createPointerDragSession: move coalescing', () => {
 
 	function startSession(onMove: (x: number) => void, onEnd?: () => void): { dispose(): void } {
 		return createPointerDragSession(pointer('pointerdown', 1, { clientX: 0, clientY: 0 }), {
+			touch: 'browser',
 			onMove: (p) => onMove(p.clientX),
 			onEnd,
 			autoScroll: { getTargets: () => [] }
@@ -67,6 +68,25 @@ describe('createPointerDragSession: move coalescing', () => {
 		document.dispatchEvent(pointer('pointerup', 1, { clientX: 9, clientY: 0 }));
 		expect(seen).toEqual([9]);
 		expect(endedAfter).toBe(1);
+	});
+
+	// A knob held below its line drags the line's point, at every move and at the release.
+	it('adds the offset to every point it resolves', () => {
+		const raf = stubRaf();
+		const seen: [number, number][] = [];
+		createPointerDragSession(pointer('pointerdown', 1, { clientX: 0, clientY: 0 }), {
+			touch: 'own',
+			offset: { clientX: 2, clientY: -20 },
+			onMove: (p) => seen.push([p.clientX, p.clientY]),
+			autoScroll: { getTargets: () => [] }
+		});
+		document.dispatchEvent(pointer('pointermove', 1, { clientX: 5, clientY: 50 }));
+		raf.runFrame();
+		document.dispatchEvent(pointer('pointerup', 1, { clientX: 8, clientY: 60 }));
+		expect(seen).toEqual([
+			[7, 30],
+			[10, 40]
+		]);
 	});
 
 	it('does not replay a move the frame already processed', () => {
@@ -129,4 +149,30 @@ describe('createPointerDragSession: move coalescing', () => {
 		document.dispatchEvent(pointer('pointercancel', 1, { clientX: 0, clientY: 0 }));
 		expect(seen).toEqual([8]);
 	});
+});
+
+describe('createPointerDragSession: who drags for a finger', () => {
+	function fingerDown(): PointerEvent {
+		const down = pointer('pointerdown', 1, { clientX: 0, clientY: 0 });
+		Object.defineProperty(down, 'pointerType', { value: 'touch' });
+		return down;
+	}
+
+	for (const [touch, expected] of [
+		['own', [9]],
+		['browser', []]
+	] as const) {
+		it(`a session the ${touch === 'own' ? 'control' : 'browser'} owns for a finger resolves ${expected.length ? 'its moves' : 'nothing'}`, () => {
+			const seen: number[] = [];
+			const session = createPointerDragSession(fingerDown(), {
+				touch,
+				onMove: (p) => seen.push(p.clientX),
+				autoScroll: { getTargets: () => [] }
+			});
+			document.dispatchEvent(pointer('pointermove', 1, { clientX: 9, clientY: 0 }));
+			document.dispatchEvent(pointer('pointerup', 1, { clientX: 9, clientY: 0 }));
+			session.dispose();
+			expect(seen).toEqual(expected);
+		});
+	}
 });

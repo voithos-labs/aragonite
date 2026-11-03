@@ -22,6 +22,7 @@ const READY_BY_ROUTE = {
 	'/changelog': '__parityDocuments',
 	'/test/editor': '__test',
 	'/test/flow': '__flow',
+	'/test/host-chords': '__parityDocuments',
 	'/test/host-fill': '__parityDocuments',
 	'/test/host-theme': '__parityDocuments',
 	'/test/multi-editor': '__editorsReady',

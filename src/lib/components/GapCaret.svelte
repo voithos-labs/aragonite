@@ -83,8 +83,12 @@
 		const after = composedAt + 1;
 		if (hostInput.takesKey(event, () => mint('', after))) return;
 		if (handleGlobalChord(event)) return;
+		// The gap sits in its container's list, so the chords that container binds apply here too.
+		const gap = selection?.gapCaret;
+		if (gap && services?.containerChords.take(event, gap.parentPath)) return;
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		// A key added here goes in `gap-caret-keys.ts` too, which `claimsChord` reads.
 		switch (event.key) {
 			case 'Enter':
 				event.preventDefault();
@@ -115,7 +119,14 @@
 			composedAt = index;
 			return mint(text);
 		},
-		services!.composition
+		services!.composition,
+		(md) => {
+			const gap = selection?.gapCaret;
+			if (!gap) return;
+			// Undo puts the caret back on the block beside the gap, the nearest place one can stand.
+			const beside = [...gap.parentPath, Math.max(0, gap.index - 1)];
+			return services!.pasteAsBlocks(async () => !!(await mint('')), md, beside);
+		}
 	);
 
 	function onFocusOut(event: FocusEvent): void {
@@ -141,6 +152,7 @@
 		onbeforeinput={hostInput.onBeforeInput}
 		oncompositionstart={hostInput.onCompositionStart}
 		oncompositionend={hostInput.onCompositionEnd}
+		onpaste={hostInput.onPaste}
 		onfocusout={onFocusOut}
 	></div>
 </div>

@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { parseInline, type InlineNode } from '#lib';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
 import { getInlineWidgetEditing } from '#lib/core/inline/inline-widgets.js';
-import { registerFootnoteReference } from '#lib/plugins/footnotes/footnote-reference.js';
-import { FOOTNOTE_REF_KIND } from '#lib/plugins/footnotes/constants.js';
+import { registerFootnoteReference } from '#packages/footnotes/src/footnote-reference.js';
+import { FOOTNOTE_REF_KIND } from '#packages/footnotes/src/constants.js';
 
 const isRef = (n: InlineNode) => n.kind === FOOTNOTE_REF_KIND;
 const refsIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isRef);

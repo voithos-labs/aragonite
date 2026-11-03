@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { createInlineRangeCommit } from '#lib/editor-actions/inline-range-commit.js';
 import {

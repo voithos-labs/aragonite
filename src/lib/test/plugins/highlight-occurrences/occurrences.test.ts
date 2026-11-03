@@ -8,7 +8,7 @@ import {
 	anchorWord,
 	buildOccurrenceIndex,
 	wordAt
-} from '#lib/plugins/highlight-occurrences/occurrences.js';
+} from '#packages/highlight-occurrences/src/occurrences.js';
 
 function caret(path: number[], offset: number, cellCoordinate?: boolean): EditorSelection {
 	const point = cellCoordinate ? { path, offset, cellCoordinate } : { path, offset };

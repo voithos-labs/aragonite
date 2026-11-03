@@ -4,7 +4,7 @@
 // Miss-analysis: the toggle tests ran at a collapsed caret, where reading the selection after the
 // close or before it gives the same range.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathInline } from '#packages/latex/src/latex-kind.js';
 import { mountCell } from './mount-cell';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { settleEditor, dispatchKey } from '#lib/test/harness/settle.js';

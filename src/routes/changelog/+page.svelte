@@ -1,5 +1,5 @@
 <script module lang="ts">
-	import type { TocOptions } from '#lib/plugins/toc/index.js';
+	import type { TocOptions } from '@voithos-labs/aragonite-toc';
 	import { DEMO_PLUGINS, DEMO_TOC } from './../demo-plugins';
 
 	// This route's own outline depth, declared per instance so the shared set still installs once.

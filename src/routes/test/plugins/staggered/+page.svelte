@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { calloutPlugin } from '../callout/register';
-	import { detailsPlugin } from '#lib/plugins/details/index.js';
+	import { detailsPlugin } from '@voithos-labs/aragonite-details';
 
 	// Editor 2 adds detailsPlugin, the late mount this harness is about. Its own plugin objects,
 	// not the shared demo set: a set every other route installs is already registered.

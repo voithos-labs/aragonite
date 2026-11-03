@@ -3,9 +3,10 @@
 // `node scripts/smoke/adapter-smoke.mjs` runs every project in the suite's `APPS`; `--per-pr` runs the
 // ones marked `perPr`.
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { withPrivateInstall } from './private-install.mjs';
+import { packWorkspaces } from '../pack/pack-workspaces.mjs';
 import { APPS } from '../../examples/adapter-suite/apps.mjs';
 
 const perPr = process.argv.includes('--per-pr');
@@ -19,18 +20,7 @@ const run = (cmd, opts = {}) => execSync(cmd, { stdio: 'inherit', ...opts });
 
 run('npm run package');
 run('node scripts/pack/verify-pack.mjs');
-rmSync(PACKS, { recursive: true, force: true });
-mkdirSync(PACKS, { recursive: true });
-// Built just above, so the pack skips the lifecycle scripts that would build it all again.
-const packed = JSON.parse(
-	execSync(
-		`npm pack --workspaces --include-workspace-root --ignore-scripts --json --pack-destination ${PACKS}`,
-		{ encoding: 'utf8' }
-	)
-);
-const tarballs = new Map(
-	Object.values(packed).map((pack) => [pack.name, path.resolve(PACKS, pack.filename)])
-);
+const tarballs = packWorkspaces(PACKS);
 
 withPrivateInstalls(
 	apps.map((app) => `${app}/node_modules`),

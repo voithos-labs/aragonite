@@ -29,6 +29,7 @@ function keyWrite(
 	anchor: number
 ) {
 	const writeText = createSurfaceWrite({
+		reading: fixtureReading(),
 		getNode,
 		getIndex: () => 0,
 		getPath: () => [0],

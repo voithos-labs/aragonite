@@ -22,9 +22,9 @@ import { serialize } from '#lib/core/serializer.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { detailsPlugin } from '#lib/plugins/details/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { detailsPlugin } from '#packages/details/src/index.js';
 
 /** The top-level kinds after `text` is written over block `index` through the keystroke route. */
 function typedOverSecond(source: string, text: string, index = 1): string[] {

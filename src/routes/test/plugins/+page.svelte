@@ -98,7 +98,10 @@
 	import { installTestProbes } from '../editor/test-probes';
 	import { HarnessSource } from '../editor/harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
-	import { convertGithubAlertsInDocument, hasGithubAlert } from '#lib/plugins/admonitions/index.js';
+	import {
+		convertGithubAlertsInDocument,
+		hasGithubAlert
+	} from '@voithos-labs/aragonite-admonitions';
 
 	let { data }: { data: PageData } = $props();
 

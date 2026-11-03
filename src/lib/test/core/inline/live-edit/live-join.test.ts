@@ -254,11 +254,23 @@ describe('text typed over a cut through a run', () => {
 	it('fills a run it replaces whole', () => {
 		expect(typeOver('Some **bold** text\n', 7, 11, 'X')).toBeNull();
 	});
+});
 
-	// Inside one link the text typed over its whole content is the link's new text.
-	// Miss-analysis: the typed-text rows only cut a link's text in part, never all of it.
-	it('replaces a link’s text it covers whole', () => {
-		expect(typeOver('see [here](u) now\n', 5, 9, 'X')).toBeNull();
+// Typed text joins a link only from a cut leaving link text on both sides (live-mode.md § 4.5).
+// Miss-analysis: #809, the one row over a link's whole text pinned it as the link's new text.
+describe('text typed over part or all of a link’s text', () => {
+	it('stays in the link where the cut touches neither end of its text', () => {
+		expect(typeOver('see [here](u) now\n', 6, 8, 'X')).toBeNull();
+	});
+
+	it.each([
+		['the start', 'see [here](u) now\n', 5, 7, 'see X[re](u) now\n'],
+		['the end', 'see [here](u) now\n', 7, 9, 'see [he](u)X now\n'],
+		['both ends', 'see [here](u) now\n', 5, 9, 'see X now\n'],
+		['both ends, at the block’s start', '[here](u) now\n', 1, 5, 'X now\n'],
+		['both ends of bold text', 'see [**here**](u) now\n', 7, 11, 'see X now\n']
+	])('lands outside the link where the cut touches %s', (_, source, from, to, written) => {
+		expect(typeOver(source, from, to, 'X')).toBe(written);
 	});
 });
 
@@ -421,5 +433,12 @@ describe('a cut inside a construct with no content declines', () => {
 
 	it('still cleans the same cut inside a link that has text', () => {
 		expect(sameBlock('A [a](u) B\n', 3, 9)).toBe('A B\n');
+	});
+});
+
+// A selected picture is an object, not text, so the key typed over it takes its place in the link.
+describe('text typed over a picture that is all of a link', () => {
+	it('stays in the link', () => {
+		expect(typeOver('[![a](p.png)](u)\n', 1, 12, 'Q')).toBeNull();
 	});
 });

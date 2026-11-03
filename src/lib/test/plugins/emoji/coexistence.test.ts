@@ -3,7 +3,7 @@ import { installPlugins, parseInline, type InlineNode } from '#lib';
 import { activateDirectives } from '#lib/plugin.js';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
 import { DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
-import { emojiPlugin, EMOJI_KIND } from '#lib/plugins/emoji/index.js';
+import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
 
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const kindsIn = (raw: string) => scan(raw).map((n: InlineNode) => n.kind);

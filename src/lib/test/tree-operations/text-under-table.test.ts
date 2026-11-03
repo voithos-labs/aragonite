@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRegistryView } from '#lib/schema/registry-view.js';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { spliceFixedUp } from '#lib/tree-operations/fix-up/apply.js';

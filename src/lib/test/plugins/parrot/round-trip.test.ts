@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
-import { parrotPlugin, PARROT } from '#lib/plugins/parrot/index.js';
+import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
 
 // The parrot's registration function is module-private (the plugin keeps the guide's bytes),

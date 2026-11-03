@@ -105,6 +105,7 @@ export function makeSurface(
 		getPresentationMode: () => 'source' as const,
 		reading: fixtureReading(),
 		commands: commandContext(),
+		containerChords: { take: () => false },
 		pasteCoordinator: {},
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,

@@ -9,7 +9,11 @@ vi.mock('../../selection/keyboard-extend', () => ({
 	extendWithinBlock: vi.fn()
 }));
 
-import { handleSharedKeydown, type SharedKeydownContext } from '../../selection/shared-keydown';
+import {
+	handleSharedKeydown,
+	type SharedKeydownContext,
+	caretReachableBounds
+} from '../../selection/shared-keydown';
 import {
 	extendFocusToNextBlock,
 	extendFocusToPreviousBlock
@@ -43,6 +47,10 @@ function makeCtx(over: {
 		getFocusOffset: () => over.focusOffset,
 		// A detached element reads as no presentation root, so the bounds never walk it.
 		getTextLen: () => over.textLen,
+		caretBounds() {
+			const el = this.getEl();
+			return el ? caretReachableBounds(this, el) : { start: 0, end: this.getTextLen() };
+		},
 		getMyPath: () => [1],
 		getIndex: () => 1,
 		crossBlock: {

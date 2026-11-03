@@ -112,7 +112,10 @@
 		removeAll
 	} from './editor-root/listeners';
 	import { createRootEffect } from './editor-root/root-effect.svelte';
-	import { collectReservedChords, chordIsClaimed } from '../schema/reserved-chords';
+	import { collectReservedChords } from '../schema/reserved-chords';
+	import { createKeyClaims } from './editor-root/key-claims';
+	import { createContainerChords } from '../editor-actions/container-chords';
+	import { opensLinkCard } from './link-card/opens-card';
 	import { portalInto } from './portal';
 	import {
 		registerEditor,
@@ -140,6 +143,8 @@
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import SelectionGapFill from './overlays/SelectionGapFill.svelte';
+	import SelectionHandles from './overlays/SelectionHandles.svelte';
+	import { coarsePointer, finePointer, watchPressKind } from '../selection/pointer-gesture';
 	import LinkCardHost from './link-card/LinkCardHost.svelte';
 	import InlineMenuHost from './menu/InlineMenuHost.svelte';
 	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
@@ -282,6 +287,9 @@
 	const blockRefSlots = refSlotsOver(blockRefs);
 	let editorEl: HTMLDivElement | undefined = $state();
 	const rootEffect = createRootEffect(() => editorEl);
+	// Whether the last press here was a finger: what decides the selection handles and the toolbar's side.
+	let fingerPress = $state(coarsePointer());
+	rootEffect((root) => watchPressKind(root, (finger) => (fingerPress = finger)));
 	// A portaled search bar inside a themed host skips the theme class, whose defaults would
 	// shadow the host's tokens.
 	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
@@ -318,7 +326,8 @@
 		isReading: () => effectiveMode === 'reading',
 		selection: selectionState,
 		watchSize: (el, onResize) => scrollOwner.watchSize(el, onResize),
-		composition
+		composition,
+		finePointer: finePointer()
 	});
 	// Reading mode has no caret; one the editor asks for there marks where leaving puts it.
 	const caretWriter = createCaretWriter(drawnCaret.request, (el, raw) => {
@@ -471,6 +480,10 @@
 	 *  Focus tracking uses `contains` instead, since the header counts as part of the editor. */
 	function isHostChrome(node: Node | null): boolean {
 		return !!node && !!headerEl && headerEl.contains(node);
+	}
+
+	function isFindBar(node: Node | null): boolean {
+		return !!node && !!findBarEl?.contains(node);
 	}
 
 	// ── Block menu ──────────────────────────────────────────────────────
@@ -830,6 +843,13 @@
 	setContext(HISTORY_KEY, history);
 	setContext(CONTAINER_EDIT_KEY, containerEdit);
 
+	const containerChords = createContainerChords({
+		commands,
+		getBlockComponent,
+		selection: selectionState,
+		getDoc
+	});
+
 	setContext(EDITOR_SERVICES_KEY, {
 		events,
 		decorations: decorationEngine,
@@ -859,7 +879,9 @@
 		stamps,
 		kindCue,
 		textMoves,
-		readingFocus
+		readingFocus,
+		containerChords,
+		pasteAsBlocks: (mint, md, at) => focusedSurface.pasteAsBlocks(mint, md, at)
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
@@ -1078,9 +1100,16 @@
 		commands,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
-		isFindBar: (node) => !!node && !!findBarEl?.contains(node),
+		isFindBar,
 		saveSearchCaret: searchCaret.saveCurrent,
-		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
+		setReplaceExpanded: (expanded) => (replaceExpanded = expanded),
+		takeContainerChord: (e) => {
+			if (!containerChords.mayTake(e)) return;
+			const focus = keyClaims.readKeyFocus(e);
+			if ((focus.at === 'control' || focus.at === 'field') && focus.path) {
+				containerChords.take(e, focus.path);
+			}
+		}
 	});
 
 	rootEffect((root) => {
@@ -1334,14 +1363,24 @@
 		});
 	}
 
+	const keyClaims = createKeyClaims({
+		root: () => editorEl,
+		searchBarEnabled: () => searchBar,
+		searchOpen: () => searchState.isOpen,
+		menusOpen: () => menuPresence.isOpen,
+		menuTakesEscape: () => menuPresence.takesEscape,
+		inlineMenu,
+		opensLinkCard: (e) => opensLinkCard(e, linkCard, getDoc(), commands),
+		containerChords,
+		selection: selectionState,
+		getDoc,
+		commands,
+		isHostChrome,
+		isFindBar
+	});
+
 	export function claimsChord(event: KeyboardEvent): boolean {
-		const chords = collectReservedChords({
-			searchBar,
-			keybindings: overridesMap,
-			activation: activePlugins,
-			cmdEdgeChords: false
-		});
-		return chordIsClaimed(event, chords);
+		return keyClaims.claims(event);
 	}
 
 	const diagnostics = createEditorDiagnostics({
@@ -1395,6 +1434,7 @@
 		getOperationsLog: () => operationsLog,
 		isCrossBlockActive: () => selectionState.isCrossBlock,
 		getGapCaret: () => selectionState.gapCaret,
+		getKeyFocus: (e) => keyClaims.readKeyFocus(e),
 		getDecorationEngine: () => decorationEngine,
 		getHeightOracle: () => heightOracle,
 		getBlockIds: () => blockIds,
@@ -1459,6 +1499,9 @@
 		reorderable={true}
 	/>
 	<SelectionGapFill getEditorEl={() => editorEl ?? null} />
+	{#if effectiveMode !== 'reading'}
+		<SelectionHandles finger={() => fingerPress} {getBlockComponent} />
+	{/if}
 	<!-- A sibling of the block list, like the header. -->
 	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
 	{#if blockMenu}
@@ -1485,6 +1528,7 @@
 				getEvents
 			}}
 			root={editorEl}
+			finger={() => fingerPress}
 			{menuPresence}
 		/>
 	{/if}

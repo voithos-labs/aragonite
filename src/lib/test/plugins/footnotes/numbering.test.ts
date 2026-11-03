@@ -4,10 +4,10 @@ import {
 	footnotesPlugin,
 	assignFootnoteNumbers,
 	collectFootnoteReferences
-} from '#lib/plugins/footnotes/index.js';
+} from '#packages/footnotes/src/index.js';
 // Plugin-internal (see the barrel's note): the shared numbering pass keys on the editor's
 // content version, so only an editor-mounted widget can call it.
-import { footnoteNumbersFor } from '#lib/plugins/footnotes/footnote-numbering.js';
+import { footnoteNumbersFor } from '#packages/footnotes/src/footnote-numbering.js';
 
 describe('footnote numbering (derived, first-reference order)', () => {
 	beforeEach(() => {

@@ -1,0 +1,22 @@
+{
+	// The bundled plugins' shared compiler options; each package's own tsconfig extends it.
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"strict": true,
+		"declaration": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": true,
+		"rootDir": "${configDir}/src",
+		"outDir": "${configDir}/dist",
+		// This checkout's own core build, wherever npm linked the package from.
+		"paths": {
+			"@voithos-labs/aragonite/plugin": ["../dist/plugin.d.ts"],
+			"@voithos-labs/aragonite/svelte": ["../dist/svelte.d.ts"],
+			"@voithos-labs/aragonite/testing": ["../dist/testing.d.ts"]
+		}
+	},
+	"include": ["${configDir}/src"]
+}

@@ -5,7 +5,7 @@ import {
 	resolveEmptyPairBackspace
 } from '#lib/components/blocks/text/delimiter-autopair.js';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
-import { registerMathInline } from '#lib/plugins/latex/latex-kind.js';
+import { registerMathInline } from '#packages/latex/src/latex-kind.js';
 import type { ContentRange } from '#lib/core/inline/index.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 

@@ -13,7 +13,7 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import { readBlocks } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-primitives';
 import { docPathFrom } from '../../core/coordinate-spaces';
-import { replaceRangeInLeaf } from '../leaf-range';
+import { replaceDrawnRange } from '../leaf-range';
 import {
 	documentLineEnding,
 	ownTrailingLineEnding,
@@ -258,7 +258,7 @@ function targetAfterPreDelete(
 	lineEnding: LineEnding
 ): { raw: string; offset: number } {
 	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
-	const cut = replaceRangeInLeaf(node, input.preDelete, '', store);
+	const cut = replaceDrawnRange(node, input.preDelete, '', store);
 	return {
 		raw: trimTrailingLineEnding(cut.raw) + trailingLineEnding(node.raw, lineEnding),
 		offset: cut.caret

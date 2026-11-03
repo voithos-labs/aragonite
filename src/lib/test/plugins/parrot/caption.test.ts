@@ -3,7 +3,7 @@
 // Miss-analysis: every caption case was ASCII with one space after the marker.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
-import { parrotPlugin, PARROT } from '#lib/plugins/parrot/index.js';
+import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
 import { declaredPluginKind } from '#lib/plugin.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { destroyMountedEditors, mountEditor } from '#lib/test/harness/mount-editor.svelte.js';

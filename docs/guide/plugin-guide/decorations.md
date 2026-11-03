@@ -27,12 +27,12 @@ setup(ctx) {
 
 ## The four decoration types
 
-| Type      | Shape                                                             | Renders as                                                                                                                                                                                                                                                                                                                                    |
-| --------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mark`    | `{ type: 'mark', path, start, end, class, attrs?, interactive? }` | A positioned overlay span over the inline range; style it via the class. `interactive` makes it answer clicks, hovers and the keyboard ([Interactive marks](#interactive-marks-click-hover-and-the-keyboard))                                                                                                                                 |
-| `widget`  | `{ type: 'widget', path, offset, widget, side? }`                 | A zero-width atomic inline widget at the offset (ghost text's shape), drawn `'after'` it by default or `'before'`                                                                                                                                                                                                                             |
-| `replace` | `{ type: 'replace', path, start, end, widget?, class? }`          | An atomic inline widget covering the range; the hidden bytes stay in the document                                                                                                                                                                                                                                                             |
-| `block`   | `{ type: 'block', path, class?, attrs?, badge? }`                 | A class/attrs treatment on the whole block (a list item, table row or cell included), plus an optional badge widget (not on a row or cell). Attributes the editor already uses on the block's element (the `data-` names it sets or looks up there, `role`, `tabindex` and friends) get dropped with a dev warning, so pick names of your own |
+| Type | Shape | Renders as |
+| --- | --- | --- |
+| `mark` | `{ type: 'mark', path, start, end, class, attrs?, interactive? }` | A positioned overlay span over the inline range; style it via the class. `interactive` makes it answer clicks, hovers and the keyboard ([Interactive marks](#interactive-marks-click-hover-and-the-keyboard)) |
+| `widget` | `{ type: 'widget', path, offset, widget, side? }` | A zero-width atomic inline widget at the offset (ghost text's shape), drawn `'after'` it by default or `'before'` |
+| `replace` | `{ type: 'replace', path, start, end, widget?, class? }` | An atomic inline widget covering the range; the hidden bytes stay in the document |
+| `block` | `{ type: 'block', path, class?, attrs?, badge? }` | A class/attrs treatment on the whole block (a list item, table row or cell included), plus an optional badge widget (not on a row or cell). Attributes the editor already uses on the block's element (the `data-` names it sets or looks up there, `role`, `tabindex` and friends) get dropped with a dev warning, so pick names of your own |
 
 One `provide` answer using two of them, shapes side by side:
 
@@ -79,7 +79,7 @@ editor.events.on('selectionChange', (sel) => {
 });
 ```
 
-Keying the cache on an index (word to marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite/plugins/highlight-occurrences`) is this recipe end to end.
+Keying the cache on an index (word to marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite-highlight-occurrences`) is this recipe end to end.
 
 <details>
 <summary>Three more tricks highlight-occurrences pulls, if you're building something like it</summary>
@@ -102,11 +102,11 @@ editor.rects.rangeRects([2], 4, 9); // [DOMRect { x: 96, y: 412, width: 38, heig
 
 A mark answers the user through its `interactive` field. It takes up to three handlers, and at least one (an empty `interactive: {}` doesn't compile):
 
-| Handler                       | Runs when                                                                     | Gets                                         |
-| ----------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------- |
-| `onClick(dec, ev)`            | the mark is clicked                                                           | the click event                              |
-| `onHover(dec, hover)`         | the pointer enters the mark, then once more with `null` when the hover's over | `{ anchor, rects }`, in viewport coordinates |
-| `onActivate(dec, { anchor })` | the `decorations.activateAtCaret` command runs with the caret in the mark     | the mark's rect on the caret's line          |
+| Handler | Runs when | Gets |
+| --- | --- | --- |
+| `onClick(dec, ev)` | the mark is clicked | the click event |
+| `onHover(dec, hover)` | the pointer enters the mark, then once more with `null` when the hover's over | `{ anchor, rects }`, in viewport coordinates |
+| `onActivate(dec, { anchor })` | the `decorations.activateAtCaret` command runs with the caret in the mark | the mark's rect on the caret's line |
 
 The two pointer handlers differ in one way. A mark with `onClick` takes the click, so clicking it runs your handler and doesn't move the caret. A hover-only mark lets every click, drag and double-click through to the text under it, so a defined word still edits like any other word (and keeps the text cursor). The editor works out the hover from where the pointer is, and it skips that work when no hover mark is on screen.
 

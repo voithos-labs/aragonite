@@ -9,6 +9,7 @@ import { ancestorsOf, walkBlocks } from '../core/paths';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { showValue as show } from '../core/metadata-parity';
+import { cellFailure, type CellContract } from './cell-contracts';
 
 export { show };
 
@@ -68,12 +69,12 @@ export async function runCell<Cell extends string, Ctx>(
 	return { cell, ...outcome };
 }
 
-/** Runs every cell and throws one `Error` under `heading` naming each failure, `earlier` ones
- *  (found before any cell ran) first. */
+/** Runs every cell and throws one `Error` under `heading` naming each failure and the contract it
+ *  breaks, `earlier` ones (found before any cell ran, already in `cellFailure` form) first. */
 export async function runCells<Cell extends string, Ctx>(
 	cells: readonly KitCell<Cell, Ctx>[],
 	ctx: Ctx,
-	names: { subject: string; heading: string },
+	names: { subject: string; heading: string; contracts: Record<Cell, CellContract> },
 	earlier: readonly string[] = []
 ): Promise<CellReport<Cell>[]> {
 	const reports: CellReport<Cell>[] = [];
@@ -82,7 +83,8 @@ export async function runCells<Cell extends string, Ctx>(
 		try {
 			reports.push(await runCell(kitCell, ctx, names.subject));
 		} catch (error) {
-			failures.push(`${kitCell.cell}: ${(error as Error).message}`);
+			const { cell } = kitCell;
+			failures.push(cellFailure(cell, (error as Error).message, names.contracts[cell]));
 		}
 	}
 	if (failures.length > 0) fail(`${names.heading}:\n  - ${failures.join('\n  - ')}`);

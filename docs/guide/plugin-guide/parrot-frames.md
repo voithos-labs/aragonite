@@ -2,9 +2,9 @@
 
 Birb be dancing
 
-```js
+```ts
 // The canonical ten, via terminal-parrot (MIT).
-const FRAMES = [
+export const PARROT_FRAMES = [
 	String.raw`
                          .cccc;;cc;';c.
                       .,:dkdc:;;:c:,:d:.

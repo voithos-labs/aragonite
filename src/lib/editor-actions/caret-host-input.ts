@@ -1,7 +1,8 @@
 /**
  * The input of an empty element that only holds a caret (the gap caret, a whole-block block's
- * hidden host): typed or composed text goes to `insert`, a new paragraph, and the element goes back
- * to empty. Every other input is refused at `beforeinput`.
+ * hidden host): typed or composed text goes to `insert`, a new paragraph, a paste's Markdown goes to
+ * `paste`, as blocks at the same spot, and the element goes back to empty. Every other input is
+ * refused at `beforeinput`.
  */
 
 import { readInput } from '../browser/input';
@@ -15,12 +16,14 @@ export interface CaretHostInput {
 	/** Whether `event` is a plain key that ended a composition the browser dropped here, so it's spent
 	 *  (a character joined the text); Enter runs `openAfter` once the composed paragraph lands. */
 	takesKey(event: KeyboardEvent, openAfter: () => unknown): boolean;
+	onPaste(event: ClipboardEvent): void;
 }
 
 export function createCaretHostInput(
 	getHost: () => HTMLElement | null | undefined,
 	insert: (text: string) => unknown,
-	composition: CompositionTracker
+	composition: CompositionTracker,
+	paste: (markdown: string) => unknown
 ): CaretHostInput {
 	let minted: { at: Event; landed: Promise<unknown> } | null = null;
 
@@ -73,6 +76,11 @@ export function createCaretHostInput(
 			event.preventDefault();
 			if (event.key === 'Enter') void minted.landed.then(openAfter);
 			return true;
+		},
+		onPaste(event) {
+			event.preventDefault();
+			const text = event.clipboardData?.getData('text/plain') ?? '';
+			if (text) paste(text);
 		}
 	};
 }

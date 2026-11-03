@@ -8,8 +8,8 @@ import {
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import type { MathRenderer } from '#lib/plugins/latex/math-renderer.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { takeDevWarns } from '../support/warn-gate';

@@ -3,10 +3,10 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins } from '#lib';
 import { parse } from '#lib/core/parser.js';
-import { parrotPlugin, PARROT } from '#lib/plugins/parrot/index.js';
+import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
 import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
-import { DETAILS, registerDetailsKind } from '#lib/plugins/details/details-kind.js';
+import { DETAILS, registerDetailsKind } from '#packages/details/src/details-kind.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { createRegistryView } from '#lib/schema/registry-view.js';
 import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';

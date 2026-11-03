@@ -1,11 +1,16 @@
 /**
  * Turns a keydown into a plan for a table cell's caret-dependent moves: the next cell at a text
  * boundary, a row, or out of the table. Tab and Enter are keymap chords, planned by
- * `cellCommandPlan`. Alt and Mod are ignored, since the command dispatcher takes those first; a
- * Cmd+Arrow is a caret-edge key, so it is `native`.
+ * `cellCommandPlan`. A vertical arrow ignores Mod and leaves Alt to the row move; a sideways move
+ * takes only a caret key; a Cmd+Arrow is a caret-edge key, so it is `native`.
  */
 import { cellAbove, cellBelow, nextCell, prevCell, type CellCoord } from './table-navigation';
-import { caretEdgeKey, isSelectAllChord, type ChordKeys } from '../../../schema/keybindings';
+import {
+	caretEdgeKey,
+	isSelectAllChord,
+	motionKey,
+	type ChordKeys
+} from '../../../schema/keybindings';
 
 export interface CellKeyState {
 	rowIdx: number;
@@ -42,14 +47,18 @@ export function cellKeydownPlan(e: ChordKeys, s: CellKeyState): CellKeyPlan {
 	if (caretEdgeKey(e)) return { kind: 'native' };
 	const atStart = s.offset === null || (s.offset <= s.contentStart && s.collapsed);
 	const atEnd = s.offset === null || (s.offset >= s.contentEnd && s.collapsed);
-	if (e.key === 'ArrowLeft' && !e.shiftKey && atStart) {
+	// Off a Mac, Alt+Arrow is the page's Back and Forward.
+	const sideways = !e.shiftKey && motionKey(e) !== null;
+	if (e.key === 'ArrowLeft' && sideways && atStart) {
 		return horizontalMove(prevCell(pos, s.columnCount), 'end', 'up');
 	}
-	if (e.key === 'ArrowRight' && !e.shiftKey && atEnd) {
+	if (e.key === 'ArrowRight' && sideways && atEnd) {
 		return horizontalMove(nextCell(pos, s.columnCount, s.rowCount), 'start', 'down');
 	}
-	if (e.key === 'ArrowUp' && !e.shiftKey) return verticalMove(cellAbove(pos), 'up');
-	if (e.key === 'ArrowDown' && !e.shiftKey) return verticalMove(cellBelow(pos, s.rowCount), 'down');
+	// Alt+ArrowUp and Down are the row move's, so a disabled one does nothing here.
+	const vertical = !e.shiftKey && !e.altKey;
+	if (e.key === 'ArrowUp' && vertical) return verticalMove(cellAbove(pos), 'up');
+	if (e.key === 'ArrowDown' && vertical) return verticalMove(cellBelow(pos, s.rowCount), 'down');
 	if (e.key === 'Backspace' && s.offset !== null && atStart) {
 		return horizontalMove(prevCell(pos, s.columnCount), 'end', 'up');
 	}

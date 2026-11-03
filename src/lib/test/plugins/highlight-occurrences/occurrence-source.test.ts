@@ -7,8 +7,8 @@ import type { EditorSelection, MarkDecoration } from '#lib/plugin.js';
 import {
 	createOccurrenceSource,
 	type OccurrenceSource
-} from '#lib/plugins/highlight-occurrences/occurrence-source.js';
-import { OCCURRENCE_CLASS } from '#lib/plugins/highlight-occurrences/occurrences.js';
+} from '#packages/highlight-occurrences/src/occurrence-source.js';
+import { OCCURRENCE_CLASS } from '#packages/highlight-occurrences/src/occurrences.js';
 
 function caret(path: number[], offset: number): EditorSelection {
 	const point = { path, offset };

@@ -9,7 +9,7 @@ import {
 } from 'vite';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { SOURCE_CONDITION } from './scripts/lib-alias.mjs';
+import { SOURCE_CONDITION, workspaceSourceAliases } from './scripts/lib-alias.mjs';
 
 // E2E broken-image tests hit /test-fixtures/nonexistent.png on purpose, and SvelteKit's
 // static handler logs every miss; answering early keeps the dev and Playwright stdout clean.
@@ -87,7 +87,11 @@ export default defineConfig({
 	],
 	// The app loads the library from source in every build of its own, so its production build
 	// carries the real dev-checks module (switched off), not the stripped copy a consumer gets.
-	resolve: { conditions: [SOURCE_CONDITION, ...defaultClientConditions] },
+	resolve: {
+		conditions: [SOURCE_CONDITION, ...defaultClientConditions],
+		// Package names reach this checkout's source, whatever `node_modules` links them to.
+		alias: workspaceSourceAliases()
+	},
 	ssr: { resolve: { conditions: [SOURCE_CONDITION, ...defaultServerConditions] } },
 	// Readable stack traces in a failing spec's page errors.
 	...(e2eBuild ? { build: { minify: false, sourcemap: true } } : {}),

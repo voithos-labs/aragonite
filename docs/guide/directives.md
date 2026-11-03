@@ -38,11 +38,11 @@ The reason is the way this feature usually gets built wrong: if every plugin reg
 
 ## The three tiers
 
-| Tier          | Syntax                 | Colons    | Where  | Body                                    |
-| ------------- | ---------------------- | --------- | ------ | --------------------------------------- |
-| **Container** | `:::name info` … `:::` | 3 or more | block  | nested markdown, real child blocks      |
-| **Leaf**      | `::name info`          | 2         | block  | one line, no children                   |
-| **Text**      | `:name[label]{attrs}`  | 1         | inline | an atomic widget, source shown on focus |
+| Tier | Syntax | Colons | Where | Body |
+| --- | --- | --- | --- | --- |
+| **Container** | `:::name info` … `:::` | 3 or more | block | nested markdown, real child blocks |
+| **Leaf** | `::name info` | 2 | block | one line, no children |
+| **Text** | `:name[label]{attrs}` | 1 | inline | an atomic widget, source shown on focus |
 
 The colon count is the tier (one colon is text, two is a leaf, three or more is a container). A name is a letter followed by letters, digits or hyphens (no underscores). And the text tier is deliberately shy: `:name` only counts when a `[` or `{` follows immediately, so `:smile:`, `10:30` and `http://` all stay plain text, as they should.
 
@@ -150,11 +150,11 @@ You don't build the first line. The grammar takes `:::note Heads up` verbatim an
 
 `fromDirective` is required, optional or refused depending on the tier (and yes, it fails loud):
 
-| Tier      | `fromDirective` | Why                                                                                    |
-| --------- | --------------- | -------------------------------------------------------------------------------------- |
-| Container | required        | a container has to build its own node, or the generic rebuild has nothing to work with |
-| Leaf      | optional        | without one, the leaf just restamps its kind; with one, you build the node             |
-| Text      | refused         | inline nodes are kind-only; a factory would never be called                            |
+| Tier | `fromDirective` | Why |
+| --- | --- | --- |
+| Container | required | a container has to build its own node, or the generic rebuild has nothing to work with |
+| Leaf | optional | without one, the leaf just restamps its kind; with one, you build the node |
+| Text | refused | inline nodes are kind-only; a factory would never be called |
 
 p.s. Please, for chrissake, don't hand-write `rebuildRaw` for a container, lest you enjoy watching a car crash. `createDirectiveRebuild` does all of it; the plugin guide's walkthrough shows it in use.
 
@@ -186,32 +186,32 @@ Everything here is marked pre-freeze, meaning it may still change shape until 1.
 
 The ones you will actually use:
 
-| Entry                    | When you reach for it                                                                                                                                                                     |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activateDirectives`     | once, at startup, to turn directives on at all                                                                                                                                            |
-| `registerDirective`      | to claim a name for your kind (this whole page)                                                                                                                                           |
-| `isDirectiveRegistered`  | to check whether a name is already taken, if you want first-wins instead of a throw                                                                                                       |
+| Entry | When you reach for it |
+| --- | --- |
+| `activateDirectives` | once, at startup, to turn directives on at all |
+| `registerDirective` | to claim a name for your kind (this whole page) |
+| `isDirectiveRegistered` | to check whether a name is already taken, if you want first-wins instead of a throw |
 | `createDirectiveRebuild` | to get a `rebuildRaw` for your container without writing one (the thing you were told not to hand-write); it writes the opener line back as it stands, then the body and the closing line |
-| `DIRECTIVE_BODY_WRAP`    | put it in your container kind's `bodyWrap`; it tells the parser how a `:::` body is wrapped in blank lines                                                                                |
+| `DIRECTIVE_BODY_WRAP` | put it in your container kind's `bodyWrap`; it tells the parser how a `:::` body is wrapped in blank lines |
 
 The ones you probably won't:
 
-| Entry                      | When you reach for it                                                                                         |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Entry | When you reach for it |
+| --- | --- |
 | `parseDirectiveAttributes` | if your info strings use the `[label]{#id .class key=value}` convention and you want them read into an object |
-| `serializeDirective`       | writes a fence back out from its parts; `createDirectiveRebuild` already calls it for you                     |
-| `escalatedColonCount`      | how many colons a fence needs to hold a given body; only if you build `:::name` text by hand                  |
+| `serializeDirective` | writes a fence back out from its parts; `createDirectiveRebuild` already calls it for you |
+| `escalatedColonCount` | how many colons a fence needs to hold a given body; only if you build `:::name` text by hand |
 
 Plus the types: `DirectiveTier`, `DirectiveDefinition`, `ParsedDirective`, `DirectiveFence` and `DirectiveAttributes`.
 
 The one type worth knowing by heart is `ParsedDirective`, because it is what your `fromDirective` gets handed:
 
-| Field                                             | What it is                                                                                                                                         |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fence`                                           | the opener line, taken apart: `tier`, `colonCount`, `name`, `info`                                                                                 |
-| `body`                                            | everything between the fences, already parsed (a leaf has none); its `children` become your node's body blocks                                     |
-| `leadingTrivia`, `raw`                            | the blank lines before the block, and the block's exact source text; copy both onto your node untouched, or it will not save back to what was read |
-| `closerColonCount`, `closerNewline`, `lineEnding` | how the closing fence looked and which line ending the file used, so the fence can be written back exactly, CRLF included                          |
+| Field | What it is |
+| --- | --- |
+| `fence` | the opener line, taken apart: `tier`, `colonCount`, `name`, `info` |
+| `body` | everything between the fences, already parsed (a leaf has none); its `children` become your node's body blocks |
+| `leadingTrivia`, `raw` | the blank lines before the block, and the block's exact source text; copy both onto your node untouched, or it will not save back to what was read |
+| `closerColonCount`, `closerNewline`, `lineEnding` | how the closing fence looked and which line ending the file used, so the fence can be written back exactly, CRLF included |
 
 For the `:::note Heads up` fence at the top of this page, your factory gets:
 

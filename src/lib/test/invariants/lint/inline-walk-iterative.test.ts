@@ -12,7 +12,7 @@ import {
 	balancedCall,
 	callsAnywhere,
 	collectEditorSources,
-	EDITOR_SRC,
+	LIBRARY_ROOTS,
 	walkCode
 } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
@@ -168,7 +168,7 @@ function record(node) {
 `;
 
 describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
-	const sources = collectEditorSources(EDITOR_SRC).filter((file) =>
+	const sources = collectEditorSources(LIBRARY_ROOTS).filter((file) =>
 		SCOPE.some((dir) => file.relPath.startsWith(dir))
 	);
 

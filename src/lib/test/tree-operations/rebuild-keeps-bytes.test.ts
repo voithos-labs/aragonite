@@ -4,7 +4,7 @@
 // that respelled the whole container wrote back the bytes it read and no test saw lines move.
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';

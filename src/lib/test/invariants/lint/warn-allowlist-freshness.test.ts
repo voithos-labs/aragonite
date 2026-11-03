@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { ALLOWED_WARNS, type AllowedWarn } from '../../support/warn-gate';
-import { collectEditorSources, EDITOR_SRC } from './scan-source';
+import { collectEditorSources, LIBRARY_ROOTS } from './scan-source';
 
 /** A `devWarn(` whose tag argument opens with the literal `tag`, on that line or the next. */
 function warnsWithTag(code: string, tag: string): boolean {
@@ -26,7 +26,7 @@ function staleReason(row: AllowedWarn, code: string | undefined): string {
 }
 
 describe('warn-gate allowlist stays honest against the source', () => {
-	const sources = collectEditorSources(EDITOR_SRC);
+	const sources = collectEditorSources(LIBRARY_ROOTS);
 	const byPath = new Map(sources.map((f) => [f.relPath, f]));
 
 	it('inspected the editor sources', () => {

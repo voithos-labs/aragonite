@@ -17,7 +17,7 @@ const HAND_TAB_SITES: FileRule = {
 			"the open menu's focus trap; the menu never opens in reading mode",
 		[SOURCE.linkCard]: "the open card's focus trap; the card never opens in reading mode",
 		[SOURCE.imageProperties]: 'lets Tab through to the page while a crop is open',
-		'src/lib/components/menu/InlineMenuHost.svelte':
+		'src/lib/inline-menu/inline-menu-state.svelte.ts':
 			'commits the open row; an inline menu never opens in reading mode',
 		[SOURCE.mermaidBlock]: "indents in the diagram's edit box, which reading mode never opens"
 	},
@@ -41,14 +41,14 @@ const inLibrary = (code: string) => ({ relPath: `${SOURCE_DIR.library}probe.svel
 
 const OWN_TAB_STOPS: FileRule = {
 	id: 'G4.235 only a control or the reading-mode stop puts an element in the tab order',
-	population: under(SOURCE_DIR.library),
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches:
 		/tabindex\s*[=:]\s*["']?0\b|tabindex=\{[^}]*\b0\b[^}]*\}|tabindex\s*=[^;\n]*[?:]\s*0\b|setAttribute\(\s*["']tabindex["']\s*,\s*["'`]?0\b/i,
 	allowed: {
 		[SOURCE.readingFocus]: 'the reading-mode stop itself',
 		'src/lib/components/blocks/marker-prefix.ts':
 			'a marker range a kind declares focusable, a control such as the footnote back marker',
-		'src/lib/plugins/footnotes/FootnoteReference.svelte': "the reference, reading mode's link",
+		'packages/footnotes/src/FootnoteReference.svelte': "the reference, reading mode's link",
 		'src/lib/components/GapCaret.svelte': 'the gap caret, which reading mode never shows'
 	},
 	reason:

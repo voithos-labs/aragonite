@@ -8,7 +8,7 @@ import { parse, isBlankParagraph } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
-import { MATH_BLOCK, registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
+import { MATH_BLOCK, registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';

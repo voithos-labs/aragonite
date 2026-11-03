@@ -15,7 +15,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { insertBy } from '#lib/test/harness/insertion-routes.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
 import type { EditorProps } from '#lib/components/editor-component-props.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
 

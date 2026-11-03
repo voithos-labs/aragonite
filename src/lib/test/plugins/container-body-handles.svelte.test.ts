@@ -3,8 +3,8 @@
 // does, so a body block the keyboard can move can be dragged too; text inside still shows none.
 // Miss-analysis: the handle tests mounted built-in containers only, never a plugin container.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import {
 	installLayoutStubs,
 	mountEditor,

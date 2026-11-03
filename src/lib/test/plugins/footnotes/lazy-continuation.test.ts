@@ -2,7 +2,7 @@
 // Shapes checked live against api.github.com/markdown.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
-import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 
 const NBSP = String.fromCharCode(0xa0);
 

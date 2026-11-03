@@ -4,7 +4,7 @@
  * Miss-analysis: no scan read spawn calls, so one hung `git init` held a unit run for 28 minutes.
  */
 
-import { collectEditorSources, EDITOR_SRC } from './scan-source';
+import { collectEditorSources, LIBRARY_ROOTS } from './scan-source';
 import { describeCallSiteRules, type CallSiteRule } from './call-site-rule';
 
 const SPAWNERS = ['spawn', 'spawnSync', 'execFile', 'execFileSync', 'execSync'];
@@ -46,4 +46,4 @@ const RULES: CallSiteRule[] = [
 	}
 ];
 
-describeCallSiteRules(RULES, collectEditorSources(EDITOR_SRC, { includeTests: true }));
+describeCallSiteRules(RULES, collectEditorSources(LIBRARY_ROOTS, { includeTests: true }));

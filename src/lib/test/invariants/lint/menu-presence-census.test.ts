@@ -32,7 +32,7 @@ const NOT_COUNTED: Record<string, { tag: string; reason: string }[]> = {
 	'src/lib/components/link-card/LinkCard.svelte': [
 		{ tag: 'md-link-card"', reason: 'LinkCardHost.svelte counts the anchor this card renders in' }
 	],
-	'src/lib/plugins/mermaid/MermaidBlock.svelte': [
+	'packages/mermaid/src/MermaidBlock.svelte': [
 		{
 			tag: 'mermaid-overlay"',
 			reason: 'a full-window focus view the plugin owns; plugins have no menu count to reach'

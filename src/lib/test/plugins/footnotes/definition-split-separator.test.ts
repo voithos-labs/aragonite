@@ -3,8 +3,8 @@
 // reparse back into one paragraph.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
-import { rebuildFootnoteDefRaw } from '#lib/plugins/footnotes/footnote-definition.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { rebuildFootnoteDefRaw } from '#packages/footnotes/src/footnote-definition.js';
 import { splitNode } from '#lib/tree-operations/index.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
 import { fixtureReading } from '../../harness/fixture-grammar';

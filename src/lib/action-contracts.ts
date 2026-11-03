@@ -456,6 +456,8 @@ export interface TableContext {
 	exitUpward(stickyX: number): void;
 	exitDownward(stickyX: number): void;
 
+	/** The cell action menu, opened from the keyboard under the cell. */
+	openCellMenu(rowIdx: number, colIdx: number): void;
 	notifyCellFocused(rowIdx: number, colIdx: number): void;
 	notifyCellBlurred(): void;
 

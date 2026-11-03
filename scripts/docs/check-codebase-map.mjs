@@ -1,19 +1,27 @@
 // The docs name code by path and symbol, and the tree names docs back by section, so a moved
 // file or a renamed heading has to move its citers. In `docs/design` and `docs/contributing` every
-// backticked `src/`, `docs/` or `scripts/` path, alone or inside a command, must name a file git tracks,
-// and a symbol after `::` must appear word-bounded in that file (fenced blocks exempt). Repo-wide,
-// a `<doc>.md § Name` pointer must slug-match a heading of that doc. Existence, not correctness.
+// backticked `src/`, `packages/`, `docs/` or `scripts/` path, alone or inside a command, must name a
+// file git tracks, and a symbol after `::` must appear word-bounded in that file (fenced blocks
+// exempt). Repo-wide, a `<doc>.md § Name` pointer must slug-match a heading of that doc.
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { citationProblem, corpusFiles, ignoredPaths } from './doc-corpus.mjs';
 
 const DOC_DIRS = ['docs/design', 'docs/contributing'];
-const REFERENCE_ROOT = /^(?:src|docs|scripts)\//;
+const REFERENCE_ROOT = /^(?:src|packages|docs|scripts)\//;
 const CODE_SPAN = /(`+)((?:(?!\1).)*?)\1/g;
 
 /** Roots a `§` pointer is cited from. */
-const POINTER_ROOTS = ['src', 'docs', 'scripts', 'examples', 'README.md', 'CONTRIBUTING.md'];
+const POINTER_ROOTS = [
+	'src',
+	'packages',
+	'docs',
+	'scripts',
+	'examples',
+	'README.md',
+	'CONTRIBUTING.md'
+];
 const POINTER_EXTENSIONS = ['.ts', '.svelte', '.md', '.mjs', '.css'];
 
 /**
@@ -117,7 +125,7 @@ export function referencesIn(file, text) {
 
 /**
  * A `<name>` placeholder or a `*` glob names a family, so only its concrete prefix can be checked:
- * `src/lib/plugins/<name>` still has to have a `src/lib/plugins`.
+ * `packages/<name>/src` still has to have a `packages`.
  * @param {string} target
  * @returns {string}
  */

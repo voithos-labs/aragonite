@@ -6,7 +6,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
 import { installPlugins } from '#lib';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
@@ -50,7 +50,7 @@ import {
 	mountSurface
 } from '../blocks/text/edge-policy-fixture';
 import { registerCalloutForTests } from '../selection/chrome-plugins';
-import { collectEditorSources, EDITOR_SRC } from '../invariants/lint/scan-source';
+import { collectEditorSources, LIBRARY_ROOTS } from '../invariants/lint/scan-source';
 import { replaceSelectedWidget } from '#lib/components/blocks/text/widget-interaction.js';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
@@ -474,6 +474,7 @@ const FAMILIES: Family[] = [
 			'components/blocks/table/TableCellBlock.svelte': 1,
 			'components/blocks/text/typed-input.ts': 1
 		},
+		passesOn: ['components/blocks/editable/surface-write.ts'],
 		rows: [
 			{ shape: 'a to-do', run: () => withText(TODO, deleteX), want: ['# y\n'] },
 			{ shape: 'a plain item', run: () => withText(ITEM, deleteX), want: [] },
@@ -482,7 +483,7 @@ const FAMILIES: Family[] = [
 	},
 	{
 		name: 'a composition over a selection',
-		stores: { 'components/blocks/text/TextEditableBlock.svelte': 1 },
+		stores: { 'components/blocks/text/composition-seat.ts': 1 },
 		// A link never grows at its edge, so the composed text lands outside the one the range
 		// emptied, and the link's runs go with it.
 		rows: [
@@ -503,6 +504,11 @@ const FAMILIES: Family[] = [
 						(m) => () => compose(m.el, { start: 1, end: 6 }, '[[ ] y')
 					),
 				want: ['[[ ] y\n']
+			},
+			{
+				shape: 'a table cell',
+				run: () => withCell('[x](u) y', (m) => () => compose(m.el, { start: 1, end: 6 }, '[# y')),
+				want: ['# y']
 			}
 		]
 	},
@@ -870,6 +876,9 @@ const STORE_TAKERS = [
 	'cleanJoinedRaw',
 	'joinLeaves',
 	'replaceRangeInLeaf',
+	'replaceDrawnRange',
+	'drawnRangeWrite',
+	'selectionRemoval',
 	'bytesLeavingLeaf',
 	'applyLiveRangeEdit',
 	'resolveEdgeDeletion',
@@ -889,7 +898,7 @@ function handsOnAStore(code: string): boolean {
 }
 
 describe('the route list', () => {
-	const sources = collectEditorSources(EDITOR_SRC);
+	const sources = collectEditorSources(LIBRARY_ROOTS);
 	const inLib = (relPath: string) => relPath.replace(/^src\/lib\//, '');
 
 	it('matches a store made or fetched, never a definition or a reference', () => {

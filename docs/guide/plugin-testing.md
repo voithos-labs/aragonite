@@ -16,19 +16,21 @@ Everything test-specific imports from one subpath, `@voithos-labs/aragonite/test
 
 And a map, so you can jump straight at your question:
 
-| Section                                                                                               | What it covers                                                                                               |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [Round-trip is the contract](#round-trip-is-the-contract)                                             | The three byte checks to write first: without an editor, in a live one, and with your plugin uninstalled     |
-| [A blank slate per test](#a-blank-slate-per-test)                                                     | Why a plugin registers only once per process, and the reset that lets a test suite live with that            |
-| [Turning warnings into failures](#turning-warnings-into-failures)                                     | Making the editor's dev-mode warnings fail your suite instead of scrolling by                                |
-| [Proving a paste transform is wired](#proving-a-paste-transform-is-wired)                             | Driving the real paste pipeline over a string, no clipboard involved                                         |
-| [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom)                                   | Rendering your component in a simulated browser, and the helper that fills the gaps                          |
-| [One tab stop in reading mode](#one-tab-stop-in-reading-mode-readingtaborderproblem)                  | Checking your mounted block leaves reading mode's Tab to the links and the editor's one stop                 |
-| [The conformance kits](#the-conformance-kits)                                                         | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share        |
-| [The kind checkup](#the-kind-checkup-runkindconformance)                                              | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing   |
-| [The container checkup](#the-container-checkup-runcontainerconformance)                               | Extra checks for a block that holds other blocks, starring the body line that ends the container early       |
-| [The inline checkup](#the-inline-checkup-runinlinekindconformance)                                    | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's                |
+| Section | What it covers |
+| --- | --- |
+| [Round-trip is the contract](#round-trip-is-the-contract) | The three byte checks to write first: without an editor, in a live one, and with your plugin uninstalled |
+| [A blank slate per test](#a-blank-slate-per-test) | Why a plugin registers only once per process, and the reset that lets a test suite live with that |
+| [Turning warnings into failures](#turning-warnings-into-failures) | Making the editor's dev-mode warnings fail your suite instead of scrolling by |
+| [Proving a paste transform is wired](#proving-a-paste-transform-is-wired) | Driving the real paste pipeline over a string, no clipboard involved |
+| [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom) | Rendering your component in a simulated browser, and the helper that fills the gaps |
+| [One tab stop in reading mode](#one-tab-stop-in-reading-mode-readingtaborderproblem) | Checking your mounted block leaves reading mode's Tab to the links and the editor's one stop |
+| [The conformance kits](#the-conformance-kits) | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share |
+| [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
+| [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
+| [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's |
 | [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkinlinemenucommitacrossswap) | One cell for an inline-menu source: a commit that waits writes nothing into a note the host loaded meanwhile |
+| [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your plugin declares, the check a listing runs |
+| [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
 
 ## Verifying your plugin
 
@@ -282,16 +284,16 @@ The clipboard executor is also exported on its own as `checkCopyIsRawByteSlice(k
 
 The harness the built-in containers are held to, pointed at your own container kind. The profile carries your fixtures plus a coverage declaration per cell; the kit parses its way to your kind, so register the plugin before running it. Each cell checks the node of your kind its fixture points at: the end of `containerChain` for `localIndex`, the first block of `terminatorCollisionFixture`, the first one anywhere in `focusSource` and `deepNesting`. If something else sits there, the cell fails, so a chain that drifted onto a blockquote can't pass on the blockquote's behalf. The cells:
 
-| Cell                  | What it holds you to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `localIndex`          | Children are addressed by their index inside your container at each nesting level, not by a document-wide count. A grid container declares it `boundary`, since the kit only knows how to drive a grid operation for the built-in table                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `ancestry`            | An edit deep inside rebuilds bytes innermost-first, so the outermost block's raw reflects the leaf change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `multiScope`          | One operation spanning two nesting levels pushes exactly one undo entry. The kit only drives such an operation for the built-in list and table, so a plugin kind declares this cell `exempt` (or `boundary`, if it does own one)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `focusBubble`         | A focus move leaving your top edge reaches the document root exactly once, with no loop and no double-escape                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `terminatorCollision` | A body line reproducing your container's own closing line stays inside the container                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `titleRow`            | Always on, and excused for a kind with no title row or one that isn't opaque. A `:::` container's opener line counts as a title row, and so does one you declare with `reservedChrome`. It needs your kind's own `conformanceFixture` to type in: it types into your title row the way a keystroke does, then checks your block against a fresh parse of its bytes, metadata included. The editor doesn't re-read your metadata on a title keystroke, so none of it may come from the title's bytes. On a `:::` opener line the title is the text after the name; a change to `:::name` itself does re-read the container                                                                                                                                                                                                                                   |
-| `openerLine`          | Always on, and excused when no start of your fixture's first line waits on a closer below. For each start that does (`:::c`, `:::co`, and so on), it types it above your fixture, where the editor closes it at once, and checks the caret's offset still sits in a line you can type in. A `:::` container passes on its own, since its opener line is that line; it's here for an opener of your own whose first line would otherwise send the next letter into the body                                                                                                                                                                                                                                                                                                                                                                                  |
-| `declarations`        | The kit's own cell, always on, and it also needs your kind's `conformanceFixture` (a top-level block of your kind; a grid container needs none). Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` keeps the parsed bytes, rewrites only the edited child's lines when one child of your `deepNesting` source changes (so spell that source the way your rebuild wouldn't), and answers its changed-child shortcut with the same bytes as a full rebuild, `bodyWrap` matches what your parse does, the child your `lastLineChild` names (or the default one) really ends on your last line (and when the answer is -1, your own last line can give its ending up without a rebuild writing it back), and a declared `contentStartSpace` writes the space it took as your marker's when an empty line gains text |
+| Cell | What it holds you to |
+| --- | --- |
+| `localIndex` | Children are addressed by their index inside your container at each nesting level, not by a document-wide count. A grid container declares it `boundary`, since the kit only knows how to drive a grid operation for the built-in table |
+| `ancestry` | An edit deep inside rebuilds bytes innermost-first, so the outermost block's raw reflects the leaf change |
+| `multiScope` | One operation spanning two nesting levels pushes exactly one undo entry. The kit only drives such an operation for the built-in list and table, so a plugin kind declares this cell `exempt` (or `boundary`, if it does own one) |
+| `focusBubble` | A focus move leaving your top edge reaches the document root exactly once, with no loop and no double-escape |
+| `terminatorCollision` | A body line reproducing your container's own closing line stays inside the container |
+| `titleRow` | Always on, and excused for a kind with no title row or one that isn't opaque. A `:::` container's opener line counts as a title row, and so does one you declare with `reservedChrome`. It needs your kind's own `conformanceFixture` to type in: it types into your title row the way a keystroke does, then checks your block against a fresh parse of its bytes, metadata included. The editor doesn't re-read your metadata on a title keystroke, so none of it may come from the title's bytes. On a `:::` opener line the title is the text after the name; a change to `:::name` itself does re-read the container |
+| `openerLine` | Always on, and excused when no start of your fixture's first line waits on a closer below. For each start that does (`:::c`, `:::co`, and so on), it types it above your fixture, where the editor closes it at once, and checks the caret's offset still sits in a line you can type in. A `:::` container passes on its own, since its opener line is that line; it's here for an opener of your own whose first line would otherwise send the next letter into the body |
+| `declarations` | The kit's own cell, always on, and it also needs your kind's `conformanceFixture` (a top-level block of your kind; a grid container needs none). Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` keeps the parsed bytes, rewrites only the edited child's lines when one child of your `deepNesting` source changes (so spell that source the way your rebuild wouldn't), and answers its changed-child shortcut with the same bytes as a full rebuild, `bodyWrap` matches what your parse does, the child your `lastLineChild` names (or the default one) really ends on your last line (and when the answer is -1, your own last line can give its ending up without a rebuild writing it back), and a declared `contentStartSpace` writes the space it took as your marker's when an empty line gains text |
 
 You supply the fixtures, on top of the `conformanceFixture` your descriptor already carries. For the guide's `:::conspiracy` container ([the walkthrough](plugin-guide/container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end)), a full profile looks like this:
 
@@ -428,15 +430,15 @@ The same idea one layer down: register your recognizer (the `registerInlineSynta
 
 The cells:
 
-| Cell             | What it holds you to                                                                                                                                                  |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `claims`         | Every fixture you supply is actually claimed by **your** recognizer, starting at your own prefix                                                                      |
-| `roundTrip`      | Your fixtures, and the kit's interleavings of them with other syntax, round-trip, and your claims tile the scanned range with no gap                                  |
-| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, you decline it                                                                                      |
-| `widget`         | Your claimed bytes are one atomic unit, and your rendered widget spans exactly the bytes it stands for                                                                |
-| `editingPolicy`  | Your widget's editing declaration exists, is in the vocabulary the caret-edge dispatch actually reads, and (for one-press delete) leaves bytes behind that round-trip |
-| `imageClaim`     | A recognizer that builds built-in nodes comes with the `rewriteImage` hook the write paths need                                                                       |
-| `registration`   | Your recognizer is registered the way your profile says, alone at its prefix and priority                                                                             |
+| Cell | What it holds you to |
+| --- | --- |
+| `claims` | Every fixture you supply is actually claimed by **your** recognizer, starting at your own prefix |
+| `roundTrip` | Your fixtures, and the kit's interleavings of them with other syntax, round-trip, and your claims tile the scanned range with no gap |
+| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, you decline it |
+| `widget` | Your claimed bytes are one atomic unit, and your rendered widget spans exactly the bytes it stands for |
+| `editingPolicy` | Your widget's editing declaration exists, is in the vocabulary the caret-edge dispatch actually reads, and (for one-press delete) leaves bytes behind that round-trip |
+| `imageClaim` | A recognizer that builds built-in nodes comes with the `rewriteImage` hook the write paths need |
+| `registration` | Your recognizer is registered the way your profile says, alone at its prefix and priority |
 
 `claims`, `roundTrip`, and `registration` always run; the other four you declare. Here's a profile for an `![[…]]` embed like the [guide's](plugin-guide/inline-kinds.md#inline-kinds), in a variant that declares its own `EMBED` kind and renders it with a Svelte component (the guide's own builds built-in images instead):
 
@@ -521,3 +523,65 @@ await checkInlineMenuCommitAcrossSwap({
 // loaded another document; write through the context onCommit hands you, or compare
 // documentGeneration across the wait
 ```
+
+### The whole plugin at once: `runPluginConformance`
+
+**`runPluginConformance(suite)`**
+
+The three kits each take one kind. This one takes your whole plugin: it empties the registries, installs your units the way the `plugins` prop does, and runs every kit over every kind their setups declared. It's also the check a plugin listing runs, so it's strict about what it gets: a container kind needs a container profile and an inline kind needs an inline profile, since without fixtures those kits have nothing to run. Any dev warning raised along the way fails the run, so it wants dev checks on (it's on under Vitest; anywhere else, `configureEditorEnv({ isDev: true })` first).
+
+The suite is your units plus those profiles. A profile names its kind as a string, because the branded kind only exists once your setup has run:
+
+```ts
+import { runPluginConformance, type PluginConformanceSuite } from '@voithos-labs/aragonite/testing';
+import { conspiracyPlugin } from './conspiracy-plugin';
+
+const suite: PluginConformanceSuite = {
+	plugins: [conspiracyPlugin()],
+	containers: { conspiracy: conspiracyProfile } // the profile from the container checkup above
+	// inline: [{ trigger: '!', prefix: '![[', kind: 'embed', ... }] for an inline kind
+};
+
+it('the plugin conforms', async () => {
+	const report = await runPluginConformance(suite);
+	report.kinds.map((k) => k.kind); // ['conspiracy']
+});
+```
+
+It resolves with every kit's report (`plugins`, `kinds`, `containers`, `inline`), and a failure throws one `Error` naming each broken cell and the contract it breaks, with the section of this page that explains it:
+
+```
+Error: plugin conformance failed for "memo":
+  - kind conformance failed for "memo":
+      - rawWrite: "memo" declares no rawWrite, and the closing line cut ("%%memo a\n") swallows the next block ("raw write sentinel\n"): declare rawWrite to put the closer back
+        breaks: any bytes written into your block leave the blocks around it alone (plugin-testing.md#the-kind-checkup-runkindconformance)
+```
+
+A kind left without its profile fails the same way (`container kind "conspiracy" has no profile in the suite's containers`), and so does a profile naming a kind your plugins never declared.
+
+### The check a listing runs: `aragonite-plugin-check`
+
+**`npx aragonite-plugin-check [package | directory] [--json file]`**
+
+The same run from outside your test suite, over your built package the way a host installs it. Your package publishes its suite as a `./conformance` export (a module whose default export is the `PluginConformanceSuite` above), and the command comes with the editor, so it runs the kits of whichever editor version you installed. Pass a directory to check the package it holds (`.` is the default), or a package name to check one installed beside the editor:
+
+```
+$ npx aragonite-plugin-check .
+checking aragonite-parrot@0.1.0 against @voithos-labs/aragonite@0.12.0
+  kind checkup, parrot: 4 asserted, 6 boundary, 1 exempt
+aragonite-plugin-check: passed
+```
+
+It exits 0 when every cell passed, 1 when a contract broke (with the same message `runPluginConformance` throws), and 2 when the package publishes no suite. `--json` also writes the result to a file.
+
+The suite ships in your package, so keep its source to your plugin's own imports plus `import type` from `@voithos-labs/aragonite/testing`: a host never loads it, and it shouldn't drag the test kits into anyone's install.
+
+In CI, call the editor's reusable workflow instead of wiring this up yourself. It packs your repository's package, installs it beside the editor in an empty project with your package's install scripts off, runs the check and writes the result to the job summary:
+
+```yaml
+jobs:
+  conformance:
+    uses: voithos-labs/aragonite/.github/workflows/plugin-check.yml@v0.11.5
+```
+
+Pin the tag to the editor release you build against. With no inputs it checks your package against the newest editor release your peer range accepts; `editor` takes an npm spec to check another one (a `next` build, say), and `working-directory` points at a package that isn't at your repository's root. The [plugin template](plugin-guide.md#the-first-fifteen-minutes) already calls it.

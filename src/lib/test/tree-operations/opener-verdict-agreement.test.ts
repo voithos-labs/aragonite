@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib';
-import { registerAdmonitions } from '#lib/plugins/admonitions/admonition-kind.js';
-import { registerDetailsKind } from '#lib/plugins/details/details-kind.js';
-import { registerFootnoteDefinition } from '#lib/plugins/footnotes/footnote-definition.js';
-import { registerMathBlock } from '#lib/plugins/latex/latex-kind.js';
-import { registerMermaidKind } from '#lib/plugins/mermaid/mermaid-kind.js';
+import { registerAdmonitions } from '#packages/admonitions/src/admonition-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
+import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
+import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor,

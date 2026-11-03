@@ -397,10 +397,10 @@ describe('G4.63 classifier non-vacuity', () => {
 	});
 
 	it('allows the suite its own plugin source, and another plugin only where published', () => {
-		expect(isAllowedSpecifier(file, '#lib/plugins/details/index.js')).toBe(true);
-		expect(isAllowedSpecifier(file, '#lib/plugins/details/details-kind.js')).toBe(true);
-		expect(isAllowedSpecifier(file, '#lib/plugins/emoji/index.js')).toBe(true);
-		expect(isAllowedSpecifier(file, '#lib/plugins/emoji/emoji-recognizer.js')).toBe(false);
+		expect(isAllowedSpecifier(file, '#packages/details/src/index.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#packages/details/src/details-kind.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#packages/emoji/src/index.js')).toBe(true);
+		expect(isAllowedSpecifier(file, '#packages/emoji/src/emoji-recognizer.js')).toBe(false);
 	});
 
 	it('allows the copyable test support and any npm package', () => {
@@ -417,7 +417,7 @@ describe('G4.63 classifier non-vacuity', () => {
 		expect(isAllowedSpecifier(file, '../../harness/scan-growth')).toBe(true);
 		expect(isAllowedSpecifier(file, '../../../../../scripts/build.mjs')).toBe(true);
 		expect(isAllowedSpecifier(file, '../../../core/parser')).toBe(false);
-		expect(isAllowedSpecifier(file, '../../../plugins/emoji/emoji-recognizer')).toBe(false);
+		expect(isAllowedSpecifier(file, '#packages/emoji/src/emoji-recognizer.js')).toBe(false);
 	});
 
 	it('binds per-plugin suites only, leaving the loose platform tests alone', () => {

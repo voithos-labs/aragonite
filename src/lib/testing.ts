@@ -2,28 +2,10 @@
 // processes only, and nothing here may import a test runner: the kits run inside an author's
 // own case, so failures come back as plain `Error`s.
 
-import { isTestProcess } from '@voithos-labs/aragonite/dev-checks';
-import { __resetSchemaRegistriesForTests } from './schema/registry-reset';
 import { activationFor, everyInstalledPlugin } from './schema/plugin-activation';
 import { applyPasteTransforms as runPasteTransforms } from './tree-operations/paste/paste-transforms';
 
-/**
- * Reset the plugin platform's process-global registration state so a plugin's test suite
- * can re-install between cases: call it in `beforeEach`, then re-run your setup. Every
- * registration a plugin can make is dropped; the editor's built-ins and all runtime state
- * (undo stack, selection, DOM/CST) survive. Throws outside a detected test environment.
- */
-export function resetPluginPlatformForTests(): void {
-	if (!isTestProcess) {
-		throw new Error(
-			'resetPluginPlatformForTests() is test-only: it wipes the process-global plugin ' +
-				'registries, which is corruption in a running editor. No test environment was ' +
-				'detected (process.env.VITEST is unset). Detection is Vitest-specific; another ' +
-				'runner opts in with configureEditorEnv({ isTest: true }), exported beside this.'
-		);
-	}
-	__resetSchemaRegistriesForTests();
-}
+export { resetPluginPlatformForTests } from './testing/platform-reset';
 
 // ── Editor env override ──────────────────────────────────────────────────────
 // What the reset's own error message points to: a runner other than Vitest declares itself
@@ -104,3 +86,10 @@ export type {
 
 export { checkInlineMenuCommitAcrossSwap } from './testing/inline-menu-conformance';
 export type { InlineMenuCommitCase } from './testing/inline-menu-conformance';
+
+// ── Whole-plugin conformance ─────────────────────────────────────────────────
+// Every kit over every kind a plugin's setup declares: what a plugin package's `./conformance`
+// export feeds, and what `aragonite-plugin-check` runs.
+
+export { runPluginConformance } from './testing/plugin-conformance';
+export type { PluginConformanceReport, PluginConformanceSuite } from './testing/plugin-conformance';

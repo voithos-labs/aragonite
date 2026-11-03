@@ -12,6 +12,7 @@ import { isInPaddingRow, offsetFromViewportPoint } from '../../browser/point';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { isWholeBlockInputProxy } from '../whole-block-input';
+import { clearOnPress } from '../pointer-gesture';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -33,15 +34,43 @@ export function resetForPointerDown(
 	caretMemory: Pick<CaretMemory, 'forget'>,
 	isShift: boolean
 ): void {
+	const ending = !isShift && selection.isCrossBlock;
+	resetSelectionForPress(selection, caretMemory, isShift);
+	if (ending) writer.clear();
+}
+
+/** `resetForPointerDown` at a press, a finger's at its tap (`clearOnPress`). A Shift press clears no
+ *  range, so it resets at once, ahead of the shift-click that grows the range. */
+export function resetForPress(
+	selection: SelectionState,
+	writer: CaretWriter,
+	caretMemory: Pick<CaretMemory, 'forget'>,
+	e: PointerEvent,
+	lifetime: AbortSignal | null
+): void {
+	if (e.shiftKey) {
+		resetForPointerDown(selection, writer, caretMemory, true);
+		return;
+	}
+	clearOnPress(e, lifetime, {
+		nativeCaret: () => {
+			if (selection.isCrossBlock) writer.clear();
+		},
+		selection: () => resetSelectionForPress(selection, caretMemory, false)
+	});
+}
+
+function resetSelectionForPress(
+	selection: SelectionState,
+	caretMemory: Pick<CaretMemory, 'forget'>,
+	isShift: boolean
+): void {
 	caretMemory.forget();
 	selection.resetSelectAllCount();
 	// Unconditional, unlike the range branch: a gap caret is always collapsed, so a shift-click
 	// has no range to grow from it. Silent when no gap caret is live.
 	selection.clearGapCaret();
-	if (!isShift && selection.isCrossBlock) {
-		selection.clear();
-		writer.clear();
-	}
+	if (!isShift && selection.isCrossBlock) selection.clear();
 }
 
 // ── Pointer ────────────────────────────────────────────────────────────────
@@ -56,7 +85,7 @@ function handlePointerDown(
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	resetForPointerDown(selection, ctx.caretWriter, ctx.caretMemory, e.shiftKey);
+	resetForPress(selection, ctx.caretWriter, ctx.caretMemory, e, ctx.getEditorLifetime());
 	const padding = armPaddingPress(ctx.caretWriter, el, myPath, e);
 
 	if (e.shiftKey) {
@@ -107,6 +136,7 @@ function handlePointerDown(
 		installDragListener(
 			{
 				editorRoot: root,
+				touch: 'browser',
 				// The root is the hit-test boundary; what scrolls may be an ancestor in host-scroll
 				// mode, so the two resolve separately.
 				scrollContainer: ctx.getScrollHost() ?? root,

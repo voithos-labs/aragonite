@@ -5,19 +5,27 @@
  */
 
 import { definePlugin, type EditorPlugin } from '@voithos-labs/aragonite/plugin';
-import { admonitionsPlugin } from '@voithos-labs/aragonite/plugins/admonitions';
-import { detailsPlugin } from '@voithos-labs/aragonite/plugins/details';
-import { tocPlugin } from '@voithos-labs/aragonite/plugins/toc';
-import { footnotesPlugin } from '@voithos-labs/aragonite/plugins/footnotes';
-import { emojiPlugin } from '@voithos-labs/aragonite/plugins/emoji';
-import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite/plugins/highlight-occurrences';
-import { latexPlugin } from '@voithos-labs/aragonite/plugins/latex';
-import { katexRenderer } from '@voithos-labs/aragonite/plugins/latex/renderer';
-import { mermaidPlugin } from '@voithos-labs/aragonite/plugins/mermaid';
-import { mermaidRenderer } from '@voithos-labs/aragonite/plugins/mermaid/renderer';
-import { parrotPlugin } from '@voithos-labs/aragonite/plugins/parrot';
-import { slashCommandsPlugin } from '@voithos-labs/aragonite/plugins/slash-commands';
+import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+import { detailsPlugin } from '@voithos-labs/aragonite-details';
+import { tocPlugin } from '@voithos-labs/aragonite-toc';
+import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
+import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-occurrences';
+import { latexPlugin } from '@voithos-labs/aragonite-latex';
+import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
+import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
+import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer';
+import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
+import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
 import { installTagMarks } from './tag-marks';
+// The prebuilt plugins' component styles, which the core's `style.css` doesn't carry.
+import '@voithos-labs/aragonite-admonitions/style.css';
+import '@voithos-labs/aragonite-details/style.css';
+import '@voithos-labs/aragonite-footnotes/style.css';
+import '@voithos-labs/aragonite-latex/style.css';
+import '@voithos-labs/aragonite-mermaid/style.css';
+import '@voithos-labs/aragonite-parrot/style.css';
+import '@voithos-labs/aragonite-toc/style.css';
 
 function tagMarksPlugin(): EditorPlugin {
 	return definePlugin({

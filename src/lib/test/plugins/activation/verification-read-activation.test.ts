@@ -2,8 +2,8 @@
 // Miss-analysis: the reparsing checks only ran with every plugin active, where any grammar agrees.
 import { describe, expect, it, beforeEach } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { EMOJI_KIND, emojiPlugin } from '#lib/plugins/emoji/index.js';
-import { MATH_INLINE, latexPlugin } from '#lib/plugins/latex/index.js';
+import { EMOJI_KIND, emojiPlugin } from '#packages/emoji/src/index.js';
+import { MATH_INLINE, latexPlugin } from '#packages/latex/src/index.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { screenVisibility } from '#lib/core/inline/visibility.js';
 import { canWrapRangeAsLink } from '#lib/core/inline/link-source-bytes.js';

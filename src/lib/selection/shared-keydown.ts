@@ -27,6 +27,8 @@ import type { ScrollOwner } from '../windowing/scroll-owner';
 
 export interface SharedKeydownContext extends ReachableBoundsContext, MotionKeyContext {
 	getEl(): HTMLElement | null;
+	/** The block's caret bounds (`BlockComponent.caretBounds`), the one edge answer. */
+	caretBounds(): ReachableBounds;
 	getIndex(): number;
 	getMyPath(): number[];
 	getDoc: DocumentGetter;
@@ -101,7 +103,7 @@ export async function handleSharedKeydown(
 	// Lazy: off the arrow path the block's bounds are never asked for, and the resolve
 	// walks the block's DOM.
 	let cachedBounds: ReachableBounds | null = null;
-	const bounds = () => (cachedBounds ??= caretReachableBounds(ctx, el));
+	const bounds = () => (cachedBounds ??= ctx.caretBounds());
 
 	// The moving end, which the line check measures (a forward extension's anchor stays mid-block);
 	// with no caret in the block, as in reading mode, every arrow is at its edge.
@@ -150,7 +152,8 @@ export async function handleSharedKeydown(
 		}
 	}
 
-	if (e.key === 'ArrowLeft') {
+	// Only a caret key steps out sideways: off a Mac, Alt+Arrow is the page's Back and Forward.
+	if (e.key === 'ArrowLeft' && motion) {
 		const offset = e.shiftKey ? (stepOffset ?? bounds().start) : stepOffset;
 		if (offset === null || offset <= bounds().start) {
 			if (e.shiftKey) {
@@ -164,7 +167,7 @@ export async function handleSharedKeydown(
 		}
 	}
 
-	if (e.key === 'ArrowRight') {
+	if (e.key === 'ArrowRight' && motion) {
 		const offset = e.shiftKey ? (stepOffset ?? bounds().end) : stepOffset;
 		if (offset === null || offset >= bounds().end) {
 			if (e.shiftKey) {

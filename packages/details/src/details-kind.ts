@@ -1,0 +1,298 @@
+/**
+ * The `<details>` collapsible. Its `<summary>` is a real CST child at index 0, but the tags
+ * around it live in the container's own raw, so `strip(raw)` differs from
+ * `serialize(children)`: hence `'opaque'`, where raw is authoritative and `checkStaleRaw` is
+ * skipped. A `<details …>` written any other way is left to the built-in htmlBlock.
+ */
+
+import {
+	chromeChild,
+	containerClosure,
+	declarePluginKind,
+	declaredPluginKind,
+	registerBlockKind,
+	registerChromeLeaf,
+	setPluginMetadata,
+	getPluginMetadata,
+	parseContainerBody,
+	serializeChildren,
+	trimTrailingLineEnding,
+	displayLines,
+	matchFenceOpen,
+	findFenceCloser,
+	htmlBlockTagLineMatcher,
+	OPENER_PRIORITIES,
+	type BlockView,
+	type ContainerBodyWrap,
+	type CstNode
+} from '@voithos-labs/aragonite/plugin';
+
+export const DETAILS = 'details';
+export const DETAILS_SUMMARY = 'details-summary';
+
+const OPEN_LINE = /^<details( open)?>$/;
+const SUMMARY_LINE = /^<summary>(.*)<\/summary>$/;
+const CLOSE_TAG = '</details>';
+const CLOSE_LINE = /^<\/details>$/;
+
+/** `<summary>` above and `</details>` below, so a blank against either belongs to the element. */
+const BODY_WRAP: ContainerBodyWrap = { afterOpenerLine: true, beforeCloserLine: true };
+
+export interface DetailsMetadata {
+	open: boolean;
+	/** One captured ending is used for all three tag lines: a well-formed document has
+	 *  uniform endings, so the rebuild reproduces them byte for byte. */
+	lineEnding: string;
+	/** False for a document-final details with no trailing newline, so the rebuild
+	 *  does not add one. */
+	closerNewline: boolean;
+}
+
+type TagVerdict = 'open' | 'close' | null;
+
+/** The canonical spelling: what `parse` reproduces, and the only form `rebuildDetailsRaw` emits. */
+const canonicalTagLine = (text: string): TagVerdict =>
+	OPEN_LINE.test(text) ? 'open' : CLOSE_LINE.test(text) ? 'close' : null;
+
+/** What CommonMark hands to raw-HTML passthrough: a superset of the canonical form,
+ *  and therefore of what closes the element in a browser. */
+const passthroughTagLine = htmlBlockTagLineMatcher('details');
+
+/** Each tag line in `[from, end)` with its verdict, in order, until `visit` returns true; a fenced
+ *  code block's lines are skipped whole, since a `</details>` inside one is content. */
+function visitTagLines(
+	lines: readonly { text: string }[],
+	from: number,
+	end: number,
+	tagLine: (text: string) => TagVerdict,
+	visit: (index: number, verdict: TagVerdict) => boolean | void
+): void {
+	for (let i = from; i < end; i++) {
+		const fence = matchFenceOpen(lines[i].text);
+		if (fence) {
+			const closer = findFenceCloser(lines, i + 1, end, fence);
+			i = closer === -1 ? end : closer;
+			continue;
+		}
+		if (visit(i, tagLine(lines[i].text))) return;
+	}
+}
+
+/** The `</details>` line closing the element whose body starts at `from`, or -1; depth-counted, so
+ *  a nested element's closer doesn't end the outer one. */
+function closingTagLine(lines: readonly { text: string }[], from: number, end: number): number {
+	let depth = 1;
+	let closeIdx = -1;
+	visitTagLines(lines, from, end, canonicalTagLine, (i, tag) => {
+		if (tag === 'open') depth++;
+		else if (tag === 'close' && --depth === 0) closeIdx = i;
+		return closeIdx !== -1;
+	});
+	return closeIdx;
+}
+
+/** The opener read on for `</details>` in vain, or its summary line is still to come: the block
+ *  became an HTML block, and a closer typed below can still complete it. */
+function awaitsClosingTag(raw: string): boolean {
+	if (!raw.startsWith('<details')) return false;
+	const lines = displayLines(raw);
+	if (!OPEN_LINE.test(lines[0].text)) return false;
+	const summary = lines[1];
+	if (summary === undefined || (summary.text === '' && lines.length === 2)) return true;
+	return SUMMARY_LINE.test(summary.text) && closingTagLine(lines, 2, lines.length) === -1;
+}
+
+function unpairedTagLines(
+	lines: readonly string[],
+	tagLine: (text: string) => TagVerdict,
+	settled: ReadonlySet<number>
+): number[] {
+	const openIndices: number[] = [];
+	const unpaired: number[] = [];
+	const texts = lines.map((text) => ({ text }));
+	visitTagLines(texts, 0, texts.length, tagLine, (i, verdict) => {
+		if (settled.has(i)) return;
+		if (verdict === 'open') openIndices.push(i);
+		else if (verdict === 'close' && openIndices.pop() === undefined) unpaired.push(i);
+	});
+	return [...unpaired, ...openIndices];
+}
+
+/** Repeats until nothing changes, since this recognizer and a browser disagree on what a tag line
+ *  is; every round escapes a line and escaping never creates a tag, so it ends. */
+function strayTagLines(lines: readonly string[]): Set<number> {
+	const escaped = new Set<number>();
+	for (;;) {
+		const found = [
+			...unpairedTagLines(lines, canonicalTagLine, escaped),
+			...unpairedTagLines(lines, passthroughTagLine, escaped)
+		].filter((i) => !escaped.has(i));
+		if (found.length === 0) return escaped;
+		for (const i of found) escaped.add(i);
+	}
+}
+
+function strayEscapePoints(raw: string): number[] {
+	const starts: number[] = [];
+	const texts: string[] = [];
+	let pos = 0;
+	while (pos < raw.length) {
+		const nl = raw.indexOf('\n', pos);
+		const lineEnd = nl < 0 ? raw.length : nl + 1;
+		starts.push(pos);
+		texts.push(trimTrailingLineEnding(raw.slice(pos, lineEnd)));
+		pos = lineEnd;
+	}
+	return [...strayTagLines(texts)]
+		.sort((a, b) => a - b)
+		.map((i) => starts[i] + texts[i].indexOf('<'));
+}
+
+/** Renders as a literal `<` in a paragraph, in an html block's passthrough, and on GitHub
+ *  alike, while matching no tag line. */
+const ESCAPED_LT = '&lt;';
+
+function escapeStrayDetailsTags(raw: string): string {
+	const points = strayEscapePoints(raw);
+	if (points.length === 0) return raw;
+
+	let out = '';
+	let cursor = 0;
+	for (const at of points) {
+		out += raw.slice(cursor, at) + ESCAPED_LT;
+		cursor = at + 1;
+	}
+	return out + raw.slice(cursor);
+}
+
+/** Where {@link escapeStrayDetailsTags} leaves the caret: each escape before it pushes the
+ *  caret along by the characters the entity adds. */
+function mapStrayEscapeOffset(raw: string, offset: number): number {
+	const grown = ESCAPED_LT.length - 1;
+	return strayEscapePoints(raw).reduce((at, point) => (point < offset ? at + grown : at), offset);
+}
+
+/**
+ * Child 0 is the summary, children 1+ the body. `innerPrefix`/`innerSuffix` carry the
+ * body's blank-line wrap verbatim so a canonical parse rebuilds byte-identically.
+ */
+export function rebuildDetailsRaw(node: CstNode): void {
+	const meta = getPluginMetadata<DetailsMetadata>(node);
+	const open = meta?.open ?? false;
+	const lineEnding = meta?.lineEnding ?? '\n';
+	const closerEnd = (meta?.closerNewline ?? true) ? lineEnding : '';
+	const children = node.children ?? [];
+	const summaryText = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
+	const body = children.slice(1);
+	const inner = (node.innerPrefix ?? '') + serializeChildren(body) + (node.innerSuffix ?? '');
+	const opener = `<details${open ? ' open' : ''}>${lineEnding}<summary>${summaryText}</summary>`;
+	node.raw = `${opener}${lineEnding}${inner}</details>${closerEnd}`;
+}
+
+export function registerDetailsKind(view: BlockView): void {
+	const details = declarePluginKind(DETAILS);
+	const detailsSummary = declarePluginKind(DETAILS_SUMMARY);
+
+	registerBlockKind(details, {
+		view,
+		opener: {
+			// Just below htmlBlock, which would otherwise take `<details>` as a type-6 block.
+			priority: OPENER_PRIORITIES.htmlBlock - 5,
+			// Redundant with htmlBlock's type-6 interrupt, which details wins on re-dispatch; kept
+			// so this opener's paragraph behavior does not depend on that priority order.
+			interruptsParagraph: (line) => OPEN_LINE.test(line),
+			readingNotFinal: {
+				notFinal: awaitsClosingTag,
+				mayClose: (line) => CLOSE_LINE.test(line),
+				closer: () => CLOSE_TAG
+			},
+			tryOpen(ctx) {
+				const openMatch = ctx.line.text.match(OPEN_LINE);
+				if (!openMatch) return null;
+
+				const summaryIdx = ctx.index + 1;
+				if (summaryIdx >= ctx.end) return null;
+				const summaryMatch = ctx.lines[summaryIdx].text.match(SUMMARY_LINE);
+				if (!summaryMatch) return null;
+
+				const closeIdx = closingTagLine(ctx.lines, summaryIdx + 1, ctx.end);
+				if (closeIdx === -1) return null; // unterminated declines to htmlBlock
+
+				const bodyText = ctx.lines
+					.slice(summaryIdx + 1, closeIdx)
+					.map((l) => l.raw)
+					.join('');
+				// A fresh parse entry, so the body's own line 0 must not read as the document top.
+				const body = parseContainerBody(bodyText, BODY_WRAP, {
+					scope: 'fragment',
+					grammar: ctx.grammar
+				});
+				const raw = ctx.lines
+					.slice(ctx.index, closeIdx + 1)
+					.map((l) => l.raw)
+					.join('');
+
+				const node: CstNode = {
+					kind: details,
+					leadingTrivia: ctx.leadingTrivia,
+					raw,
+					innerPrefix: body.prefix,
+					children: [
+						chromeChild(declaredPluginKind(DETAILS_SUMMARY), summaryMatch[1]),
+						...body.children
+					],
+					innerSuffix: body.suffix
+				};
+				setPluginMetadata<DetailsMetadata>(node, {
+					open: openMatch[1] !== undefined,
+					lineEnding: ctx.line.lineEnding,
+					closerNewline: ctx.lines[closeIdx].lineEnding !== ''
+				});
+				return { node, consumed: closeIdx + 1 - ctx.index };
+			}
+		},
+		label: 'Details',
+		dragLabel: 'Details',
+		mergeRole: 'container',
+		editable: true,
+		supportsInline: false,
+		// An opaque container has no text at either edge for the caret to step into, so both
+		// edges take the gap caret.
+		gapEdges: 'both',
+		container: {
+			contract: 'opaque',
+			rebuildRaw: rebuildDetailsRaw,
+			bodyWrap: BODY_WRAP,
+			reservedChrome: {
+				kind: detailsSummary,
+				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
+				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
+			},
+			unwrapRole: { middleChildBackspace: 'default-merge' },
+			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }
+		},
+		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',
+		closure: containerClosure({
+			roundTripVia: 'container contract=opaque — rebuildDetailsRaw',
+			focus: { mode: 'implemented', via: 'focus walks to the summary chrome / first body child' },
+			mergeBackspace: {
+				mode: 'implemented',
+				via: 'mergeRole=container + unwrapRole; collapse-aware merge walk'
+			},
+			undo: {
+				mode: 'implemented',
+				via: 'updateOwnMetadata — an open-state flip (disclosure toggle, or a reveal opening the expandPatch door) commits as one undoable metadataUpdate'
+			},
+			clipboard: {
+				mode: 'implemented',
+				via: 'byte-slice copy; a slice touching the summary re-emits the details — a mid-summary start reopens it around the collected body, a mid-summary end yields a summary-only details'
+			},
+			simOracle: {
+				mode: 'implemented',
+				via: 'details container/windowing e2e under the [invariant:] watcher'
+			}
+		})
+	});
+
+	registerChromeLeaf(detailsSummary, { label: 'Summary', blockClass: 'details-summary' });
+}

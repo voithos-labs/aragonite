@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
 import { parse } from '#lib/core/parser.js';
-import { admonitionsPlugin } from '#lib/plugins/admonitions/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { serialize } from '#lib/core/serializer.js';
 import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';

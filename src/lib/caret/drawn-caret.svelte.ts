@@ -87,6 +87,9 @@ export interface DrawnCaretDeps {
 	watchSize(el: Element, onResize: () => void): () => void;
 	/** A composition hides the bar while it runs, however it ends. */
 	composition: Pick<CompositionTracker, 'subscribe' | 'live'>;
+	/** The primary pointer, read live (`selection/pointer-gesture.ts :: finePointer`); null with no
+	 *  media queries. */
+	finePointer: { readonly current: boolean } | null;
 }
 
 /** The media the drawn caret answers to, each read live. */
@@ -102,19 +105,17 @@ export function drawsCaret(mode: CaretMode, media: CaretMedia | null): boolean {
 	return media?.finePointer.current ?? false;
 }
 
-/** The page's media queries, or null where it has none to ask (no DOM, jsdom). */
-export function caretMedia(): CaretMedia | null {
-	if (typeof matchMedia !== 'function') return null;
-	return {
-		finePointer: new MediaQuery('(pointer: fine)'),
-		forcedColors: new MediaQuery('(forced-colors: active)')
-	};
+/** The media the caret answers to around the pointer it is handed, or null where the page has no
+ *  media queries to ask (no DOM, jsdom). */
+export function caretMedia(finePointer: { readonly current: boolean } | null): CaretMedia | null {
+	if (!finePointer || typeof matchMedia !== 'function') return null;
+	return { finePointer, forcedColors: new MediaQuery('(forced-colors: active)') };
 }
 
 /** Builds the drawn caret during the editor's init, where its effects are owned. */
 export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 	const sources = new Map<HTMLElement, CaretSource>();
-	const media = caretMedia();
+	const media = caretMedia(deps.finePointer);
 	let bar: HTMLElement | null = null;
 	let drawnFor: HTMLElement | null = null;
 	let painted: PaintedCaret | null = null;

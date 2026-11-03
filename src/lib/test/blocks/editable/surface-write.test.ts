@@ -3,6 +3,7 @@
 // restore would fight that landing.
 // Miss-analysis: every write site parked a caret on `admitted` alone, and no test stubbed a write
 // that reported it had placed the caret, so the field had no reader and nothing noticed.
+import { fixtureReading } from '../../harness/fixture-grammar';
 import { describe, expect, it, vi } from 'vitest';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { NodeView } from '#lib/core/node-views.js';
@@ -14,6 +15,8 @@ import {
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { stubBlockEdit } from '#lib/testing/headless-actions.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
+import { parse } from '#lib/core/parser.js';
+import { definitionsOf } from '#lib/core/inline/scan/definitions.js';
 
 const TYPED: Omit<TextWrite, 'text' | 'caretAfter'> = {
 	intent: 'typed',
@@ -22,16 +25,20 @@ const TYPED: Omit<TextWrite, 'text' | 'caretAfter'> = {
 	source: 'input'
 };
 
-/** A block holding `raw` whose list answers every write with `keepsCaret`. */
-function writerOver(raw: string, keepsCaret: boolean) {
+/** A block holding `raw` whose list answers every write with `keepsCaret`, recording each one. */
+function writerOver(raw: string, keepsCaret: boolean, reading = fixtureReading()) {
 	const node: NodeView = { kind: 'paragraph', leadingTrivia: '', raw };
 	const requestCaret = vi.fn();
+	const written: { bytes: string; caret: number }[] = [];
 	const blockEdit: BlockEditActions = {
 		...stubBlockEdit(),
-		updateBlockContent: (_index, _text, _mode, _history, _before, after = 0) =>
-			withStoredCaret(Promise.resolve(true), after, undefined, keepsCaret)
+		updateBlockContent: (_index, text, _mode, _history, _before, after = 0) => {
+			written.push({ bytes: text, caret: after });
+			return withStoredCaret(Promise.resolve(true), after, undefined, keepsCaret);
+		}
 	};
 	const writeText = createSurfaceWrite({
+		reading,
 		getNode: () => node,
 		getIndex: () => 0,
 		getPath: () => [0],
@@ -41,7 +48,7 @@ function writerOver(raw: string, keepsCaret: boolean) {
 		requestCaret,
 		holdInsertion: () => createInsertionRecords([]).hold({}, null)
 	});
-	return { writeText, requestCaret };
+	return { writeText, requestCaret, written };
 }
 
 describe('the caret after a surface write', () => {
@@ -88,5 +95,30 @@ describe('rangeWrite: the text a range edit hands the surface write', () => {
 	// A widget's own key hands its text over whole, which a plugin may spell without the ending.
 	it('takes nothing off an edit that does not end with the block’s ending', () => {
 		expect(rangeWrite(paragraph('ab\n'), { raw: 'a', caret: 1 }).text).toBe('a');
+	});
+});
+
+// Miss-analysis: #809, a caret's keystroke inside a reference reaches the text through no range
+// edit, and no row typed into a shortcut reference's text.
+describe('a caret’s keystroke inside a reference’s text', () => {
+	const definitions = (mode: 'live' | 'source') => {
+		const { resolve, signature } = definitionsOf(parse('[foo]: https://foo.example\n').children);
+		return fixtureReading({ resolver: resolve, resolverSignature: signature }, mode);
+	};
+
+	it.each([
+		['typed into a shortcut', 'a [foo] b\n', 'a [foZo] b', 6, 'a [foZo][foo] b\n'],
+		['typed into a collapsed one', 'a [foo][] b\n', 'a [foZo][] b', 6, 'a [foZo][foo] b\n'],
+		['deleted from a shortcut', 'a [foo] b\n', 'a [fo] b', 5, 'a [fo][foo] b\n']
+	])('%s keeps its destination', (_, raw, text, caretAfter, bytes) => {
+		const { writeText, written } = writerOver(raw, true, definitions('live'));
+		void writeText({ ...TYPED, text, caretAfter });
+		expect(written).toEqual([{ bytes, caret: caretAfter }]);
+	});
+
+	it('writes source mode’s keystroke as typed, since the brackets are on screen', () => {
+		const { writeText, written } = writerOver('a [foo] b\n', true, definitions('source'));
+		void writeText({ ...TYPED, text: 'a [foZo] b', caretAfter: 6 });
+		expect(written[0].bytes).toBe('a [foZo] b\n');
 	});
 });

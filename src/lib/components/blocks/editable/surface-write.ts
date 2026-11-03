@@ -7,12 +7,16 @@
 import type { BlockEditActions, ContentWrite, UndoGrouping } from '../../../action-contracts';
 import type { NodeView } from '../../../core/node-views';
 import type { WriteMode } from '../../../schema/block-kind-descriptor';
-import type { LeafRangeEdit } from '../../../tree-operations/leaf-range';
+import { replaceDrawnRange, type LeafRangeEdit } from '../../../tree-operations/leaf-range';
+import type { StoredAs } from '../../../schema/stored-as';
 import type { KindCue } from '../../kind-cue.svelte';
 import type { BlockAutoPairs } from '../text/auto-pair-record';
 import type { HeldInsertion, TextEdit } from '../../../caret/next-insertion';
 import { shownKind } from '../../../core/parsers/heading';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
+import { writtenSpan } from '../../../core/written-span';
+import { mayHoldReference, spellReferenceLabels } from '../../../core/inline/link-source-bytes';
+import type { Reading } from '../../../schema/reading';
 
 /** `typed` is a keystroke's own edit, which can name a new block kind and complete its line;
  *  `command` is a chord, a menu row, a clipboard edit or a shown source's commit, and `repair`
@@ -61,6 +65,7 @@ export interface SurfaceWriteDeps {
 	holdInsertion(): HeldInsertion;
 	/** True while a widget's source is shown, where a typed write completes no line. */
 	showsSource?: () => boolean;
+	reading: Reading;
 }
 
 export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) => ContentWrite {
@@ -79,7 +84,8 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 		const began = write.sessionAnchor ?? deps.getPreEditOffset();
 		const spend = (text: string): TextEdit =>
 			write.inPlace ? held.spendInPlace(text, write) : held.spend(text, write, began);
-		const edit = typed && changed ? spend(display) : write;
+		const spent = typed && changed ? spend(display) : write;
+		const edit = changed ? keepingReferenceLabels(node, display, spent, deps.reading) : spent;
 		// The block's own ending only: a last line saved without one stays that way.
 		const bytes = withOwnEnding(node, edit.text);
 		// A typed line an on-type completer takes is written as its completion, never as the line.
@@ -111,6 +117,34 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 	};
 }
 
+/** `edit` with the label of each reference whose text it changed spelled out, since a caret's
+ *  keystroke reaches the text without a range edit (`spellReferenceLabels`). */
+function keepingReferenceLabels<E extends TextEdit>(
+	node: NodeView,
+	display: string,
+	edit: E,
+	reading: Reading
+): E {
+	if (!reading.hidesDelimitersAtCaret() || !mayHoldReference(display, reading)) return edit;
+	const span = writtenSpan(display, edit.text);
+	const written = edit.text.slice(span.start, span.end);
+	// Brackets written with the text are a rewrite of the link itself, which spells its own label.
+	if (/[[\]]/.test(written)) return edit;
+	const range = { start: span.start, end: span.removedEnd };
+	const spelled = spellReferenceLabels(node, range, reading);
+	if (!spelled) return edit;
+	const bytes = trimTrailingLineEnding(spelled.raw);
+	const grew = edit.text.length - display.length;
+	const text =
+		bytes.slice(0, spelled.map(range.start)) + written + bytes.slice(spelled.map(range.end));
+	const past = edit.caretAfter > span.end;
+	return {
+		...edit,
+		text,
+		caretAfter: past ? spelled.map(edit.caretAfter - grew) + grew : edit.caretAfter
+	};
+}
+
 /** `text` as the block's bytes: the rule `writeText` follows, for a write to the block's own
  *  text that does not go through it yet (a command, a clipboard edit, a shown source). */
 export function withOwnEnding(node: NodeView, text: string): string {
@@ -126,4 +160,29 @@ export function rangeWrite(
 	const ending = ownTrailingLineEnding(node.raw);
 	const text = ending && edit.raw.endsWith(ending) ? edit.raw.slice(0, -ending.length) : edit.raw;
 	return { text, caretAfter: edit.caret };
+}
+
+/** A selection the user drew in `node`, typed over or deleted, as the text a surface write takes. */
+export function drawnRangeWrite(
+	node: NodeView,
+	range: { start: number; end: number },
+	typed: string,
+	store: StoredAs
+): Pick<TextWrite, 'text' | 'caretAfter'> {
+	return rangeWrite(node, replaceDrawnRange(node, range, typed, store));
+}
+
+/** The removal a typed key makes over a selection, as a write that key's undo step then joins. */
+export function selectionRemoval(
+	node: NodeView,
+	range: { start: number; end: number },
+	store: StoredAs
+): TextWrite {
+	return {
+		...drawnRangeWrite(node, range, '', store),
+		intent: 'command',
+		history: 'join-typing',
+		mode: 'authored',
+		source: 'selection-removal'
+	};
 }

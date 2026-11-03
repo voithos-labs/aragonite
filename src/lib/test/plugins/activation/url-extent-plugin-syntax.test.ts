@@ -3,9 +3,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { parseInline } from '#lib/core/inline/index.js';
-import { latexPlugin } from '#lib/plugins/latex/index.js';
-import { footnotesPlugin } from '#lib/plugins/footnotes/index.js';
-import { emojiPlugin } from '#lib/plugins/emoji/index.js';
+import { latexPlugin } from '#packages/latex/src/index.js';
+import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { grammarListing } from './grammar-listing';
 
 beforeEach(() => {
