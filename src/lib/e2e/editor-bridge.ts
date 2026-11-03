@@ -88,7 +88,7 @@ export class EditorBridge {
 		);
 	}
 
-	// Reads SelectionState, not the DOM: `[data-cross-block]` follows that state a render later,
+	// Reads SelectionState, not the DOM: `[data-painted-range]` follows that state a render later,
 	// so a DOM read can say `false` while the selection is already cross-block.
 	async isCrossBlockActive(): Promise<boolean> {
 		return this.page.evaluate(() => (window as any).__test.isCrossBlockActive());

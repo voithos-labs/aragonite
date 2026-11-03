@@ -36,7 +36,7 @@ reports boxes of about zero size, so the geometry is tested end to end.
   where a text block clamps it: passing `SELECTION_END` as `end` on a table addresses "through
   the last cell", but no spec pins that clamp on a grid. Recorded, not covered
 - `caretRect` called from inside a `selectionChange` handler during cross-block entry returns
-  `null`: it reads live `SelectionState`, not the `data-cross-block` DOM mirror the deferred effect
+  `null`: it reads live `SelectionState`, not the `data-painted-range` DOM mirror the deferred effect
   writes one flush later, so the range held aside never leaks during the synchronous emit window
 
 ## Pinned below the browser

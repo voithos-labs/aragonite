@@ -137,11 +137,11 @@
 
 /* The browser's selection paint goes so it does not double SelectionOverlay's highlights, and only
    in `.block-list`, since the find and replace bar beside it keeps painting its own. */
-:where(.editor)[data-cross-block] .block-list ::selection {
+:where(.editor)[data-painted-range] .block-list ::selection {
 	background: transparent;
 }
 
-:where(.editor)[data-cross-block] [contenteditable] {
+:where(.editor)[data-painted-range] [contenteditable] {
 	caret-color: transparent;
 }
 

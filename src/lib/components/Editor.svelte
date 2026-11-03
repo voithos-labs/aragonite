@@ -1012,9 +1012,9 @@
 	// test, so a range it does not paint keeps the native one.
 	rootEffect((root) => {
 		if (selectionState.isCustomRendered) {
-			root.setAttribute('data-cross-block', '');
+			root.setAttribute('data-painted-range', '');
 		} else {
-			root.removeAttribute('data-cross-block');
+			root.removeAttribute('data-painted-range');
 		}
 	});
 

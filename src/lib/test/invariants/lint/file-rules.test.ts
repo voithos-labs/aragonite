@@ -1612,6 +1612,15 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'G4.282 an ownership read asks the ownership predicate',
+		matches: /\bisCrossBlock\b/,
+		allowed: {},
+		reason:
+			'whether the editor holds the range is `SelectionState.ownsRange`, whatever it spans, since a finger’s range inside one block is the editor’s too; a read that means two blocks compares paths (`rangeSpansBlocks`)',
+		hits: ['if (selection.isCrossBlock) return;', 'isCrossBlock: () => state.isCrossBlock,'],
+		misses: ['if (selection.ownsRange) return;', 'if (rangeSpansBlocks(coverage)) paint();']
+	},
+	{
 		id: 'G4.225 the drag session hears a release before anything else on the page',
 		// Any phase counts, since a capture flag held in a variable is invisible to a scan.
 		matches:

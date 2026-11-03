@@ -61,7 +61,7 @@ export function createEditorRects(deps: {
 			return deps.getBlockComponent(path)?.measurePartialRects?.(start, end) ?? [];
 		},
 		caretRect() {
-			// Read `SelectionState`, not the `data-cross-block` attribute: a deferred `$effect`
+			// Read `SelectionState`, not the `data-painted-range` attribute: a deferred `$effect`
 			// writes the attribute, so it lags the synchronous `selectionChange` emit.
 			if (deps.ownsRange()) return null;
 			const root = deps.getEditorRoot();

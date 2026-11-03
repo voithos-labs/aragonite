@@ -21,6 +21,32 @@ export function isTouchPointer(e: Pick<PointerEvent, 'pointerType'>): boolean {
 	return e.pointerType === 'touch';
 }
 
+declare const FINGER: unique symbol;
+
+/** A finger's press, which alone may make the editor own a range inside one block (G1.170). Made
+ *  only here, by `fingerPress`. */
+export interface FingerPress {
+	readonly [FINGER]: true;
+	readonly pointerId: number;
+}
+
+const madeHere = new WeakSet<object>();
+
+/** The press `e` is when it is a finger's, or null for a mouse or a pen. */
+export function fingerPress(
+	e: Pick<PointerEvent, 'pointerType' | 'pointerId'>
+): FingerPress | null {
+	if (!isTouchPointer(e)) return null;
+	const press = { pointerId: e.pointerId } as FingerPress;
+	madeHere.add(press);
+	return press;
+}
+
+/** Whether `press` came from `fingerPress`, for the dev check behind G1.170. */
+export function isFingerPress(press: unknown): boolean {
+	return typeof press === 'object' && press !== null && madeHere.has(press);
+}
+
 /** Reports whether each press inside `root` is a finger; returns the remover. */
 export function watchPressKind(root: HTMLElement, onPress: (finger: boolean) => void): () => void {
 	const listener = (e: PointerEvent) => onPress(isTouchPointer(e));

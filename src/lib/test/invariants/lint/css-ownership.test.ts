@@ -81,7 +81,7 @@ const EDITOR_MARKERS: RegExp[] = [
 	/--font-editor\b/,
 	/\.code-tok-/,
 	/\.md-[a-z]/,
-	/\[data-cross-block\]/,
+	/\[data-painted-range\]/,
 	/\.editor\b/
 ];
 

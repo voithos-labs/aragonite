@@ -42,13 +42,13 @@ describe('the root hides the native caret only while something paints in its pla
 		placeCaret(start, 2);
 
 		await pressKey(start, { key: 'ArrowDown', shiftKey: true });
-		expect(editorRoot().hasAttribute('data-cross-block')).toBe(true);
+		expect(editorRoot().hasAttribute('data-painted-range')).toBe(true);
 
 		// Back onto the anchor cell: a one-cell rectangle is a stored pair the overlay declines
 		// to draw, same path and offset, so hiding the caret leaves nothing on screen.
 		await pressKey(cellAt(mounted!, 1, 0), { key: 'ArrowUp', shiftKey: true });
 
-		expect(editorRoot().hasAttribute('data-cross-block')).toBe(false);
+		expect(editorRoot().hasAttribute('data-painted-range')).toBe(false);
 	});
 
 	it('a live rectangle still hides it: the overlay owns that highlight', async () => {
@@ -58,6 +58,6 @@ describe('the root hides the native caret only while something paints in its pla
 
 		await pressKey(start, { key: 'ArrowDown', shiftKey: true });
 
-		expect(editorRoot().hasAttribute('data-cross-block')).toBe(true);
+		expect(editorRoot().hasAttribute('data-painted-range')).toBe(true);
 	});
 });

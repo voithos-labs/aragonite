@@ -94,9 +94,8 @@ export function isWholeBlockEndpoint(endpoint: SelectionEndpoint): endpoint is W
 }
 
 /**
- * Anchor/focus pair. Same path + same offset is collapsed; same path + different offsets
- * is a single-block range the browser owns (SelectionState stays null); different paths
- * is cross-block.
+ * Anchor/focus pair. Same path and offset is a caret, same path and different offsets a range
+ * inside one block, and different paths a range across blocks.
  */
 export interface EditorSelection {
 	anchor: SelectionPoint;

@@ -93,7 +93,7 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 				2
 			);
 			await expect.poll(() => nativeSelectionText(page)).toBe('one two three');
-			await expect(editor.editorContainer).not.toHaveAttribute('data-cross-block');
+			await expect(editor.editorContainer).not.toHaveAttribute('data-painted-range');
 		});
 	});
 
@@ -158,9 +158,9 @@ test.describe('multi-click: the block inline syntax handler and drags', () => {
 		const gamma = await textRunCenter(page, 'gamma');
 		const held = await multiClickHold(page, beta, 2);
 		await page.mouse.move(para.x, para.y, { steps: 6 });
-		await expect(editor.editorContainer).toHaveAttribute('data-cross-block');
+		await expect(editor.editorContainer).toHaveAttribute('data-painted-range');
 		await page.mouse.move(gamma.x, gamma.y, { steps: 6 });
-		await expect(editor.editorContainer).not.toHaveAttribute('data-cross-block');
+		await expect(editor.editorContainer).not.toHaveAttribute('data-painted-range');
 		await held.release();
 		await expect.poll(() => nativeSelectionText(page)).toBe('beta gamma');
 	});

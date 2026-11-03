@@ -132,7 +132,7 @@ test.describe('the sibling that stays declined: Mod+K over a cross-block range',
 		for (let i = 0; i < 3; i++) {
 			await page.keyboard.press('Shift+ArrowDown');
 			await ep.waitForRenderFlush();
-			if ((await page.locator('[data-cross-block]').count()) > 0) break;
+			if ((await page.locator('[data-painted-range]').count()) > 0) break;
 		}
 		await ep.waitForCrossBlock(true);
 
