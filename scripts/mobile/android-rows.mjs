@@ -1,10 +1,30 @@
 // The Android emulator rows, keyed by the scenario each one runs in
 // `src/lib/e2e/requirements/mobile/android.md`; the probes are reported and judge nothing. A row
 // gets a freshly loaded page and returns the reasons it failed, none when it passed.
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { centre, sleep } from './android-device.mjs';
 import { distinguishable, shape, softKeyboardReasons } from './judge.mjs';
+import {
+	BARE_HOST,
+	BARE_TEXT,
+	COLLAPSE_NOW,
+	INSTALL_LOG,
+	KEEP_CONTEXTMENU_FROM_EDITOR,
+	PROBE_DOC,
+	RANGE_END,
+	READ_LOG,
+	READ_STATE,
+	REMOVE_FAR_BLOCK_MID_DRAG,
+	bareBlock,
+	blockOf,
+	brief,
+	collapseAt,
+	save,
+	timeline,
+	wordBox,
+	writes
+} from './touch-probes.mjs';
 
 const WORD = 'hello';
 const SHORT = 'alpha beta\n\ngamma delta\n\nepsilon zeta\n';
@@ -210,8 +230,310 @@ export const probes = {
 		});
 		ctx.device.screenshot('double-tap');
 		return { after: await ctx.page.evaluate(SELECTION), pointerLog: log };
-	}
+	},
+
+	// Whether the editor can take a long press's word over: Chrome's menu after a collapse, Gboard
+	// over a painted range, one shared host for contrast. Each saves `<slug>.json`.
+	"5 one menu: the editor's menu, no collapse": (ctx) => oneMenu(ctx, 'p5-editor', {}),
+	"5 one menu: the editor's menu, collapsed at the pointercancel": (ctx) =>
+		oneMenu(ctx, 'p5-editor-cancel', { collapse: { end: 'pointercancel', moment: 'sync' } }),
+	"5 one menu: the editor's menu, collapsed a task after the pointercancel": (ctx) =>
+		oneMenu(ctx, 'p5-editor-task', { collapse: { end: 'pointercancel', moment: 'task' } }),
+	"5 one menu: the editor's menu, collapsed after the lift": (ctx) =>
+		oneMenu(ctx, 'p5-editor-lift', { lift: true }),
+	"5 one menu: chrome's menu, no collapse": (ctx) => oneMenu(ctx, 'p5-chrome', { chrome: true }),
+	"5 one menu: chrome's menu, collapsed at the pointercancel": (ctx) =>
+		oneMenu(ctx, 'p5-chrome-cancel', {
+			chrome: true,
+			collapse: { end: 'pointercancel', moment: 'sync' }
+		}),
+	"5 one menu: chrome's menu, collapsed after the lift": (ctx) =>
+		oneMenu(ctx, 'p5-chrome-lift', { chrome: true, lift: true }),
+
+	'6 gboard over a painted range: one letter': (ctx) =>
+		gboardOverPaint(ctx, 'p6-letter', { typed: 'x' }),
+	'6 gboard over a painted range: a misspelt word, spellcheck on': (ctx) =>
+		gboardOverPaint(ctx, 'p6-word', { typed: 'teh ', spellcheck: true }),
+	'6 gboard over a painted range: one letter, after a long press': (ctx) =>
+		gboardOverPaint(ctx, 'p6-after-press', { typed: 'x', longPress: true }),
+
+	"7 a shared host: chrome's handle from the first block into the third": (ctx) =>
+		sharedHost(ctx, 'p7-across', {}),
+	'7 a shared host: a far block removed mid-drag': (ctx) =>
+		sharedHost(ctx, 'p7-far-removed', { removeFar: true }),
+	'7 a shared host: gboard composes a word in the second block': (ctx) =>
+		composeInHost(ctx, 'p7-compose')
 };
+
+// A long press on a word mid-block, read twice. `chrome` keeps contextmenu from the editor, so
+// Chrome shows its menu; `collapse` collapses at a moment of the press, `lift` after the lift.
+async function oneMenu(ctx, slug, { chrome = false, collapse = null, lift = false }) {
+	await ctx.fresh(PROBE_DOC);
+	await ctx.page.evaluate(INSTALL_LOG);
+	if (chrome) await ctx.page.evaluate(KEEP_CONTEXTMENU_FROM_EDITOR);
+	if (collapse) await ctx.page.evaluate(collapseAt(collapse));
+	const pressed = await holdWord(ctx, blockOf(1), 'six', await screenMap(ctx, 1));
+	if (lift) await ctx.page.evaluate(COLLAPSE_NOW);
+	await sleep(500);
+	const soon = await look(ctx, `${slug}-500ms`);
+	await sleep(1000);
+	const later = await look(ctx, `${slug}-1500ms`);
+	const log = await ctx.page.evaluate(READ_LOG);
+	const timing = writes(log, 'pointercancel');
+	const file = save(ctx.out, slug, {
+		chrome,
+		collapse,
+		lift,
+		pressed,
+		timing,
+		soon,
+		later,
+		timeline: timeline(log),
+		log
+	});
+	return {
+		file,
+		timing,
+		events: timeline(log).slice(0, 30),
+		soon: brief(soon),
+		later: brief(later)
+	};
+}
+
+// A tap for the keyboard, a range across two blocks painted beside a collapsed caret, then Gboard's
+// keys. Missing keys get no re-tap, since a tap would clear the range.
+async function gboardOverPaint(ctx, slug, { typed, spellcheck = false, longPress = false }) {
+	await ctx.fresh(SHORT);
+	await ctx.page.evaluate(INSTALL_LOG);
+	if (spellcheck)
+		await ctx.page.evaluate(
+			`document.querySelectorAll('[contenteditable="true"]').forEach((el) => (el.spellcheck = true))`
+		);
+	await tapCaret(ctx, 1, slug);
+	const steps = {};
+	if (longPress) {
+		await holdWord(ctx, blockOf(0), 'alpha', await screenMap(ctx, 0));
+		await sleep(800);
+		steps.pressed = await look(ctx, `${slug}-pressed`);
+	}
+	await ctx.page.evaluate(`window.__test.setSelection(${json(RANGE)})`);
+	await sleep(800);
+	steps.painted = await look(ctx, `${slug}-painted`);
+	const keys = ctx.device.gboardKeys(`${slug}-keys`);
+	const missing = [...new Set(typed)].filter((ch) => !keys.has(ch));
+	if (missing.length) {
+		const file = save(ctx.out, slug, { typed, steps, gboard: ctx.device.gboardMode() });
+		return {
+			file,
+			error: `Gboard showed no keys for ${json(missing)} over the painted range`,
+			painted: brief(steps.painted)
+		};
+	}
+	await ctx.page.evaluate('window.__test.startInputRecording({ includeText: true })');
+	const strips = [];
+	for (const [i, ch] of [...typed].entries()) {
+		ctx.device.tap(keys.get(ch).x, keys.get(ch).y);
+		await sleep(500);
+		ctx.device.screenshot(`${slug}-key-${i + 1}`);
+		strips.push({
+			typed: typed.slice(0, i + 1),
+			source: await source(ctx),
+			strip: suggestions(ctx, `${slug}-key-${i + 1}`)
+		});
+	}
+	await sleep(1500);
+	ctx.device.screenshot(`${slug}-typed`);
+	const recording = await ctx.page.evaluate('window.__test.stopInputRecording()').catch(() => null);
+	writeFileSync(path.join(ctx.out, `${slug}.recording.json`), json(recording));
+	const text = await source(ctx);
+	const [head, tail] = [SHORT.slice(0, 2), SHORT.slice(17)];
+	const landed =
+		text.startsWith(head) && text.endsWith(tail)
+			? text.slice(head.length, text.length - tail.length)
+			: null;
+	const log = await ctx.page.evaluate(READ_LOG);
+	const file = save(ctx.out, slug, { typed, steps, strips, text, timeline: timeline(log), log });
+	return {
+		file,
+		landed,
+		source: text,
+		strips,
+		inputEvents: timeline(log.filter((r) => /^(beforeinput|input|composition)/.test(r.type ?? ''))),
+		painted: brief(steps.painted),
+		pressed: brief(steps.pressed)
+	};
+}
+
+// One editing host over plain blocks: a long press in the first, then Chrome's end handle dragged
+// into the third. `removeFar` removes the last block the moment the range leaves the first.
+async function sharedHost(ctx, slug, { removeFar = false }) {
+	const toScreen = await bareHostPage(ctx);
+	if (removeFar) await ctx.page.evaluate(REMOVE_FAR_BLOCK_MID_DRAG);
+	const pressed = await holdWord(ctx, bareBlock(0), 'alpha', toScreen);
+	await sleep(800);
+	const press = await look(ctx, `${slug}-press`);
+	const end = await ctx.page.evaluate(RANGE_END);
+	const target = await ctx.page.evaluate(wordBox(bareBlock(2), 'epsilon'));
+	if (!end || !target) {
+		const file = save(ctx.out, slug, { pressed, press, end, target });
+		return { file, error: 'no range end or no target after the long press', press: brief(press) };
+	}
+	// Chrome hangs its end handle below the range end, and the range follows the handle's top.
+	const from = toScreen(end.right, end.bottom);
+	const to = toScreen(target.x, target.y);
+	const dragAt = await ctx.page.evaluate('window.__probe.now()');
+	ctx.device.swipe(from.x + 4, from.y + 25, to.x, to.y + 25, 800);
+	await sleep(1200);
+	const dragged = await look(ctx, `${slug}-dragged`);
+	const blocks = await ctx.page.evaluate(BARE_TEXT);
+	const log = await ctx.page.evaluate(READ_LOG);
+	const file = save(ctx.out, slug, {
+		removeFar,
+		pressed,
+		press,
+		from,
+		to,
+		dragged,
+		blocks,
+		timeline: timeline(log),
+		log
+	});
+	return {
+		file,
+		press: brief(press),
+		dragged: brief(dragged),
+		dragEvents: timeline(log.filter((r) => r.at >= dragAt)).slice(0, 24)
+	};
+}
+
+// A tap past the end of the shared host's second block, then Gboard's own keys.
+async function composeInHost(ctx, slug) {
+	const toScreen = await bareHostPage(ctx);
+	const word = await ctx.page.evaluate(wordBox(bareBlock(1), 'delta'));
+	const at = toScreen(word.right + 40, word.y);
+	ctx.device.tap(at.x, at.y);
+	for (let i = 0; i < 40 && !ctx.device.imeShown(); i++) await sleep(250);
+	await sleep(500);
+	const tapped = await look(ctx, `${slug}-tapped`);
+	const keys = ctx.device.gboardKeys(`${slug}-keys`);
+	if (!keys.has('h') || !keys.has(' ')) {
+		const file = save(ctx.out, slug, { tapped, gboard: ctx.device.gboardMode() });
+		return { file, error: 'Gboard showed no keys in the shared host', tapped: brief(tapped) };
+	}
+	for (const ch of ` ${WORD} `) {
+		ctx.device.tap(keys.get(ch).x, keys.get(ch).y);
+		await sleep(400);
+	}
+	await sleep(1500);
+	ctx.device.screenshot(`${slug}-typed`);
+	const typed = await ctx.page.evaluate(BARE_TEXT);
+	await ctx.device.hideKeyboard();
+	const afterHide = await ctx.page.evaluate(BARE_TEXT);
+	const log = await ctx.page.evaluate(READ_LOG);
+	const file = save(ctx.out, slug, { tapped, typed, afterHide, timeline: timeline(log), log });
+	const plain = (blocks) => blocks.map((b) => b.text.replace(/\s/g, ' '));
+	return {
+		file,
+		committed: plain(afterHide)[1] === `second block gamma delta ${WORD} `,
+		typed: plain(typed),
+		afterHide: plain(afterHide),
+		inputEvents: timeline(log.filter((r) => /^(beforeinput|input|composition)/.test(r.type ?? '')))
+	};
+}
+
+// ── Probe steps ──────────────────────────
+
+// The bare page, with the screen map measured on the harness before it: the bare page has no block
+// for the lookup, and a viewport point maps to the screen the same way on both.
+async function bareHostPage(ctx) {
+	await ctx.fresh(SHORT);
+	const toScreen = await screenMap(ctx, 0);
+	await ctx.page.evaluate(BARE_HOST);
+	await sleep(1000);
+	await ctx.page.evaluate(INSTALL_LOG);
+	return toScreen;
+}
+
+// A finger held 1.5 s on `word` under `selector`, then lifted.
+async function holdWord(ctx, selector, word, toScreen) {
+	const box = await ctx.page.evaluate(wordBox(selector, word));
+	if (!box) throw new Error(`no "${word}" under ${selector}`);
+	const point = toScreen(box.x, box.y);
+	ctx.device.swipe(point.x, point.y, point.x, point.y, 1500);
+	return { box, point };
+}
+
+// A moment after a gesture: a screenshot, the page's state, the keyboard and every menu on screen.
+async function look(ctx, name) {
+	const shotAt = await ctx.page.evaluate('window.__probe.now()').catch(() => null);
+	ctx.device.screenshot(name);
+	const state = await ctx.page.evaluate(READ_STATE);
+	return {
+		shot: `${name}.png`,
+		shotAt,
+		...state,
+		keyboard: ctx.device.imeShown(),
+		menuNodes: menuNodes(ctx, name)
+	};
+}
+
+const MENU_WORDS = new Set([
+	'Cut',
+	'Copy',
+	'Paste',
+	'Paste as plain text',
+	'Select all',
+	'Share',
+	'Web search',
+	'Translate',
+	'Search',
+	'Listen',
+	'Define'
+]);
+
+// Every menu item on screen, from a dump of every window, and whether it sits inside Chrome's web
+// content (a page's menu, the editor's) or outside it (Chrome's own floating toolbar).
+function menuNodes(ctx, name) {
+	try {
+		ctx.device.dumpNodes(`${name}-windows`, '--windows');
+	} catch (error) {
+		return [{ error: String(error).split('\n')[0] }];
+	}
+	const xml = readFileSync(path.join(ctx.out, `${name}-windows.xml`), 'utf8');
+	const open = [];
+	const found = [];
+	for (const [tag, selfClosing] of xml.matchAll(/<node\b[^>]*?(\/?)>|<\/node>/g)) {
+		if (tag === '</node>') {
+			open.pop();
+			continue;
+		}
+		const attr = (key) => tag.match(new RegExp(` ${key}="([^"]*)"`))?.[1] ?? '';
+		const node = {
+			text: attr('text'),
+			desc: attr('content-desc'),
+			cls: attr('class'),
+			id: attr('resource-id'),
+			pkg: attr('package'),
+			bounds: attr('bounds')
+		};
+		if (MENU_WORDS.has(node.text || node.desc))
+			found.push({ ...node, inPage: open.some((n) => n.cls === 'android.webkit.WebView') });
+		if (!selfClosing) open.push(node);
+	}
+	return found;
+}
+
+// The texts Gboard shows above its keys (the suggestion strip) after a key.
+function suggestions(ctx, name) {
+	try {
+		return ctx.device
+			.dumpNodes(`${name}-windows`, '--windows')
+			.filter((n) => n.pkg.includes('inputmethod') && n.text)
+			.map((n) => n.text);
+	} catch (error) {
+		return [String(error).split('\n')[0]];
+	}
+}
 
 // ── Steps ──────────────────────────
 
