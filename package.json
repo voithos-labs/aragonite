@@ -171,9 +171,7 @@
 		"prepack": "npm run package && node scripts/pack/verify-pack.mjs",
 		"release:fixme-recheck": "node scripts/release/fixme-recheck.mjs",
 		"release:publish": "node scripts/release/check-lockstep.mjs && node scripts/release/check-release-gates.mjs && node scripts/release/publish.mjs",
-		"prepare": "git config core.hooksPath .githooks || exit 0",
-		"showcase:react": "node scripts/showcase.mjs react",
-		"showcase:vue": "node scripts/showcase.mjs vue"
+		"prepare": "git config core.hooksPath .githooks || exit 0"
 	},
 	"dependencies": {
 		"esm-env": "^1.2.2",

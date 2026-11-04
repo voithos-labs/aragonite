@@ -4,8 +4,7 @@ What the seeded document says is read out of `examples/showcase/showcase-content
 never quoted here: the owner rewrites it by hand, and the version quoting its prose went red
 on the rewrite.
 
-The root route wraps `<Editor>` in one quiet bar, the same bar the React and Vue showcases
-mount (`examples/showcase/top-bar.ts`): the wordmark linking to the repository, the
+The root route wraps `<Editor>` in one quiet bar (`examples/showcase/top-bar.ts`): the wordmark linking to the repository, the
 presentation-mode switcher, the docs and changelog links, report a bug, and a settings popover
 holding the theme, drag-handle, selection-menu, occurrence and debug-panel switches.
 This spec owns the page around the editor, not the document. Two sibling specs already cover

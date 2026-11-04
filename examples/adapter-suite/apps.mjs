@@ -4,9 +4,9 @@
 const EVERY_APP = ['page-contract', 'host-fill'];
 const REACT = [...EVERY_APP];
 const VUE = [...EVERY_APP, 'vue'];
-// The example apps also serve the showcase (`showcase.html`) and a page of framework-drawn plugin
-// blocks and views (`?block-views`); the meta-framework apps do not.
-const EXAMPLE = ['showcase', 'block-views', 'plugin-views', 'own-surface', 'hand-built'];
+// The example apps also serve a page of framework-drawn plugin blocks and views (`?block-views`);
+// the meta-framework apps do not.
+const EXAMPLE = ['block-views', 'plugin-views', 'own-surface', 'hand-built'];
 
 export const APPS = {
 	react: {

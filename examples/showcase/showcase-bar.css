@@ -1,4 +1,4 @@
-/* The demo site's top bars, one stylesheet for the three showcases and the changelog. It reads the
+/* The demo site's top bars, one stylesheet for the showcase and the changelog. It reads the
    editor theme's host tokens from the `.aragonite-editor-theme` wrapper, so it follows light and
    dark with the document. */
 
