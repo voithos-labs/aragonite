@@ -21,9 +21,9 @@ export interface LinkCardTargetQuery extends LinkPointQuery {
 	/** The raw selection within this block, or null at a collapsed caret. Required, never given a
 	 *  default: a caller that must create no link says so by passing null wherever it could. */
 	selection: { start: number; end: number } | null;
-	/** True while a range crosses blocks: `selection`, measured against this block's DOM, reports
-	 *  an endpoint in another block as this block's end. */
-	ownedRange: boolean;
+	/** True while the editor holds a range across blocks: `selection`, measured against this
+	 *  block's DOM, reports an endpoint in another block as this block's end. */
+	spansBlocks: boolean;
 }
 
 export interface LinkCardEntryQuery extends LinkCardTargetQuery {
@@ -42,7 +42,7 @@ export type EditTarget =
 /** The construct under the caret or wholly containing the range, or a widget a collapsed caret
  *  touches; null where the chord edits nothing, so the pressed state matches the chord. */
 export function editTargetAt(query: LinkCardTargetQuery): EditTarget | null {
-	if (query.ownedRange) return null;
+	if (query.spansBlocks) return null;
 	const hit = followTargetAtCaret(query);
 	if (hit === null) return null;
 	const range = query.selection;
@@ -56,9 +56,9 @@ export function editTargetAt(query: LinkCardTargetQuery): EditTarget | null {
 /** Edits what the caret would go to, else creates a link over the range unless it crosses
  *  another construct's bytes. The keymap takes the chord either way. */
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
-	// Command dispatch already refuses a cross-block range; checked again because the offsets
+	// Command dispatch already refuses a range across blocks; checked again because the offsets
 	// here would be made up in that state.
-	if (query.ownedRange) return;
+	if (query.spansBlocks) return;
 	// Edit before create, since create refuses a range already inside a construct: going the
 	// create way there leaves the click doing nothing under a button painted as pressed.
 	const target = editTargetAt(query);

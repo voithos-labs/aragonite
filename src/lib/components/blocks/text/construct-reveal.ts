@@ -51,8 +51,8 @@ export interface ConstructRevealDeps {
 	get node(): NodeView;
 	get reading(): Reading;
 	getEl: () => HTMLElement | null;
-	/** A cross-block selection freezes what is shown, so a drag anchored in visible marker
-	 *  text keeps its layout. */
+	/** A range the editor holds freezes what is shown, so a drag anchored in visible marker text
+	 *  keeps its layout. */
 	ownsRange: () => boolean;
 	/** Told whenever a marker shows or hides, since that moves the text after it. */
 	textMoves: Pick<TextMoves, 'movedWithin'>;

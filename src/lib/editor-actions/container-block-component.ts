@@ -136,7 +136,7 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 		return;
 	}
 
-	// A range across blocks is left to the copy event the editor's handlers take.
+	// A range the editor holds is left to the copy event the editor's handlers take.
 	const clipboard = wholeBlockClipboardKey(e);
 	if (clipboard) {
 		if (deps.selection.ownsRange) return;

@@ -26,7 +26,10 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
-import { createLinkCardState } from '#lib/components/link-card/link-card-state.svelte.js';
+import {
+	createLinkCardState,
+	linkCardGates
+} from '#lib/components/link-card/link-card-state.svelte.js';
 import { createMenuPresence } from '#lib/components/menu/menu-presence.svelte.js';
 import { createReadingFocus } from '#lib/components/editor-root/reading-focus.svelte.js';
 import { createDraftRegistry } from '#lib/components/draft-registry.js';
@@ -109,12 +112,13 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		scrollOwner: {} as EditorServices['scrollOwner'],
 		// Real: a `link.openCard` keypress asks it to record a target, and the entry rule reads it
 		// back. The checks mirror production, so a component test runs the ones it ships with.
-		linkCard: createLinkCardState({
-			onOpen: () => {},
-			canOpen: () => !selection.ownsRange && window.getSelection()?.isCollapsed !== false,
-			canEnter: () => !selection.ownsRange,
-			canOpenCreate: () => !selection.ownsRange && window.getSelection()?.isCollapsed === false
-		}),
+		linkCard: createLinkCardState(
+			linkCardGates(
+				selection,
+				() => window.getSelection()?.isCollapsed === false,
+				() => {}
+			)
+		),
 		// A bare mount has no inline menu, so no block is ever a combobox.
 		inlineMenuCombobox: () => null,
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
@@ -265,6 +269,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		activation: services.activePlugins,
 		getPresentationMode: () => doc.reading.mode(),
 		ownsRange: () => services.selection.ownsRange,
+		rangeInOneBlock: () => services.selection.rangeInOneBlock,
 		holdsNativeRange,
 		// Inert: a bare mount has no cross-block range, so every member answers no.
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },

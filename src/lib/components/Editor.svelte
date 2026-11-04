@@ -151,7 +151,7 @@
 	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
 	import type { InlineMenuRegistry } from '../inline-menu/types';
 	import { createInlineRangeCommit } from '../editor-actions/inline-range-commit';
-	import { createLinkCardState } from './link-card/link-card-state.svelte';
+	import { createLinkCardState, linkCardGates } from './link-card/link-card-state.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
@@ -496,13 +496,10 @@
 	// ── Link card ───────────────────────────────────────────────────────
 
 	// The caret snapshot and entry checks live on the link card state so no entry path skips
-	// them. Each refuses a cross-block range; a click also refuses a selection, which create needs.
-	const linkCard = createLinkCardState({
-		onOpen: () => linkCardCaret.saveCurrent(),
-		canOpen: () => !selectionState.ownsRange && !holdsNativeRange(),
-		canEnter: () => !selectionState.ownsRange,
-		canOpenCreate: () => !selectionState.ownsRange && holdsNativeRange()
-	});
+	// them. Each refuses a range across blocks; a click also refuses a selection, which create needs.
+	const linkCard = createLinkCardState(
+		linkCardGates(selectionState, holdsNativeRange, () => linkCardCaret.saveCurrent())
+	);
 
 	// ── Hidden-run class check ──────────────────────────────────────────
 
@@ -828,6 +825,7 @@
 		activation: activePlugins,
 		getPresentationMode: reading.mode,
 		ownsRange: () => selectionState.ownsRange,
+		rangeInOneBlock: () => selectionState.rangeInOneBlock,
 		holdsNativeRange,
 		crossBlockCommands,
 		markActivation,

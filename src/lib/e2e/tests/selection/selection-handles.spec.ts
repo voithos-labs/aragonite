@@ -3,6 +3,7 @@ import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import { pointAtRaw, type Point } from '../../text-runs';
 import { fingerDrag, openTouch, PARAGRAPHS, RANGE, type FingerDragOptions } from '../../touch';
+import { URL_FIELD } from '../presentation/link-card-helpers';
 import {
 	createClipboardArm,
 	refuseClipboardWrites,
@@ -41,6 +42,12 @@ async function dragHandle(
 }
 
 const selection = (editor: EditorPage) => editor.bridge.getSelectionPaths();
+
+/** A finger's tap on the toolbar row whose test id ends in `name`. */
+async function tapToolbar(page: Page, name: string): Promise<void> {
+	const box = (await page.locator(`[data-testid="toolbar-${name}"]`).boundingBox())!;
+	await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+}
 
 /** A finger's double tap on the first word of block `path`, `length` long, once it's the range. */
 async function doubleTapWord(page: Page, editor: EditorPage, path: number[], length: number) {
@@ -342,32 +349,97 @@ test("a finger's toolbar Copy takes its word, and its Paste puts that text in pl
 	const editor = await openTouch(page, DOC);
 	const clipboard = createClipboardArm(page);
 	await clipboard.seed('before the copy');
-	const tapRow = async (action: string) => {
-		const box = (await page.locator(`[data-testid="toolbar-${action}"]`).boundingBox())!;
-		await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-	};
 	await doubleTapWord(page, editor, [1], 5);
-	await tapRow('copy');
+	await tapToolbar(page, 'copy');
 	await clipboard.waitForContains('gamma', 5000);
 	await doubleTapWord(page, editor, [2], 7);
-	await tapRow('paste');
+	await tapToolbar(page, 'paste');
 	await expect
 		.poll(() => page.evaluate(() => (window as any).__test.getSource()))
 		.toContain('gamma zeta');
 });
 
-test("a finger's toolbar Cut the clipboard refuses keeps its word", async ({ page }) => {
-	const editor = await openTouch(page, DOC);
-	await refuseClipboardWrites(page);
-	await doubleTapWord(page, editor, [1], 5);
-	const box = (await page.locator('[data-testid="toolbar-cut"]').boundingBox())!;
-	await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-	await expect.poll(() => refusedClipboardWrites(page)).toBe(1);
-	expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(DOC);
-	expect(await selection(editor)).toEqual({
-		anchor: { path: [1], offset: 0 },
-		focus: { path: [1], offset: 5 }
+for (const action of ['copy', 'cut'] as const) {
+	test(`a finger's toolbar ${action} lands through the browser's command when the clipboard API is refused`, async ({
+		page
+	}) => {
+		const editor = await openTouch(page, DOC);
+		const clipboard = createClipboardArm(page);
+		await clipboard.seed('before the copy');
+		await refuseClipboardWrites(page);
+		await doubleTapWord(page, editor, [1], 5);
+		await tapToolbar(page, action);
+		await clipboard.waitForContains('gamma', 5000);
+		expect(await refusedClipboardWrites(page)).toBe(0);
+		const want = action === 'cut' ? DOC.replace('gamma', '') : DOC;
+		await expect.poll(() => editor.bridge.getSource()).toBe(want);
 	});
+}
+
+test("a finger's word gets the toolbar's link button and heading picker, as a mouse's does", async ({
+	page
+}) => {
+	const editor = await openTouch(page, DOC);
+	await doubleTapWord(page, editor, [1], 5);
+	await expect(page.locator('[data-testid="toolbar-link.openCard"]')).toBeEnabled();
+	await expect(page.locator('[data-testid="toolbar-set-heading"]')).toBeVisible();
+});
+
+for (const opener of ['toolbar', 'Mod+K'] as const) {
+	test(`the ${opener} link on a finger's word makes a link of exactly that word`, async ({
+		page
+	}) => {
+		const editor = await openTouch(page, DOC);
+		await editor.setPresentationMode('live');
+		await doubleTapWord(page, editor, [1], 5);
+		if (opener === 'Mod+K') await page.keyboard.press('ControlOrMeta+k');
+		else await tapToolbar(page, 'link.openCard');
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await page.keyboard.type('https://x.test');
+		await page.keyboard.press('Enter');
+		await expect
+			.poll(() => editor.bridge.getSource())
+			.toBe(DOC.replace('gamma', '[gamma](https://x.test)'));
+	});
+}
+
+test("the toolbar's heading picker on a finger's word turns its block into a heading", async ({
+	page
+}) => {
+	const editor = await openTouch(page, DOC);
+	await doubleTapWord(page, editor, [1], 5);
+	await tapToolbar(page, 'set-heading');
+	await tapToolbar(page, 'set-heading-2');
+	await expect.poll(() => editor.bridge.getSource()).toBe(DOC.replace('gamma', '## gamma'));
+});
+
+test("Mod+1 from a keyboard on a finger's word turns its block into a heading, keeping the word", async ({
+	page
+}) => {
+	const editor = await openTouch(page, DOC);
+	await doubleTapWord(page, editor, [1], 5);
+	await page.keyboard.press('ControlOrMeta+1');
+	await expect.poll(() => editor.bridge.getSource()).toBe(DOC.replace('gamma', '# gamma'));
+});
+
+test("a mouse's Shift+click in a finger's word's block grows the word to the click", async ({
+	page
+}) => {
+	const editor = await openTouch(page, DOC);
+	await doubleTapWord(page, editor, [1], 5);
+	await editor.shiftClickBlock([1], 9);
+	await expect
+		.poll(() => selection(editor))
+		.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 9 } });
+});
+
+test("the first Mod+A from a keyboard on a finger's word selects its block", async ({ page }) => {
+	const editor = await openTouch(page, DOC);
+	await doubleTapWord(page, editor, [1], 5);
+	await page.keyboard.press('ControlOrMeta+a');
+	await expect
+		.poll(() => selection(editor))
+		.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 11 } });
 });
 
 test("a mouse's toolbar copies, leaving cut and paste to the keyboard", async ({ page }) => {

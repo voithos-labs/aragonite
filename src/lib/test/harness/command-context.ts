@@ -29,6 +29,7 @@ export function commandContext(over: Partial<CommandDispatchContext> = {}): Comm
 		activation: everyInstalledPlugin,
 		getPresentationMode: () => 'source',
 		ownsRange: () => false,
+		rangeInOneBlock: () => false,
 		// A suite with no DOM holds no selection, so no command runs beside one.
 		holdsNativeRange: () => typeof window !== 'undefined' && holdsNativeRange(),
 		crossBlockCommands: INERT_RANGE_ROUTER,

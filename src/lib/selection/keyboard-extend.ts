@@ -384,7 +384,11 @@ export function handleShiftClick(
 	const focusPoint: SelectionPoint = { path: clickedBlockPath.slice(), offset: clickOffset };
 
 	if (selection.ownsRange) {
+		const anchor = selection.anchor;
 		selection.extendFocus(focusPoint);
+		// Folded back into the anchor's block, the range is the browser's again (G1.170).
+		if (!selection.ownsRange && anchor && pathsEqual(anchor.path, focusPoint.path))
+			applySingleBlockRange(writer, clickedBlockEl, anchor.offset, focusPoint.offset);
 		return true;
 	}
 

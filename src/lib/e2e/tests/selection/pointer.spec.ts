@@ -75,6 +75,20 @@ test.describe('selection: pointer: edge cases', () => {
 		expect(betaBlock).toContain('X');
 	});
 
+	test('shift+click back into the anchor block leaves a range there, the anchor kept', async () => {
+		await editor.loadContent('alpha line\n\nbeta line\n');
+		await editor.focusBlockEnd(0);
+		await editor.bridge.setSelection({
+			anchor: { path: [0], offset: 2 },
+			focus: { path: [1], offset: 5 }
+		});
+		await editor.waitForCrossBlock(true);
+		await editor.shiftClickBlock([0], 8);
+		await expect
+			.poll(() => editor.bridge.getSelectionPaths())
+			.toEqual({ anchor: { path: [0], offset: 2 }, focus: { path: [0], offset: 8 } });
+	});
+
 	test('drag out to remote block then back to anchor collapses cross-block', async () => {
 		await editor.loadContent('alpha line\n\nbeta line\n\ngamma line\n');
 		await editor.dragFromToThenTo([0], 2, [2], 5, [0], 6);

@@ -271,6 +271,10 @@
 	function openFlyout(): void {
 		turnIntoOpen = true;
 	}
+	// A finger leaves the bar after every tap, before that tap's click, so only a mouse closes it.
+	function closeOnLeave(): void {
+		if (!finger()) turnIntoOpen = false;
+	}
 	// Escape and a press outside the bar close the flyout; the bar stays over the selection.
 	function closeFlyout(): boolean {
 		turnIntoOpen = false;
@@ -295,7 +299,7 @@
 		role="toolbar"
 		aria-label={SELECTION_TOOLBAR_LABEL}
 		tabindex="-1"
-		onpointerleave={() => (turnIntoOpen = false)}
+		onpointerleave={closeOnLeave}
 	>
 		<div class="selection-toolbar-marks">
 			{#each MARKS as button (button.command)}

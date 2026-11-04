@@ -62,15 +62,29 @@ describe('a menu Paste hands the clipboard text to the paste step', () => {
 
 // Miss-analysis: every menu Copy ran in Chromium, whose copy command fires over a lone caret;
 // WebKit's copies nothing when the editor paints the range and only a caret stands under it.
-describe('a menu Cut or Copy writes what the editor takes, else runs the browser command', () => {
+describe("a menu Cut or Copy runs the browser's command, and writes itself only when no copy step took it", () => {
 	const savedExec = document.execCommand;
 	const savedItem = (globalThis as { ClipboardItem?: unknown }).ClipboardItem;
 	let written: string[][];
 	let commands: string[];
+	let taken: number;
+
+	// `fires`: the command dispatches its event, and the editor's copy step takes it.
+	function browserCommand(fires: boolean): void {
+		document.execCommand = (command: string) => {
+			commands.push(command);
+			if (!fires) return false;
+			const event = new Event(command, { cancelable: true });
+			document.body.addEventListener(command, (e) => e.preventDefault(), { once: true });
+			document.body.dispatchEvent(event);
+			return true;
+		};
+	}
 
 	beforeEach(() => {
 		written = [];
 		commands = [];
+		taken = 0;
 		(globalThis as { ClipboardItem?: unknown }).ClipboardItem = class {
 			constructor(items: Record<string, Blob>) {
 				written.push(Object.keys(items));
@@ -80,7 +94,7 @@ describe('a menu Cut or Copy writes what the editor takes, else runs the browser
 			value: { write: async () => {} },
 			configurable: true
 		});
-		document.execCommand = (command: string) => (commands.push(command), true);
+		browserCommand(false);
 	});
 	afterEach(() => {
 		(globalThis as { ClipboardItem?: unknown }).ClipboardItem = savedItem;
@@ -88,20 +102,29 @@ describe('a menu Cut or Copy writes what the editor takes, else runs the browser
 	});
 
 	const payload: ClipboardPayload = { 'text/plain': 'world', 'text/html': '<p>world</p>' };
-	const taking = (removed: string[]) => () => ({
-		payload,
-		remove: async () => void removed.push('removed')
-	});
+	const taking = (removed: string[]) => () => {
+		taken += 1;
+		return { payload, remove: async () => void removed.push('removed') };
+	};
 
-	it('Copy of a range the editor holds writes its text and HTML, with no browser command', async () => {
+	it("Copy the editor's copy step takes writes nothing more, as in a frame with no clipboard permission", async () => {
+		browserCommand(true);
 		const removed: string[] = [];
 		await runClipboardAction('copy', menu(null, taking(removed)));
+		expect(commands).toEqual(['copy']);
+		expect(taken).toBe(0);
+		expect(written).toEqual([]);
+	});
+
+	it('Copy whose command fires nothing writes the range the editor holds, text and HTML', async () => {
+		const removed: string[] = [];
+		await runClipboardAction('copy', menu(null, taking(removed)));
+		expect(commands).toEqual(['copy']);
 		expect(written).toEqual([['text/plain', 'text/html']]);
-		expect(commands).toEqual([]);
 		expect(removed).toEqual([]);
 	});
 
-	it('Cut of a range the editor holds removes it once the write lands', async () => {
+	it('Cut whose command fires nothing removes the range once the write lands', async () => {
 		const removed: string[] = [];
 		await runClipboardAction('cut', menu(null, taking(removed)));
 		expect(written).toEqual([['text/plain', 'text/html']]);
@@ -118,12 +141,11 @@ describe('a menu Cut or Copy writes what the editor takes, else runs the browser
 		const removed: string[] = [];
 		await runClipboardAction('cut', menu(null, taking(removed)));
 		expect(removed).toEqual([]);
-		expect(commands).toEqual([]);
 	});
 
-	it('a Cut of a range the browser holds is left to its own command', async () => {
+	it('Cut with no range the editor holds is the command alone', async () => {
 		await runClipboardAction('cut', menu(null));
-		expect(written).toEqual([]);
 		expect(commands).toEqual(['cut']);
+		expect(written).toEqual([]);
 	});
 });

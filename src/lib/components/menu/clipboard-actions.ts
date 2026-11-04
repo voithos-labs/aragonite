@@ -35,12 +35,10 @@ export async function runClipboardAction(
 	switch (action) {
 		case 'cut':
 		case 'copy': {
-			// Over a range the editor holds only a caret stands, where WebKit's command copies nothing.
+			if (copyStepTookCommand(action)) return;
+			// WebKit's command fires nothing over the lone caret under a range the editor holds.
 			const taken = clipboard.take();
-			if (!taken) {
-				document.execCommand(action);
-				return;
-			}
+			if (!taken) return;
 			// A refused write changes nothing, so a Cut whose write was refused keeps its range.
 			if ((await writeClipboardPayload(taken.payload)) && action === 'cut') await taken.remove();
 			return;
@@ -54,4 +52,18 @@ export async function runClipboardAction(
 			await (action === 'paste-plain' ? paste.plainText(text) : paste.markdown(text));
 		}
 	}
+}
+
+// The browser's own command first: its event carries the clipboard with no permission asked, so a
+// frame without one still copies. Every editor copy step cancels the event it writes into.
+function copyStepTookCommand(action: 'cut' | 'copy'): boolean {
+	let heard = null as Event | null;
+	const listen = (e: Event) => void (heard = e);
+	document.addEventListener(action, listen, true);
+	try {
+		document.execCommand(action);
+	} finally {
+		document.removeEventListener(action, listen, true);
+	}
+	return heard?.defaultPrevented ?? false;
 }

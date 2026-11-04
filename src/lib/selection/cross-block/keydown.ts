@@ -13,6 +13,7 @@ import { caretEdgeKey, eventToChord, isSelectAllChord, pageKey } from '../../sch
 import {
 	commandOverRange,
 	dispatchKeyCommand,
+	runsOnItsBlock,
 	type CommandDispatchContext
 } from '../../schema/block-commands';
 import { chordsBoundTo, commandForKey } from '../../schema/commands';
@@ -222,14 +223,13 @@ export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): b
 	const doc = reads.getDoc();
 	const kind = commandLandingKind(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)));
 	const command = commandForKey(e, kind, reads.commands);
-	return (
-		command !== null && commandOverRange(kind, command, reads.commands.activation) !== undefined
-	);
+	if (command === null || runsOnItsBlock(command, reads.selection.rangeInOneBlock)) return false;
+	return commandOverRange(kind, command, reads.commands.activation) !== undefined;
 }
 
 /** What reading a key over a live range takes: the range, its document and the keymap. */
 export interface RangeKeyReads {
-	selection: Pick<SelectionState, 'ownsRange' | 'anchor' | 'focus'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus'>;
 	getDoc: () => Document;
 	commands: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
 }
@@ -268,7 +268,8 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	if (e.shiftKey && step) return 'extend';
 	const plain = !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
 	if ((e.key === 'Escape' && plain) || (!e.shiftKey && step)) return 'collapse';
-	if (isSelectAllChord(e)) return 'selectAll';
+	// Inside one block the first Mod+A selects that block, as from the browser's own range there.
+	if (isSelectAllChord(e)) return reads.selection.rangeInOneBlock ? null : 'selectAll';
 	// Last, since it reads the range's coverage: the navigation keys above never need it.
 	return isCommandCandidateKey(e, reads) ? 'command' : null;
 }

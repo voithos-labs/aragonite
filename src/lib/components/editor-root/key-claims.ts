@@ -51,7 +51,10 @@ export interface KeyClaimsDeps extends KeyFocusDeps {
 	inlineMenu: Pick<InlineMenuState, 'listKey'>;
 	/** The chord an open link card swallows: the one that opens it. */
 	opensLinkCard(e: KeyboardEvent): boolean;
-	selection: Pick<SelectionState, 'gapCaret' | 'ownsRange' | 'anchor' | 'focus'>;
+	selection: Pick<
+		SelectionState,
+		'gapCaret' | 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus'
+	>;
 	containerChords: Pick<ContainerChords, 'takes'>;
 	getDoc(): Document;
 	commands: CommandDispatchContext;

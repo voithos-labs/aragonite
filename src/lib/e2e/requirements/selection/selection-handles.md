@@ -55,12 +55,28 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
   handle never lands on a toolbar button, and the bar covers no more of the page than before.
 - A finger's toolbar is the range's one menu, so it cuts and pastes as well as copies. Its Cut
   takes the range, and one undo puts it back.
-- A finger's toolbar Cut whose clipboard write the browser refuses keeps the word and its text.
-  - Miss-analysis: every menu Cut row ran with the clipboard granted, so none saw a refused write
-    remove the range anyway.
+- A finger's toolbar Copy or Cut lands through the browser's own command even where the page
+  may not call the clipboard API (a frame without the permission): the clipboard holds the word,
+  a Cut takes it, and no API write is tried.
+  - Miss-analysis: every menu Copy and Cut row ran with the clipboard granted, so none saw the API
+    write refused where the command's own event would have copied.
 - A finger's toolbar Copy puts its word on the clipboard, and its Paste on another finger's word
   puts that text in the word's place.
   - Miss-analysis: the toolbar rows only checked that Paste shows; none tapped it, so a Paste that
     left a finger's word as it was stayed green.
+- A finger's word gets the toolbar's link button and heading picker, as a mouse's word does: a
+  link and a heading level need a range inside one block, and a finger's word is one.
+  - Miss-analysis: the rename audit read every `ownsRange` read as ownership; the command route's
+    decline meant "spans blocks", and no row opened a command on a finger's word.
+- The toolbar's link, or Mod+K from a keyboard, on a finger's word in live mode opens the create
+  card, and its commit makes a link of exactly that word.
+- The toolbar's heading picker on a finger's word turns its block into a heading. A finger's tap
+  inside the picker keeps it open until the tap's click lands.
+- Mod+1 from a keyboard on a finger's word turns its block into a heading and keeps the word, as
+  inside one block anywhere; over a range across blocks it's delete, then the key.
+- The first Mod+A from a keyboard on a finger's word selects its block's text, as from the
+  browser's own range there.
+- A mouse's Shift+click in a finger's word's block grows the word to the click, as on the
+  browser's own range there.
 - A mouse's toolbar only copies, since a mouse's range has the keyboard's Cut and Paste and the
   right-click menu.

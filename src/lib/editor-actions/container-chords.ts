@@ -21,7 +21,7 @@ import type { SelectionState } from '../selection/selection-state.svelte';
 export interface ContainerChordDeps {
 	commands: CommandDispatchContext;
 	getBlockComponent(path: number[]): BlockComponent | null;
-	selection: Pick<SelectionState, 'ownsRange' | 'anchor' | 'focus'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus'>;
 	getDoc(): Document;
 }
 

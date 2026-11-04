@@ -2,6 +2,7 @@
 // because every commit rebuilds the inline tree and a captured node would point at moved bytes.
 
 import type { LinkTarget } from '../blocks/text/link-at-point';
+import type { SelectionState } from '../../selection/selection-state.svelte';
 
 /** The create gesture's target: the raw range a commit would wrap. A range, not a construct,
  *  since the document holds nothing until Enter writes it, so Escape has nothing to clean up. */
@@ -40,8 +41,24 @@ export interface LinkCardOptions {
 	 *  construct from the selection itself, so a range it allows is the card's own bytes. */
 	canEnter: () => boolean;
 	/** For create: requires the selection `canOpen` forbids, since the range is the target. All
-	 *  three checks refuse a cross-block range. */
+	 *  three checks refuse a range across blocks. */
 	canOpenCreate: () => boolean;
+}
+
+/** The three entry checks over the editor's selection. A range across blocks refuses all three;
+ *  a range inside one block, the editor's or the browser's, is one a create wraps. */
+export function linkCardGates(
+	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock'>,
+	holdsNativeRange: () => boolean,
+	onOpen: () => void
+): LinkCardOptions {
+	const spansBlocks = () => selection.ownsRange && !selection.rangeInOneBlock;
+	return {
+		onOpen,
+		canOpen: () => !selection.ownsRange && !holdsNativeRange(),
+		canEnter: () => !spansBlocks(),
+		canOpenCreate: () => selection.rangeInOneBlock || (!selection.ownsRange && holdsNativeRange())
+	};
 }
 
 export function createLinkCardState(options: LinkCardOptions): LinkCardState {

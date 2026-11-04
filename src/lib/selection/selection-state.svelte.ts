@@ -58,6 +58,9 @@ export interface SelectionState {
 	/** Whether the editor holds the range rather than the browser's native selection: across
 	 *  blocks, a rectangle of cells, a block held whole, or a finger's range inside one block. */
 	readonly ownsRange: boolean;
+	/** Whether that range is text inside one block (a finger's, G1.170), the one owned range a
+	 *  command made for one block runs on; false across blocks, over cells, or a block held whole. */
+	readonly rangeInOneBlock: boolean;
 	/** Whether the overlay paints the range instead of the browser: every range the editor owns
 	 *  but a single cell and the keyboard's equal-offset starting pair. */
 	readonly isCustomRendered: boolean;
@@ -218,6 +221,12 @@ class SelectionStateImpl implements SelectionState {
 
 	get ownsRange(): boolean {
 		return this.#anchor !== null && this.#focus !== null;
+	}
+
+	get rangeInOneBlock(): boolean {
+		const anchor = this.#anchor;
+		const focus = this.#focus;
+		return !!anchor && !!focus && !this.#wholeUnit && this.#isSamePathProseRange(anchor, focus);
 	}
 
 	get wholeUnitPath(): number[] | null {

@@ -248,7 +248,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 				focused: active !== null && root.contains(active),
 				pressed: !!press?.moves && press.el === owned?.el,
 				store: {
-					crossBlock: selection.ownsRange,
+					ownsRange: selection.ownsRange,
 					wholeBlock: selection.wholeUnitPath !== null,
 					gapCaret: selection.gapCaret !== null,
 					widget: selection.widget !== null
