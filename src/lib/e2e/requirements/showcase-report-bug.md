@@ -15,6 +15,12 @@ The `/` showcase bar's "report a bug" button records the visitor's input and ope
   Miss-analysis: the first case pressed Escape with focus in the editor and asserted the card
   closed, so it pinned the focus steal as the contract.
 
+## Edge cases
+
+- On a phone-width screen the card stays inside the viewport: it spans the header with a gutter
+  instead of hanging left off the button, which sits too close to the screen's edge for it.
+  Miss-analysis: every case ran at the desktop viewport, where the card fits left of the button.
+
 ## Error cases
 
 - The browser refuses the clipboard write (focus already moved to the new tab): the card says so and offers Copy recording, whose own click puts the recording on the clipboard.

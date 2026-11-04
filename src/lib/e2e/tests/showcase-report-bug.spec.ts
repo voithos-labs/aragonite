@@ -83,6 +83,14 @@ test.describe('/ showcase report a bug', () => {
 		expect(recording.editor.presentationMode).toBe('live');
 	});
 
+	test('on a phone-width screen the card stays inside the viewport', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.getByTestId('report-bug').click();
+		const box = await page.getByTestId('report-card').boundingBox();
+		expect(box?.x).toBeGreaterThanOrEqual(0);
+		expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
+	});
+
 	test('a copy the browser refuses gets a Copy recording button that copies on its own click', async ({
 		page
 	}) => {
