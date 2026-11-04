@@ -319,7 +319,7 @@ function runBlockLocalCommand(
 	run: CommandRun
 ): boolean {
 	const target = 'target' in resolved ? resolved.target : null;
-	// Under a range spanning blocks the range owns the selection; the block holds none of its own.
+	// Under a range the editor holds, the range owns the selection; the block holds none of its own.
 	if (!target || ctx.ownsRange() || !commandOverSelection(target.kind, id, ctx.activation)) {
 		return runAtCaret(resolved, id, arg, path, ctx, run);
 	}
@@ -399,8 +399,8 @@ type RangeRoute =
 	| { kind: 'cross-block'; router: CrossBlockCommandRouter };
 
 /**
- * While a selection spans blocks, a single-block command routes to the cross-block handler or
- * declines (`RANGE_DECLINED_COMMAND_IDS`); anything else runs on the focused block.
+ * While the editor holds a range, a single-block command routes to the range's handler or declines
+ * (`RANGE_DECLINED_COMMAND_IDS`); anything else runs on the focused block.
  */
 function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	// Called directly, not optionally: a caller without the getter throws rather than skipping.

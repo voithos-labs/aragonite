@@ -47,8 +47,8 @@ export function collectCrossBlockText(
 	const startRaw = isBlockNode(startNode) ? startNode.raw : '';
 	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
 
-	// One block selected whole (`SelectionState.wholeUnitPath`) is the only character pair on one
-	// path, and the head/tail split below would emit its bytes twice.
+	// A character pair on one path (a block held whole, a finger's range inside one block) is one
+	// slice; the head/tail split below would emit its bytes twice.
 	if (pathsEqual(start.path, end.path)) {
 		return startRaw.slice(start.offset, end.offset);
 	}
