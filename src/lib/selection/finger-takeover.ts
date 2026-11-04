@@ -56,7 +56,8 @@ export function returnBlockRangeToBrowser(
 	const { anchor, focus } = selection;
 	if (!anchor || !focus || !blockEl || selection.wholeUnitPath) return false;
 	if (selection.restoreRoute(anchor, focus) !== 'single-block') return false;
-	// The native range first, so a subscriber the collapse notifies reads it.
+	// The native range first, so a subscriber the collapse notifies reads it; the adopting
+	// `selectionchange` above fires as a later task and sees the range already ended.
 	applySingleBlockRange(writer, blockEl, anchor.offset, focus.offset);
 	selection.collapse();
 	return true;
