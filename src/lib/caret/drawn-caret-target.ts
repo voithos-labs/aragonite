@@ -34,7 +34,7 @@ export interface DrawnCaretReads {
 	/** Focus is inside the editor's content. */
 	focused: boolean;
 	/** What the selection store holds instead of a caret. */
-	store: { crossBlock: boolean; wholeBlock: boolean; gapCaret: boolean; widget: boolean };
+	store: { ownsRange: boolean; wholeBlock: boolean; gapCaret: boolean; widget: boolean };
 	/** The native selection is a caret, or there is none. */
 	collapsed: boolean;
 	/** The registered editable holding the caret, or null for any other editable. */
@@ -156,7 +156,7 @@ function hides(reads: DrawnCaretReads): boolean {
 		!reads.windowFocused ||
 		!reads.focused ||
 		!reads.collapsed ||
-		store.crossBlock ||
+		store.ownsRange ||
 		store.wholeBlock ||
 		store.gapCaret !== reads.gap ||
 		store.widget

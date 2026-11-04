@@ -339,7 +339,7 @@ export async function liveExtendIntoTablePark(ctx: SimContext): Promise<void> {
 			await editor.waitForRenderFlush();
 			entered = (await editor.bridge.getSelectionPaths())?.focus.path[0] === tableIndex;
 		}
-		if (!entered || !(await editor.bridge.isCrossBlockActive())) {
+		if (!entered || !(await editor.bridge.ownsRange())) {
 			throw new Error(`[${ctx.label}] the extend never reached the table's cell endpoint`);
 		}
 

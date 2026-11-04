@@ -83,7 +83,7 @@ describe('a range removal: endpoint table as a commit scope', () => {
 
 		expect(editEvents.map((e) => e.op)).toEqual(['delete']);
 		expect(env.deps.undoManager.getStacks().undo).toHaveLength(1);
-		expect(env.deps.selectionState.isCrossBlock).toBe(false);
+		expect(env.deps.selectionState.ownsRange).toBe(false);
 	});
 
 	it('same-path intra-table delete stays a cell clear: rows, ids, refs untouched', async () => {

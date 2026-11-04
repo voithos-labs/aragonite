@@ -30,7 +30,10 @@ touch events. The real-device rows are in `requirements/mobile/android.md`.
 A held touch from CDP ends as a tap in desktop Chromium, never a long-press selection, so these
 rows run at the unit layer and on the phones (`requirements/mobile/android.md`, `ios.md`).
 
-- A long press beside a range across blocks ends the range and keeps the word the browser selected,
-  on either phone's order: Android's selectstart before its pointercancel, iOS's word before its
-  pointerup (`test/selection/touch-press.test.ts`).
+- A long press beside a range across blocks ends the range, and once the press ends the word the
+  browser selected becomes the editor's range with only a caret left in the DOM, on either phone's
+  order: Android's selectstart before its pointercancel, iOS's word before its pointerup
+  (`test/selection/touch-press.test.ts`).
   - Miss-analysis: the rows only had a press end as a scroll or a tap, never as a selection.
+- Until the next press, a range the browser writes in that block (Safari's word written back just
+  after the press, Android's held drag) is adopted the same way, and a range elsewhere fails dev (`test/selection/touch-press.test.ts`).

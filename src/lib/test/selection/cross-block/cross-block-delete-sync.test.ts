@@ -25,7 +25,7 @@ describe('a composition’s removal, before any await: commit-primitive converge
 
 		expect(env.doc.children).toHaveLength(1);
 		expect(env.getBlockIds()).toHaveLength(env.doc.children.length);
-		expect(env.deps.selectionState.isCrossBlock).toBe(false);
+		expect(env.deps.selectionState.ownsRange).toBe(false);
 	});
 
 	it('emits one op:delete edit event synchronously', () => {

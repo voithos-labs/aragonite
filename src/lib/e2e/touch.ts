@@ -26,6 +26,8 @@ export interface FingerDragOptions {
 	steps?: number;
 	/** Runs after the last move, before the finger lifts. */
 	held?: () => Promise<void>;
+	/** How the touch ends: lifted, or cancelled as a browser cancels one it takes for a scroll. */
+	end?: 'touchEnd' | 'touchCancel';
 }
 
 /** A finger pressed at `from`, moved in a straight line to `to`, then lifted. */
@@ -33,7 +35,7 @@ export async function fingerDrag(
 	page: Page,
 	from: Point,
 	to: Point,
-	{ steps = 8, held }: FingerDragOptions = {}
+	{ steps = 8, held, end = 'touchEnd' }: FingerDragOptions = {}
 ): Promise<void> {
 	const at = (step: number) => [
 		{
@@ -47,6 +49,6 @@ export async function fingerDrag(
 		await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(step) });
 	}
 	await held?.();
-	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await cdp.send('Input.dispatchTouchEvent', { type: end, touchPoints: [] });
 	await cdp.detach();
 }

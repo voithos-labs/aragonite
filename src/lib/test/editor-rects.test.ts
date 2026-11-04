@@ -33,7 +33,7 @@ function makeRects(over: Partial<Parameters<typeof createEditorRects>[0]> = {}) 
 		},
 		getEditorRoot: () => null,
 		scroll: { place },
-		isCrossBlock: () => false,
+		ownsRange: () => false,
 		isHostChrome: () => false,
 		landCaretAt,
 		caretRectAt,
@@ -141,7 +141,7 @@ describe('EditorRects.caretRect', () => {
 	// held-aside range of a cross-block selection was never asked for as a caret below e2e.
 	it('is null while a cross-block selection is active, however the browser selection reads', () => {
 		const { root } = rootWithCaret();
-		const { rects } = makeRects({ getEditorRoot: () => root, isCrossBlock: () => true });
+		const { rects } = makeRects({ getEditorRoot: () => root, ownsRange: () => true });
 		expect(rects.caretRect()).toBeNull();
 	});
 

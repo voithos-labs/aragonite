@@ -158,7 +158,7 @@ function scrollToB4(f: Fixture): Promise<boolean> {
 		revealPath: async () => {},
 		getEditorRoot: () => null,
 		scroll: f.owner,
-		isCrossBlock: () => false,
+		ownsRange: () => false,
 		isHostChrome: () => false,
 		landCaretAt: async () => true,
 		caretRectAt,

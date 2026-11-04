@@ -1612,6 +1612,33 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'G4.281 the overlays draw the editor’s selection, never the browser’s',
+		population: under(SOURCE_DIR.overlays),
+		matches: /\bgetSelection\(|\breadNativeSelection\b|\breadCurrentSelection\b/,
+		allowed: {},
+		reason:
+			'a handle or a highlight standing on a native range is one a phone already draws its own on; the overlays read `SelectionState`, which holds every range a finger makes',
+		reaches: [`${SOURCE_DIR.overlays}selection-handles.ts`],
+		hits: [
+			at(`${SOURCE_DIR.overlays}rogue.ts`, 'const live = document.getSelection();'),
+			at(`${SOURCE_DIR.overlays}rogue.ts`, 'const range = readNativeSelection();')
+		],
+		misses: [at(`${SOURCE_DIR.overlays}rogue.ts`, 'const range = handleRange(services.selection);')]
+	},
+	{
+		id: 'G4.282 an ownership read asks the ownership predicate',
+		matches: /\bisCrossBlock(?:Active)?\b/,
+		allowed: {},
+		reason:
+			'whether the editor holds the range is `SelectionState.ownsRange`, whatever it spans, since a finger’s range inside one block is the editor’s too; a read that means two blocks compares paths (`rangeSpansBlocks`)',
+		hits: [
+			'if (selection.isCrossBlock) return;',
+			'isCrossBlock: () => state.isCrossBlock,',
+			'expect(await editor.bridge.isCrossBlockActive()).toBe(true);'
+		],
+		misses: ['if (selection.ownsRange) return;', 'if (rangeSpansBlocks(coverage)) paint();']
+	},
+	{
 		id: 'G4.225 the drag session hears a release before anything else on the page',
 		// Any phase counts, since a capture flag held in a variable is invisible to a scan.
 		matches:

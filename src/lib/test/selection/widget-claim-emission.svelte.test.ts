@@ -67,7 +67,7 @@ describe('selectionChange around a selected image', () => {
 		});
 		await h.editor.settle();
 
-		expect(h.editor.instance.__test.isCrossBlockActive()).toBe(true);
+		expect(h.editor.instance.__test.ownsRange()).toBe(true);
 		expect(h.seen).toHaveLength(1);
 	});
 });

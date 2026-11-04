@@ -144,7 +144,7 @@ describe('applySelectionToDom: restore routing', () => {
 			getDoc: () => doc,
 			onChange: () => {
 				onChangeCount++;
-				if (s.isCrossBlock) sawCrossBlock = true;
+				if (s.ownsRange) sawCrossBlock = true;
 			}
 		});
 
@@ -155,7 +155,7 @@ describe('applySelectionToDom: restore routing', () => {
 
 		expect(onChangeCount).toBe(1);
 		expect(sawCrossBlock).toBe(false);
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 	});
 
 	// A backward snapshot keeps its direction on restore; a range built from its two ends in
@@ -244,6 +244,6 @@ describe('applySelectionToDom: restore routing', () => {
 		);
 
 		expect(requested).toEqual([[0, 1, 1]]);
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 	});
 });

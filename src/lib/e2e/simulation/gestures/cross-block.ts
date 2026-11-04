@@ -10,7 +10,7 @@ import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
 async function assertCrossBlockEngaged(ctx: SimContext, how: string): Promise<void> {
 	const [domActive, stateActive] = await Promise.all([
-		ctx.editor.bridge.isCrossBlockActive(),
+		ctx.editor.bridge.ownsRange(),
 		ctx.page.evaluate(() => (window as any).__test.isCrossBlockSelection())
 	]);
 	if (!domActive || !stateActive) {
@@ -33,7 +33,7 @@ export async function extendSelectionAcross(
 	for (let i = 0; i < maxSteps && !engaged; i++) {
 		await ctx.page.keyboard.press(key);
 		await ctx.editor.waitForRenderFlush();
-		engaged = await ctx.editor.bridge.isCrossBlockActive();
+		engaged = await ctx.editor.bridge.ownsRange();
 	}
 	await assertCrossBlockEngaged(ctx, `shift-${dir}`);
 }
@@ -68,7 +68,7 @@ async function destroyThenSweep(
 	how: string
 ): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
-	const wasCrossBlock = await ctx.editor.bridge.isCrossBlockActive();
+	const wasCrossBlock = await ctx.editor.bridge.ownsRange();
 	await act();
 	if (wasCrossBlock) await ctx.editor.waitForCrossBlock(false);
 	await ctx.editor.bridge

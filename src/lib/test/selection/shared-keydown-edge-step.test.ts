@@ -8,7 +8,7 @@ import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
 
 function asking(answer: boolean) {
 	const ctx = {
-		selection: { isCrossBlock: false } as SelectionState,
+		selection: { ownsRange: false } as SelectionState,
 		asks: 0,
 		stepEdge: () => {
 			ctx.asks++;
@@ -29,7 +29,7 @@ describe('handleEdgeStep', () => {
 	});
 
 	it('leaves a cross-block range to its own handler', () => {
-		const ctx = { ...asking(true), selection: { isCrossBlock: true } as SelectionState };
+		const ctx = { ...asking(true), selection: { ownsRange: true } as SelectionState };
 		expect(handleEdgeStep(new KeyboardEvent('keydown', { key: 'ArrowRight' }), ctx)).toBe(false);
 	});
 });

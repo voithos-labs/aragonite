@@ -29,7 +29,7 @@ test.describe('Tab and Shift+Tab over a selection', () => {
 		await editor.pressDeclined('Shift+Tab');
 
 		expect(await editor.bridge.getSource()).toBe(SECTION);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 
 	test('Tab over two sibling items nests both, and one undo puts both back', async () => {
@@ -49,7 +49,7 @@ test.describe('Tab and Shift+Tab over a selection', () => {
 
 		await editor.page.keyboard.press('Tab');
 		await editor.bridge.waitForSourceEquals('- alpha\n  - beta\n  - gamma\n', 3000);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 		await editor.page.keyboard.press('Tab');
 		await editor.bridge.waitForSourceEquals('- alpha\n  - beta\n    - gamma\n', 3000);
 	});
@@ -72,7 +72,7 @@ test.describe('Tab and Shift+Tab over a selection', () => {
 
 		await editor.page.keyboard.press('ControlOrMeta+]');
 		await editor.bridge.waitForSourceEquals('- alpha\n  - beta\n  - gamma\n', 3000);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 
 	test('Tab from inside a code block down into prose indents the code lines it covers', async () => {

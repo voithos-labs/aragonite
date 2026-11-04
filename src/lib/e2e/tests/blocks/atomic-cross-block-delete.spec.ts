@@ -21,7 +21,7 @@ function opWindowErrors(page: Page): { clear: () => void; collected: () => strin
 // prose, so the focus side's leftover must merge rather than fuse into the next block (`4after`).
 async function selectAcrossAtomic(editor: EditorPage): Promise<void> {
 	await editor.dragFromTo([0], 7, [2], 6);
-	if (await editor.bridge.isCrossBlockActive()) return;
+	if (await editor.bridge.ownsRange()) return;
 	await editor.focusBlockAtPath([0], 7);
 	await editor.shiftClickBlock([2], 6);
 }

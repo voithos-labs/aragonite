@@ -57,12 +57,12 @@ test.describe('table block: cell right-click menu', () => {
 			.locator('.table-cell')
 			.nth(5)
 			.click({ modifiers: ['Shift'] }); // ("4"), row 2 col 1
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 
 		// onPointerDown's selection clear must skip the right button, not run for any.
 		await page.locator('.table-cell').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menu')).toBeVisible();
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 
 	// ── Row and Column flyouts ─────────────────────────────────────────────

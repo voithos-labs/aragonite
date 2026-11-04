@@ -29,7 +29,7 @@ test.describe('widget selection ends when a cross-block range opens', () => {
 		await expect(overlay()).toBeVisible();
 		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.page.keyboard.press('ControlOrMeta+a');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	}
 
 	test('the widget overlay goes away when select-all opens the range', async () => {

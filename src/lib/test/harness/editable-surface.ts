@@ -88,7 +88,7 @@ export function makeSurface(
 		getIndex: () => 0,
 		composition,
 		requestCaret: () => {},
-		selection: { isCrossBlock: false },
+		selection: { ownsRange: false },
 		caretWriter: testCaretWriter,
 		caretMemory: options.caretMemory ?? stubCaretMemory(),
 		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },

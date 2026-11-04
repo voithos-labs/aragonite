@@ -139,7 +139,7 @@ describe('createContainerBlockComponent: the two caret entry points', () => {
 
 		api.focus(0);
 
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 		expect(refs[0].focus).toHaveBeenCalledWith(0);
 	});
 
@@ -149,7 +149,7 @@ describe('createContainerBlockComponent: the two caret entry points', () => {
 
 		api.parkCaret?.(0);
 
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 		expect(refs[0].parkCaret).toHaveBeenCalledWith(0);
 	});
 
@@ -161,7 +161,7 @@ describe('createContainerBlockComponent: the two caret entry points', () => {
 		api.parkCaret?.(0);
 
 		expect(bare.focus).not.toHaveBeenCalled();
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	// `parkCaret` is optional so an external leaf may omit it; the documented cost is a
@@ -173,7 +173,7 @@ describe('createContainerBlockComponent: the two caret entry points', () => {
 		api.focus(0);
 
 		expect(bare.focus).toHaveBeenCalledWith(0);
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 });
 

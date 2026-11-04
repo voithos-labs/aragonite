@@ -75,7 +75,7 @@ export async function replaceRange(
 	insertion: RangeInsertion
 ): Promise<RangeReplaceOutcome> {
 	const { anchor, focus, start } = ctx.selection;
-	if (!ctx.selection.isCrossBlock || !anchor || !focus || !start) return 'nothing';
+	if (!ctx.selection.ownsRange || !anchor || !focus || !start) return 'nothing';
 	if (!ctx.controller.admitsGesture(refusalName(insertion))) return 'refused';
 	ctx.caretMemory.forget();
 	ctx.selection.resetSelectAllCount();

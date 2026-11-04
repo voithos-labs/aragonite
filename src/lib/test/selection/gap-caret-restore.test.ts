@@ -121,7 +121,7 @@ describe('restoreGapCaret', () => {
 
 		await restoreGapCaret({ parentPath: [], index: 1 }, h.deps);
 
-		expect(h.selectionState.isCrossBlock).toBe(false);
+		expect(h.selectionState.ownsRange).toBe(false);
 		expect(h.selectionState.gapCaret).toEqual({ parentPath: [], index: 1 });
 	});
 });

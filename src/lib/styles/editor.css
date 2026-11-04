@@ -137,12 +137,17 @@
 
 /* The browser's selection paint goes so it does not double SelectionOverlay's highlights, and only
    in `.block-list`, since the find and replace bar beside it keeps painting its own. */
-:where(.editor)[data-cross-block] .block-list ::selection {
+:where(.editor)[data-painted-range] .block-list ::selection {
 	background: transparent;
 }
 
-:where(.editor)[data-cross-block] [contenteditable] {
+:where(.editor)[data-painted-range] [contenteditable] {
 	caret-color: transparent;
+}
+
+/* A selection handle's drag hit-tests the text under the finger, under the handles and toolbar. */
+:where(.editor)[data-handle-drag] :is(.selection-handle, .selection-toolbar) {
+	pointer-events: none;
 }
 
 /* Invisible but a real box: Chromium fires no `beforeinput` on a zero-height editing element.

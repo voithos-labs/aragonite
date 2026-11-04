@@ -29,7 +29,7 @@ describe('the block command dispatch over a selection', () => {
 	it('asks for no removal while a range spans blocks', () => {
 		const runCommand = vi.fn(() => true);
 		const afterSelectionRemoved = vi.fn(() => true);
-		const ctx = commandContextWith(undefined, { isCrossBlockRange: () => true });
+		const ctx = commandContextWith(undefined, { ownsRange: () => true });
 
 		runCommandById(
 			'block.split',

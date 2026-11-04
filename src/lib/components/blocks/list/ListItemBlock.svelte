@@ -119,7 +119,7 @@
 		const meta = metadataOf(node, 'listItem');
 		if (!meta?.taskItem) return false;
 
-		if (selection?.isCrossBlock) {
+		if (selection?.ownsRange) {
 			selection.clear();
 		}
 

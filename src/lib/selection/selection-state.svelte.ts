@@ -1,8 +1,8 @@
 /**
- * Reactive state for the selections the editor owns: a cross-block range, a gap caret
- * (`gap-caret.ts`), or an inline widget selected whole. At most one is live, since every mutator
- * writes all three through one private writer; all are null while the browser's own selection
- * rules. Transitions: `docs/design/selection.md` § Cross-block selection.
+ * Reactive state for the selections the editor owns: a range (across blocks, or a finger's in one
+ * block), a gap caret (`gap-caret.ts`), or an inline widget selected whole. At most one is live,
+ * since every mutator writes all three through one private writer; all are null while the
+ * browser's own selection rules. Transitions: `docs/design/selection.md` § Cross-block selection.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -26,6 +26,8 @@ import { comparePaths, pathsEqual } from './path-math';
 import { displayLength } from '../core/lines';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
+import { checkOwnedRangeFromFinger } from '../invariants/owned-range-from-finger';
+import { isFingerPress, type FingerPress } from './pointer-gesture';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
 
 // ── Public factory ──────────────────────────────────────────────────────────
@@ -53,11 +55,14 @@ export type RestoreRoute = 'collapsed' | 'single-block' | 'whole-block' | 'custo
 export interface SelectionState {
 	readonly anchor: SelectionPoint | null;
 	readonly focus: SelectionPoint | null;
-	readonly isCrossBlock: boolean;
-	/**
-	 * True when the overlay paints instead of the native browser highlight: every
-	 * cross-block selection, plus a rectangle of two or more cells inside one table.
-	 */
+	/** Whether the editor holds the range rather than the browser's native selection: across
+	 *  blocks, a rectangle of cells, a block held whole, or a finger's range inside one block. */
+	readonly ownsRange: boolean;
+	/** Whether that range is text inside one block (a finger's, G1.170), the one owned range a
+	 *  command made for one block runs on; false across blocks, over cells, or a block held whole. */
+	readonly rangeInOneBlock: boolean;
+	/** Whether the overlay paints the range instead of the browser: every range the editor owns
+	 *  but a single cell and the keyboard's equal-offset starting pair. */
 	readonly isCustomRendered: boolean;
 	readonly start: SelectionPoint | null;
 	readonly end: SelectionPoint | null;
@@ -80,6 +85,9 @@ export interface SelectionState {
 	// Every mutator below is silent when it changes nothing: a reset that clears what is
 	// already clear must not make a subscriber re-read an unmoved selection.
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void;
+	/** Takes a range inside one block as the editor's, which only a finger makes (a long press's
+	 *  word, a handle dragged back into its block); ends in two blocks enter as `enterCrossBlock`. */
+	ownBlockRange(anchor: SelectionPoint, focus: SelectionPoint, press: FingerPress): void;
 	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
 	clear(): void;
@@ -211,8 +219,14 @@ class SelectionStateImpl implements SelectionState {
 		return gap && { parentPath: gap.parentPath.slice(), index: gap.index };
 	}
 
-	get isCrossBlock(): boolean {
+	get ownsRange(): boolean {
 		return this.#anchor !== null && this.#focus !== null;
+	}
+
+	get rangeInOneBlock(): boolean {
+		const anchor = this.#anchor;
+		const focus = this.#focus;
+		return !!anchor && !!focus && !this.#wholeUnit && this.#isSamePathProseRange(anchor, focus);
 	}
 
 	get wholeUnitPath(): number[] | null {
@@ -252,8 +266,9 @@ class SelectionStateImpl implements SelectionState {
 		if (!anchor || !focus) return false;
 		if (this.#wholeUnit) return true;
 		if (!pathsEqual(anchor.path, focus.path)) return true;
-		// A same-path pair is one cell (the browser's) or a rectangle of cells (the overlay's).
-		return anchor.offset !== focus.offset && isCellPair(anchor, focus);
+		// A same-path pair is a rectangle of cells or a finger's text range; one cell is the
+		// browser's, and the keyboard's starting pair holds nothing yet.
+		return anchor.offset !== focus.offset;
 	}
 
 	get start(): SelectionPoint | null {
@@ -300,14 +315,25 @@ class SelectionStateImpl implements SelectionState {
 		}
 		const a = this.#normalizePoint(anchor, focus.path);
 		const f = this.#normalizePoint(focus, anchor.path);
-		// A same-path text pair is a single-block range the browser owns, refused here where every
-		// entry path passes; a cell rectangle and the keyboard's equal-offset first pair are kept.
+		// A same-path text pair is the browser's here, where every route but a finger's passes (that
+		// one owns it through `ownBlockRange`); a cell rectangle and the keyboard's first pair stay.
 		if (this.#isSamePathProseRange(a, f)) {
 			this.#claim(null);
 		} else {
 			this.#assertEndpointCoordinates(a, f);
 			this.#claim({ range: { anchor: a, focus: f, wholeUnit: null } });
 		}
+		this.#notify();
+	}
+
+	ownBlockRange(anchor: SelectionPoint, focus: SelectionPoint, press: FingerPress): void {
+		assertInvariant('owned-range-from-finger', () =>
+			checkOwnedRangeFromFinger(isFingerPress(press))
+		);
+		const a = this.#normalizePoint(anchor, focus.path);
+		const f = this.#normalizePoint(focus, anchor.path);
+		if (!this.#isSamePathProseRange(a, f)) this.#assertEndpointCoordinates(a, f);
+		this.#claim({ range: { anchor: a, focus: f, wholeUnit: null } });
 		this.#notify();
 	}
 

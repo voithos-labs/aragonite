@@ -274,7 +274,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | `blockDragHandles` | The block drag handle, revealed on hover and shown outright on touch (default on; reading mode hides it). Only blocks you'd pick up whole carry one (code, tables, equations, diagrams, pictures, list items in a list of two or more, dividers, cards), never prose. `false` removes them, except on a picture; keyboard reorder (Alt+Arrow) always works |
 | `searchBar` | The built-in find/replace bar and its Mod+F / Mod+H shortcuts (default on) |
 | `searchBarAnchor` | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives)) |
-| `selectionToolbar` | The built-in formatting popover over a selection: the marks, the link, a heading picker, inline code and copy (default on; reading mode never shows it; see [Recipe: a selection toolbar](consumer-guide/recipes.md#recipe-a-selection-toolbar)) |
+| `selectionToolbar` | The built-in formatting popover over a selection: the marks, the link, a heading picker, inline code and copy, plus cut and paste on a touch screen, where it's the only menu a finger's selection gets (default on; reading mode never shows it; see [Recipe: a selection toolbar](consumer-guide/recipes.md#recipe-a-selection-toolbar)) |
 | `placeholder` | Faint text an empty block shows until something's typed: a string for an empty document, or a function asked about each empty block (see [A hint in an empty block](#a-hint-in-an-empty-block)) |
 
 **Set once at mount:** `scrollMode`, `plugins`, and `syntax`. A later value is ignored, so set them at mount and leave them.

@@ -86,7 +86,7 @@ export interface WidgetInteractionDeps {
 	/** Remember a caret offset, counted in the stored bytes, for the restore after the next render. */
 	setPendingCursor: (offset: number | null) => void;
 	/** Closing a shown source mid-selection would strand a selection endpoint anchored in it. */
-	isCrossBlock: () => boolean;
+	ownsRange: () => boolean;
 	/** The editor's one shown source, which this block's render draws when it is this block's. */
 	shownSource: ShownSourceState;
 	/** The inline widgets the block's last render drew: what the DOM holds, read without the cache. */
@@ -346,7 +346,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// Compared by raw offset, bounds included: a caret at the source's edge is still in it.
 	function selectionEscapedSource(): boolean {
 		if (!showing || showing.settling) return false;
-		if (deps.isCrossBlock()) return false;
+		if (deps.ownsRange()) return false;
 		const range = shownRange();
 		// The block changed kind under the source, so nothing is shown any more.
 		if (!range) return true;
@@ -520,7 +520,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// A cross-block drag keeps the source shown, so its rectangles measure real text and no
 	// endpoint in it is stranded (`selectionEscapedSource` holds the same rule).
 	function commitRevealOnBlur(): void {
-		if (showing && !deps.isCrossBlock()) closeShownSource('blur', null);
+		if (showing && !deps.ownsRange()) closeShownSource('blur', null);
 	}
 
 	// The caret is returned because a caret left on an element-level edge would land a paste at

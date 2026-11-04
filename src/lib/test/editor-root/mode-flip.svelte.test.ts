@@ -52,7 +52,7 @@ function harness(
 		/** The post half's steps in the order they ran. */
 		order: [] as string[]
 	};
-	const selection = { isCrossBlock: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
+	const selection = { ownsRange: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
 	const drafts = createDraftRegistry(createDocumentStamps());
 	events.on('presentationModeChange', (next) => {
@@ -288,7 +288,7 @@ describe('editor-root mode flip: the caret carry', () => {
 
 	it('a cross-block range captures no caret', async () => {
 		const h = harness({ selection: caretAt([1], 3) });
-		h.selection.isCrossBlock = true;
+		h.selection.ownsRange = true;
 		h.flipTo('live');
 		await settleEditor();
 		expect(h.calls.restores).toEqual([]);

@@ -74,7 +74,7 @@ describe('a drag that ends off every block', () => {
 		move(10, 120);
 		frame.run();
 
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 		expect(selection.focus).toEqual({ path: [2], offset: END_OF.third });
 	});
 
@@ -84,7 +84,7 @@ describe('a drag that ends off every block', () => {
 		move(10, 120);
 		frame.run();
 
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 		expect(selection.focus).toEqual({ path: [2], offset: END_OF.third });
 	});
 
@@ -109,7 +109,7 @@ describe('a drag that ends off every block', () => {
 		move(10, 22);
 		frame.run();
 
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 		expect(selection.focus).toBeNull();
 	});
 
@@ -118,12 +118,12 @@ describe('a drag that ends off every block', () => {
 	it('collapses when the off-block point clamps back to the anchor block', () => {
 		move(10, 70);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 
 		move(-40, 10);
 		frame.run();
 
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 });
 

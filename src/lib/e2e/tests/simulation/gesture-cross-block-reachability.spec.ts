@@ -70,7 +70,7 @@ test('sim gesture reachability: every cross-block build and destroy engages, and
 			const source = await editor.bridge.getSource();
 			expect(source).not.toContain('pha');
 			expect(source).not.toContain('be');
-			expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+			expect(await editor.bridge.ownsRange()).toBe(false);
 		});
 	}
 
@@ -81,7 +81,7 @@ test('sim gesture reachability: every cross-block build and destroy engages, and
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('pha');
 		expect(source).not.toContain('be');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 
 	await test.step('type-over replaces the covered cross-block content', async () => {

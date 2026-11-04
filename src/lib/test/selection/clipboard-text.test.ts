@@ -30,6 +30,30 @@ describe('a live copy across blocks carries what a cut there takes', () => {
 	});
 });
 
+// Miss-analysis: the one-path branch only ever held a block whole until a finger's word reached it,
+// so no row cut through a format run inside one block.
+describe('a live copy of a range inside one block carries what a cut there takes', () => {
+	const doc = parse('Some **bold** x\n');
+	const copy = (start: number, end: number, mode: 'live' | 'source') =>
+		collectCrossBlockText(
+			doc,
+			rangeCoverage(doc, coverRange(doc, { path: [0], offset: start }, { path: [0], offset: end })),
+			fixtureReading({}, mode)
+		);
+
+	it('keeps the run a word inside it belongs to, closed at both edges', () => {
+		expect(copy(7, 11, 'live')).toBe('**bold**');
+	});
+
+	it('copies the bytes as they stand in source mode', () => {
+		expect(copy(7, 11, 'source')).toBe('bold');
+	});
+
+	it('copies a block it holds end to end as its bytes', () => {
+		expect(copy(0, 15, 'live')).toBe('Some **bold** x');
+	});
+});
+
 describe('collectCrossBlockText', () => {
 	it('preserves blank line between two top-level paragraphs', () => {
 		const doc = parse('first\n\nsecond\n');

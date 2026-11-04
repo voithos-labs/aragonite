@@ -1,7 +1,7 @@
 // The Android emulator rows, keyed by the scenario each one runs in
 // `src/lib/e2e/requirements/mobile/android.md`; the probes are reported and judge nothing. A row
 // gets a freshly loaded page and returns the reasons it failed, none when it passed.
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { centre, sleep } from './android-device.mjs';
 import { distinguishable, shape, softKeyboardReasons } from './judge.mjs';
@@ -15,6 +15,8 @@ const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 
 // gesture meant for the text lands on `filler line 4`, well below it.
 const BELOW_RANGE = 6;
 const TABLE = 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n';
+// `epsilon zeta`: the paste row's second word.
+const PASTE_INTO = 2;
 
 // ── Rows ──────────────────────────
 
@@ -72,24 +74,27 @@ export const rows = {
 		return { reasons, evidence: { before, after, pointerLog: log } };
 	},
 
+	"a long press makes the editor's range": async (ctx) => {
+		await ctx.fresh(LONG);
+		const pressed = await longPress(ctx, 0, 'takeover');
+		const nodes = menuNodes(ctx, 'takeover-menus');
+		return { reasons: ownedWordReasons(pressed.after, 0, nodes), evidence: { ...pressed, nodes } };
+	},
+
 	'a long press beside a range across blocks ends it': async (ctx) => {
 		const { before, pressed } = await pressBesideRange(ctx, 'press-beside');
-		const { editor, painted } = pressed.after;
-		const reasons = [];
-		const word = editor && !same(editor, { anchor: editor.focus, focus: editor.focus });
-		if (!word || editor.anchor.path[0] !== BELOW_RANGE)
-			reasons.push(`the long press left ${json(editor)}, not the word in block ${BELOW_RANGE}`);
-		if (painted > 0) reasons.push(`the old range still paints ${painted} rect(s)`);
+		const reasons = ownedWordReasons(
+			pressed.after,
+			BELOW_RANGE,
+			menuNodes(ctx, 'press-beside-menus')
+		);
 		return { reasons, evidence: { before, ...pressed } };
 	},
 
-	"the editor menu's cut takes the long-pressed word": async (ctx) => {
-		const { pressed } = await pressBesideRange(ctx, 'menu-cut');
-		const cut = ctx.device
-			.dumpNodes('menu-cut-menu')
-			.find((n) => n.pkg === 'com.android.chrome' && n.text === 'Cut');
-		if (!cut) return { reasons: ['the editor menu showed no Cut'], evidence: pressed };
-		ctx.device.tap(centre(cut.box).x, centre(cut.box).y);
+	"the toolbar's cut takes the long-pressed word": async (ctx) => {
+		const { pressed } = await pressBesideRange(ctx, 'toolbar-cut');
+		if (!(await tapToolbar(ctx, 'cut', BELOW_RANGE)))
+			return { reasons: ['the toolbar showed no Cut'], evidence: pressed };
 		await sleep(1000);
 		const text = await source(ctx);
 		const reasons = [];
@@ -97,28 +102,43 @@ export const rows = {
 			reasons.push('Cut took text from the old range across the first two blocks');
 		if (lineText(text, BELOW_RANGE) === lineText(LONG, BELOW_RANGE))
 			reasons.push(`Cut left block ${BELOW_RANGE} as it was`);
-		return {
-			reasons,
-			evidence: { word: pressed.after.dom.text, after: lineText(text, BELOW_RANGE) }
-		};
+		return { reasons, evidence: { after: lineText(text, BELOW_RANGE) } };
 	},
 
-	"a long press's edge handle crosses into the next block": async (ctx) => {
+	"the toolbar's paste puts a copied word in place of another": async (ctx) => {
 		await ctx.fresh(LONG);
-		await longPress(ctx, 0, 'edge-press');
-		// The browser's own end handle, dragged to the block's end, where it stops.
-		const end = await rangeEndOnScreen(ctx, 0);
-		if (end) ctx.device.swipe(end.x + 4, end.bottom + 25, end.x + 400, end.bottom + 25, 800);
+		await longPress(ctx, 0, 'toolbar-copy');
+		if (!(await tapToolbar(ctx, 'copy', 0))) return { reasons: ['the toolbar showed no Copy'] };
+		await sleep(800);
+		// A copy brings up Android's clipboard chip at the bottom left, which takes the first touch
+		// near it, so the word pasted over sits well above it and a press the page never heard is
+		// made again.
+		let pressed = await longPress(ctx, PASTE_INTO, 'toolbar-paste');
+		const missed = !pressed.pointerLog.counts.pointerdown;
+		if (missed) pressed = await longPress(ctx, PASTE_INTO, 'toolbar-paste-again');
+		if (!(await tapToolbar(ctx, 'paste', PASTE_INTO)))
+			return { reasons: ['the toolbar showed no Paste'], evidence: { missed, ...pressed } };
+		const want = lineText(LONG, PASTE_INTO).replace('epsilon', 'alpha');
+		const prompt = await allowClipboardRead(ctx, 'toolbar-paste', async () => {
+			return lineText(await source(ctx), PASTE_INTO) === want;
+		});
 		await sleep(1000);
-		const atEdge = await ctx.page.evaluate(SNAPSHOT);
+		const after = lineText(await source(ctx), PASTE_INTO);
+		const reasons = after === want ? [] : [`Paste left block ${PASTE_INTO} reading ${json(after)}`];
+		return { reasons, evidence: { missed, prompt, after } };
+	},
+
+	'the end handle drags a long-pressed word into the next block': async (ctx) => {
+		await ctx.fresh(LONG);
+		await longPress(ctx, 0, 'end-press');
 		const handle = await handleOnScreen(ctx, 0, 'end');
-		ctx.device.screenshot('edge-handle');
+		ctx.device.screenshot('end-handle');
 		if (!handle)
 			return {
-				reasons: ['no editor handle at the block end'],
-				evidence: { atEdge, page: await ctx.page.evaluate(HANDLES_STATE) }
+				reasons: ['no editor handle at the end of the long-pressed word'],
+				evidence: { page: await ctx.page.evaluate(HANDLES_STATE) }
 			};
-		const next = await ctx.device.paragraphBox(lineText(await source(ctx), 1), 'edge-next');
+		const next = await ctx.device.paragraphBox(lineText(await source(ctx), 1), 'end-next');
 		const to = { x: next.x1 + 120, y: centre(next).y };
 		const log = await logPointers(ctx, async () =>
 			ctx.device.swipe(
@@ -129,54 +149,38 @@ export const rows = {
 				800
 			)
 		);
-		ctx.device.screenshot('edge-crossed');
+		ctx.device.screenshot('end-crossed');
 		const after = await ctx.page.evaluate(SNAPSHOT);
 		const reasons = [];
 		if (!log.counts.pointerdown) reasons.push("the swipe never reached the editor's handle");
 		if (after.editor?.focus.path[0] !== 1) reasons.push(`the swipe left ${json(after.editor)}`);
 		if (!after.nativeCollapsed) reasons.push('a native range stands beside the painted one');
-		return { reasons, evidence: { atEdge, handle, after, pointerLog: log } };
+		return { reasons, evidence: { handle, after, pointerLog: log } };
 	},
 
-	'a handle swipe across cells grows a rectangle': async (ctx) => {
+	"a long press in a table cell keeps the browser's word and opens the cell menu": async (ctx) => {
 		await ctx.fresh(TABLE);
 		const toScreen = await screenMap(ctx, 0);
-		const cell = (row, col) =>
-			ctx.page.evaluate(`(() => {
-				const cells = document.querySelectorAll('[role="table"] [data-table-row-idx="${row}"] > :is([role="cell"], [role="columnheader"])');
-				const r = cells[${col}].getBoundingClientRect();
-				return { x: r.left + 24, y: (r.top + r.bottom) / 2, cx: (r.left + r.right) / 2 };
-			})()`);
-		const apple = await cell(0, 0);
+		const apple = await ctx.page.evaluate(`(() => {
+			const cell = document.querySelector('[role="table"] [data-table-row-idx="0"] > :is([role="cell"], [role="columnheader"])');
+			const r = cell.getBoundingClientRect();
+			return { x: r.left + 24, y: (r.top + r.bottom) / 2 };
+		})()`);
 		const press = toScreen(apple.x, apple.y);
-		await pressReport(ctx, 'cells-press', () =>
+		const pressed = await pressReport(ctx, 'cells-press', () =>
 			ctx.device.swipe(press.x, press.y, press.x, press.y, 1500)
 		);
-		const handle = await handleOnScreen(ctx, 0, 'end');
-		ctx.device.screenshot('cells-handle');
-		if (!handle)
-			return {
-				reasons: ['no editor handle at the cell end'],
-				evidence: { page: await ctx.page.evaluate(HANDLES_STATE) }
-			};
-		const damson = await cell(1, 1);
-		const to = toScreen(damson.cx, damson.y);
-		ctx.device.swipe(
-			handle.x,
-			handle.y,
-			handle.x + to.x - handle.pointX,
-			handle.y + to.y - handle.pointY,
-			800
-		);
-		await sleep(1200);
-		ctx.device.screenshot('cells-rectangle');
-		const after = await ctx.page.evaluate('window.__test.getSelection()');
-		const want = {
-			anchor: { path: [1], offset: 0, cellCoordinate: true },
-			focus: { path: [1], offset: 3, cellCoordinate: true }
-		};
-		const reasons = json(after) === json(want) ? [] : [`the swipe left ${json(after)}`];
-		return { reasons, evidence: { after } };
+		const nodes = menuNodes(ctx, 'cells-menus');
+		const { after } = pressed;
+		const reasons = [];
+		if (after.nativeCollapsed || !after.dom.text.includes('apple'))
+			reasons.push(`the long press left ${json(after.dom.text)} natively, not the cell's word`);
+		if (nodes.some((n) => !n.inPage)) reasons.push("Chrome's own menu shows");
+		// The cell menu, the one with the row and column actions, and nothing else of the editor's.
+		const cellMenu = (m) => !m.toolbar && m.items.includes('Row') && m.items.includes('Column');
+		if (after.menus.length !== 1 || !cellMenu(after.menus[0]))
+			reasons.push(`the editor shows ${json(after.menus)}, not the cell menu alone`);
+		return { reasons, evidence: { ...pressed, nodes } };
 	}
 };
 
@@ -328,13 +332,92 @@ const HANDLES_STATE = `(() => {
 
 const SNAPSHOT = `(() => {
 	const s = document.getSelection();
+	const paint = [...document.querySelectorAll('.selection-overlay')];
 	return {
 		dom: { text: String(s) },
 		nativeCollapsed: !s || s.rangeCount === 0 || s.isCollapsed,
 		editor: window.__test.getSelection(),
-		painted: document.querySelectorAll('.selection-overlay').length
+		painted: paint.length,
+		paintedIn: [...new Set(paint.map((el) => el.closest('[data-block-path]')?.dataset.blockPath ?? null))],
+		handles: [...document.querySelectorAll('.selection-handle')].map((h) => h.dataset.handle),
+		menus: [...document.querySelectorAll('.md-menu')].map((m) => ({ toolbar: m.classList.contains('selection-toolbar'), items: [...m.querySelectorAll('.md-menu-item')].map((i) => i.textContent.trim()) }))
 	};
 })()`;
+
+// The centre of the element `selector` names, in page coordinates.
+const boxOf = (selector) => `(() => {
+	const b = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
+	return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+})()`;
+
+// A tap on the toolbar's `action` row, mapped to the screen through block `index`; false when the
+// toolbar shows no such row.
+async function tapToolbar(ctx, action, index) {
+	const row = await ctx.page.evaluate(boxOf(`[data-testid="toolbar-${action}"]`));
+	if (!row) return false;
+	const at = (await screenMap(ctx, index))(row.x, row.y);
+	ctx.device.tap(at.x, at.y);
+	return true;
+}
+
+// Chrome asks once per site before a page reads the clipboard; this taps Allow on that prompt, and
+// stops early once `landed` says the read went through without one.
+async function allowClipboardRead(ctx, name, landed) {
+	for (let i = 0; i < 16; i++) {
+		const allow = ctx.device.dumpNodes(`${name}-prompt`).find((n) => /^Allow/.test(n.text));
+		if (allow) {
+			ctx.device.screenshot(`${name}-prompt`);
+			ctx.device.tap(centre(allow.box).x, centre(allow.box).y);
+			return { shown: allow.text, afterTries: i + 1 };
+		}
+		if (await landed()) return { shown: null, afterTries: i + 1 };
+		await sleep(500);
+	}
+	return { shown: null, afterTries: 16 };
+}
+
+// What a long press leaves: the word as the editor's range in block `index`, painted there alone
+// with no native range under it, the editor's two handles, and the toolbar as the only menu.
+function ownedWordReasons(after, index, nodes) {
+	const reasons = [];
+	const { editor } = after;
+	const inBlock = editor && editor.anchor.path[0] === index && editor.focus.path[0] === index;
+	if (!inBlock || same(editor, { anchor: editor.focus, focus: editor.focus }))
+		reasons.push(`the long press left ${json(editor)}, not the word in block ${index}`);
+	if (!after.nativeCollapsed) reasons.push('a native range stands under the word');
+	if (!after.painted || after.paintedIn.some((path) => path !== `[${index}]`))
+		reasons.push(`the paint covers ${json(after.paintedIn)}, not block ${index} alone`);
+	if (after.handles.length !== 2) reasons.push(`${after.handles.length} editor handle(s), not 2`);
+	const chrome = nodes.filter((n) => !n.inPage).map((n) => n.text || n.desc);
+	if (chrome.length) reasons.push(`Chrome's own menu shows (${chrome.join(', ')})`);
+	const menus = after.menus.map((m) => (m.toolbar ? 'toolbar' : 'menu'));
+	if (json(menus) !== json(['toolbar']))
+		reasons.push(`the editor shows ${json(menus)}, not the toolbar alone`);
+	return reasons;
+}
+
+const MENU_WORDS = new Set(['Cut', 'Copy', 'Paste', 'Paste as plain text', 'Select all', 'Share']);
+
+// Every menu item on screen, from a dump of every window, and whether it sits inside Chrome's web
+// content (the editor's) or outside it (Chrome's own floating toolbar).
+function menuNodes(ctx, name) {
+	ctx.device.dumpNodes(name, '--windows');
+	const xml = readFileSync(path.join(ctx.out, `${name}.xml`), 'utf8');
+	const open = [];
+	const found = [];
+	for (const [tag, selfClosing] of xml.matchAll(/<node\b[^>]*?(\/?)>|<\/node>/g)) {
+		if (tag === '</node>') {
+			open.pop();
+			continue;
+		}
+		const attr = (key) => tag.match(new RegExp(` ${key}="([^"]*)"`))?.[1] ?? '';
+		const node = { text: attr('text'), desc: attr('content-desc'), cls: attr('class') };
+		if (MENU_WORDS.has(node.text || node.desc))
+			found.push({ ...node, inPage: open.some((n) => n.cls === 'android.webkit.WebView') });
+		if (!selfClosing) open.push(node);
+	}
+	return found;
+}
 
 // Page coordinates to screen pixels, through block `index`'s editable and its screen box.
 async function screenMap(ctx, index) {
@@ -347,33 +430,18 @@ async function screenMap(ctx, index) {
 	return (x, y) => ({ x: box.x1 + (x - ed.left) * scale, y: box.y1 + (y - ed.top) * scale });
 }
 
-// The editor's handle at `end` in screen pixels: its centre, and the range end it drags.
+// The editor's handle at `end` in screen pixels: its centre, and the range end it drags, which it
+// hangs below, beside the end's side.
 async function handleOnScreen(ctx, index, end) {
 	const toScreen = await screenMap(ctx, index);
 	const r = await ctx.page.evaluate(`(() => {
 		const b = document.querySelector('.selection-handle[data-handle="${end}"]')?.getBoundingClientRect();
-		return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+		return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, pointX: ${end === 'end' ? 'b.left' : 'b.right'}, pointY: b.top - 8 };
 	})()`);
 	if (!r) return null;
 	const at = toScreen(r.x, r.y);
-	const point = await rangeEndOnScreen(ctx, index);
-	return { x: at.x, y: at.y, pointX: point?.x ?? at.x, pointY: point?.mid ?? at.y };
-}
-
-// The live range's end in screen pixels.
-async function rangeEndOnScreen(ctx, index) {
-	const toScreen = await screenMap(ctx, index);
-	const r = await ctx.page.evaluate(`(() => {
-		const s = document.getSelection();
-		if (!s || s.rangeCount === 0) return null;
-		const rects = s.getRangeAt(0).getClientRects();
-		const last = rects[rects.length - 1];
-		return last && { x: last.right, top: last.top, bottom: last.bottom };
-	})()`);
-	if (!r) return null;
-	const top = toScreen(r.x, r.top);
-	const bottom = toScreen(r.x, r.bottom);
-	return { x: top.x, bottom: bottom.y, mid: (top.y + bottom.y) / 2 };
+	const point = toScreen(r.pointX, r.pointY);
+	return { x: at.x, y: at.y, pointX: point.x, pointY: point.y };
 }
 
 // Types on Gboard's own keys. A keyboard that isn't on screen is brought up by tapping the caret's

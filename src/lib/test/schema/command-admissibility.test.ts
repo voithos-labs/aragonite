@@ -41,7 +41,7 @@ describe('the toolbar scenario', () => {
 	// With no cross-block router passed in, the rewrites decline rather than falling through to the
 	// focused block's own offsets.
 	it('a painted range with no cross-block branch declines the rewrites and nothing else', () => {
-		const ctx = context({ isCrossBlockRange: () => true });
+		const ctx = context({ ownsRange: () => true });
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), ctx)).toBe(false);
 		expect(canRunCommandById('block.split', surface(), ctx)).toBe(true);
 		expect(canRunCommandById('history.undo', null, ctx)).toBe(true);
@@ -81,14 +81,14 @@ describe('the read agrees with the dispatch it describes', () => {
 			{ name: 'collapsed caret', ctx: () => context(), target: surface },
 			{
 				name: 'cross-block range, no arm',
-				ctx: () => context({ isCrossBlockRange: () => true }),
+				ctx: () => context({ ownsRange: () => true }),
 				target: surface
 			},
 			{
 				name: 'cross-block range, arm wired',
 				ctx: () =>
 					context({
-						isCrossBlockRange: () => true,
+						ownsRange: () => true,
 						crossBlockCommands: {
 							canRun: (id) => id.startsWith('format.'),
 							run: (id) => id.startsWith('format.'),
@@ -128,7 +128,7 @@ describe('the read agrees with the dispatch it describes', () => {
 	});
 
 	it('predicts the chord path too, since both meet the same admissibility', () => {
-		const ctx = context({ isCrossBlockRange: () => true });
+		const ctx = context({ ownsRange: () => true });
 		const overrides = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' }
 		]);

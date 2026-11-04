@@ -52,7 +52,7 @@ describe('createConstructReveal: trigger', () => {
 				return harness.deps.reading;
 			},
 			getEl: () => el,
-			isCrossBlock: () => crossBlock,
+			ownsRange: () => crossBlock,
 			textMoves: { movedWithin: (block) => moved.push(block) },
 			caretWriter: { rewriteCaret: (block) => rewritten.push(block) > 0 }
 		});

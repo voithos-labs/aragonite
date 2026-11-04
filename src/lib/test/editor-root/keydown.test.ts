@@ -82,7 +82,7 @@ function harness(): Harness {
 		get canReplace() {
 			return mode !== 'reading';
 		},
-		get isCrossBlock() {
+		get ownsRange() {
 			return crossBlock;
 		},
 		search: search.state as unknown as SearchState,

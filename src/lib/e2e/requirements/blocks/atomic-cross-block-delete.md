@@ -35,4 +35,4 @@ blocks in; they are checked instead of a guessed exact output string.
 ## User interactions
 
 - The selection is made with real input (a pointer drag, falling back to extending with the
-  keyboard) and must be in cross-block mode (`data-cross-block` attached) before the operation runs.
+  keyboard) and must be in cross-block mode (`data-painted-range` attached) before the operation runs.

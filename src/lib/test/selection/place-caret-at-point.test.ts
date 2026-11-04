@@ -162,7 +162,7 @@ describe('placeCaretAtPoint landing walk', () => {
 
 		it('ends when the point lands a caret', () => {
 			expect(placeAt(TABLE_BOX.left + 20, TABLE_BOX.top + 20, endRange)).toBe(true);
-			expect(selection.isCrossBlock).toBe(false);
+			expect(selection.ownsRange).toBe(false);
 			expect(selection.anchor).toBeNull();
 		});
 
@@ -173,7 +173,7 @@ describe('placeCaretAtPoint landing walk', () => {
 			try {
 				augmentBuiltin('table', { caretTargetAtPoint: undefined });
 				expect(placeAt(TABLE_BOX.left + 20, TABLE_BOX.top + 20, endRange)).toBe(false);
-				expect(selection.isCrossBlock).toBe(true);
+				expect(selection.ownsRange).toBe(true);
 			} finally {
 				augmentBuiltin('table', { caretTargetAtPoint: declared });
 			}

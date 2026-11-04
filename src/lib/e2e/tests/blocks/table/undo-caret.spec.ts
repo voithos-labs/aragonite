@@ -127,7 +127,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		await editor.waitForCrossBlock(true);
 		await page.mouse.up();
 
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Backspace');
@@ -138,7 +138,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
 
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel!.anchor.path).toEqual(sel!.focus.path);

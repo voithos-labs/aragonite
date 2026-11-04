@@ -184,8 +184,10 @@ export interface CommandGates {
 	getPresentationMode: () => PresentationMode;
 	/** The plugins the editor activated: a plugin's command resolves only where it is listed. */
 	activation: PluginActivation;
-	/** True while a cross-block range is painted. */
-	isCrossBlockRange(): boolean;
+	/** Whether the editor holds the range (`SelectionState.ownsRange`). */
+	ownsRange(): boolean;
+	/** Whether that range is text inside one block (`SelectionState.rangeInOneBlock`). */
+	rangeInOneBlock(): boolean;
 	/** Whether the browser holds a selected range, which a command that can't remove it warns about. */
 	holdsNativeRange(): boolean;
 	crossBlockCommands: CrossBlockCommandRouter;
@@ -319,12 +321,8 @@ function runBlockLocalCommand(
 	run: CommandRun
 ): boolean {
 	const target = 'target' in resolved ? resolved.target : null;
-	// Under a range spanning blocks the range owns the selection; the block holds none of its own.
-	if (
-		!target ||
-		ctx.isCrossBlockRange() ||
-		!commandOverSelection(target.kind, id, ctx.activation)
-	) {
+	// Under a range the editor holds, the range owns the selection; the block holds none of its own.
+	if (!target || ctx.ownsRange() || !commandOverSelection(target.kind, id, ctx.activation)) {
 		return runAtCaret(resolved, id, arg, path, ctx, run);
 	}
 	if (!target.afterSelectionRemoved) {
@@ -403,12 +401,13 @@ type RangeRoute =
 	| { kind: 'cross-block'; router: CrossBlockCommandRouter };
 
 /**
- * While a selection spans blocks, a single-block command routes to the cross-block handler or
- * declines (`RANGE_DECLINED_COMMAND_IDS`); anything else runs on the focused block.
+ * While the editor holds a range, a single-block command routes to the range's handler or declines
+ * (`RANGE_DECLINED_COMMAND_IDS`); anything else runs on the focused block.
  */
 function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	// Called directly, not optionally: a caller without the getter throws rather than skipping.
-	if (!gates.isCrossBlockRange()) return { kind: 'block-local', ranged: false };
+	if (!gates.ownsRange() || runsOnItsBlock(id, gates.rangeInOneBlock()))
+		return { kind: 'block-local', ranged: false };
 	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
 	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) return { kind: 'block-local', ranged: true };
 	const router = gates.crossBlockCommands;
@@ -503,7 +502,14 @@ export function leafKeyCommandRuns(id: AnyCommandId, kind: AnyBlockKind, gates: 
 /** A command meant to run once a range is removed, reached by a key the range didn't claim (the
  *  block it would land in binds the key otherwise): run here, it would write under the live range. */
 function leftUnderLiveRange(id: AnyCommandId, kind: AnyBlockKind, gates: CommandGates): boolean {
-	return gates.isCrossBlockRange() && commandOverRange(kind, id, gates.activation) !== undefined;
+	if (!gates.ownsRange() || runsOnItsBlock(id, gates.rangeInOneBlock())) return false;
+	return commandOverRange(kind, id, gates.activation) !== undefined;
+}
+
+/** A link or a heading level needs a range inside one block, so over one the editor holds it runs
+ *  on that block, as over the browser's own range there. */
+export function runsOnItsBlock(id: AnyCommandId, rangeInOneBlock: boolean): boolean {
+	return rangeInOneBlock && RANGE_DECLINED_COMMAND_IDS.has(id);
 }
 
 /** A chord at a container, against its kind's bindings only: undo/redo and the range commands

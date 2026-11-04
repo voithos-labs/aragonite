@@ -47,14 +47,15 @@ export function collectCrossBlockText(
 	const startRaw = isBlockNode(startNode) ? startNode.raw : '';
 	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
 
-	// One block selected whole (`SelectionState.wholeUnitPath`) is the only character pair on one
-	// path, and the head/tail split below would emit its bytes twice.
-	if (pathsEqual(start.path, end.path)) {
-		return startRaw.slice(start.offset, end.offset);
-	}
-
 	const startRoot = coverage.coveredRootHolding(start.path);
 	const endRoot = coverage.coveredRootHolding(end.path);
+	// A character pair on one path is one piece, the head/tail split below would emit it twice: a
+	// block held whole is its bytes, a range inside one (a finger's word) what a cut there takes.
+	if (pathsEqual(start.path, end.path)) {
+		if (startRoot) return startRaw.slice(start.offset, end.offset);
+		return carried(doc, start.path, start.offset, end.offset, reading);
+	}
+
 	if (startRoot && endRoot && pathsEqual(startRoot, endRoot)) return rawAt(doc, startRoot);
 
 	let effectiveStartPath: number[] = start.path;

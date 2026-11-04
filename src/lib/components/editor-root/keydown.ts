@@ -25,7 +25,7 @@ export interface EditorRootKeydownDeps extends KeyFocusDeps {
 	/** One predicate, so the root Mod+H and the bar's chevron cannot diverge on when
 	 *  the replace row may open. */
 	get canReplace(): boolean;
-	get isCrossBlock(): boolean;
+	get ownsRange(): boolean;
 	search: SearchState;
 	/** The editor's command dispatch, which takes only this instance's plugins' chords. */
 	commands: CommandDispatchContext;
@@ -104,7 +104,7 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 				return;
 			}
 
-			if (!ownsCaret || !deps.isCrossBlock) return;
+			if (!ownsCaret || !deps.ownsRange) return;
 
 			// With nothing editable focused, no `beforeinput` fires for a typed character, so it
 			// comes in here; chorded keys are left alone.

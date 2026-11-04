@@ -104,13 +104,13 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	const pointer = createCrossBlockPointer(ctx);
 
 	const claimsBeforeInput = (e: InputEvent): boolean =>
-		ctx.selection.isCrossBlock && readInput(e).kind === 'insert';
+		ctx.selection.ownsRange && readInput(e).kind === 'insert';
 
 	const insertText = async (text: string): Promise<boolean> => {
 		// Refused quietly here, since the range replace's refusal warns about a key the editor lets
 		// through; this check goes once one reading-mode check sits in front of every key handler.
 		if (isReadingMode(ctx.reading.mode)) return true;
-		if (!ctx.selection.isCrossBlock) return false;
+		if (!ctx.selection.ownsRange) return false;
 		await replaceRange(ctx, { kind: 'text', text });
 		return true;
 	};
@@ -124,7 +124,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handleCompositionEnd: keydown.handleCompositionEnd,
 		handlePointerDown: pointer.handlePointerDown,
 		handlePaste: async (e, replacement) => {
-			if (!ctx.selection.isCrossBlock) return false;
+			if (!ctx.selection.ownsRange) return false;
 			e?.preventDefault();
 			// `!== undefined`, not `??`: a caller supplying its own payload must never reach the
 			// clipboard read, and `??` would make that depend on callers never passing ''.

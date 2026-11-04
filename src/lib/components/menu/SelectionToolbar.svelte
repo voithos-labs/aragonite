@@ -12,7 +12,7 @@
 	import { TOOLBAR_COMMANDS } from '../../schema/commands';
 	import { SELECTION_TOOLBAR_LABEL } from '../../a11y-strings';
 	import { keepFlyoutOnScreen } from './flyout-placement';
-	import { runClipboardAction } from './clipboard-actions';
+	import { runClipboardAction, type MenuClipboard } from './clipboard-actions';
 	import MenuIcon from './MenuIcon.svelte';
 	import type { MenuIconName } from '../../menu-icons';
 	import type { MenuPresence } from './menu-presence.svelte';
@@ -57,6 +57,14 @@
 		{ label: 'Heading 3', level: 3 }
 	];
 	const BUTTONS = [...MARKS, ...ROWS, { command: TURN_INTO_COMMAND }];
+	// A finger's range has no chord and no phone menu, so its bar cuts and pastes as well as copies.
+	const COPY = { action: 'copy', label: 'Copy', icon: 'copy' } as const;
+	const DESK_CLIPBOARD = [COPY] as const;
+	const FINGER_CLIPBOARD = [
+		{ action: 'cut', label: 'Cut', icon: 'scissors' },
+		COPY,
+		{ action: 'paste', label: 'Paste', icon: 'clipboard' }
+	] as const;
 	const BAR_GAP = 6;
 	// A selection handle's width and height, which a finger's bar keeps clear of.
 	const HANDLE_ROOM = 44;
@@ -65,13 +73,16 @@
 		editor,
 		root,
 		finger,
+		clipboard,
 		menuPresence
 	}: {
 		editor: ToolbarEditor;
 		root: HTMLElement | undefined;
 		/** Whether the last press was a finger: the bar then sits above the range, clear of the
-		 *  selection handles below it, where a phone puts its own menu. */
+		 *  selection handles below it, and is that range's one menu, with Cut and Paste too. */
 		finger: () => boolean;
+		/** What the Cut, Copy and Paste rows act through. */
+		clipboard: MenuClipboard;
 		menuPresence: MenuPresence;
 	} = $props();
 
@@ -103,9 +114,10 @@
 		return Math.max(0, root?.getBoundingClientRect().top ?? 0);
 	}
 
-	// The document's own copy, so a cross-block range lands as the Markdown Ctrl+C would write.
-	function copySelection(): void {
-		void runClipboardAction('copy', null);
+	// The document's own copy and cut, so a range the editor paints lands as the Markdown Ctrl+C
+	// would write; a paste reads the clipboard into the focused block.
+	function clip(action: 'cut' | 'copy' | 'paste'): void {
+		void runClipboardAction(action, clipboard);
 		placement = null;
 	}
 
@@ -259,6 +271,10 @@
 	function openFlyout(): void {
 		turnIntoOpen = true;
 	}
+	// A finger leaves the bar after every tap, before that tap's click, so only a mouse closes it.
+	function closeOnLeave(): void {
+		if (!finger()) turnIntoOpen = false;
+	}
 	// Escape and a press outside the bar close the flyout; the bar stays over the selection.
 	function closeFlyout(): boolean {
 		turnIntoOpen = false;
@@ -283,7 +299,7 @@
 		role="toolbar"
 		aria-label={SELECTION_TOOLBAR_LABEL}
 		tabindex="-1"
-		onpointerleave={() => (turnIntoOpen = false)}
+		onpointerleave={closeOnLeave}
 	>
 		<div class="selection-toolbar-marks">
 			{#each MARKS as button (button.command)}
@@ -367,16 +383,18 @@
 					>{/if}
 			</button>
 		{/each}
-		<button
-			type="button"
-			class="md-menu-item"
-			data-testid="toolbar-copy"
-			onmousedown={(e) => e.preventDefault()}
-			onclick={copySelection}
-		>
-			<span class="md-menu-icon"><MenuIcon name="copy" size={14} /></span>
-			<span>Copy</span>
-		</button>
+		{#each finger() ? FINGER_CLIPBOARD : DESK_CLIPBOARD as row (row.action)}
+			<button
+				type="button"
+				class="md-menu-item"
+				data-testid="toolbar-{row.action}"
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => clip(row.action)}
+			>
+				<span class="md-menu-icon"><MenuIcon name={row.icon} size={14} /></span>
+				<span>{row.label}</span>
+			</button>
+		{/each}
 	</div>
 {/if}
 

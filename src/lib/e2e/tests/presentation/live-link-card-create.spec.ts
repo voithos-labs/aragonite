@@ -133,11 +133,11 @@ test.describe('live-mode link card: the create half of Mod+K', () => {
 		const before = await ep.bridge.getSource();
 		// Extend with real keypresses until the range leaves block 0: which byte the focus stops
 		// on is the arrow stepping's business, and this case is only about spanning two blocks.
-		for (let i = 0; i < 30 && !(await ep.bridge.isCrossBlockActive()); i++) {
+		for (let i = 0; i < 30 && !(await ep.bridge.ownsRange()); i++) {
 			await page.keyboard.press('Shift+ArrowRight');
 			await ep.waitForRenderFlush();
 		}
-		expect(await ep.bridge.isCrossBlockActive()).toBe(true);
+		expect(await ep.bridge.ownsRange()).toBe(true);
 
 		await ep.pressDeclined('ControlOrMeta+k');
 		await ep.waitForRenderFlush();

@@ -22,19 +22,27 @@ colon is the row's key, and `mobile-rows-lockstep.test.ts` holds the two lists t
 - a tap clears a range across blocks: a tap on a paragraph below the range puts a collapsed caret
   there. Both gestures land clear of the range's formatting toolbar, which takes a tap as a
   command.
+- a long press makes the editor's range: a long press on the first word turns the word Chrome
+  picked into the editor's own range. The editor paints it, no native range stands under it, the
+  editor draws its two handles, and its toolbar is the only menu: neither Chrome's floating menu
+  nor the editor's clipboard menu shows (the screenshot shows no browser handles).
 - a long press beside a range across blocks ends it: a long press on a word below a range across
-  the first two leaves the word selected, the browser's handles on it, and nothing of the old
-  range painted.
+  the first two leaves that word as the editor's range, painted in its own block alone, with the
+  same handles and menu.
   - Miss-analysis: no row long-pressed; the #806 rows only swiped and tapped.
-- the editor menu's cut takes the long-pressed word: after that long press, the editor's own menu
-  (Chrome hands the long press's menu to the page) cuts the word, and the first two blocks keep
-  their text.
-- a long press's edge handle crosses into the next block: a long press on the first word, the
-  browser's end handle dragged to the block's end (where it stops), then, with the editor's
-  long-press menu still open, a swipe on the editor's handle beside the browser's into the next
-  block. The page hears the swipe's press, so the finger landed on the editor's handle, and the
-  range ends in the next block with no native range left beside the painted one (the screenshot
-  shows no browser handles).
-- a handle swipe across cells grows a rectangle: a long press in a table cell selects its word,
-  and a swipe on the editor's edge handle (the long-press menu still open) into the cell
-  diagonally below selects the four cells.
+- the toolbar's cut takes the long-pressed word: after that long press, the toolbar's Cut cuts the
+  word, and the first two blocks keep their text.
+- the toolbar's paste puts a copied word in place of another: the toolbar's Copy on a long-pressed
+  word, then its Paste on another long-pressed word, puts the first word where the second was.
+  Chrome asks once before the page reads the clipboard; the row taps Allow, and the first Paste
+  still lands. Android's clipboard chip, which a copy brings up at the bottom left, takes the
+  first touch near it, so the second word sits well above it.
+  - Miss-analysis: no phone row tapped Paste, and the desktop rows run with the clipboard
+    permission already granted, so nothing met Chrome's prompt.
+- the end handle drags a long-pressed word into the next block: a swipe from the editor's end
+  handle on the first word into the next block grows the range there. The page hears the swipe's
+  press, so the finger landed on the editor's handle, and no native range stands beside the
+  painted one.
+- a long press in a table cell keeps the browser's word and opens the cell menu: the word Chrome
+  picked in the cell stays native, and the cell menu (with its row and column actions) is the one
+  menu there. The toolbar doesn't show, and Chrome draws no menu of its own.

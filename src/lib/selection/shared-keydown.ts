@@ -223,7 +223,7 @@ export function handleEdgeStep(
 	e: KeyboardEvent,
 	ctx: Pick<SharedKeydownContext, 'selection' | 'stepEdge'>
 ): boolean {
-	if (ctx.selection.isCrossBlock || !ctx.stepEdge) return false;
+	if (ctx.selection.ownsRange || !ctx.stepEdge) return false;
 	let stepped = edgeStepByEvent.get(e);
 	if (stepped === undefined) {
 		stepped = ctx.stepEdge(e);

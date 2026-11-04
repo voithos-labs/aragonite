@@ -122,7 +122,7 @@ test.describe('leaving the gap without creating', () => {
 
 			await editor.page.keyboard.press(`Shift+${arrow.key}`);
 			await editor.bridge.waitForGapCaret(null);
-			expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+			expect(await editor.bridge.ownsRange()).toBe(false);
 
 			await editor.typeText('X');
 			await editor.bridge.waitForSourceContains(arrow.typed);
@@ -137,7 +137,7 @@ test.describe('leaving the gap without creating', () => {
 		await editor.shiftClickBlock([0], 2);
 
 		await editor.bridge.waitForGapCaret(null);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		expect((await editor.bridge.getSource()).split('\n')[0]).toContain('X');

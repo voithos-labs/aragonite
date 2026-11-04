@@ -380,7 +380,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	async function commitReveal(force = false): Promise<void> {
 		if (mode !== 'render-primary' || !isRevealed()) return;
-		if (selection.isCrossBlock && !force) {
+		if (selection.ownsRange && !force) {
 			void foldAfterRange();
 			return;
 		}

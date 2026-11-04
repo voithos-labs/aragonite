@@ -86,7 +86,7 @@ test.describe('plugin container: :::callout editability', () => {
 
 		// Drag-select from the prose above into the middle of the title, then copy.
 		await editor.dragFromTo([0], 2, [1, 0], 14);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 

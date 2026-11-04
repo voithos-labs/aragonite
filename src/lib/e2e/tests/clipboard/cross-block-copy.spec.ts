@@ -10,6 +10,16 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.goto();
 	});
 
+	test('a live copy across blocks that starts inside a bold run carries the run closed', async () => {
+		await editor.loadContent('Some **bold** x\n\ny *it* z\n');
+		await editor.setPresentationMode('live');
+		await editor.dragFromTo([0], 9, [1], 4);
+		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('ControlOrMeta+c');
+		await editor.clipboard.waitForContains('**ld** x', 5000);
+		expect(await editor.clipboard.read()).toBe('**ld** x\n\ny *i*');
+	});
+
 	test('Ctrl+C with cross-block selection does not mutate the document', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		const before = await editor.bridge.getSource();
@@ -19,7 +29,7 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		expect(await editor.bridge.getSource()).toBe(before);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 
 	test('Ctrl+C copies correct text: paste elsewhere reproduces it', async () => {

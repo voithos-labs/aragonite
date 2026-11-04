@@ -136,9 +136,9 @@ export class EditorPage {
 	// Every harness wait defaults to 5s, like expect(): a wait is a ceiling, not a measurement.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
+			await this.page.waitForSelector('[data-painted-range]', { state: 'attached', timeout: 5000 });
 		} else {
-			await this.page.waitForSelector('[data-cross-block]', { state: 'detached', timeout: 5000 });
+			await this.page.waitForSelector('[data-painted-range]', { state: 'detached', timeout: 5000 });
 		}
 	}
 

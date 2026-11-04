@@ -43,7 +43,7 @@ describe('the range replace in reading mode', () => {
 
 			expect(serialize(deps.doc)).toBe(SOURCE);
 			expect(deps.undoManager.getStacks().undo).toEqual([]);
-			expect(deps.selectionState.isCrossBlock).toBe(true);
+			expect(deps.selectionState.ownsRange).toBe(true);
 			expect(readingWarns()).toBe(warns ? 1 : 0);
 		});
 	}

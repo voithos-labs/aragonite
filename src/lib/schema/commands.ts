@@ -79,10 +79,8 @@ export type GlobalCommandId = (typeof GLOBAL_COMMAND_IDS)[number];
 export type BlockCommandId = (typeof BLOCK_COMMAND_IDS)[number];
 export type CommandId = GlobalCommandId | BlockCommandId;
 
-/**
- * Commands that rewrite one block and have no cross-block form, declined while a selection spans
- * blocks. Membership follows what the handler does (the link card, a heading level), not the id.
- */
+/** Commands that rewrite one block (the link card, a heading level), declined over a range the
+ *  editor holds unless it's text inside one block (`runsOnItsBlock`). */
 export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'link.openCard',
 	'heading.cycle'

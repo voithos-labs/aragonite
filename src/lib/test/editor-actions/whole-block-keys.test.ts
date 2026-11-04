@@ -18,7 +18,7 @@ import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
 function makeDeps(
 	isReading = () => false,
 	keybindings: KeybindingOverride[] = [],
-	selection = { isCrossBlock: false }
+	selection = { ownsRange: false }
 ) {
 	const splitBlock = vi.fn();
 	const deleteBlock = vi.fn();
@@ -281,7 +281,7 @@ describe('handleWholeBlockKeys: Mod+C / Mod+X clipboard', () => {
 	it.each(['c', 'x'])(
 		'with a range across blocks, Mod+%s leaves the range to the clipboard event',
 		async (key) => {
-			const { deps, deleteBlock } = makeDeps(() => true, [], { isCrossBlock: true });
+			const { deps, deleteBlock } = makeDeps(() => true, [], { ownsRange: true });
 			const e = press(key, { ctrlKey: true });
 			handleWholeBlockKeys(e, deps);
 			await Promise.resolve();

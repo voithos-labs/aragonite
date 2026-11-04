@@ -553,9 +553,9 @@ export function installTestProbes({
 			node.kind = kind;
 			doc.children = [...doc.children];
 		},
-		// Reads SelectionState, not the `data-cross-block` attribute: the attribute lags a tick,
+		// Reads SelectionState, not the `data-painted-range` attribute: the attribute lags a tick,
 		// which turns every `false` check into a pass, and can answer for another editor.
-		isCrossBlockActive: (): boolean => editor.__test.isCrossBlockActive(),
+		ownsRange: (): boolean => editor.__test.ownsRange(),
 		// The third selection mode, read from the state for the same reason as above.
 		getGapCaret: (): GapCaretPosition | null => editor.__test.getGapCaret(),
 		// Narrower than the check above: a rectangle inside one table turns that on while both
@@ -694,7 +694,7 @@ export function installTestProbes({
 				editor.getRects().navigateTo(path, offset)
 		},
 		// ── Cross-block caretRect timing probe ─────────────────────────────
-		// Read inside the synchronous handler, before the data-cross-block attribute updates, so
+		// Read inside the synchronous handler, before the data-painted-range attribute updates, so
 		// the probe fails if caretRect reads the attribute instead of SelectionState.
 		startCrossBlockCaretProbe: (): void =>
 			caretProbe.start((state) =>

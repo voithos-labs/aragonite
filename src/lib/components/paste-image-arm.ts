@@ -35,7 +35,7 @@ export function createImagePasteArm(deps: ImagePasteArmDeps): ImagePasteArm {
 			// Empty markdown ends this the same way no markdown does, and keeps the
 			// cross-block paste from being handed an empty string.
 			if (!markdown) return null;
-			// The ordinary paste route, which reads `isCrossBlock` live, since the delete can
+			// The ordinary paste route, which reads `ownsRange` live, since the delete can
 			// collapse or merge away the receiving block.
 			if (await deps.crossBlock.handlePaste(e, markdown)) return null;
 			return markdown;

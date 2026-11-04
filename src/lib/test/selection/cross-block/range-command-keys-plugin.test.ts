@@ -24,7 +24,7 @@ import { registerRevealLeafKind } from '../../blocks/fixtures/reveal-leaf';
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
 
-type Seam = { isCrossBlockActive(): boolean };
+type Seam = { ownsRange(): boolean };
 
 const KIND = 'pin-leaf';
 

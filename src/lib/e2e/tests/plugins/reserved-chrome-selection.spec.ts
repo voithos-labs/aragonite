@@ -50,7 +50,7 @@ test.describe('reserved child-0 chrome: selection parity', () => {
 	}) => {
 		await editor.loadContent(FIXTURE);
 		await editor.dragFromTo([0], 2, [1, 0], 14);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();

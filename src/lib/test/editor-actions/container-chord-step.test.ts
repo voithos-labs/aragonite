@@ -122,7 +122,7 @@ describe('the container walk', () => {
 		const chords = createContainerChords({
 			commands: commandContext(),
 			getBlockComponent: () => null,
-			selection: { isCrossBlock: false, anchor: null, focus: null },
+			selection: { ownsRange: false, rangeInOneBlock: false, anchor: null, focus: null },
 			getDoc: () => parse('')
 		});
 		expect(chords.mayTake(new KeyboardEvent('keydown', { key: 'x' }))).toBe(false);

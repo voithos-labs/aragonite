@@ -28,7 +28,7 @@ const LEAF = [1];
 type Seam = {
 	getBlockComponent(path: number[]): BlockComponent | null;
 	getUndoStack(): { undo: UndoEntry[] };
-	isCrossBlockActive(): boolean;
+	ownsRange(): boolean;
 };
 
 let plugins = 0;
@@ -112,14 +112,14 @@ describe.each(REVEAL_LEAF_FORMS)('a render-primary plugin leaf drawn by %s', (fo
 		intro.focus();
 		await pressKey(intro, { key: 'a', ctrlKey: true });
 		await pressKey(intro, { key: 'a', ctrlKey: true });
-		expect(editor.instance.__test.isCrossBlockActive()).toBe(true);
+		expect(editor.instance.__test.ownsRange()).toBe(true);
 
 		await click(editor, rendered(editor)!, { shiftKey: true });
-		expect(editor.instance.__test.isCrossBlockActive()).toBe(true);
+		expect(editor.instance.__test.ownsRange()).toBe(true);
 		expect(shownSource(editor)).toBeNull();
 
 		await click(editor, rendered(editor)!);
-		expect(editor.instance.__test.isCrossBlockActive()).toBe(false);
+		expect(editor.instance.__test.ownsRange()).toBe(false);
 		expect(shownSource(editor)).not.toBeNull();
 	});
 });

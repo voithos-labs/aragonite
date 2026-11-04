@@ -57,7 +57,7 @@ describeManifests(ONE_WRITER, collectEditorSources());
 const CARET_COLOR_RULES: Record<string, string> = {
 	[`${SOURCE.editorCss} :: :where(.editor) [data-caret-drawn]`]:
 		'the surface the drawn caret is drawing for, in the paint that draws it',
-	[`${SOURCE.editorCss} :: :where(.editor)[data-cross-block] [contenteditable]`]:
+	[`${SOURCE.editorCss} :: :where(.editor)[data-painted-range] [contenteditable]`]:
 		'a cross-block range, whose overlay paints and whose parked caret takes paste only',
 	[`${SOURCE.editorCss} :: :where(.editor) .whole-block-input`]:
 		'the proxy that takes input for a block held whole, which holds no caret anyone sees',

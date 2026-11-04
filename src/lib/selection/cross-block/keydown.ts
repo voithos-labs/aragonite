@@ -13,6 +13,7 @@ import { caretEdgeKey, eventToChord, isSelectAllChord, pageKey } from '../../sch
 import {
 	commandOverRange,
 	dispatchKeyCommand,
+	runsOnItsBlock,
 	type CommandDispatchContext
 } from '../../schema/block-commands';
 import { chordsBoundTo, commandForKey } from '../../schema/commands';
@@ -31,6 +32,7 @@ import type { ArrowKey } from '../table-rect-extend';
 import { applySurfaceContentRange } from '../native-bridge';
 import { readNativeSelection } from '../../browser/selection-read';
 import { selectInBlock } from '../place-caret';
+import { returnBlockRangeToBrowser } from '../finger-takeover';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -77,7 +79,7 @@ async function handleKeyDown(ctx: CrossBlockDispatchContext, e: KeyboardEvent): 
 	if (page?.extend) return handlePageExtend(ctx, e, page.direction);
 	if (page) return handlePageMove(ctx, e, page.direction);
 
-	if (selection.isCrossBlock) {
+	if (selection.ownsRange) {
 		const handled = await handleCrossBlockActive(ctx, e);
 		if (handled) return true;
 	} else if (takesIdleTab(ctx, e)) {
@@ -98,6 +100,12 @@ async function handleCrossBlockActive(
 	// Ctrl+C and Ctrl+X have no role: the copy and cut events write the clipboard synchronously.
 	const role = rangeKeyRole(e, ctx);
 	if (role === null) return false;
+	// A keyboard's range inside one block is the browser's (G1.170); the editor's own step is a block.
+	if (role === 'extend') {
+		const { anchor } = ctx.selection;
+		const blockEl = anchor && ctx.getBlockElByPath(anchor.path);
+		if (returnBlockRangeToBrowser(ctx.selection, ctx.caretWriter, blockEl ?? null)) return false;
+	}
 	e.preventDefault();
 	const doc = ctx.getDoc();
 
@@ -215,14 +223,13 @@ export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): b
 	const doc = reads.getDoc();
 	const kind = commandLandingKind(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)));
 	const command = commandForKey(e, kind, reads.commands);
-	return (
-		command !== null && commandOverRange(kind, command, reads.commands.activation) !== undefined
-	);
+	if (command === null || runsOnItsBlock(command, reads.selection.rangeInOneBlock)) return false;
+	return commandOverRange(kind, command, reads.commands.activation) !== undefined;
 }
 
 /** What reading a key over a live range takes: the range, its document and the keymap. */
 export interface RangeKeyReads {
-	selection: Pick<SelectionState, 'isCrossBlock' | 'anchor' | 'focus'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus'>;
 	getDoc: () => Document;
 	commands: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
 }
@@ -230,7 +237,7 @@ export interface RangeKeyReads {
 /** Every key the range's own handler claims, which a container the key bubbles through must leave
  *  to it: the range's handler awaits before claiming, so the key can reach the container first. */
 export function rangeOwnsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
-	if (!reads.selection.isCrossBlock) return false;
+	if (!reads.selection.ownsRange) return false;
 	return caretEdgeKey(e)?.to === 'doc' || rangeKeyRole(e, reads) !== null;
 }
 
@@ -261,7 +268,8 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	if (e.shiftKey && step) return 'extend';
 	const plain = !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
 	if ((e.key === 'Escape' && plain) || (!e.shiftKey && step)) return 'collapse';
-	if (isSelectAllChord(e)) return 'selectAll';
+	// Inside one block the first Mod+A selects that block, as from the browser's own range there.
+	if (isSelectAllChord(e)) return reads.selection.rangeInOneBlock ? null : 'selectAll';
 	// Last, since it reads the range's coverage: the navigation keys above never need it.
 	return isCommandCandidateKey(e, reads) ? 'command' : null;
 }
@@ -356,7 +364,7 @@ async function handlePageMove(
 /** Unawaited: the replace only awaits ticks, so the range is gone and the caret is in the block
  *  the removal kept before the IME writes, and the composed text joins its undo entry. */
 function handleCompositionStart(ctx: CrossBlockDispatchContext): boolean {
-	if (!ctx.selection.isCrossBlock) return false;
+	if (!ctx.selection.ownsRange) return false;
 	void replaceRange(ctx, { kind: 'composition' });
 	return true;
 }

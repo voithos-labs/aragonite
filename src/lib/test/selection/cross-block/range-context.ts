@@ -31,7 +31,7 @@ export function rangeContext(
 		blockEdit: createBlockEditActions(deps, controller),
 		pasteCoordinator: createPasteCoordinator(deps, controller),
 		activePlugins: everyInstalledPlugin,
-		commands: commandContext({ isCrossBlockRange: () => deps.selectionState.isCrossBlock })
+		commands: commandContext({ ownsRange: () => deps.selectionState.ownsRange })
 	};
 }
 

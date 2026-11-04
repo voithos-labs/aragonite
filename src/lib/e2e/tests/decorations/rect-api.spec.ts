@@ -146,7 +146,7 @@ test.describe('public rect api', () => {
 		await editor.loadContent('first block\n\nsecond block\n');
 		await editor.focusBlockEnd(0);
 
-		// Records `caretRect()` inside the synchronous event, before the deferred `data-cross-block`
+		// Records `caretRect()` inside the synchronous event, before the deferred `data-painted-range`
 		// effect runs, so a caretRect waiting on that attribute would return the range the caret left.
 		await page.evaluate(() => (window as any).__test.startCrossBlockCaretProbe());
 		await editor.page.keyboard.press('Shift+ArrowDown');

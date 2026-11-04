@@ -128,6 +128,6 @@ describe('SelectionState: a widget selected whole', () => {
 
 		selection.clearWidget();
 
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 });

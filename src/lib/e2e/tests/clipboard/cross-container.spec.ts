@@ -70,7 +70,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.pressDeclined('ControlOrMeta+c');
 
 		expect(await editor.bridge.getSource()).toBe(before);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 
 	test('copy from inside blockquote to paragraph then paste reproduces text', async () => {

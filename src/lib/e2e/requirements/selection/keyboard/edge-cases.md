@@ -21,5 +21,5 @@ Boundary, no-op, and degenerate cases for cross-block selection.
 
 The declining last-block gesture was pinned with a paragraph as the last block, where the
 entry path never creates a pair at all. The table version creates one first and then hears the
-extend decline, and no scenario named it. The test also asserted through `[data-cross-block]`,
+extend decline, and no scenario named it. The test also asserted through `[data-painted-range]`,
 which the phantom state attaches, so what it checked and the defect were the same bit.

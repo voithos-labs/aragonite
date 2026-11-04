@@ -236,7 +236,7 @@ test('Ctrl+Shift+End in a table reveals and mounts the off-window focus cell (ph
 	await page.keyboard.press(extendKey('docEnd'));
 	await editor.waitForCrossBlock(true);
 
-	// [data-cross-block] is added in enterCrossBlock, before the scroll finishes, so wait for
+	// [data-painted-range] is added in enterCrossBlock, before the scroll finishes, so wait for
 	// the row to mount rather than for that attribute.
 	await page.waitForFunction(
 		(r) => !!document.querySelector(`[data-table-row-idx="${r}"]`),
