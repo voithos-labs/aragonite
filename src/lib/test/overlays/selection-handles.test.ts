@@ -90,6 +90,14 @@ describe('handleRange', () => {
 		expect(handleRange(selection)).toEqual({ start: at([0], 2), end: at([0], 5) });
 	});
 
+	// Miss-analysis: the rows only held a painted range or none, never one the editor holds unpainted.
+	it("is nothing for a pair the editor holds but doesn't paint, the keyboard's starting pair", () => {
+		const selection = createSelectionState();
+		selection.enterCrossBlock(at([0], 3), at([0], 3));
+		expect(selection.ownsRange).toBe(true);
+		expect(handleRange(selection)).toBeNull();
+	});
+
 	it("is nothing for a range inside one block a mouse made, which the browser's paints", () => {
 		const selection = createSelectionState();
 		selection.enterCrossBlock(at([0], 2), at([0], 5));

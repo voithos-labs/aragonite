@@ -220,6 +220,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.278 | The plugin template is the bundled parrot and names the editor release it ships with | L |
 | G4.279 | What a finger means, and what kind of pointer this is, is read in one place, `selection/pointer-gesture.ts` | L |
 | G4.280 | Every route into the in-leaf edit is named with its shape, and each shape keeps a reference's destination | L |
+| G4.281 | The selection overlays and handles draw the editor's selection, never the browser's | L |
 | G4.282 | Whether the editor holds the range is asked as `ownsRange`, whatever the range spans | L |
 
 ### The entries
@@ -640,5 +641,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.279 · One answer to "is this a finger?".** A finger's drag is the browser's (a scroll, a long press), so only `selection/pointer-gesture.ts` reads `pointerType` or the page's fine or coarse pointer (the drawn caret is handed `finePointer`); the hover marks and the input recorder read them for their own reasons, and CSS `@media (pointer: …)` is styling. A drag session names who drags for a finger in its `touch`; `clearOnPress` waits for a tap, and hands a long press's range over with a `FingerPress` (G1.170). `lint/file-rules.test.ts`.
 
 **G4.280 · A reference keeps its destination on every route.** A live edit of a shortcut or collapsed reference's text spells it `[text][label]` first, inside `replaceRangeInLeaf`, and the block's text write does it for a keystroke at a caret. Every file calling the in-leaf edit is named with the shapes of edit it makes, so a new route fails until it's listed, and each shape has a row. `tree-operations/reference-label-edit.test.ts`.
+
+**G4.281 · The overlays draw the editor's selection.** A handle on a native range is one a phone already draws its own handles on, and every range a finger makes is in `SelectionState`, so no file under `components/overlays/` reads the native selection. `file-rules.test.ts`.
 
 **G4.282 · One question for who holds the range.** The editor holds a range across blocks, a rectangle of cells, a block held whole, and a finger's range inside one block, and every read of that asks `SelectionState.ownsRange`; a read that means two blocks compares paths (`rangeSpansBlocks`). The old name, `isCrossBlock`, read as a span, so the scan fails it anywhere. `file-rules.test.ts`.

@@ -1612,6 +1612,20 @@ const RULES: FileRule[] = [
 		]
 	},
 	{
+		id: 'G4.281 the overlays draw the editor’s selection, never the browser’s',
+		population: under(SOURCE_DIR.overlays),
+		matches: /\bgetSelection\(|\breadNativeSelection\b|\breadCurrentSelection\b/,
+		allowed: {},
+		reason:
+			'a handle or a highlight standing on a native range is one a phone already draws its own on; the overlays read `SelectionState`, which holds every range a finger makes',
+		reaches: [`${SOURCE_DIR.overlays}selection-handles.ts`],
+		hits: [
+			at(`${SOURCE_DIR.overlays}rogue.ts`, 'const live = document.getSelection();'),
+			at(`${SOURCE_DIR.overlays}rogue.ts`, 'const range = readNativeSelection();')
+		],
+		misses: [at(`${SOURCE_DIR.overlays}rogue.ts`, 'const range = handleRange(services.selection);')]
+	},
+	{
 		id: 'G4.282 an ownership read asks the ownership predicate',
 		matches: /\bisCrossBlock\b/,
 		allowed: {},
