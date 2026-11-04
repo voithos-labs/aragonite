@@ -146,6 +146,28 @@ test("a finger's double tap makes its word the editor's range, with a handle at 
 	await expect(page.locator('.selection-handle')).toHaveCount(2);
 });
 
+for (const [key, offset] of [
+	['ArrowRight', 6],
+	['ArrowLeft', 4]
+] as const) {
+	test(`Shift+${key} on a finger's word moves its end one character, as the browser's own range does`, async ({
+		page
+	}) => {
+		const editor = await openTouch(page, DOC);
+		const point = await pointAtRaw(page, [1], 2);
+		await page.touchscreen.tap(point.x, point.y);
+		await page.touchscreen.tap(point.x, point.y);
+		await expect
+			.poll(() => selection(editor))
+			.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 5 } });
+		await page.keyboard.press(`Shift+${key}`);
+		await expect
+			.poll(() => selection(editor))
+			.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset } });
+		await expect(page.locator('.selection-overlay')).toHaveCount(0);
+	});
+}
+
 // Miss-analysis: every desktop handle row started from a range across blocks; none dragged a
 // finger's word, owned inside one block, out of that block.
 test("the end handle of a finger's word dragged into the next block grows the range there", async ({

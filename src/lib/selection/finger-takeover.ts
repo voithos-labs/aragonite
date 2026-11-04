@@ -9,7 +9,7 @@ import type { FingerPress } from './pointer-gesture';
 import type { CaretWriter } from '../browser/caret-writer';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import { readNativeSelection } from '../browser/selection-read';
-import { applyCollapsedCaret, readDomPoint } from './native-bridge';
+import { applyCollapsedCaret, applySingleBlockRange, readDomPoint } from './native-bridge';
 import { pathsEqual } from './path-math';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkFingerRangeLeavesCaret } from '../invariants/finger-range-leaves-caret';
@@ -44,6 +44,22 @@ export function takeOverBrowserRange(deps: TakeoverDeps, press: FingerPress): vo
 		},
 		opts
 	);
+}
+
+/** Gives a finger's range inside one block back to the browser, direction kept, for a key the
+ *  browser steps a character or a line at a time; false for any other range the editor holds. */
+export function returnBlockRangeToBrowser(
+	selection: SelectionState,
+	writer: CaretWriter,
+	blockEl: HTMLElement | null
+): boolean {
+	const { anchor, focus } = selection;
+	if (!anchor || !focus || !blockEl || selection.wholeUnitPath) return false;
+	if (selection.restoreRoute(anchor, focus) !== 'single-block') return false;
+	// The native range first, so a subscriber the collapse notifies reads it.
+	applySingleBlockRange(writer, blockEl, anchor.offset, focus.offset);
+	selection.collapse();
+	return true;
 }
 
 // The block the range was taken in, or null when the native selection held nothing to take: no

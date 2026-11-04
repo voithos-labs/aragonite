@@ -31,6 +31,7 @@ import type { ArrowKey } from '../table-rect-extend';
 import { applySurfaceContentRange } from '../native-bridge';
 import { readNativeSelection } from '../../browser/selection-read';
 import { selectInBlock } from '../place-caret';
+import { returnBlockRangeToBrowser } from '../finger-takeover';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -98,6 +99,12 @@ async function handleCrossBlockActive(
 	// Ctrl+C and Ctrl+X have no role: the copy and cut events write the clipboard synchronously.
 	const role = rangeKeyRole(e, ctx);
 	if (role === null) return false;
+	// A keyboard's range inside one block is the browser's (G1.170); the editor's own step is a block.
+	if (role === 'extend') {
+		const { anchor } = ctx.selection;
+		const blockEl = anchor && ctx.getBlockElByPath(anchor.path);
+		if (returnBlockRangeToBrowser(ctx.selection, ctx.caretWriter, blockEl ?? null)) return false;
+	}
 	e.preventDefault();
 	const doc = ctx.getDoc();
 

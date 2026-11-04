@@ -31,6 +31,11 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
 ## Edge cases
 
 - A range across blocks after a mouse click gets no handles: they are a finger's.
+- Shift+ArrowRight or Shift+ArrowLeft from a keyboard on a finger's word moves its end one
+  character, as on the browser's own range: a keyboard's range inside one block is the browser's,
+  so the word goes back to it and the editor stops painting it.
+  - Miss-analysis: every keyboard row over a range the editor holds started from one across
+    blocks, where Shift+Arrow steps a block at a time; none extended a finger's word.
 - A rectangle of cells whose handle is dragged back into the cell at its other corner becomes a
   range in that cell, from the cell's edge on the rectangle's side to the finger, as a mouse drag
   back into its cell does. Either handle: the end handle back into the first cell, the start
