@@ -32,6 +32,12 @@ colon is the row's key, and `mobile-rows-lockstep.test.ts` holds the two lists t
   - Miss-analysis: no row long-pressed; the #806 rows only swiped and tapped.
 - the toolbar's cut takes the long-pressed word: after that long press, the toolbar's Cut cuts the
   word, and the first two blocks keep their text.
+- the toolbar's paste puts a copied word in place of another: the toolbar's Copy on a long-pressed
+  word, then its Paste on a word long-pressed further down, puts the first word where the second
+  was. Chrome asks once before the page reads the clipboard; the row taps Allow, and the first
+  Paste still lands.
+  - Miss-analysis: no phone row tapped Paste, and the desktop rows run with the clipboard
+    permission already granted, so nothing met Chrome's prompt.
 - the end handle drags a long-pressed word into the next block: a swipe from the editor's end
   handle on the first word into the next block grows the range there. The page hears the swipe's
   press, so the finger landed on the editor's handle, and no native range stands beside the

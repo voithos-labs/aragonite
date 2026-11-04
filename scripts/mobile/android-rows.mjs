@@ -91,10 +91,8 @@ export const rows = {
 
 	"the toolbar's cut takes the long-pressed word": async (ctx) => {
 		const { pressed } = await pressBesideRange(ctx, 'toolbar-cut');
-		const cut = await ctx.page.evaluate(boxOf('[data-testid="toolbar-cut"]'));
-		if (!cut) return { reasons: ['the toolbar showed no Cut'], evidence: pressed };
-		const at = (await screenMap(ctx, BELOW_RANGE))(cut.x, cut.y);
-		ctx.device.tap(at.x, at.y);
+		if (!(await tapToolbar(ctx, 'cut', BELOW_RANGE)))
+			return { reasons: ['the toolbar showed no Cut'], evidence: pressed };
 		await sleep(1000);
 		const text = await source(ctx);
 		const reasons = [];
@@ -103,6 +101,25 @@ export const rows = {
 		if (lineText(text, BELOW_RANGE) === lineText(LONG, BELOW_RANGE))
 			reasons.push(`Cut left block ${BELOW_RANGE} as it was`);
 		return { reasons, evidence: { after: lineText(text, BELOW_RANGE) } };
+	},
+
+	"the toolbar's paste puts a copied word in place of another": async (ctx) => {
+		await ctx.fresh(LONG);
+		await longPress(ctx, 0, 'toolbar-copy');
+		if (!(await tapToolbar(ctx, 'copy', 0))) return { reasons: ['the toolbar showed no Copy'] };
+		await sleep(800);
+		const pressed = await longPress(ctx, BELOW_RANGE, 'toolbar-paste');
+		if (!(await tapToolbar(ctx, 'paste', BELOW_RANGE)))
+			return { reasons: ['the toolbar showed no Paste'], evidence: pressed };
+		const want = lineText(LONG, BELOW_RANGE).replace('filler', 'alpha');
+		const prompt = await allowClipboardRead(ctx, 'toolbar-paste', async () => {
+			return lineText(await source(ctx), BELOW_RANGE) === want;
+		});
+		await sleep(1000);
+		const after = lineText(await source(ctx), BELOW_RANGE);
+		const reasons =
+			after === want ? [] : [`Paste left block ${BELOW_RANGE} reading ${json(after)}`];
+		return { reasons, evidence: { prompt, after } };
 	},
 
 	'the end handle drags a long-pressed word into the next block': async (ctx) => {
@@ -326,6 +343,32 @@ const boxOf = (selector) => `(() => {
 	const b = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect();
 	return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
 })()`;
+
+// A tap on the toolbar's `action` row, mapped to the screen through block `index`; false when the
+// toolbar shows no such row.
+async function tapToolbar(ctx, action, index) {
+	const row = await ctx.page.evaluate(boxOf(`[data-testid="toolbar-${action}"]`));
+	if (!row) return false;
+	const at = (await screenMap(ctx, index))(row.x, row.y);
+	ctx.device.tap(at.x, at.y);
+	return true;
+}
+
+// Chrome asks once per site before a page reads the clipboard; this taps Allow on that prompt, and
+// stops early once `landed` says the read went through without one.
+async function allowClipboardRead(ctx, name, landed) {
+	for (let i = 0; i < 16; i++) {
+		const allow = ctx.device.dumpNodes(`${name}-prompt`).find((n) => /^Allow/.test(n.text));
+		if (allow) {
+			ctx.device.screenshot(`${name}-prompt`);
+			ctx.device.tap(centre(allow.box).x, centre(allow.box).y);
+			return { shown: allow.text, afterTries: i + 1 };
+		}
+		if (await landed()) return { shown: null, afterTries: i + 1 };
+		await sleep(500);
+	}
+	return { shown: null, afterTries: 16 };
+}
 
 // What a long press leaves: the word as the editor's range in block `index`, painted there alone
 // with no native range under it, the editor's two handles, and the toolbar as the only menu.
