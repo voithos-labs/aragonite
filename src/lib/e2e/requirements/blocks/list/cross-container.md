@@ -11,4 +11,4 @@ Covers the case where the block before a paragraph is a list and Backspace at of
 - List inside a blockquote + following paragraph: same rule, two levels of container traversal.
 - The deepest leaf cannot hold prose (the list item's last child is a fenced code block): fall back to move-focus.
 
-See `container-editing.md` for the shared cross-container merge semantic (the same rule applies when the prev block is a blockquote).
+See `src/lib/e2e/requirements/container-editing/cross-container-merge.md` for the shared cross-container merge semantic (the same rule applies when the prev block is a blockquote).

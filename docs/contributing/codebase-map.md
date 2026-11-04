@@ -231,11 +231,11 @@ The one join no scope can see is a container's own slot in its parent, since a c
 
 Write a reference as the full path from the repo root, plus a symbol only where the symbol is the thing to find (`path :: Symbol`). No line numbers or signatures; they rot.
 
-`scripts/docs/check-codebase-map.mjs` runs inside `npm run lint`, and on its own as `npm run docs:map:check`. It reads every backticked `src/`, `docs/` or `scripts/` span in this file and every other `docs/design` and `docs/contributing` doc, and checks the path exists and, for a `path :: Symbol` span, that the symbol appears in that file. A span that doesn't start with one of those roots isn't checked at all, which is another reason to write the full path. It also checks every `<doc>.md § Section name` pointer in the tree names a heading that doc still has. When everything resolves it prints one line and exits 0:
+`scripts/docs/check-codebase-map.mjs` runs inside `npm run lint`, and on its own as `npm run docs:map:check`. It reads every backticked path in this file, the other `docs/design` and `docs/contributing` docs and the requirement files under `src/lib/e2e/requirements`, and checks the path exists and, for a `path :: Symbol` span, that the symbol appears in that file. A path written short (`test/browser/<name>.test.ts`, or a bare file name) passes when any file's path ends with it, so a bare `index.ts` can't fail, which is another reason to write the full path. It also checks every `<doc>.md § Section name` pointer in the tree names a heading that doc still has. When everything resolves it prints one line and exits 0:
 
 ```
 $ npm run docs:map:check
-codebase-map: … references resolve (… naming a symbol) across … files in docs/design, docs/contributing; … § pointers resolve across … files
+codebase-map: … references resolve (… naming a symbol) across … files in docs/design, docs/contributing, src/lib/e2e/requirements; … § pointers resolve across … files
 ```
 
 Otherwise it lists each broken span and exits 1, so a deleted file or a renamed export goes red on the commit that moves it. What it can't notice is a responsibility that moved while both names survived, or a rule that stopped being true. That part is on you: **a moved entry point moves this map in the same commit**.

@@ -18,7 +18,6 @@ const WIDGET_SENTINEL = 'WIDGET';
 const BLOCK_SENTINEL = 'BADGE';
 
 export const SIM_REPLACE_ISLAND_CLASS = 'sim-replace-island';
-export const SIM_WIDGET_ISLAND_CLASS = 'sim-widget-island';
 export const SIM_BADGED_BLOCK_CLASS = 'sim-badged-block';
 
 export const simIslandPlugin = definePlugin({

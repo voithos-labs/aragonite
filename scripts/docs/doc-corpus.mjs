@@ -23,10 +23,48 @@ export function ignoredPaths(roots) {
 		);
 		return listed.split('\n').filter(Boolean);
 	} catch (error) {
-		const stderr = /** @type {{ stderr?: unknown }} */ (error).stderr;
-		if (/not a git repository/i.test(String(stderr ?? ''))) return [];
+		if (outsideWorkTree(error)) return [];
 		throw error;
 	}
+}
+
+/**
+ * Every file on disk that a checkout would hold (tracked, or untracked and not gitignored), and
+ * every directory holding one, as posix paths from the working directory. Outside a work tree it
+ * walks the working directory instead.
+ * @returns {{ files: string[], dirs: Set<string> }}
+ */
+export function treePaths() {
+	/** @type {string[]} */
+	let listed;
+	try {
+		listed = execSync('git ls-files -z --cached --others --exclude-standard', {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'pipe'],
+			maxBuffer: 64 * 1024 * 1024
+		}).split('\0');
+	} catch (error) {
+		if (!outsideWorkTree(error)) throw error;
+		listed = walk('.', [''], []).map((file) => file.slice('./'.length));
+	}
+	// The index still lists a file deleted from the working tree until the deletion is staged.
+	const files = listed.filter((file) => file !== '' && existsSync(file));
+	const dirs = new Set();
+	for (const file of files) {
+		for (let dir = posix.dirname(file); dir !== '.' && !dirs.has(dir); dir = posix.dirname(dir)) {
+			dirs.add(dir);
+		}
+	}
+	return { files, dirs };
+}
+
+/**
+ * @param {unknown} error From a git command.
+ * @returns {boolean}
+ */
+function outsideWorkTree(error) {
+	const stderr = /** @type {{ stderr?: unknown }} */ (error).stderr;
+	return /not a git repository/i.test(String(stderr ?? ''));
 }
 
 /**

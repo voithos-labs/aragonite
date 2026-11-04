@@ -55,7 +55,7 @@ is where the presentation modes are shown, so this route has none.
 
 ## Edge cases
 
-- the family file's "Newest first; the index is `../changelog.md`" line, right on GitHub and a
+- the family file's "Newest first" line, whose relative link to the index is right on GitHub and a
   404 beside this page, is dropped before the file mounts: no link ending in `changelog.md`
   renders, on the newest family or the oldest, and the oldest family's next sentence (its
   `git log` hint) still does. Miss-analysis: every scenario asserted the route's own prelude and

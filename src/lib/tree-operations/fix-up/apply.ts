@@ -34,7 +34,7 @@ import {
 } from './index';
 import type { ListEdit, ListResult, SiblingList } from './types';
 
-export { caretInBlocks, lastLineOpen };
+export { caretInBlocks };
 
 /** A caret the fix-up keeps on the same byte through every merge, written in place. */
 export interface TrackedPosition {
