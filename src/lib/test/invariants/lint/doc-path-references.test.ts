@@ -140,4 +140,13 @@ describe('path and symbol references: written short', () => {
 	it('leaves a file inside an installed package to the package', () => {
 		expect(referenceFailures([{ file: 'x.md', path: 'katex/dist/katex.min.css' }])).toEqual([]);
 	});
+
+	// `mermaid` is a root dependency and `packages/mermaid` alike, so the tree is asked first.
+	it('still checks a tree path whose first segment shares a dependency’s name', () => {
+		expect(
+			referenceFailures([{ file: 'x.md', path: 'mermaid/src/renderer.ts', symbol: 'NotAThing' }])
+		).toEqual([
+			'x.md: mermaid/src/renderer.ts :: NotAThing — symbol not found in any file that path names'
+		]);
+	});
 });

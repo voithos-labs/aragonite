@@ -233,16 +233,18 @@ function rootedFailure({ file, path: target, symbol }, tree) {
 
 /**
  * A short path names every tree path it ends, or with a leading `./` or `../` the one path it
- * reaches from its citer. A path into an installed package is the package's to keep.
+ * reaches from its citer. A path the tree lacks that runs into an installed package is the
+ * package's to keep.
  * @param {Reference} reference
  * @param {Tree} tree
  * @returns {string | null}
  */
 function shortFailure({ file, path: target, symbol }, tree) {
 	const checked = concretePrefix(target);
-	if (checked === '' || isPackagePath(checked, tree.packages)) return null;
+	if (checked === '') return null;
 	const matches = shortMatches(file, checked, tree);
 	if (matches.length === 0) {
+		if (isPackagePath(checked, tree.packages)) return null;
 		const detail = checked === target ? '' : ` (\`${checked}\`)`;
 		return `${file}: ${target}${detail} — no file in the tree ends with that path`;
 	}
