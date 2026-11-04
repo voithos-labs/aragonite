@@ -400,6 +400,7 @@ for (const opener of ['toolbar', 'Mod+K'] as const) {
 		await expect
 			.poll(() => editor.bridge.getSource())
 			.toBe(DOC.replace('gamma', '[gamma](https://x.test)'));
+		await expect(page.locator('.selection-overlay')).toHaveCount(0);
 	});
 }
 
@@ -411,6 +412,7 @@ test("the toolbar's heading picker on a finger's word turns its block into a hea
 	await tapToolbar(page, 'set-heading');
 	await tapToolbar(page, 'set-heading-2');
 	await expect.poll(() => editor.bridge.getSource()).toBe(DOC.replace('gamma', '## gamma'));
+	await expect(page.locator('.selection-overlay')).toHaveCount(0);
 });
 
 test("Mod+1 from a keyboard on a finger's word turns its block into a heading, keeping the word", async ({
@@ -420,6 +422,7 @@ test("Mod+1 from a keyboard on a finger's word turns its block into a heading, k
 	await doubleTapWord(page, editor, [1], 5);
 	await page.keyboard.press('ControlOrMeta+1');
 	await expect.poll(() => editor.bridge.getSource()).toBe(DOC.replace('gamma', '# gamma'));
+	await expect(page.locator('.selection-overlay')).toHaveCount(0);
 });
 
 test("a mouse's Shift+click in a finger's word's block grows the word to the click", async ({
