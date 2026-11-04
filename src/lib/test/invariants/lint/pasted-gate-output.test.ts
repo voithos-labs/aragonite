@@ -11,6 +11,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { corpusFiles } from '../../../../../scripts/docs/doc-corpus.mjs';
+import { SOURCE_DIR } from './source-paths';
 
 const ROOT = path.resolve('.');
 
@@ -24,6 +25,7 @@ const FAILURE_CORPORA: Record<string, (dir: string) => void> = {
 	'check-codebase-map.mjs': (dir) => {
 		mkdirSync(path.join(dir, 'docs/design'), { recursive: true });
 		mkdirSync(path.join(dir, 'docs/contributing'), { recursive: true });
+		mkdirSync(path.join(dir, SOURCE_DIR.e2eRequirements), { recursive: true });
 		writeFileSync(path.join(dir, 'docs/design/a.md'), 'A seam at `src/lib/nope.ts`.\n');
 	},
 	'build-docs-pack.mjs': (dir) => {
