@@ -181,7 +181,7 @@ test.describe('gap caret arrival', () => {
 		await editor.page.mouse.click(point.x, point.y);
 
 		await editor.bridge.waitForGapCaret(AT_DOC_START);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 		expect(await editor.bridge.getSource()).toBe(LEADING_TABLE);
 	});
 });

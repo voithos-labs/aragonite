@@ -18,7 +18,7 @@ test.describe('cross-block clipboard: paste basics', () => {
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('PASTED');
 		expect(await editor.bridge.getSource()).toContain('aaa');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 
 	test('multi-block paste with single-block selection is one undo unit', async () => {

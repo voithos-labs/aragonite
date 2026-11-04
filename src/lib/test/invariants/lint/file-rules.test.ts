@@ -1627,11 +1627,15 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.282 an ownership read asks the ownership predicate',
-		matches: /\bisCrossBlock\b/,
+		matches: /\bisCrossBlock(?:Active)?\b/,
 		allowed: {},
 		reason:
 			'whether the editor holds the range is `SelectionState.ownsRange`, whatever it spans, since a finger’s range inside one block is the editor’s too; a read that means two blocks compares paths (`rangeSpansBlocks`)',
-		hits: ['if (selection.isCrossBlock) return;', 'isCrossBlock: () => state.isCrossBlock,'],
+		hits: [
+			'if (selection.isCrossBlock) return;',
+			'isCrossBlock: () => state.isCrossBlock,',
+			'expect(await editor.bridge.isCrossBlockActive()).toBe(true);'
+		],
 		misses: ['if (selection.ownsRange) return;', 'if (rangeSpansBlocks(coverage)) paint();']
 	},
 	{

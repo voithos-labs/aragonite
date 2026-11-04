@@ -78,5 +78,11 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
   browser's own range there.
 - A mouse's Shift+click in a finger's word's block grows the word to the click, as on the
   browser's own range there.
+- A finger's word inside a bold run, copied with the toolbar in live mode, goes on the clipboard
+  with its run closed at both edges, so a paste gives back bold.
+  - Miss-analysis: a copy inside one block only ever held a block whole until a finger's word
+    reached that branch, and it sliced the raw bytes, dropping the run's markers.
+- A finger's word cut in live mode takes the same bytes as a mouse's word cut there, and leaves
+  the block the same.
 - A mouse's toolbar only copies, since a mouse's range has the keyboard's Cut and Paste and the
   right-click menu.

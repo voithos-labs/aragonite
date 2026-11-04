@@ -37,6 +37,6 @@ test.describe('render-primary reveal click vs a live cross-block range', () => {
 
 	test('shift+click still extends rather than resetting', async () => {
 		await math().click({ modifiers: ['Shift'], position: { x: 8, y: 8 } });
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 });

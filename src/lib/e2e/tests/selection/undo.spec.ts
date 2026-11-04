@@ -24,7 +24,7 @@ test.describe('selection undo: cross-block restore', () => {
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
@@ -45,7 +45,7 @@ test.describe('selection undo: cross-block restore', () => {
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 
 	test('redo after undoing a cross-block cut re-applies deletion', async () => {

@@ -333,7 +333,7 @@ test.describe('selection: setSelection restores a getSelection snapshot', () => 
 				sameActive: document.activeElement === (window as any).__activeBefore
 			}))
 		).toEqual({ scrollTop: before, sameActive: true });
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 
 	// A host restoring both a caret and a scroll position scrolls last, so a lasting hold on the

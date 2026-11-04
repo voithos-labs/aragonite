@@ -89,13 +89,13 @@ export class EditorBridge {
 	}
 
 	// Reads SelectionState, not the DOM: `[data-painted-range]` follows that state a render later,
-	// so a DOM read can say `false` while the selection is already cross-block.
-	async isCrossBlockActive(): Promise<boolean> {
-		return this.page.evaluate(() => (window as any).__test.isCrossBlockActive());
+	// so a DOM read can say `false` while the editor already holds the range.
+	async ownsRange(): Promise<boolean> {
+		return this.page.evaluate(() => (window as any).__test.ownsRange());
 	}
 
-	// Narrower than isCrossBlockActive: a rectangle inside one table turns that mode on while
-	// both endpoints keep the table's own path, and this still reports false for it.
+	// Narrower than ownsRange: a rectangle inside one table, or a finger's word, is a range the
+	// editor holds on one path, and this still reports false for it.
 	async isCrossBlockSelection(): Promise<boolean> {
 		return this.page.evaluate(() => (window as any).__test.isCrossBlockSelection());
 	}

@@ -61,7 +61,7 @@ test.describe('selection: keyboard: happy paths', () => {
 		await editor.loadContent('one\n\ntwo\n\nthree\n');
 		await editor.focusBlockStart(1);
 		await editor.page.keyboard.press('ControlOrMeta+a');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();

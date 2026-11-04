@@ -28,7 +28,7 @@ test.describe('selection: keyboard: edge cases', () => {
 
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForRenderFlush();
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 
 		// One character, not the whole cell: a stored pair would send this keypress into the
 		// rectangular delete, which clears every covered cell at once and paints nothing.

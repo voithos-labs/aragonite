@@ -126,7 +126,7 @@ test.describe('table block: clipboard cut', () => {
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
 		await editor.bridge.waitForSourceContains('| A | B |');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceContains('| 1 | 2 |');

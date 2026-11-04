@@ -20,7 +20,7 @@ test.describe('task checkbox: edit-event shape and cross-block click', () => {
 
 		await editor.page.locator('.task-checkbox').first().click();
 		await editor.bridge.waitForSourceContains('[x] first');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 		expect((await editor.bridge.getSource()).trim()).toBe('- [x] first\n- [ ] second');
 	});
 

@@ -41,7 +41,7 @@ test.describe('a whole-unit range: thematic break', () => {
 		await editor.bridge.waitForSourceEquals('above\n\nx\n\nbelow\n');
 
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 
 		// The caret sits after the character that landed, not at the block's start.
 		await editor.typeSlowly('y');

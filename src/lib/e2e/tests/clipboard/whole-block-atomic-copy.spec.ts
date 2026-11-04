@@ -35,7 +35,7 @@ test.describe('whole-block atomic copy/cut: thematic break', () => {
 		await editor.waitForClipboardWrite();
 		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		expect(await editor.bridge.getSource()).toBe(before);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 
 	test('Mod+X copies the markdown, deletes the block, and one undo restores it', async () => {

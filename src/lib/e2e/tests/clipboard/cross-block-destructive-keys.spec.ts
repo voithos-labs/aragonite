@@ -123,7 +123,7 @@ test.describe('a command key over a whole table, row or column', () => {
 					await editor.pressDeclined(key);
 
 					expect(await editor.bridge.getSource()).toBe(SOURCE);
-					expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+					expect(await editor.bridge.ownsRange()).toBe(true);
 				});
 			}
 		}

@@ -29,7 +29,7 @@ test.describe('table block: delete + undo + arrow navigation', () => {
 		await page.locator('.table-cell').nth(4).click();
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| A | B | C |');

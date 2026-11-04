@@ -57,7 +57,7 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		await page.mouse.move(a3.x + a3.width / 2, a3.y + a3.height / 2, { steps: 10 });
 		await page.mouse.up();
 
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 
 		const overlay = page.locator('.selection-overlay-endpoint').first();
 		const beforeScroll = await overlay.boundingBox();

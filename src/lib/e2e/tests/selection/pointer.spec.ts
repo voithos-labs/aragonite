@@ -12,7 +12,7 @@ test.describe('selection: pointer: happy paths', () => {
 	test('drag from block 0 into block 1 enters cross-block mode', async () => {
 		await editor.loadContent('first paragraph\n\nsecond paragraph\n');
 		await editor.dragFromTo([0], 2, [1], 5);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
 		expect(sel?.anchor.path).toEqual([0]);
@@ -22,7 +22,7 @@ test.describe('selection: pointer: happy paths', () => {
 	test('drag across three paragraphs renders middle overlay', async () => {
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
 		await editor.dragFromTo([0], 0, [2], 3);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 		await expect(
 			editor.page.locator("[data-block-path='[1]'] .selection-overlay-middle").first()
 		).toBeAttached();
@@ -32,7 +32,7 @@ test.describe('selection: pointer: happy paths', () => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockEnd(0);
 		await editor.shiftClickBlock([1], 3);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 });
 
@@ -47,7 +47,7 @@ test.describe('selection: pointer: edge cases', () => {
 	test('drag inside one block does not enter cross-block mode', async () => {
 		await editor.loadContent('single block of text here\n');
 		await editor.dragFromTo([0], 0, [0], 10);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 
 	test('click collapses active cross-block selection', async () => {
@@ -144,6 +144,6 @@ test.describe('selection: pointer: cross-container', () => {
 	test('drag across a blockquote boundary selects cross-container', async () => {
 		await editor.loadContent('before\n\n> quote line\n\nafter\n');
 		await editor.dragFromTo([0], 0, [2], 3);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 });

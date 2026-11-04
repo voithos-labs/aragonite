@@ -1437,7 +1437,7 @@
 		getBlockComponent,
 		getUndoStack: () => undoManager.getStacks(),
 		getOperationsLog: () => operationsLog,
-		isCrossBlockActive: () => selectionState.ownsRange,
+		ownsRange: () => selectionState.ownsRange,
 		getGapCaret: () => selectionState.gapCaret,
 		getKeyFocus: (e) => keyClaims.readKeyFocus(e),
 		getDecorationEngine: () => decorationEngine,

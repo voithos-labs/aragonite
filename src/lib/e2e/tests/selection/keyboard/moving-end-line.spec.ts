@@ -63,7 +63,7 @@ for (const mode of ['source', 'live'] as const) {
 			expect((await selection(ep)).focus.offset).toBeGreaterThan(CELL_LINE_TWO);
 
 			await shiftPress(ep, page, 'ArrowUp');
-			expect(await ep.bridge.isCrossBlockActive()).toBe(false);
+			expect(await ep.bridge.ownsRange()).toBe(false);
 			const sel = await selection(ep);
 			expect(sel.focus.path).toEqual(sel.anchor.path);
 			expect(sel.focus.offset).toBeLessThan(CELL_LINE_TWO);

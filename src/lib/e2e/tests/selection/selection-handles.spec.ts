@@ -4,6 +4,7 @@ import type { EditorPage } from '../../editor-page';
 import { pointAtRaw, type Point } from '../../text-runs';
 import { fingerDrag, openTouch, PARAGRAPHS, RANGE, type FingerDragOptions } from '../../touch';
 import { URL_FIELD } from '../presentation/link-card-helpers';
+import { multiClick } from '../../multi-click';
 import {
 	createClipboardArm,
 	refuseClipboardWrites,
@@ -444,6 +445,55 @@ test("the first Mod+A from a keyboard on a finger's word selects its block", asy
 		.poll(() => selection(editor))
 		.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 11 } });
 });
+
+const BOLD_DOC = 'Some **bold** x\n\nfiller line\n';
+
+/** `bold` in live mode, selected by a finger's double tap or a mouse's double click. */
+async function selectBold(page: Page, editor: EditorPage, by: 'finger' | 'mouse'): Promise<void> {
+	await editor.setPresentationMode('live');
+	const point = await pointAtRaw(page, [0], 8);
+	if (by === 'mouse') await multiClick(page, point, 2);
+	else {
+		await page.touchscreen.tap(point.x, point.y);
+		await page.touchscreen.tap(point.x, point.y);
+	}
+	await expect
+		.poll(() => selection(editor))
+		.toEqual({ anchor: { path: [0], offset: 7 }, focus: { path: [0], offset: 11 } });
+}
+
+test("a finger's word copied in live mode keeps its format, and pastes back bold", async ({
+	page
+}) => {
+	const editor = await openTouch(page, BOLD_DOC);
+	const clipboard = createClipboardArm(page);
+	await clipboard.seed('before the copy');
+	await selectBold(page, editor, 'finger');
+	await tapToolbar(page, 'copy');
+	await clipboard.waitForContains('**bold**', 5000);
+	await editor.focusBlockEnd(1);
+	await editor.paste();
+	await expect
+		.poll(() => editor.bridge.getSource())
+		.toBe('Some **bold** x\n\nfiller line**bold**\n');
+});
+
+// The browser's own range in the same block is the reference a finger's word must match.
+for (const by of ['mouse', 'finger'] as const) {
+	test(`a ${by}'s word cut in live mode takes its format along and leaves the block clean`, async ({
+		page
+	}) => {
+		const editor = await openTouch(page, BOLD_DOC);
+		const clipboard = createClipboardArm(page);
+		await clipboard.seed('before the cut');
+		await selectBold(page, editor, by);
+		if (by === 'mouse') await page.keyboard.press('ControlOrMeta+x');
+		else await tapToolbar(page, 'cut');
+		await clipboard.waitForContains('**bold**', 5000);
+		expect(await clipboard.read()).toBe('**bold**');
+		await expect.poll(() => editor.bridge.getSource()).toBe('Some  x\n\nfiller line\n');
+	});
+}
 
 test("a mouse's toolbar copies, leaving cut and paste to the keyboard", async ({ page }) => {
 	await openTouch(page, DOC);

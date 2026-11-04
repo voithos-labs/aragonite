@@ -418,13 +418,13 @@ async function assertRangeContract(
 	consumes: Consumes,
 	built: BuiltRange
 ): Promise<void> {
-	const live = await ctx.editor.bridge.isCrossBlockActive();
+	const live = await ctx.editor.bridge.ownsRange();
 	if (consumes === 'range') {
 		const now = await ctx.editor.bridge.getSelectionPaths();
 		if (!live || JSON.stringify(now) !== JSON.stringify(built)) {
 			throw new Error(
 				`[${ctx.label}] ${gesture} was expected to leave the range untouched.\n` +
-					`BUILT: ${JSON.stringify(built)}\nNOW:   ${JSON.stringify(now)} (cross-block=${live})`
+					`BUILT: ${JSON.stringify(built)}\nNOW:   ${JSON.stringify(now)} (owns-range=${live})`
 			);
 		}
 		return;

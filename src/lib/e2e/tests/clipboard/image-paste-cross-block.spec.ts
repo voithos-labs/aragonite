@@ -46,7 +46,7 @@ test.describe('image paste: cross-block replacement', () => {
 
 		// The delete has to have collapsed the selection: otherwise the next gesture
 		// acts on a range whose offsets shifted by the inserted length.
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('![[shot.png]]Xthird');
 		expect(await editor.parseConverged()).toBe(true);
@@ -141,7 +141,7 @@ test.describe('image paste: cross-block replacement', () => {
 		const viaHook = await editor.bridge.getSource();
 		// The covered body row is gone; the range really was deleted.
 		expect(viaHook).not.toContain('| 1 | 2 |');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 		expect(await editor.parseConverged()).toBe(true);
 
 		await editor.loadContent(TABLE);

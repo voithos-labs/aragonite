@@ -116,9 +116,9 @@ test.describe('a caret that ends up off screen comes into view', () => {
 	}) => {
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+a');
-		await expect.poll(() => editor.bridge.isCrossBlockActive()).toBe(true);
+		await expect.poll(() => editor.bridge.ownsRange()).toBe(true);
 		await page.keyboard.press('ArrowRight');
-		await expect.poll(() => editor.bridge.isCrossBlockActive()).toBe(false);
+		await expect.poll(() => editor.bridge.ownsRange()).toBe(false);
 		await editor.waitForRenderFlush();
 
 		await expect(page.locator(`[data-block-path='[${LINES.length - 1}]']`)).toBeInViewport();

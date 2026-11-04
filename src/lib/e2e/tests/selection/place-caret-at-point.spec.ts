@@ -155,6 +155,6 @@ test.describe('placeCaretAtPoint is the host shell’s caret entry point', () =>
 		const source = await editor.bridge.getSource();
 		expect(source, 'the stale range type-replaced the document away').toContain('first para');
 		expect(source.trim()).toBe('first para\n\nsecond para\n\nthird paraX');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 });
