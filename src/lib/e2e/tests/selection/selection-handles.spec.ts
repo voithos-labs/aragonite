@@ -3,7 +3,11 @@ import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import { pointAtRaw, type Point } from '../../text-runs';
 import { fingerDrag, openTouch, PARAGRAPHS, RANGE, type FingerDragOptions } from '../../touch';
-import { createClipboardArm } from '../../clipboard-arm';
+import {
+	createClipboardArm,
+	refuseClipboardWrites,
+	refusedClipboardWrites
+} from '../../clipboard-arm';
 
 // On a touch screen the editor draws selection handles where the browser's can't reach, and a
 // finger drags them across blocks and cells. Requirements: `e2e/requirements/selection/selection-handles.md`.
@@ -319,15 +323,17 @@ test('the toolbar moves past the end handle when there is no room above', async 
 test("a finger's toolbar cuts and pastes as well as copies, and its Cut takes the range", async ({
 	page
 }) => {
-	await openTouch(page, `${'filler\n\n'.repeat(9)}${DOC}`);
+	const doc = `${'filler\n\n'.repeat(9)}${DOC}`;
+	const editor = await openTouch(page, doc);
 	await tapThenSelect(page, { anchor: { path: [9], offset: 2 }, focus: { path: [10], offset: 5 } });
 	const row = (action: string) => page.locator(`[data-testid="toolbar-${action}"]`);
 	for (const action of ['cut', 'copy', 'paste']) await expect(row(action)).toBeVisible();
 	const cut = (await row('cut').boundingBox())!;
 	await page.touchscreen.tap(cut.x + cut.width / 2, cut.y + cut.height / 2);
-	await expect
-		.poll(() => page.evaluate(() => (window as any).__test.getSource()))
-		.toContain('al delta');
+	const source = () => page.evaluate(() => (window as any).__test.getSource());
+	await expect.poll(source).toContain('al delta');
+	await editor.undo();
+	await expect.poll(source).toBe(doc);
 });
 
 test("a finger's toolbar Copy takes its word, and its Paste puts that text in place of another", async ({
@@ -348,6 +354,20 @@ test("a finger's toolbar Copy takes its word, and its Paste puts that text in pl
 	await expect
 		.poll(() => page.evaluate(() => (window as any).__test.getSource()))
 		.toContain('gamma zeta');
+});
+
+test("a finger's toolbar Cut the clipboard refuses keeps its word", async ({ page }) => {
+	const editor = await openTouch(page, DOC);
+	await refuseClipboardWrites(page);
+	await doubleTapWord(page, editor, [1], 5);
+	const box = (await page.locator('[data-testid="toolbar-cut"]').boundingBox())!;
+	await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+	await expect.poll(() => refusedClipboardWrites(page)).toBe(1);
+	expect(await page.evaluate(() => (window as any).__test.getSource())).toBe(DOC);
+	expect(await selection(editor)).toEqual({
+		anchor: { path: [1], offset: 0 },
+		focus: { path: [1], offset: 5 }
+	});
 });
 
 test("a mouse's toolbar copies, leaving cut and paste to the keyboard", async ({ page }) => {

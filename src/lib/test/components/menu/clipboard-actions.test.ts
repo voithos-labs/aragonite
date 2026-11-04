@@ -87,13 +87,37 @@ describe('a menu Cut or Copy writes what the editor takes, else runs the browser
 		document.execCommand = savedExec;
 	});
 
+	const payload: ClipboardPayload = { 'text/plain': 'world', 'text/html': '<p>world</p>' };
+	const taking = (removed: string[]) => () => ({
+		payload,
+		remove: async () => void removed.push('removed')
+	});
+
 	it('Copy of a range the editor holds writes its text and HTML, with no browser command', async () => {
-		const payload: ClipboardPayload = { 'text/plain': 'world', 'text/html': '<p>world</p>' };
-		await runClipboardAction(
-			'copy',
-			menu(null, () => payload)
-		);
+		const removed: string[] = [];
+		await runClipboardAction('copy', menu(null, taking(removed)));
 		expect(written).toEqual([['text/plain', 'text/html']]);
+		expect(commands).toEqual([]);
+		expect(removed).toEqual([]);
+	});
+
+	it('Cut of a range the editor holds removes it once the write lands', async () => {
+		const removed: string[] = [];
+		await runClipboardAction('cut', menu(null, taking(removed)));
+		expect(written).toEqual([['text/plain', 'text/html']]);
+		expect(removed).toEqual(['removed']);
+	});
+
+	// Miss-analysis: every menu Cut row ran with the clipboard granted, so none saw a refused write
+	// remove the range anyway.
+	it('Cut whose write the browser refuses keeps the range', async () => {
+		Object.defineProperty(navigator, 'clipboard', {
+			value: { write: async () => Promise.reject(new DOMException('denied', 'NotAllowedError')) },
+			configurable: true
+		});
+		const removed: string[] = [];
+		await runClipboardAction('cut', menu(null, taking(removed)));
+		expect(removed).toEqual([]);
 		expect(commands).toEqual([]);
 	});
 

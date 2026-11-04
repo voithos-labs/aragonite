@@ -346,23 +346,19 @@ describe("a menu's Cut or Copy of the range the editor holds", () => {
 		document.body.replaceChildren();
 	});
 
-	it('Copy hands back the range’s text and leaves the range', () => {
+	it('hands back the range’s text and removes nothing until asked', async () => {
 		const h = harness();
 		h.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 3 });
-		expect(h.clipboard.takeForMenu('copy')?.['text/plain']).toContain('llo');
+		const taken = h.clipboard.takeForMenu();
+		expect(taken?.payload['text/plain']).toContain('llo');
 		expect(h.deleted).not.toHaveBeenCalled();
-	});
-
-	it('Cut hands back the text and removes the range', async () => {
-		const h = harness();
-		h.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 3 });
-		expect(h.clipboard.takeForMenu('cut')?.['text/plain']).toContain('llo');
-		await vi.waitFor(() => expect(h.deleted).toHaveBeenCalledOnce());
+		await taken?.remove();
+		expect(h.deleted).toHaveBeenCalledOnce();
 	});
 
 	it('takes nothing while the browser holds the selection or a widget is selected', () => {
-		expect(harness().clipboard.takeForMenu('copy')).toBeNull();
+		expect(harness().clipboard.takeForMenu()).toBeNull();
 		const widget = harness({ widgetBlock: {} as BlockComponent });
-		expect(widget.clipboard.takeForMenu('copy')).toBeNull();
+		expect(widget.clipboard.takeForMenu()).toBeNull();
 	});
 });

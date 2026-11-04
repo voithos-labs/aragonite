@@ -53,8 +53,11 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
 - The toolbar sits above a finger's range, clear of its handles, where a phone puts its own menu.
 - The toolbar moves past the end handle when there is no room above, so a finger reaching for a
   handle never lands on a toolbar button, and the bar covers no more of the page than before.
-- A finger's toolbar is the range's one menu, so it cuts and pastes as well as copies, and its Cut
-  takes the range.
+- A finger's toolbar is the range's one menu, so it cuts and pastes as well as copies. Its Cut
+  takes the range, and one undo puts it back.
+- A finger's toolbar Cut whose clipboard write the browser refuses keeps the word and its text.
+  - Miss-analysis: every menu Cut row ran with the clipboard granted, so none saw a refused write
+    remove the range anyway.
 - A finger's toolbar Copy puts its word on the clipboard, and its Paste on another finger's word
   puts that text in the word's place.
   - Miss-analysis: the toolbar rows only checked that Paste shows; none tapped it, so a Paste that

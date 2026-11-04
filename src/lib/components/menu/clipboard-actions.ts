@@ -13,11 +13,17 @@ import type { AimedInsert } from '../editor-root/focused-surface';
 
 export type ClipboardAction = 'cut' | 'copy' | 'paste' | 'paste-plain';
 
+/** What a Cut or Copy of the range the editor holds writes, and the removal a Cut runs after. */
+export interface MenuTake {
+	payload: ClipboardPayload;
+	remove(): Promise<void>;
+}
+
 /** What a menu's clipboard rows act through. */
 export interface MenuClipboard {
-	/** A Cut or Copy of the range the editor holds (`EditorRootClipboard.takeForMenu`), or null
-	 *  for a range the browser holds, which its own command copies. */
-	take(action: 'cut' | 'copy'): ClipboardPayload | null;
+	/** The range the editor holds (`EditorRootClipboard.takeForMenu`), or null for a range the
+	 *  browser holds, which its own command copies. */
+	take(): MenuTake | null;
 	/** The block a Paste inserts into, aimed now; null with none focused. */
 	pasteTarget(): AimedInsert | null;
 }
@@ -30,9 +36,13 @@ export async function runClipboardAction(
 		case 'cut':
 		case 'copy': {
 			// Over a range the editor holds only a caret stands, where WebKit's command copies nothing.
-			const payload = clipboard.take(action);
-			if (payload) void writeClipboardPayload(payload);
-			else document.execCommand(action);
+			const taken = clipboard.take();
+			if (!taken) {
+				document.execCommand(action);
+				return;
+			}
+			// A refused write changes nothing, so a Cut whose write was refused keeps its range.
+			if ((await writeClipboardPayload(taken.payload)) && action === 'cut') await taken.remove();
 			return;
 		}
 		case 'paste':

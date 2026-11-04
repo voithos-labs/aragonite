@@ -973,7 +973,7 @@
 
 	// Read at a row's press, when both halves exist.
 	const menuClipboard: MenuClipboard = {
-		take: (action) => rootClipboard.takeForMenu(action),
+		take: () => rootClipboard.takeForMenu(),
 		pasteTarget: () => focusedSurface.aimInsertAtFocus()
 	};
 	const rootMenus = createRootMenus({

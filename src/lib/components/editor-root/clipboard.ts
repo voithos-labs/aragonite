@@ -16,7 +16,7 @@ import { createImagePasteArm } from '../paste-image-arm';
 import { runClipboardCut, takeCopy } from '../blocks/editable/clipboard-step';
 import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
-import type { ClipboardPayload } from '../../editor-actions/system-clipboard';
+import type { MenuTake } from '../menu/clipboard-actions';
 
 export interface EditorRootClipboardDeps {
 	selection: SelectionState;
@@ -36,9 +36,9 @@ export interface EditorRootClipboard {
 	handleCopy(event: ClipboardEvent, root: HTMLElement): void;
 	handleCut(event: ClipboardEvent, root: HTMLElement): void;
 	handlePaste(event: ClipboardEvent, root: HTMLElement): void;
-	/** A menu's Cut or Copy of the range the editor holds, taken as Ctrl+C takes it (a Cut removes
-	 *  the range too); null for anything else, which the browser's own command copies. */
-	takeForMenu(action: 'cut' | 'copy'): ClipboardPayload | null;
+	/** A menu's Cut or Copy of the range the editor holds, taken as Ctrl+C takes it; null for
+	 *  anything else, which the browser's own command copies. */
+	takeForMenu(): MenuTake | null;
 }
 
 // The copy step writes into whatever event it is handed; a menu has none, so it hands one whose
@@ -110,13 +110,16 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
 			else void paste(event);
 		},
-		takeForMenu(action) {
+		takeForMenu() {
 			if (!deps.selection.ownsRange || deps.selection.widget) return null;
 			const { event, written } = collectingEvent();
-			if (action === 'copy') takeCopy(event, crossBlockArms);
-			else void runClipboardCut(event, crossBlockArms);
+			const taken = takeCopy(event, crossBlockArms);
 			const text = written.get('text/plain');
-			return text ? { 'text/plain': text, 'text/html': written.get('text/html') } : null;
+			if (!taken || !text) return null;
+			return {
+				payload: { 'text/plain': text, 'text/html': written.get('text/html') },
+				remove: async () => taken.arm.remove(taken.held)
+			};
 		}
 	};
 
