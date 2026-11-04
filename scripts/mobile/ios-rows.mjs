@@ -112,7 +112,19 @@ export const rows = {
 
 // ── Probes ──────────────────────────
 
-export const probes = {};
+export const probes = {
+	// Whether the first tap misses because of something the drag handles do on hover: the same
+	// first tap with the handles off, for comparison with the row's.
+	'first tap with the drag handles off': async (ctx) => {
+		await ctx.fresh(`${ctx.url}?dragHandles=false`, SHORT);
+		const log = await logEvents(ctx, async () => ctx.click(await ctx.editable(0)));
+		return {
+			keyboard: await keyboardShown(ctx),
+			selection: await ctx.run('return window.__test.getSelection()'),
+			pageEvents: log
+		};
+	}
+};
 
 // ── Steps ──────────────────────────
 

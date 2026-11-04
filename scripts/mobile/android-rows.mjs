@@ -191,21 +191,6 @@ export const probes = {
 		});
 		ctx.device.screenshot('double-tap');
 		return { after: await ctx.page.evaluate(SELECTION), pointerLog: log };
-	},
-
-	// Whether `input draganddrop` (a long press, then a move with the finger still down) grows the
-	// long-pressed word, the way a held drag does on a phone.
-	'a long press then a held move': async (ctx) => {
-		await ctx.fresh(LONG);
-		const text = await source(ctx);
-		const box = await ctx.device.paragraphBox(lineText(text, 0), 'held-move');
-		const next = await ctx.device.paragraphBox(lineText(text, 1), 'held-move-next');
-		const ends = [box.x1 + 50, centre(box).y, next.x1 + 120, centre(next).y].map(Math.round);
-		const log = await logPointers(ctx, async () =>
-			ctx.device.adb('shell', 'input', 'draganddrop', ...ends.map(String), '2500')
-		);
-		ctx.device.screenshot('held-move');
-		return { after: await ctx.page.evaluate(SNAPSHOT), pointerLog: log };
 	}
 };
 
