@@ -2,7 +2,8 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import { pointAtRaw, type Point } from '../../text-runs';
-import { fingerDrag, openTouch, PARAGRAPHS, RANGE } from '../../touch';
+import { fingerDrag, openTouch, PARAGRAPHS, RANGE, type FingerDragOptions } from '../../touch';
+import { createClipboardArm } from '../../clipboard-arm';
 
 // On a touch screen the editor draws selection handles where the browser's can't reach, and a
 // finger drags them across blocks and cells. Requirements: `e2e/requirements/selection/selection-handles.md`.
@@ -26,16 +27,26 @@ async function dragHandle(
 	handle: string,
 	from: Point,
 	to: Point,
-	held?: () => Promise<void>
+	options: FingerDragOptions = {}
 ): Promise<void> {
 	const box = await page.locator(handle).boundingBox();
 	if (!box) throw new Error(`no ${handle} on the page`);
 	const x = Math.round(box.x + box.width / 2);
 	const y = Math.round(box.y + box.height / 2);
-	await fingerDrag(page, { x, y }, { x: x + to.x - from.x, y: y + to.y - from.y }, { held });
+	await fingerDrag(page, { x, y }, { x: x + to.x - from.x, y: y + to.y - from.y }, options);
 }
 
 const selection = (editor: EditorPage) => editor.bridge.getSelectionPaths();
+
+/** A finger's double tap on the first word of block `path`, `length` long, once it's the range. */
+async function doubleTapWord(page: Page, editor: EditorPage, path: number[], length: number) {
+	const point = await pointAtRaw(page, path, 2);
+	await page.touchscreen.tap(point.x, point.y);
+	await page.touchscreen.tap(point.x, point.y);
+	await expect
+		.poll(() => selection(editor))
+		.toEqual({ anchor: { path, offset: 0 }, focus: { path, offset: length } });
+}
 
 // A phone draws its own handles on any native range, so a range the editor paints holds none.
 const nativeCollapsed = (page: Page) =>
@@ -74,8 +85,10 @@ test('the end handle dragged into a later block grows the range there', async ({
 	// The handle follows the finger while it is down, though no native selection moves under it.
 	const handleBelowTarget = async () =>
 		(await page.locator(HANDLE('end')).boundingBox())!.y > target.y;
-	await dragHandle(page, HANDLE('end'), await pointAtRaw(page, [1], 5), target, async () => {
-		await expect.poll(handleBelowTarget).toBe(true);
+	await dragHandle(page, HANDLE('end'), await pointAtRaw(page, [1], 5), target, {
+		held: async () => {
+			await expect.poll(handleBelowTarget).toBe(true);
+		}
 	});
 	await expect
 		.poll(() => selection(editor))
@@ -116,8 +129,10 @@ test("the end handle dragged back into the range's first block keeps the range t
 		await pointAtRaw(page, [0], 9),
 		// Mid-drag a caret stays in a focused block: a phone draws handles on a native range and
 		// drops its keyboard on an empty selection.
-		async () => {
-			await expect.poll(() => caretInFocusedBlock(page)).toBe(true);
+		{
+			held: async () => {
+				await expect.poll(() => caretInFocusedBlock(page)).toBe(true);
+			}
 		}
 	);
 	// Not even for a moment: the phone's keyboard drops the instant the selection empties.
@@ -136,12 +151,7 @@ test("a finger's double tap makes its word the editor's range, with a handle at 
 	page
 }) => {
 	const editor = await openTouch(page, DOC);
-	const point = await pointAtRaw(page, [1], 2);
-	await page.touchscreen.tap(point.x, point.y);
-	await page.touchscreen.tap(point.x, point.y);
-	await expect
-		.poll(() => selection(editor))
-		.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 5 } });
+	await doubleTapWord(page, editor, [1], 5);
 	expect(await nativeCollapsed(page)).toBe(true);
 	await expect(page.locator('.selection-handle')).toHaveCount(2);
 });
@@ -154,12 +164,7 @@ for (const [key, offset] of [
 		page
 	}) => {
 		const editor = await openTouch(page, DOC);
-		const point = await pointAtRaw(page, [1], 2);
-		await page.touchscreen.tap(point.x, point.y);
-		await page.touchscreen.tap(point.x, point.y);
-		await expect
-			.poll(() => selection(editor))
-			.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 5 } });
+		await doubleTapWord(page, editor, [1], 5);
 		await page.keyboard.press(`Shift+${key}`);
 		await expect
 			.poll(() => selection(editor))
@@ -174,12 +179,7 @@ test("the end handle of a finger's word dragged into the next block grows the ra
 	page
 }) => {
 	const editor = await openTouch(page, DOC);
-	const point = await pointAtRaw(page, [0], 2);
-	await page.touchscreen.tap(point.x, point.y);
-	await page.touchscreen.tap(point.x, point.y);
-	await expect
-		.poll(() => selection(editor))
-		.toEqual({ anchor: { path: [0], offset: 0 }, focus: { path: [0], offset: 5 } });
+	await doubleTapWord(page, editor, [0], 5);
 	await dragHandle(
 		page,
 		HANDLE('end'),
@@ -191,6 +191,30 @@ test("the end handle of a finger's word dragged into the next block grows the ra
 		.toEqual({ anchor: { path: [0], offset: 0 }, focus: { path: [1], offset: 4 } });
 	expect(await nativeCollapsed(page)).toBe(true);
 });
+
+for (const end of ['touchEnd', 'touchCancel'] as const) {
+	test(`once a handle's drag ends in a ${end}, the handles and the toolbar take a finger again`, async ({
+		page
+	}) => {
+		await openTouch(page, DOC);
+		await tapThenSelect(page, RANGE);
+		await dragHandle(
+			page,
+			HANDLE('end'),
+			await pointAtRaw(page, [1], 5),
+			await pointAtRaw(page, [2], 4),
+			{ end }
+		);
+		for (const target of [HANDLE('end'), '[data-testid="toolbar-copy"]']) {
+			const box = (await page.locator(target).boundingBox())!;
+			const hit = await page.evaluate(
+				({ x, y, target }) => !!document.elementFromPoint(x, y)?.closest(target),
+				{ x: box.x + box.width / 2, y: box.y + box.height / 2, target }
+			);
+			expect(hit, target).toBe(true);
+		}
+	});
+}
 
 test('a handle dragged across table cells grows a rectangle', async ({ page }) => {
 	await openTouch(page, TABLE_DOC);
@@ -304,6 +328,26 @@ test("a finger's toolbar cuts and pastes as well as copies, and its Cut takes th
 	await expect
 		.poll(() => page.evaluate(() => (window as any).__test.getSource()))
 		.toContain('al delta');
+});
+
+test("a finger's toolbar Copy takes its word, and its Paste puts that text in place of another", async ({
+	page
+}) => {
+	const editor = await openTouch(page, DOC);
+	const clipboard = createClipboardArm(page);
+	await clipboard.seed('before the copy');
+	const tapRow = async (action: string) => {
+		const box = (await page.locator(`[data-testid="toolbar-${action}"]`).boundingBox())!;
+		await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+	};
+	await doubleTapWord(page, editor, [1], 5);
+	await tapRow('copy');
+	await clipboard.waitForContains('gamma', 5000);
+	await doubleTapWord(page, editor, [2], 7);
+	await tapRow('paste');
+	await expect
+		.poll(() => page.evaluate(() => (window as any).__test.getSource()))
+		.toContain('gamma zeta');
 });
 
 test("a mouse's toolbar copies, leaving cut and paste to the keyboard", async ({ page }) => {

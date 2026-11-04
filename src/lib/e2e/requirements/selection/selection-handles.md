@@ -30,6 +30,10 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
 
 ## Edge cases
 
+- Once a handle's drag ends, the finger lifted or the touch cancelled, the handles and the toolbar
+  take a finger again.
+  - Miss-analysis: the hit-test row only checked the drag itself; nothing pressed a handle or the
+    toolbar after it, so a drag end that left them untouchable stayed green.
 - A range across blocks after a mouse click gets no handles: they are a finger's.
 - Shift+ArrowRight or Shift+ArrowLeft from a keyboard on a finger's word moves its end one
   character, as on the browser's own range: a keyboard's range inside one block is the browser's,
@@ -51,5 +55,9 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
   handle never lands on a toolbar button, and the bar covers no more of the page than before.
 - A finger's toolbar is the range's one menu, so it cuts and pastes as well as copies, and its Cut
   takes the range.
+- A finger's toolbar Copy puts its word on the clipboard, and its Paste on another finger's word
+  puts that text in the word's place.
+  - Miss-analysis: the toolbar rows only checked that Paste shows; none tapped it, so a Paste that
+    left a finger's word as it was stayed green.
 - A mouse's toolbar only copies, since a mouse's range has the keyboard's Cut and Paste and the
   right-click menu.
