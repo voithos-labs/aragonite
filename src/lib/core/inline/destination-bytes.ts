@@ -1,5 +1,5 @@
 /**
- * The inverse of `link-destination.ts` for the two fields every bracketed construct hides: a
+ * The inverse of `scan/link-grammar.ts` for the two fields every bracketed construct hides: a
  * destination and a title. Reading the written bytes gives the value back, so the image and link
  * write paths cannot change a url or title the user did not edit.
  */

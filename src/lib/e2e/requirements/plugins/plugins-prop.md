@@ -8,7 +8,7 @@ visuals and not editing behavior, which belong to the per-plugin specs.
 
 Installing the same plugin twice in one process, where the second install does nothing, is
 pinned at the unit layer (`schema/plugin-install.test.ts`, plus the latex reset and reinstall
-case in `plugins/latex-block.test.ts`). A browser reload is a fresh process, so the e2e covers
+case in `plugins/latex/block.test.ts`). A browser reload is a fresh process, so the e2e covers
 only the reload path here.
 
 ## Happy paths

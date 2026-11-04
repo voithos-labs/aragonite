@@ -85,7 +85,7 @@ describe('thematic break: the hidden editing host', () => {
 		expect(event.defaultPrevented).toBe(false);
 	});
 
-	// The write itself is refused at the commit (`whole-block-input-proxy.test.ts`).
+	// The write itself is refused at the commit (`editor-actions/whole-block-input-proxy.svelte.test.ts`).
 	it('reading mode makes the host inert and still takes the keystroke', () => {
 		mounted = mountBreak('reading');
 		mounted.instance.parkCaret(0);
