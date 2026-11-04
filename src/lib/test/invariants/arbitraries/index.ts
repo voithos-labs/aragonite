@@ -9,7 +9,7 @@ export {
 } from './gfm';
 export { arbLargeDoc } from './large';
 export { arbInlineSource, arbAltOnlyImage } from './inline';
-export { arbLiveInlineSource, arbLiveDoc } from './live-mode';
+export { arbLiveDoc } from './live-mode';
 export {
 	arbPluginInlineSource,
 	arbPluginInlineToken,
