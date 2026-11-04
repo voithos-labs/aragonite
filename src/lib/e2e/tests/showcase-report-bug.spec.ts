@@ -71,8 +71,8 @@ test.describe('/ showcase report a bug', () => {
 		expect(url.searchParams.get('where')).toMatch(
 			/^\d+\.\d+\.\d+, (Chrome|Firefox|Safari) [\d.]+ on \w+, live mode$/
 		);
-		// The recording rides the clipboard, never the link.
-		expect(url.searchParams.get('recording')).toContain('on your clipboard');
+		// The recording rides the clipboard, never the link, which leaves its field empty.
+		expect(url.searchParams.has('recording')).toBe(false);
 		await expect(page.getByTestId('report-card')).toContainText('on your');
 
 		// The system clipboard on Windows hands the line breaks back as CRLF.

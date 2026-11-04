@@ -1,7 +1,7 @@
 /**
- * The showcase's "report a bug" link: GitHub's new-issue form for `bug.yml`, its `where` field
- * filled from the query string. The recording never rides the link, so nothing reaches GitHub
- * before the visitor submits: it goes on the clipboard, or downloads when too long for an issue.
+ * The showcase's "report a bug" link: GitHub's new-issue form for `bug.yml`, only its `where` field
+ * filled from the query string (GitHub's form puts a link-filled value back over a paste). The
+ * recording never rides the link: it goes on the clipboard, or downloads when too long for an issue.
  */
 
 /** The editor's input recording, typed by the parts read here so this file imports nothing. */
@@ -26,20 +26,9 @@ export interface BugReport {
 export function bugReport(recording: BugRecording, where: string): BugReport {
 	const json = JSON.stringify(recording);
 	const fenced = '```json\n' + json + '\n```';
-	const link = (field: string) =>
-		`${NEW_BUG_URL}?${new URLSearchParams({ template: 'bug.yml', where, recording: field })}`;
-	if (fenced.length <= MAX_BODY_RECORDING) {
-		return {
-			url: link('The recording is on your clipboard: paste it here.'),
-			carrier: 'clipboard',
-			attachment: fenced
-		};
-	}
-	return {
-		url: link('The recording downloaded as a .json file: drag it into this box.'),
-		carrier: 'download',
-		attachment: json
-	};
+	const url = `${NEW_BUG_URL}?${new URLSearchParams({ template: 'bug.yml', where })}`;
+	if (fenced.length <= MAX_BODY_RECORDING) return { url, carrier: 'clipboard', attachment: fenced };
+	return { url, carrier: 'download', attachment: json };
 }
 
 /** "0.11.1, Chrome 141 on Windows, live mode": what the form's `where` field asks for. */

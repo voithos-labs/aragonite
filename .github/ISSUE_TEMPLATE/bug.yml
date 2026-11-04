@@ -34,4 +34,4 @@ body:
     id: recording
     attributes:
       label: Recording
-      description: Optional. The demo's "report a bug" button puts a recording of what you typed on your clipboard to paste here (the document's text included), so we can replay it.
+      description: Optional. The demo's "report a bug" button puts a recording of what you typed on your clipboard to paste here (the document's text included), so we can replay it. One too long for an issue downloads as a .json file instead, so drag that in here.
