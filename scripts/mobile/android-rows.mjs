@@ -15,6 +15,8 @@ const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 
 // gesture meant for the text lands on `filler line 4`, well below it.
 const BELOW_RANGE = 6;
 const TABLE = 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n';
+// `epsilon zeta`: the paste row's second word.
+const PASTE_INTO = 2;
 
 // ── Rows ──────────────────────────
 
@@ -108,18 +110,22 @@ export const rows = {
 		await longPress(ctx, 0, 'toolbar-copy');
 		if (!(await tapToolbar(ctx, 'copy', 0))) return { reasons: ['the toolbar showed no Copy'] };
 		await sleep(800);
-		const pressed = await longPress(ctx, BELOW_RANGE, 'toolbar-paste');
-		if (!(await tapToolbar(ctx, 'paste', BELOW_RANGE)))
-			return { reasons: ['the toolbar showed no Paste'], evidence: pressed };
-		const want = lineText(LONG, BELOW_RANGE).replace('filler', 'alpha');
+		// A copy brings up Android's clipboard chip at the bottom left, which takes the first touch
+		// near it, so the word pasted over sits well above it and a press the page never heard is
+		// made again.
+		let pressed = await longPress(ctx, PASTE_INTO, 'toolbar-paste');
+		const missed = !pressed.pointerLog.counts.pointerdown;
+		if (missed) pressed = await longPress(ctx, PASTE_INTO, 'toolbar-paste-again');
+		if (!(await tapToolbar(ctx, 'paste', PASTE_INTO)))
+			return { reasons: ['the toolbar showed no Paste'], evidence: { missed, ...pressed } };
+		const want = lineText(LONG, PASTE_INTO).replace('epsilon', 'alpha');
 		const prompt = await allowClipboardRead(ctx, 'toolbar-paste', async () => {
-			return lineText(await source(ctx), BELOW_RANGE) === want;
+			return lineText(await source(ctx), PASTE_INTO) === want;
 		});
 		await sleep(1000);
-		const after = lineText(await source(ctx), BELOW_RANGE);
-		const reasons =
-			after === want ? [] : [`Paste left block ${BELOW_RANGE} reading ${json(after)}`];
-		return { reasons, evidence: { prompt, after } };
+		const after = lineText(await source(ctx), PASTE_INTO);
+		const reasons = after === want ? [] : [`Paste left block ${PASTE_INTO} reading ${json(after)}`];
+		return { reasons, evidence: { missed, prompt, after } };
 	},
 
 	'the end handle drags a long-pressed word into the next block': async (ctx) => {
