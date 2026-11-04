@@ -1,10 +1,10 @@
 # @voithos-labs/aragonite-latex
 
-Math for [aragonite](https://github.com/voithos-labs/aragonite). Type `$e^{i\pi} + 1 = 0$` and it turns into a formula the moment your caret leaves it; click back in and you're editing the source again. What's aragonite? The [readme](https://github.com/voithos-labs/aragonite/blob/main/README.md) has the short-ish version, and [aragonite.dev](https://aragonite.dev) has one you can type in.
+Math plugin for [aragonite](https://github.com/voithos-labs/aragonite).
 
 ## What it reads
 
-All three ways GitHub writes math, so a file you write here renders the same over there:
+All three ways GitHub writes math:
 
 ````markdown
 Inline, between single dollars: $a^2 + b^2 = c^2$.
@@ -18,15 +18,13 @@ $$
 ```
 ````
 
-The file stays exactly what you typed. The plugin only changes how it's drawn.
-
 ## Install
 
 ```bash
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-latex katex
 ```
 
-It ships at the same version as the editor and asks for exactly that version, so bump them together. `katex` is only there for the renderer below; skip both and each formula just shows its source.
+Btw, the plugin's version should match the editor's version. `katex` (0.17 to 0.19) is optional and only there for the renderer below; skip both and each formula just shows its source.
 
 ## Use it
 
@@ -37,17 +35,16 @@ import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
 const plugins = [latexPlugin({ renderer: katexRenderer })];
 ```
 
-Pass `plugins` to the editor, and build the array once for the whole app rather than per editor. Some details you might care about:
+Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. A few things worth knowing:
 
-- Not on Svelte (React, Vue, plain JS)? Import `@voithos-labs/aragonite-latex/style.css` next to the editor's `style.css`. The renderer brings KaTeX's own stylesheet with it.
-- `blockLayout` is how a `$$` block opens while you edit it: `'split'` (the preview beside the source, the default), `'stacked'` (below it, nicer for long equations) or `'source'` (no preview at all). The block's own toggle cycles through them, and `{ plugin, options: { blockLayout } }` picks one per editor.
-- Prices and shell variables are safe: `$5 and $10` or `$HOME and $PATH` stay plain text, the way they do on GitHub.
+- On React, Vue or plain JS, the formulas bring a stylesheet of their own: import `@voithos-labs/aragonite-latex/style.css` beside the editor's. The renderer brings KaTeX's stylesheet with it.
+- `blockLayout` is how a math block opens while you edit it: `'split'` (the preview beside the source, the default), `'stacked'` (below it, nicer for long equations) or `'source'` (no preview at all). The block's own toggle cycles through them, and `{ plugin, options: { blockLayout } }` picks one per editor.
 - Rather not use KaTeX? `renderer` is any function from `(source, { display, theme })` to `{ dom, error? }`, so MathJax or your own thing fits.
 
 ## More
 
-The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) has every bundled plugin's options in one table, and the [plugin guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide.md) is where to go if you'd rather write your own.
+The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the [plugin guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide.md) is where to go if you'd rather write your own.
 
 ## License
 
-Free software, released under [MPL-2.0](./LICENSE) like the editor itself: use it, study it, fork it, embed it in whatever you're building, closed source included. The one string attached: if you change this plugin's own files, you share those changes under the same license.
+Aragonite and its first party plugins are free software, released under [MPL-2.0](./LICENSE): use it, study it, fork it, embed it in whatever you're building, closed source included. The one string attached: if you change the lib/plugin's files, you share those changes under the same license.
