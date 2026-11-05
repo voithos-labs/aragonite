@@ -2431,7 +2431,7 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 	}
 ];
 
-// ── G4.251 no bundled block draws its reveal in Svelte ─────────────────────
+// ── G4.251 no bundled block builds its rendered view in Svelte ─────────────
 
 const MOVES_TO_BLOCK_VIEW = 'moves to `defineBlockView` with the plugin interface redesign';
 const REVEAL_IN_SVELTE: FileRule = {
