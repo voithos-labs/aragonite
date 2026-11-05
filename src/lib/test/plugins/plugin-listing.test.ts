@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
 	GALLERY,
 	addedPackages,
@@ -7,6 +10,7 @@ import {
 	isEditorRange,
 	listingProblems,
 	partitionEntries,
+	publishedManifest,
 	readChecks,
 	readListing,
 	recordProblem,
@@ -19,6 +23,7 @@ import {
 	failedCells,
 	recordFrom,
 	recorded,
+	resultArtifact,
 	resultProblem
 } from '../../../../scripts/plugins/check-listing.mjs';
 import { writeGrants } from '../harness/workflow-grants';
@@ -154,6 +159,23 @@ describe('a pull request against the listing', () => {
 		expect(repositoryUrl('gitlab:someone/thing')).toBe('https://gitlab.com/someone/thing');
 	});
 
+	// npm answers the bare value when only one asked-for field exists, as `npm view aragonite keywords
+	// repository peerDependencies --json` does with its repository.
+	const npmLike =
+		(published: Record<string, unknown>) =>
+		(_spec: string, fields: string[]): unknown => {
+			const present = fields.filter((field) => field in published);
+			return present.length === 1
+				? published[present[0]]
+				: Object.fromEntries(present.map((field) => [field, published[field]]));
+		};
+
+	it('names the field a package lacks, even when npm has only one of them', () => {
+		const onlyKeywords = npmLike({ name: 'aragonite-a', keywords: ['aragonite-plugin'] });
+		const published = publishedManifest('aragonite-a', 'latest', onlyKeywords);
+		expect(registryProblem('aragonite-a', published)).toMatch(/repository/);
+	});
+
 	// An author who never edits the template's placeholder can't be listed with it.
 	it("refuses the template's repository placeholder", () => {
 		const template = JSON.parse(readFileSync(`${TEMPLATE_DIR}/package.json`, 'utf8'));
@@ -178,6 +200,11 @@ describe('recording a check', () => {
 		failures: null,
 		...extra
 	});
+	/** A result as the recorder finds it, in the artifact its own package uploads. */
+	const arrival = (extra: Record<string, unknown> = {}) => {
+		const value = result(extra);
+		return { artifact: resultArtifact(value.package as string), result: value };
+	};
 
 	it('names each broken cell by its kind, or the first problem when no cell broke', () => {
 		expect(failedCells(failure)).toEqual(['memo: rawWrite', 'box: ancestry']);
@@ -208,8 +235,8 @@ describe('recording a check', () => {
 			['aragonite-a', 'aragonite-b', 'aragonite-c'],
 			{ 'aragonite-c': record({ editor: '0.11.0' }) },
 			[
-				result({ result: 'fail', failures: failure }),
-				result({ package: 'aragonite-b', version: null, result: 'out-of-range' })
+				arrival({ result: 'fail', failures: failure }),
+				arrival({ package: 'aragonite-b', version: null, result: 'out-of-range' })
 			],
 			manifestOf
 		);
@@ -225,9 +252,41 @@ describe('recording a check', () => {
 		expect(asked).toEqual(['aragonite-a@1.0.0', 'aragonite-b@latest']);
 	});
 
-	it('refuses a result for a package nobody listed, or one whose manifest lost its keyword', () => {
-		expect(() => recorded([], {}, [result()], () => manifest())).toThrow(/doesn't hold/);
+	it('refuses a result no single listed package uploads, or one whose manifest lost its keyword', () => {
+		expect(() => recorded([], {}, [arrival()], () => manifest())).toThrow(/no listed package/);
+		// Two names the artifact spelling can't tell apart.
+		const twins = ['@a_b/c', '@a/b_c'];
+		expect(() => recorded(twins, {}, [arrival({ package: '@a/b_c' })], () => manifest())).toThrow(
+			/@a_b\/c and @a\/b_c/
+		);
 		expect(() => recordFrom(result(), manifest({ keywords: [] }))).toThrow(/keyword/);
+	});
+
+	// The plugin's own code runs in the job that writes its result file, so the file can't vouch for
+	// whose result it is.
+	it('records a result under the package whose artifact it came in, and refuses one naming another', () => {
+		const results = mkdtempSync(path.join(tmpdir(), 'aragonite-results-'));
+		const file = path.join(results, 'plugin-check--voithos-labs_aragonite-latex.json');
+		const recordOne = (extra: Record<string, unknown>) => {
+			writeFileSync(
+				file,
+				JSON.stringify(result({ version: '0.11.5', editor: '0.11.5', ...extra }))
+			);
+			return spawnSync(
+				process.execPath,
+				['scripts/plugins/check-listing.mjs', '--results', results, '--dry-run'],
+				{ encoding: 'utf8', timeout: 60_000 }
+			);
+		};
+		try {
+			const own = recordOne({ package: '@voithos-labs/aragonite-latex' });
+			expect(own.status, own.stderr).toBe(0);
+			const forged = recordOne({ package: '@voithos-labs/aragonite-toc' });
+			expect(forged.status).toBe(1);
+			expect(forged.stderr).toMatch(/holds a result for @voithos-labs\/aragonite-toc/);
+		} finally {
+			rmSync(results, { recursive: true, force: true });
+		}
 	});
 
 	it('shows each recorded result in the gallery, and no row for a name not checked yet', () => {
@@ -268,6 +327,20 @@ describe('the workflows that run a plugin', () => {
 			'uses: actions/download-artifact'
 		]);
 		expect(job.indexOf('uses:')).toBeLessThan(job.indexOf('aragonite-plugin-check'));
+	});
+
+	// The recorder can tell whose result a file is only by the artifact it came in.
+	it('names each result artifact the way the recorder reads it back', () => {
+		const tr = /artifact="plugin-check-\$\(echo "\$NAME" \| tr '([^']+)' '([^']+)'\)"/.exec(check);
+		const [from, to] = [tr?.[1] ?? '', tr?.[2] ?? ''];
+		const name = '@someone/aragonite-thing';
+		const spelled = [...name].map((c) => (from.includes(c) ? to[from.indexOf(c)] : c)).join('');
+		expect(resultArtifact(name)).toBe(`plugin-check-${spelled}`);
+		expect(check).toContain('path: ${{ runner.temp }}/${{ steps.artifact.outputs.name }}.json');
+		// One artifact alone downloads without its own folder, so every result lands in one folder.
+		expect(read('plugin-listing.yml')).toMatch(
+			/pattern: plugin-check-\*\n\s+path: results\n(\s+#.*\n)*\s+merge-multiple: true\n/
+		);
 	});
 
 	it('installs the plugin with its install scripts off', () => {

@@ -110,7 +110,8 @@ jobs:
       package: ${{ matrix.package }}@latest
       editor: ${{ needs.entries.outputs.editor != '' && format('@voithos-labs/aragonite@{0}', needs.entries.outputs.editor) || '' }}
 
-  # Runs none of a plugin's code: it validates each result file before recording it.
+  # Runs none of a plugin's code: it validates each result file, and refuses one naming a package
+  # other than the one whose artifact it came in.
   record:
     needs: [entries, check-bundled, check-outside]
     if: always() && github.event_name == 'workflow_dispatch' && needs.entries.result == 'success'
@@ -131,6 +132,8 @@ jobs:
         with:
           pattern: plugin-check-*
           path: results
+          # One folder whether one artifact matches or many (one alone skips the per-artifact folder).
+          merge-multiple: true
       - run: node scripts/plugins/check-listing.mjs --results results
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

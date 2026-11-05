@@ -26,7 +26,7 @@ const RESULTS = ['pass', 'fail', 'out-of-range'];
  * its own manifest, and what the check found on which editor release.
  * @typedef {{ version: string | null, repository: string, peer: string, editor: string, result: 'pass' | 'fail' | 'out-of-range', failures?: string[] }} CheckRecord
  * @typedef {Record<string, CheckRecord>} Checks
- * @typedef {{ keywords?: string[], repository?: string | { url?: string }, peerDependencies?: Record<string, string> }} PublishedManifest
+ * @typedef {{ name?: string, keywords?: string[], repository?: string | { url?: string }, peerDependencies?: Record<string, string> }} PublishedManifest
  */
 
 // ── The schema ───────────────────────────────────────────────────────────────
@@ -215,21 +215,31 @@ export function registryProblem(name, published) {
 }
 
 /**
+ * `npm view <spec> <fields> --json`, parsed.
+ * @param {string} spec An npm spec already held to the listing's shape.
+ * @param {string[]} fields
+ * @returns {unknown}
+ */
+const npmView = (spec, fields) =>
+	JSON.parse(execSync(`npm view "${spec}" ${fields.join(' ')} --json`, { encoding: 'utf8' }));
+
+/**
  * The manifest `name` publishes at `version`: a bundled plugin's from this checkout, since its
  * release may not be on npm yet, anyone else's from npm.
  * @param {string} name An npm name, already held to the listing's shape.
  * @param {string} [version] A version, or `latest`.
+ * @param {(spec: string, fields: string[]) => unknown} [view] How npm is asked; tests stand in for it.
  * @returns {PublishedManifest}
  */
-export function publishedManifest(name, version = 'latest') {
+export function publishedManifest(name, version = 'latest', view = npmView) {
 	const local = pluginPackages().find(({ manifest }) => manifest.name === name)?.manifest;
 	if (local) return local;
 	if (!NPM_NAME.test(name) || !(version === 'latest' || VERSION.test(version)))
 		throw new Error(`no npm spec: ${name}@${version}`);
-	return JSON.parse(
-		execSync(`npm view "${name}@${version}" keywords repository peerDependencies --json`, {
-			encoding: 'utf8'
-		})
+	// With one asked-for field present npm answers its bare value; every package has a `name`, so
+	// asking for it too keeps the answer a manifest.
+	return /** @type {PublishedManifest} */ (
+		view(`${name}@${version}`, ['name', 'keywords', 'repository', 'peerDependencies'])
 	);
 }
 

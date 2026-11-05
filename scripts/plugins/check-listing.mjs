@@ -87,24 +87,36 @@ export function recordFrom(result, published) {
 }
 
 /**
- * `checks` with each result recorded under its package; a result for no listed package is an
- * error, since a check can only report what the listing asked for.
+ * The artifact `plugin-check.yml` uploads a package's result in, named before the plugin's code
+ * runs: its `upload` job's `tr '@/' '-_'`.
+ * @param {string} name
+ */
+export const resultArtifact = (name) =>
+	`plugin-check-${name.replaceAll('@', '-').replaceAll('/', '_')}`;
+
+/**
+ * `checks` with each result recorded under the listed package whose artifact it arrived in. The
+ * file itself was written beside the plugin's code, so a result naming another package, or an
+ * artifact no single listed package uploads, is an error.
  * @param {string[]} names
  * @param {Checks} checks
- * @param {CheckResult[]} results
+ * @param {{ artifact: string, result: CheckResult }[]} arrivals
  * @param {(name: string, version: string) => PublishedManifest} manifestOf
  * @returns {Checks}
  */
-export function recorded(names, checks, results, manifestOf) {
+export function recorded(names, checks, arrivals, manifestOf) {
 	const next = { ...checks };
-	for (const result of results) {
-		if (!names.includes(result.package))
-			throw new Error(`a result for ${result.package}, which the listing doesn't hold`);
+	for (const { artifact, result } of arrivals) {
+		const owners = names.filter((name) => resultArtifact(name) === artifact);
+		if (owners.length !== 1)
+			throw new Error(
+				`${artifact} is the artifact of ${owners.join(' and ') || 'no listed package'}`
+			);
+		const [name] = owners;
+		if (result.package !== name)
+			throw new Error(`${artifact} holds a result for ${result.package}, not ${name}`);
 		// An out-of-range check installed nothing, so it read the newest version's manifest.
-		next[result.package] = recordFrom(
-			result,
-			manifestOf(result.package, result.version ?? 'latest')
-		);
+		next[name] = recordFrom(result, manifestOf(name, result.version ?? 'latest'));
 	}
 	return next;
 }
@@ -125,19 +137,23 @@ function main(argv) {
 
 	const resultsDir = option(argv, '--results');
 	if (!resultsDir) throw new Error('--results <dir> is required');
-	/** @type {CheckResult[]} */
-	const results = readdirSync(resultsDir, { recursive: true })
-		.map(String)
-		.filter((file) => file.endsWith('.json'))
-		.map((file) => {
-			const value = JSON.parse(readFileSync(path.join(resultsDir, file), 'utf8'));
-			const problem = resultProblem(value);
-			if (problem) throw new Error(`${file}: ${problem}`);
-			return value;
-		});
-	const checks = recorded(names, readChecks(), results, publishedManifest);
+	// The workflow downloads every artifact into one folder, each a single `<artifact>.json`.
+	const arrivals = readdirSync(resultsDir, { withFileTypes: true }).map((entry) => {
+		if (!entry.isFile() || !entry.name.endsWith('.json'))
+			throw new Error(
+				`${entry.name}: the results hold one <artifact>.json per check and nothing else`
+			);
+		const value = JSON.parse(readFileSync(path.join(resultsDir, entry.name), 'utf8'));
+		const problem = resultProblem(value);
+		if (problem) throw new Error(`${entry.name}: ${problem}`);
+		return {
+			artifact: entry.name.slice(0, -'.json'.length),
+			result: /** @type {CheckResult} */ (value)
+		};
+	});
+	const checks = recorded(names, readChecks(), arrivals, publishedManifest);
 	if (!argv.includes('--dry-run')) writeChecks(names, checks);
-	for (const result of results)
+	for (const { result } of arrivals)
 		console.log(`check-listing: ${result.package} ${result.result} on ${result.editor}`);
 }
 
