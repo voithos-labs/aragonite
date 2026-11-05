@@ -18,8 +18,6 @@ image-only paragraph leaves no empty line below its picture.
 
 ## Edge cases
 
-- A paragraph with text before/after an inline image is unaffected: text continues to flow normally rather than being forced into a flex row
-- A top-level image with no container marker around it keeps default block layout (no flex)
-- List item holding a wrapped image (`- [![pic](x)](url)`, `- *![pic](x)*`, and the strong/strikethrough equivalents): the item's marker is still held at the paragraph's top, even though the widget renders inside the wrapper rather than directly under the paragraph. Left on the picture's baseline, the marker sits at the picture's bottom
-- Inline markers (`*`, `[]()`, escape, hard break) inside an image-bearing list-item paragraph stay in normal flow: only the item's marker is held at the top
-- Inline markers in a non-list image paragraph stay in normal flow: a paragraph with no container marker gets none of this treatment at all
+- List item holding a wrapped image (`- [![pic](x)](url)`, `- *![pic](x)*`, and the strong/strikethrough equivalents): the item's marker is still held at the picture's top, though the picture sits inside the wrapper rather than directly in the paragraph. Left on the picture's baseline, the marker would sit at the picture's bottom
+- Inline markers (`*` and the rest) in a list item's paragraph that holds a picture stay in the text's flow: the rule that holds the item's marker at a picture's top reaches only that marker, which sits in a cell of its own
+- A picture paragraph outside any container gets none of this: there's no marker to place, and its inline markers stay in the text's flow
