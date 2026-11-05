@@ -210,6 +210,9 @@ const BOTH_HALVES = [SOURCE.publicBarrel, SOURCE.scanSource];
 const isTestFile = (file: SourceFile) => file.relPath.endsWith('.test.ts');
 const RUNE_CALL = /\$(?:state|derived|effect)\b(?:\.\w+)?\s*[(<]/;
 const DOM_ENVIRONMENT = /@vitest-environment\s+(?:jsdom|happy-dom)\b/;
+/** Vitest reads the environment only from the comments above a file's first statement. */
+const namesDomEnvironment = (file: SourceFile) =>
+	DOM_ENVIRONMENT.test(file.text.slice(0, file.code.search(/\S/)));
 
 const RULES: FileRule[] = [
 	{
@@ -550,13 +553,17 @@ const RULES: FileRule[] = [
 	{
 		id: 'G4.289 a test file that writes a rune runs in a DOM environment',
 		population: (file) => file.relPath.startsWith(SOURCE_DIR.unitTests) && isTestFile(file),
-		matches: (file) => RUNE_CALL.test(blankLiterals(file.code)) && !DOM_ENVIRONMENT.test(file.text),
+		matches: (file) => RUNE_CALL.test(blankLiterals(file.code)) && !namesDomEnvironment(file),
 		reason:
 			"a test file runs in Node unless it names an environment, and there Svelte's server build makes `$state` a plain value and never runs an `$effect.root` body, so nothing reactive is tested; put `// @vitest-environment jsdom` on its first line",
 		reaches: [SOURCE.contentVersionTest],
 		hits: [
 			at('src/lib/test/a.svelte.test.ts', rune('state', '[0, 1]')),
-			at('src/lib/test/b.svelte.test.ts', rune('effect.root', '() => {}'))
+			at('src/lib/test/b.svelte.test.ts', rune('effect.root', '() => {}')),
+			at(
+				'src/lib/test/f.svelte.test.ts',
+				`import { it } from 'vitest';\n// ${'@vitest-environment'} jsdom\n${rune('state', '1')}`
+			)
 		],
 		misses: [
 			at(
