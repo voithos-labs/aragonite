@@ -16,9 +16,11 @@ sessions with the screenshots on, for the visual review.
   the nested quote with no stranded `> >` or `>` line after it, which is the guard for the
   nested-quote exit fix
 - the project-plan note builds nested bullets, a nested ordered item, a task list, a two-paragraph
-  quote, a fenced code block and a resized picture. Its seed's range detour types over a
-  whole-document range that ends on the picture, and the letter lands beside the picture instead
-  of replacing the range (#817), so the row is an expected failure until that's fixed
+  quote, a fenced code block and a resized picture, all part of the end state. One of its seed's
+  detours is a Backspace over the whole note, a range that ends on that picture
+- #817: on the loaded project-plan note, Mod+A twice and a typed letter leave only that letter.
+  Today the letter lands after the picture that ends the note and the range stays, so the row is
+  an expected failure until that's fixed (a note that ends in text already gives the letter alone)
 
 ## Error cases
 

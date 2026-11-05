@@ -1,4 +1,4 @@
-import { test } from '../../fixtures';
+import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { runSession } from '../../simulation/user-simulator';
 import { OUTLINE_NOTE } from '../../simulation/notes/outline-note';
@@ -24,10 +24,20 @@ test.describe('note-taking simulation: diverse notes', () => {
 		await runSession(page, editor, { seed: 37, note: READING_NOTES_NOTE, capture: false });
 	});
 
-	test('#817: builds the structurally-deep project-plan note', async ({ page }) => {
-		// Its seed types over a whole-document range that ends on the picture, which inserts
-		// beside the picture instead of replacing the range.
+	test('builds the structurally-deep project-plan note', async ({ page }) => {
+		await runSession(page, editor, { seed: 29, note: PROJECT_PLAN_NOTE, capture: false });
+	});
+
+	test('#817: a letter typed over the whole project-plan note replaces it', async () => {
+		// Today the letter lands after the picture that ends the note, and the range stays.
 		test.fail();
-		await runSession(page, editor, { seed: 23, note: PROJECT_PLAN_NOTE, capture: false });
+		await editor.loadContent(PROJECT_PLAN_NOTE.expectedMarkdown);
+		await editor.clickBlock(0);
+		await editor.selectAll();
+		await editor.selectAll();
+		const before = await editor.bridge.getSource();
+		await editor.typeSlowly('Z');
+		await editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+		expect(await editor.bridge.getSource()).toBe('Z\n');
 	});
 });
