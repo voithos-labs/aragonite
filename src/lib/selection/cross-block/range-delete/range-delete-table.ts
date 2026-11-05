@@ -22,7 +22,7 @@ import { cellIndexOf } from '../../primitives';
 import {
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
-	renumberAfterDeletion,
+	finishPlannedDeletion,
 	truncateEndInPlace,
 	truncateStartInPlace
 } from './range-delete-ceremony';
@@ -119,7 +119,7 @@ export function tableAwareRangeDelete(
 			'tableAwareRangeDelete:start'
 		);
 	}
-	renumberAfterDeletion(doc, plan);
+	finishPlannedDeletion(doc, plan, reading);
 
 	const tableRowSplices = [
 		...(startTable && startSplice ? [{ table: startTable, ...startSplice }] : []),

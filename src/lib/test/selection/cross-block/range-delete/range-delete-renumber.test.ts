@@ -76,8 +76,8 @@ const ROWS = [
 		source: '3. x\n4. y\n   1. a\n   2. b\n5. z\n',
 		start: at([0, 0, 0], 1),
 		end: at([0, 1, 1, 0, 0], 1),
-		joined: '3. x\n4. 1. b\n5. z\n',
-		whole: '3. x\n4. 1. \n   2. b\n5. z\n'
+		joined: '3. x\n   1. b\n4. z\n',
+		whole: '3. x\n   1. \n   2. b\n4. z\n'
 	}
 ];
 

@@ -28,7 +28,7 @@ import {
 	applyPlannedDeletion,
 	installSurvivor,
 	planCrossBlockDeletion,
-	renumberAfterDeletion
+	finishPlannedDeletion
 } from './range-delete-ceremony';
 import { clearGridCells, keepsTableEdge, tableAwareRangeDelete } from './range-delete-table';
 import { involvesReservedChrome, unjoinedRangeDelete } from './range-delete-chrome';
@@ -183,7 +183,7 @@ function joinedRangeDelete(
 	// there before.
 	const consumed = startRaw + endBlock.raw;
 	const shift = installSurvivor(doc, start.path, startBlock, joined.raw, consumed, scope, reading);
-	renumberAfterDeletion(doc, plan);
+	finishPlannedDeletion(doc, plan, reading);
 
 	// The reparse can turn the survivor into a container (a list marker joined to text), whose own
 	// element holds no caret, so the join point resolves to the leaf that holds it.
