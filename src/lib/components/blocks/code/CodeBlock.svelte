@@ -59,7 +59,7 @@
 	import { isInlineFormatCommand } from '../../../schema/built-in-descriptors';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
-	import { writeClipboardText } from '../../../editor-actions/system-clipboard';
+	import { copyBlockToClipboard } from '../../../editor-actions/system-clipboard';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -297,7 +297,7 @@
 	}
 
 	// A refused write reports nothing copied.
-	const copyBody = (): Promise<boolean> => writeClipboardText(trimTrailingLineEnding(bodyText()));
+	const copyBody = (): Promise<boolean> => copyBlockToClipboard(bodyText());
 
 	// What the language chip writes: the opener's info string, through the surface's write so the
 	// fence rule runs over it, kept apart so no typing on either side joins its undo entry.
