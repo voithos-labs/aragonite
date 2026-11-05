@@ -2,45 +2,62 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
 	GALLERY,
-	changedPackages,
+	addedPackages,
+	checksProblems,
 	isEditorRange,
 	listingProblems,
 	partitionEntries,
+	readChecks,
 	readListing,
+	recordProblem,
 	registryProblem,
 	renderTable,
+	repositoryUrl,
 	withTable
 } from '../../../../scripts/plugins/listing.mjs';
 import {
 	failedCells,
+	recordFrom,
 	recorded,
-	resultProblem,
-	verifiedFrom
+	resultProblem
 } from '../../../../scripts/plugins/check-listing.mjs';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { TEMPLATE_DIR, pluginPackages } from '../../../../scripts/workspace.mjs';
 
-const entry = (name: string, extra: Record<string, unknown> = {}) => ({
-	package: name,
+const CORE = '@voithos-labs/aragonite';
+
+/** A manifest as npm answers it for a plugin that may be listed. */
+const manifest = (extra: Record<string, unknown> = {}) => ({
+	keywords: ['aragonite-plugin'],
+	repository: { type: 'git', url: 'git+https://github.com/someone/aragonite-thing.git' },
+	peerDependencies: { [CORE]: '^0.12.0' },
+	...extra
+});
+
+const record = (extra: Record<string, unknown> = {}) => ({
+	version: '1.0.0',
 	repository: 'https://github.com/someone/aragonite-thing',
-	editor: '^0.12.0',
-	verified: null,
+	peer: '^0.12.0',
+	editor: '0.12.0',
+	result: 'pass',
 	...extra
 });
 
 describe('the listing on this tree', () => {
 	it('holds its shape and lists every bundled plugin', () => {
-		const entries = readListing();
-		expect(listingProblems(entries)).toEqual([]);
-		expect(entries.map((e) => e.package)).toEqual(
-			bundledPluginDirs().map((dir) => `@voithos-labs/aragonite-${dir}`)
-		);
+		const names = readListing();
+		expect(listingProblems(names)).toEqual([]);
+		expect(names).toEqual(bundledPluginDirs().map((dir) => `@voithos-labs/aragonite-${dir}`));
 	});
 
-	it('the gallery table is the one the listing renders', async () => {
+	it("holds a check's record for listed plugins only, each in its shape", () => {
+		expect(checksProblems(readChecks(), readListing())).toEqual([]);
+	});
+
+	it('the gallery table is the one the listing and its records render', () => {
 		const page = readFileSync(GALLERY, 'utf8');
 		expect(
-			await withTable(page, readListing()),
+			withTable(page, readListing(), readChecks()),
 			'run node scripts/plugins/listing.mjs --write'
 		).toBe(page);
 	});
@@ -55,25 +72,30 @@ describe('the listing on this tree', () => {
 
 describe('the listing schema', () => {
 	it.each([
-		['an npm name it can not be', [entry('Not A Name')]],
-		[
-			'a repository that is no https URL',
-			[entry('aragonite-a', { repository: 'git@github.com:a/b' })]
-		],
-		['an editor range npm would not read', [entry('aragonite-a', { editor: 'latest' })]],
-		['a field the schema does not know', [entry('aragonite-a', { stars: 5 })]],
-		[
-			'a missing verified field',
-			[{ package: 'aragonite-a', repository: entry('x').repository, editor: '1.0.0' }]
-		],
-		[
-			'a failed result without its cells',
-			[entry('aragonite-a', { verified: { editor: '0.12.0', plugin: '1.0.0', result: 'fail' } })]
-		],
-		['an entry listed twice', [entry('aragonite-a'), entry('aragonite-a')]],
-		['entries out of order', [entry('aragonite-b'), entry('aragonite-a')]]
-	])('refuses %s', (_, entries) => {
-		expect(listingProblems(entries)).toHaveLength(1);
+		['an npm name it can not be', ['Not A Name']],
+		['an entry that is no name', [{ package: 'aragonite-a' }]],
+		['a name listed twice', ['aragonite-a', 'aragonite-a']],
+		['names out of order', ['aragonite-b', 'aragonite-a']]
+	])('refuses %s', (_, names) => {
+		expect(listingProblems(names)).toHaveLength(1);
+	});
+
+	it.each([
+		['a repository that is no https URL', record({ repository: 'git@github.com:a/b' })],
+		['a peer range npm would not read', record({ peer: 'latest' })],
+		['an editor that is a range, not the release checked', record({ editor: '^0.12.0' })],
+		['a field the record does not know', record({ stars: 5 })],
+		['a failed result without its cells', record({ result: 'fail' })]
+	])('refuses a record with %s', (_, problem) => {
+		expect(recordProblem(record())).toBeNull();
+		expect(recordProblem(problem)).not.toBeNull();
+	});
+
+	it('refuses a record for a package the listing no longer holds', () => {
+		expect(checksProblems({ 'aragonite-a': record() }, ['aragonite-a'])).toEqual([]);
+		expect(checksProblems({ 'aragonite-a': record() }, [])).toEqual([
+			"aragonite-a has a record but isn't listed; run node scripts/plugins/listing.mjs --write"
+		]);
 	});
 
 	it('reads the ranges an author writes', () => {
@@ -85,36 +107,56 @@ describe('the listing schema', () => {
 });
 
 describe('a pull request against the listing', () => {
-	it('checks the entries it adds or changes, and none it leaves alone', () => {
-		const before = [entry('aragonite-a'), entry('aragonite-b')];
-		const after = [
-			entry('aragonite-a'),
-			entry('aragonite-b', { editor: '^0.13.0' }),
-			entry('aragonite-c')
-		];
-		expect(changedPackages(before, after)).toEqual(['aragonite-b', 'aragonite-c']);
+	it('checks the names it adds, and none it leaves alone or takes away', () => {
+		expect(addedPackages(['aragonite-a', 'aragonite-b'], ['aragonite-a', 'aragonite-c'])).toEqual([
+			'aragonite-c'
+		]);
 	});
 
 	// The release pull request lists bundled plugins npm doesn't have yet, so none may go to npm.
 	it('checks every bundled plugin from the packed tarballs and only the rest from npm', () => {
-		const names = readListing().map((e) => e.package);
-		expect(partitionEntries([...names, 'aragonite-memo'], pluginPackages())).toEqual({
+		expect(partitionEntries([...readListing(), 'aragonite-memo'], pluginPackages())).toEqual({
 			bundled: bundledPluginDirs(),
 			outside: ['aragonite-memo']
 		});
 	});
 
-	it('wants the plugin keyword and the same repository on npm', () => {
-		const listed = entry('aragonite-a');
-		const repository = { url: 'git+https://github.com/someone/aragonite-thing.git' };
-		expect(registryProblem(listed, { keywords: ['aragonite-plugin'], repository })).toBeNull();
-		expect(registryProblem(listed, { keywords: [], repository })).toMatch(/keyword/);
-		expect(
-			registryProblem(listed, {
-				keywords: ['aragonite-plugin'],
-				repository: 'https://github.com/other/fork'
-			})
-		).toContain('names https://github.com/other/fork on npm');
+	it.each([
+		['the plugin keyword', manifest({ keywords: [] }), /keyword/],
+		['a repository', manifest({ repository: undefined }), /repository/],
+		[
+			'a repository the gallery can link',
+			manifest({ repository: 'https://example.com/x' }),
+			/repository/
+		],
+		['a peer on the editor', manifest({ peerDependencies: {} }), /peer/],
+		['a peer range npm reads', manifest({ peerDependencies: { [CORE]: 'next' } }), /peer/]
+	])('wants %s in the package npm has', (_, published, problem) => {
+		expect(registryProblem('aragonite-a', manifest())).toBeNull();
+		expect(registryProblem('aragonite-a', published)).toMatch(problem);
+	});
+
+	it('reads the repository in any spelling npm accepts', () => {
+		const url = 'https://github.com/someone/thing';
+		for (const spelling of [
+			url,
+			`${url}/`,
+			'git+https://github.com/someone/thing.git',
+			'git+ssh://git@github.com/someone/thing.git',
+			'git@github.com:someone/thing.git',
+			'github:someone/thing',
+			'someone/thing'
+		]) {
+			expect(repositoryUrl({ url: spelling }), spelling).toBe(url);
+			expect(repositoryUrl(spelling), spelling).toBe(url);
+		}
+		expect(repositoryUrl('gitlab:someone/thing')).toBe('https://gitlab.com/someone/thing');
+	});
+
+	// An author who never edits the template's placeholder can't be listed with it.
+	it("refuses the template's repository placeholder", () => {
+		const template = JSON.parse(readFileSync(`${TEMPLATE_DIR}/package.json`, 'utf8'));
+		expect(repositoryUrl(template.repository)).toBeNull();
 	});
 });
 
@@ -127,6 +169,14 @@ describe('recording a check', () => {
 		'  - container conformance failed for "box":\n' +
 		'      - ancestry: stale\n' +
 		'        breaks: an edit deep inside rebuilds every container above it (plugin-testing.md#y)';
+	const result = (extra: Record<string, unknown> = {}) => ({
+		package: 'aragonite-a',
+		version: '1.0.0',
+		editor: '0.12.0',
+		result: 'pass',
+		failures: null,
+		...extra
+	});
 
 	it('names each broken cell by its kind, or the first problem when no cell broke', () => {
 		expect(failedCells(failure)).toEqual(['memo: rawWrite', 'box: ancestry']);
@@ -136,50 +186,62 @@ describe('recording a check', () => {
 	});
 
 	it('refuses a result file that is not a check result, since a plugin ran in the job that wrote it', () => {
-		const pass = {
-			package: 'aragonite-a',
-			version: '1.0.0',
-			editor: '0.12.0',
-			result: 'pass',
-			failures: null
-		};
-		expect(resultProblem(pass)).toBeNull();
-		expect(resultProblem({ ...pass, result: 'verified!' })).toMatch(/unknown result/);
-		expect(resultProblem({ ...pass, editor: '^0.12.0' })).toMatch(/editor/);
-		expect(resultProblem({ ...pass, result: 'fail' })).toMatch(/failures/);
+		expect(resultProblem(result())).toBeNull();
+		expect(resultProblem(result({ result: 'verified!' }))).toMatch(/unknown result/);
+		expect(resultProblem(result({ editor: '^0.12.0' }))).toMatch(/editor/);
+		expect(resultProblem(result({ version: '1.0.0" && curl x' }))).toMatch(/version/);
+		expect(resultProblem(result({ result: 'fail' }))).toMatch(/failures/);
 	});
 
-	it('writes each result onto its entry and refuses one for a package nobody listed', () => {
-		const result = {
-			package: 'aragonite-a',
-			version: '1.0.0',
-			editor: '0.12.0',
-			result: 'fail',
-			failures: failure
+	it('records each result beside the repository and peer range its own manifest names', () => {
+		const asked: string[] = [];
+		const manifestOf = (name: string, version: string) => {
+			asked.push(`${name}@${version}`);
+			return manifest({
+				repository: 'github:someone/moved',
+				peerDependencies: { [CORE]: '>=0.11.0' }
+			});
 		};
-		const [written] = recorded([entry('aragonite-a')], [result]);
-		expect(written.verified).toEqual(verifiedFrom(result));
-		expect(written.verified?.failures).toEqual(['memo: rawWrite', 'box: ancestry']);
-		expect(() => recorded([entry('aragonite-a')], [{ ...result, package: 'aragonite-z' }])).toThrow(
-			/doesn't hold/
+		const fromManifest = { repository: 'https://github.com/someone/moved', peer: '>=0.11.0' };
+		const checks = recorded(
+			['aragonite-a', 'aragonite-b', 'aragonite-c'],
+			{ 'aragonite-c': record({ editor: '0.11.0' }) },
+			[
+				result({ result: 'fail', failures: failure }),
+				result({ package: 'aragonite-b', version: null, result: 'out-of-range' })
+			],
+			manifestOf
 		);
+
+		expect(checks['aragonite-a']).toEqual(
+			record({ ...fromManifest, result: 'fail', failures: ['memo: rawWrite', 'box: ancestry'] })
+		);
+		expect(checks['aragonite-b']).toEqual(
+			record({ ...fromManifest, version: null, result: 'out-of-range' })
+		);
+		expect(checks['aragonite-c'].editor).toBe('0.11.0');
+		// An out-of-range check installed nothing, so the newest version's manifest speaks for it.
+		expect(asked).toEqual(['aragonite-a@1.0.0', 'aragonite-b@latest']);
 	});
 
-	it('shows each result in the gallery as what the check found on which release', () => {
-		const rows = renderTable([
-			entry('aragonite-a', { verified: { editor: '0.12.0', plugin: '1.0.0', result: 'pass' } }),
-			entry('aragonite-b', {
-				verified: { editor: '0.12.0', plugin: null, result: 'out-of-range' }
-			}),
-			entry('aragonite-c', {
-				verified: { editor: '0.12.0', plugin: '1.0.0', result: 'fail', failures: ['c: undo'] }
-			}),
-			entry('aragonite-d')
-		]);
-		expect(rows).toContain('passed on 0.12.0');
-		expect(rows).toContain('not checked on 0.12.0: its peer range leaves it out');
-		expect(rows).toContain('failed on 0.12.0 (c: undo)');
-		expect(rows).toContain('not checked yet');
+	it('refuses a result for a package nobody listed, or one whose manifest lost its keyword', () => {
+		expect(() => recorded([], {}, [result()], () => manifest())).toThrow(/doesn't hold/);
+		expect(() => recordFrom(result(), manifest({ keywords: [] }))).toThrow(/keyword/);
+	});
+
+	it('shows each recorded result in the gallery, and no row for a name not checked yet', () => {
+		const table = renderTable(['aragonite-a', 'aragonite-b', 'aragonite-c', 'aragonite-d'], {
+			'aragonite-a': record(),
+			'aragonite-b': record({ version: null, result: 'out-of-range' }),
+			'aragonite-c': record({ result: 'fail', failures: ['c: undo'] })
+		});
+		expect(table).toContain(
+			'| [repository](https://github.com/someone/aragonite-thing) | `^0.12.0` |'
+		);
+		expect(table).toContain('passed on 0.12.0');
+		expect(table).toContain('not checked on 0.12.0: its peer range leaves it out');
+		expect(table).toContain('failed on 0.12.0 (c: undo)');
+		expect(table).not.toContain('aragonite-d');
 	});
 });
 

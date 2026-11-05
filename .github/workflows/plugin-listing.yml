@@ -1,9 +1,10 @@
 name: Plugin listing
-# The plugin gallery's listing (docs/guide/plugin-gallery/listing.json). On a pull request that
-# adds or changes an entry: check its shape and that the package carries the plugin keyword and
-# names the entry's repository, then run the plugin check over it. On a manual run: check every
-# entry and upload the listing with the results recorded, for the release cut to commit. A bundled
-# plugin is checked from tarballs packed in the same run, since its release may not be on npm yet.
+# The plugin gallery's listing (docs/guide/plugin-gallery/listing.json, package names). On a pull
+# request that adds a name: check the listing's shape and that npm's copy of the package carries
+# the plugin keyword, a repository and a peer range on the editor, then run the plugin check over
+# it. On a manual run: check every listed plugin and upload what each check found (checks.json and
+# the gallery table), for the release cut to commit. A bundled plugin is checked from tarballs
+# packed in the same run, since its release may not be on npm yet.
 #
 # The plugin checks run third-party code, so they run with no permissions and no secrets, install
 # with --ignore-scripts (inside plugin-check.yml), and nothing here uses pull_request_target or
@@ -135,6 +136,6 @@ jobs:
         with:
           name: plugin-listing
           path: |
-            docs/guide/plugin-gallery/listing.json
+            docs/guide/plugin-gallery/checks.json
             docs/guide/plugin-gallery.md
           retention-days: 30

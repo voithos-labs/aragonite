@@ -97,4 +97,4 @@ git push --follow-tags
 
 ## Getting listed
 
-The [plugin gallery](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-gallery.md) lists plugins people can find and trust a little more: a pull request adds your package, and the editor checks it on every release. The page says what that check means and what it doesn't.
+The [plugin gallery](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-gallery.md) lists plugins people can find and trust a little more: a pull request adds your package's name (one line), and the editor checks it on every release. The page says what that check means and what it doesn't.
