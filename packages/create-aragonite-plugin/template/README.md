@@ -22,7 +22,9 @@ The playground is `index.html` plus `dev/main.ts`: the editor with your plugin, 
 
 ## Put it on GitHub
 
-The CI in `.github/workflows/` runs on GitHub, so the folder wants a repository there. Make an empty one on GitHub (no README or license, this folder has both), then from the folder:
+The CI in `.github/workflows/` runs on GitHub, so the folder wants a repository there. Pick its name first and swap `<you>/<your-repo>` in `package.json`'s `repository` for it: npm checks that field against the repository a release comes from (see [Publish](#publish)), and the plugin gallery links to it.
+
+Then make the repository on GitHub, empty (no README or license, this folder has both), and push from the folder:
 
 ```bash
 git init
@@ -34,8 +36,6 @@ git push -u origin main
 ```
 
 Got the GitHub CLI? After the commit, `gh repo create <your-repo> --public --source . --push` makes the repository and pushes in one go.
-
-Then swap `<you>/<your-repo>` in `package.json`'s `repository` for yours. npm checks it against the repository a release comes from (see [Publish](#publish)), and the plugin gallery links to it.
 
 ## Make it yours
 
