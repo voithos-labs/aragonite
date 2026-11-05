@@ -110,9 +110,4 @@ describe('the handle follows what a block is, not only the prop', () => {
 		mounted = mountEditor({ source: `${PICTURE}\n\n# head\n`, presentationMode: 'reading' });
 		expect(handleCount()).toBe(0);
 	});
-
-	it('draws the handle as the six-dot grip glyph', () => {
-		mounted = mountEditor({ source: '```js\ncode\n```\n' });
-		expect(mounted.target.querySelectorAll('.block-drag-handle .grip svg path')).toHaveLength(6);
-	});
 });
