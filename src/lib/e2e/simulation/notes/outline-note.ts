@@ -59,11 +59,16 @@ export const OUTLINE_NOTE: NoteFixture = {
 		'\n' +
 		'## Observations\n' +
 		'\n' +
+		// Nesting an empty item writes a blank line above it, so each sublist typed that way reads
+		// loose (`docs/design/syntax-tree.md` § Where the separators get fixed up).
 		'- Canopy layer\n' +
+		'\n' +
 		'  - Light filters through gaps\n' +
+		'\n' +
 		'    - Epiphytes cluster on high branches\n' +
 		'  - Birdsong dominates at dawn\n' +
 		'- Understory layer\n' +
+		'\n' +
 		'  - Ferns and saplings compete for light\n' +
 		'\n' +
 		'Detail captured at every depth.\n'
