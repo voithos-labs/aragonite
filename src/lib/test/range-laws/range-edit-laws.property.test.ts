@@ -48,6 +48,7 @@ afterEach(async () => {
 describe('the range-edit laws hold, save the known violations', () => {
 	for (const spec of LAW_SPECS) {
 		it(`${spec.law} ${spec.name}`, async () => {
+			const examples = (spec.examples ?? []).map((args) => [args] as [unknown]);
 			await fc.assert(
 				fc.asyncProperty(spec.arb, async (args) => {
 					try {
@@ -58,7 +59,8 @@ describe('the range-edit laws hold, save the known violations', () => {
 						takeDevWarns();
 					}
 				}),
-				{ numRuns: RUNS[spec.law], seed: SEED }
+				// A fixed draw takes one of the runs, so the random ones stay the seed's first few.
+				{ numRuns: RUNS[spec.law] + examples.length, seed: SEED, examples }
 			);
 		}, 60_000);
 	}
