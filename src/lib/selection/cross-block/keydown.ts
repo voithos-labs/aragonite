@@ -22,7 +22,12 @@ import {
 	runsOnItsBlock,
 	type CommandDispatchContext
 } from '../../schema/block-commands';
-import { chordsBoundTo, commandForKey } from '../../schema/commands';
+import {
+	chordsBoundTo,
+	commandForKey,
+	containerMayBind,
+	resolveKindBinding
+} from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
 import { rangeIndentCommands } from '../../schema/range-indent-forms';
 import {
@@ -310,7 +315,22 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	const bound = boundCommand(e, reads);
 	if (bound) return runsAfterRemoval(bound, reads) ? 'command' : null;
 	// At its keydown, since beside a widget with no text node an engine sends no `beforeinput`.
-	return typesCharacter(e) ? 'type' : null;
+	return typesCharacter(e) && !containerBindsKey(e, reads) ? 'type' : null;
+}
+
+/** Whether a container holding the range's focus binds the key: the block's container walk runs
+ *  it after the block's own keys, as at a caret. */
+function containerBindsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	const chord = eventToChord(e);
+	const focus = reads.selection.focus;
+	const overrides = reads.commands.keybindingOverrides();
+	if (!chord || !focus || !containerMayBind(chord, overrides)) return false;
+	const doc = reads.getDoc();
+	for (let depth = focus.path.length - 1; depth >= 1; depth--) {
+		const container = blockNodeAt(doc, focus.path.slice(0, depth));
+		if (container && resolveKindBinding(chord, container.kind, overrides)) return true;
+	}
+	return false;
 }
 
 /** Backspace and Delete, which remove the range. */

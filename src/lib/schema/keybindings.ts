@@ -262,9 +262,12 @@ export function typesCharacter(
 	e: ChordKeys & Partial<Pick<KeyboardEvent, 'getModifierState'>>
 ): boolean {
 	if (!isCharacterKey(e.key) || e.metaKey) return false;
-	if (e.getModifierState?.('AltGraph')) return true;
+	if (!e.ctrlKey && !e.altKey) return true;
 	const mac = usesMacEditingConventions();
-	return e.ctrlKey ? e.altKey && !mac : !e.altKey || mac;
+	// Ctrl on a Mac is a command, whatever AltGr state an engine reports beside it.
+	if (e.ctrlKey && mac) return false;
+	if (e.getModifierState?.('AltGraph')) return true;
+	return e.ctrlKey ? e.altKey : mac;
 }
 
 export function normalizeChord(chord: string): string {

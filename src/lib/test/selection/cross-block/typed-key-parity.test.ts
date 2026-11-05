@@ -3,16 +3,31 @@
 // range's typing key both read `typesCharacter`, so every key a block would write, the range claims.
 // Miss-analysis: the range left typed keys to `beforeinput`, which an engine doesn't send beside a
 // widget with no text node, and no row pressed the same keys through the block and the range.
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
 import { typesCharacter } from '#lib/schema/keybindings.js';
 import {
 	decideTypedKey,
 	type TypedInsertReads
 } from '#lib/components/blocks/editable/typed-insert.js';
 import { rangeOwnsKey } from '#lib/selection/cross-block/keydown.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
+import { ADMONITION } from '#packages/admonitions/src/kinds.js';
+import type { PluginBlockKind } from '#lib/plugin.js';
+import type { PluginCommandId } from '#lib/schema/command-id.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor,
+	surfaceAt
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import { makeKeydownEnv } from './keydown-env';
 
-afterEach(() => vi.unstubAllGlobals());
+beforeAll(installLayoutStubs);
+afterEach(async () => {
+	await destroyMountedEditors();
+	vi.unstubAllGlobals();
+});
 
 const ALT_GRAPH = { modifierAltGraph: true } as KeyboardEventInit;
 
@@ -26,11 +41,12 @@ const SHAPES: [name: string, init: KeyboardEventInit, offMac: boolean, onMac: bo
 	['Meta and a letter', { key: 'a', metaKey: true }, false, false],
 	['Alt and a letter, a shortcut off a Mac', { key: 'a', altKey: true }, false, true],
 	['Option and the character it types', { key: 'å', altKey: true }, false, true],
+	// On a Mac Ctrl is a command whatever AltGr state an engine reports beside it.
 	[
 		'AltGr as Windows reports it',
 		{ key: '@', ctrlKey: true, altKey: true, ...ALT_GRAPH },
 		true,
-		true
+		false
 	],
 	['AltGr as Linux reports it', { key: '@', ...ALT_GRAPH }, true, true],
 	['Ctrl+Alt with no AltGr state', { key: '@', ctrlKey: true, altKey: true }, true, false],
@@ -94,5 +110,30 @@ describe('a chord the keymap binds over a range', () => {
 		env.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 2 });
 		await env.keydown.handleKeyDown(keydown({ key: 'g', ctrlKey: true, altKey: true }));
 		expect(env.source()).toBe('alpha\n\nbeta\n');
+	});
+
+	// Miss-analysis: the bound-chord row bound the leaf's keymap, and a container's binding is
+	// read by its own walk after the block's keys, which a typed range never reached.
+	it('runs a container’s command, as at a caret', async () => {
+		vi.stubGlobal('navigator', { platform: 'Win32' });
+		const editor = mountEditor({
+			source: ':::note\na1\n\nb2\n:::\n',
+			plugins: [admonitionsPlugin()],
+			keybindings: [
+				{
+					kind: ADMONITION as PluginBlockKind,
+					chord: 'Mod+Alt+7',
+					command: 'admonition.cycleKind' as PluginCommandId
+				}
+			]
+		});
+		await editor.settle();
+		await editor.instance.setSelection({
+			anchor: { path: [0, 1], offset: 1 },
+			focus: { path: [0, 2], offset: 1 }
+		});
+		await editor.settle();
+		await pressKey(surfaceAt(editor, [0, 2]), { key: '7', ctrlKey: true, altKey: true });
+		expect(editor.source()).toBe(':::tip\na1\n\nb2\n:::\n');
 	});
 });
