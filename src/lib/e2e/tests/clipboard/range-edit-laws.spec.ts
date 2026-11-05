@@ -3,6 +3,7 @@ import { EditorPage } from '../../editor-page';
 import { pointAtRaw } from '../../text-runs';
 import { attachIme } from '../../simulation/ime';
 import { isChromium } from '../../browser-engine';
+import { extendKey } from '../../platform-keys';
 import {
 	RANGE_LAW_CASES,
 	type CaseObserved,
@@ -36,9 +37,9 @@ async function select(editor: EditorPage, row: RangeLawCase): Promise<void> {
 			await editor.page.keyboard.down('Shift');
 			await editor.page.mouse.click(box.x + box.width + 30, box.y + box.height / 2);
 			await editor.page.keyboard.up('Shift');
-			// Firefox lands that click at the picture's start; Shift+End takes the end to the line's.
+			// Firefox lands that click at the picture's start; extending to the line's end finishes it.
 			if ((await editor.bridge.getSelection())?.focus.offset !== focus.offset) {
-				await editor.page.keyboard.press('Shift+End');
+				await editor.page.keyboard.press(extendKey('lineEnd'));
 			}
 		}
 	}
