@@ -4,8 +4,6 @@ Collapsible sections plugin for [aragonite](https://github.com/voithos-labs/arag
 
 ## What it reads
 
-The `<details>` block you'd write for GitHub:
-
 ```markdown
 <details>
 <summary>Spoilers</summary>

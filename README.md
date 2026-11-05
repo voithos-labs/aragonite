@@ -8,7 +8,7 @@
 
 This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extensible, fast, have a graceful ui/ux, and have a hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
 
-Note that aragonite is a work in progress [^3]. It's written in typescript and svelte [^4] [^5] [^6] [^7] (but usable in react, vue or plain js), and tested on chrome, edge, safari and firefox [^8].
+Note that aragonite is a work in progress [^3]. It's written in typescript and svelte [^4] [^5] [^6] [^7] (but usable in react, vue or plain js), and tested on chrome, edge, safari and firefox (as well as on linux, windows, macos, android, and ios) [^8].
 
 _What does it look like?_ Amazing of course:
 
@@ -204,7 +204,7 @@ Also, shipping a kind forces the boring questions up front: the registration typ
 
 This is the bet. Aragonite can't top Obsidian on plugin count (not in the short term, anyway), so it's trading count for quality. Against my three criteria: reach is the own-a-kind story above, and safety is the lossless promise pulling double duty. Ergonomics is the one I haven't argued yet: typescript end to end, one import path for the whole authoring surface (@voithos-labs/aragonite/plugin, plus /svelte if you draw your views in svelte, or the react and vue packages' helpers if you draw them in those), and a public testing seam so your plugin's tests aren't an afterthought.
 
-Does the design actually work in practice? Well, the ten bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, slash commands, and a party parrot) are built on the exact surface third parties get, so I would describe it as "so far, so good".
+Does the design actually work in practice? Well, the ten first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, slash commands, and a party parrot) are built on the exact surface third parties get (and they work pretty well), so I would describe it as "so far, so good".
 
 # Fast
 

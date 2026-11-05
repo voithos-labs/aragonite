@@ -4,7 +4,7 @@ Mermaid diagrams plugin for [aragonite](https://github.com/voithos-labs/aragonit
 
 ## What it reads
 
-Any code fence whose language is `mermaid`, backticks or tildes:
+Any code fence whose language is `mermaid`:
 
 ````markdown
 ```mermaid
@@ -19,7 +19,7 @@ flowchart LR
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-mermaid mermaid
 ```
 
-Btw, the plugin's version should match the editor's version. `mermaid` (11.16 and up, or 12) is optional and only there for the renderer below; leave out both and each diagram just shows its source.
+Btw, the plugin's version should match the editor's version.
 
 ## Use it
 

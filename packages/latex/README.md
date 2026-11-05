@@ -4,7 +4,7 @@ Math plugin for [aragonite](https://github.com/voithos-labs/aragonite).
 
 ## What it reads
 
-All three ways GitHub writes math:
+All three syntaxes:
 
 ````markdown
 Inline, between single dollars: $a^2 + b^2 = c^2$.
@@ -24,7 +24,7 @@ $$
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-latex katex
 ```
 
-Btw, the plugin's version should match the editor's version. `katex` (0.17 to 0.19) is optional and only there for the renderer below; skip both and each formula just shows its source.
+Btw, the plugin's version should match the editor's version.
 
 ## Use it
 

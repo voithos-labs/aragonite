@@ -4,14 +4,14 @@ Slash commands plugin for [aragonite](https://github.com/voithos-labs/aragonite)
 
 ## What it does
 
-Type `/` at the start of a line or after a space, and a list opens: every block the editor's right-click "Insert block" menu offers (your plugins' blocks included), then Heading 1 to 3. Typing narrows it by name or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it and leaves what you typed.
+Type `/` at the start of a line or after a space, and a list opens for all the blocks. Typing narrows it by name or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it.
 
 Note:
 
 - On an empty line, the block replaces the line. On a line with text, the `/query` goes and the block lands below, except a heading, which turns the line itself into one.
-- Two rows take a word after a space: `/code js` opens a code block tagged `js`, and `/table 3x4` makes a table three columns wide and four rows tall, header row included.
+- Two rows take a word after a space: `/code js` opens a code block tagged `js`, and `/table 3x4` makes a table three columns wide and four rows tall.
 
-What lands is plain Markdown, the same as if you'd typed it. The built-in rows, by id (the ids are what `exclude` below takes):
+The built-in rows, by id:
 
 | id               | Row            | Writes                                      |
 | ---------------- | -------------- | ------------------------------------------- |
@@ -56,7 +56,7 @@ const plugins = [
 ];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. There are two options, and you can skip both:
+Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. There are two options:
 
 - `entries` adds rows of your own, after the built-in ones. Each has an `id` and a `label` (an `icon` and `keywords` too, if you like), plus exactly one of `insert` (Markdown to drop in) or `run` (a function). Reuse a built-in id and your row shows instead of the built-in one.
 - `run` gets an `editor` to write through (`insertMarkdown`, as above), plus the word typed after a space if the row sets `takesArgument: true`. It can be async, and if it waits on something (a picker, a fetch), keep writing through that same `editor`, so a late answer can't land in another note.

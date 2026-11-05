@@ -4,11 +4,11 @@ Word highlighting plugin for [aragonite](https://github.com/voithos-labs/aragoni
 
 ## What it does
 
-Put the caret on a word and every place that word appears lights up, the one you're on included, like in a code editor. The highlights hide while you type and come back when you stop.
+Put the caret on a word and every place that word appears lights up, like in a code editor. The highlights hide while you type and come back when you stop.
 
 Note:
 
-- It matches whole words, exactly: `rock` doesn't light up `Rock` or `rocks`.
+- It matches whole words, exactly (`rock` doesn't light up `Rock` or `rocks`).
 - Code blocks and HTML blocks are skipped.
 
 ## Install
@@ -27,7 +27,7 @@ import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-oc
 const plugins = [highlightOccurrencesPlugin()];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. Then give the highlight a color, because the plugin doesn't pick one. Each match gets a see-through box with the classes `decoration-overlay hl-occurrence`, and the demo paints it a translucent yellow:
+Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. Then give the highlight a color. Each match gets a see-through box with the classes `decoration-overlay hl-occurrence`:
 
 ```css
 .decoration-overlay.hl-occurrence {
@@ -35,9 +35,7 @@ Hand `plugins` to the editor, and build the array once for the whole app, not on
 }
 ```
 
-Put it in a global stylesheet (inside a Svelte component's `<style>`, wrap the selector in `:global(...)`). Forget it and the plugin still works perfectly, you just can't tell.
-
-The one option, `onScan`, is a callback for each time the plugin re-reads the document. It's there for tests, so you can ignore it.
+Prob put it in a global stylesheet; skip it and the plugin still runs, you just won't see the highlights.
 
 ## More
 

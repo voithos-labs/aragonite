@@ -4,8 +4,6 @@ Emoji shortcodes plugin for [aragonite](https://github.com/voithos-labs/aragonit
 
 ## What it reads
 
-The `:name:` shortcodes GitHub reads:
-
 ```markdown
 Shipped it :rocket: and nothing caught fire :tada:
 ```
@@ -13,7 +11,7 @@ Shipped it :rocket: and nothing caught fire :tada:
 Note:
 
 - The names are GitHub's own list (gemoji), about 1,900 counting aliases, so `:+1:` and `:thumbsup:` are both 👍.
-- They're lowercase, like on GitHub: `:Rocket:` stays text, and so does a name the list doesn't have.
+- They're lowercase, like on GitHub: `:Rocket:` stays text.
 
 ## Install
 
@@ -44,4 +42,4 @@ The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/gu
 
 Aragonite and its first party plugins are free software, released under [MPL-2.0](./LICENSE): use it, study it, fork it, embed it in whatever you're building, closed source included. The one string attached: if you change the lib/plugin's files, you share those changes under the same license.
 
-The shortcode list is generated from GitHub's gemoji, which is MIT-licensed; its notice is in [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
+The shortcode list is generated from GitHub's gemoji, which is MIT; see [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).

@@ -40,4 +40,4 @@ The plugin guide's [first fifteen minutes](https://github.com/voithos-labs/arago
 
 Aragonite and its first party plugins are free software, released under [MPL-2.0](./LICENSE): use it, study it, fork it, embed it in whatever you're building, closed source included. The one string attached: if you change the lib/plugin's files, you share those changes under the same license.
 
-The ten frames come from terminal-parrot, which is MIT-licensed; its notice is in [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
+The ten frames come from terminal-parrot, which is MIT; see [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).

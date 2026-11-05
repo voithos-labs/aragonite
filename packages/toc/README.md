@@ -4,8 +4,6 @@ Table of contents plugin for [aragonite](https://github.com/voithos-labs/aragoni
 
 ## What it reads
 
-A `[[toc]]` line, exactly that, with no indent and nothing after it:
-
 ```markdown
 # Field notes
 
@@ -16,7 +14,7 @@ A `[[toc]]` line, exactly that, with no indent and nothing after it:
 ## Rocks I regret licking
 ```
 
-It lists every heading in the document and keeps up as you write.
+`[[toc]]` lists every heading in the document and keeps up as you write.
 
 ## Install
 
