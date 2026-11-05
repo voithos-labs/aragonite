@@ -1,7 +1,7 @@
 /** The keydown and compositionstart half of cross-block dispatch. */
 
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { Document } from '../../core/nodes';
+import type { AnyBlockKind, Document } from '../../core/nodes';
 import { commandLandingKind, kindOfPath, replaceRange } from './range-replace';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
@@ -228,13 +228,29 @@ async function dispatchOverRange(
 /** A key bound to a command that runs after a range's removal, read in the keymap of the block the
  *  removal leaves the caret in, where the command then runs. */
 export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	const bound = boundCommand(e, reads);
+	return bound !== null && runsAfterRemoval(bound, reads);
+}
+
+/** The command the key runs in the keymap of the block the range's removal leaves the caret in. */
+function boundCommand(
+	e: KeyboardEvent,
+	reads: RangeKeyReads
+): { kind: AnyBlockKind; command: AnyCommandId } | null {
 	const chord = eventToChord(e);
 	const { anchor, focus } = reads.selection;
-	if (!chord || !anchor || !focus) return false;
+	if (!chord || !anchor || !focus) return null;
 	const doc = reads.getDoc();
 	const kind = commandLandingKind(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)));
 	const command = commandForKey(e, kind, reads.commands);
-	if (command === null || runsOnItsBlock(command, reads.selection.rangeInOneBlock)) return false;
+	return command === null ? null : { kind, command };
+}
+
+function runsAfterRemoval(
+	{ kind, command }: { kind: AnyBlockKind; command: AnyCommandId },
+	reads: RangeKeyReads
+): boolean {
+	if (runsOnItsBlock(command, reads.selection.rangeInOneBlock)) return false;
 	return commandOverRange(kind, command, reads.commands.activation) !== undefined;
 }
 
@@ -289,8 +305,10 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	if ((e.key === 'Escape' && plain) || (!e.shiftKey && step)) return 'collapse';
 	// Inside one block the first Mod+A selects that block, as from the browser's own range there.
 	if (isSelectAllChord(e)) return reads.selection.rangeInOneBlock ? null : 'selectAll';
-	// Last, since it reads the range's coverage: the navigation keys above never need it.
-	if (isCommandCandidateKey(e, reads)) return 'command';
+	// Last, since it reads the range's coverage: the navigation keys above never need it. A key
+	// the keymap binds runs its command, never types, as at a caret.
+	const bound = boundCommand(e, reads);
+	if (bound) return runsAfterRemoval(bound, reads) ? 'command' : null;
 	// At its keydown, since beside a widget with no text node an engine sends no `beforeinput`.
 	return typesCharacter(e) ? 'type' : null;
 }

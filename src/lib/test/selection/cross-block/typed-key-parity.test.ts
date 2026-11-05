@@ -81,3 +81,18 @@ describe.each([
 		});
 	}
 });
+
+// Miss-analysis: the parity rows bound no chord, so a Ctrl+Alt chord the keymap binds, which off a
+// Mac reads as AltGr, was typed over the range instead of running its command.
+describe('a chord the keymap binds over a range', () => {
+	it('runs its command rather than typing, though off a Mac it reads as AltGr', async () => {
+		vi.stubGlobal('navigator', { platform: 'Win32' });
+		const env = makeKeydownEnv('alpha\n\nbeta\n', {
+			myPath: [1],
+			keybindings: [{ chord: 'Mod+Alt+G', command: 'format.toggleStrong' }]
+		});
+		env.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 2 });
+		await env.keydown.handleKeyDown(keydown({ key: 'g', ctrlKey: true, altKey: true }));
+		expect(env.source()).toBe('alpha\n\nbeta\n');
+	});
+});
