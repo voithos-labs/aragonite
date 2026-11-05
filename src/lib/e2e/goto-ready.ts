@@ -30,7 +30,6 @@ const READY_BY_ROUTE = {
 	'/test/page-scroll': '__pageScroll',
 	'/test/plugins': '__test',
 	'/test/plugins/activation': '__activation',
-	'/test/plugins/enablement': '__parityDocuments',
 	'/test/plugins/multi': '__parityDocuments',
 	'/test/plugins/staggered': '__test',
 	'/test/syntax': '__syntax'

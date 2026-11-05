@@ -131,7 +131,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.141 | Only the drawn caret writes its element and the mark hiding the browser's caret | L |
 | G4.142 | `caret-color` is declared only for the known surfaces | L |
 | G4.143 | Every caret write asks the drawn caret to repaint, and its frame paint only paints | T·L |
-| G4.144 | The old widget and gap caret painters and the edge ring stay gone | L |
+| G4.144 | No caret blinks but the drawn caret | L |
 | G4.145 | A click decides whether it follows a link or widget through the shared rule only | L |
 | G4.146 | A release tells a click from a drag only through the editor's press tracker | L |
 | G4.147 | Every change to the caret memory repaints the drawn caret, and a no-op asks nothing | harness |
@@ -199,7 +199,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.247 | A production build of the published package carries no dev check | harness |
 | G4.248 | Dev-only code reads one switch, in `dev-checks.ts`, imported by its package name | L |
 | G4.249 | A measured height enters the height table only through `applyMeasured` | L |
-| G4.251 | The bundled blocks that build a render-primary leaf in Svelte are listed | L |
+| G4.251 | No bundled plugin builds a render-primary leaf in Svelte | L |
 | G4.252 | A press's point is read at the press, in `readPress` | L |
 | G4.255 | Every `test.fixme` reason names its issue as `#<n>: ` | L |
 | G4.258 | The fix-up, the chain rebuild and the open tail are imported only by the commit | L |
@@ -222,6 +222,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.280 | Every route into the in-leaf edit is named with its shape, and each shape keeps a reference's destination | L |
 | G4.281 | The selection overlays and handles draw the editor's selection, never the browser's | L |
 | G4.282 | Whether the editor holds the range is asked as `ownsRange`, whatever the range spans | L |
+| G4.289 | A unit test file that writes a rune runs in a DOM environment | L |
 
 ### The entries
 
@@ -470,7 +471,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.143 · Every caret write asks for a paint.** `browser/caret-writer.ts` writes the native selection only inside `createCaretWriter`, whose writes and clears call `drawnCaret.request`; `test/browser/caret-writer-request.test.ts` calls every writer method and counts one request each (its table typed over the writer's keys). The frame callback in `caret/drawn-caret.svelte.ts` calls `paint` and nothing else, keeping G4.4's allowlisted frame paint read-only. `lint/drawn-caret-guards.test.ts`.
 
-**G4.144 · The old widget and gap caret painters and the edge ring stay gone.** Nothing under `src/lib`, tests included, names the classes the old widget and gap carets painted with (`md-snap-after`, `md-snap-before`, `md-snap-caret-active`, `gap-caret-line`), the edge ring's names (`md-edge-held`, its token, `EDGE_HELD_CLASS`, `heldElements`), or a caret blink `@keyframes` other than `md-caret-blink-a`/`-b`. A second element painting a caret cue is a second caret; draw it as a state or a look of the drawn caret. `lint/drawn-caret-guards.test.ts`.
+**G4.144 · No caret blinks but the drawn caret.** Nothing under `src/lib`, tests and styles included, declares a caret or blink `@keyframes` other than the drawn caret's `md-caret-blink-a`/`-b`. A cue that blinks beside a widget, at a gap or on a construct at its edge is a second caret; draw it as a state or a look of the drawn caret. `lint/drawn-caret-guards.test.ts`.
 
 **G4.145 · One rule for whether a click follows.** A file that handles a click doesn't test `ctrlKey || metaKey` (or `!ctrlKey && !metaKey`) itself; it asks `src/lib/activation-click.ts` (through `EditorPolicies.activationClick`, `EditorContext.isActivationClick` or a widget's `isActivationClick` prop), which reads the mode and the host's `linkClick` at the click. The allowlist holds the reads that decline a modified key or press, and the diagram's zoom and commit shortcuts. `lint/file-rules.test.ts`.
 
@@ -600,7 +601,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.249 · One way into the height table.** A block's measured height is written to the list's height table and the estimator only by `windowing/list-windowing.svelte.ts :: applyMeasured`, which holds a height within a pixel of its record as that record, so a block remounting a fraction of a pixel off moves no scroll. `lint/file-rules.test.ts`.
 
-**G4.251 · The bundled Svelte reveal blocks are listed.** Every bundled plugin file that builds a render-primary leaf in Svelte (`mode: 'render-primary'`) is on a declared list: block math, the outline and the parrot. It's there so moving them onto `defineBlockView` starts from a list, not a grep, and it guards nothing inside a listed file. `lint/file-rules.test.ts`.
+**G4.251 · No bundled block builds its rendered view in Svelte.** A bundled plugin's block that shows a rendered view until clicked builds it with `defineBlockView({ surface: 'render-primary' })`, the way a plugin author would, never with a Svelte component's own `mode: 'render-primary'`. Block math and the outline are allowed until they move to `defineBlockView` with the plugin interface redesign, before 0.12.0. `lint/file-rules.test.ts`.
 
 **G4.252 · A press is read at the press.** The prose blocks' point readers (the widget hit, the source offset it names, the click side, the nearest widget edge, the shown-source test) are called only in `widget-interaction.ts` :: `readPress` and `islandDragAnchor`, which a press runs at pointer-down (`readPress` also serves `placeCaretAtPoint` and the keyboard menu, where no press moves anything). By the click, the press may have closed a shown source and moved the line under the point. `lint/call-site-rules.test.ts`.
 
@@ -645,3 +646,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.281 · The overlays draw the editor's selection.** A handle on a native range is one a phone already draws its own handles on, and every range a finger makes is in `SelectionState`, so no file under `components/overlays/` reads the native selection. `file-rules.test.ts`.
 
 **G4.282 · One question for who holds the range.** The editor holds a range across blocks, a rectangle of cells, a block held whole, and a finger's range inside one block, and every read of that asks `SelectionState.ownsRange`; a read that means a range inside one block asks `rangeInOneBlock`, and one that means two blocks compares paths (`rangeSpansBlocks`). The old names, `isCrossBlock` and the test surface's `isCrossBlockActive`, read as a span, so the scan fails them anywhere. `file-rules.test.ts`.
+
+**G4.289 · Runes in a test need a DOM environment.** A test file under `src/lib/test` that writes `$state`, `$derived` or `$effect` names jsdom as its environment. Without it the file runs in Node, where Svelte's server build makes `$state` a plain value and never runs an `$effect.root` body, so a test of something reactive passes without testing it. Vitest takes the first `@vitest-environment` tag anywhere in the file, even one inside a string, and so does the scan. `lint/suite-file-rules.test.ts`.

@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { blockViewFor, getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 import { createRegistryView, defaultRegistryView } from '#lib/schema/registry-view.js';
-import type { AnyBlockKind, PluginBlockKind } from '#lib/core/nodes.js';
+import type { PluginBlockKind } from '#lib/core/nodes.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
@@ -46,74 +46,27 @@ describe('defaultRegistryView resolves the global definitions verbatim', () => {
 	});
 });
 
-describe('enablement filter', () => {
-	let kind: AnyBlockKind;
-	beforeEach(() => {
-		kind = registerCallout();
-	});
-
-	it('a disabled plugin kind resolves no component (raw-editable fallback)', () => {
-		const view = createRegistryView({ isEnabled: (k) => k !== kind });
-		expect(view.blockView(kind)).toBeUndefined();
-	});
-
-	it('the descriptor is never filtered: a disabled kind still degrades, not throws', () => {
-		const view = createRegistryView({ isEnabled: (k) => k !== kind });
-		expect(view.descriptor(kind)).toBe(getBlockKindDescriptor(kind));
-	});
-
-	it('a disabled kind opener is dropped from the grammar and parse', () => {
-		const disabled = createRegistryView({ isEnabled: (k) => k !== kind });
-		// Only the plugin opener is dropped; the built-ins (which survive the reset)
-		// stay, so the disabled grammar is exactly one opener short of the default.
-		expect(disabled.grammar.orderedOpeners().length).toBe(
-			defaultRegistryView.grammar.orderedOpeners().length - 1
-		);
-		expect(parse('@x hi\n', { grammar: disabled.grammar }).children[0].kind).toBe('paragraph');
-
-		const enabled = createRegistryView({ isEnabled: () => true });
-		expect(parse('@x hi\n', { grammar: enabled.grammar }).children[0].kind).toBe(kind);
-	});
-
-	it('built-ins are never disableable: the predicate domain is plugin kinds', () => {
-		const disableEverything = createRegistryView({ isEnabled: () => false });
-		// A blanket "disable all" must drop only the plugin opener: a built-in losing its opener
-		// here would mean the predicate reached past plugin kinds.
-		const builtinOpenerCount = defaultRegistryView.grammar.orderedOpeners().length - 1;
-		expect(disableEverything.grammar.orderedOpeners().length).toBe(builtinOpenerCount);
-		expect(builtinOpenerCount).toBeGreaterThan(0);
-		// The plugin kind itself is disabled by the same predicate.
-		expect(disableEverything.blockView(kind)).toBeUndefined();
-	});
-});
-
-// The second filter is the test harness's, layered over the editor's own activation, so it may
-// only narrow: one that widened would allow a resolution the shipped path cannot reach.
-describe('a kind filter layered over the activation', () => {
-	it('narrows what the activation allows and never widens it', () => {
+// Listing no plugin is the bluntest narrowing a host can ask for, so it is where a built-in
+// reached by the filter would show.
+describe('an editor that lists no plugin', () => {
+	it('keeps every built-in opener and drops the plugin one', () => {
 		let kind: PluginBlockKind | undefined;
 		installPlugins([
 			definePlugin({ name: 'callouts', setup: () => void (kind = registerCallout()) })
 		]);
-
-		const unlisted = createRegistryView({ plugins: activationFor([]), isEnabled: () => true });
-		expect(unlisted.blockView(kind!)).toBeUndefined();
-		const narrowed = createRegistryView({
-			plugins: activationFor(['callouts']),
-			isEnabled: () => false
-		});
-		expect(narrowed.blockView(kind!)).toBeUndefined();
-		expect(createRegistryView({ plugins: activationFor(['callouts']) }).blockView(kind!)).toBe(
-			stubView
-		);
+		const listsNone = createRegistryView({ plugins: activationFor([]) });
+		const builtinOpenerCount = defaultRegistryView.grammar.orderedOpeners().length - 1;
+		expect(listsNone.grammar.orderedOpeners().length).toBe(builtinOpenerCount);
+		expect(builtinOpenerCount).toBeGreaterThan(0);
+		expect(listsNone.blockView(kind!)).toBeUndefined();
 	});
 });
 
-describe('the syntax switch composes with the plugin filter', () => {
-	it('drops the plugin kind the filter leaves out and indented code together', () => {
-		const kind = registerCallout();
+describe('the syntax switch composes with the plugins an editor lists', () => {
+	it('drops an unlisted plugin kind and indented code together', () => {
+		installPlugins([definePlugin({ name: 'callouts', setup: () => void registerCallout() })]);
 		const view = createRegistryView({
-			isEnabled: (k) => k !== kind,
+			plugins: activationFor([]),
 			syntax: { indentedCode: false }
 		});
 		const doc = parse('@x one\n\n\tnotes\n', { grammar: view.grammar });

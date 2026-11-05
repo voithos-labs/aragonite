@@ -192,28 +192,15 @@ describe('commitMultiScope', () => {
 		expect(state.innerBlockIds[0]).toBe(originalId);
 		expect(state.innerBlockIds[1]).not.toBe(originalId);
 	});
-
-	// A compile-time test, enforced by `npm run check` (vitest does not typecheck): if the
-	// tuple-typed mutate contract loosens, the directive turns unused and check fails.
-	it('tuple contract: literal two-scope commit with one returned change is a type error', () => {
-		const nodeA = makeListNode(['- a\n']);
-		const nodeB = makeListNode(['- b\n']);
-		const scopeA: MultiScopeTarget = {
-			node: nodeA,
-			state: makeBlockListState(() => nodeA),
-			path: [0]
-		};
-		const scopeB: MultiScopeTarget = {
-			node: nodeB,
-			state: makeBlockListState(() => nodeB),
-			path: [1]
-		};
-		const bad: CommitMultiScopeArgs<[MultiScopeTarget, MultiScopeTarget]> = {
-			scopes: [scopeA, scopeB],
-			snapshot: { path: asDocPath([0]), offset: 0 },
-			// @ts-expect-error mutate must return exactly one StructuralChange per scope
-			mutate: () => [{ op: 'noop' }]
-		};
-		void bad;
-	});
 });
+
+/** Never called: `npm run check` fails once a directive inside goes unused. */
+export function compileTimePins(scopeA: MultiScopeTarget, scopeB: MultiScopeTarget): void {
+	const bad: CommitMultiScopeArgs<[MultiScopeTarget, MultiScopeTarget]> = {
+		scopes: [scopeA, scopeB],
+		snapshot: { path: asDocPath([0]), offset: 0 },
+		// @ts-expect-error mutate must return exactly one StructuralChange per scope
+		mutate: () => [{ op: 'noop' }]
+	};
+	void bad;
+}
