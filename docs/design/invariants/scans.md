@@ -199,7 +199,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.247 | A production build of the published package carries no dev check | harness |
 | G4.248 | Dev-only code reads one switch, in `dev-checks.ts`, imported by its package name | L |
 | G4.249 | A measured height enters the height table only through `applyMeasured` | L |
-| G4.251 | The bundled blocks that build a render-primary leaf in Svelte are listed | L |
+| G4.251 | No bundled plugin builds a render-primary leaf in Svelte | L |
 | G4.252 | A press's point is read at the press, in `readPress` | L |
 | G4.255 | Every `test.fixme` reason names its issue as `#<n>: ` | L |
 | G4.258 | The fix-up, the chain rebuild and the open tail are imported only by the commit | L |
@@ -600,7 +600,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.249 · One way into the height table.** A block's measured height is written to the list's height table and the estimator only by `windowing/list-windowing.svelte.ts :: applyMeasured`, which holds a height within a pixel of its record as that record, so a block remounting a fraction of a pixel off moves no scroll. `lint/file-rules.test.ts`.
 
-**G4.251 · The bundled Svelte reveal blocks are listed.** Every bundled plugin file that builds a render-primary leaf in Svelte (`mode: 'render-primary'`) is on a declared list: block math, the outline and the parrot. It's there so moving them onto `defineBlockView` starts from a list, not a grep, and it guards nothing inside a listed file. `lint/file-rules.test.ts`.
+**G4.251 · No bundled block draws its reveal in Svelte.** A bundled plugin's block that shows a rendered view until clicked builds it with `defineBlockView({ surface: 'render-primary' })`, the way a plugin author would, never with a Svelte component's own `mode: 'render-primary'`. Block math and the outline are allowed until they move to `defineBlockView` with the plugin interface redesign, before 0.12.0. `lint/file-rules.test.ts`.
 
 **G4.252 · A press is read at the press.** The prose blocks' point readers (the widget hit, the source offset it names, the click side, the nearest widget edge, the shown-source test) are called only in `widget-interaction.ts` :: `readPress` and `islandDragAnchor`, which a press runs at pointer-down (`readPress` also serves `placeCaretAtPoint` and the keyboard menu, where no press moves anything). By the click, the press may have closed a shown source and moved the line under the point. `lint/call-site-rules.test.ts`.
 
