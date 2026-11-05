@@ -24,7 +24,28 @@ async function select(editor: EditorPage, row: RangeLawCase): Promise<void> {
 	}
 	await editor.focusBlockAtPath(anchor.path, anchor.offset);
 	const collapsed = anchor.path.join() === focus.path.join() && anchor.offset === focus.offset;
-	if (!collapsed) await editor.shiftClickBlock(focus.path, focus.offset);
+	if (!collapsed) {
+		await editor.shiftClickBlock(focus.path, focus.offset);
+		const landed = (await editor.bridge.getSelection())?.focus.offset;
+		// An end past a picture is a click right of it, where a plain click lands after it.
+		const picture = editor.page.locator(
+			`[data-block-path="${JSON.stringify(focus.path)}"] [data-image-widget]`
+		);
+		if (landed !== focus.offset && (await picture.count()) > 0) {
+			const box = (await picture.last().boundingBox())!;
+			await editor.page.keyboard.down('Shift');
+			await editor.page.mouse.click(box.x + box.width + 30, box.y + box.height / 2);
+			await editor.page.keyboard.up('Shift');
+			// Firefox lands that click at the picture's start; Shift+End takes the end to the line's.
+			if ((await editor.bridge.getSelection())?.focus.offset !== focus.offset) {
+				await editor.page.keyboard.press('Shift+End');
+			}
+		}
+	}
+	// The same range jsdom's run places, or the two runs compare different gestures.
+	await expect
+		.poll(() => editor.bridge.getSelection(), { message: 'the range did not land' })
+		.toEqual({ anchor, focus });
 }
 
 /** A point inside the selection, where a right-click keeps it: just past its anchor. */

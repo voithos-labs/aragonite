@@ -127,9 +127,9 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 	{
 		name: 'a key typed over a range ending at a picture',
 		law: 'L5',
-		source: 'alpha\n\nbeta\n\n![pic](p.png)\n',
+		source: 'alpha\n\nbeta\n\n![pic](/test-fixtures/sample.png)\n',
 		mode: 'source',
-		select: range({ path: [0], offset: 5 }, { path: [2], offset: 13 }),
+		select: range({ path: [0], offset: 5 }, { path: [2], offset: 33 }),
 		steps: [{ do: 'type', text: 'Z', route: 'hardware key' }],
 		expected: { source: 'alphaZ\n' }
 	},
