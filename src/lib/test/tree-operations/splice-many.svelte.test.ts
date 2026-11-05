@@ -1,3 +1,6 @@
+// @vitest-environment jsdom
+// Miss-analysis: the proxy row ran in Node, where Svelte's server build makes `$state` a plain
+// array, so it never wrote through a proxy.
 import { describe, it, expect } from 'vitest';
 import { INSERT_CHUNK, spliceMany } from '#lib/tree-operations/splice-many.js';
 

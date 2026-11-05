@@ -105,40 +105,6 @@ describe('cellIndexOf', () => {
 	});
 });
 
-// Compile-time pins for the discriminated union. The assertions that matter are the directives
-// verified by `npm run check`; the runtime expectations only keep the values live for vitest.
-describe('SelectionPoint discriminated union: type pins', () => {
-	it('discriminates on the flag literal and narrows the union', () => {
-		const cellPoint: CellSelectionPoint = { path: [0], offset: 3, cellCoordinate: true };
-		const charPoint: CharSelectionPoint = { path: [0], offset: 3 };
-
-		// A cell point is not a char point: the required `true` flag rejects it.
-		// @ts-expect-error — cellCoordinate: true is not assignable to a char point
-		const notChar: CharSelectionPoint = cellPoint;
-
-		// A char-typed slot rejects a cell point.
-		const takesChar = (p: CharSelectionPoint): number => p.offset;
-		// @ts-expect-error — a cell point cannot flow into a CharSelectionPoint parameter
-		takesChar(cellPoint);
-
-		// The cell variant needs the literal `true`; a widened boolean cannot produce it.
-		const flag = Math.random() > 0.5;
-		// @ts-expect-error a widened boolean is neither the char nor the cell variant
-		const widened: CellSelectionPoint = { path: [0], offset: 0, cellCoordinate: flag };
-
-		// Checking the flag narrows a union value to the cell variant.
-		const point: SelectionPoint = cellPoint;
-		if (point.cellCoordinate) {
-			const narrowed: CellSelectionPoint = point;
-			expect(narrowed.cellCoordinate).toBe(true);
-		}
-
-		expect(takesChar(charPoint)).toBe(3);
-		expect(notChar.offset).toBe(3);
-		expect(widened.offset).toBe(0);
-	});
-});
-
 describe('ordering is meaning-agnostic for offset', () => {
 	it('orders same-path cell points by offset identically to char points', () => {
 		const charLo = P([2], 1);
@@ -161,3 +127,21 @@ describe('ordering is meaning-agnostic for offset', () => {
 		});
 	});
 });
+
+/** Never called: `npm run check` fails once a directive inside goes unused. */
+export function compileTimePins(cellPoint: CellSelectionPoint, point: SelectionPoint): void {
+	// @ts-expect-error a cell point's `true` flag rejects it as a char point
+	const notChar: CharSelectionPoint = cellPoint;
+	const takesChar = (p: CharSelectionPoint): number => p.offset;
+	// @ts-expect-error a cell point cannot flow into a CharSelectionPoint parameter
+	takesChar(cellPoint);
+	const flag = Math.random() > 0.5;
+	// @ts-expect-error a widened boolean is neither the char nor the cell variant
+	const widened: CellSelectionPoint = { path: [0], offset: 0, cellCoordinate: flag };
+	// Checking the flag narrows a union value to the cell variant.
+	if (point.cellCoordinate) {
+		const narrowed: CellSelectionPoint = point;
+		void narrowed;
+	}
+	void [notChar, widened];
+}

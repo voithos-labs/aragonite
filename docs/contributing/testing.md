@@ -49,7 +49,7 @@ $ npm run test:editor:undo
 
 ## Unit tests (Vitest)
 
-No browser. Node by default, with a file opting into jsdom via a `// @vitest-environment jsdom` docblock where it needs a DOM (every `*.svelte.test.ts` that mounts a component does). The round-trip tests at `test/` root check that parsing then serializing gives back the exact input, so if you touch the parser or the serializer, that's the suite to watch first.
+No browser. Node by default, with a file opting into jsdom via a `// @vitest-environment jsdom` docblock where it needs a DOM (every `*.svelte.test.ts` that mounts a component does). A file that writes a rune needs it too, mount or not: in Node, Svelte's server build makes `$state` a plain value and never runs an effect, so the test passes without testing anything (G4.289 catches the file that forgets). The round-trip tests at `test/` root check that parsing then serializing gives back the exact input, so if you touch the parser or the serializer, that's the suite to watch first.
 
 ### Where a test file goes
 
@@ -278,7 +278,7 @@ The plugin specs drive `/test/plugins` (`src/routes/test/plugins/+page.svelte`),
 - `hloccur-scan/`: the bundled highlight-occurrences plugin with an `onScan` counter on `window`, for counting rescans. Seed `hloccur-memo`.
 - `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section below). One marks every whole-word `paragraph`; the other turns three sentinel strings in the text into a replace widget, an inline widget, and a block badge. Both under `?seed=sim`, so the simulation runs with the decoration engine live on every keystroke.
 
-Four subroutes carry the multi-editor cases: `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the second), `staggered/` (editor one installs callout, editor two mounts later with details added, for the staggered-mount spec), `enablement/` (two editors sharing one memo registration, the left with the kind switched off through the harness-only `__registryEnablement` prop), and `activation/` (two editors in one process, only the first listing the parrot and the block badge, for the per-instance activation spec).
+Three subroutes carry the multi-editor cases: `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the second), `staggered/` (editor one installs callout, editor two mounts later with details added, for the staggered-mount spec), and `activation/` (two editors in one process, only the first listing the parrot and the block badge, for the per-instance activation spec).
 
 ### Browser engines
 

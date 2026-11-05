@@ -18,7 +18,10 @@ export const READING_NOTES_NOTE: NoteFixture = {
 		await g.pressEnter();
 		await g.startQuote('Omit needless words.');
 		await g.nestQuote('Even the ones that feel load-bearing usually are not.');
+		// The first Enter opens an empty `> >` line, and each Enter on an empty quote line leaves one
+		// level, so two more reach the page.
 		await g.pressEnter();
+		await g.softEnter();
 		await g.softEnter();
 		await g.checkpoint('nested-quote', 'blockquote');
 

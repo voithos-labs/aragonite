@@ -15,6 +15,7 @@ import {
 	defineBlockView,
 	definePlugin,
 	getPluginMetadata,
+	type AmbientInteractiveRange,
 	type AmbientPrefix,
 	type BlockView,
 	type BlockViewState
@@ -109,3 +110,15 @@ describe('a DOM container prefix', () => {
 		expect(clicks).toBe(1);
 	});
 });
+
+/** Never called: a marker range with a tab stop must say what Enter and Space do, and
+ *  `npm run check` fails once a directive inside goes unused. */
+export function compileTimePins(isReading: boolean): AmbientInteractiveRange[] {
+	const base = { start: 0, end: 3, className: 'marker', onClick: () => {} };
+	// @ts-expect-error a focusable range must say what Enter and Space do
+	const withoutActivate: AmbientInteractiveRange = { ...base, focusable: true };
+	// The footnote marker's form: its stop is decided by mode, so `focusable` is a plain boolean.
+	const modeDecided: AmbientInteractiveRange = { ...base, focusable: isReading, onActivate() {} };
+	const noStop: AmbientInteractiveRange = { ...base };
+	return [withoutActivate, modeDecided, noStop];
+}

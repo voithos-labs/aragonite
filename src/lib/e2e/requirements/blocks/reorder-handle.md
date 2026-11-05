@@ -65,8 +65,6 @@ These mount the editor without a page and count handles:
   (`test/components/drag-handle-default.svelte.test.ts`)
 - reading mode shows none, not even on an image-only paragraph
   (`test/components/drag-handle-default.svelte.test.ts`)
-- the handle is the lucide `grip-vertical` glyph, six dots
-  (`test/components/drag-handle-default.svelte.test.ts`)
-- the prop is opt-in, and `blockDragHandles=false` renders no handle (a picture keeps its own, and
-  `e2e/tests/blocks/reorder-drag.spec.ts` drags it)
+- the prop is on by default, and `blockDragHandles=false` renders no handle (a picture keeps its
+  own, and `e2e/tests/blocks/reorder-drag.spec.ts` drags it)
   (`test/components/drag-handle-default.svelte.test.ts`)

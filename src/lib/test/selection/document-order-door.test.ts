@@ -19,13 +19,10 @@ describe('normalizeSelection', () => {
 		expect(normalizeSelection(range(child, container)).start).toBe(container);
 		expect(normalizeSelection(range(container, child)).end).toBe(child);
 	});
-
-	// A null selection is a compile error: `getSelection()` reports null with nothing focused
-	// and at a gap caret, so the host branches before ordering.
-	it('cannot be handed the null getSelection reports', () => {
-		const nothingFocused: EditorSelection | null = null;
-		// @ts-expect-error — the helper takes a selection, so the null branch is the caller's
-		void (() => normalizeSelection(nothingFocused));
-		expect(nothingFocused ? normalizeSelection(nothingFocused) : null).toBeNull();
-	});
 });
+
+/** Never called: `npm run check` fails once a directive inside goes unused. */
+export function compileTimePins(nothingFocused: EditorSelection | null): void {
+	// @ts-expect-error `getSelection()` reports null with nothing focused; that branch is the host's
+	normalizeSelection(nothingFocused);
+}

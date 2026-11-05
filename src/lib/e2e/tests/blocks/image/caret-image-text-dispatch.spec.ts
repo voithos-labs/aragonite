@@ -103,8 +103,9 @@ test.describe('caret dispatch around image+text paragraphs', () => {
 		await page.keyboard.press('ArrowDown');
 		await page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
-		const src = await editor.bridge.getSource();
-		expect(src).toMatch(/text2|Xtext2|teXxt2|texXt2|textX2|text2X/);
-		expect(typedIndexInTrailingText(src)).toBe(-1);
+		const [first, imageLine, last] = (await editor.bridge.getSource()).trimEnd().split('\n\n');
+		expect([first, imageLine]).toEqual(['text1', `${IMAGE}${TRAILING}`]);
+		expect(last).toContain('X');
+		expect(last.replace('X', '')).toBe('text2');
 	});
 });

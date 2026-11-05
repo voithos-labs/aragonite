@@ -38,6 +38,8 @@ const spyCall = (mark: string, channel: string) =>
 const clockRead = (host: string) => `const t = ${host}.now();`;
 const depsField = (name: string) => `const deps = { ${name}: refSlotsOver(refs) };`;
 const timerWait = (timer: string) => `await new Promise((r) => ${timer}(r));`;
+const rune = (name: string, arg: string) => `const x = ${'$'}${name}(${arg});`;
+const environment = (name: string) => `// ${'@vitest-environment'} ${name}`;
 const lexCall = (verb: 'lexical' | 'strip', args: string) =>
 	`${verb}${verb === 'lexical' ? 'Classes' : 'Comments'}(${args})`;
 
@@ -205,6 +207,13 @@ const LINT_DIRS = [SOURCE_DIR.unitLint, SOURCE_DIR.e2eLint];
 
 /** One test file and one library file, so a walk that lost either half reads as unreached. */
 const BOTH_HALVES = [SOURCE.publicBarrel, SOURCE.scanSource];
+
+const isTestFile = (file: SourceFile) => file.relPath.endsWith('.test.ts');
+const RUNE_CALL = /\$(?:state|derived|effect)\b(?:\.\w+)?\s*[(<]/;
+// Vitest's own reading: the first environment tag anywhere in the file's text, strings included.
+const VITEST_ENVIRONMENT = /@(?:vitest|jest)-environment\s+([\w-]+)\b/;
+const runsInDom = (file: SourceFile) =>
+	['jsdom', 'happy-dom'].includes(file.text.match(VITEST_ENVIRONMENT)?.[1] ?? 'node');
 
 const RULES: FileRule[] = [
 	{
@@ -540,6 +549,31 @@ const RULES: FileRule[] = [
 				'src/lib/test/j.test.ts',
 				"describe('x', () => {\n\tit('y', () => {\n\t\tregisterMathBlock();\n\t});\n});"
 			)
+		]
+	},
+	{
+		id: 'G4.289 a test file that writes a rune runs in a DOM environment',
+		population: (file) => file.relPath.startsWith(SOURCE_DIR.unitTests) && isTestFile(file),
+		matches: (file) => RUNE_CALL.test(blankLiterals(file.code)) && !runsInDom(file),
+		reason:
+			"a test file runs in Node unless it names an environment, and there Svelte's server build makes `$state` a plain value and never runs an `$effect.root` body, so nothing reactive is tested; name jsdom in a `@vitest-environment` comment on its first line",
+		reaches: [SOURCE.contentVersionTest],
+		hits: [
+			at('src/lib/test/a.svelte.test.ts', rune('state', '[0, 1]')),
+			at('src/lib/test/b.svelte.test.ts', rune('effect.root', '() => {}')),
+			at(
+				'src/lib/test/f.svelte.test.ts',
+				`${environment('node')}\n${environment('jsdom')}\n${rune('state', '1')}`
+			)
+		],
+		misses: [
+			at('src/lib/test/c.svelte.test.ts', `${environment('jsdom')}\n${rune('state', '1')}`),
+			at(
+				'src/lib/test/g.svelte.test.ts',
+				`import { it } from 'vitest';\n${environment('happy-dom')}\n${rune('state', '1')}`
+			),
+			at('src/lib/test/d.test.ts', `const name = '${rune('derived', 'x')}';`),
+			at('src/lib/test/harness/e.svelte.ts', rune('state', '1'))
 		]
 	}
 ];

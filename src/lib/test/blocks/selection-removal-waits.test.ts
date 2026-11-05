@@ -121,13 +121,13 @@ describe.each(SURFACES)('a line break over a selection in $kind', (surface) => {
 	});
 });
 
-// The removal's type carries its timing: an answer that isn't the block's own write doesn't compile.
-it('a removal cannot answer before its write', () => {
-	const early: SelectionRemoval[] = [
+/** Never called: a removal's type carries its timing, and `npm run check` fails once a directive
+ *  inside goes unused. */
+export function compileTimePins(): SelectionRemoval[] {
+	return [
 		// @ts-expect-error a bare true claims bytes landed that no write made
 		true,
 		// @ts-expect-error so does a promise that isn't the block's write
 		Promise.resolve(true)
 	];
-	expect(early).toHaveLength(2);
-});
+}
