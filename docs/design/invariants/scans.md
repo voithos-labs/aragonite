@@ -131,7 +131,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.141 | Only the drawn caret writes its element and the mark hiding the browser's caret | L |
 | G4.142 | `caret-color` is declared only for the known surfaces | L |
 | G4.143 | Every caret write asks the drawn caret to repaint, and its frame paint only paints | T·L |
-| G4.144 | The old widget and gap caret painters and the edge ring stay gone | L |
+| G4.144 | No caret blinks but the drawn caret | L |
 | G4.145 | A click decides whether it follows a link or widget through the shared rule only | L |
 | G4.146 | A release tells a click from a drag only through the editor's press tracker | L |
 | G4.147 | Every change to the caret memory repaints the drawn caret, and a no-op asks nothing | harness |
@@ -470,7 +470,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.143 · Every caret write asks for a paint.** `browser/caret-writer.ts` writes the native selection only inside `createCaretWriter`, whose writes and clears call `drawnCaret.request`; `test/browser/caret-writer-request.test.ts` calls every writer method and counts one request each (its table typed over the writer's keys). The frame callback in `caret/drawn-caret.svelte.ts` calls `paint` and nothing else, keeping G4.4's allowlisted frame paint read-only. `lint/drawn-caret-guards.test.ts`.
 
-**G4.144 · The old widget and gap caret painters and the edge ring stay gone.** Nothing under `src/lib`, tests included, names the classes the old widget and gap carets painted with (`md-snap-after`, `md-snap-before`, `md-snap-caret-active`, `gap-caret-line`), the edge ring's names (`md-edge-held`, its token, `EDGE_HELD_CLASS`, `heldElements`), or a caret blink `@keyframes` other than `md-caret-blink-a`/`-b`. A second element painting a caret cue is a second caret; draw it as a state or a look of the drawn caret. `lint/drawn-caret-guards.test.ts`.
+**G4.144 · No caret blinks but the drawn caret.** Nothing under `src/lib`, tests and styles included, declares a caret or blink `@keyframes` other than the drawn caret's `md-caret-blink-a`/`-b`. A cue that blinks beside a widget, at a gap or on a construct at its edge is a second caret; draw it as a state or a look of the drawn caret. `lint/drawn-caret-guards.test.ts`.
 
 **G4.145 · One rule for whether a click follows.** A file that handles a click doesn't test `ctrlKey || metaKey` (or `!ctrlKey && !metaKey`) itself; it asks `src/lib/activation-click.ts` (through `EditorPolicies.activationClick`, `EditorContext.isActivationClick` or a widget's `isActivationClick` prop), which reads the mode and the host's `linkClick` at the click. The allowlist holds the reads that decline a modified key or press, and the diagram's zoom and commit shortcuts. `lint/file-rules.test.ts`.
 
