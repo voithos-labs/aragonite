@@ -79,7 +79,7 @@ The first time, by hand:
 
 1. Make an account on [npmjs.com](https://www.npmjs.com/signup), turn on two-factor authentication (npm wants it for publishing), and run `npm login`.
 2. Check the name's free: `npm view <your-package-name>` should say 404. A name under your own scope, `@<your-npm-username>/aragonite-<name>`, always is.
-3. In `package.json`, delete `"private": true` and check `version` (0.1.0 is a fine first one).
+3. In `package.json`, delete `"private": true`, check `version` (0.1.0 is a fine first one), and commit that, since `npm version` below refuses to run beside uncommitted changes.
 4. Run `npm publish`. It builds first, and `publishConfig` already makes a scoped package public, so there's no flag to remember.
 
 Every release after that can come from GitHub with no npm token anywhere. npm trusts `release.yml` by name instead (npm calls it trusted publishing), and stamps each release from a public repository with a provenance statement saying which commit built it. Set it up once:
