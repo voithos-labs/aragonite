@@ -4,7 +4,7 @@
  * installed plugin, as a bare `parse()` does; `plugins` leaves out an unlisted plugin's entries
  * and `syntax` a switched-off syntax. The descriptor is never filtered: a disabled kind needs it.
  */
-import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
+import type { AnyBlockKind } from '../core/nodes';
 import type { BlockView } from './block-view';
 import {
 	blockViewFor,
@@ -55,8 +55,7 @@ export function createRegistryView(opts?: {
 	const setextHeading = opts?.syntax?.setextHeading ?? true;
 	if (!plugins && indentedCode && setextHeading) return defaultRegistryView;
 	const activation = plugins ?? everyInstalledPlugin;
-	const resolves = kindEnablementFor(activation);
-	const enabled: KindEnablement = (kind) => isBuiltinBlockKind(kind) || resolves(kind);
+	const enabled = kindEnablementFor(activation);
 	// A switched-off syntax leaves the grammar only: a block of that kind still renders.
 	const opens: KindEnablement = (kind) =>
 		enabled(kind) && (indentedCode || kind !== 'indentedCode');
