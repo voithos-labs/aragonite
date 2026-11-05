@@ -121,7 +121,7 @@ test.describe('the range-edit law cases, in a browser', () => {
 			await select(editor, row);
 			for (const step of row.steps) await run(editor, row, step);
 
-			const want = row.todayIn?.[engine] ?? row.today ?? row.expected;
+			const want = row.today ?? row.expected;
 			await expect.poll(() => observe(editor, row)).toEqual(want);
 			if (row.today) {
 				expect(

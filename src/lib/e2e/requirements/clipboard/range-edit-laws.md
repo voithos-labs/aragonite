@@ -13,9 +13,9 @@ The unit suite checks the range-edit laws through jsdom's stand-in events (`src/
 ## Edge cases
 
 - A cut across two paragraphs, pasted back: the document comes back (fails today, #818).
-- A copy from a paragraph into a nested quote: the clipboard keeps the quote markers of the lines it covers (fails today, #815).
-- A cut from one nested list item into the next, pasted back: the list comes back (fails today, #816).
-- A key typed over a range that ends at a picture: replaces the range, as a cut then the key does (fails today, #817: the letter lands before the picture, after it in Firefox).
+- A copy from a paragraph into a nested quote: the clipboard keeps the quote markers of the lines it covers.
+- A cut from one nested list item into the next, pasted back: the list comes back (fails today, #818: the paste back splits the joined item).
+- A key typed over a range that ends at a picture: replaces the range, as a cut then the key does.
 - Two paragraphs pasted with `insertMarkdown` in the middle of a paragraph: the first joins the text before the caret, the last the text after (fails today, #818).
 - A cut across paragraphs of a CRLF document, pasted back: the document comes back with its CRLF endings (fails today, #818).
 - A range inside one live paragraph, put down with `setSelection`: `getSelection()` reads it back unchanged.

@@ -40,8 +40,6 @@ export interface RangeLawCase {
 	/** What the editor does today, while it breaks the law; the issue the class is filed as. */
 	today?: CaseObserved;
 	issue?: string;
-	/** Where one engine breaks the law differently from jsdom and Chromium, what it does. */
-	todayIn?: Partial<Record<OtherEngine, CaseObserved>>;
 	/** A row one run can't drive, and why. */
 	only?: { run: 'browser' | 'chromium'; reason: string };
 	/** An engine the browser run skips the row in, and why. */
@@ -103,7 +101,6 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 	{
 		name: 'a copy from a paragraph into a nested quote',
 		law: 'L10',
-		issue: '#815',
 		source: DOC_815,
 		mode: 'source',
 		select: range({ path: [0], offset: 6 }, { path: [1, 1, 0], offset: 7 }),
@@ -111,13 +108,12 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		expected: {
 			source: DOC_815,
 			clipboard: 'bravo charlie\n\n> Ithaka\n> By C. P. Cavafy\n> > As you '
-		},
-		today: { source: DOC_815, clipboard: 'bravo charlie\nIthaka\nBy C. P. Cavafy\nAs you ' }
+		}
 	},
 	{
 		name: 'a cut from one nested item into the next, pasted back',
 		law: 'L3',
-		issue: '#816',
+		issue: '#818',
 		source: DOC_816,
 		mode: 'source',
 		select: range({ path: [0, 0, 1, 0, 1, 0, 0], offset: 1 }, { path: [0, 0, 1, 1, 0], offset: 1 }),
@@ -126,19 +122,16 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 			{ do: 'paste', route: 'key' }
 		],
 		expected: { source: DOC_816 },
-		today: { source: '- i0\n  - i1\n    - i\n    - 2\n    i\n    - 3\n  - - i4\n\n    p5\n' }
+		today: { source: '- i0\n  - i1\n    - i\n    - - 2\n    - i\n    - 3\n    - i4\n\n    p5\n' }
 	},
 	{
 		name: 'a key typed over a range ending at a picture',
 		law: 'L5',
-		issue: '#817',
 		source: 'alpha\n\nbeta\n\n![pic](p.png)\n',
 		mode: 'source',
 		select: range({ path: [0], offset: 5 }, { path: [2], offset: 13 }),
 		steps: [{ do: 'type', text: 'Z', route: 'hardware key' }],
-		expected: { source: 'alphaZ\n' },
-		today: { source: 'alpha\n\nbeta\n\nZ![pic](p.png)\n' },
-		todayIn: { firefox: { source: 'alpha\n\nbeta\n\n![pic](p.png)Z\n' } }
+		expected: { source: 'alphaZ\n' }
 	},
 	{
 		name: 'Backspace over a range across paragraphs leaves what a cut leaves',

@@ -42,61 +42,6 @@ const words = (text: string) =>
 /** Most specific first: a line counts toward the first row it matches. */
 export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 	{
-		issue: '#815',
-		lane: 'issues-four',
-		defect: 'a copy into or out of a container leaves out the markers of the container it enters',
-		lines: /^L10 \[[^\]]*→/,
-		keeps: sameWords,
-		repro: {
-			law: 'L10',
-			args: [
-				{
-					source: ISSUE_DOCUMENTS['#815'],
-					mode: 'source',
-					seed: { a: end(0, 'inside', 4), b: end(2, 'inside', 5) }
-				},
-				'key'
-			]
-		}
-	},
-	{
-		issue: '#816',
-		lane: 'range-removal',
-		defect:
-			'a range removed from one nested item into the next rewrites the deeper item under it as `- -`',
-		lines: /^L3 .*- - i4/,
-		repro: {
-			law: 'L3',
-			args: [
-				{
-					source: ISSUE_DOCUMENTS['#816'],
-					mode: 'source',
-					seed: { a: end(2, 'inside'), b: end(3, 'inside') }
-				},
-				'key',
-				'key'
-			]
-		}
-	},
-	{
-		issue: '#817',
-		lane: 'range-removal',
-		defect:
-			'a key typed over a range ending at a picture paragraph’s edge lands beside the picture',
-		lines: /^L5 .*: gave "[^"]*\w!\[pic\]/,
-		repro: {
-			law: 'L5',
-			args: [
-				{
-					source: ISSUE_DOCUMENTS['#817'],
-					mode: 'source',
-					seed: { a: end(0, 'end'), b: end(2, 'end') }
-				},
-				{ typed: { text: 'Z', route: 'hardware key' } }
-			]
-		}
-	},
-	{
 		issue: '#818',
 		lane: 'rebuild',
 		defect: 'a cut across blocks, pasted back at the caret it left, splits what the cut joined',
@@ -134,9 +79,9 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: '#815',
-		lane: 'issues-four',
-		defect: 'a cut across a container edge, pasted back, loses the markers the cut took',
+		issue: '#818',
+		lane: 'rebuild',
+		defect: 'a cut across a container edge, pasted back, puts the container’s lines back wrong',
 		lines: /^L3 \[[^\]]*→/,
 		keeps: sameWords,
 		repro: {
@@ -246,18 +191,18 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'a range gesture fires a dev check: a cut into a table (`collectCrossBlockText:end`), Enter over a range (`command-key-landing`), a paste in a quote (`stale-raw`)',
-		lines:
-			/^L8 .*: fired (?:collectCrossBlockText:end|invariant:command-key-landing|invariant:stale-raw)$/,
+			'a range gesture fires a dev check: Enter over a range (`command-key-landing`), a paste or a delete in a quote (`stale-raw`)',
+		lines: /^L8 .*: fired (?:invariant:command-key-landing|invariant:stale-raw)$/,
 		repro: {
 			law: 'L8',
 			args: [
 				{
-					source: 'x\n# h\n| A | B |\n| - | - |\n',
-					mode: 'source',
-					seed: { a: end(2, 'start'), b: end(0, 'start') }
+					source:
+						'>a\r\n\n>> `c`\r\n>>\t\n>>a\r\n > `c`\n> 汉字\r\n>> \n> > - x\r\n`c`\n>`c`\r\n\n>a\r\n',
+					mode: 'live',
+					seed: { a: end(3, 'start'), b: end(4, 'start') }
 				},
-				{ cut: 'key at body' }
+				{ plain: '# not a heading' }
 			]
 		}
 	},
