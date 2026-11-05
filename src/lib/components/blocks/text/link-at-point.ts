@@ -1,7 +1,7 @@
 /**
- * What a click at a point goes to and how Edit link edits it: a link in its card, an autolink as
- * its own text, a widget by its source. The follow path and the edit path both ask here, so
- * anything a click follows can be edited. Also how to find a link again after an edit.
+ * What a click at a point goes to and how Edit link edits it: a link (an autolink too) in its
+ * card, a widget by its source. The follow path and the edit path both ask here, so anything a
+ * click follows can be edited. Also how to find a link again after an edit.
  */
 
 import { inlineDescendants } from '../../../core/inline';
@@ -10,14 +10,13 @@ import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import { rawSelectionFocus } from '../../../browser/selection-read';
 import { followEditOf } from '../../../schema/inline-construct-policy';
-import { linkTextRange } from '../../../core/inline/link-source-bytes';
 import { claimsActivationClick, getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { widgetsIn } from './widget-adjacency';
 import type { Reading } from '../../../schema/reading';
 
-/** Both DOM shapes a bracketed link takes: `a` for an allowed scheme, `span.md-link-blocked` for a
- *  rejected one, and a blocked link is exactly the one a user opens the card to fix. */
-export const LINK_ELEMENT_SELECTOR = '.md-link-content';
+/** Every element a link the card edits renders as, a bracketed link or an autolink: `a` for an
+ *  allowed scheme, a span for a rejected one, which is exactly the link a user opens the card to fix. */
+export const LINK_ELEMENT_SELECTOR = '.md-link-content, .md-autolink';
 
 /** Path plus construct start, never a node reference: every commit rebuilds the inline tree and the
  *  DOM under it, so an open card re-resolves from this identity after each edit. */
@@ -39,12 +38,10 @@ export interface LinkPointQuery {
 	reading: Reading;
 }
 
-/** What you'd go to at a raw offset, by how it's edited: a link in its card, an autolink by a caret
- *  at its text's end, a widget by its source. */
+/** What you'd go to at a raw offset, by how it's edited: a link in its card, a widget by its
+ *  source. */
 export type FollowTarget =
-	| { edit: 'card'; link: InlineNode }
-	| { edit: 'text'; construct: InlineNode; caretAt: number }
-	| { edit: 'source'; widget: InlineNode; atEnd: boolean };
+	{ edit: 'card'; link: InlineNode } | { edit: 'source'; widget: InlineNode; atEnd: boolean };
 
 /** The innermost construct around `offset` that a click follows, in any mode. */
 export function followedConstructAt(
@@ -70,8 +67,8 @@ export function followTargetAt(
 	const mode = reading.mode();
 	if (mode === 'reading') return null;
 	if (mode === 'live') {
-		const construct = followedConstructAt(block, offset, reading);
-		if (construct) return constructTarget(construct, block.raw);
+		const link = followedConstructAt(block, offset, reading);
+		if (link) return { edit: 'card', link };
 	}
 	const widget = claimingWidgetAt(block, offset, reading);
 	return widget ? { edit: 'source', widget, atEnd: offset === widget.end } : null;
@@ -92,12 +89,6 @@ function claimingWidgetAt(block: NodeView, offset: number, reading: Reading): In
 	return (
 		widgetsIn(block, reading).find((w) => w.start <= offset && offset <= w.end && claims(w)) ?? null
 	);
-}
-
-function constructTarget(construct: InlineNode, raw: string): FollowTarget {
-	return followEditOf(construct.kind) === 'card'
-		? { edit: 'card', link: construct }
-		: { edit: 'text', construct, caretAt: linkTextRange(construct, raw)[1] };
 }
 
 /** What you'd go to at the caret, read after a click or a key has placed it. */

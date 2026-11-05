@@ -45,6 +45,26 @@ test.describe('the link card from the right-click menu', () => {
 		await expect(page.locator(URL_FIELD)).toHaveValue('https://cell.test');
 	});
 
+	test('Edit link on a pasted bare URL opens its card, and a new URL there rewrites it', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', 'Watch \n\nPlain words only\n');
+		await ep.focusBlockEnd(0);
+		await ep.seedClipboard({ 'text/plain': 'https://www.youtube.com' });
+		await ep.paste();
+		await ep.bridge.waitForSourceContains('Watch https://www.youtube.com');
+		await rightClickOn(page, 'youtube');
+
+		await page.getByRole('menuitem', EDIT_LINK).click();
+
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await expect(page.locator(URL_FIELD)).toHaveValue('https://www.youtube.com');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.type('https://www.youtube.com/feed');
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('Watch https://www.youtube.com/feed\n');
+	});
+
 	test('the menu over plain text offers no Edit link', async ({ page }) => {
 		await enterPresentationMode(page, 'live', DOC);
 		await rightClickOn(page, 'words');

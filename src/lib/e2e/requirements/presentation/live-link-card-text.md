@@ -6,8 +6,9 @@ entry. The field shows the text you see; it's read-only when that text holds for
 since editing raw markers as plain text would break the link. A new text keeps a reference's
 destination: `[t][ref]` keeps its label, and the collapsed and shortcut forms are written
 `[new][old label]`, so the definition line stays as it was. Characters that would end the link
-early or format it are escaped, so the link shows exactly what was typed. Autolinks get no card,
-as before. Driven on `/test/editor` via `?presentationMode=live` with real clicks, real typing and
+early or format it are escaped, so the link shows exactly what was typed. An autolink's text is its
+URL: a new URL with the text left alone rewrites the autolink, and a new text makes it
+`[text](url)` (`test/blocks/text/link-card-entry-commit.test.ts`). Driven on `/test/editor` via `?presentationMode=live` with real clicks, real typing and
 a real `Mod+Z`.
 
 Miss-analysis (#807): the card had one field, so a link's text could only be changed by typing

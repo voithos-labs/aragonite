@@ -874,8 +874,6 @@ const RULES: FileRule[] = [
 				'table sticky-X exit re-enters the editor column state',
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'CST inline offsets (unbranded model values) enter cursor IO',
-			'src/lib/components/blocks/text/inline-commands.ts':
-				'Edit link puts the caret at a construct’s text end, a CST offset (unbranded model value)',
 			'src/lib/components/blocks/text/typed-input.ts':
 				'the auto-pair’s caret, counted in the block’s displayed text, enters cursor IO'
 		},

@@ -54,7 +54,6 @@ import { recordCaretLook } from '../../../perf/instruments';
 import { createNextByte } from '../text/next-byte';
 import type { BlockPendingBreak } from '../../../caret/pending-break.svelte';
 import type { HeldSpaceView } from '../../../caret/held-space';
-import type { InsideCloserView } from '../../../caret/inside-closer';
 import type { BlockPendingMarks } from '../../../caret/pending-marks';
 import { findOffsetNearestX } from '../../../caret/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../overlays/rects';
@@ -354,8 +353,6 @@ export interface EditableSurface {
 	openBreakAtEnd(lines: number): number;
 	/** A space typed at a hidden closer here, which the next letter takes back inside. */
 	heldSpace: HeldSpaceView;
-	/** The caret Edit link left before a hidden closer here, which types inside the URL. */
-	insideCloser: InsideCloserView;
 	/** The marks a format chord at a collapsed caret here promised the block's next insertion. */
 	pendingMarks: BlockPendingMarks;
 	/** The formats a letter typed at raw offset `caret` would carry (`text/next-byte.ts`); plain
@@ -1055,7 +1052,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pendingBreak,
 		openBreakAtEnd,
 		heldSpace: deps.caretMemory.heldSpace.forBlock(block),
-		insideCloser: deps.caretMemory.insideCloser.forBlock(block),
 		pendingMarks,
 		nextByte,
 		clipboard,

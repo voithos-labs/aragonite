@@ -168,8 +168,7 @@
 		getNode: () => node,
 		reading,
 		caretMemory,
-		heldSpace: () => editableSurface.heldSpace,
-		insideCloser: () => editableSurface.insideCloser
+		heldSpace: () => editableSurface.heldSpace
 	});
 
 	const compositionSeat = createCompositionSeat({
@@ -302,7 +301,6 @@
 				: undefined;
 		},
 		isReading: () => readOnly,
-		insideCloser: () => editableSurface.insideCloser,
 		pendingMarks: editableSurface.pendingMarks,
 		caretWriter
 	});

@@ -18,7 +18,6 @@ import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { pathsEqual } from '../../../selection/path-math';
 import type { UndoController } from '../../../editor-actions/deps';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { asRawOffset } from '../../../core/coordinate-spaces';
 import type { RawRange } from '../../../browser/offsets';
 import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 import type { LinkCardState } from '../../link-card/link-card-state.svelte';
@@ -36,7 +35,7 @@ export interface InlineCommandsDeps {
 	cursor: SurfaceBackend;
 	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'start' | 'end'>;
 	widgets: Pick<WidgetInteraction, 'isRevealing' | 'foldRevealBeforeMutation' | 'enterWidget'>;
-	surface: Pick<EditableSurface, 'blockEdit' | 'pendingMarks' | 'insideCloser'>;
+	surface: Pick<EditableSurface, 'blockEdit' | 'pendingMarks'>;
 	controller: Pick<UndoController, 'flushDebouncedCheckpoint'>;
 	linkCard: LinkCardState;
 	/** The text a format toggle rewrites, and the part of it that is the block's content. */
@@ -129,11 +128,7 @@ export function createInlineCommands(deps: InlineCommandsDeps): InlineCommands {
 		enterLinkCardAtCaret({
 			...linkCardQuery(el, selection),
 			card: deps.linkCard,
-			enterWidget: deps.widgets.enterWidget,
-			placeCaretInText: (offset) => {
-				deps.cursor.setRaw(asRawOffset(offset), { clamp: 'exact' });
-				deps.surface.insideCloser.open(offset);
-			}
+			enterWidget: deps.widgets.enterWidget
 		});
 	}
 

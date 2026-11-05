@@ -30,7 +30,6 @@ import {
 	type PlacedEdit
 } from '../../../caret/next-insertion';
 import type { HeldSpaceView } from '../../../caret/held-space';
-import type { InsideCloserView } from '../../../caret/inside-closer';
 import type { NodeView } from '../../../core/node-views';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { withOwnEnding } from '../editable/surface-write';
@@ -180,8 +179,6 @@ export interface TypedPlacementDeps {
 	caretMemory: Pick<CaretMemory, 'side' | 'noteOutside'>;
 	/** The block's held space (`caret/held-space.ts`), read lazily: the block makes it later. */
 	heldSpace: () => HeldSpaceView;
-	/** The caret Edit link left before a hidden closer (`caret/inside-closer.ts`), read lazily too. */
-	insideCloser: () => InsideCloserView;
 }
 
 /** Where text typed into a block lands while its screen hides markers, and how a pending mark wraps
@@ -216,11 +213,8 @@ export function createTypedPlacement(deps: TypedPlacementDeps): TypedPlacement {
 				const screen = hidingScreenOf(deps.getEl());
 				if (!screen) return null;
 				const inlines = inlinesOf(before);
-				// The marks apply where a letter would land, which Edit link's caret keeps inside the URL.
-				const seat =
-					deps.insideCloser().at() === at
-						? at
-						: hiddenEdges(inlines, before, screen, deps.reading).typingOffset(at, side);
+				// The marks apply where a letter would land.
+				const seat = hiddenEdges(inlines, before, screen, deps.reading).typingOffset(at, side);
 				const typed = insertedText(before, edit, at);
 				const marked = resolveMarkedInsertion(before, seat, typed, marks, inlines, deps.reading);
 				return marked && { text: marked.raw, caretAfter: marked.caret };
@@ -229,8 +223,6 @@ export function createTypedPlacement(deps: TypedPlacementDeps): TypedPlacement {
 		offsetFor: (caret, typed) => {
 			const screen = hidingScreenOf(deps.getEl());
 			if (!screen) return caret;
-			// Edit link's caret types inside the URL, which no edge rule would choose.
-			if (deps.insideCloser().at() === caret) return caret;
 			const node = deps.getNode();
 			// The closer a held space was written past is still the caret's to type over.
 			const inside = deps.heldSpace().at() === caret ? deps.heldSpace().inside() : null;

@@ -36,7 +36,25 @@ export function buildLinkEditBytes(
 	reading: Reading
 ): string | null {
 	if (declineClaimed(link, 'edit')) return null;
+	if (link.kind === 'autolink') return autolinkBytes(link, display, fields.url, reading);
 	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, reading);
+}
+
+/** Bytes giving autolink `link` the destination `url`, which is its text too: in its own form, the
+ *  other one, or brackets showing `url` where neither reads back as it (a space in it, say). */
+function autolinkBytes(
+	link: InlineNode,
+	display: string,
+	url: string,
+	reading: Reading
+): string | null {
+	if (url === link.url) return display.slice(link.start, link.end);
+	const forms = link.angle ? [`<${url}>`, url] : [url, `<${url}>`];
+	for (const candidate of [...forms, buildLinkSourceBytes({ text: asLinkText(url), url })]) {
+		const shown = showsLink(candidate, link.start, link.end, display, url, reading);
+		if (shown) return shown;
+	}
+	return null;
 }
 
 /** Bytes that unwrap `link` to the text the user already sees (remove link). An autolink has no
@@ -91,6 +109,8 @@ export function buildLinkRetitleBytes(
 	reading: Reading
 ): string | null {
 	if (declineClaimed(link, 'edit') || text === '') return null;
+	// An autolink's text is its URL, so a text that names the URL keeps it an autolink.
+	if (link.kind === 'autolink' && text === url) return autolinkBytes(link, display, url, reading);
 	const { reference, title, url: current } = linkFieldsFromInline(link, display);
 	const [start, end] = linkTextRange(link, display);
 	const label =
@@ -235,7 +255,7 @@ function verified(
 }
 
 /** A retitle's own check, where `verified` would refuse the visible change it makes: spliced over
- *  `[start, end)`, the candidate reads as one link there, no wider, showing exactly `text`. */
+ *  `[start, end)`, the candidate reads as one link (or autolink) there, no wider, showing `text`. */
 function showsLink(
 	candidate: string,
 	start: number,
@@ -247,7 +267,7 @@ function showsLink(
 	const raw = spliced(candidate, start, end, display);
 	const link = flattenInline(
 		readInline(raw, 0, raw.length, reading.resolver, reading.grammar)
-	).find((node) => node.kind === 'link' && node.start === start);
+	).find((node) => (node.kind === 'link' || node.kind === 'autolink') && node.start === start);
 	if (!link || link.end !== start + candidate.length) return null;
 	const shown = linkTextShown(link, raw, reading);
 	return shown.editable && shown.text === text ? candidate : null;
