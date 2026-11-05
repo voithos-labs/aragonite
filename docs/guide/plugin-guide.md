@@ -75,6 +75,7 @@ And all of it together, the whole plugin minus its frames and its stylesheet (bo
 ```ts
 // parrot-plugin.ts
 import {
+	OPENER_PRIORITIES,
 	caretOffsetAtPoint,
 	declarePluginKind,
 	defineBlockView,
@@ -167,7 +168,8 @@ function registerParrotBlock(): void {
 	registerBlockKind(parrot, {
 		view: parrotView,
 		opener: {
-			priority: 25,
+			// Nothing built in reads a `%%` line, so any gap between the built-ins will do.
+			priority: OPENER_PRIORITIES.heading + 5,
 			interruptsParagraph: (text) => text.startsWith('%%parrot'),
 			tryOpen(ctx) {
 				if (!ctx.line.text.startsWith('%%parrot')) return null;
