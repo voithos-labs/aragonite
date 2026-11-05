@@ -162,21 +162,30 @@ describe('findFirstEdgeWidget / findLastEdgeWidget', () => {
 // A vertical arrival passes a transparent block only through its edge widget, so a block the
 // transparency check passes with no edge widget to enter leaves the caret nowhere.
 describe('a transparent block has an edge widget, in every mode', () => {
+	// Pictures alone pass in every mode; a link or emphasis around them passes only where its
+	// markers hide on arrival; text beside them never passes.
 	const SHAPES = [
-		'![a](x.png)\n',
-		'[![a](x.png)](y)\n',
-		'*![a](x.png)*\n',
-		'[![a](x.png) b](y)\n',
-		'  ![a](x.png) ![b](z.png)  \n',
-		'**[![a](x.png)](y)**\n'
-	];
-	const MODES: PresentationMode[] = ['source', 'preview-block', 'preview-inline', 'live'];
-	it.each(MODES.flatMap((mode) => SHAPES.map((source) => [mode, source] as const)))(
+		['![a](x.png)\n', 'pictures'],
+		['  ![a](x.png) ![b](z.png)  \n', 'pictures'],
+		['[![a](x.png)](y)\n', 'wrapped'],
+		['*![a](x.png)*\n', 'wrapped'],
+		['**[![a](x.png)](y)**\n', 'wrapped'],
+		['[![a](x.png) b](y)\n', 'text']
+	] as const;
+	const MARKERS_HIDDEN: PresentationMode[] = ['preview-inline', 'live'];
+	const MODES: PresentationMode[] = ['source', 'preview-block', ...MARKERS_HIDDEN];
+	const transparentIn = (mode: PresentationMode, shape: (typeof SHAPES)[number][1]) =>
+		shape === 'pictures' || (shape === 'wrapped' && MARKERS_HIDDEN.includes(mode));
+	// Miss-analysis: every row returned before asserting when the block read as opaque, so a
+	// transparency check answering false everywhere passed all of them.
+	it.each(MODES.flatMap((mode) => SHAPES.map(([source, shape]) => [mode, source, shape] as const)))(
 		'%s: %j',
-		(mode, source) => {
+		(mode, source, shape) => {
 			const node = parse(source).children[0];
 			const reading = fixtureReading({}, mode);
-			if (!isVerticallyTransparentNode(node, reading)) return;
+			const transparent = transparentIn(mode, shape);
+			expect(isVerticallyTransparentNode(node, reading)).toBe(transparent);
+			if (!transparent) return;
 			expect(findFirstEdgeWidget(node, reading)).not.toBeNull();
 			expect(findLastEdgeWidget(node, reading)).not.toBeNull();
 		}

@@ -41,8 +41,7 @@ export const rows = {
 
 	'a long press beside a range across blocks ends it': async (ctx) => {
 		await ctx.fresh(ctx.url, LONG);
-		await ctx.run(`window.__test.setSelection(${JSON.stringify(RANGE)}); return true`);
-		await sleep(800);
+		await setRange(ctx);
 		const pressed = await pressWord(ctx, BELOW_RANGE, 'press-beside');
 		if (pressed.reasons) return pressed;
 		const reasons = ownedWordReasons(pressed.after, BELOW_RANGE, pressed.menu);
@@ -144,6 +143,20 @@ const SNAPSHOT = `const s = document.getSelection();
 // right), in page coordinates.
 const HANDLE_BOX = `const b = document.querySelector('.selection-handle[data-handle="end"]')?.getBoundingClientRect();
 	return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, pointX: b.left, pointY: b.top - 8 };`;
+
+// The range is set through the bridge and read back, so a press beside it is a press beside a
+// range that was there; what the row tests is what the touch does to it.
+async function setRange(ctx) {
+	const json = JSON.stringify;
+	await ctx.run(`window.__test.setSelection(${json(RANGE)}); return true`);
+	let range = null;
+	for (let i = 0; i < 40 && json(range) !== json(RANGE); i++) {
+		await sleep(50);
+		range = await ctx.run('return window.__test.getSelection()');
+	}
+	if (json(range) !== json(RANGE))
+		throw new Error(`the bridge set ${json(range)}, not ${json(RANGE)}`);
+}
 
 // A long press on block `index`'s first word, then what it left: the page's state and Safari's menu.
 async function pressWord(ctx, index, name) {

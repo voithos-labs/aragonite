@@ -48,16 +48,14 @@ describe('a keystroke refused in reading mode', () => {
 		expect(serialize(h.deps.doc)).toBe('> quoted\n');
 		expect(readingWrites()).toBe(1);
 	});
-
-	it('has no caret to read until the write is narrowed to an admitted one', () => {
-		const caretOf = (write: ContentWrite): number | null => {
-			// @ts-expect-error a refused write has no caret
-			void write.caret;
-			return write.admitted ? write.caret : null;
-		};
-		expect(caretOf).toBeTypeOf('function');
-	});
 });
+
+/** Never called: `npm run check` fails once a directive inside goes unused. */
+export function compileTimePins(write: ContentWrite): number | null {
+	// @ts-expect-error a refused write has no caret
+	void write.caret;
+	return write.admitted ? write.caret : null;
+}
 
 describe('whether an admitted keystroke keeps the block’s caret', () => {
 	it('keeps it for a same-kind write in place, which resolves true', async () => {

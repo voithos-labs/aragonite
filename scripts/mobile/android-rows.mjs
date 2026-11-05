@@ -93,16 +93,27 @@ export const rows = {
 
 	"the toolbar's cut takes the long-pressed word": async (ctx) => {
 		const { pressed } = await pressBesideRange(ctx, 'toolbar-cut');
+		const word = rangeIn(pressed.after.editor, BELOW_RANGE);
+		if (!word) {
+			const left = json(pressed.after.editor);
+			return { reasons: [`the long press left ${left}, not a word in block ${BELOW_RANGE}`] };
+		}
 		if (!(await tapToolbar(ctx, 'cut', BELOW_RANGE)))
 			return { reasons: ['the toolbar showed no Cut'], evidence: pressed };
-		await sleep(1000);
-		const text = await source(ctx);
+		const before = lineText(LONG, BELOW_RANGE);
+		const want = before.slice(0, word.start) + before.slice(word.end);
+		let text = await source(ctx);
+		for (let i = 0; i < 40 && lineText(text, BELOW_RANGE) === before; i++) {
+			await sleep(250);
+			text = await source(ctx);
+		}
+		const after = lineText(text, BELOW_RANGE);
 		const reasons = [];
 		if (!text.startsWith('alpha beta\n\ngamma delta\n\n'))
 			reasons.push('Cut took text from the old range across the first two blocks');
-		if (lineText(text, BELOW_RANGE) === lineText(LONG, BELOW_RANGE))
-			reasons.push(`Cut left block ${BELOW_RANGE} as it was`);
-		return { reasons, evidence: { after: lineText(text, BELOW_RANGE) } };
+		if (after !== want)
+			reasons.push(`Cut left block ${BELOW_RANGE} as ${json(after)}, not ${json(want)}`);
+		return { reasons, evidence: { word: before.slice(word.start, word.end), after } };
 	},
 
 	"the toolbar's paste puts a copied word in place of another": async (ctx) => {
@@ -227,6 +238,12 @@ const same = (a, b) =>
 	json(a && [point(a.anchor), point(a.focus)]) === json(b && [point(b.anchor), point(b.focus)]);
 const source = (ctx) => ctx.page.evaluate('window.__test.getSource()');
 const lineText = (text, index) => text.split('\n\n')[index].trimEnd();
+// The span a range covers inside block `index`, or null when it is empty or leaves the block.
+const rangeIn = (sel, index) => {
+	if (sel?.anchor.path[0] !== index || sel.focus.path[0] !== index) return null;
+	const [start, end] = [sel.anchor.offset, sel.focus.offset].sort((a, b) => a - b);
+	return start < end ? { start, end } : null;
+};
 const collapsedIn = (sel, index) =>
 	sel?.anchor.path[0] === index && json(point(sel.anchor)) === json(point(sel.focus));
 
