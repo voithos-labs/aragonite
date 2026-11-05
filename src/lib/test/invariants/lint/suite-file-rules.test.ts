@@ -553,7 +553,7 @@ const RULES: FileRule[] = [
 		matches: (file) => RUNE_CALL.test(blankLiterals(file.code)) && !DOM_ENVIRONMENT.test(file.text),
 		reason:
 			"a test file runs in Node unless it names an environment, and there Svelte's server build makes `$state` a plain value and never runs an `$effect.root` body, so nothing reactive is tested; put `// @vitest-environment jsdom` on its first line",
-		reaches: ['src/lib/test/editor-actions/commit/content-version.svelte.test.ts'],
+		reaches: [SOURCE.contentVersionTest],
 		hits: [
 			at('src/lib/test/a.svelte.test.ts', rune('state', '[0, 1]')),
 			at('src/lib/test/b.svelte.test.ts', rune('effect.root', '() => {}'))

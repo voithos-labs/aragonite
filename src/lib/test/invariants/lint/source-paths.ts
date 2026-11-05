@@ -153,6 +153,7 @@ export const SOURCE = {
 	unitPluginPlatform: 'src/lib/test/support/plugin-platform.ts',
 	scanTestHelpers: 'src/lib/test/core/inline/scan/scan-test-helpers.ts',
 	revealLeafFixture: 'src/lib/test/blocks/fixtures/RevealLeafBlock.svelte',
+	contentVersionTest: 'src/lib/test/editor-actions/commit/content-version.svelte.test.ts',
 	e2eDriversLint: 'src/lib/e2e/lint/e2e-drivers.test.ts',
 
 	// ── Demo routes and the consumer example ────────────────────────────────
@@ -318,6 +319,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	unitPluginPlatform: 'Vitest setup: every unit test starts from',
 	scanTestHelpers: 'export function assertTotalCoverage',
 	revealLeafFixture: 'class="reveal-leaf-block"',
+	contentVersionTest: "describe('content version'",
 	e2eDriversLint: 'G4.49 e2e composition rides the shared IME driver',
 
 	// ── Demo routes and the consumer example ────────────────────────────────
