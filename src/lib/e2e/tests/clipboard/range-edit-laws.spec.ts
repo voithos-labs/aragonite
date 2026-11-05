@@ -8,6 +8,7 @@ import {
 	type CaseObserved,
 	type CasePoint,
 	type CaseStep,
+	type OtherEngine,
 	type RangeLawCase
 } from '../../range-law-cases';
 
@@ -33,11 +34,15 @@ const insideRange = (row: RangeLawCase): CasePoint => {
 	return sameSpot ? anchor : { path: anchor.path, offset: anchor.offset + 1 };
 };
 
-async function pickMenuRow(editor: EditorPage, row: RangeLawCase, name: string): Promise<void> {
+/** False when the row is disabled, which a press can't pick, so the gesture does nothing. */
+async function pickMenuRow(editor: EditorPage, row: RangeLawCase, name: string): Promise<boolean> {
 	const at = insideRange(row);
 	const point = await pointAtRaw(editor.page, at.path, at.offset);
 	await editor.page.mouse.click(point.x, point.y, { button: 'right' });
-	await editor.page.getByRole('menuitem', { name, exact: true }).click();
+	const item = editor.page.getByRole('menuitem', { name, exact: true });
+	if (await item.isDisabled()) return false;
+	await item.click();
+	return true;
 }
 
 async function run(editor: EditorPage, row: RangeLawCase, step: CaseStep): Promise<void> {
@@ -45,9 +50,9 @@ async function run(editor: EditorPage, row: RangeLawCase, step: CaseStep): Promi
 	switch (step.do) {
 		case 'copy':
 		case 'cut':
-			if (step.route === 'menu')
-				await pickMenuRow(editor, row, step.do === 'copy' ? 'Copy' : 'Cut');
-			else await page.keyboard.press(`ControlOrMeta+${step.do === 'copy' ? 'c' : 'x'}`);
+			if (step.route === 'menu') {
+				if (!(await pickMenuRow(editor, row, step.do === 'copy' ? 'Copy' : 'Cut'))) return;
+			} else await page.keyboard.press(`ControlOrMeta+${step.do === 'copy' ? 'c' : 'x'}`);
 			await editor.waitForClipboardWrite();
 			return;
 		case 'paste':
@@ -104,14 +109,19 @@ test.describe('the range-edit law cases, in a browser', () => {
 	});
 
 	for (const row of RANGE_LAW_CASES) {
-		test(`${row.law}: ${row.name}${row.issue ? ` (${row.issue})` : ''}`, async ({ page }) => {
+		test(`${row.law}: ${row.name}${row.issue ? ` (${row.issue})` : ''}`, async ({
+			page,
+			browserName
+		}) => {
 			test.skip(row.only?.run === 'chromium' && !isChromium(page), row.only?.reason);
+			const engine = browserName as OtherEngine;
+			test.skip(!!row.skipIn?.[engine], row.skipIn?.[engine]);
 			await editor.loadContent(row.source);
 			await editor.setPresentationMode(row.mode);
 			await select(editor, row);
 			for (const step of row.steps) await run(editor, row, step);
 
-			const want = row.today ?? row.expected;
+			const want = row.todayIn?.[engine] ?? row.today ?? row.expected;
 			await expect.poll(() => observe(editor, row)).toEqual(want);
 			if (row.today) {
 				expect(

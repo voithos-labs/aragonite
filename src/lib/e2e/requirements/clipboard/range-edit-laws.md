@@ -15,14 +15,14 @@ The unit suite checks the range-edit laws through jsdom's stand-in events (`src/
 - A cut across two paragraphs, pasted back: the document comes back (fails today, #818).
 - A copy from a paragraph into a nested quote: the clipboard keeps the quote markers of the lines it covers (fails today, #815).
 - A cut from one nested list item into the next, pasted back: the list comes back (fails today, #816).
-- A key typed over a range that ends at a picture: replaces the range, as a cut then the key does (fails today, #817).
+- A key typed over a range that ends at a picture: replaces the range, as a cut then the key does (fails today, #817: the letter lands before the picture, after it in Firefox).
 - Two paragraphs pasted with `insertMarkdown` in the middle of a paragraph: the first joins the text before the caret, the last the text after (fails today, #818).
 - A cut across paragraphs of a CRLF document, pasted back: the document comes back with its CRLF endings (fails today, #818).
 - A range inside one live paragraph, put down with `setSelection`: `getSelection()` reads it back unchanged.
 
 ## User interactions
 
-- Right-click inside a range across paragraphs, then Cut: the clipboard holds the range and the two halves join.
+- Right-click inside a range across paragraphs, then Cut: the clipboard holds the range and the two halves join (fails today: the menu drops the range and shows Cut disabled, in jsdom and every browser).
 - An IME composition over a range across paragraphs (Chromium, over CDP): replaces the range, as a cut then the composition does.
 - Paste at a caret, then Ctrl+Z: the bytes come back and the caret sits where the paste began.
-- A word dragged and dropped at the end of the next paragraph: the bytes a cut of the word, then a paste at the drop point, leave.
+- A word dragged and dropped at the end of the next paragraph: the bytes a cut of the word, then a paste at the drop point, leave. Skipped in Firefox, where Playwright’s drag never sends the drop.

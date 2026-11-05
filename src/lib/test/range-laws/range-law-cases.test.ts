@@ -14,7 +14,12 @@ import {
 } from '#lib/test/harness/clipboard-events.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { RANGE_LAW_CASES, type CaseObserved, type RangeLawCase } from '#lib/e2e/range-law-cases.js';
+import {
+	RANGE_LAW_CASES,
+	type CaseObserved,
+	type CaseStep,
+	type RangeLawCase
+} from '#lib/e2e/range-law-cases.js';
 import {
 	clipboardGesture,
 	deleteGesture,
@@ -24,7 +29,9 @@ import {
 	placeRange,
 	runHistory,
 	typeGesture,
-	type Payload
+	type Editor,
+	type Payload,
+	Undetermined
 } from './gestures';
 import { LAW_SPECS } from './law-specs';
 import { KNOWN_VIOLATIONS } from './known-failures';
@@ -47,8 +54,7 @@ async function observe(row: RangeLawCase): Promise<CaseObserved> {
 	expect(await placeRange(editor, row.select), 'the range would not place').toBe(true);
 	let written: Payload = {};
 	for (const step of row.steps) {
-		if (step.do === 'copy' || step.do === 'cut')
-			written = await clipboardGesture(editor, step.do, step.route);
+		if (step.do === 'copy' || step.do === 'cut') written = await copyOrCut(editor, step);
 		else if (step.do === 'paste') {
 			await pasteGesture(
 				editor,
@@ -72,6 +78,19 @@ async function observe(row: RangeLawCase): Promise<CaseObserved> {
 	if ('selection' in row.expected)
 		seen.selection = editor.instance.getSelection() as CaseObserved['selection'];
 	return seen;
+}
+
+/** A copy or cut; a menu row the press finds disabled does nothing, as in the browser run. */
+async function copyOrCut(
+	editor: Editor,
+	step: Extract<CaseStep, { do: 'copy' | 'cut' }>
+): Promise<Payload> {
+	try {
+		return await clipboardGesture(editor, step.do, step.route);
+	} catch (error) {
+		if (error instanceof Undetermined && /disabled/.test(error.message)) return {};
+		throw error;
+	}
 }
 
 describe('the range-law cases, as jsdom drives them', () => {

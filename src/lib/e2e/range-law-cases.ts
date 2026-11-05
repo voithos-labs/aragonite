@@ -40,9 +40,15 @@ export interface RangeLawCase {
 	/** What the editor does today, while it breaks the law; the issue the class is filed as. */
 	today?: CaseObserved;
 	issue?: string;
+	/** Where one engine breaks the law differently from jsdom and Chromium, what it does. */
+	todayIn?: Partial<Record<OtherEngine, CaseObserved>>;
 	/** A row one run can't drive, and why. */
 	only?: { run: 'browser' | 'chromium'; reason: string };
+	/** An engine the browser run skips the row in, and why. */
+	skipIn?: Partial<Record<OtherEngine, string>>;
 }
+
+export type OtherEngine = 'firefox' | 'webkit';
 
 const caret = (path: number[], offset: number) => ({
 	anchor: { path, offset },
@@ -131,7 +137,8 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		select: range({ path: [0], offset: 5 }, { path: [2], offset: 13 }),
 		steps: [{ do: 'type', text: 'Z', route: 'hardware key' }],
 		expected: { source: 'alphaZ\n' },
-		today: { source: 'alpha\n\nbeta\n\nZ![pic](p.png)\n' }
+		today: { source: 'alpha\n\nbeta\n\nZ![pic](p.png)\n' },
+		todayIn: { firefox: { source: 'alpha\n\nbeta\n\n![pic](p.png)Z\n' } }
 	},
 	{
 		name: 'Backspace over a range across paragraphs leaves what a cut leaves',
@@ -149,11 +156,9 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		mode: 'source',
 		select: range({ path: [0], offset: 1 }, { path: [1], offset: 2 }),
 		steps: [{ do: 'cut', route: 'menu' }],
+		issue: 'new: the menu drops the range',
 		expected: { source: 'oo\n', clipboard: 'ne\n\ntw' },
-		only: {
-			run: 'browser',
-			reason: 'jsdom sends no secondary press, and its menu disables Cut over the editor’s range'
-		}
+		today: { source: 'one\n\ntwo\n', clipboard: '' }
 	},
 	{
 		name: 'blocks pasted by insertMarkdown in the middle of a paragraph',
@@ -218,7 +223,7 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		expected: { source: 'alpha\n', selection: caret([0], 2) },
 		only: {
 			run: 'browser',
-			reason: 'jsdom’s undo restores no caret, since its scroll never arrives'
+			reason: 'jsdom’s undo restores no caret (its scroll never arrives); every browser does'
 		}
 	},
 	{
@@ -234,7 +239,7 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		},
 		only: {
 			run: 'browser',
-			reason: 'jsdom collapses it to the block’s start, a harness note until a browser agrees'
+			reason: 'jsdom collapses it to the block’s start; every browser keeps it, so a jsdom note'
 		}
 	},
 	{
@@ -248,6 +253,10 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		only: {
 			run: 'browser',
 			reason: 'jsdom lays nothing out, so a drop point has no block under it'
+		},
+		skipIn: {
+			firefox:
+				'Playwright’s drag in Firefox sends dragstart and dragover, which the editor accepts, and never the drop'
 		}
 	}
 ];
