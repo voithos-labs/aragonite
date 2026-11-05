@@ -48,19 +48,15 @@ export function kindEnablementFor(activation: PluginActivation): KindEnablement 
 export function createRegistryView(opts?: {
 	/** The plugins this editor lists; absent activates every installed plugin. */
 	plugins?: PluginActivation;
-	/** A further kind filter, narrowing what `plugins` allows. */
-	isEnabled?: KindEnablement;
 	syntax?: SyntaxOptions;
 }): RegistryView {
 	const plugins = opts?.plugins;
 	const indentedCode = opts?.syntax?.indentedCode ?? true;
 	const setextHeading = opts?.syntax?.setextHeading ?? true;
-	if (!plugins && !opts?.isEnabled && indentedCode && setextHeading) return defaultRegistryView;
+	if (!plugins && indentedCode && setextHeading) return defaultRegistryView;
 	const activation = plugins ?? everyInstalledPlugin;
 	const resolves = kindEnablementFor(activation);
-	const narrowed = opts?.isEnabled;
-	const enabled: KindEnablement = (kind) =>
-		isBuiltinBlockKind(kind) || (resolves(kind) && (!narrowed || narrowed(kind)));
+	const enabled: KindEnablement = (kind) => isBuiltinBlockKind(kind) || resolves(kind);
 	// A switched-off syntax leaves the grammar only: a block of that kind still renders.
 	const opens: KindEnablement = (kind) =>
 		enabled(kind) && (indentedCode || kind !== 'indentedCode');

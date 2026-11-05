@@ -6,6 +6,7 @@ import { parse } from '#lib/core/parser.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { svelteBlockView } from '#lib/components/svelte-block-view.js';
 import { createRegistryView } from '#lib/schema/registry-view.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
 import { mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
@@ -109,18 +110,22 @@ describe('BlockHost falls back to a raw-editable surface when no component resol
 		expect(mounted.el.querySelector('.raw-block')?.textContent).toBe('orphan text');
 	});
 
-	it('renders a kind whose component this instance’s registry view disables', () => {
-		// Turning a kind off reaches BlockHost through this editor's own registry
-		// view: a host reading the global registry instead would still render it.
-		const kind = testLeaf('host-disabled', { view: svelteBlockView(RecordingBlock) });
+	it('renders a kind whose plugin this instance does not list', () => {
+		// An editor's plugin list reaches BlockHost through that editor's own registry view: a
+		// host reading the global registry instead would still render it.
+		let kind: PluginBlockKind | undefined;
+		installPlugins([
+			definePlugin({
+				name: 'host-unlisted',
+				setup: () =>
+					void (kind = testLeaf('host-disabled', { view: svelteBlockView(RecordingBlock) }))
+			})
+		]);
 		const doc = parse('disabled text\n');
-		doc.children[0].kind = kind;
+		doc.children[0].kind = kind!;
+		const registryView = createRegistryView({ plugins: activationFor([]) });
 
-		mounted = mountBlockHost(
-			doc,
-			{},
-			{ services: { registryView: createRegistryView({ isEnabled: (k) => k !== kind }) } }
-		);
+		mounted = mountBlockHost(doc, {}, { services: { registryView } });
 
 		expect(mounted.el.querySelector('.recording-block')).toBeNull();
 		expect(mounted.el.querySelector('.raw-block')?.textContent).toBe('disabled text');

@@ -278,7 +278,7 @@ The plugin specs drive `/test/plugins` (`src/routes/test/plugins/+page.svelte`),
 - `hloccur-scan/`: the bundled highlight-occurrences plugin with an `onScan` counter on `window`, for counting rescans. Seed `hloccur-memo`.
 - `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section below). One marks every whole-word `paragraph`; the other turns three sentinel strings in the text into a replace widget, an inline widget, and a block badge. Both under `?seed=sim`, so the simulation runs with the decoration engine live on every keystroke.
 
-Four subroutes carry the multi-editor cases: `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the second), `staggered/` (editor one installs callout, editor two mounts later with details added, for the staggered-mount spec), `enablement/` (two editors sharing one memo registration, the left with the kind switched off through the harness-only `__registryEnablement` prop), and `activation/` (two editors in one process, only the first listing the parrot and the block badge, for the per-instance activation spec).
+Three subroutes carry the multi-editor cases: `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the second), `staggered/` (editor one installs callout, editor two mounts later with details added, for the staggered-mount spec), and `activation/` (two editors in one process, only the first listing the parrot and the block badge, for the per-instance activation spec).
 
 ### Browser engines
 
