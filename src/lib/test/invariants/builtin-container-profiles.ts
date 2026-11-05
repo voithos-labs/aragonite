@@ -1,8 +1,9 @@
 /**
  * Conformance profiles for the built-in container kinds, with drivers for the ops only their own
  * contexts perform. Test-side because a plugin author supplies their own profile;
- * `container-conformance.test.ts` holds this map in lockstep with the registry. A cell a grid's
- * contract makes moot is declared with a reason, never skipped.
+ * `container-conformance.test.ts` holds this map in lockstep with the registry. An excused cell
+ * carries its reason and runs none of its checks, except that an excused terminator collision is
+ * refused if the container can produce one.
  */
 
 import type { BlockKind } from '#lib/core/nodes.js';

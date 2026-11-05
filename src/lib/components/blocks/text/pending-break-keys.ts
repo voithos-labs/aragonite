@@ -7,9 +7,9 @@
 
 import type { ContentWrite } from '../../../action-contracts';
 import type { BlockPendingBreak } from '../../../caret/pending-break.svelte';
-import { BARE_MODIFIER_KEYS, caretEdgeKey } from '../../../schema/keybindings';
+import { BARE_MODIFIER_KEYS, caretEdgeKey, typesCharacter } from '../../../schema/keybindings';
 import type { TextWrite } from '../editable/surface-write';
-import { hasModifier, isPlainTypingKey } from './click-snap-guard';
+import { hasModifier } from './click-snap-guard';
 
 export interface PendingBreakKeyDeps {
 	pendingBreak: BlockPendingBreak;
@@ -27,7 +27,7 @@ export function handlePendingBreakKey(e: KeyboardEvent, deps: PendingBreakKeyDep
 	const at = deps.pendingBreak.at();
 	if (at === null || BARE_MODIFIER_KEYS.includes(e.key)) return false;
 	if (deps.opensBreak(e)) return false;
-	if (isPlainTypingKey(e)) {
+	if (typesCharacter(e)) {
 		if (deps.getCaret() !== at) {
 			deps.pendingBreak.end();
 			return false;

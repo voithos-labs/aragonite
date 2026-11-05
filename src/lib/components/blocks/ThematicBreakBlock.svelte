@@ -9,6 +9,7 @@
 	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface.svelte';
 	import { blockAccessibleName } from '../../a11y-strings';
 	import { placeCaret } from '../../selection/place-caret';
+	import { selectWholeDocument } from '../../selection/keyboard-extend';
 	import { wireSurfaceContexts } from './editable/surface-wiring.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -20,6 +21,8 @@
 		caretMemory,
 		caretWriter,
 		selection,
+		getDoc,
+		getBlockElByPath,
 		reading,
 		commands,
 		readingFocus,
@@ -101,7 +104,8 @@
 			commandOf: (press) => wiring.resolveChord(press, node.kind),
 			takesKey: inputProxy.takesKey,
 			getPath: () => myPath,
-			containerChords: wiring.services.containerChords
+			containerChords: wiring.services.containerChords,
+			selectDocument: () => selectWholeDocument(selection, caretWriter, getDoc(), getBlockElByPath)
 		});
 	}
 </script>

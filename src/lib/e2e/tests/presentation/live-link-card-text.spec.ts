@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../../editor-page';
 import { clickInPlace } from '../../click-in-place';
-import { clickWordSettled, enterPresentationMode, landAt, nextRow } from './helpers';
+import { clickEnd, clickWordSettled, enterPresentationMode, landAt, nextRow } from './helpers';
 import { CARD, TEXT_FIELD, URL_FIELD, editUrl, openCardOn } from './link-card-helpers';
 
 // The link card's Text field, above the URL, for edit and create.
@@ -119,4 +119,87 @@ test.describe('live-mode link card: the Text field when creating', () => {
 		await undoOnce(ep, page);
 		expect(await ep.bridge.getSource()).toBe('Alpha bravo charlie');
 	});
+});
+
+test.describe('live-mode link card: a press elsewhere keeps the edit', () => {
+	const doc = `Visit [example](${U}) now`;
+
+	test('a new text, then a press in the link’s own line, writes it and keeps that caret', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', doc);
+		await openCardOn(ep, page, 'example');
+		await editText(page, 'sample');
+		await clickEnd(ep, page, 'now');
+		await ep.bridge.waitForSourceContains(`Visit [sample](${U}) now`);
+		await expect(page.locator(CARD)).toHaveCount(0);
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains(`Visit [sample](${U}) nowX`);
+	});
+
+	test('a new URL, then a press in another block, writes it and keeps that caret', async ({
+		page
+	}) => {
+		// The block above the link, which the card hanging below it never covers.
+		const ep = await enterPresentationMode(
+			page,
+			'live',
+			`Plain words only\n\nVisit [example](${U}) now`
+		);
+		await openCardOn(ep, page, 'example');
+		await editUrl(page, 'https://other.test/');
+		await clickEnd(ep, page, 'only');
+		await ep.bridge.waitForSourceContains('Visit [example](https://other.test/) now');
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('Plain words onlyX');
+	});
+
+	test('a new text, then a press outside the editor, writes it and leaves focus there', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', doc);
+		await openCardOn(ep, page, 'example');
+		await editText(page, 'sample');
+		await clickInPlace(page.getByRole('heading', { name: 'aragonite' }));
+		await ep.bridge.waitForSourceContains(`Visit [sample](${U}) now`);
+		await ep.waitForRenderFlush();
+		await expect(page.locator('.editor :focus')).toHaveCount(0);
+	});
+
+	test('Escape still drops the edit', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', doc);
+		await openCardOn(ep, page, 'example');
+		await editText(page, 'sample');
+		await page.keyboard.press('Escape');
+		await expect(page.locator(CARD)).toHaveCount(0);
+		await ep.waitForNoSourceMutation();
+		expect(await ep.bridge.getSource()).toBe(doc);
+	});
+
+	test('a create card with a URL typed, then a press elsewhere, makes the link', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', 'Alpha bravo charlie');
+		await clickWordSettled(ep, page, 'Alpha');
+		await landAt(ep, page, 6);
+		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
+		await ep.pressDeclined('ControlOrMeta+k');
+		await page.keyboard.type('https://new.test/');
+		await clickEnd(ep, page, 'charlie');
+		await ep.bridge.waitForSourceEquals('Alpha [bravo](https://new.test/) charlie');
+	});
+});
+
+// A host shortcut switches the mode with no press, so nothing clicks away from the card first.
+test.describe('live-mode link card: a mode change keeps the edit', () => {
+	for (const to of ['source', 'reading'] as const) {
+		test(`a new text, then a switch to ${to}, writes it`, async ({ page }) => {
+			const ep = await enterPresentationMode(page, 'live', `Visit [example](${U}) now`);
+			await openCardOn(ep, page, 'example');
+			await editText(page, 'sample');
+			await ep.setPresentationMode(to);
+			await expect(page.locator(CARD)).toHaveCount(0);
+			await ep.bridge.waitForSourceEquals(`Visit [sample](${U}) now`);
+		});
+	}
 });

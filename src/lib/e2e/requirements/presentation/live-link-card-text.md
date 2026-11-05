@@ -6,8 +6,9 @@ entry. The field shows the text you see; it's read-only when that text holds for
 since editing raw markers as plain text would break the link. A new text keeps a reference's
 destination: `[t][ref]` keeps its label, and the collapsed and shortcut forms are written
 `[new][old label]`, so the definition line stays as it was. Characters that would end the link
-early or format it are escaped, so the link shows exactly what was typed. Autolinks get no card,
-as before. Driven on `/test/editor` via `?presentationMode=live` with real clicks, real typing and
+early or format it are escaped, so the link shows exactly what was typed. An autolink's text is its
+URL: a new URL with the text left alone rewrites the autolink, and a new text makes it
+`[text](url)` (`test/blocks/text/link-card-entry-commit.test.ts`). Driven on `/test/editor` via `?presentationMode=live` with real clicks, real typing and
 a real `Mod+Z`.
 
 Miss-analysis (#807): the card had one field, so a link's text could only be changed by typing
@@ -30,6 +31,26 @@ over it in the document, and no scenario covered renaming a link while keeping i
 
 - a text and a URL changed together, then one undo: the link is back as it was, since the card's
   commit is one entry
+
+## A press elsewhere
+
+- a new text, then a click at the end of the link's own line: the text is written, the card closes,
+  and a letter typed next lands where the click put the caret
+- a new URL, then a click in the block above: the URL is written and typing goes there
+- a new text, then a click outside the editor: the text is written and focus stays outside
+- a new text, then Escape: nothing is written
+- a create card with a URL typed, then a click elsewhere: the link is written over the selection
+- Miss-analysis (#814): every commit scenario pressed Enter, and the one outside-press scenario
+  edited nothing, so a press that dropped a typed edit looked the same as one that had nothing
+  to drop.
+
+## A mode change
+
+- a new text, then the host switches to source mode with no press: the text is written and the
+  card closes
+- the same switch to reading mode writes it too, in the mode it was typed in
+- Miss-analysis (#814): no row held an edit across a switch, and the image's alt field rows only
+  switched between modes that edit, so a save reading mode declined went unseen.
 
 ## Create
 

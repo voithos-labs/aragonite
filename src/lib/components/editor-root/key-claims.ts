@@ -22,7 +22,7 @@ import {
 	takesGlobalChordOnKind
 } from '../../schema/commands';
 import { eventToChord, isCharacterKey, isPasteKey, textKeyRole } from '../../schema/keybindings';
-import { wholeBlockClipboardKey } from '../../editor-actions/container-block-component';
+import { wholeBlockChord } from '../../editor-actions/container-block-component';
 import { rangeOwnsKey } from '../../selection/cross-block/keydown';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
 import type { SelectionState } from '../../selection/selection-state.svelte';
@@ -117,8 +117,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		const ownsCaret = ownsWindowedOutCaret(root, el);
 		if (!ownsCaret && !chromeHoldsFocus(root, el, deps)) return false;
 		if (chord && takesGlobalChord(chord, deps.commands)) return true;
-		if (!ownsCaret || !deps.selection.ownsRange) return false;
-		return (isCharacterKey(e.key) && !e.ctrlKey && !e.metaKey) || rangeTakes(e);
+		return ownsCaret && rangeTakes(e);
 	}
 
 	function leafTakes(e: KeyboardEvent, chord: string | null, kind: AnyBlockKind, path: number[]) {
@@ -139,7 +138,8 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		if (chord && takesGlobalChordOnKind(chord, kind, deps.commands)) return true;
 		if (chord && keymapTakes(e, chord, kind, path, true)) return true;
 		if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') return true;
-		if (wholeBlockClipboardKey(e) && !deps.selection.ownsRange) return true;
+		const own = wholeBlockChord(e);
+		if (own === 'selectAll' || (own && !deps.selection.ownsRange)) return true;
 		if (isPasteKey(e)) return !reading();
 		if (e.ctrlKey || e.metaKey || e.altKey) return false;
 		return isCharacterKey(e.key) || e.key.startsWith('Arrow');

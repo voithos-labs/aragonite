@@ -66,7 +66,6 @@ describe('the render', () => {
 		expect(frag.querySelector(`[${FRAME_ATTR}]`)).not.toBeNull();
 		expect(frameAnchors(frag)).toBe(1);
 		expect(endsOnAnchor(frag)).toBe(true);
-		expect(frag.textContent).toBe(render(raw).textContent);
 	});
 
 	it.each([

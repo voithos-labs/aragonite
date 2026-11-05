@@ -31,6 +31,9 @@ import { createCrossBlockPointer, type PaddingPress } from './pointer';
 export interface CrossBlockDispatchContext {
 	getEl: () => HTMLElement | null;
 	getMyPath: () => number[];
+	/** The first and last offsets a caret reaches in the block (`BlockComponent.caretBounds`), or
+	 *  null at the editor root, which holds no block of its own. */
+	caretBounds: () => { start: number; end: number } | null;
 
 	selection: SelectionState;
 	/** The editor's caret writer, which every caret and range the dispatch puts down goes through. */
@@ -87,9 +90,6 @@ export interface CrossBlockHandlers {
 	/** Whether `handleBeforeInput` takes `e`, known before it runs: a character typed over a range. */
 	claimsBeforeInput(e: InputEvent): boolean;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
-	/** A character typed over a range from a caller with no `InputEvent`: the editor root, where a
-	 *  range over a block with no character position leaves no element for `beforeinput`. */
-	insertText(text: string): Promise<boolean>;
 	handleCompositionStart(): boolean;
 	/** After the composed text's write, whether or not there was one. */
 	handleCompositionEnd(): void;
@@ -105,15 +105,6 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 
 	const claimsBeforeInput = (e: InputEvent): boolean =>
 		ctx.selection.ownsRange && readInput(e).kind === 'insert';
-
-	const insertText = async (text: string): Promise<boolean> => {
-		// Refused quietly here, since the range replace's refusal warns about a key the editor lets
-		// through; this check goes once one reading-mode check sits in front of every key handler.
-		if (isReadingMode(ctx.reading.mode)) return true;
-		if (!ctx.selection.ownsRange) return false;
-		await replaceRange(ctx, { kind: 'text', text });
-		return true;
-	};
 
 	return {
 		get reading() {
@@ -139,9 +130,11 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handleBeforeInput: async (e) => {
 			if (!claimsBeforeInput(e)) return false;
 			e.preventDefault();
-			return insertText(e.data ?? '');
+			// Refused here, quietly: the range replace's own refusal warns, for a key let through.
+			if (isReadingMode(ctx.reading.mode)) return true;
+			await replaceRange(ctx, { kind: 'text', text: e.data ?? '' });
+			return true;
 		},
-		insertText,
 		performCrossBlockCut: async () => {
 			await replaceRange(ctx, { kind: 'none', gesture: 'cut' });
 		}

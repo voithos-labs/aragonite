@@ -18,7 +18,7 @@ import {
 	type KindCommandTarget
 } from '../schema/block-commands';
 import type { Reading } from '../schema/reading';
-import { eventToChord, isCharacterKey } from '../schema/keybindings';
+import { eventToChord, isCharacterKey, isSelectAllChord } from '../schema/keybindings';
 import { displayLength } from '../core/lines';
 import { copyBlockToClipboard } from './system-clipboard';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
@@ -60,9 +60,10 @@ export function dispatchOwnKindChord(
 	return true;
 }
 
-/** Mod+C or Mod+X on a block focused as a whole, which copies its own Markdown through writeText:
- *  a keydown carries no ClipboardEvent. `claimsChord` asks the same. */
-export function wholeBlockClipboardKey(e: KeyboardEvent): 'copy' | 'cut' | null {
+/** The chords a block focused whole takes itself: Mod+C and Mod+X copy its Markdown (a keydown
+ *  carries no ClipboardEvent), Mod+A selects the document. `claimsChord` asks the same. */
+export function wholeBlockChord(e: KeyboardEvent): 'copy' | 'cut' | 'selectAll' | null {
+	if (isSelectAllChord(e)) return 'selectAll';
 	const chord = eventToChord(e);
 	return chord === 'Mod+C' ? 'copy' : chord === 'Mod+X' ? 'cut' : null;
 }
@@ -110,6 +111,8 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	takesKey: CaretHostInput['takesKey'];
 	getPath: () => number[];
 	containerChords: Pick<ContainerChords, 'take'>;
+	/** Selects the whole document, what Mod+A does on a block focused whole. */
+	selectDocument: () => void;
 }
 
 /**
@@ -136,12 +139,17 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 		return;
 	}
 
+	const own = wholeBlockChord(e);
+	if (own === 'selectAll') {
+		e.preventDefault();
+		deps.selectDocument();
+		return;
+	}
 	// A range the editor holds is left to the copy event the editor's handlers take.
-	const clipboard = wholeBlockClipboardKey(e);
-	if (clipboard) {
+	if (own) {
 		if (deps.selection.ownsRange) return;
 		e.preventDefault();
-		void copyFocusedWholeBlock(deps, clipboard === 'cut');
+		void copyFocusedWholeBlock(deps, own === 'cut');
 		return;
 	}
 

@@ -49,7 +49,7 @@ describe('kind enablement derived from an instance activation set', () => {
 		const listed = installKindPlugin('listed', '@a');
 		const unlisted = installKindPlugin('unlisted', '@b');
 
-		const view = createRegistryView({ isEnabled: kindEnablementFor(activationFor(['listed'])) });
+		const view = createRegistryView({ plugins: activationFor(['listed']) });
 		expect(view.blockView(listed)).toBe(stubView);
 		expect(view.blockView(unlisted)).toBeUndefined();
 		// Never filtered: the degraded block still needs its descriptor to fall back.
@@ -60,9 +60,7 @@ describe('kind enablement derived from an instance activation set', () => {
 		installKindPlugin('listed', '@a');
 		installKindPlugin('unlisted', '@b');
 
-		const grammar = createRegistryView({
-			isEnabled: kindEnablementFor(activationFor(['listed']))
-		}).grammar;
+		const grammar = createRegistryView({ plugins: activationFor(['listed']) }).grammar;
 		expect(parse('@a hi\n', { grammar }).children[0].kind).toBe('listed-block');
 		expect(parse('@b hi\n', { grammar }).children[0].kind).toBe('paragraph');
 	});

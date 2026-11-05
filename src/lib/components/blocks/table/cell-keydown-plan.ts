@@ -5,12 +5,7 @@
  * takes only a caret key; a Cmd+Arrow is a caret-edge key, so it is `native`.
  */
 import { cellAbove, cellBelow, nextCell, prevCell, type CellCoord } from './table-navigation';
-import {
-	caretEdgeKey,
-	isSelectAllChord,
-	motionKey,
-	type ChordKeys
-} from '../../../schema/keybindings';
+import { caretEdgeKey, motionKey, type ChordKeys } from '../../../schema/keybindings';
 
 export interface CellKeyState {
 	rowIdx: number;
@@ -24,12 +19,10 @@ export interface CellKeyState {
 	contentStart: number;
 	contentEnd: number;
 	collapsed: boolean;
-	selectAllCount: number;
 }
 
 export type CellKeyPlan =
 	| { kind: 'native' }
-	| { kind: 'select-all-step'; step: 'native' | 'document' }
 	| { kind: 'focus-cell'; rowIdx: number; colIdx: number; position: 'start' | 'end' }
 	| { kind: 'insert-row-below' }
 	| { kind: 'exit'; direction: 'up' | 'down' };
@@ -37,13 +30,6 @@ export type CellKeyPlan =
 export function cellKeydownPlan(e: ChordKeys, s: CellKeyState): CellKeyPlan {
 	const pos = { rowIdx: s.rowIdx, colIdx: s.colIdx };
 
-	// Two stages, like every other block: the cell's own text first, then the document.
-	if (isSelectAllChord(e)) {
-		return {
-			kind: 'select-all-step',
-			step: s.selectAllCount === 0 ? 'native' : 'document'
-		};
-	}
 	if (caretEdgeKey(e)) return { kind: 'native' };
 	const atStart = s.offset === null || (s.offset <= s.contentStart && s.collapsed);
 	const atEnd = s.offset === null || (s.offset >= s.contentEnd && s.collapsed);

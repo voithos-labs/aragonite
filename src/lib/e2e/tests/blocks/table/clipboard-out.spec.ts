@@ -37,12 +37,14 @@ test.describe('table block: clipboard out', () => {
 		await expect.poll(() => editor.readClipboard()).toBe('a<br>b');
 	});
 
-	test('Ctrl+A in an empty cell copies an empty string', async ({ page }) => {
-		await editor.loadContent('| A | B |\n| --- | --- |\n|  | 2 |\n');
+	// An empty cell has no text for a first press to select, so it takes the document at once.
+	test('Ctrl+A in an empty cell then Ctrl+C copies the whole table', async ({ page }) => {
+		const table = '| A | B |\n| --- | --- |\n|  | 2 |\n';
+		await editor.loadContent(table);
 		await clickInPlace(page.locator('.table-cell').nth(2));
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('ControlOrMeta+c');
-		await expect.poll(() => editor.readClipboard()).toBe('');
+		await expect.poll(() => editor.readClipboard()).toBe(table);
 	});
 
 	test('cross-block para → table → para Ctrl+C copies surrounding text + table raw', async ({

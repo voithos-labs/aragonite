@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
+import type { CstNode } from '#lib/core/nodes.js';
 import { documentBody, type BodyParent } from '#lib/tree-operations/node-primitives.js';
 import { fixUpEdit } from '#lib/tree-operations/fix-up/apply.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
@@ -7,19 +8,6 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A body names its container once, as `owner`, and the document root names none. The fix-up
 // reads the owner's fence lines and title off it, so a body is the only thing it takes.
-
-describe('the fix-up takes a body', () => {
-	it('refuses a bare children array, which names no owner', () => {
-		const { children } = parse('> a\n>\n>\n> b\n').children[0];
-		fixUpEdit(
-			// @ts-expect-error a bare array can't say whose body it is, so the fix-up can't read the wrap
-			{ children: children!, lineEnding: '\n' },
-			{ change: { op: 'noop' }, before: children! },
-			defaultGrammarView,
-			createSharingState()
-		);
-	});
-});
 
 describe('documentBody', () => {
 	it('names no owner', () => {
@@ -43,15 +31,23 @@ describe('documentBody', () => {
 		doc.childIds = ['x', 'y'];
 		expect(documentBody(doc).childIds).toBeUndefined();
 	});
-
-	it('refuses a second copy of the owner kind', () => {
-		const body: BodyParent = {
-			children: [],
-			owner: undefined,
-			lineEnding: '\n',
-			// @ts-expect-error the kind is read off `owner`, so a copy beside it could disagree
-			ownerKind: 'blockquote'
-		};
-		expect(body.owner).toBeUndefined();
-	});
 });
+
+/** Never called: `npm run check` fails once a directive inside goes unused. */
+export function compileTimePins(children: CstNode[]): void {
+	fixUpEdit(
+		// @ts-expect-error a bare array can't say whose body it is, so the fix-up can't read the wrap
+		{ children, lineEnding: '\n' },
+		{ change: { op: 'noop' }, before: children },
+		defaultGrammarView,
+		createSharingState()
+	);
+	const body: BodyParent = {
+		children: [],
+		owner: undefined,
+		lineEnding: '\n',
+		// @ts-expect-error the kind is read off `owner`, so a copy beside it could disagree
+		ownerKind: 'blockquote'
+	};
+	void body;
+}

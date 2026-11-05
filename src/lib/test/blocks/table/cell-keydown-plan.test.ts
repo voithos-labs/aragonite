@@ -27,7 +27,6 @@ const state = (over: Partial<CellKeyState> = {}): CellKeyState => ({
 	contentStart: 0,
 	contentEnd: 3,
 	collapsed: true,
-	selectAllCount: 0,
 	...over
 });
 
@@ -74,32 +73,6 @@ describe('cellKeydownPlan: a sideways step takes only a caret key', () => {
 	it('leaves Alt+ArrowLeft at the left edge to the page', () => {
 		expect(cellKeydownPlan(key('ArrowLeft', { altKey: true }), state({ offset: 0 }))).toEqual({
 			kind: 'native'
-		});
-	});
-});
-
-describe('cellKeydownPlan: ctrl+a select-all stepping', () => {
-	const steps: Array<[number, 'native' | 'document']> = [
-		[0, 'native'],
-		[1, 'document'],
-		[2, 'document'],
-		[5, 'document']
-	];
-	for (const [selectAllCount, step] of steps) {
-		it(`count ${selectAllCount} → ${step}`, () => {
-			expect(cellKeydownPlan(key('a', { ctrlKey: true }), state({ selectAllCount }))).toEqual({
-				kind: 'select-all-step',
-				step
-			});
-		});
-	}
-
-	// CapsLock reports the letter uppercased, so testing only `'a'` would miss the staged
-	// select-all entirely: the plan falls through to 'native' and the counter never moves.
-	it('starts the run with CapsLock on', () => {
-		expect(cellKeydownPlan(key('A', { ctrlKey: true }), state({ selectAllCount: 1 }))).toEqual({
-			kind: 'select-all-step',
-			step: 'document'
 		});
 	});
 });

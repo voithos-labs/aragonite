@@ -10,8 +10,8 @@
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
 
-	// The text and URL panel over one link. Enter commits; Escape is the host's. Not `aria-modal`:
-	// a clicked card sits beside a live caret, and its focus trap starts only once focus enters.
+	// The text and URL panel over one link. Enter commits; every other close is the host's. Not
+	// `aria-modal`: a clicked card sits beside a live caret, its focus trap live once focus enters.
 	let {
 		text,
 		textEditable,
@@ -93,6 +93,13 @@
 		stops[(next + stops.length) % stops.length].focus();
 	}
 
+	/** The URL and text a commit would write, or null for none: a link with no text has nothing to
+	 *  click, so an emptied text field writes nothing. */
+	export function pendingEdit(): { url: string; text: string } | null {
+		if (!canWrite || (textDraft.trim() === '' && textDraft !== text)) return null;
+		return { url: draft, text: textDraft };
+	}
+
 	function handleKeyDown(e: KeyboardEvent): void {
 		// An IME's confirm and step keys are the composition's, never the card's.
 		if (imeOwnsKey(e)) return;
@@ -101,11 +108,10 @@
 			stepTrap(e.shiftKey);
 			return;
 		}
-		// Enter in either field commits; a link with no text has nothing to click, so a text field
-		// the user emptied writes nothing.
 		if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
 			e.preventDefault();
-			if (canWrite && (textDraft.trim() !== '' || textDraft === text)) onCommit(draft, textDraft);
+			const edit = pendingEdit();
+			if (edit) onCommit(edit.url, edit.text);
 			return;
 		}
 		// The chord that opens the card does nothing inside it, but is still consumed so the

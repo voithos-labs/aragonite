@@ -50,10 +50,11 @@ const RULES: FileRule[] = [
 	{
 		id: 'G4.274 a typed key is written only where a typed insert is decided',
 		population: inShippedEditor,
-		matches: /\bisPlainTypingKey\s*\(/,
+		matches: /\btypesCharacter\s*\(/,
 		allowed: {
 			[SOURCE.typedInsert]: 'the keydown half of the one decision',
-			[SOURCE.clickSnapGuard]: 'the definition',
+			[SOURCE.keybindings]: 'the definition, and a text field’s own typing keys',
+			[SOURCE.crossBlockKeydown]: 'a key typed over a range across blocks replaces the range',
 			[SOURCE.edgePolicyDispatch]: 'a key typed over a range that opens at a widget replaces it',
 			[SOURCE.widgetInteraction]: 'a widget selected whole takes the key, through the same splice',
 			[SOURCE.pendingBreakKeys]: 'the line Shift+Enter opened writes its own first letter',
@@ -62,7 +63,7 @@ const RULES: FileRule[] = [
 		reaches: [SOURCE.typedInsert],
 		reason:
 			'where a typed letter lands is the typing decision’s (`decideTypedKey` in components/blocks/editable/typed-insert.ts): add the case there, or allow the file here with the reason it reads a typed key at all',
-		hits: ['if (isPlainTypingKey(e)) write(e.key);'].map(inLibrary),
+		hits: ['if (typesCharacter(e)) write(e.key);'].map(inLibrary),
 		misses: ['if (isCharacterKey(event.key)) insert(event.key);'].map(inLibrary)
 	}
 ];

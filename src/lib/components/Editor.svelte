@@ -135,7 +135,7 @@
 	import { activationFor, everyInstalledPlugin } from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
-	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
+	import { createRegistryView } from '../schema/registry-view';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
@@ -162,8 +162,6 @@
 	registerEditorBuiltIns();
 	runStartupInvariantChecks();
 
-	// `__registryEnablement` is for tests only; the intersection type keeps it off the
-	// public EditorProps.
 	let {
 		source,
 		resolveImageUrl,
@@ -187,9 +185,8 @@
 		scrollMode = 'self',
 		plugins,
 		syntax,
-		__registryEnablement,
 		..._unlisted
-	}: EditorProps & { __registryEnablement?: KindEnablement } = $props();
+	}: EditorProps = $props();
 	// Every option is named above: an option missing from that list fails to compile here.
 	void ({} satisfies { [K in keyof typeof _unlisted]-?: never });
 
@@ -234,11 +231,9 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	// This editor's view of the global registries; `__registryEnablement` narrows it in tests.
 	// svelte-ignore state_referenced_locally
 	const registryView = createRegistryView({
 		plugins: pluginEntries ? activePlugins : undefined,
-		isEnabled: __registryEnablement,
 		syntax
 	});
 
@@ -1069,6 +1064,7 @@
 	const editorCrossBlock = createCrossBlockHandlers({
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
+		caretBounds: () => null,
 		selection: selectionState,
 		caretWriter,
 		standInCaret: readingFocus.focusCaret,

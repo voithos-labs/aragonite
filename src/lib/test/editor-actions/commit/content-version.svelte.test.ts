@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
 // The key itself: a number that moves only when a writer says the bytes moved. Who does the
 // calling is `content-version-doors.test.ts`.
+// Miss-analysis: the file ran in Node, where Svelte's server build never runs an `$effect.root`
+// body, so neither row's assertions ever ran.
 import { describe, it, expect } from 'vitest';
 import { createContentVersion } from '../../../editor-actions/commit/content-version.svelte';
 

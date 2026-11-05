@@ -22,7 +22,7 @@ import { comparePaths, pathsEqual } from '../../path-math';
 import {
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
-	renumberAfterDeletion,
+	finishPlannedDeletion,
 	truncateEndInPlace,
 	truncateStartInPlace
 } from './range-delete-ceremony';
@@ -98,7 +98,7 @@ export function unjoinedRangeDelete(
 				'unjoinedRangeDelete:start'
 			)
 		: null;
-	renumberAfterDeletion(doc, plan);
+	finishPlannedDeletion(doc, plan, reading);
 
 	switch (landing.at) {
 		case 'resume':

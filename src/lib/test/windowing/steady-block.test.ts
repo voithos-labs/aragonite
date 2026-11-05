@@ -125,24 +125,16 @@ describe('focusedIndexIn', () => {
 	});
 });
 
-describe('a correction holds only what heldBlock picks', () => {
-	it('refuses a hand-written distance, a scroll write from a list, or a hand-picked block', () => {
-		const table = tableOf(IDS);
-		const writes: ListScrollWrites = {
-			beginRound: () => {},
-			roundOpen: () => false,
-			measureSoon: () => {},
-			scrollToMount: () => {}
-		};
-		// @ts-expect-error a list writes heights, never a distance to scroll by
-		writes.compensate?.(() => {}, 0);
-		// @ts-expect-error a list mounts a block by its path, never by a scroll position
-		writes.scrollToMount(120);
-		// @ts-expect-error a block picked by hand isn't one `heldBlock` picked
-		const byHand: HeldBlock = { id: 'c', index: 2, focused: false };
-		expect(heldIndexIn(byHand, table, table)).toBe(2);
-		// @ts-expect-error a distance worked out by hand isn't one `heldDelta` made
-		const distance: HeldDelta = 40;
-		expect(distance).toBe(40);
-	});
-});
+/** Never called: a correction holds only what `heldBlock` picks, and `npm run check` fails once a
+ *  directive inside goes unused. */
+export function compileTimePins(writes: ListScrollWrites): void {
+	// @ts-expect-error a list writes heights, never a distance to scroll by
+	writes.compensate?.(() => {}, 0);
+	// @ts-expect-error a list mounts a block by its path, never by a scroll position
+	writes.scrollToMount(120);
+	// @ts-expect-error a block picked by hand isn't one `heldBlock` picked
+	const byHand: HeldBlock = { id: 'c', index: 2, focused: false };
+	// @ts-expect-error a distance worked out by hand isn't one `heldDelta` made
+	const distance: HeldDelta = 40;
+	void [byHand, distance];
+}

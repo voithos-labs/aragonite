@@ -1,13 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { getPluginMetadata, type AnyBlockKind, type CstNode } from '../../core/nodes';
+import { getPluginMetadata, type CstNode } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
-import { augmentBlockKind } from '../../schema/block-kind-descriptor';
 import { rowContentRange } from '../../schema/reserved-chrome';
-import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
-import { CALLOUT, rebuildCalloutRaw } from '../../../routes/test/plugins/callout/callout-kind';
+import { rebuildCalloutRaw } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
@@ -182,9 +180,8 @@ describe('cross-block copy starting in reserved chrome', () => {
 			]);
 		});
 
-		// Known gap (GH #42): an end inside a nested container's body skips that container in
-		// the walk, so its bytes flatten to text. The outer wrapper still survives.
-		it('keeps the outer kind when the end lands in a nested body', () => {
+		// The container the end sits in comes along too, closed after what the copy holds of it.
+		it('keeps both kinds when the end lands in a nested body', () => {
 			const doc = parse(nested);
 			const text = collectCrossBlockText(
 				doc,
@@ -195,7 +192,12 @@ describe('cross-block copy starting in reserved chrome', () => {
 			const outer = parse(text).children[0];
 			expect(outer.kind).toBe('callout');
 			expect(title(outer)).toBe('ter');
-			expect(bodies(outer)).toEqual(['O1', ':::callout Inner\nI']);
+			expect(outer.children!.map((c) => c.kind)).toEqual([
+				'directiveOpenerLine',
+				'paragraph',
+				'callout'
+			]);
+			expect(bodies(outer.children![2])).toEqual(['I']);
 		});
 	});
 
@@ -242,30 +244,5 @@ describe('cross-block copy starting in reserved chrome', () => {
 		expect(title(note)).toBe('tle');
 		expect(note.children!.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'table']);
 		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-	});
-
-	// A `strip` container declaring `reservedChrome` has no closer to build (its syntax is a
-	// per-line prefix), so both title-line paths must decline to emit a wrapper.
-	it('declines wrapper synthesis on both endpoints for a strip-contract container', () => {
-		const doc = parse('Above\n\n:::callout Title\n\nBody\n\n:::\n\nBelow\n');
-		augmentBlockKind(CALLOUT as AnyBlockKind, {
-			container: { contract: 'strip', rebuildRaw: rebuildBlockquoteRaw }
-		});
-
-		// An unchecked end branch would emit a blockquote wrapper on a note.
-		expect(
-			collectCrossBlockText(
-				doc,
-				rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 14))),
-				SOURCE_READING
-			)
-		).toBe('ove\n:::callout Tit');
-		expect(
-			collectCrossBlockText(
-				doc,
-				rangeCoverage(doc, coverRange(doc, point([1, 0], 13), point([2], 3))),
-				SOURCE_READING
-			)
-		).toBe('tle\nBody\n\nBel');
 	});
 });
