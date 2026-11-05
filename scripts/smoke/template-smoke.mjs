@@ -4,7 +4,14 @@
 // project as a plugin listing does and as a strict host does (`skipLibCheck` off). It leaves every
 // tarball in `tmp/plugin-packs` for CI's checks.
 import { execSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	copyFileSync,
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { packWorkspaces } from '../pack/pack-workspaces.mjs';
@@ -38,7 +45,9 @@ const create = packs.get('@voithos-labs/create-aragonite-plugin');
 // Outside the repo, so nothing resolves through this checkout's own node_modules. A cache of its
 // own, so npm can't answer with a starter it ran on an earlier pass.
 const stranger = mkdtempSync(path.join(tmpdir(), 'aragonite-stranger-'));
-run(`npm exec --yes -- "${create}" ${NAME}`, {
+// npm on Windows splits a package path at its spaces, so the tarball goes in by a relative name.
+copyFileSync(create, path.join(stranger, 'create.tgz'));
+run(`npm exec --yes -- ./create.tgz ${NAME}`, {
 	cwd: stranger,
 	env: { ...process.env, npm_config_cache: path.join(stranger, '.npm') }
 });
