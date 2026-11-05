@@ -49,8 +49,8 @@ These moves run without a page, through the reorder action or the tree operation
   the quote and the list after it don't reload as HTML text
   (`test/editor-actions/reorder-seam-undo.test.ts`,
   `test/tree-operations/reorder-blank-line-ended.test.ts`).
-- A heading moved up from between a paragraph a blank line above it and a table flush under it
-  leaves a blank line before the table, so the table stays a table
+- A heading moved up past a paragraph, with a blank line between the two and a table flush under
+  the heading, leaves a blank line before the table, so the table stays a table
   (`test/editor-actions/reorder-seam-undo.test.ts`,
   `test/tree-operations/reorder-vacated-join.test.ts`). The heading flush on both sides (#479) is
   held only by the browser row above.

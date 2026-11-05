@@ -58,8 +58,8 @@ check guards those constructs.
   typed
 - deep nesting reaches three levels by pressing Enter, indenting the empty item, then
   typing the fresh item. Indenting the empty item writes a blank line above it, since an
-  empty item can't interrupt the text above, so each sublist typed that way reads loose;
-  the gesture waits for the focused item's path to get longer, which is the step it takes
+  empty item can't interrupt the text above, so each sublist typed that way reads loose.
+  The gesture waits for the focused item's path to get longer, not for a source change
 - nested blockquote exit: building and round-tripping a `> >` nested quote leaves no
   stranded empty `> >` continuation line (the reading-notes end-state guard for the
   exit-collapse fix)
