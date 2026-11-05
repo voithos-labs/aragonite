@@ -83,6 +83,13 @@ const REMOVALS: [
 		'- i|1\n  - i2\n'
 	],
 	[
+		'between flat items, with an item after the opened one',
+		'- i0\n- i1\n  - i2\n- i3\n',
+		at([0, 0, 0], 1),
+		at([0, 1, 0], 1),
+		'- i|1\n  - i2\n- i3\n'
+	],
+	[
 		'in an ordered list, which renumbers',
 		'1. i0\n2. i1\n   1. i2\n3. i3\n',
 		at([0, 0, 0], 1),
@@ -136,17 +143,21 @@ describe('a range removal ending inside a later list item', () => {
 				const editor = await mountOver(source, from, to);
 				await run(editor, to);
 				expect(editor.source()).toBe(left.replace('|', typed));
+				// Miss-analysis: the rows read bytes only, and a re-read list whose items had no ids
+				// rendered as a failed block.
+				expect(editor.target.querySelector('[data-failed-block]')).toBeNull();
 			});
 		}
 	}
 
-	it('is one undo entry, and redo writes the same bytes again', async () => {
-		const editor = await mountOver(NESTED, at(I2, 1), at(I3, 1));
-		await pressKey(surfaceAt(editor, I3), { key: 'Backspace' });
-		const removed = editor.source();
-		await pressKey(surfaceAt(editor, I2), { key: 'z', ctrlKey: true });
-		expect(editor.source()).toBe(NESTED);
-		await pressKey(surfaceAt(editor, I2), { key: 'y', ctrlKey: true });
-		expect(editor.source()).toBe(removed);
-	});
+	for (const [name, source, from, to, left] of REMOVALS) {
+		it(`is one undo entry, and redo writes the same bytes again, ${name}`, async () => {
+			const editor = await mountOver(source, from, to);
+			await pressKey(surfaceAt(editor, to.path), { key: 'Backspace' });
+			await pressKey(surfaceAt(editor, from.path), { key: 'z', ctrlKey: true });
+			expect(editor.source()).toBe(source);
+			await pressKey(surfaceAt(editor, from.path), { key: 'y', ctrlKey: true });
+			expect(editor.source()).toBe(left.replace('|', ''));
+		});
+	}
 });

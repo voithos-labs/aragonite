@@ -57,6 +57,7 @@ import {
 	mergesByMarkerLine
 } from '../../../tree-operations/list/marker-line';
 import { rebuildOwnedContainer } from '../../../tree-operations/unshare';
+import { assignChildIdsDeep } from '../../../block-id';
 
 /** Deletes in reverse order, each path only while it holds its captured node (cleanup can move a
  *  survivor there); the caller copies parent chains first so the check compares copies (G1.9). */
@@ -131,8 +132,12 @@ export function installSurvivor(
 		// so it stays in raw.
 		replacement[replacement.length - 1].raw += reparsed.suffix;
 	}
-	// The slot reader reads plain, so a survivor that reads as a bare container gets its paragraph.
-	for (const node of replacement) ensureEditableContainers(node, ending);
+	// The slot reader reads plain, so a bare container gets its paragraph, and child ids: one landing
+	// where a container of its kind stood keeps that component, which keys its children by them.
+	for (const node of replacement) {
+		ensureEditableContainers(node, ending);
+		assignChildIdsDeep(node);
+	}
 	const holder = owner ? { children: siblings, owner, lineEnding: ending } : doc;
 	const closed = closeWrittenOpeners(holder, slot, before, replacement, reading.grammar);
 	const shift = slot === 0 && owner ? taskMarkerCaretShift(owner, written) : 0;
