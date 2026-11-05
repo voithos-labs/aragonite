@@ -49,7 +49,7 @@ $ npm run test:editor:undo
 
 ## Unit tests (Vitest)
 
-No browser. Node by default, with a file opting into jsdom via a `// @vitest-environment jsdom` docblock where it needs a DOM (every `*.svelte.test.ts` that mounts a component does). The round-trip tests at `test/` root check that parsing then serializing gives back the exact input, so if you touch the parser or the serializer, that's the suite to watch first.
+No browser. Node by default, with a file opting into jsdom via a `// @vitest-environment jsdom` docblock where it needs a DOM (every `*.svelte.test.ts` that mounts a component does). A file that writes a rune needs it too, mount or not: in Node, Svelte's server build makes `$state` a plain value and never runs an effect, so the test passes without testing anything (G4.289 catches the file that forgets). The round-trip tests at `test/` root check that parsing then serializing gives back the exact input, so if you touch the parser or the serializer, that's the suite to watch first.
 
 ### Where a test file goes
 
