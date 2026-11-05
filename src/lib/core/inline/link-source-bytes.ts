@@ -40,8 +40,8 @@ export function buildLinkEditBytes(
 	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, reading);
 }
 
-/** Bytes giving autolink `link` the destination `url`, which is its text too: in its own form, the
- *  other one, or brackets showing `url` where neither reads back as it (a space in it, say). */
+/** Bytes giving autolink `link` the destination `url`, which its text follows: spelled as `link` is
+ *  (an email without its `mailto:`), else `url` in either form, else brackets showing `url`. */
 function autolinkBytes(
 	link: InlineNode,
 	display: string,
@@ -49,12 +49,45 @@ function autolinkBytes(
 	reading: Reading
 ): string | null {
 	if (url === link.url) return display.slice(link.start, link.end);
-	const forms = link.angle ? [`<${url}>`, url] : [url, `<${url}>`];
-	for (const candidate of [...forms, buildLinkSourceBytes({ text: asLinkText(url), url })]) {
-		const shown = showsLink(candidate, link.start, link.end, display, url, reading);
+	const own = schemeless(link, display, url);
+	return (
+		(own !== null && autolinkShowing(link, display, own, url, reading)) ||
+		autolinkShowing(link, display, url, undefined, reading) ||
+		showsLink(
+			buildLinkSourceBytes({ text: asLinkText(url), url }),
+			link.start,
+			link.end,
+			display,
+			url,
+			reading
+		)
+	);
+}
+
+/** Autolink `link` showing `text`, in its own form or the other one; given `url`, only one that
+ *  links there. */
+function autolinkShowing(
+	link: InlineNode,
+	display: string,
+	text: string,
+	url: string | undefined,
+	reading: Reading
+): string | null {
+	for (const candidate of link.angle ? [`<${text}>`, text] : [text, `<${text}>`]) {
+		const shown = showsLink(candidate, link.start, link.end, display, text, reading, url);
 		if (shown) return shown;
 	}
 	return null;
+}
+
+/** `url` without the scheme the parse adds to `link`'s text (an email's `mailto:`, a `www.` link's
+ *  `http://`), or null where it adds none or `url` has another. */
+function schemeless(link: InlineNode, display: string, url: string): string | null {
+	const [start, end] = linkTextRange(link, display);
+	const text = display.slice(start, end);
+	if (!link.url || link.url === text || !link.url.endsWith(text)) return null;
+	const scheme = link.url.slice(0, -text.length);
+	return url.startsWith(scheme) && url.length > scheme.length ? url.slice(scheme.length) : null;
 }
 
 /** Bytes that unwrap `link` to the text the user already sees (remove link). An autolink has no
@@ -109,8 +142,12 @@ export function buildLinkRetitleBytes(
 	reading: Reading
 ): string | null {
 	if (declineClaimed(link, 'edit') || text === '') return null;
-	// An autolink's text is its URL, so a text that names the URL keeps it an autolink.
-	if (link.kind === 'autolink' && text === url) return autolinkBytes(link, display, url, reading);
+	// An autolink's text is its URL, so a text naming the URL (an email without `mailto:` too) keeps
+	// it an autolink.
+	if (link.kind === 'autolink' && (text === url || text === schemeless(link, display, url))) {
+		const kept = autolinkShowing(link, display, text, text === url ? undefined : url, reading);
+		if (kept) return kept;
+	}
 	const { reference, title, url: current } = linkFieldsFromInline(link, display);
 	const [start, end] = linkTextRange(link, display);
 	const label =
@@ -254,21 +291,23 @@ function verified(
 	return before === after ? candidate : null;
 }
 
-/** A retitle's own check, where `verified` would refuse the visible change it makes: spliced over
- *  `[start, end)`, the candidate reads as one link (or autolink) there, no wider, showing `text`. */
+/** A retitle's check, as `verified` refuses the visible change: spliced over `[start, end)`, the
+ *  candidate reads as one link there, no wider, showing `text` (and given `url`, linking to it). */
 function showsLink(
 	candidate: string,
 	start: number,
 	end: number,
 	display: string,
 	text: string,
-	reading: Reading
+	reading: Reading,
+	url?: string
 ): string | null {
 	const raw = spliced(candidate, start, end, display);
 	const link = flattenInline(
 		readInline(raw, 0, raw.length, reading.resolver, reading.grammar)
 	).find((node) => (node.kind === 'link' || node.kind === 'autolink') && node.start === start);
 	if (!link || link.end !== start + candidate.length) return null;
+	if (url !== undefined && link.url !== url) return null;
 	const shown = linkTextShown(link, raw, reading);
 	return shown.editable && shown.text === text ? candidate : null;
 }

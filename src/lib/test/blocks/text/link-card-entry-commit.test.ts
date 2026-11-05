@@ -232,6 +232,23 @@ describe('commit on an autolink, whose text is its URL', () => {
 		expect(await commit('See www.a.test now\n', 'https://b.test')).toBe('See https://b.test now\n');
 	});
 
+	// Miss-analysis: every URL edit started from an autolink whose text is its whole URL, never an
+	// email or `www.` one, whose text leaves out the scheme the URL has.
+	it.each([
+		['See <foo@bar.test> now\n', 'mailto:zz@bar.test', 'See <zz@bar.test> now\n'],
+		['See foo@bar.test now\n', 'mailto:zz@bar.test', 'See zz@bar.test now\n'],
+		['See www.a.test now\n', 'http://www.zz.test', 'See www.zz.test now\n'],
+		['See <foo@bar.test> now\n', 'mailto:www.zz.test', 'See <mailto:www.zz.test> now\n']
+	])('%s with the URL %s keeps the spelling that leaves out its scheme', async (doc, url, out) => {
+		expect(await commit(doc, url)).toBe(out);
+	});
+
+	it('an email given its own address as text stays an autolink', async () => {
+		expect(await commit('See <foo@bar.test> now\n', 'mailto:zz@bar.test', 'zz@bar.test')).toBe(
+			'See <zz@bar.test> now\n'
+		);
+	});
+
 	it('a URL no autolink form holds takes the brackets, showing that URL', async () => {
 		expect(await commit(BARE, 'mailto:x@y.test?subject=a b')).toBe(
 			'See [mailto:x@y.test?subject=a b](mailto:x@y.test?subject=a%20b) now\n'
