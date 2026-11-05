@@ -6,10 +6,9 @@ now shows nothing. The card is the replacement: click a rendered link and an anc
 `role="dialog"` opens under it holding the link's text and URL, a button that opens the link and a
 button that removes it. The click still puts a caret in the document, because a link's text can be
 typed into there as well as in the card, so the card opens beside a live caret and waits for the
-user to step into it. Enter in either field writes as one undo entry (the text field's own
-scenarios are in `live-link-card-text.md`), Escape closes without writing (putting the caret
-back when the card was holding it), and a click anywhere else closes it the same
-non-destructive way the search bar dismisses. A blocked-scheme link renders as an inert
+user to step into it. Enter in either field writes as one undo entry, and so does a click
+anywhere else (the text field's own scenarios, and the click's, are in `live-link-card-text.md`);
+Escape closes without writing, putting the caret back when the card was holding it. A blocked-scheme link renders as an inert
 span rather than an anchor and must open the card too, since editing its URL is the only way a
 user fixes it. Autolinks are excluded by construction: their destination is the text on screen,
 so the document edits it in place. Driven on `/test/editor` via `?presentationMode=live` with
@@ -98,7 +97,8 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
 ## Error cases
 
 - Escape writes nothing: the source after a canceled edit is byte-identical to the source before
-- a click outside the card closes it without writing, and leaves the caret that click just placed
+- a click outside a card holding no edit closes it without writing, and leaves the caret that click
+  just placed
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
 
 ## Miss-analysis

@@ -31,6 +31,18 @@ over it in the document, and no scenario covered renaming a link while keeping i
 - a text and a URL changed together, then one undo: the link is back as it was, since the card's
   commit is one entry
 
+## A press elsewhere
+
+- a new text, then a click at the end of the link's own line: the text is written, the card closes,
+  and a letter typed next lands where the click put the caret
+- a new URL, then a click in the block above: the URL is written and typing goes there
+- a new text, then a click outside the editor: the text is written and focus stays outside
+- a new text, then Escape: nothing is written
+- a create card with a URL typed, then a click elsewhere: the link is written over the selection
+- Miss-analysis (#814): every commit scenario pressed Enter, and the one outside-press scenario
+  edited nothing, so a press that dropped a typed edit looked the same as one that had nothing
+  to drop.
+
 ## Create
 
 - `Mod+K` over a selection starts the Text field from the selected text; a changed text and a URL,

@@ -15,7 +15,7 @@
 		IMAGE_REMOVE
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
-	import type { MenuCloseCause, MenuPresence } from '../menu/menu-presence.svelte';
+	import { keepsDraft, type MenuCloseCause, type MenuPresence } from '../menu/menu-presence.svelte';
 	import type { CaretWriter } from '../../browser/caret-writer';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
@@ -165,11 +165,11 @@
 		}
 	}
 
-	// Escape drops the draft and a swap lands after the new document is in, so neither saves it;
-	// every other close does. A press elsewhere or a mode change leaves focus where it lands.
+	// Escape gives the caret back to the image; a press elsewhere or a mode change leaves focus
+	// where it lands.
 	function dismissField(cause: MenuCloseCause): boolean {
 		if (cause === 'escape-key') void endField(false);
-		else closeField(cause !== 'document-swap');
+		else closeField(keepsDraft(cause));
 		return true;
 	}
 

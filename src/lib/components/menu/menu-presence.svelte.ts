@@ -15,6 +15,12 @@ import { checkMenuClosed } from '../../invariants/menu-closes';
  *  must drop it then; a mode change can still save it. */
 export type MenuCloseCause = 'mode-change' | 'document-swap' | 'escape-key' | 'outside-press';
 
+/** Whether a close keeps what was typed in a menu's field: every close does but Escape, which
+ *  discards it, and a document swap, which lands once the new document is in. */
+export function keepsDraft(cause: MenuCloseCause): boolean {
+	return cause !== 'escape-key' && cause !== 'document-swap';
+}
+
 /** A menu's own close. It returns whether the menu takes the key that closed it: only Escape reads
  *  the answer, and a taken Escape reaches nothing else. */
 export type MenuClose = (cause: MenuCloseCause) => boolean;
