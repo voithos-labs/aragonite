@@ -117,8 +117,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		const ownsCaret = ownsWindowedOutCaret(root, el);
 		if (!ownsCaret && !chromeHoldsFocus(root, el, deps)) return false;
 		if (chord && takesGlobalChord(chord, deps.commands)) return true;
-		if (!ownsCaret || !deps.selection.ownsRange) return false;
-		return (isCharacterKey(e.key) && !e.ctrlKey && !e.metaKey) || rangeTakes(e);
+		return ownsCaret && rangeTakes(e);
 	}
 
 	function leafTakes(e: KeyboardEvent, chord: string | null, kind: AnyBlockKind, path: number[]) {

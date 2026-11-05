@@ -1,7 +1,7 @@
 /** The keydown and compositionstart half of cross-block dispatch. */
 
 import type { CrossBlockDispatchContext } from './dispatch';
-import type { Document } from '../../core/nodes';
+import type { AnyBlockKind, Document } from '../../core/nodes';
 import { commandLandingKind, kindOfPath, replaceRange } from './range-replace';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
@@ -9,14 +9,25 @@ import type { SelectionState } from '../selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { usesMacEditingConventions } from '../../schema/platform-conventions';
-import { caretEdgeKey, eventToChord, isSelectAllChord, pageKey } from '../../schema/keybindings';
+import {
+	caretEdgeKey,
+	eventToChord,
+	isSelectAllChord,
+	pageKey,
+	typesCharacter
+} from '../../schema/keybindings';
 import {
 	commandOverRange,
 	dispatchKeyCommand,
 	runsOnItsBlock,
 	type CommandDispatchContext
 } from '../../schema/block-commands';
-import { chordsBoundTo, commandForKey } from '../../schema/commands';
+import {
+	chordsBoundTo,
+	commandForKey,
+	containerMayBind,
+	resolveKindBinding
+} from '../../schema/commands';
 import type { AnyCommandId } from '../../schema/command-id';
 import { rangeIndentCommands } from '../../schema/range-indent-forms';
 import {
@@ -130,6 +141,11 @@ async function handleCrossBlockActive(
 			}
 			return true;
 		}
+		case 'type':
+			if (!isReadingMode(ctx.reading.mode)) {
+				await replaceRange(ctx, { kind: 'text', text: e.key });
+			}
+			return true;
 		case 'extend':
 			extendRangeByArrow(ctx, el, e.key as ArrowKey);
 			return true;
@@ -238,13 +254,29 @@ async function dispatchOverRange(
 /** A key bound to a command that runs after a range's removal, read in the keymap of the block the
  *  removal leaves the caret in, where the command then runs. */
 export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	const bound = boundCommand(e, reads);
+	return bound !== null && runsAfterRemoval(bound, reads);
+}
+
+/** The command the key runs in the keymap of the block the range's removal leaves the caret in. */
+function boundCommand(
+	e: KeyboardEvent,
+	reads: RangeKeyReads
+): { kind: AnyBlockKind; command: AnyCommandId } | null {
 	const chord = eventToChord(e);
 	const { anchor, focus } = reads.selection;
-	if (!chord || !anchor || !focus) return false;
+	if (!chord || !anchor || !focus) return null;
 	const doc = reads.getDoc();
 	const kind = commandLandingKind(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)));
 	const command = commandForKey(e, kind, reads.commands);
-	if (command === null || runsOnItsBlock(command, reads.selection.rangeInOneBlock)) return false;
+	return command === null ? null : { kind, command };
+}
+
+function runsAfterRemoval(
+	{ kind, command }: { kind: AnyBlockKind; command: AnyCommandId },
+	reads: RangeKeyReads
+): boolean {
+	if (runsOnItsBlock(command, reads.selection.rangeInOneBlock)) return false;
 	return commandOverRange(kind, command, reads.commands.activation) !== undefined;
 }
 
@@ -263,7 +295,15 @@ export function rangeOwnsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 }
 
 type RangeKeyRole =
-	'delete' | 'rewrite' | 'indent' | 'command' | 'extend' | 'lineEdge' | 'collapse' | 'selectAll';
+	| 'delete'
+	| 'rewrite'
+	| 'indent'
+	| 'command'
+	| 'type'
+	| 'extend'
+	| 'lineEdge'
+	| 'collapse'
+	| 'selectAll';
 
 // Each container the key bubbles through asks, and then the range's handler: one answer per event.
 const rolesByEvent = new WeakMap<KeyboardEvent, RangeKeyRole | null>();
@@ -291,8 +331,27 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	if ((e.key === 'Escape' && plain) || (!e.shiftKey && step)) return 'collapse';
 	// Inside one block the first Mod+A selects that block, as from the browser's own range there.
 	if (isSelectAllChord(e)) return reads.selection.rangeInOneBlock ? null : 'selectAll';
-	// Last, since it reads the range's coverage: the navigation keys above never need it.
-	return isCommandCandidateKey(e, reads) ? 'command' : null;
+	// Last, since it reads the range's coverage: the navigation keys above never need it. A key
+	// the keymap binds runs its command, never types, as at a caret.
+	const bound = boundCommand(e, reads);
+	if (bound) return runsAfterRemoval(bound, reads) ? 'command' : null;
+	// At its keydown, since beside a widget with no text node an engine sends no `beforeinput`.
+	return typesCharacter(e) && !containerBindsKey(e, reads) ? 'type' : null;
+}
+
+/** Whether a container holding the range's focus binds the key: the block's container walk runs
+ *  it after the block's own keys, as at a caret. */
+function containerBindsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
+	const chord = eventToChord(e);
+	const focus = reads.selection.focus;
+	const overrides = reads.commands.keybindingOverrides();
+	if (!chord || !focus || !containerMayBind(chord, overrides)) return false;
+	const doc = reads.getDoc();
+	for (let depth = focus.path.length - 1; depth >= 1; depth--) {
+		const container = blockNodeAt(doc, focus.path.slice(0, depth));
+		if (container && resolveKindBinding(chord, container.kind, overrides)) return true;
+	}
+	return false;
 }
 
 /** Backspace and Delete, which remove the range. */

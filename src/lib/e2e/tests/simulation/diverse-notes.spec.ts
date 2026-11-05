@@ -29,8 +29,6 @@ test.describe('note-taking simulation: diverse notes', () => {
 	});
 
 	test('#817: a letter typed over the whole project-plan note replaces it', async () => {
-		// Today the letter lands after the picture that ends the note, and the range stays.
-		test.fail();
 		await editor.loadContent(PROJECT_PLAN_NOTE.expectedMarkdown);
 		await editor.clickBlock(0);
 		await editor.selectAll();

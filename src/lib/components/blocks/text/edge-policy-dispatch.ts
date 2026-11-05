@@ -29,7 +29,8 @@ import {
 } from '../../../caret/delete-extent';
 import type { DeleteDirection, DeleteIntent } from '../../../browser/input';
 import { recordIslandKeyScan } from '../../../perf/instruments';
-import { hasModifier, isBareKey, isPlainTypingKey } from './click-snap-guard';
+import { hasModifier, isBareKey } from './click-snap-guard';
+import { typesCharacter } from '../../../schema/keybindings';
 import { caretIsInTextContent, readNativeSelection } from '../../../browser/selection-read';
 import { createMarkerCompletion } from './marker-completion';
 import { resolveEdgeDeletion, type EdgeDeletion } from './construct-edge-delete';
@@ -286,7 +287,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (deps.isRevealing()) return false;
 		if (caretOffset === null) return false;
 		const arrow = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
-		if (!arrow && !isPlainTypingKey(e)) return false;
+		if (!arrow && !typesCharacter(e)) return false;
 		const node = deps.node;
 		// ArrowRight enters the widget after the caret, every other key the one before, so a caret
 		// between two adjacent widgets enters the one the key is aimed at.
@@ -310,7 +311,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A key over a range that opens at the widget replaces the range through the join rules; a
 		// key at a caret beside it is the typed-insert decision's.
 		const el = deps.getEl();
-		if (range && el && !caretIsInTextContent(el) && isPlainTypingKey(e) && !deps.isReading()) {
+		if (range && el && !caretIsInTextContent(el) && typesCharacter(e) && !deps.isReading()) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
 			writeTypedByte(caretOffset, e.key, 'widget');
@@ -356,7 +357,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A collapsed delete is the `delete-beside` arm's; this one takes a held range's delete.
 		const isDestructive = !hasModifier(e) && (e.key === 'Backspace' || e.key === 'Delete');
 		// A key typed at a caret beside a decoration is the typed-insert decision's, not this arm's.
-		const isTyping = isPlainTypingKey(e) && heldRange() !== null;
+		const isTyping = typesCharacter(e) && heldRange() !== null;
 		if (!isDestructive && !isTyping) return false;
 
 		// Blocks with no decoration widgets, the common case, skip the per-keystroke DOM scan.

@@ -20,6 +20,8 @@ import type { SharingState } from '../../../tree-operations/sharing';
 import {
 	displayLength,
 	documentLineEnding,
+	isBlankLine,
+	splitLines,
 	terminateLine,
 	trailingLineEnding
 } from '../../../core/lines';
@@ -45,7 +47,17 @@ import {
 	writeKeepingTaskMarker
 } from '../../../tree-operations/list/reconcile-task';
 import { ensureEditableContainers } from '../../../schema/opened-reading';
-import { holdOrderedNumbering } from '../../../tree-operations/list/ordered-markers';
+import {
+	holdOrderedNumbering,
+	orderedBaseOf,
+	renumberOrderedListFrom
+} from '../../../tree-operations/list/ordered-markers';
+import {
+	bytesWithoutMarkerLine,
+	mergesByMarkerLine
+} from '../../../tree-operations/list/marker-line';
+import { rebuildOwnedContainer } from '../../../tree-operations/unshare';
+import { assignChildIdsDeep } from '../../../block-id';
 
 /** Deletes in reverse order, each path only while it holds its captured node (cleanup can move a
  *  survivor there); the caller copies parent chains first so the check compares copies (G1.9). */
@@ -120,8 +132,12 @@ export function installSurvivor(
 		// so it stays in raw.
 		replacement[replacement.length - 1].raw += reparsed.suffix;
 	}
-	// The slot reader reads plain, so a survivor that reads as a bare container gets its paragraph.
-	for (const node of replacement) ensureEditableContainers(node, ending);
+	// The slot reader reads plain, so a bare container gets its paragraph, and child ids: one landing
+	// where a container of its kind stood keeps that component, which keys its children by them.
+	for (const node of replacement) {
+		ensureEditableContainers(node, ending);
+		assignChildIdsDeep(node);
+	}
 	const holder = owner ? { children: siblings, owner, lineEnding: ending } : doc;
 	const closed = closeWrittenOpeners(holder, slot, before, replacement, reading.grammar);
 	const shift = slot === 0 && owner ? taskMarkerCaretShift(owner, written) : 0;
@@ -194,6 +210,9 @@ export interface DeletionPlan {
 	deletionPaths: number[][];
 	/** Each deletion path's parent chain, owned before any splice, which the commit rebuilds. */
 	parentChains: CstNode[][];
+	/** The chain down to each list item whose first block the range takes while the item stays;
+	 *  that block waits in place for the finish step, which takes the item's marker line with it. */
+	openedItems: CstNode[][];
 	chromeClearChain: CstNode[] | null;
 	/** Each ordered list on a parent chain, with its numbering read before any splice. */
 	listNumbering: Map<CstNode, (sharing: SharingState) => void>;
@@ -219,8 +238,9 @@ export function planCrossBlockDeletion(
 			deletionPaths.push(root.slice());
 		}
 	}
-	deletionPaths.push(...alsoRemoved.map((path) => path.slice()));
-	const parentChains = deletionPaths.map((path) => scope.own(path.slice(0, -1)));
+	const taken = [...deletionPaths, ...alsoRemoved.map((path) => path.slice())];
+	const opens = taken.map((path) => opensItem(doc, path));
+	const parentChains = taken.map((path) => scope.own(path.slice(0, -1)));
 	// Read once every chain is copied, so a later chain's copy cannot replace an item read here.
 	const listNumbering = new Map<CstNode, (sharing: SharingState) => void>();
 	for (const node of parentChains.flat()) {
@@ -228,7 +248,20 @@ export function planCrossBlockDeletion(
 			listNumbering.set(node, holdOrderedNumbering(node));
 		}
 	}
-	return { deletionPaths, parentChains, chromeClearChain, listNumbering, scope };
+	return {
+		deletionPaths: taken.filter((_, i) => !opens[i]),
+		parentChains,
+		openedItems: parentChains.filter((_, i) => opens[i]),
+		chromeClearChain,
+		listNumbering,
+		scope
+	};
+}
+
+/** Whether the block at `path` is the first block of an item whose marker line goes with it. */
+function opensItem(doc: Document, path: readonly number[]): boolean {
+	if (path.length < 3 || path[path.length - 1] !== 0) return false;
+	return mergesByMarkerLine(blockNodeAt(doc, path.slice(0, -2)) ?? undefined);
 }
 
 /** Applies the plan: clears the title on a surviving end container's covered title row (a raw
@@ -243,13 +276,89 @@ export function applyPlannedDeletion(doc: Document, plan: DeletionPlan): void {
 	deleteSubtreesIdentityGated(doc, plan.deletionPaths, plan.scope);
 }
 
-/** Renumbers each attached ordered list the deletion took items from; the commit rebuilds every
- *  chain the plan owned. */
-export function renumberAfterDeletion(doc: Document, plan: DeletionPlan): void {
-	if (plan.listNumbering.size === 0) return;
+/** Runs once both edges are written: the items the range opened lose their marker lines, and each
+ *  attached ordered list the deletion took items from renumbers. */
+export function finishPlannedDeletion(doc: Document, plan: DeletionPlan, reading: Reading): void {
+	// Innermost first, so an outer item reads the lines an inner one left; a bare item goes before
+	// the renumber, which then sees its list without it.
+	const innermostFirst = [...plan.openedItems].sort((a, b) => b.length - a.length);
+	const holding = innermostFirst.filter((chain) => !removeIfBare(doc, chain, plan.scope));
 	const attached = new Set(plan.parentChains.flatMap((chain) => attachedChainPrefix(doc, chain)));
 	for (const [list, renumber] of plan.listNumbering) {
 		if (attached.has(list)) renumber(plan.scope.sharing);
+	}
+	for (const chain of holding) dropMarkerLine(doc, chain, plan.scope, reading);
+}
+
+/** Removes the item at the end of `chain`, and every container that empties, when its first block
+ *  is all it holds. True when it went. */
+function removeIfBare(doc: Document, chain: CstNode[], scope: ScopeWrites): boolean {
+	if ((chain[chain.length - 1].children?.length ?? 0) > 1) return false;
+	const path = pathAlong(doc, chain);
+	if (path) {
+		scope.splice(path.slice(0, -1), path[path.length - 1], 1, []);
+		cascadeCleanupEmptyAncestors(doc, scope, path);
+	}
+	return true;
+}
+
+/** The item at the end of `chain` without its marker line and first block: its list re-read from
+ *  the bytes left, as a reload reads them where the list stood. */
+function dropMarkerLine(
+	doc: Document,
+	chain: CstNode[],
+	scope: ScopeWrites,
+	reading: Reading
+): void {
+	const path = pathAlong(doc, chain);
+	if (!path) return;
+	const listPath = path.slice(0, -1);
+	const index = path[path.length - 1];
+	const list = blockNodeAt(doc, listPath)!;
+	rebuildWritten(list, scope.sharing);
+	const base = orderedBaseOf(list.children![0]);
+	let bytes = bytesWithoutMarkerLine(list.children!, index);
+	// At the list's top the blank line above the marker line is the list's own, and the blank lines
+	// under the item's first block now part what the item left from the block above the list.
+	const lead = index === 0 ? leadingBlankLines(bytes) : list.leadingTrivia;
+	bytes = bytes.slice(index === 0 ? lead.length : 0);
+	installSurvivor(doc, listPath, { ...list, leadingTrivia: lead }, bytes, list.raw, scope, reading);
+	const reread = blockNodeAt(doc, listPath);
+	if (reread?.kind !== 'list') return;
+	renumberOrderedListFrom(reread, base, scope.sharing);
+	// The commit rebuilds the chains it owned, and a list the read made is on none of them.
+	rebuildOwnedContainer(reread);
+}
+
+function leadingBlankLines(text: string): string {
+	let end = 0;
+	for (const line of splitLines(text)) {
+		if (!isBlankLine(line.text)) break;
+		end = line.end;
+	}
+	return text.slice(0, end);
+}
+
+/** `chain`'s child indices from the document down; null once a splice took one of its nodes. */
+function pathAlong(doc: Document, chain: readonly CstNode[]): number[] | null {
+	const path: number[] = [];
+	let siblings: readonly CstNode[] = doc.children;
+	for (const node of chain) {
+		const index = siblings.indexOf(node);
+		if (index < 0) return null;
+		path.push(index);
+		siblings = node.children ?? [];
+	}
+	return path;
+}
+
+/** Rebuilds the raw of every container below `root` this edit copied, deepest first, so the bytes
+ *  read from them are current; a shared one is untouched and an undo entry's. */
+function rebuildWritten(root: CstNode, sharing: SharingState): void {
+	for (const child of root.children ?? []) {
+		if (!child.children || sharing.isShared(child)) continue;
+		rebuildWritten(child, sharing);
+		rebuildOwnedContainer(child);
 	}
 }
 

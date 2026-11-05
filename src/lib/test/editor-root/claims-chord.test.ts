@@ -136,3 +136,22 @@ describe('claimsChord on a Mac', () => {
 		expect(editor.instance.claimsChord(press(ALT_LEFT))).toBe(true);
 	});
 });
+
+// Off a Mac no text field types Alt+letter, so an app's Alt accelerator runs; Option types one.
+describe('claimsChord on Alt and a letter', () => {
+	it('leaves Alt+F to the host off a Mac', async () => {
+		vi.stubGlobal('navigator', { platform: 'Win32' });
+		const editor = mount();
+		await editor.settle();
+		caretInParagraph(editor);
+		expect(editor.instance.claimsChord(press({ key: 'f', altKey: true }))).toBe(false);
+	});
+
+	it('takes Option+F as typing on a Mac', async () => {
+		vi.stubGlobal('navigator', { platform: 'MacIntel' });
+		const editor = mount();
+		await editor.settle();
+		caretInParagraph(editor);
+		expect(editor.instance.claimsChord(press({ key: 'ƒ', altKey: true }))).toBe(true);
+	});
+});

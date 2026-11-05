@@ -19,9 +19,8 @@
 	import type { CaretWriter } from '../../browser/caret-writer';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
-	import { eventToChord, textKeyRole } from '../../schema/keybindings';
+	import { eventToChord, textKeyRole, typesCharacter } from '../../schema/keybindings';
 	import { isReservedUiChord } from '../../schema/commands';
-	import { isPlainTypingKey } from '../blocks/text/click-snap-guard';
 
 	let {
 		target,
@@ -347,7 +346,7 @@
 		// Typing and deleting over the selected image, and the editor's own chords, minus the find
 		// bar's and the unshifted caret keys and copy, which read; Shift+Arrow resizes the image.
 		const writes = (e: KeyboardEvent): boolean => {
-			if (isPlainTypingKey(e) || e.key === 'Backspace' || e.key === 'Delete') return true;
+			if (typesCharacter(e) || e.key === 'Backspace' || e.key === 'Delete') return true;
 			const chord = eventToChord(e);
 			if (chord === null || isReservedUiChord(chord)) return false;
 			if (textKeyRole(e) === 'reads' && !e.shiftKey) return false;

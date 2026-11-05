@@ -44,7 +44,8 @@ export function createCaretHostInput(
 			if (signal.type === 'beforeinput') return;
 			const text = takeHostText();
 			if (!text) return;
-			const typed = signal instanceof KeyboardEvent && typesCharacter(signal) ? signal.key : '';
+			const typed =
+				signal instanceof KeyboardEvent && isPlainCharacterKey(signal) ? signal.key : '';
 			minted = { at: signal, landed: Promise.resolve(insert(text + typed)) };
 		}
 	};
@@ -85,6 +86,8 @@ export function createCaretHostInput(
 	};
 }
 
-function typesCharacter(e: KeyboardEvent): boolean {
+/** A character key with no modifier: an Option or AltGr character reaches the host as a
+ *  `beforeinput`, which `onBeforeInput` takes. */
+function isPlainCharacterKey(e: KeyboardEvent): boolean {
 	return isCharacterKey(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey;
 }
