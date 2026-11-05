@@ -22,6 +22,7 @@ Where to jump:
 - [Size budgets](#size-budgets): the first-load budget that reds when it moves, how to accept a move on purpose, and the report numbers that don't gate.
 - [The behavior differential](#the-behavior-differential): every key at every offset of a set of documents, compared before and after your change, so a refactor can show it changed nothing.
 - [Every short input](#every-short-input): every string up to a few characters long, parsed, round-tripped and edited at every offset.
+- [The range-edit laws](#the-range-edit-laws): copy, cut, paste, typing and deleting over a range, held to the rules that make them agree with each other.
 - The performance harness (fixtures, instruments, threshold policy) lives in `docs/design/performance.md` § The numbers and the gate.
 - The debug panel, its console helpers, and dumping editor state inside a test are in [`debugging.md`](debugging.md).
 
@@ -693,3 +694,23 @@ node scripts/run-with-env.mjs EXHAUSTIVE_FULL=1 EXHAUSTIVE_EDIT_LENGTH=4 -- vite
 ```
 
 Some inputs already fail, and `KNOWN_DEFECTS` in `src/lib/test/exhaustive/known-failures.ts` names the defects behind them, one entry each: what's broken, the shortest input length that reaches it, and a pattern over its failure lines. A suite fails on a failure no entry matches, and on an entry nothing matched in a run long enough to reach it. So a fix deletes one entry however many inputs it covered, and a longer run reaching a known defect from more inputs passes as is. A failure no entry matches is a new defect: name it in a new entry (or fix it).
+
+## The range-edit laws
+
+Copy, cut, paste, typing over a selection and Backspace over one are separate gestures, and most of their bugs are two of them disagreeing: the copy leaves out markers the cut's delete took, or a cut pasted straight back doesn't give the document back. So `src/lib/test/range-laws/` checks the eleven rules that tie them together (a copy and a cut write the same clipboard, a cut pasted back gives the bytes back, Backspace leaves what a cut leaves, and so on). Ten of them are properties drawn over real document shapes and run through the mounted editor the way a browser would deliver it: the key, then the clipboard event or the input, and the menu rows by their press. Never by calling the code that does the edit, which a scan holds it to (G4.295). The eleventh, a drag-and-drop move, runs only in the browser cases below, since jsdom has no layout to drop on.
+
+Plenty of it fails today, and `src/lib/test/range-laws/known-failures.ts` names each failing class once: its issue, the lane fixing it, a pattern over its violation lines and a repro. The suite fails on a violation no row matches, and on a row whose repro passes, so the fix that closes a class deletes its row.
+
+`npm test` runs a handful of draws per law. The deep run takes hundreds, keeps every violation, shrinks each group (law × container shape × gesture × mode) to its smallest case and writes the list into law-report/, which git ignores. It takes a few minutes per law, so you can run some at a time:
+
+```bash
+npm run test:laws:report
+node scripts/run-with-env.mjs LAW_REPORT=law-report/law-violations.md LAW_REPORT_LAWS=L3,L9 LAW_REPORT_RUNS=300 -- vitest run src/lib/test/range-laws/report
+```
+
+```powershell
+npm run test:laws:report
+node scripts/run-with-env.mjs LAW_REPORT=law-report/law-violations.md LAW_REPORT_LAWS=L3,L9 LAW_REPORT_RUNS=300 -- vitest run src/lib/test/range-laws/report
+```
+
+jsdom fakes the clipboard, the IME and every default action a browser takes, so `src/lib/e2e/range-law-cases.ts` holds a fixed set of cases that both the unit suite and `src/lib/e2e/tests/clipboard/range-edit-laws.spec.ts` run, against the same bytes. If the two ever disagree, the fake route is wrong, and one of them goes red to say so.
