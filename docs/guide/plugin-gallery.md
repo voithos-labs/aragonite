@@ -28,10 +28,10 @@ Start from the [plugin guide](plugin-guide.md#the-first-fifteen-minutes)'s templ
 - **A `./conformance` export** whose default export is your [conformance suite](plugin-testing.md#the-whole-plugin-at-once-runpluginconformance): your plugins, plus a profile for each container or inline kind they declare.
 - **A passing check.** `npx aragonite-plugin-check your-package` in a project with both installed runs exactly what the listing runs.
 
-Then open a pull request on the editor's repository that adds your package's name to [`listing.json`](plugin-gallery/listing.json), in alphabetical order. That one line is the whole pull request:
+Then open a pull request on the editor's repository that adds your package's name to [`listing.json`](plugin-gallery/listing.json), in alphabetical order (an `@` scope sorts before any letter). That one line is the whole pull request, plus a comma on the line above if yours lands last:
 
 ```json
-	"@you/aragonite-thing",
+	"@you/aragonite-thing"
 ```
 
 The pull request checks that npm's copy of your package carries the keyword and both fields, then runs the plugin check over it. Your row shows up in the table at the editor's next release, once that release's check has recorded it. Your code stays in your repository, and so do your releases: the listing never hosts a plugin's source.

@@ -35,7 +35,7 @@ git remote add origin https://github.com/<you>/<your-repo>.git
 git push -u origin main
 ```
 
-Keep the `package-lock.json` that `npm install` wrote in that first commit (`git add .` does): `release.yml` installs from it. Got the GitHub CLI? After the commit, `gh repo create <your-repo> --public --source . --push` makes the repository and pushes in one go.
+Keep the `package-lock.json` that `npm install` wrote in that first commit (`git add .` does): `release.yml` installs from it. Got the GitHub CLI? Swap the last two commands for `gh repo create <your-repo> --public --source . --push`, which makes the repository and pushes in one go.
 
 ## Make it yours
 
