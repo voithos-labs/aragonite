@@ -40,9 +40,7 @@ const RULES: FileRule[] = [
 			'src/lib/tree-operations/list/list-builders.ts':
 				'a list shell, whose bytes are its items’ own, and a list item built from metadata alone',
 			'src/lib/tree-operations/list/task-paragraph.ts':
-				'a trial item, written in the container’s own spelling and dropped',
-			'src/lib/selection/clipboard-text.ts':
-				'a container written around a copied body, a node the document never held'
+				'a trial item, written in the container’s own spelling and dropped'
 		},
 		reason:
 			'a container built around children that came from another has an empty `raw`, so its first rebuild respells every line: start it from the source container’s `raw`, or allow it here with why it is new',

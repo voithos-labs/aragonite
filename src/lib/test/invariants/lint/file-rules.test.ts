@@ -1562,7 +1562,7 @@ const RULES: FileRule[] = [
 				'a selection handle trading the anchor for the focus before its drag, which moves no end',
 			'src/lib/selection/cross-block/range-indent.ts':
 				'an indent keeping a block held whole, which moves no end',
-			'src/lib/testing/kind-conformance.ts': 'the conformance kit, which sets up a range'
+			'src/lib/testing/conformance-core.ts': 'the conformance kits, which set up a range to copy'
 		},
 		reaches: [SOURCE.keyboardExtend],
 		reason:
