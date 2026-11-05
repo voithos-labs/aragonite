@@ -305,6 +305,20 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
+		issue: 'new: live paste inside a hidden run',
+		lane: 'rebuild',
+		defect:
+			'undo of a live paste past a hidden closing run puts the caret where the text went, not where the paste began',
+		lines: /^L7\.caret \[[^\]]*\] paste:\S+ live\//,
+		repro: {
+			law: 'L7',
+			args: [
+				{ source: 'a **b**\n', mode: 'live', caret: end(0, 'end') },
+				{ replacement: { pasted: 'x', route: 'key' } }
+			]
+		}
+	},
+	{
 		issue: 'new: removal key removes nothing',
 		lane: 'rebuild',
 		defect: 'Backspace or Delete over some ranges across blocks leaves the bytes as they were',

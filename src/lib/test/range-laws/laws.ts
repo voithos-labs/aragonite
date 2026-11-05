@@ -38,6 +38,9 @@ export interface LawInput {
 	seed: RangeSeed;
 }
 
+/** A gesture at a caret rather than over a range. */
+export type CaretInput = Omit<LawInput, 'seed'> & { caret: EndSeed };
+
 export interface LawRun {
 	/** Violations, one line each. */
 	lines: string[];
@@ -673,9 +676,14 @@ export type AnyGesture =
 	| { plain: string };
 
 /** One mutating gesture over the range, then laws 7 and 8. */
-export async function afterGesture(input: LawInput, g: AnyGesture): Promise<LawRun> {
+export async function afterGesture(input: LawInput | CaretInput, g: AnyGesture): Promise<LawRun> {
 	const run = emptyRun();
-	const at = await open(input, run);
+	const at =
+		'caret' in input
+			? await open({ ...input, seed: { a: input.caret, b: input.caret } }, run, (doc) =>
+					resolveCaret(doc, input.caret)
+				)
+			: await open(input, run);
 	if (!at) return run;
 	try {
 		const before = snapshot(at);

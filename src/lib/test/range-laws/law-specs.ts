@@ -13,6 +13,7 @@ import {
 	law11,
 	afterGesture,
 	type AnyGesture,
+	type CaretInput,
 	type LawInput,
 	type LawRun,
 	type Replacement
@@ -56,12 +57,21 @@ const arbGesture: fc.Arbitrary<AnyGesture> = fc.oneof(
 	fc.record({ plain: arbClipboardText })
 );
 
+/** A gesture over a range, or a paste at a caret, where undo must put the caret back where it began. */
+const arbAnyGesture = fc.oneof(
+	fc.tuple(arbInput, arbGesture),
+	fc.tuple(
+		arbCaretInput,
+		fc.record({ replacement: fc.record({ pasted: arbClipboardText, route: pasteRoute }) })
+	)
+);
+
 /** Text that is one block, or none: what law 11 pastes, since a blank line can't read as text. */
 const arbPlainText = arbClipboardText.filter((text) => !/\n\s*\n/.test(text.trim()));
 
 // Laws 7 and 8 judge the same runs, so the second reads the first's from here.
 const gestureRuns = new Map<string, Promise<LawRun>>();
-const memoGesture = ([input, g]: [LawInput, AnyGesture]) => {
+const memoGesture = ([input, g]: [LawInput | CaretInput, AnyGesture]) => {
 	const key = JSON.stringify([input, g]);
 	if (!gestureRuns.has(key)) gestureRuns.set(key, afterGesture(input, g));
 	return gestureRuns.get(key)!;
@@ -101,13 +111,13 @@ export const LAW_SPECS: readonly LawSpec[] = [
 	{
 		law: 'L7',
 		name: 'one gesture is one undo entry',
-		arb: fc.tuple(arbInput, arbGesture),
+		arb: arbAnyGesture,
 		run: memoGesture
 	},
 	{
 		law: 'L8',
 		name: 'after every gesture the tree is a reload of its bytes',
-		arb: fc.tuple(arbInput, arbGesture),
+		arb: arbAnyGesture,
 		run: memoGesture
 	},
 	{
