@@ -291,6 +291,43 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 			law: 'L11',
 			args: [{ source: '<http://a.b>\n', mode: 'live', caret: end(62, 'end', 48) }, '1. one']
 		}
+	},
+	{
+		issue: '#819',
+		lane: 'rebuild',
+		defect: 'a paste into indented code or a link definition fires the `paste-dispatch` dev check',
+		lines: /^L8 .*: fired paste-dispatch$/,
+		repro: {
+			law: 'L8',
+			args: [
+				{
+					source: '    code\r\n\r\n> | H0 |\r\n> | --- |\r\n',
+					mode: 'source',
+					caret: end(0, 'start')
+				},
+				{ replacement: { pasted: 'x', route: 'key' } }
+			]
+		}
+	},
+	{
+		issue: '#819',
+		lane: 'rebuild',
+		defect: 'a copy ending at the start of a list item’s text leaves out the item’s marker',
+		lines: /^L10 \[[^\]]*→ [^\]]*listItem>paragraph\] /,
+		keeps: (got, wanted) =>
+			wanted.startsWith(got) &&
+			/^[\s>]*(?:[-*+]|\d{1,9}[.)])[ \t]*$/.test(wanted.slice(got.length)),
+		repro: {
+			law: 'L10',
+			args: [
+				{
+					source: '# h\n- a\n',
+					mode: 'live',
+					seed: { a: end(44, 'start'), b: end(63, 'start', 31) }
+				},
+				'key at body'
+			]
+		}
 	}
 ];
 
