@@ -35,7 +35,7 @@
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
 	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
-	import { selectWholeDocument, extendFromCell } from '../../../selection/keyboard-extend';
+	import { extendFromCell } from '../../../selection/keyboard-extend';
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../browser/visual-lines';
 	import {
 		cellCommandPlan,
@@ -101,7 +101,6 @@
 		caretWriter,
 		selection,
 		getDoc,
-		getBlockElByPath,
 		getEditorRoot,
 		events: editorEvents,
 		reading,
@@ -527,8 +526,7 @@
 			offset,
 			contentStart: bounds.start,
 			contentEnd: bounds.end,
-			collapsed: cursor.getRawSelection() === null,
-			selectAllCount: selection.selectAllCount
+			collapsed: cursor.getRawSelection() === null
 		};
 	}
 
@@ -590,14 +588,6 @@
 				if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 				return;
 			}
-			// The document's two-stage Ctrl+A, cell first: the step inside the cell is the
-			// browser's, and the second keypress takes the document.
-			case 'select-all-step':
-				selection.incrementSelectAllCount();
-				if (plan.step === 'native') return;
-				e.preventDefault();
-				selectWholeDocument(selection, caretWriter, getDoc(), getBlockElByPath);
-				return;
 			default:
 				e.preventDefault();
 				await applyCellPlan(plan);

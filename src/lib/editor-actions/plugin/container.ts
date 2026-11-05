@@ -39,6 +39,7 @@ import type { WindowResult } from '../../windowing/block-window.svelte';
 import type { RefSlots } from '../../block-lists/child-refs';
 import { componentAt, type ChildList } from '../../block-lists/child-list';
 import { findBlockPathForElement } from '../../selection/path-lookup';
+import { selectWholeDocument } from '../../selection/keyboard-extend';
 import { useContainerWindowing } from '../../windowing/use-container-windowing.svelte';
 import { createContainerExitOverrides } from '../container-exit-overrides';
 import { delegateMoveFocus } from '../focus/focus-dispatch';
@@ -275,7 +276,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		pasteAsBlocks
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { theme: getTheme } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const { pluginEditor, reading } = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const {
+		pluginEditor,
+		reading,
+		doc: getDoc,
+		blockElLookup
+	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = reading.mode;
 
 	const getEditor = (): EditorContext | undefined =>
@@ -486,7 +492,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			commandOf,
 			takesKey: (press, openAfter) => inputProxy?.takesKey(press, openAfter) ?? false,
 			getPath: deps.getPath,
-			containerChords
+			containerChords,
+			selectDocument: () => selectWholeDocument(selection, caretWriter, getDoc(), blockElLookup)
 		});
 	}
 

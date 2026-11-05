@@ -413,6 +413,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
+		caretBounds,
 		selection: deps.selection,
 		caretWriter: deps.caretWriter,
 		standInCaret: () => deps.readingFocus.focusCaret(),

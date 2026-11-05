@@ -18,7 +18,7 @@ import {
 	type KindCommandTarget
 } from '../schema/block-commands';
 import type { Reading } from '../schema/reading';
-import { eventToChord, isCharacterKey } from '../schema/keybindings';
+import { eventToChord, isCharacterKey, isSelectAllChord } from '../schema/keybindings';
 import { displayLength } from '../core/lines';
 import { copyBlockToClipboard } from './system-clipboard';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
@@ -110,6 +110,8 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	takesKey: CaretHostInput['takesKey'];
 	getPath: () => number[];
 	containerChords: Pick<ContainerChords, 'take'>;
+	/** Mod+A's step here: a block focused whole has no text to select first, so the document. */
+	selectDocument: () => void;
 }
 
 /**
@@ -133,6 +135,12 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	if (e.key === 'Backspace' || e.key === 'Delete') {
 		e.preventDefault();
 		if (!deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), e.key);
+		return;
+	}
+
+	if (isSelectAllChord(e)) {
+		e.preventDefault();
+		deps.selectDocument();
 		return;
 	}
 

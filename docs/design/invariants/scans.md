@@ -222,6 +222,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.280 | Every route into the in-leaf edit is named with its shape, and each shape keeps a reference's destination | L |
 | G4.281 | The selection overlays and handles draw the editor's selection, never the browser's | L |
 | G4.282 | Whether the editor holds the range is asked as `ownsRange`, whatever the range spans | L |
+| G4.284 | Mod+A's steps are decided in one place, where a step that would change nothing goes on to the next | L |
 
 ### The entries
 
@@ -645,3 +646,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.281 · The overlays draw the editor's selection.** A handle on a native range is one a phone already draws its own handles on, and every range a finger makes is in `SelectionState`, so no file under `components/overlays/` reads the native selection. `file-rules.test.ts`.
 
 **G4.282 · One question for who holds the range.** The editor holds a range across blocks, a rectangle of cells, a block held whole, and a finger's range inside one block, and every read of that asks `SelectionState.ownsRange`; a read that means a range inside one block asks `rangeInOneBlock`, and one that means two blocks compares paths (`rangeSpansBlocks`). The old names, `isCrossBlock` and the test surface's `isCrossBlockActive`, read as a span, so the scan fails them anywhere. `file-rules.test.ts`.
+
+**G4.284 · One home for Mod+A's steps.** A press selects the block's text, then the document, and skips the block's step when it would change nothing (an empty block, or one already all selected; `selection/cross-block/keydown.ts`); a block focused whole has no text step. A block planning its own presses would skip that rule, so the scan fails any other file that reads the chord. `file-rules.test.ts`.

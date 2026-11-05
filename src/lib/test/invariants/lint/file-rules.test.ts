@@ -1639,6 +1639,21 @@ const RULES: FileRule[] = [
 		misses: ['if (selection.ownsRange) return;', 'if (rangeSpansBlocks(coverage)) paint();']
 	},
 	{
+		id: 'G4.284 Mod+A is read where its steps are decided',
+		matches: /\bisSelectAllChord\s*\(|['"]Mod\+A['"]/,
+		allowed: {
+			'src/lib/schema/keybindings.ts': 'the chord itself, and the chords that read text',
+			'src/lib/selection/cross-block/keydown.ts':
+				'the steps: the block’s text, unless selecting it would change nothing, then the document',
+			'src/lib/editor-actions/container-block-component.ts':
+				'a block focused whole, which has no text step, so the document'
+		},
+		reason:
+			'a block that plans its own Mod+A skips the rule that a step changing nothing goes on to the next one: let the press reach the shared keydown, which takes it',
+		hits: ["if (isSelectAllChord(e)) return { kind: 'select-all-step' };", "chord === 'Mod+A'"],
+		misses: ['if (endsSelectAllRun(e)) selection.resetSelectAllCount();', "chord === 'Mod+C'"]
+	},
+	{
 		id: 'G4.225 the drag session hears a release before anything else on the page',
 		// Any phase counts, since a capture flag held in a variable is invisible to a scan.
 		matches:

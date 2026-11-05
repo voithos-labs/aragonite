@@ -48,6 +48,7 @@ export function makeHandlers(
 		standInCaret: () => null,
 		getEl: () => stubEl,
 		getMyPath: () => myPath,
+		caretBounds: () => null,
 		selection: env.selectionState,
 		getDoc: () => env.doc,
 		getBlockElByPath: () => null,

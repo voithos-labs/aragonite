@@ -31,6 +31,22 @@ describe('cross-block keydown: Ctrl+A priority order', () => {
 		expect(env.selection.focus?.path).toEqual([2]);
 	});
 
+	// Miss-analysis: every press started from a caret in a block with text, where the first step
+	// changes something; none started where it changes nothing.
+	it('a first press over a block already all selected goes to the document', async () => {
+		const env = makeKeydownEnv(SOURCE);
+		const el = env.ctx.getEl()!;
+		el.textContent = 'alpha';
+		document.body.append(el);
+		document.getSelection()!.setBaseAndExtent(el.firstChild!, 5, el.firstChild!, 0);
+
+		expect(await env.keydown.handleKeyDown(press('a', { ctrlKey: true }))).toBe(true);
+
+		expect(env.selection.ownsRange).toBe(true);
+		expect(env.selection.focus?.path).toEqual([2]);
+		el.remove();
+	});
+
 	it('re-selects the whole document when pressed with a range already active', async () => {
 		const env = makeKeydownEnv(SOURCE);
 		env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 2 });

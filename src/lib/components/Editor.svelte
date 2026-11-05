@@ -1069,6 +1069,7 @@
 	const editorCrossBlock = createCrossBlockHandlers({
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
+		caretBounds: () => null,
 		selection: selectionState,
 		caretWriter,
 		standInCaret: readingFocus.focusCaret,
