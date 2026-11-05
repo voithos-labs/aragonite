@@ -61,6 +61,11 @@ export const CONTAINER_CELL_CONTRACTS: Record<ConformanceCell | 'coverageFloor',
 		promise: 'typing your opener above a block keeps the caret on a line it can type in',
 		anchor: CONTAINER
 	},
+	copyMarkers: {
+		promise:
+			'a copy into or out of you reads back inside you, your markers written by your rebuild',
+		anchor: CONTAINER
+	},
 	declarations: {
 		promise: 'your container declarations match what your parse and rebuild do',
 		anchor: CONTAINER

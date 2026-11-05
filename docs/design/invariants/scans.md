@@ -222,6 +222,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.280 | Every route into the in-leaf edit is named with its shape, and each shape keeps a reference's destination | L |
 | G4.281 | The selection overlays and handles draw the editor's selection, never the browser's | L |
 | G4.282 | Whether the editor holds the range is asked as `ownsRange`, whatever the range spans | L |
+| G4.284 | Mod+A's steps are decided in one place, where a step that would change nothing goes on to the next | L |
 | G4.289 | A unit test file that writes a rune runs in a DOM environment | L |
 | G4.290 | The `npm create` package ships its bin and the plugin template, nothing else | L |
 | G4.291 | The template's declaration step is the repo's, byte for byte | L |
@@ -560,7 +561,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.219 · Popovers don't close on blur.** Safari never focuses a clicked button, so a popover waiting on its opener's `focusout` just stays open. Popovers close through `menuPresence.track` (G4.67) instead, and every `focusout` or `blur` listener left in the library is listed with the focus need it serves (a shown source committing, say). A new one joins the list with its reason, or moves its close onto `track`. `lint/focus-loss-listeners.test.ts`.
 
-**G4.220 · One system clipboard module.** A read or write of the clipboard outside a clipboard event (menu Copy and Paste, whole-block Mod+C, the code block's Copy button) goes through `editor-actions/system-clipboard.ts`, where a refused call resolves to nothing instead of an unhandled rejection. A read waits for a closing menu to leave the page (Safari draws its Paste prompt over it), and a whole block copies through `copyBlockToClipboard`, so every route writes the same text. `lint/system-clipboard-calls.test.ts`.
+**G4.220 · One system clipboard module.** A read or write of the clipboard outside a clipboard event (menu Copy and Paste, whole-block Mod+C, the code block's Copy button) goes through `editor-actions/system-clipboard.ts`, where a refused call resolves to nothing instead of an unhandled rejection. A read waits for a closing menu to leave the page (Safari draws its Paste prompt over it), and a block's text (its Markdown, or a fence's code from the Copy button) copies through `copyBlockToClipboard`, so every route writes the same text. `lint/system-clipboard-calls.test.ts`.
 
 **G4.221 · Clipboard text the engines agree on.** A paste with no paste event of its own (the menus' Paste rows) hands its text to the focused block's `insertMarkdown` or `insertPlainText`, since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The selection's shown text is read only through `shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF, and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
 
@@ -649,6 +650,8 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.281 · The overlays draw the editor's selection.** A handle on a native range is one a phone already draws its own handles on, and every range a finger makes is in `SelectionState`, so no file under `components/overlays/` reads the native selection. `file-rules.test.ts`.
 
 **G4.282 · One question for who holds the range.** The editor holds a range across blocks, a rectangle of cells, a block held whole, and a finger's range inside one block, and every read of that asks `SelectionState.ownsRange`; a read that means a range inside one block asks `rangeInOneBlock`, and one that means two blocks compares paths (`rangeSpansBlocks`). The old names, `isCrossBlock` and the test surface's `isCrossBlockActive`, read as a span, so the scan fails them anywhere. `file-rules.test.ts`.
+
+**G4.284 · One home for Mod+A's steps.** A press selects the block's text, then the document, and skips the block's step when it would change nothing (an empty block, or one already all selected; `selection/cross-block/keydown.ts`); a block focused whole has no text step. A block planning its own presses would skip that rule, so the scan fails any other file that reads the chord. `file-rules.test.ts`.
 
 **G4.289 · Runes in a test need a DOM environment.** A test file under `src/lib/test` that writes `$state`, `$derived` or `$effect` names jsdom as its environment. Without it the file runs in Node, where Svelte's server build makes `$state` a plain value and never runs an `$effect.root` body, so a test of something reactive passes without testing it. Vitest takes the first `@vitest-environment` tag anywhere in the file, even one inside a string, and so does the scan. `lint/suite-file-rules.test.ts`.
 

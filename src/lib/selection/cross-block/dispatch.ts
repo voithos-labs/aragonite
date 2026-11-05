@@ -31,6 +31,9 @@ import { createCrossBlockPointer, type PaddingPress } from './pointer';
 export interface CrossBlockDispatchContext {
 	getEl: () => HTMLElement | null;
 	getMyPath: () => number[];
+	/** The first and last offsets a caret reaches in the block (`BlockComponent.caretBounds`), or
+	 *  null at the editor root, which holds no block of its own. */
+	caretBounds: () => { start: number; end: number } | null;
 
 	selection: SelectionState;
 	/** The editor's caret writer, which every caret and range the dispatch puts down goes through. */

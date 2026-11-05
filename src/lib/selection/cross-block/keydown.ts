@@ -30,7 +30,8 @@ import {
 } from '../keyboard-extend';
 import type { ArrowKey } from '../table-rect-extend';
 import { applySurfaceContentRange } from '../native-bridge';
-import { readNativeSelection } from '../../browser/selection-read';
+import { rawSelectionIn, readNativeSelection } from '../../browser/selection-read';
+import type { RawRange } from '../../browser/offsets';
 import { selectInBlock } from '../place-caret';
 import { returnBlockRangeToBrowser } from '../finger-takeover';
 
@@ -165,17 +166,37 @@ async function handleCrossBlockEntry(
 
 	if (isSelectAllChord(e)) {
 		e.preventDefault();
+		// The block's text first, unless selecting it would change nothing, so every press shows.
+		const inBlock = selection.selectAllCount === 0 && !holdsBlockText(ctx, el);
 		// Ended before the count moves, since ending a selected widget restarts the run.
-		const first = selection.selectAllCount === 0;
 		selection.batch(() => {
-			if (first) selectInBlock(selection, writer, () => applySurfaceContentRange(writer, el));
+			if (inBlock) selectInBlock(selection, writer, () => applySurfaceContentRange(writer, el));
 			selection.incrementSelectAllCount();
 		});
-		if (!first) selectWholeDocument(selection, writer, getDoc(), ctx.getBlockElByPath);
+		if (!inBlock) selectWholeDocument(selection, writer, getDoc(), ctx.getBlockElByPath);
 		return true;
 	}
 
 	return false;
+}
+
+/** Whether the selection already holds every offset a caret reaches in the block, as a caret in an
+ *  empty block does. True where there is no block, as at the editor root. */
+function holdsBlockText(ctx: CrossBlockDispatchContext, el: HTMLElement): boolean {
+	const bounds = ctx.caretBounds();
+	if (!bounds) return true;
+	const held = heldRangeIn(ctx.selection, el);
+	return held !== null && held.start <= bounds.start && held.end >= bounds.end;
+}
+
+/** The selection in the block's raw offsets: a finger's range the editor holds, else the browser's. */
+function heldRangeIn(selection: SelectionState, el: HTMLElement): RawRange | null {
+	if (selection.ownsRange) {
+		const { start, end } = selection;
+		return start && end ? { start: start.offset, end: end.offset } : null;
+	}
+	const live = rawSelectionIn(el);
+	return live?.start != null && live.end != null ? { start: live.start, end: live.end } : null;
 }
 
 // ── Keydown Helpers ───────────────────────────────────────────────────────

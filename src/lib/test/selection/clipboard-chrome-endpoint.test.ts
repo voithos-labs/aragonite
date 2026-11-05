@@ -120,26 +120,4 @@ describe('cross-block copy ending in reserved chrome', () => {
 		expect(text).toContain('<details open>'); // the rogue wrapper still rebuilt
 		expect(getPluginMetadata<{ rogue?: boolean }>(doc.children[1])?.rogue).toBeUndefined();
 	});
-
-	// An endpoint in a container with no title line (a list item, a blockquote) still recovers
-	// its marker through the suffix arithmetic.
-	it('leaves the listItem marker-recovery path unchanged', () => {
-		const doc = parse('Above\n\n1. hello\n');
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0, 0], 3))),
-			SOURCE_READING
-		);
-		expect(text).toBe('ove\n1. hel');
-	});
-
-	it('leaves a blockquote endpoint on the marker-recovery path', () => {
-		const doc = parse('Above\n\n> quoted\n');
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0], 2), point([1, 0], 3))),
-			SOURCE_READING
-		);
-		expect(text).toBe('ove\n> quo');
-	});
 });

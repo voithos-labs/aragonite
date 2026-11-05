@@ -26,10 +26,6 @@ import {
 } from '../schema/block-kind-descriptor';
 import { isMergeEligible } from '../schema/merge-rules';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
-import { collectCrossBlockText } from '../selection/clipboard-text';
-import { coverRange, rangeCoverage } from '../selection/range-coverage';
-import type { SelectionPoint } from '../selection/primitives';
-import { createSelectionState } from '../selection/selection-state.svelte';
 import { pathsEqual } from '../selection/path-math';
 import { scanDocument } from '../search/document-scan';
 import { compileMatcher } from '../search/matcher';
@@ -39,6 +35,7 @@ import {
 	assert,
 	assertIs,
 	assertRebuildKeepsParsedBytes,
+	copyThroughFunnel,
 	fail,
 	nodeAtPath,
 	runCells,
@@ -52,7 +49,6 @@ import {
 import { installOwnRaw } from '../tree-operations/node-primitives';
 import { defaultGrammarView, type BlockOpener, type OpenContext } from '../schema/block-openers';
 import { createHeadlessActions } from './headless-actions';
-import { kitReading } from './kit-reading';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
 import { assertParseConverged } from './parse-convergence';
 import { checkWriteRuleKeepsBytes } from '../invariants/write-rule-keeps-bytes';
@@ -544,16 +540,6 @@ function bytesBetween(children: CstNode[], from: number, to: number): string {
 		.slice(from, to)
 		.map((node) => node.leadingTrivia + node.raw)
 		.join('');
-}
-
-/** Copies through the production selection code, so a kind whose endpoints `SelectionState`
- *  normalizes is copied the way the editor copies it. */
-function copyThroughFunnel(doc: Document, anchor: SelectionPoint, focus: SelectionPoint): string {
-	const selection = createSelectionState({ getDoc: () => doc });
-	selection.enterCrossBlock(anchor, focus);
-	const { start, end } = selection;
-	if (!start || !end) fail('the selection funnel refused the cross-block endpoint pair');
-	return collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, start, end)), kitReading());
 }
 
 /** An offset strictly inside the block, so a kind that snaps its endpoints is seen doing it. */

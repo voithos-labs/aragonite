@@ -68,7 +68,8 @@ function wholeBlockKey(t: ReturnType<typeof harness>, key: string, mods = {}): v
 		caretMemory: createCaretMemory(),
 		commandOf: () => null,
 		getPath: () => [0],
-		containerChords: { take: () => false }
+		containerChords: { take: () => false },
+		selectDocument: () => {}
 	});
 }
 

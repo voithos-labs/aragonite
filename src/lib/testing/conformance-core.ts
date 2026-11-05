@@ -10,6 +10,11 @@ import { blockNodeAt } from '../tree-operations/node-primitives';
 import type { BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { showValue as show } from '../core/metadata-parity';
 import { cellFailure, type CellContract } from './cell-contracts';
+import type { SelectionPoint } from '../selection/primitives';
+import { createSelectionState } from '../selection/selection-state.svelte';
+import { collectCrossBlockText } from '../selection/clipboard-text';
+import { coverRange, rangeCoverage } from '../selection/range-coverage';
+import { kitReading } from './kit-reading';
 
 export { show };
 
@@ -220,4 +225,18 @@ export function pathPassesThroughKind(
 	kind: AnyBlockKind
 ): boolean {
 	return ancestorsOf(doc, leafPath).some((node) => node.kind === kind);
+}
+
+/** Copies through the production selection code, so a kind whose endpoints `SelectionState`
+ *  normalizes is copied the way the editor copies it. */
+export function copyThroughFunnel(
+	doc: Document,
+	anchor: SelectionPoint,
+	focus: SelectionPoint
+): string {
+	const selection = createSelectionState({ getDoc: () => doc });
+	selection.enterCrossBlock(anchor, focus);
+	const { start, end } = selection;
+	if (!start || !end) fail('the selection funnel refused the cross-block endpoint pair');
+	return collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, start, end)), kitReading());
 }

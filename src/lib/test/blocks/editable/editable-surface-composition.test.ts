@@ -327,8 +327,7 @@ describe('composed text placement', () => {
 			getNode: () => node,
 			reading: fixtureReading(),
 			caretMemory,
-			heldSpace: () => caretMemory.heldSpace.forBlock({}),
-			insideCloser: () => caretMemory.insideCloser.forBlock({})
+			heldSpace: () => caretMemory.heldSpace.forBlock({})
 		});
 		const surface = makeSurface({
 			compositionSeat: seat,

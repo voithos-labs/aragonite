@@ -68,7 +68,8 @@ function focusedRuleKey(blockEdit: BlockEditActions, key: string, mods = {}): vo
 		commandOf: () => null,
 		takesKey: () => false,
 		getPath: () => [0],
-		containerChords: { take: () => false }
+		containerChords: { take: () => false },
+		selectDocument: () => {}
 	});
 }
 

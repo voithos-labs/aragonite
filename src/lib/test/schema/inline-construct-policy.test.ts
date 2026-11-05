@@ -75,8 +75,8 @@ describe('built-in rows', () => {
 		expect(getInlineMarkPolicy('link')).toBeUndefined();
 	});
 
-	// An image's destination has its own editor, and an autolink's is the text on screen.
-	it('a click follows a link, edited in its card, and an autolink, edited as its text', () => {
+	// An image's destination has its own editor; a link and an autolink share the card.
+	it('a click follows a link and an autolink, both edited in the link card', () => {
 		const kinds = Object.keys(INLINE_KIND_TABLE) as AnyInlineKind[];
 		const followed = kinds.flatMap((kind) => {
 			const edit = followEditOf(kind);
@@ -84,7 +84,7 @@ describe('built-in rows', () => {
 		});
 		expect(followed).toEqual([
 			['link', 'card'],
-			['autolink', 'text']
+			['autolink', 'card']
 		]);
 	});
 

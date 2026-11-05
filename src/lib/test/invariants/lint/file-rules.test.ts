@@ -874,8 +874,6 @@ const RULES: FileRule[] = [
 				'table sticky-X exit re-enters the editor column state',
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'CST inline offsets (unbranded model values) enter cursor IO',
-			'src/lib/components/blocks/text/inline-commands.ts':
-				'Edit link puts the caret at a construct’s text end, a CST offset (unbranded model value)',
 			'src/lib/components/blocks/text/typed-input.ts':
 				'the auto-pair’s caret, counted in the block’s displayed text, enters cursor IO'
 		},
@@ -1564,7 +1562,7 @@ const RULES: FileRule[] = [
 				'a selection handle trading the anchor for the focus before its drag, which moves no end',
 			'src/lib/selection/cross-block/range-indent.ts':
 				'an indent keeping a block held whole, which moves no end',
-			'src/lib/testing/kind-conformance.ts': 'the conformance kit, which sets up a range'
+			'src/lib/testing/conformance-core.ts': 'the conformance kits, which set up a range to copy'
 		},
 		reaches: [SOURCE.keyboardExtend],
 		reason:
@@ -1637,6 +1635,21 @@ const RULES: FileRule[] = [
 			'expect(await editor.bridge.isCrossBlockActive()).toBe(true);'
 		],
 		misses: ['if (selection.ownsRange) return;', 'if (rangeSpansBlocks(coverage)) paint();']
+	},
+	{
+		id: 'G4.284 Mod+A is read where its steps are decided',
+		matches: /\bisSelectAllChord\s*\(|['"]Mod\+A['"]/,
+		allowed: {
+			'src/lib/schema/keybindings.ts': 'the chord itself, and the chords that read text',
+			'src/lib/selection/cross-block/keydown.ts':
+				'the steps: the block’s text, unless selecting it would change nothing, then the document',
+			'src/lib/editor-actions/container-block-component.ts':
+				'a block focused whole, which has no text step, so the document'
+		},
+		reason:
+			'a block that plans its own Mod+A skips the rule that a step changing nothing goes on to the next one: let the press reach the shared keydown, which takes it',
+		hits: ["if (isSelectAllChord(e)) return { kind: 'select-all-step' };", "chord === 'Mod+A'"],
+		misses: ['if (endsSelectAllRun(e)) selection.resetSelectAllCount();', "chord === 'Mod+C'"]
 	},
 	{
 		id: 'G4.225 the drag session hears a release before anything else on the page',

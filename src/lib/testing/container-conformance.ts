@@ -9,6 +9,7 @@ import type { ContainerEditActions, FocusActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { keepOpenTail } from '../tree-operations/fix-up/apply';
 import {
+	displayLength,
 	documentLineEnding,
 	ownTrailingLineEnding,
 	splitLines,
@@ -64,6 +65,7 @@ import {
 	assertIs,
 	assertRebuildKeepsParsedBytes,
 	assertReasonDocumented,
+	copyThroughFunnel,
 	fail,
 	findFirstOfKind,
 	nodeAtPath,
@@ -140,6 +142,7 @@ export type ConformanceCell =
 	| 'terminatorCollision'
 	| 'titleRow'
 	| 'openerLine'
+	| 'copyMarkers'
 	| 'declarations';
 
 export interface ContainerConformanceReport {
@@ -196,6 +199,10 @@ export const CONTAINER_CONFORMANCE_CELLS: readonly KitCell<
 	{
 		cell: 'openerLine',
 		run: ({ kind }) => checkOpenerLineHoldsCaret(kind)
+	},
+	{
+		cell: 'copyMarkers',
+		run: ({ kind, profile }) => checkCopyKeepsMarkers(kind, profile)
 	},
 	{
 		cell: 'declarations',
@@ -528,6 +535,62 @@ function checkTitleRowFeedsNoMetadata(kind: AnyBlockKind): CellOutcome {
 	const typed = createUndoController(deps).typeLeaf(docPathFrom(leafPath), write, 0);
 	assert(typed.wrote, `${kind} takes a keystroke in its title row`);
 	assertParseConverged(doc, `${kind} after a keystroke in its title row`);
+}
+
+// ── (i) a copy keeps the container's markers ────────────────────────────────
+
+const COPY_SENTINEL = 'copy sentinel';
+
+/** A copy from a paragraph above into `deepNesting`'s leaf, and for a line-prefixed kind one out of
+ *  it to a paragraph below, read back with that leaf's end under every container it sat under. */
+function checkCopyKeepsMarkers(
+	kind: AnyBlockKind,
+	profile: ContainerConformanceProfile
+): CellOutcome | void {
+	const { source, leafPath } = profile.deepNesting;
+	const kindPath = subjectPath(parse(source), kind, 'first', 'deepNesting');
+	const descriptor = getBlockKindDescriptor(kind);
+	if (isGridDescriptor(descriptor) || leafPath.length <= kindPath.length) {
+		return { status: 'exempt', detail: `"${kind}" holds no leaf of its own to copy into` };
+	}
+	const into = parse(COPY_SENTINEL + '\n\n' + source);
+	const leafInto = [leafPath[0] + 1, ...leafPath.slice(1)];
+	const length = displayLength(nodeAtPath(into, leafInto).raw);
+	assert(length > 0, `${kind} deepNesting's leaf holds text to copy`);
+	const chain = containerKinds(into, leafInto);
+	const entered = copyThroughFunnel(
+		into,
+		{ path: [0], offset: 2 },
+		{ path: leafInto, offset: length }
+	);
+	assertSameKinds(edgeKinds(parse(entered), 'last'), chain, `a copy into "${kind}"`);
+	if (descriptor.containerContract !== 'strip') return;
+	const out = parse(source + '\n\n' + COPY_SENTINEL + '\n');
+	const below = { path: [out.children.length - 1], offset: 2 };
+	const left = copyThroughFunnel(out, { path: leafPath, offset: length > 1 ? 1 : 0 }, below);
+	assertSameKinds(edgeKinds(parse(left), 'first'), chain, `a copy out of "${kind}"`);
+}
+
+/** The kinds of the containers above the block at `path`, outermost first. */
+function containerKinds(doc: Document, path: number[]): string[] {
+	return ancestorsOf(doc, path).map((node) => node.kind);
+}
+
+/** The kinds of the containers above a document's first or last leaf, outermost first. */
+function edgeKinds(doc: Document, edge: 'first' | 'last'): string[] {
+	const kinds: string[] = [];
+	let children = doc.children;
+	while (children.length > 0) {
+		const node = edge === 'first' ? children[0] : children[children.length - 1];
+		if (!node.children?.length) break;
+		kinds.push(node.kind);
+		children = node.children;
+	}
+	return kinds;
+}
+
+function assertSameKinds(actual: string[], expected: string[], copy: string): void {
+	assertIs(actual.join(' > '), expected.join(' > '), `${copy} keeps the containers its end sat in`);
 }
 
 // ── (h) the opener line holds the caret ─────────────────────────────────────

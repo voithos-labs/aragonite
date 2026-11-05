@@ -209,13 +209,13 @@ function registerBuiltInInlinePolicies(): void {
 		prose: 'none'
 	});
 	// An autolink's text is its destination, so neither edge extends (`docs/design/live-mode.md`
-	// § 4.2 Typing at a hidden edge), half a URL is no URL, and editing it is editing the text.
+	// § 4.2 Typing at a hidden edge) and half a URL is no URL; the link card edits it like a link.
 	registerInlineConstructPolicy('autolink', {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,
 		splitBehavior: 'whole',
 		revealable: false,
-		followEdit: 'text',
+		followEdit: 'card',
 		prose: 'none'
 	});
 	// Always hidden in live mode, and a key deletes each as one unit. Half an escape is a literal
