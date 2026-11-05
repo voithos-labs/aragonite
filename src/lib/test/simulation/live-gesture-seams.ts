@@ -394,8 +394,7 @@ async function pressEdgeKey(
 		getNode: node,
 		reading: fixtureReading(),
 		caretMemory: { side: () => gesture.affinity, noteOutside: () => {} },
-		heldSpace: () => ({ at: () => null, inside: () => null, passCloser: () => false }),
-		insideCloser: () => ({ at: () => null, open: () => {} })
+		heldSpace: () => ({ at: () => null, inside: () => null, passCloser: () => false })
 	});
 	// The block anchors a key's write at the caret it recorded when the key arrived.
 	const writeText = createSurfaceWrite({
@@ -411,7 +410,6 @@ async function pressEdgeKey(
 	});
 	const dispatch = createEdgePolicyDispatch({
 		caretWriter: testCaretWriter,
-		insideCloser: () => ({ at: () => null, open: () => {} }),
 		get node() {
 			return nodeAt(h.doc, leaf.path) as CstNode;
 		},

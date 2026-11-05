@@ -115,6 +115,7 @@ These checks run in three kinds of place:
 | G1.168 | A key or a composition over a selection in live mode is written by the editor, never left to the browser | A·N |
 | G1.169 | While a finger's range is the editor's, the DOM holds only a caret | A·N |
 | G1.170 | The editor owns a range inside one block only when a finger's press made it | A·N |
+| G1.171 | A copy into or out of a container reads back inside it, its markers written by its own rebuild | harness·P |
 
 ### The entries
 
@@ -313,3 +314,5 @@ These checks run in three kinds of place:
 **G1.169 · A finger's range leaves only a caret** (`finger-range-leaves-caret`). A phone draws its own handles and menu on any native range, so once the editor takes a finger's range over, the native selection is a caret. Until the next press, `selection/finger-takeover.ts` adopts every range the browser writes in that block (Safari writes its word back once, Android's held drag grows it); dev fails one it can't adopt, a native range beside the painted one. `checkFingerRangeLeavesCaret` · `touch-press.test.ts`.
 
 **G1.170 · A range inside one block is the editor's only from a finger** (`owned-range-from-finger`). A mouse's or a keyboard's range inside one block is the browser's, and the overlay paints only what the editor owns, so a route that took one would paint over the browser's highlight and route its keys through the range handlers. `SelectionState.ownBlockRange` takes a `FingerPress`, which only `selection/pointer-gesture.ts :: fingerPress` makes, and dev fails one it didn't make. `checkOwnedRangeFromFinger` · `owned-block-range.test.ts`.
+
+**G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, written by its own `rebuildRaw`. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `selection/clipboard-text.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.

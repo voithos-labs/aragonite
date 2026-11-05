@@ -191,8 +191,7 @@
 		getNode: () => node,
 		reading,
 		caretMemory,
-		heldSpace: () => editableSurface.heldSpace,
-		insideCloser: () => editableSurface.insideCloser
+		heldSpace: () => editableSurface.heldSpace
 	});
 	// Set on the block's first focus: until then a render has no shown marker to re-apply.
 	let caretHasEntered = false;
@@ -395,7 +394,6 @@
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
-		insideCloser: () => editableSurface.insideCloser,
 		pendingMarks: editableSurface.pendingMarks,
 		caretWriter
 	});

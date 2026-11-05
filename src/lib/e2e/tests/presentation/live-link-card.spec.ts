@@ -86,12 +86,11 @@ test.describe('live-mode link card', () => {
 		await expect(page.locator(URL_FIELD)).toHaveValue('javascript:alert(1)');
 	});
 
-	test('an autolink opens no card: its destination is the text already on screen', async ({
-		page
-	}) => {
+	test('an autolink opens its card, its URL in both fields', async ({ page }) => {
 		await expect(page.locator('a.md-autolink')).toHaveCount(1);
-		await clickLink(ep, page, 'commonmark');
-		await expect(page.locator(CARD)).toHaveCount(0);
+		await openCardOn(ep, page, 'commonmark');
+		await expect(page.locator(URL_FIELD)).toHaveValue('https://commonmark.org');
+		await expect(page.locator(TEXT_FIELD)).toHaveValue('https://commonmark.org');
 	});
 
 	test('the opening click leaves the caret in the document, so link text stays editable', async ({

@@ -520,7 +520,7 @@ What the boolean means:
 
 Two more things before you wire buttons:
 
-- **`editLink` edits what the caret would go to.** On a link that's its card, and only in `'live'` mode, since every other editable mode already shows the URL (there the call's consumed, `true`, and no card opens, same as pressing `Mod+K`). On a bare URL or a `<https://...>` one, also live mode only, there's no hidden destination to open, so it just puts the caret at the URL's end, and the letters you type next go into the URL. Beside a plugin widget that goes somewhere (a footnote reference, say) it shows the widget's source, in any editable mode.
+- **`editLink` edits what the caret would go to.** On a link that's its card, and only in `'live'` mode, since every other editable mode already shows the URL (there the call's consumed, `true`, and no card opens, same as pressing `Mod+K`). A bare URL or a `<https://...>` one opens the same card, its URL in both fields: change the URL and the autolink follows it, change the text and it becomes an ordinary bracketed link showing that text. Beside a plugin widget that goes somewhere (a footnote reference, say) it shows the widget's source, in any editable mode.
 - **Over a selection spanning blocks**, a format toggle rewrites every block the range touches (the first block's tail, each middle block whole, the last block's head) as one undo entry. It applies everywhere unless every block already carries the mark, in which case it removes it everywhere. Blocks that can't hold inline syntax (a code block, a thematic break) are skipped and the rest still change. A table joins by its cells: the range covers each cell whole, so the cells it lights up are the cells it marks.
 
 `canRunCommand(commandId: string): boolean`
@@ -675,7 +675,7 @@ events.on('error', (err) => err);
 
 Three things behave differently from what the screen might suggest:
 
-- **Reading a link's destination.** The link card is the only place a URL shows in this mode. `Mod+K` with the caret inside a link, or "Edit link" in the link's right-click menu, opens it with focus in the URL field. The card holds the link's text too, and editing either one (or both) commits as one undoable step. A plain click on a link opens the same card beside a caret that stays the document's, unless you set `linkClick: 'plain'`, where the click follows the link instead.
+- **Reading a link's destination.** The link card is the only place a URL shows in this mode. `Mod+K` with the caret inside a link, or "Edit link" in the link's right-click menu, opens it with focus in the URL field. The card holds the link's text too, and editing either one (or both) commits as one undoable step when you press Enter or click outside the card. Escape throws the edit away. A plain click on a link opens the same card beside a caret that stays the document's, unless you set `linkClick: 'plain'`, where the click follows the link instead.
 - **Copy yields the source bytes** (`**bold**`, not `bold`), because the caret's offsets are the source's. A selection that cuts through a bold (or any format) carries it closed at its edges, so copying `ld an` out of `**bold** and` gives `**ld** an`, and a paste gives back what you cut. Reading mode is the exception inside one block: a selection there copies the rendered text, since there's no caret and nothing to paste back into. A range across blocks copies its Markdown in reading mode too.
 - **Search matches the source bytes too**, so a query spanning a construct boundary misses what the screen appears to show: `beta gamma` finds nothing in `**beta** gamma`, where the bytes between the words are `** `. Matches inside a construct's own text work normally.
 
@@ -987,7 +987,7 @@ Right-clicking any cell opens the table's action menu: "Edit link" first when yo
 | Italic (toggle emphasis) | `Mod+I` |
 | Strikethrough | `Mod+Shift+X` |
 | Inline code | `Mod+E` |
-| Edit a link | `Mod+K` (live mode: a link's card or a bare URL's end; by a widget, its source) |
+| Edit a link | `Mod+K` (live mode: a link's or a bare URL's card; by a widget, its source) |
 | Cycle heading level | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`) |
 | Split a block | `Enter` (in a code block, inserts a newline) |
 | Leave a code block | `Enter` on its empty last line (typing the closing fence there does the same) |

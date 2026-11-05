@@ -74,7 +74,7 @@ const PINNED: Record<string, Pin> = {
 	},
 	'src/lib/selection/clipboard-text.ts': {
 		calls: { '.rebuildRaw': 1 },
-		why: 'a copy re-emits a synthetic container around the copied body, a node no commit has seen'
+		why: 'a copy writes each container it enters or leaves around what it copied, a node no commit has seen'
 	},
 	'src/lib/tree-operations/blockquote.ts': {
 		calls: { rebuildContainerRaw: 2 },

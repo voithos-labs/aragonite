@@ -40,7 +40,7 @@ export async function writeClipboardPayload(payload: ClipboardPayload): Promise<
 }
 
 /** Whether `text` reached the clipboard. */
-export async function writeClipboardText(text: string): Promise<boolean> {
+async function writeClipboardText(text: string): Promise<boolean> {
 	try {
 		await navigator.clipboard.writeText(text);
 		return true;
@@ -49,8 +49,8 @@ export async function writeClipboardText(text: string): Promise<boolean> {
 	}
 }
 
-/** A block's Markdown on the clipboard, without the line ending that closes it, so every route
- *  that copies one block writes the same text. */
+/** A block's text on the clipboard (its Markdown, or a fence's code) without the line ending that
+ *  closes it, so every route that copies one writes the same text. */
 export function copyBlockToClipboard(raw: string): Promise<boolean> {
 	return writeClipboardText(trimTrailingLineEnding(raw));
 }

@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { takeDevWarns } from '../../support/warn-gate';
+import { fingerPress } from '#lib/selection/pointer-gesture.js';
 import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
@@ -29,6 +30,40 @@ describe('cross-block keydown: Ctrl+A priority order', () => {
 		expect(env.selection.ownsRange).toBe(true);
 		expect(env.selection.anchor?.path).toEqual([0]);
 		expect(env.selection.focus?.path).toEqual([2]);
+	});
+
+	// Miss-analysis: every press started from a caret in a block with text, where the first step
+	// changes something; none started where it changes nothing.
+	it('a first press over a block already all selected goes to the document', async () => {
+		const env = makeKeydownEnv(SOURCE);
+		const el = env.ctx.getEl()!;
+		el.textContent = 'alpha';
+		document.body.append(el);
+		document.getSelection()!.setBaseAndExtent(el.firstChild!, 5, el.firstChild!, 0);
+
+		expect(await env.keydown.handleKeyDown(press('a', { ctrlKey: true }))).toBe(true);
+
+		expect(env.selection.ownsRange).toBe(true);
+		expect(env.selection.focus?.path).toEqual([2]);
+		el.remove();
+	});
+
+	// A finger's range is the editor's, not the browser's, so the check reads that one instead.
+	it.each([
+		{ held: 'a word', end: 3, focus: [0] },
+		{ held: 'the whole block', end: 5, focus: [2] }
+	])("a first press over a finger's range of $held", async ({ end, focus }) => {
+		const env = makeKeydownEnv(SOURCE);
+		const el = env.ctx.getEl()!;
+		el.textContent = 'alpha';
+		document.body.append(el);
+		const finger = fingerPress({ pointerType: 'touch', pointerId: 1 })!;
+		env.selection.ownBlockRange({ path: [0], offset: 0 }, { path: [0], offset: end }, finger);
+
+		expect(await env.keydown.handleKeyDown(press('a', { ctrlKey: true }))).toBe(true);
+
+		expect(env.selection.focus?.path ?? [0]).toEqual(focus);
+		el.remove();
 	});
 
 	it('re-selects the whole document when pressed with a range already active', async () => {

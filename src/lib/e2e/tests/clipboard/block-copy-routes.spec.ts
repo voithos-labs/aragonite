@@ -51,6 +51,17 @@ test.describe("a block's clipboard text", () => {
 		// The Windows clipboard hands back CRLF for the LF it was given.
 		expect((await editor.readClipboard()).replace(/\r\n/g, '\n')).toBe('```js\nx\n```');
 	});
+
+	test("the code block's Copy code button writes the code without its closing line ending", async ({
+		page
+	}) => {
+		await editor.loadContent('```js\nlet a = 1\n```\n');
+		const code = page.locator('[data-block-kind="fencedCode"]').first();
+		await code.hover();
+		await code.getByRole('button', { name: 'Copy code' }).click();
+		await editor.waitForClipboardContains('let a = 1', 5000);
+		expect(await editor.readClipboard()).toBe('let a = 1');
+	});
 });
 
 // Miss-analysis: every copy test ran with a clipboard that accepts, and the menu's Copy had no

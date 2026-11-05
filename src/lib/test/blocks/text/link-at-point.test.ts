@@ -91,10 +91,10 @@ describe('resolveLinkAtPoint', () => {
 		});
 	});
 
-	it('an autolink is not a card target: its destination is the text the reader already sees', () => {
-		const { el } = mount('See <https://x.com> too\n');
-		expect(el.querySelector('a.md-autolink')).not.toBeNull();
-		expect(clickInside(el, 'https').closest(LINK_ELEMENT_SELECTOR)).toBeNull();
+	it('an autolink is a card target, its text being its URL', () => {
+		expect(resolve('See <https://x.com> too\n', 'https')).toMatchObject({
+			target: { path: [0], sourceStart: 4 }
+		});
 	});
 
 	it('plain text outside every link is not a hit at all', () => {

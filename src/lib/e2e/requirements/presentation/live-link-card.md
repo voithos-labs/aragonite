@@ -6,13 +6,12 @@ now shows nothing. The card is the replacement: click a rendered link and an anc
 `role="dialog"` opens under it holding the link's text and URL, a button that opens the link and a
 button that removes it. The click still puts a caret in the document, because a link's text can be
 typed into there as well as in the card, so the card opens beside a live caret and waits for the
-user to step into it. Enter in either field writes as one undo entry (the text field's own
-scenarios are in `live-link-card-text.md`), Escape closes without writing (putting the caret
-back when the card was holding it), and a click anywhere else closes it the same
-non-destructive way the search bar dismisses. A blocked-scheme link renders as an inert
-span rather than an anchor and must open the card too, since editing its URL is the only way a
-user fixes it. Autolinks are excluded by construction: their destination is the text on screen,
-so the document edits it in place. Driven on `/test/editor` via `?presentationMode=live` with
+user to step into it. Enter in either field writes as one undo entry, and so does a click
+anywhere else (the text field's own scenarios, and the click's, are in `live-link-card-text.md`);
+Escape closes without writing, putting the caret back when the card was holding it. A
+blocked-scheme link renders as an inert span rather than an anchor and must open the card too,
+since editing its URL is the only way a user fixes it. An autolink opens the card as well, its URL
+in both fields, since its text is its URL. Driven on `/test/editor` via `?presentationMode=live` with
 real clicks, real typing and a real `Mod+Z`; the source is what each scenario checks against,
 since a hidden destination and a wrong one look identical on screen. The chord's create half is
 `live-link-card-create.md`, its consumption contract `live-link-card-chord.md`, and the
@@ -60,7 +59,7 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
   covers the split between editing and creating
 - a blocked-scheme link (`javascript:`) renders as `span.md-link-blocked` with no `href` and still
   opens the card: the card is how its URL gets fixed
-- an autolink opens no card at all, since there is no hidden destination to edit
+- an autolink opens its card on a click, its URL in both the Text and URL fields
 - a reference link's URL edit inlines the destination (`[t][ref]` → `[t](new)`) and leaves the
   definition block untouched: the reference form cannot carry a new URL without editing another
   block, so changing it is the user opting into the inline form
@@ -98,7 +97,8 @@ the ordinary one: `Mod+Z`, which restores the construct whole, url intact.
 ## Error cases
 
 - Escape writes nothing: the source after a canceled edit is byte-identical to the source before
-- a click outside the card closes it without writing, and leaves the caret that click just placed
+- a click outside a card holding no edit closes it without writing, and leaves the caret that click
+  just placed
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared e2e fixture)
 
 ## Miss-analysis
