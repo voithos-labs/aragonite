@@ -39,6 +39,19 @@ const words = (text: string) =>
 		.replace(/(^|\n)[ \t>]*(?:\d{1,9}[.)])?/g, '$1')
 		.replace(/[^\p{L}\p{N}]/gu, '');
 
+/** The same characters in another order, whitespace aside. */
+const sameCharacters = (got: string, wanted: string) => characters(got) === characters(wanted);
+
+const characters = (text: string) => [...text.replace(/\s+/g, '')].sort().join('');
+
+/** How many lines of `text` `pattern` (a multiline, global one) starts. */
+const count = (text: string, pattern: RegExp) => (text.match(pattern) ?? []).length;
+
+const TABLE_LINE = /^[ \t>]*\|/gm;
+const ITEM_MARKER = /^[ \t>]*(?:[-*+]|\d{1,9}[.)])(?=[ \t]|\r?$)/gm;
+const ALERT_MARKER = /^[ \t>]*\[![A-Za-z]+\]/gm;
+const FENCE_LINE = /^[ \t>]*(?:`{3,}|~{3,})/gm;
+
 /** Most specific first: a line counts toward the first row it matches. */
 export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 	{
@@ -65,6 +78,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		lane: 'rebuild',
 		defect: 'a cut from text into a table, pasted back, loses the table rows it took',
 		lines: /^L3 \[[^\]]*→ table\]/,
+		keeps: (got, wanted) => count(got, TABLE_LINE) < count(wanted, TABLE_LINE),
 		repro: {
 			law: 'L3',
 			args: [
@@ -118,6 +132,9 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		defect:
 			'a whole alert or fence cut and pasted back lands inside its own kind (a nested alert, a wider fence)',
 		lines: /^L3 \[(?:document \| fencedCode|[^\]]*githubAlert>paragraph → githubAlert)/,
+		keeps: (got, wanted) =>
+			count(got, ALERT_MARKER) > count(wanted, ALERT_MARKER) ||
+			count(got, FENCE_LINE) > count(wanted, FENCE_LINE),
 		repro: {
 			law: 'L3',
 			args: [
@@ -136,6 +153,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		lane: 'rebuild',
 		defect: 'Enter over a range inside a list splits into items a cut then Enter never makes',
 		lines: /^L5 \[listItem \| [^\]]*\] type:Enter /,
+		keeps: (got, wanted) => count(got, ITEM_MARKER) > count(wanted, ITEM_MARKER),
 		repro: {
 			law: 'L5',
 			args: [
@@ -192,7 +210,8 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		lane: 'rebuild',
 		defect:
 			'a range gesture fires a dev check: Enter over a range (`command-key-landing`), a paste or a delete in a quote (`stale-raw`)',
-		lines: /^L8 .*: fired (?:invariant:command-key-landing|invariant:stale-raw)$/,
+		lines:
+			/^L8 \[[^\]]*→[^\]]*\] (?:type:Enter \S+: fired invariant:command-key-landing|(?:paste:\S+|Backspace|Delete) \S+: fired invariant:stale-raw)$/,
 		repro: {
 			law: 'L8',
 			args: [
@@ -227,8 +246,8 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		lane: 'rebuild',
 		defect:
 			'in live mode, text pasted at a caret past a hidden closing run goes inside the run, not at the offset the selection reports',
-		lines: /^L9 \[[^\]]*\] paste:\S+ text/,
-		keeps: sameWords,
+		lines: /^L9 \[[^\]]*\] paste:\S+ text live\//,
+		keeps: sameCharacters,
 		repro: {
 			law: 'L9',
 			args: [{ source: 'a **b**\n', mode: 'live', caret: end(0, 'end') }, 'x', 'key']
@@ -267,7 +286,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect: 'Backspace or Delete over some ranges across blocks leaves the bytes as they were',
-		lines: /^L4 /,
+		lines: /^L4\.unchanged /,
 		repro: {
 			law: 'L4',
 			args: [

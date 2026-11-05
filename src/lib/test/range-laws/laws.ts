@@ -264,6 +264,14 @@ export async function law3(
 		const original = at.editor.source();
 		const payload = await clipboardGesture(at.editor, 'cut', cut);
 		law8(at, `cut:${cut}`, run);
+		// A cut that left its range selected would have the paste replace it, giving the bytes back
+		// whether or not anything was cut.
+		const left = at.editor.instance.getSelection();
+		if (left && keyOf(left.anchor) !== keyOf(left.focus)) {
+			const span = `${keyOf(left.anchor)} to ${keyOf(left.focus)}`;
+			run.lines.push(at.line('L3', `cut:${cut}`, `left the range ${span} selected, not a caret`));
+			return run;
+		}
 		const before = snapshot(at);
 		const gesture = `cut:${cut} paste:${paste}`;
 		await pasteGesture(at.editor, payload, paste);
@@ -287,6 +295,8 @@ export async function law3(
 
 const lf = (text: string) => text.replace(/\r\n/g, '\n');
 
+const keyOf = (point: SelectionPoint) => pointKey(point.path, point.offset);
+
 // ── Law 4: Backspace and Delete are the cut's delete ─────────────────────────
 
 /** Law 4: Backspace or Delete over a range leaves the bytes a cut of it leaves. */
@@ -307,8 +317,11 @@ export async function law4(input: LawInput, key: 'Backspace' | 'Delete'): Promis
 			return run;
 		}
 		const left = keyed.editor.source();
-		if (left !== leftByCut)
-			run.lines.push(keyed.line('L4', key, `left ${quote(left)}, the cut ${quote(leftByCut)}`));
+		if (left !== leftByCut) {
+			// A key that changed nothing is its own shape, apart from one that removed the wrong bytes.
+			const law = left === before.source ? 'L4.unchanged' : 'L4';
+			run.lines.push(keyed.line(law, key, `left ${quote(left)}, the cut ${quote(leftByCut)}`));
+		}
 		law8(keyed, key, run);
 		await law7(keyed, key, before, run, false);
 	} catch (error) {
@@ -458,31 +471,31 @@ export async function law9(
 			run.undetermined.push(`no byte for the caret ${pointKey(caret.path, caret.offset)}`);
 			return run;
 		}
-		const before = snapshot(at);
-		await pasteGesture(at.editor, { 'text/plain': text }, paste);
-		law8(at, `paste:${paste}`, run);
-		const pasted = at.editor.source();
 		const raw = leafAt(at.editor.instance.__test.getDocument(), caret.path)?.raw ?? '';
 		const prefix = prefixAt(source, byte, caret.offset, raw);
 		const expected = splicedAt(source, byte, text, prefix);
 		const declaredEnd = text.endsWith('\n')
 			? splicedAt(source, byte, text.slice(0, -1), prefix)
 			: null;
+		const before = snapshot(at);
+		await pasteGesture(at.editor, { 'text/plain': text }, paste);
+		law8(at, `paste:${paste}`, run);
+		const pasted = at.editor.source();
+		// A pasted line's own line ending is dropped where nothing visible follows it.
+		const wanted = [
+			expected,
+			...(declaredEnd !== null && nothingVisibleAfter(source, byte) ? [declaredEnd] : [])
+		];
 		if (pasted === expected) {
 			// pass
-		} else if (
-			declaredEnd !== null &&
-			pasted === declaredEnd &&
-			nothingVisibleAfter(source, byte)
-		) {
-			// A pasted line's own line ending is dropped where nothing visible follows it.
+		} else if (wanted.includes(pasted)) {
 			run.declared.push('L9 trailing line ending dropped');
-		} else if (outline(pasted) === outline(expected)) {
-			run.lines.push(
-				at.line('L9.prefix', gesture, `gave ${quote(pasted)}, not ${quote(expected)}`)
-			);
 		} else {
-			run.lines.push(at.line('L9', gesture, `gave ${quote(pasted)}, not ${quote(expected)}`));
+			const respelled = wanted.find((w) => prefixRespelledAt(pasted, w, lineOf(source, byte)));
+			const law = respelled === undefined ? 'L9' : 'L9.prefix';
+			run.lines.push(
+				at.line(law, gesture, `gave ${quote(pasted)}, not ${quote(respelled ?? expected)}`)
+			);
 		}
 		await law7(at, `paste:${paste}`, before, run, true);
 	} catch (error) {
@@ -494,7 +507,8 @@ export async function law9(
 }
 
 function splicedAt(source: string, byte: number, text: string, prefix: string): string {
-	const eol = source.includes('\r\n') ? '\r\n' : '\n';
+	// Pasted lines take the document's first line ending (the paste pipeline's byte rule 3).
+	const eol = /\r?\n/.exec(source)?.[0] ?? '\n';
 	const lines = text.split('\n');
 	// The caret's own text after it goes on the last pasted line, so that line keeps its prefix.
 	const textAfter = !nothingVisibleAfter(source, byte);
@@ -530,18 +544,32 @@ function nothingVisibleAfter(source: string, byte: number): boolean {
 	return source.slice(byte, lineEnd < 0 ? undefined : lineEnd).trim() === '';
 }
 
-/** Kinds and leaf text, line prefixes left out. */
-function outline(source: string): string {
-	const walk = (nodes: readonly CstNode[]): string =>
-		nodes
-			.map((n) =>
-				n.children
-					? `${n.kind}(${walk(n.children)})`
-					: `${n.kind}:${JSON.stringify(lf(n.raw).trimEnd())}`
-			)
-			.join(' ');
-	return walk(parse(source).children);
+const lineOf = (source: string, byte: number) => source.slice(0, byte).split('\n').length - 1;
+
+/** Whether `got` is `wanted` with line prefixes spelled another way: each line keeps its text and
+ *  its quote depth, and only line `at`, the one the paste lands on, may lose or gain a prefix whole. */
+function prefixRespelledAt(got: string, wanted: string, at: number): boolean {
+	const gotLines = got.split('\n');
+	const wantedLines = wanted.split('\n');
+	return (
+		gotLines.length === wantedLines.length &&
+		gotLines.every((line, i) => {
+			const [a, b] = [splitPrefix(line), splitPrefix(wantedLines[i])];
+			return (
+				a.text === b.text &&
+				quoteDepth(a.prefix) === quoteDepth(b.prefix) &&
+				(i === at || (a.prefix === '') === (b.prefix === ''))
+			);
+		})
+	);
 }
+
+const splitPrefix = (line: string) => {
+	const prefix = /^[ \t>]*/.exec(line)![0];
+	return { prefix, text: line.slice(prefix.length) };
+};
+
+const quoteDepth = (prefix: string) => prefix.replace(/[^>]/g, '').length;
 
 // ── Law 10: container markers travel with their lines ────────────────────────
 
