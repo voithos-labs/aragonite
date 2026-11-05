@@ -2,6 +2,8 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { insertText } from '../../insert-text';
 import { attachIme } from '../../simulation/ime';
+import { extendKey } from '../../platform-keys';
+import { waitForAllImagesLoaded } from '../blocks/image/helpers';
 
 // Text over a range across blocks that ends at either edge of a picture alone on its line replaces
 // the range, by key, by soft keyboard and by IME (requirements/selection/).
@@ -18,12 +20,13 @@ interface Range {
 	after: string;
 }
 
-/** A Shift+click in the empty line to the right of the picture, which lands at its end. */
+/** A Shift+click right of the picture, the spot a plain click lands after it
+ *  (`text-editing/typed-insert-class.spec.ts`). */
 async function shiftClickRightOfPicture(editor: EditorPage): Promise<void> {
-	const box = await editor.page.locator('img').boundingBox();
+	const box = await editor.page.locator('[data-image-widget]').boundingBox();
 	if (!box) throw new Error('the picture has no box');
 	await editor.page.keyboard.down('Shift');
-	await editor.page.mouse.click(box.x + box.width + 12, box.y + box.height / 2);
+	await editor.page.mouse.click(box.x + box.width + 30, box.y + box.height / 2);
 	await editor.page.keyboard.up('Shift');
 	await editor.waitForRenderFlush();
 }
@@ -34,6 +37,15 @@ const RANGES: Range[] = [
 		async draw(editor) {
 			await editor.clickBlockAtPath([0], 5);
 			await shiftClickRightOfPicture(editor);
+		},
+		focus: { path: [2], offset: PIC.length },
+		after: 'alphaZ\n'
+	},
+	{
+		name: 'from the end of alpha to the picture’s end, by keyboard',
+		async draw(editor) {
+			await editor.clickBlockAtPath([0], 5);
+			await editor.page.keyboard.press(extendKey('docEnd'));
 		},
 		focus: { path: [2], offset: PIC.length },
 		after: 'alphaZ\n'
@@ -85,7 +97,7 @@ test.describe('text over a range ending at a picture’s edge', () => {
 			for (const input of INPUTS) {
 				await test.step(input.name, async () => {
 					await editor.loadContent(SOURCE);
-					await expect(editor.page.locator('img')).toHaveCount(1);
+					await waitForAllImagesLoaded(editor.page);
 					await range.draw(editor);
 					await editor.waitForCrossBlock(true);
 					expect((await editor.bridge.getSelection())?.focus).toEqual(range.focus);

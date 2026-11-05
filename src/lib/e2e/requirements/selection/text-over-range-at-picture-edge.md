@@ -8,6 +8,8 @@ as anywhere else: by key, by soft keyboard, or by an IME.
 
 - `alpha`, `beta`, then a picture alone on its line. Click at the end of `alpha`, Shift+click at the
   picture's end, type `Z`: the document is `alphaZ`.
+- The same range drawn by keyboard, from the end of `alpha` to the document's end (Ctrl+Shift+End,
+  Cmd+Shift+Down on a Mac), then `Z`: the document is `alphaZ`.
 - The same, Shift+click at the picture's start: the document is `alphaZ` and then the picture,
   joined on one line.
 - Click in `alpha`, Ctrl+A twice, so the range covers the document and ends on the picture, type
