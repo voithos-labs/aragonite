@@ -8,6 +8,10 @@
 		"aragonite",
 		"markdown-editor"
 	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/<you>/<your-repo>.git"
+	},
 	"license": "MIT",
 	"type": "module",
 	"types": "./dist/index.d.ts",
@@ -40,6 +44,9 @@
 	},
 	"peerDependencies": {
 		"@voithos-labs/aragonite": "^0.11.5"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.64.0",

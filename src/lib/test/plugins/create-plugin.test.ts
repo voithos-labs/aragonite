@@ -1,7 +1,8 @@
 /**
  * `npm create @voithos-labs/aragonite-plugin` (the package in `packages/create-aragonite-plugin`):
- * what its bin makes of a folder, what its tarball holds (G4.290), and how the docs spell the
- * command (G4.292). The bin runs as a child process, the way npm runs it.
+ * what its bin makes of a folder, what its tarball holds (G4.290), how the template's release
+ * workflow may publish, and how the docs spell the command (G4.292). The bin runs as a child
+ * process, the way npm runs it.
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { execFileSync, execSync, spawnSync } from 'node:child_process';
@@ -117,6 +118,24 @@ describe('G4.290 the create package ships its bin and the template, nothing else
 		expect(packed).toContain('template/_gitignore');
 		expect(packed).toContain('template/.github/workflows/ci.yml');
 		expect(packed).toEqual(treeFiles(CREATE_PACKAGE));
+	});
+});
+
+// ── The template's release workflow ──────────────────────────────────────────
+
+describe("the template's release workflow publishes on a version tag, with no stored token", () => {
+	const workflow = readFileSync(`${TEMPLATE_DIR}/.github/workflows/release.yml`, 'utf8');
+
+	it('runs on a pushed version tag and nothing else', () => {
+		const triggers = workflow.split('\non:\n')[1].split(/\n(?=\S)/)[0];
+		expect(triggers).toMatch(/^ {2}push:\n {4}tags: \['v\*'\]\n/);
+		expect(triggers.match(/^ {2}\w/gm)).toHaveLength(1);
+	});
+
+	it('asks npm for a short-lived credential, its one write grant, and reads no secret', () => {
+		const grants = workflow.split('\n').filter((line) => /^\s*[\w-]+:\s*write\b/.test(line));
+		expect(grants.map((line) => line.trim())).toEqual(['id-token: write']);
+		expect(workflow).not.toMatch(/secrets\.|NODE_AUTH_TOKEN/);
 	});
 });
 
