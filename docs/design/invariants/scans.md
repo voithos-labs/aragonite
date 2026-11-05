@@ -224,6 +224,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.282 | Whether the editor holds the range is asked as `ownsRange`, whatever the range spans | L |
 | G4.289 | A unit test file that writes a rune runs in a DOM environment | L |
 | G4.290 | The `npm create` package ships its bin and the plugin template, nothing else | L |
+| G4.291 | The template's declaration step is the repo's, byte for byte | L |
 | G4.292 | Every documented `npm create` command for a plugin asks for `@latest` | L |
 
 ### The entries
@@ -652,5 +653,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.289 · Runes in a test need a DOM environment.** A test file under `src/lib/test` that writes `$state`, `$derived` or `$effect` names jsdom as its environment. Without it the file runs in Node, where Svelte's server build makes `$state` a plain value and never runs an `$effect.root` body, so a test of something reactive passes without testing it. Vitest takes the first `@vitest-environment` tag anywhere in the file, even one inside a string, and so does the scan. `lint/suite-file-rules.test.ts`.
 
 **G4.290 · The starter ships what a checkout holds.** `npm pack` reads no ignore file above a package, so a template someone built or installed in place would ship its `dist` and `node_modules`. The create package's `files` excludes those by name, and its packed file list must equal its files in git, tracked or new and not ignored. `plugins/create-plugin.test.ts`.
+
+**G4.291 · One declaration step.** A stylesheet import in a published `.d.ts` fails a host that type-checks with `skipLibCheck` off (TS2882), so every package's build drops them. The template can't import a repo script, so it carries `scripts/strip-declaration-css.mjs` as a copy of `scripts/pack/strip-declaration-css.mjs`, byte for byte. `plugins/parrot/guide-parity.test.ts`.
 
 **G4.292 · The documented command asks for `@latest`.** npm runs a starter it fetched before when the command names no version, so a reader who copies a command without `@latest` can get an old template. Every `npm create`, `npm init` or `npx` spelling of it in the docs and the package READMEs says `@latest`; the changelog is exempt. `plugins/create-plugin.test.ts`.

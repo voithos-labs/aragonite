@@ -122,3 +122,13 @@ describe('G4.278 the plugin template starts from the same parrot', () => {
 		}
 	);
 });
+
+// The template can't import a script from this repo, so it carries a copy of the one every bundled
+// package's build runs.
+describe('G4.291 the template drops stylesheet imports from its declarations as the packages do', () => {
+	it('carries the repo script byte for byte', () => {
+		expect(read(`${TEMPLATE_DIR}/scripts/strip-declaration-css.mjs`)).toBe(
+			read('scripts/pack/strip-declaration-css.mjs')
+		);
+	});
+});

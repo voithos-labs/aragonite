@@ -32,7 +32,7 @@
 	],
 	"scripts": {
 		"dev": "vite",
-		"build": "vite build && tsc -p tsconfig.build.json",
+		"build": "vite build && tsc -p tsconfig.build.json && node scripts/strip-declaration-css.mjs dist",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
 		"check:plugin": "aragonite-plugin-check .",
