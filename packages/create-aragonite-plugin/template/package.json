@@ -8,6 +8,10 @@
 		"aragonite",
 		"markdown-editor"
 	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/<you>/<your-repo>.git"
+	},
 	"license": "MIT",
 	"type": "module",
 	"types": "./dist/index.d.ts",
@@ -32,7 +36,7 @@
 	],
 	"scripts": {
 		"dev": "vite",
-		"build": "vite build && tsc -p tsconfig.build.json",
+		"build": "vite build && tsc -p tsconfig.build.json && node scripts/strip-declaration-css.mjs dist",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
 		"check:plugin": "aragonite-plugin-check .",
@@ -40,6 +44,9 @@
 	},
 	"peerDependencies": {
 		"@voithos-labs/aragonite": "^0.11.5"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.64.0",

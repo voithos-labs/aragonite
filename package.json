@@ -167,7 +167,7 @@
 		"measure": "node scripts/measure/measure.mjs",
 		"behavior": "node scripts/measure/behavior.mjs",
 		"docs:capture:modes": "node scripts/run-with-env.mjs DOCS_CAPTURE=1 -- playwright test --project=e2e-capture",
-		"package": "svelte-kit sync && svelte-package && node scripts/pack/prune-dist.mjs && vite build --config vite.prebuilt.config.js && npm run build --workspaces",
+		"package": "svelte-kit sync && svelte-package && node scripts/pack/prune-dist.mjs && vite build --config vite.prebuilt.config.js && npm run build --workspaces --if-present",
 		"prepack": "npm run package && node scripts/pack/verify-pack.mjs",
 		"release:fixme-recheck": "node scripts/release/fixme-recheck.mjs",
 		"release:publish": "node scripts/release/check-lockstep.mjs && node scripts/release/check-release-gates.mjs && node scripts/release/publish.mjs",

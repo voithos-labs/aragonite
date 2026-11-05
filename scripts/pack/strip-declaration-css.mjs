@@ -1,6 +1,6 @@
 // A stylesheet import carries no types, and a host type-checking without a CSS module declaration
-// fails on it (TS2882), so a package's declarations lose their side-effect `.css` imports.
-// `node scripts/pack/strip-declaration-css.mjs <dist dir>`, after svelte-package.
+// fails on it (TS2882), so a package's declarations lose their side-effect `.css` imports. Run it
+// on the declarations' folder (`dist` by default) once they're built.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

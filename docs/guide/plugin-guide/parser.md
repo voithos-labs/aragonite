@@ -2,7 +2,7 @@
 
 Part of the [plugin guide](../plugin-guide.md): the full story of the opener [the quickstart](../plugin-guide.md#the-first-fifteen-minutes) registers for the parrot.
 
-The parrot opener at the top of this guide left two numbers unexplained (`priority: 25` and `consumed: 1`). This section explains both, then takes the three questions a real grammar meets sooner or later:
+The parrot opener at the top of this guide left two things unexplained (its `priority`, `OPENER_PRIORITIES.heading + 5`, and `consumed: 1`). This section explains both, then takes the three questions a real grammar meets sooner or later:
 
 1. what an opener that reads ahead and then backs out has to tell the editor,
 2. how an opener knows where in the document it is,

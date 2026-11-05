@@ -1,6 +1,6 @@
 /**
- * Every workspace package, wrapper or plugin, releases with the core, and the library's version
- * constant names it (G4.181), as does every version the plugin template names (G4.278):
+ * Every workspace package releases with the core, and the library's version constant names it
+ * (G4.181), as does every version the plugin template names (G4.278):
  * `scripts/release/check-lockstep.mjs` holds the rule, and the publish script runs it first.
  */
 
@@ -22,12 +22,13 @@ const wrapper = (version: string, peer?: string) => ({
 });
 
 describe('lockstep versions', () => {
-	it('holds on this tree, wrappers and plugin packages both', () => {
+	it('holds on this tree: wrappers, plugin packages and the plugin starter', () => {
 		const { root, packages, libraryVersion } = readManifests();
 		const names = packages.map((pkg) => pkg.name);
 
 		expect(names).toContain('@voithos-labs/aragonite-react');
 		expect(names).toContain('@voithos-labs/aragonite-latex');
+		expect(names).toContain('@voithos-labs/create-aragonite-plugin');
 		expect(lockstepDrift(root, packages)).toEqual([]);
 		expect(libraryVersionDrift(root, libraryVersion)).toEqual([]);
 	});
@@ -44,6 +45,17 @@ describe('lockstep versions', () => {
 	])('reports a package that drifts by %s', (_, drifted) => {
 		expect(lockstepDrift(ROOT, [drifted])).toHaveLength(1);
 	});
+
+	// `npm create` installs the starter's peers too, so a peer on the core would fetch the editor.
+	it('holds the plugin starter to the version and to no peer on the core', () => {
+		const starter = (version: string, peer?: string) => ({
+			...wrapper(version, peer),
+			name: '@voithos-labs/create-aragonite-x'
+		});
+		expect(lockstepDrift(ROOT, [starter('1.2.0')])).toEqual([]);
+		expect(lockstepDrift(ROOT, [starter('1.1.0')])).toHaveLength(1);
+		expect(lockstepDrift(ROOT, [starter('1.2.0', '1.2.0')])).toHaveLength(1);
+	});
 });
 
 describe('G4.278 the plugin template names the editor it ships with', () => {
@@ -59,7 +71,7 @@ describe('G4.278 the plugin template names the editor it ships with', () => {
 	it('holds on this tree', () => {
 		const { root } = readManifests();
 		const { manifest, sites } = readTemplate();
-		expect(sites).toHaveLength(4);
+		expect(sites).toHaveLength(3);
 		expect(templateDrift(root, manifest, sites)).toEqual([]);
 	});
 

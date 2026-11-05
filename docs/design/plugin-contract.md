@@ -30,7 +30,7 @@ The authoring surface stays labeled unstable until the release cut, and the cut 
 
 Until the cut, the surface still changes, on the schedule in `docs/guide/plugin-guide.md` § What is stable, what is not.
 
-The tooling around the API sits outside the freeze entirely: the plugin template (`templates/plugin`), the plugin check (`aragonite-plugin-check` and the reusable workflow `.github/workflows/plugin-check.yml`), and the listing with its gallery page. The first-party plugins don't wait for the freeze: each already ships as a package of its own (`@voithos-labs/aragonite-latex` and so on), and until the freeze every one carries the core's version and peers on exactly that version, so they all release together. `scripts/release/check-lockstep.mjs` fails a release that drifts.
+The tooling around the API sits outside the freeze entirely: the plugin template (`packages/create-aragonite-plugin`, the package `npm create` runs), the plugin check (`aragonite-plugin-check` and the reusable workflow `.github/workflows/plugin-check.yml`), and the listing with its gallery page. The first-party plugins don't wait for the freeze: each already ships as a package of its own (`@voithos-labs/aragonite-latex` and so on), and until the freeze every one carries the core's version and peers on exactly that version, so they all release together. `scripts/release/check-lockstep.mjs` fails a release that drifts.
 
 ## What earns a freeze
 

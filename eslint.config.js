@@ -27,7 +27,7 @@ export default tseslint.config(
 			'static/',
 			'examples/',
 			// The plugin template is a starter with its own toolchain, checked by the template smoke.
-			'templates/'
+			'packages/create-aragonite-plugin/template/'
 		]
 	},
 
@@ -48,7 +48,7 @@ export default tseslint.config(
 	},
 
 	{
-		files: ['scripts/**', 'bin/**', '*.{js,mjs,cjs,ts}'],
+		files: ['scripts/**', 'bin/**', 'packages/*/bin/**', '*.{js,mjs,cjs,ts}'],
 		languageOptions: { globals: globals.node }
 	},
 

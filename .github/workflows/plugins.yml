@@ -1,7 +1,8 @@
 name: Plugins
-# The outside author's path, run on this repo's own plugins: the template built and tested against
-# this commit's editor, then the reusable plugin check over every bundled plugin and the template,
-# so a core change that breaks either reds here before an author sees it.
+# The outside author's path, run on this repo's own plugins: a plugin started with this commit's
+# `npm create` package, built and tested against this commit's editor, then the reusable plugin
+# check over every bundled plugin and that one, so a core change that breaks either reds here
+# before an author sees it.
 on:
   push:
     branches: [main, dev]
@@ -39,7 +40,8 @@ jobs:
           retention-days: 3
 
   # The same workflow an outside author calls, fed this run's unreleased tarballs. The plugin list
-  # is every bundled package plus the template; a lint holds it to `packages/`.
+  # is every bundled package plus the template (the smoke names it my-plugin); a lint holds it to
+  # `packages/`.
   plugin-check:
     needs: template-smoke
     strategy:
@@ -66,5 +68,5 @@ jobs:
       contents: read
     with:
       packs-artifact: plugin-packs
-      package: ${{ matrix.plugin == 'template' && 'aragonite-parrot-[0-9]*.tgz' || format('voithos-labs-aragonite-{0}-[0-9]*.tgz', matrix.plugin) }}
+      package: ${{ matrix.plugin == 'template' && 'my-plugin-[0-9]*.tgz' || format('voithos-labs-aragonite-{0}-[0-9]*.tgz', matrix.plugin) }}
       editor: voithos-labs-aragonite-[0-9]*.tgz

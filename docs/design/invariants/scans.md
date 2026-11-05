@@ -224,6 +224,9 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.282 | Whether the editor holds the range is asked as `ownsRange`, whatever the range spans | L |
 | G4.284 | Mod+A's steps are decided in one place, where a step that would change nothing goes on to the next | L |
 | G4.289 | A unit test file that writes a rune runs in a DOM environment | L |
+| G4.290 | The `npm create` package ships its bin and the plugin template, nothing else | L |
+| G4.291 | The template's declaration step is the repo's, byte for byte | L |
+| G4.292 | Every documented `npm create` command for a plugin asks for `@latest` | L |
 
 ### The entries
 
@@ -636,9 +639,9 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.276 · One reader for a widget's raw span.** A widget or a decoration says which raw bytes it stands for in `data-source-start` and `data-source-end`, and only `core/inline/widget-shell.ts :: widgetSourceRange` parses them back. It answers null unless both parse, so no reader trusts half a span. Writing them is fine anywhere. `lint/file-rules.test.ts`.
 
-**G4.277 · A bundled plugin is an outside author's package.** Each non-wrapper under `packages/` imports only the core's `/plugin` and `/svelte`, `svelte`, its own files and its declared peers, an engine only from `renderer.ts`. Its manifest carries the core's version, peers on exactly it, keeps other peers optional, lists stylesheet importers in `sideEffects` and publishes `./conformance`, which names `/testing`'s types and loads none of it. `lint/plugin-packages.test.ts`.
+**G4.277 · A bundled plugin is an outside author's package.** Each plugin under `packages/` imports only the core's `/plugin` and `/svelte`, `svelte`, its own files and its declared peers, an engine only from `renderer.ts`, and names every priority as an offset from `OPENER_PRIORITIES` or `INLINE_PRIORITIES`. Its manifest carries the core's version, peers on exactly it, keeps other peers optional, lists stylesheet importers in `sideEffects` and publishes `./conformance`, which names `/testing`'s types and loads none of it. `lint/plugin-packages.test.ts`.
 
-**G4.278 · The template is the parrot, at the editor's version.** `templates/plugin/src` holds the bundled parrot's files byte for byte, as the parrot holds the plugin guide's, so the guide, the package and the template can't disagree. Its exact devDependency, its caret peer, the workflow tag it and the testing guide call, and the tag the guide and README fetch it by all name the core's version. `plugins/parrot/guide-parity.test.ts` · `lint/lockstep-versions.test.ts`.
+**G4.278 · The template is the parrot, at the editor's version.** `packages/create-aragonite-plugin/template/src` holds the bundled parrot's files byte for byte, so the guide, the package and the template can't disagree. Its exact devDependency, its caret peer, the peer its README quotes, and the workflow tag it and the testing guide call all name the core's version. The `npm create` package carries that version and peers nothing, since npm would install the editor with it. `plugins/parrot/guide-parity.test.ts` · `lint/lockstep-versions.test.ts`.
 
 **G4.279 · One answer to "is this a finger?".** A finger's drag is the browser's (a scroll, a long press), so only `selection/pointer-gesture.ts` reads `pointerType` or the page's fine or coarse pointer (the drawn caret is handed `finePointer`); the hover marks and the input recorder read them for their own reasons, and CSS `@media (pointer: …)` is styling. A drag session names who drags for a finger in its `touch`; `clearOnPress` waits for a tap, and hands a long press's range over with a `FingerPress` (G1.170). `lint/file-rules.test.ts`.
 
@@ -651,3 +654,9 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.284 · One home for Mod+A's steps.** A press selects the block's text, then the document, and skips the block's step when it would change nothing (an empty block, or one already all selected; `selection/cross-block/keydown.ts`); a block focused whole has no text step. A block planning its own presses would skip that rule, so the scan fails any other file that reads the chord. `file-rules.test.ts`.
 
 **G4.289 · Runes in a test need a DOM environment.** A test file under `src/lib/test` that writes `$state`, `$derived` or `$effect` names jsdom as its environment. Without it the file runs in Node, where Svelte's server build makes `$state` a plain value and never runs an `$effect.root` body, so a test of something reactive passes without testing it. Vitest takes the first `@vitest-environment` tag anywhere in the file, even one inside a string, and so does the scan. `lint/suite-file-rules.test.ts`.
+
+**G4.290 · The starter ships what a checkout holds.** `npm pack` packs everything under a folder `files` names, whatever the repository's `.gitignore` says, so a template someone built or installed in place would ship its `dist` and `node_modules`. The create package's `files` excludes those by name, and its packed file list must equal its files in git, tracked or new and not ignored. `plugins/create-plugin.test.ts`.
+
+**G4.291 · One declaration step.** A stylesheet import in a published `.d.ts` fails a host that type-checks with `skipLibCheck` off (TS2882), so every package's build drops them. The template can't import a repo script, so `packages/create-aragonite-plugin/template/scripts/strip-declaration-css.mjs` is a copy of `scripts/pack/strip-declaration-css.mjs`, byte for byte. `plugins/parrot/guide-parity.test.ts`.
+
+**G4.292 · The documented command asks for `@latest`.** npm runs a starter it fetched before when the command names no version, so a reader who copies a command without `@latest` can get an old template. Every `npm create`, `npm init` or `npx` spelling of it in the docs and the package READMEs says `@latest`; the changelog is exempt. `plugins/create-plugin.test.ts`.

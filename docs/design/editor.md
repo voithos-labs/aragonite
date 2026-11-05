@@ -289,7 +289,7 @@ The same dispatch point answers `EditorInstance.canRunCommand`, the read a host 
   registerBlockKind(kind, {
   	// ...the descriptor fields and the view
   	opener: {
-  		priority: 25, // lower dispatches first; ties break by kind name
+  		priority: OPENER_PRIORITIES.heading + 5, // lower dispatches first; ties break by kind name
   		tryOpen(ctx) {
   			/* claim the lines from ctx.index: return { node, consumed }, or null to decline */
   		},
