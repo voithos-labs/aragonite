@@ -60,9 +60,8 @@ export function dispatchOwnKindChord(
 	return true;
 }
 
-/** The chords a block focused as a whole takes itself: Mod+C or Mod+X copy its own Markdown through
- *  writeText (a keydown carries no ClipboardEvent), and Mod+A, with no text to select first, selects
- *  the document. `claimsChord` asks the same. */
+/** The chords a block focused whole takes itself: Mod+C and Mod+X copy its Markdown (a keydown
+ *  carries no ClipboardEvent), Mod+A selects the document. `claimsChord` asks the same. */
 export function wholeBlockChord(e: KeyboardEvent): 'copy' | 'cut' | 'selectAll' | null {
 	if (isSelectAllChord(e)) return 'selectAll';
 	const chord = eventToChord(e);
