@@ -156,7 +156,7 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		mode: 'source',
 		select: range({ path: [0], offset: 1 }, { path: [1], offset: 2 }),
 		steps: [{ do: 'cut', route: 'menu' }],
-		issue: 'new: the menu drops the range',
+		issue: '#820',
 		expected: { source: 'oo\n', clipboard: 'ne\n\ntw' },
 		today: { source: 'one\n\ntwo\n', clipboard: '' }
 	},

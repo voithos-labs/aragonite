@@ -116,7 +116,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: cut into a table',
+		issue: '#819',
 		lane: 'rebuild',
 		defect: 'a cut from text into a table, pasted back, loses the table rows it took',
 		lines: /^L3 \[[^\]]*→ table\]/,
@@ -168,7 +168,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: a container pasted back into itself',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'a whole alert or fence cut and pasted back lands inside its own kind (a nested alert, a wider fence)',
@@ -187,7 +187,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: Enter over a range in a list',
+		issue: '#819',
 		lane: 'rebuild',
 		defect: 'Enter over a range inside a list splits into items a cut then Enter never makes',
 		lines: /^L5 \[listItem \| [^\]]*\] type:Enter /,
@@ -204,7 +204,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: in-block cut and paste back',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'a cut inside one block, pasted straight back, changes the block (a live heading’s `#`, respelled container lines, line endings)',
@@ -224,7 +224,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: replace over a range',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'Enter, a key or a paste over a range lands other than a cut then the same gesture (fences, footnotes, quotes, trailing line endings)',
@@ -243,7 +243,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: dev checks on range gestures',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'a range gesture fires a dev check: a cut into a table (`collectCrossBlockText:end`), Enter over a range (`command-key-landing`), a paste in a quote (`stale-raw`)',
@@ -262,7 +262,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: paste respells the line it lands on',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'a paste at a caret rewrites the container prefix of the line it lands on (`  [^n]: ` to `[^n]: `, `>a` to `> a`, a tab to spaces)',
@@ -278,7 +278,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: live paste inside a hidden run',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'in live mode, text pasted at a caret past a hidden closing run goes inside the run, not at the offset the selection reports',
@@ -290,7 +290,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: copy at a covered edge',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'a copy whose end sits at the edge of a block it holds whole takes that block’s markers or line ending',
@@ -305,7 +305,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: live paste inside a hidden run',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'undo of a live paste past a hidden closing run puts the caret where the text went, not where the paste began',
@@ -319,7 +319,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: removal key removes nothing',
+		issue: '#819',
 		lane: 'rebuild',
 		defect: 'Backspace or Delete over some ranges across blocks leaves the bytes as they were',
 		lines: /^L4 /,
@@ -336,7 +336,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: plain paste',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
 			'Paste as plain text rewrites bytes away from the caret (a line’s container prefix, a live autolink’s hidden `>`) or escapes text in an indented code block',
