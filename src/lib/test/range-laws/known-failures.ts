@@ -262,11 +262,27 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
+		issue: 'new: paste respells the line it lands on',
+		lane: 'rebuild',
+		defect:
+			'a paste at a caret rewrites the container prefix of the line it lands on (`  [^n]: ` to `[^n]: `, `>a` to `> a`, a tab to spaces)',
+		lines: /^L9\.prefix /,
+		keeps: sameWords,
+		repro: {
+			law: 'L9',
+			args: [
+				{ source: '  [^n]: a\n', mode: 'source', caret: end(0, 'start') },
+				'line one\nline two\n',
+				'menu'
+			]
+		}
+	},
+	{
 		issue: 'new: live paste inside a hidden run',
 		lane: 'rebuild',
 		defect:
 			'in live mode, text pasted at a caret past a hidden closing run goes inside the run, not at the offset the selection reports',
-		lines: /^L9(?:\.prefix)? \[[^\]]*\] paste:\S+ text/,
+		lines: /^L9 \[[^\]]*\] paste:\S+ text/,
 		keeps: sameWords,
 		repro: {
 			law: 'L9',
@@ -309,7 +325,7 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: 'new: plain paste',
 		lane: 'rebuild',
 		defect:
-			'Paste as plain text puts bytes away from the caret or escapes text an indented code block reads as is',
+			'Paste as plain text rewrites bytes away from the caret (a line’s container prefix, a live autolink’s hidden `>`) or escapes text in an indented code block',
 		lines:
 			/^L11 \[[^\]]*\] paste:plain \S+: "(?:[^"\\]|\\.)*" into (?:indentedCode put in|\w+ changed bytes away)/,
 		repro: {

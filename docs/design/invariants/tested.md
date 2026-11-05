@@ -115,11 +115,8 @@ scope's children, child ids and the bytes, metadata and list counts it saved, em
 scope's direct children stays written; only an internal bug reaches it.
 `commit-rollback.test.ts`, `commit-rollback-bytes.test.ts`.
 
-**G2.18 · The range-edit laws.** Every gesture that copies, removes, replaces or pastes a range
-agrees with the others: a copy and a cut write the same clipboard, a cut pasted back gives the
-bytes back, Backspace leaves what a cut leaves, typing over a range is a cut then the key. Ten of
-the eleven laws are properties through the mounted editor's own event routes; the drag-and-drop
-move runs in the browser rows only. A class that breaks a law today is a row of
-`src/lib/test/range-laws/known-failures.ts` with its issue and a repro that must still fail.
-`src/lib/test/range-laws/range-edit-laws.property.test.ts`,
-`src/lib/test/range-laws/range-law-cases.test.ts`, and the deep run `npm run test:laws:report`.
+**G2.18 · The range-edit laws.** The gestures that copy, remove, replace or paste a range agree:
+a copy and a cut write the same clipboard, a cut pasted back gives the bytes back, Backspace leaves
+what a cut leaves, and so on, ten laws as properties through the editor's event routes, a drop in
+the browser rows. A class that breaks one today is a row of `range-laws/known-failures.ts`
+(its repro must still fail). `range-edit-laws.property.test.ts`, `range-law-cases.test.ts`.
