@@ -19,7 +19,6 @@ const REPOSITORY = /^https:\/\/(github\.com|gitlab\.com|codeberg\.org)\/[\w.-]+\
 export const VERSION = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
 const COMPARATOR = /^(\^|~|>=|<=|>|<|=)?\d+\.\d+\.\d+(-[\w.]+)?$/;
 const RESULTS = ['pass', 'fail', 'out-of-range'];
-const RECORD_KEYS = ['version', 'repository', 'peer', 'editor', 'result', 'failures'];
 
 /**
  * What a release's check recorded for one package: the version it checked (null when the peer
