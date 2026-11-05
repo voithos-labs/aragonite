@@ -41,8 +41,9 @@ right of the selection.
 - clicking the bold button wraps the selected word: the button cancels its own
   mousedown default, so the caret never leaves the document and the command has a
   focused block to run on
-- a selection starting mid-line in a wrapped paragraph places the toolbar at the
-  left of rect[0]: the first visual line's geometry, not the union of every line
+- a selection that starts mid-line and wraps onto later lines hangs the toolbar where
+  it ends: at the end of its last line, not off its first line (rect[0]) and not off
+  the union of every line, whose right edge is the paragraph's
 - a cross-block selection leaves the format toggles live and greys out only the
   link editor: the toggles have a cross-block handler behind them, while the link
   editor works from one block's offsets and a range across blocks gives it none
@@ -81,6 +82,9 @@ right of the selection.
 
 ## Miss-analysis
 
+- The wrapped-selection row was loosened to "below the first line" when the bar moved to
+  the last line, which a bar hung off the first line or off the union also passed, so no
+  row held where a wrapped range puts it
 - The only cross-block placement row ended in a paragraph, so a range ending in a table
   fell back to the start block's rects and put the bar over the rows it had selected,
   and no row placed it there
