@@ -189,3 +189,17 @@ test.describe('live-mode link card: a press elsewhere keeps the edit', () => {
 		await ep.bridge.waitForSourceEquals('Alpha [bravo](https://new.test/) charlie');
 	});
 });
+
+// A host shortcut switches the mode with no press, so nothing clicks away from the card first.
+test.describe('live-mode link card: a mode change keeps the edit', () => {
+	for (const to of ['source', 'reading'] as const) {
+		test(`a new text, then a switch to ${to}, writes it`, async ({ page }) => {
+			const ep = await enterPresentationMode(page, 'live', `Visit [example](${U}) now`);
+			await openCardOn(ep, page, 'example');
+			await editText(page, 'sample');
+			await ep.setPresentationMode(to);
+			await expect(page.locator(CARD)).toHaveCount(0);
+			await ep.bridge.waitForSourceEquals(`Visit [sample](${U}) now`);
+		});
+	}
+});

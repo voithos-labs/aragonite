@@ -1,7 +1,7 @@
 /**
- * Keeps the caret across a presentation-mode switch. `beforeFlip` captures the caret and blurs
- * the block while the outgoing mode still owns the DOM; `afterFlip` drops the outgoing markers'
- * geometry, has the overlays measure again, and restores the caret through the shared restore path.
+ * Keeps the caret across a presentation-mode switch. `beforeFlip` captures the caret, blurs the
+ * block and closes open menus while the outgoing mode still owns the DOM; `afterFlip` drops the
+ * outgoing markers' geometry, has the overlays measure again, and restores the caret.
  * Reading mode has no caret, so leaving it puts one where its focus last sat (`reading-focus`).
  */
 
@@ -45,7 +45,7 @@ export interface ModeFlipDeps {
 	 *  scroll position. */
 	restoreCaret(path: number[], offset: number): Promise<unknown>;
 	/** Make the editor's reading answer `mode` (null: the requested mode again), so an edit the
-	 *  blur commits lands in the mode it was typed in. */
+	 *  blur or a closing menu commits lands in the mode it was typed in. */
 	holdOutgoingMode(mode: PresentationMode | null): void;
 	textMoves: Pick<TextMoves, 'movedEverywhere'>;
 }
@@ -117,6 +117,10 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 				const readingCaret = deps.takeReadingCaret();
 				flipCaret = from === 'reading' ? (readingCaret ?? flipCaret) : captureCaret();
 				blurForFlip();
+				// A menu or draft still open saves here too, so its write lands in the mode it was
+				// typed in, as the blur's does: reading mode would decline it.
+				deps.menus.closeAll('mode-change');
+				deps.drafts.closeAll('mode-change');
 			} finally {
 				deps.holdOutgoingMode(null);
 			}
@@ -124,10 +128,6 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		afterFlip(to) {
 			if (to === lastEffectiveMode) return;
 			lastEffectiveMode = to;
-			// A menu opened in one mode offers that mode's edits. First, since a close may write, and
-			// the caret restore below must read the tree it leaves.
-			deps.menus.closeAll('mode-change');
-			deps.drafts.closeAll('mode-change');
 			// The caret memory, measured heights and overlay rects belong to the outgoing markers.
 			deps.caretMemory.forget();
 			deps.layout.forgetMeasuredHeights();

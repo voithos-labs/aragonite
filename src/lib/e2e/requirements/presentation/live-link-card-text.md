@@ -44,6 +44,14 @@ over it in the document, and no scenario covered renaming a link while keeping i
   edited nothing, so a press that dropped a typed edit looked the same as one that had nothing
   to drop.
 
+## A mode change
+
+- a new text, then the host switches to source mode with no press: the text is written and the
+  card closes
+- the same switch to reading mode writes it too, in the mode it was typed in
+- Miss-analysis (#814): no row held an edit across a switch, and the image's alt field rows only
+  switched between modes that edit, so a save reading mode declined went unseen.
+
 ## Create
 
 - `Mod+K` over a selection starts the Text field from the selected text; a changed text and a URL,
