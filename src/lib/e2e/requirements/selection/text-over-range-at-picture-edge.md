@@ -1,8 +1,8 @@
 # Feature: Text over a range that ends at a picture's edge replaces the range
 
-A range across blocks can end at either edge of a paragraph holding only a picture, where the
-caret the range parks has no text beside it. Text that arrives there replaces the range the same
-as anywhere else: by key, by soft keyboard, or by an IME.
+A range across blocks can end at either edge of a paragraph holding only a picture, so the caret at
+the range's end has no text beside it. Text that arrives there replaces the range the same as
+anywhere else: by key, by soft keyboard, or by an IME.
 
 ## Happy paths
 

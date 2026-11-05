@@ -27,10 +27,11 @@ followed by a paragraph, which the merge used to put above the sublist's items.
 
 A range removal that ends inside a later item does the same to it: the item's marker line goes with
 the block the range took, and every line under it keeps its bytes. In the same document, a range
-from the middle of `i2` to the middle of `i3`, then Backspace, Delete or a typed letter, gives
-`- i0` / `  - i1` / `    - i3` / `    - i4` / _blank line_ / `    p5`; from the end of `i2` to the
-start of `i3` it gives the Backspace row's bytes. Pinned, with ranges into first items, ordered and
-to-do items and lists in a quote, in
+from the middle of `i2` to the middle of `i3`, then Backspace or Delete, gives
+`- i0` / `  - i1` / `    - i3` / `    - i4` / _blank line_ / `    p5` (a typed letter lands between
+the `i` and the `3`); from the end of `i2` to the start of `i3` it gives the Backspace row's bytes.
+The list renders every item, and the caret sits at the join. Pinned, with ranges into first items,
+ordered and to-do items and lists in a quote, in
 `src/lib/test/selection/cross-block/range-removal-keeps-item-lines.test.ts` and its property.
 Miss-analysis: the range rows ended in flat items or in an item's only block, so no row left an item
 holding a block under the one the range took, and the marker moved onto that block (`  - - i4`).
