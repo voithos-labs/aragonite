@@ -39,7 +39,7 @@ const record = (extra: Record<string, unknown> = {}) => ({
 	repository: 'https://github.com/someone/aragonite-thing',
 	peer: '^0.12.0',
 	editor: '0.12.0',
-	result: 'pass',
+	result: 'pass' as const,
 	...extra
 });
 
