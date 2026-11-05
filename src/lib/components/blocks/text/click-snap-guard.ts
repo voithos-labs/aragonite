@@ -1,6 +1,5 @@
 /** Shared checks about the selection and the key, used across a text block's editable element. */
 
-import { isCharacterKey } from '../../../schema/keybindings';
 import { readNativeSelection } from '../../../browser/selection-read';
 
 /** Whether this element holds a selected range: a double or triple click, a shift-click, a
@@ -19,9 +18,4 @@ export function hasModifier(e: KeyboardEvent): boolean {
 /** The key alone: no Shift, Ctrl, Alt or Meta held. */
 export function isBareKey(e: KeyboardEvent): boolean {
 	return !e.shiftKey && !hasModifier(e);
-}
-
-/** A typed character: no modifier chord, one code point. A chord is a command instead. */
-export function isPlainTypingKey(e: KeyboardEvent): boolean {
-	return !hasModifier(e) && isCharacterKey(e.key);
 }

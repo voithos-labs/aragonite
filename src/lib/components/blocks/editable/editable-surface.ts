@@ -106,6 +106,7 @@ import { checkRepaintReadsTree } from '../../../invariants/repaint-reads-tree';
 import { checkCompositionEndPaired } from '../../../invariants/inline-transitions';
 import { checkDeleteDecided } from '../../../invariants/collapsed-delete';
 import { checkTypedInsertAtCaret } from '../../../invariants/typed-insert-at-caret';
+import { checkTypedWriteOutsideRange } from '../../../invariants/typed-write-outside-range';
 import type { DeleteAnswer, DeleteContext, DeleteVerdict } from '../../../caret/delete-extent';
 import {
 	readInput,
@@ -633,7 +634,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			})
 		: () => ({ marks: [] });
 
-	const writeText = createSurfaceWrite({
+	const surfaceWrite = createSurfaceWrite({
 		getNode: deps.getNode,
 		getIndex: deps.getIndex,
 		getPath: deps.getMyPath,
@@ -646,6 +647,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		showsSource: deps.showsSource,
 		reading: deps.reading
 	});
+	function writeText(write: TextWrite): ContentWrite {
+		if (write.intent === 'typed') {
+			assertInvariant('typed-write-outside-range', () =>
+				checkTypedWriteOutsideRange(deps.selection.ownsRange, write.source)
+			);
+		}
+		return surfaceWrite(write);
+	}
 
 	function command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R {
 		return function recorded(...args) {

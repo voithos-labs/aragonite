@@ -47,8 +47,8 @@ import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkWidgetCaretLanding } from '../../../invariants/widget-caret-landing';
 import { checkMotionLeftWidget } from '../../../invariants/selected-widget-motion';
 import type { RevealFold } from '../editable/surface-clipboard';
-import { hasModifier, isPlainTypingKey, surfaceHoldsRange } from './click-snap-guard';
-import { caretEdgeKey, pageKey } from '../../../schema/keybindings';
+import { hasModifier, surfaceHoldsRange } from './click-snap-guard';
+import { caretEdgeKey, pageKey, typesCharacter } from '../../../schema/keybindings';
 import { elementAtPoint } from '../../../browser/point';
 import {
 	findFirstEdgeWidget,
@@ -678,7 +678,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			leaveWidget(widget.end);
 			return true;
 		}
-		if (isPlainTypingKey(e)) {
+		if (typesCharacter(e)) {
 			e.preventDefault();
 			spliceWidget(e.key);
 			return true;

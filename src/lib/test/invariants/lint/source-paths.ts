@@ -291,7 +291,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	typedInsert: 'export function decideTypedInsert(',
 	widgetInteraction: 'export function createWidgetInteraction(',
 	pendingBreakKeys: 'export function handlePendingBreakKey(',
-	clickSnapGuard: 'export function isPlainTypingKey(',
+	clickSnapGuard: 'export function surfaceHoldsRange(',
 	crossBlockDispatch: 'export function createCrossBlockHandlers(',
 	codeBlockComponent: 'function writeCode(',
 	codeFenceBoundary: 'export function editSpan(',

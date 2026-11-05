@@ -256,10 +256,15 @@ export function textKeyRole(e: ChordKeys): TextKeyRole | null {
 	return typesCharacter(e) ? 'writes' : null;
 }
 
-/** A key that types its character: no command modifier, or Ctrl+Alt, which is AltGr off a Mac. */
-function typesCharacter(e: ChordKeys): boolean {
+/** Whether a keydown types its character: with no command modifier, with Option on a Mac, or with
+ *  AltGr, which Windows reports as Ctrl+Alt. A key an IME owns is turned away before this is asked. */
+export function typesCharacter(
+	e: ChordKeys & Partial<Pick<KeyboardEvent, 'getModifierState'>>
+): boolean {
 	if (!isCharacterKey(e.key) || e.metaKey) return false;
-	return !e.ctrlKey || (e.altKey && !usesMacEditingConventions());
+	if (e.getModifierState?.('AltGraph')) return true;
+	const mac = usesMacEditingConventions();
+	return e.ctrlKey ? e.altKey && !mac : !e.altKey || mac;
 }
 
 export function normalizeChord(chord: string): string {

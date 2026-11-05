@@ -9,7 +9,13 @@ import type { SelectionState } from '../selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { isReadingMode } from '../../presentation-mode';
 import { usesMacEditingConventions } from '../../schema/platform-conventions';
-import { caretEdgeKey, eventToChord, isSelectAllChord, pageKey } from '../../schema/keybindings';
+import {
+	caretEdgeKey,
+	eventToChord,
+	isSelectAllChord,
+	pageKey,
+	typesCharacter
+} from '../../schema/keybindings';
 import {
 	commandOverRange,
 	dispatchKeyCommand,
@@ -129,6 +135,11 @@ async function handleCrossBlockActive(
 			}
 			return true;
 		}
+		case 'type':
+			if (!isReadingMode(ctx.reading.mode)) {
+				await replaceRange(ctx, { kind: 'text', text: e.key });
+			}
+			return true;
 		case 'extend':
 			extendRangeByArrow(ctx, el, e.key as ArrowKey);
 			return true;
@@ -242,7 +253,15 @@ export function rangeOwnsKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 }
 
 type RangeKeyRole =
-	'delete' | 'rewrite' | 'indent' | 'command' | 'extend' | 'lineEdge' | 'collapse' | 'selectAll';
+	| 'delete'
+	| 'rewrite'
+	| 'indent'
+	| 'command'
+	| 'type'
+	| 'extend'
+	| 'lineEdge'
+	| 'collapse'
+	| 'selectAll';
 
 // Each container the key bubbles through asks, and then the range's handler: one answer per event.
 const rolesByEvent = new WeakMap<KeyboardEvent, RangeKeyRole | null>();
@@ -271,7 +290,9 @@ function readRangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole 
 	// Inside one block the first Mod+A selects that block, as from the browser's own range there.
 	if (isSelectAllChord(e)) return reads.selection.rangeInOneBlock ? null : 'selectAll';
 	// Last, since it reads the range's coverage: the navigation keys above never need it.
-	return isCommandCandidateKey(e, reads) ? 'command' : null;
+	if (isCommandCandidateKey(e, reads)) return 'command';
+	// At its keydown, since beside a widget with no text node an engine sends no `beforeinput`.
+	return typesCharacter(e) ? 'type' : null;
 }
 
 /** Backspace and Delete, which remove the range. */
