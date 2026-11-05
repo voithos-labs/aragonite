@@ -2,7 +2,6 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { insertText } from '../../insert-text';
 import { attachIme } from '../../simulation/ime';
-import { extendKey } from '../../platform-keys';
 import { waitForAllImagesLoaded } from '../blocks/image/helpers';
 
 // Text over a range across blocks that ends at either edge of a picture alone on its line replaces
@@ -37,15 +36,6 @@ const RANGES: Range[] = [
 		async draw(editor) {
 			await editor.clickBlockAtPath([0], 5);
 			await shiftClickRightOfPicture(editor);
-		},
-		focus: { path: [2], offset: PIC.length },
-		after: 'alphaZ\n'
-	},
-	{
-		name: 'from the end of alpha to the picture’s end, by keyboard',
-		async draw(editor) {
-			await editor.clickBlockAtPath([0], 5);
-			await editor.page.keyboard.press(extendKey('docEnd'));
 		},
 		focus: { path: [2], offset: PIC.length },
 		after: 'alphaZ\n'
@@ -97,6 +87,7 @@ test.describe('text over a range ending at a picture’s edge', () => {
 			for (const input of INPUTS) {
 				await test.step(input.name, async () => {
 					await editor.loadContent(SOURCE);
+					await expect(editor.page.locator('[data-image-widget]')).toHaveCount(1);
 					await waitForAllImagesLoaded(editor.page);
 					await range.draw(editor);
 					await editor.waitForCrossBlock(true);

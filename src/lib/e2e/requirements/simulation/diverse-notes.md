@@ -18,9 +18,8 @@ sessions with the screenshots on, for the visual review.
 - the project-plan note builds nested bullets, a nested ordered item, a task list, a two-paragraph
   quote, a fenced code block and a resized picture, all part of the end state. One of its seed's
   detours is a Backspace over the whole note, a range that ends on that picture
-- #817: on the loaded project-plan note, Mod+A twice and a typed letter leave only that letter.
-  Today the letter lands after the picture that ends the note and the range stays, so the row is
-  an expected failure until that's fixed (a note that ends in text already gives the letter alone)
+- #817: on the loaded project-plan note, Mod+A twice and a typed letter leave only that letter,
+  though the range ends on the picture that closes the note
 
 ## Error cases
 
