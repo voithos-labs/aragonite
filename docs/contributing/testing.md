@@ -690,7 +690,7 @@ Random generators keep missing the tiny inputs, a `>` and a newline and nothing 
 In `npm test` the three take a few seconds. `npm run test:exhaustive` takes several minutes, nearly all of it the length-7 round trip. A branch that touches the parser or the commit runs it once and says so in its report. Before a release, raise the edits to length 4 (about five more minutes):
 
 ```bash
-node scripts/run-with-env.mjs EXHAUSTIVE_FULL=1 EXHAUSTIVE_EDIT_LENGTH=4 -- vitest run src/lib/test/exhaustive
+node scripts/run-with-env.mjs EXHAUSTIVE_FULL=1 EXHAUSTIVE_EDIT_LENGTH=4 -- npx vitest run src/lib/test/exhaustive
 ```
 
 Some inputs already fail, and `KNOWN_DEFECTS` in `src/lib/test/exhaustive/known-failures.ts` names the defects behind them, one entry each: what's broken, the shortest input length that reaches it, and a pattern over its failure lines. A suite fails on a failure no entry matches, and on an entry nothing matched in a run long enough to reach it. So a fix deletes one entry however many inputs it covered, and a longer run reaching a known defect from more inputs passes as is. A failure no entry matches is a new defect: name it in a new entry (or fix it).
@@ -699,18 +699,18 @@ Some inputs already fail, and `KNOWN_DEFECTS` in `src/lib/test/exhaustive/known-
 
 Copy, cut, paste, typing over a selection and Backspace over one are separate gestures, and most of their bugs are two of them disagreeing: the copy leaves out markers the cut's delete took, or a cut pasted straight back doesn't give the document back. So `src/lib/test/range-laws/` checks the eleven rules that tie them together (a copy and a cut write the same clipboard, a cut pasted back gives the bytes back, Backspace leaves what a cut leaves, and so on). Ten of them are properties drawn over real document shapes and run through the mounted editor the way a browser would deliver it: the key, then the clipboard event or the input, and the menu rows by their press. Never by calling the code that does the edit, which a scan holds it to (G4.295). The eleventh, a drag-and-drop move, runs only in the browser cases below, since jsdom has no layout to drop on.
 
-Plenty of it fails today, and `src/lib/test/range-laws/known-failures.ts` names each failing class once: its issue, the lane fixing it, a pattern over its violation lines and a repro. The suite fails on a violation no row matches, and on a row whose repro passes, so the fix that closes a class deletes its row.
+Plenty of it fails today, and `src/lib/test/range-laws/known-failures.ts` names each failing class once: its issue, a pattern over its violation lines, what the wrong bytes still share with the right ones (the same words, say, or the same characters in another order) and a repro. Keep a new row that narrow, since a row matching every line of its law hides the next bug there too. The suite fails on a violation no row matches, and on a row whose repro passes, so the fix that closes a class deletes its row.
 
-`npm test` runs a handful of draws per law. The deep run takes hundreds, keeps every violation, shrinks each group (law × container shape × gesture × mode) to its smallest case and writes the list into law-report/, which git ignores. It takes a few minutes per law, so you can run some at a time:
+`npm test` runs a handful of random draws per law, after a few fixed ones in `src/lib/test/range-laws/law-specs.ts` that keep the law today and each reach a part of it the random few can miss (text with a line break pasted into a quote, undo after the menu's paste). The deep run takes hundreds, keeps every violation, shrinks each group (law × container shape × gesture × mode) to its smallest case and writes the list into law-report/, which git ignores. It takes a few minutes per law, so you can run some at a time:
 
 ```bash
 npm run test:laws:report
-node scripts/run-with-env.mjs LAW_REPORT=law-report/law-violations.md LAW_REPORT_LAWS=L3,L9 LAW_REPORT_RUNS=300 -- vitest run src/lib/test/range-laws/report
+node scripts/run-with-env.mjs LAW_REPORT=law-report/law-violations.md LAW_REPORT_LAWS=L3,L9 LAW_REPORT_RUNS=300 -- npx vitest run src/lib/test/range-laws/report
 ```
 
 ```powershell
 npm run test:laws:report
-node scripts/run-with-env.mjs LAW_REPORT=law-report/law-violations.md LAW_REPORT_LAWS=L3,L9 LAW_REPORT_RUNS=300 -- vitest run src/lib/test/range-laws/report
+node scripts/run-with-env.mjs LAW_REPORT=law-report/law-violations.md LAW_REPORT_LAWS=L3,L9 LAW_REPORT_RUNS=300 -- npx vitest run src/lib/test/range-laws/report
 ```
 
 jsdom fakes the clipboard, the IME and every default action a browser takes, so `src/lib/e2e/range-law-cases.ts` holds a fixed set of cases that both the unit suite and `src/lib/e2e/tests/clipboard/range-edit-laws.spec.ts` run, against the same bytes. If the two ever disagree, the fake route is wrong, and one of them goes red to say so.

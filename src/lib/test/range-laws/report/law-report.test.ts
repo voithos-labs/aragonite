@@ -207,7 +207,7 @@ function renderReport(results: LawResult[]): string {
 	const out: string[] = [
 		'# Range-edit law violations',
 		'',
-		`Seed ${SEED}, ${RUNS} draws per law, jsdom through the mounted editor's event routes. A group is one law × shape × gesture × mode; its count is the draws that landed in it, and its counterexample is the first one shrunk while it stays in the group. Lines open \`L<law>[.<label>] [<shape>] <gesture> <mode>/<eol>\`.`,
+		`Seed ${SEED}, jsdom through the mounted editor's event routes, the draws per law in the counts below. A group is one law × shape × gesture × mode; its count is the draws that landed in it, and its counterexample is the first one shrunk while it stays in the group. Lines open \`L<law>[.<label>] [<shape>] <gesture> <mode>/<eol>\`.`,
 		'',
 		...knownTable(results),
 		'## Counts',

@@ -22,7 +22,7 @@ The unit suite checks the range-edit laws through jsdom's stand-in events (`src/
 
 ## User interactions
 
-- Right-click inside a range across paragraphs, then Cut: the clipboard holds the range and the two halves join (fails today: the menu drops the range and shows Cut disabled, in jsdom and every browser).
+- Right-click inside a range across paragraphs, then Cut: the clipboard holds the range and the two halves join (fails today, #820: the menu drops the range and shows Cut disabled, in jsdom and every browser).
 - An IME composition over a range across paragraphs (Chromium, over CDP): replaces the range, as a cut then the composition does.
 - Paste at a caret, then Ctrl+Z: the bytes come back and the caret sits where the paste began.
 - A word dragged and dropped at the end of the next paragraph: the bytes a cut of the word, then a paste at the drop point, leave. Skipped in Firefox, where Playwright’s drag never sends the drop.
