@@ -213,7 +213,6 @@ export function createTypedPlacement(deps: TypedPlacementDeps): TypedPlacement {
 				const screen = hidingScreenOf(deps.getEl());
 				if (!screen) return null;
 				const inlines = inlinesOf(before);
-				// The marks apply where a letter would land.
 				const seat = hiddenEdges(inlines, before, screen, deps.reading).typingOffset(at, side);
 				const typed = insertedText(before, edit, at);
 				const marked = resolveMarkedInsertion(before, seat, typed, marks, inlines, deps.reading);

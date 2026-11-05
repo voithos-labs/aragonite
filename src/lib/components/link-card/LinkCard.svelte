@@ -93,8 +93,8 @@
 		stops[(next + stops.length) % stops.length].focus();
 	}
 
-	/** The URL and text a commit would write, or null where it writes nothing: a link with no text
-	 *  has nothing to click, so a text field the user emptied writes nothing. */
+	/** The URL and text a commit would write, or null for none: a link with no text has nothing to
+	 *  click, so an emptied text field writes nothing. */
 	export function pendingEdit(): { url: string; text: string } | null {
 		if (!canWrite || (textDraft.trim() === '' && textDraft !== text)) return null;
 		return { url: draft, text: textDraft };
