@@ -10,6 +10,7 @@ import path from 'node:path';
 import { publishedEntryPoints } from '../../../../../scripts/lib-alias.mjs';
 import {
 	PLUGIN_KEYWORD,
+	isInitializer,
 	pluginPackages,
 	workspacePackages
 } from '../../../../../scripts/workspace.mjs';
@@ -121,17 +122,18 @@ describe('G4.277 every bundled plugin is a package an outside author could have 
 	);
 	const filesOf = (pkg: PluginPackage) => sourcesOf.get(pkg.dir) ?? [];
 
-	it('finds the bundled plugins, and every other workspace package is a framework wrapper', () => {
+	it('finds the bundled plugins, and every other workspace package is a wrapper or the starter', () => {
 		expect(packages.length).toBeGreaterThan(1);
 		const unlabelled = workspacePackages()
 			.filter(({ manifest }) => !(manifest.keywords ?? []).includes(PLUGIN_KEYWORD))
 			.filter(
 				({ manifest }) => !manifest.peerDependencies?.react && !manifest.peerDependencies?.vue
 			)
+			.filter(({ manifest }) => !isInitializer(manifest.name))
 			.map(({ dir }) => dir);
 		expect(
 			unlabelled,
-			`packages that are neither a wrapper nor marked "${PLUGIN_KEYWORD}"`
+			`packages that are neither a wrapper, the plugin starter, nor marked "${PLUGIN_KEYWORD}"`
 		).toEqual([]);
 	});
 

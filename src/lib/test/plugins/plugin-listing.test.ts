@@ -18,7 +18,7 @@ import {
 	verifiedFrom
 } from '../../../../scripts/plugins/check-listing.mjs';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
-import { pluginPackages } from '../../../../scripts/workspace.mjs';
+import { TEMPLATE_DIR, pluginPackages } from '../../../../scripts/workspace.mjs';
 
 const entry = (name: string, extra: Record<string, unknown> = {}) => ({
 	package: name,
@@ -226,7 +226,7 @@ describe('the workflows that run a plugin', () => {
 		'.github/workflows/plugin-check.yml',
 		'.github/workflows/plugins.yml',
 		'.github/workflows/plugin-listing.yml',
-		'templates/plugin/.github/workflows/ci.yml'
+		`${TEMPLATE_DIR}/.github/workflows/ci.yml`
 	])('%s asks for no write permission', (file) => {
 		const grants = readFileSync(file, 'utf8')
 			.split('\n')

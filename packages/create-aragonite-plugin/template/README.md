@@ -4,11 +4,9 @@ A starter for an [aragonite](https://github.com/voithos-labs/aragonite) plugin. 
 
 ## Start
 
-Fetch the template at the tag of the editor release you're building against, then install and open the playground:
+This folder came out of `npm create @voithos-labs/aragonite-plugin@latest`, so install and open the playground:
 
 ```bash
-npx degit voithos-labs/aragonite/templates/plugin#v0.11.5 my-plugin
-cd my-plugin
 npm install
 npm run dev
 ```
@@ -19,7 +17,7 @@ The playground is `index.html` plus `dev/main.ts`: the editor with your plugin, 
 
 The parrot already ships as `@voithos-labs/aragonite-parrot`, so rename before the two ever meet on one page:
 
-- `name` in `package.json`: `aragonite-<name>`, or `@your-scope/aragonite-<name>`. Keep the `aragonite-plugin` keyword, it's how people find plugins on npm.
+- `name` in `package.json` is your folder's name. `aragonite-<name>` or `@your-scope/aragonite-<name>` helps people spot it on npm. Keep the `aragonite-plugin` keyword either way, it's how people find plugins.
 - The plugin's `name` in `definePlugin`, and the kind name (`PARROT`).
 - The marker your opener looks for (`%%parrot`), and the class names in `parrot.css`.
 - `"private": true` in `package.json` stops an accidental `npm publish` of the parrot. Delete it when your plugin is ready.

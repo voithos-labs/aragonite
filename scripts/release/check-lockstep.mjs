@@ -1,10 +1,10 @@
-// Fails when a workspace package (a framework wrapper or a plugin) drifts from the core: each must
-// carry the root's version and peer the core at exactly that version, since every package releases
-// together. The version constant the library reports (`src/lib/version.ts`) and every version the
-// plugin template names (its editor pins, its workflow tag, the tag authors fetch it by) match too.
+// Fails when a workspace package drifts from the core: each carries the root's version, and each
+// that runs beside the editor (a wrapper or a plugin) peers the core at exactly that version, since
+// every package releases together. The library's version constant (`src/lib/version.ts`) and every
+// version the plugin template names (its editor pins, its workflow tag) match too.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { workspacePackages } from '../workspace.mjs';
+import { TEMPLATE_DIR, isInitializer, workspacePackages } from '../workspace.mjs';
 
 const CORE = '@voithos-labs/aragonite';
 
@@ -21,7 +21,11 @@ export function lockstepDrift(root, packages) {
 			problems.push(`${pkg.name} is at ${pkg.version}, the core at ${root.version}`);
 		}
 		const peer = pkg.peerDependencies?.[CORE];
-		if (peer !== root.version) {
+		if (isInitializer(pkg.name)) {
+			// npm installs a peer with the package, so `npm create` would fetch the whole editor.
+			if (peer !== undefined)
+				problems.push(`${pkg.name} peers ${CORE}, which it never runs beside`);
+		} else if (peer !== root.version) {
 			problems.push(`${pkg.name} peers ${CORE} at ${peer ?? 'nothing'}, not ${root.version}`);
 		}
 	}
@@ -39,14 +43,11 @@ export function libraryVersionDrift(root, libraryVersion) {
 	return [`src/lib/version.ts says ${libraryVersion ?? 'nothing'}, the core is at ${root.version}`];
 }
 
-const TEMPLATE = 'templates/plugin';
-
 /** Each file outside the template's manifest that names the editor version, with the pattern that
- *  captures it: the plugin check's workflow tag and the tag the template's fetch command names. */
+ *  captures it: the plugin check's workflow tag and the peer range the template's README quotes. */
 export const TEMPLATE_VERSION_SITES = /** @type {const} */ ([
-	[`${TEMPLATE}/.github/workflows/ci.yml`, /plugin-check\.yml@v(\d[\w.-]*)/g],
-	[`${TEMPLATE}/README.md`, /templates\/plugin#v(\d[\w.-]*)|`\^(\d[\w.-]*)`/g],
-	['docs/guide/plugin-guide.md', /templates\/plugin#v(\d[\w.-]*)/g],
+	[`${TEMPLATE_DIR}/.github/workflows/ci.yml`, /plugin-check\.yml@v(\d[\w.-]*)/g],
+	[`${TEMPLATE_DIR}/README.md`, /`\^(\d[\w.-]*)`/g],
 	['docs/guide/plugin-testing.md', /plugin-check\.yml@v(\d[\w.-]*)/g]
 ]);
 
@@ -68,7 +69,7 @@ export function templateDrift(root, manifest, sites) {
 		problems.push(`the template's peer on ${CORE} isn't ^${root.version}`);
 	}
 	for (const [file, text, pattern] of sites) {
-		const found = [...text.matchAll(pattern)].map((match) => match[1] ?? match[2]);
+		const found = [...text.matchAll(pattern)].map((match) => match[1]);
 		if (found.length === 0) problems.push(`${file} names no editor version`);
 		for (const version of found.filter((v) => v !== root.version)) {
 			problems.push(`${file} names ${version}, the core is at ${root.version}`);
@@ -79,7 +80,7 @@ export function templateDrift(root, manifest, sites) {
 
 /** The plugin template's manifest and the text of each file naming its editor version. */
 export function readTemplate() {
-	const manifest = JSON.parse(readFileSync(`${TEMPLATE}/package.json`, 'utf8'));
+	const manifest = JSON.parse(readFileSync(`${TEMPLATE_DIR}/package.json`, 'utf8'));
 	/** @type {[string, string, RegExp][]} */
 	const sites = TEMPLATE_VERSION_SITES.map(([file, pattern]) => [
 		file,

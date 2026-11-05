@@ -1,5 +1,5 @@
 // The packages in this repo's npm workspace, read off the root package.json's `workspaces` globs,
-// and which of them are aragonite plugins.
+// which of them are aragonite plugins, and where the plugin template lives.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,17 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** The npm keyword that marks a package as an aragonite plugin. */
 export const PLUGIN_KEYWORD = 'aragonite-plugin';
+
+/** The package `npm create @voithos-labs/aragonite-plugin` runs, and the template it copies. */
+export const CREATE_PACKAGE = 'packages/create-aragonite-plugin';
+export const TEMPLATE_DIR = `${CREATE_PACKAGE}/template`;
+
+/**
+ * Whether `name` is an npm initializer, which `npm create <x>` finds by the `create-` prefix. One
+ * copies a starter and never runs beside the editor, so it carries no peer on it.
+ * @param {string} name
+ */
+export const isInitializer = (name) => /^(@[^/]+\/)?create-/.test(name);
 
 /**
  * @typedef {object} WorkspacePackage

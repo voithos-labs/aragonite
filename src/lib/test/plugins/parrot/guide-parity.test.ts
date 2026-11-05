@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pluginGuidePages } from '../../invariants/lint/scan-source';
+import { TEMPLATE_DIR } from '../../../../../scripts/workspace.mjs';
 
 /**
  * The shipped parrot is the plugin guide's quickstart, file for file, with the frames doc's
@@ -112,12 +113,12 @@ describe('the frames reader is not vacuous', () => {
 // ── The template ─────────────────────────────────────────────────────────────
 
 describe('G4.278 the plugin template starts from the same parrot', () => {
-	const TEMPLATE_DIR = 'templates/plugin/src';
+	const TEMPLATE_SRC = `${TEMPLATE_DIR}/src`;
 
 	it.each(['parrot-plugin.ts', 'parrot-frames.ts', 'parrot.css', 'index.ts', 'conformance.ts'])(
 		'%s matches the bundled package byte for byte',
 		(file) => {
-			expect(read(`${TEMPLATE_DIR}/${file}`)).toBe(read(`${PLUGIN_DIR}/${file}`));
+			expect(read(`${TEMPLATE_SRC}/${file}`)).toBe(read(`${PLUGIN_DIR}/${file}`));
 		}
 	);
 });
