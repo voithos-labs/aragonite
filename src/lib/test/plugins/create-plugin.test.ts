@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { corpusFiles } from '../../../../scripts/docs/doc-corpus.mjs';
 import { CREATE_PACKAGE, TEMPLATE_DIR } from '../../../../scripts/workspace.mjs';
+import { writeGrants } from '../harness/workflow-grants';
 import { collectFiles } from '../invariants/lint/scan-source';
 
 const BIN = path.resolve(CREATE_PACKAGE, 'bin/create-aragonite-plugin.mjs');
@@ -81,6 +82,7 @@ describe('the create bin', () => {
 		['two folders', ['a-one', 'a-two'], /Usage/],
 		['a flag', ['--yes'], /Usage/],
 		['a folder npm would refuse as a package name', ['My Plugin'], /package name/],
+		['a character npm no longer takes in a new name', ['~mine'], /package name/],
 		['a folder that already holds something', ['taken'], /isn't an empty folder/],
 		['a file where the folder would go', ['note.txt'], /isn't an empty folder/]
 	])('refuses %s and writes nothing', (_, args, message) => {
@@ -126,13 +128,11 @@ describe("the template's release workflow publishes on a version tag, with no st
 
 	it('runs on a pushed version tag and nothing else', () => {
 		const triggers = workflow.split('\non:\n')[1].split(/\n(?=\S)/)[0];
-		expect(triggers).toMatch(/^ {2}push:\n {4}tags: \['v\*'\]\n/);
-		expect(triggers.match(/^ {2}\w/gm)).toHaveLength(1);
+		expect(triggers).toBe("  push:\n    tags: ['v*']\n");
 	});
 
 	it('asks npm for a short-lived credential, its one write grant, and reads no secret', () => {
-		const grants = workflow.split('\n').filter((line) => /^\s*[\w-]+:\s*write\b/.test(line));
-		expect(grants.map((line) => line.trim())).toEqual(['id-token: write']);
+		expect(writeGrants(workflow)).toEqual(['id-token: write']);
 		expect(workflow).not.toMatch(/secrets\.|NODE_AUTH_TOKEN/);
 	});
 });

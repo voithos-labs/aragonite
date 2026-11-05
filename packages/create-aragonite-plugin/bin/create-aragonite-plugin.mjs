@@ -16,8 +16,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const TEMPLATE = fileURLToPath(new URL('../template', import.meta.url));
-// npm's rule for a new unscoped name: lowercase, URL-safe, at most 214 characters.
-const PACKAGE_NAME = /^[a-z0-9~-][a-z0-9._~-]{0,213}$/;
+// The characters npm allows in a new unscoped name, at most 214 of them (`~` is for old names only).
+const PACKAGE_NAME = /^[a-z0-9-][a-z0-9._-]{0,213}$/;
 
 /** @param {string} message */
 function fail(message) {
