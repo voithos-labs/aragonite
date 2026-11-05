@@ -222,6 +222,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.280 | Every route into the in-leaf edit is named with its shape, and each shape keeps a reference's destination | L |
 | G4.281 | The selection overlays and handles draw the editor's selection, never the browser's | L |
 | G4.282 | Whether the editor holds the range is asked as `ownsRange`, whatever the range spans | L |
+| G4.295 | The range-edit law harness imports only the routes and reads it names | L |
 
 ### The entries
 
@@ -645,3 +646,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.281 · The overlays draw the editor's selection.** A handle on a native range is one a phone already draws its own handles on, and every range a finger makes is in `SelectionState`, so no file under `components/overlays/` reads the native selection. `file-rules.test.ts`.
 
 **G4.282 · One question for who holds the range.** The editor holds a range across blocks, a rectangle of cells, a block held whole, and a finger's range inside one block, and every read of that asks `SelectionState.ownsRange`; a read that means a range inside one block asks `rangeInOneBlock`, and one that means two blocks compares paths (`rangeSpansBlocks`). The old names, `isCrossBlock` and the test surface's `isCrossBlockActive`, read as a span, so the scan fails them anywhere. `file-rules.test.ts`.
+
+**G4.295 · The law harness drives the editor by its routes.** A file under `src/lib/test/range-laws/` imports the shared test harness, the generators, the public entry point, the e2e case table, and the few reads the law checks need, each listed with its reason; anything else, a tree operation above all, fails. A law checked by calling the core directly would pass while the routes that reach it disagree, which is where the range-edit bugs have lived. `lint/range-laws-imports.test.ts`.
