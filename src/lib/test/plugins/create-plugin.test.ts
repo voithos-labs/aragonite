@@ -99,16 +99,19 @@ describe('the create bin', () => {
 // ── The tarball ──────────────────────────────────────────────────────────────
 
 describe('G4.290 the create package ships its bin and the template, nothing else', () => {
+	// Packed from the repo root by workspace, the way the release publishes it.
 	it('packs exactly the files a checkout holds, so no local build or install leaks in', () => {
 		const report = JSON.parse(
-			execSync('npm pack --dry-run --json --ignore-scripts', {
-				cwd: CREATE_PACKAGE,
+			execSync(`npm pack -w ${CREATE_PACKAGE} --dry-run --json --ignore-scripts`, {
 				encoding: 'utf8',
 				timeout: SPAWN_TIMEOUT
 			})
 		);
-		const [result] = Array.isArray(report) ? report : Object.values(report);
-		const packed = (result.files as { path: string }[]).map((file) => file.path).sort();
+		const results: { name: string; files: { path: string }[] }[] = Array.isArray(report)
+			? report
+			: Object.values(report);
+		const result = results.find(({ name }) => name === '@voithos-labs/create-aragonite-plugin');
+		const packed = (result?.files ?? []).map((file) => file.path).sort();
 
 		expect(packed).toContain('template/_gitignore');
 		expect(packed).toContain('template/.github/workflows/ci.yml');
