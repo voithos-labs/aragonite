@@ -25,9 +25,8 @@
 
 ## User interactions
 
-- Ctrl+A inside an empty cell with no text produces an empty clipboard string.
-  - Miss-analysis: Firefox's Ctrl+A selects an empty cell's placeholder `<br>`, which its selection
-    string reads as a line break; the suite ran on Chromium alone, which selects nothing there.
+- Ctrl+A inside an empty cell has no text to select first, so it selects the whole document, and
+  Ctrl+C then copies the table's source (`selection/keyboard/select-all-steps.md`).
 
 ## Pinned below the browser
 
