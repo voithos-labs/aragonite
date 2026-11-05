@@ -6,21 +6,16 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { execFileSync, execSync, spawnSync } from 'node:child_process';
-import {
-	existsSync,
-	mkdirSync,
-	mkdtempSync,
-	readFileSync,
-	readdirSync,
-	rmSync,
-	writeFileSync
-} from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { corpusFiles } from '../../../../scripts/docs/doc-corpus.mjs';
 import { CREATE_PACKAGE, TEMPLATE_DIR } from '../../../../scripts/workspace.mjs';
+import { collectFiles } from '../invariants/lint/scan-source';
 
 const BIN = path.resolve(CREATE_PACKAGE, 'bin/create-aragonite-plugin.mjs');
+// Generous: it stops a hung child, and never times a fast one.
+const SPAWN_TIMEOUT = 120_000;
 const scratch = mkdtempSync(path.join(tmpdir(), 'aragonite-create-'));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
@@ -28,25 +23,24 @@ afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 const freshCwd = () => mkdtempSync(path.join(scratch, 'cwd-'));
 
 const create = (cwd: string, ...args: string[]) =>
-	spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: 'utf8' });
+	spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: 'utf8', timeout: SPAWN_TIMEOUT });
 
 /** Tracked files, plus new ones git doesn't ignore: what a checkout of this tree would hold. */
 const treeFiles = (dir: string) =>
 	execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '--', dir], {
-		encoding: 'utf8'
+		encoding: 'utf8',
+		timeout: SPAWN_TIMEOUT
 	})
 		.split('\n')
 		.filter((file) => file !== '' && existsSync(file))
 		.map((file) => file.slice(dir.length + 1))
 		.sort();
 
-const filesUnder = (dir: string): string[] =>
-	readdirSync(dir, { recursive: true, withFileTypes: true })
-		.filter((entry) => entry.isFile())
-		.map((entry) =>
-			path.relative(dir, path.join(entry.parentPath, entry.name)).replaceAll('\\', '/')
-		)
-		.sort();
+/** Every file under `dir`, dotfiles included, as posix paths from `dir`. */
+function filesUnder(dir: string): string[] {
+	const from = `${path.relative('.', dir).split(path.sep).join('/')}/`;
+	return collectFiles(dir, { extensions: [''] }).map((file) => file.slice(from.length));
+}
 
 // ── The bin ──────────────────────────────────────────────────────────────────
 
@@ -109,7 +103,8 @@ describe('G4.290 the create package ships its bin and the template, nothing else
 		const report = JSON.parse(
 			execSync('npm pack --dry-run --json --ignore-scripts', {
 				cwd: CREATE_PACKAGE,
-				encoding: 'utf8'
+				encoding: 'utf8',
+				timeout: SPAWN_TIMEOUT
 			})
 		);
 		const [result] = Array.isArray(report) ? report : Object.values(report);
