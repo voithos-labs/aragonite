@@ -19,5 +19,5 @@ image-only paragraph leaves no empty line below its picture.
 ## Edge cases
 
 - List item holding a wrapped image (`- [![pic](x)](url)`, `- *![pic](x)*`, and the strong/strikethrough equivalents): the item's marker is still held at the picture's top, though the picture sits inside the wrapper rather than directly in the paragraph. Left on the picture's baseline, the marker would sit at the picture's bottom
-- Inline markers (`*` and the rest) in a list item's paragraph that holds a picture stay in the text's flow: the rule that holds the item's marker at a picture's top reaches only that marker, which sits in a cell of its own
+- Inline markers (`*` and the rest) in a list item's paragraph that holds a picture stay in the text's flow: only the item's own marker moves to the picture's top, and it sits in its own column beside the item's content
 - A picture paragraph outside any container gets none of this: there's no marker to place, and its inline markers stay in the text's flow

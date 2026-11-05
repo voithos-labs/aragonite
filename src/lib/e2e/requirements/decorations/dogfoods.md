@@ -27,8 +27,9 @@ a plugin author with no internal imports. Scenarios run on
   ghost's text, so `getSource()` stays byte-clean
 - typing with the caret at the widget's element-level boundary (no text node after
   the widget at block end) still inserts at the raw offset. Chromium types normally
-  there, so this row holds the end state; the widget's keydown branch for browsers
-  that drop a printable key at such a caret is held by the unit suite
+  there, so this row holds the end state; the keydown path that writes the key
+  itself, for a browser that would drop it at such a caret, is held by
+  `test/blocks/editable/typed-insert.test.ts`
 - ArrowRight at the paragraph's last text offset leaves the block; the zero-width
   widget never traps the caret
 
