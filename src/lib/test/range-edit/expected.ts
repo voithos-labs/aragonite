@@ -188,7 +188,7 @@ export function expectedCopy(read: Read, from: number, to: number, host: CheckHo
 			host.facts(b.type).body === 'literal' &&
 			from < b.from &&
 			b.text.from < to &&
-			closesItsFence(read.source.slice(b.from, b.to)) &&
+			closesItsFence(treeNodeAt(read.tree, b.path)!.raw) &&
 			to <= closerOf(b)
 	);
 	if (literal) {
@@ -220,20 +220,32 @@ export function opensWithoutClosing(
 	});
 }
 
-/** Law 3's second declared exception: a range from a code block's text that leaves it or takes its
- *  closing line goes back in as code, since plain text can't mark the block's own closer. */
-export function leavesLiteralBlock(read: Read, from: number, to: number, host: CheckHost): boolean {
+/** Law 3's second exception: from a code block's text out past or through its closing line, plain
+ *  text can't mark that closer. From a fence the mode shows, its first byte holds the block whole. */
+export function leavesLiteralBlock(
+	read: Read,
+	from: number,
+	to: number,
+	host: CheckHost,
+	mode: Mode
+): boolean {
 	const leaf = leafAt(read, from);
 	if (!leaf || host.facts(leaf.type).body !== 'literal') return false;
+	const raw = treeNodeAt(read.tree, leaf.path)!.raw;
+	const shown = mode === 'source' || host.facts(leaf.type).textPosition !== 'always';
+	if (fenceRun(raw) && from === leaf.from && shown) return false;
 	const closer = read.source.lastIndexOf('\n', leaf.to - 2) + 1;
-	return to > leaf.to || (closesItsFence(read.source.slice(leaf.from, leaf.to)) && to > closer);
+	return to > leaf.to || (closesItsFence(raw) && to > closer);
 }
 
-/** Whether a block's bytes close the fence their first line opens (a code, math or diagram fence),
- *  read here by the syntax alone, apart from the host. */
+/** The run a block's first line opens a fence with (a code, math or diagram fence), read here by
+ *  the syntax alone, apart from the host. */
+const fenceRun = (raw: string) => /^ {0,3}(`{3,}|~{3,}|\${2,})/.exec(raw)?.[1];
+
+/** Whether a block's own bytes, its container's markers off, close the fence they open. */
 function closesItsFence(raw: string): boolean {
 	const lines = raw.replace(/\r?\n$/, '').split(/\r?\n/);
-	const run = /^ {0,3}(`{3,}|~{3,}|\${2,})/.exec(lines[0])?.[1];
+	const run = fenceRun(raw);
 	return !!run && lines.length > 1 && lines.at(-1)!.trim().startsWith(run);
 }
 

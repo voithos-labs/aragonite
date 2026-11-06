@@ -1,6 +1,6 @@
 // The range-edit core's named rows: each shape the contract states by bytes, `⟦` and `⟧` marking
-// the range in its source. A row is one call, some with a second at the caret the first left
-// (`paste back` pastes what the first wrote to the clipboard).
+// the range in its source. A row is one call, some with a second at the caret the first left, or at
+// `at` (`paste back` pastes what the first wrote to the clipboard, `with own` its own entry too).
 
 import type { Gesture, RangeEditResult } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
@@ -11,13 +11,19 @@ export interface NamedRow {
 	mode?: Mode;
 	gesture: Gesture;
 	expect: Partial<RangeEditResult>;
-	then?: { gesture: Gesture | 'paste back'; expect: Partial<RangeEditResult> };
+	then?: {
+		gesture: Gesture | 'paste back' | 'paste back with own';
+		at?: number;
+		expect: Partial<RangeEditResult>;
+	};
 }
 
 const text = (at: number): RangeEditResult['caret'] => ({ at, holds: 'text' });
 const paste = (t: string): Gesture => ({ paste: t, plain: false });
 const plain = (t: string): Gesture => ({ paste: t, plain: true });
 const backToStart = (marked: string) => ({ source: unmark(marked) });
+// Filler that puts more bytes either side than an own entry hashes, so only its hashes place it.
+const LONG = 'a paragraph long enough that the entry hashes only part of it';
 
 /** The source a row's marked source stands for. */
 export const unmark = (marked: string) => marked.replace(/[⟦⟧]/g, '');
@@ -383,5 +389,46 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: 'a⟦\n\n```\nxy⟧\n```\n',
 		gesture: 'cut',
 		expect: { source: 'a\n\n```\n\n```\n', caret: text(1) }
+	},
+	// ── Rulings at the land (2026-11-06) ──
+	{
+		name: 'L12 a cut from a code block text through its closing line pastes back exact with its entry',
+		source: '```\nco⟦de\n```⟧\n\nafter\n',
+		gesture: 'cut',
+		expect: { source: '```\nco\n```\n\nafter\n', clipboard: 'de\n```', caret: text(6) },
+		then: { gesture: 'paste back with own', expect: backToStart('```\ncode\n```\n\nafter\n') }
+	},
+	{
+		name: 'L12 the same inside a quote',
+		source: '> ```\n> co⟦de\n> ```⟧\n\nafter\n',
+		gesture: 'cut',
+		expect: { source: '> ```\n> co\n> ```\n\nafter\n', clipboard: 'de\n```', caret: text(10) },
+		then: { gesture: 'paste back with own', expect: backToStart('> ```\n> code\n> ```\n\nafter\n') }
+	},
+	{
+		name: 'L10 a cut that joins two items copies the bytes it took, markers included',
+		source: '- a⟦\n- ⟧b\n',
+		gesture: 'cut',
+		expect: { source: '- ab\n', clipboard: '- \n- ', caret: text(3) },
+		then: { gesture: 'paste back', expect: backToStart('- a\n- b\n') }
+	},
+	{
+		name: 'L10 live, the same',
+		source: '- a⟦\n- ⟧b\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: '- ab\n', clipboard: '- \n- ', caret: text(3) },
+		then: { gesture: 'paste back', expect: backToStart('- a\n- b\n') }
+	},
+	{
+		name: 'L12 that cut’s entry pasted at another caret lands as its text alone does',
+		source: `${LONG}\n\n- a⟦\n- ⟧b\n\n${LONG}\n\n${LONG}\n`,
+		gesture: 'cut',
+		expect: { source: `${LONG}\n\n- ab\n\n${LONG}\n\n${LONG}\n`, clipboard: '- \n- ' },
+		then: {
+			gesture: 'paste back with own',
+			at: `${LONG}\n\n- ab\n\n${LONG}`.length,
+			expect: { source: `${LONG}\n\n- ab\n\n${LONG}\n\n- \n- \n\n${LONG}\n` }
+		}
 	}
 ];

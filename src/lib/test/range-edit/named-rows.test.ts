@@ -55,11 +55,14 @@ describe('the named rows', () => {
 			const first = editRange(unmark(row.source), rangeOf(row.source), row.gesture, mode, host);
 			expect(differences(first, row.expect)).toEqual([]);
 			if (!row.then) return;
+			const back = { paste: (first.clipboard ?? '').replace(/\r\n/g, '\n'), plain: false };
 			const gesture: Gesture =
 				row.then.gesture === 'paste back'
-					? { paste: (first.clipboard ?? '').replace(/\r\n/g, '\n'), plain: false }
-					: row.then.gesture;
-			const at = first.caret.at;
+					? back
+					: row.then.gesture === 'paste back with own'
+						? { ...back, own: first.own }
+						: row.then.gesture;
+			const at = row.then.at ?? first.caret.at;
 			const second = editRange(first.source, { from: at, to: at }, gesture, mode, host);
 			expect(differences(second, row.then.expect)).toEqual([]);
 		});

@@ -140,7 +140,7 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	if (input.mode === 'live' && liveSplitsRun(read, input.range.from, input.range.to, host))
 		return [];
 	if (opensWithoutClosing(read, input.range.from, input.range.to, host)) return [];
-	if (leavesLiteralBlock(read, input.range.from, input.range.to, host)) return [];
+	if (leavesLiteralBlock(read, input.range.from, input.range.to, host, input.mode)) return [];
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (!cut || cut.clipboard === undefined) return [];
 	// The editor hands a paste its text with LF line endings.

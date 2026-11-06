@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { editRange, type Gesture, type Range } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
+import { leavesLiteralBlock, readOf } from './expected';
 import { knownResidue } from './known-residue';
 import { lawInputs, type LawInput } from './inputs';
 import {
@@ -25,6 +26,7 @@ import {
 	type CaretInput,
 	type RangeInput
 } from './laws';
+import { rangeOf, unmark } from './named-rows';
 import { checkHost, testReading, type CheckHost } from './test-host';
 
 const DOCUMENTS = process.env.RANGE_EDIT_FULL === '1' ? 600 : 120;
@@ -155,5 +157,21 @@ describe('the range-edit laws', { timeout: DOCUMENTS * 400 }, () => {
 			}
 		}
 		expect(report(fails)).toBe('');
+	});
+});
+
+// Miss-analysis: the exception read a nested block's bytes with its container's markers on, and no
+// row held a fenced block whole from its first byte, which plain text carries back.
+describe('law 3 skips a range from a code block’s text out past its closing line', () => {
+	it.each([
+		{ name: 'through its closing line', source: '```\nco⟦de\n```⟧\n\nafter\n', mode: 'source' },
+		{ name: 'inside a quote', source: '> ```\n> co⟦de\n> ```⟧\n\nafter\n', mode: 'source' },
+		{ name: 'live, from its hidden opening fence', source: '⟦```\ncode\n```⟧\n', mode: 'live' },
+		{ name: 'not a block held whole', source: '- ⟦```\n  x\n  ```⟧', mode: 'source', held: true }
+	] as const)('$name', ({ source: marked, mode, ...row }) => {
+		const host = checkHost();
+		const { from, to } = rangeOf(marked);
+		const skips = leavesLiteralBlock(readOf(host, unmark(marked)), from, to, host, mode);
+		expect(skips).toBe(!('held' in row));
 	});
 });
