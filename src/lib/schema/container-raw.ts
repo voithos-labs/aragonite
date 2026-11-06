@@ -9,7 +9,7 @@ import type { NodeView } from '../core/node-views';
 import { describeMetadataDivergence } from '../core/metadata-parity';
 import { readBlocks } from '../core/parser';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
+import { assignChildIdsDeep, keepUnchanged } from '../block-id';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { perfEnabled, recordContainerKindReparse, recordOpenerLineRead } from '../perf/instruments';
 import {
@@ -214,12 +214,12 @@ function takeMetadata(node: CstNode, reread: CstNode): void {
 	node.metadata = reread.metadata;
 }
 
-/** A node's reading taken into the node itself: a child the re-read left alone keeps its id. */
+/** A node's reading taken into the node itself: a child the re-read left alone stays as it was. */
 function takeReread(node: CstNode, reread: CstNode): void {
-	const children = reread.children ?? [];
-	node.childIds = idsAcrossReread(node.children ?? [], node.childIds, children);
+	keepUnchanged(node, reread);
+	node.childIds = reread.childIds;
 	node.metadata = reread.metadata;
-	node.children = children;
+	node.children = reread.children ?? [];
 	node.innerPrefix = reread.innerPrefix;
 	node.innerSuffix = reread.innerSuffix;
 	node.childSpans = undefined;

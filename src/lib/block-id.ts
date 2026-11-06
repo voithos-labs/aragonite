@@ -1,3 +1,4 @@
+import type { CstNode } from './core/nodes';
 import type { NodeView } from './core/node-views';
 
 // A per-module-instance prefix: a dev-server reload restarts the counter while the live tree
@@ -35,28 +36,16 @@ export function idsAcrossReread(
 	return [...ids.slice(0, head), ...created, ...ids.slice(previous.length - tail)];
 }
 
-/** {@link idsAcrossReread} at every depth of `next`, a re-read of `previous`: a child that keeps
- *  its id is the block it was, so its own children keep theirs. */
-export function carryIdsDeep(previous: NodeView, next: NodeView): void {
+/** `next`, a re-read of `previous`, takes back the nodes whose bytes it left alone, and the ids, at
+ *  every depth. A kept node an undo entry holds stays shared, so a write copies it first (G1.9). */
+export function keepUnchanged(previous: CstNode, next: CstNode): void {
 	if (previous.kind !== next.kind || !previous.children || !next.children) return;
-	const ids = idsAcrossReread(previous.children, previous.childIds, next.children);
-	if (!ids) return;
-	next.childIds = ids;
 	const [was, now] = [previous.children, next.children];
+	next.childIds = idsAcrossReread(was, previous.childIds, now);
 	const { head, tail } = unchangedEnds(was, now);
-	for (let i = 0; i < head; i++) copyIdsDeep(was[i], now[i]);
-	for (let i = 1; i <= tail; i++) copyIdsDeep(was[was.length - i], now[now.length - i]);
-	if (ids[head] !== undefined && ids[head] === previous.childIds![head]) {
-		carryIdsDeep(was[head], now[head]);
-	}
-}
-
-/** Blocks with the same bytes hold the same children, so the ids copy down as they stand. */
-function copyIdsDeep(previous: NodeView, next: NodeView): void {
-	if (!previous.childIds || !next.children) return;
-	next.childIds = [...previous.childIds];
-	for (let i = 0; i < next.children.length; i++)
-		copyIdsDeep(previous.children![i], next.children[i]);
+	for (let i = 0; i < head; i++) now[i] = was[i];
+	for (let i = 1; i <= tail; i++) now[now.length - i] = was[was.length - i];
+	if (head < was.length - tail && head < now.length - tail) keepUnchanged(was[head], now[head]);
 }
 
 const same = (a: NodeView, b: NodeView): boolean =>

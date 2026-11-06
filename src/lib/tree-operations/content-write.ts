@@ -15,7 +15,7 @@ import {
 } from '../schema/container-raw';
 import { documentLineEnding, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import { openLinesAtEnd } from '../core/inline';
-import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
+import { assignChildIdsDeep, keepUnchanged } from '../block-id';
 import {
 	getBlockKindDescriptor,
 	mustHoldChild,
@@ -356,9 +356,8 @@ export function installReading(
 	const node = parent.children[index];
 	if (!node || reading.outcome === 'kept') return null;
 	if (reading.outcome === 'reread') {
-		// A child the re-read left alone keeps its id, so the block there stays mounted.
-		const children = reading.node.children ?? [];
-		reading.node.childIds = idsAcrossReread(node.children ?? [], node.childIds, children);
+		// A child the re-read left alone stays as it was, so the block there stays mounted.
+		keepUnchanged(node, reading.node);
 		return installReplacement(parent, index, reading.node, reading.filled, grammar);
 	}
 	if (!hasOwnOpener(node.kind)) return null;
