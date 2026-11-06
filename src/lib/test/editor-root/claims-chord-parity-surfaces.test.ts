@@ -2,7 +2,7 @@
 // Miss-analysis: `claimsChord` was a second computation no test held against the keydown handlers
 // of the surfaces with no text block focused: the gap caret, the root, a range, the find bar, a card,
 // and an open menu, which takes Escape at the document wherever the caret is.
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, expect } from 'vitest';
 import { defineBlockView } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
@@ -15,13 +15,7 @@ import {
 import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt } from '../blocks/table/mount-table';
 import { markerLeafPlugin } from '../plugins/fixtures/dom-views';
-import {
-	expectFocusAgrees,
-	expectParity,
-	keysToProbe,
-	type ClaimContext,
-	type Probe
-} from './claims-parity';
+import { describeParity, type ClaimContext, type Probe } from './claims-parity';
 
 beforeAll(installLayoutStubs);
 // The host-field context leaves its input on the page.
@@ -196,11 +190,4 @@ const CONTEXTS: ClaimContext[] = [
 	}
 ];
 
-describe('claimsChord reads the focus its handler stands at', () => {
-	it.each(CONTEXTS.filter((context) => context.focus))('$name', expectFocusAgrees);
-});
-
-describe.each(CONTEXTS)('claimsChord agrees with the keydown: $name', (context) => {
-	const keys = [...keysToProbe(), ...(context.pluginChords ?? [])];
-	it.each(keys)('%s', (chord) => expectParity(context, chord));
-});
+describeParity(CONTEXTS);

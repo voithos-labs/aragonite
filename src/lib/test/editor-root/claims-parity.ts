@@ -2,7 +2,7 @@
 // focus in one context, asks `claimsChord` from a window capture listener (where a host asks) and
 // then reads what the handlers did with the same keystroke.
 
-import { expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { BlockComponent } from '#lib/block-component.js';
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import type { EditorPlugin } from '#lib/plugin.js';
@@ -32,6 +32,8 @@ export interface ClaimContext {
 	/** Chords the context's plugins bind, which register only once it mounts. A `-t` filter for one
 	 *  of them escapes the `+` (`-t "container.*Mod.7"`). */
 	pluginChords?: string[];
+	/** Narrows the row's keys to the chords the context differs on. */
+	only?: string[];
 	/** Where the handler that takes the context's keys stands, which `claimsChord` must read too. */
 	focus?: Partial<KeyFocus>;
 	/** Puts focus where the row's keys go and returns the element a browser would send them to. */
@@ -124,6 +126,72 @@ export async function expectParity(context: ClaimContext, chord: string): Promis
 	expect(claimed, `${context.name} ${chord}: claimsChord against what the keydown did`).toBe(
 		prevented
 	);
+}
+
+const isTextKey = (chord: string) =>
+	textKeyRole(new KeyboardEvent('keydown', chordInit(chord))) !== null;
+
+/** The chords a context is held to: `only`, or every probed key plus the context's plugin chords. */
+export function contextChords(context: ClaimContext): string[] {
+	return context.only ?? [...keysToProbe(), ...(context.pluginChords ?? [])];
+}
+
+/** `claimsChord`'s answer for each chord at the context's focus, asked with no handler run. */
+async function askClaims(context: ClaimContext, chords: string[]): Promise<Map<string, boolean>> {
+	const editor = mountEditor<Probe>({
+		source: context.source,
+		presentationMode: context.mode ?? 'source',
+		plugins: context.plugins,
+		keybindings: context.keybindings
+	});
+	try {
+		await editor.settle();
+		const el = await context.enter(editor);
+		const answers = new Map<string, boolean>();
+		let chord = '';
+		const ask = (e: KeyboardEvent) => {
+			answers.set(chord, editor.instance.claimsChord(e));
+			e.stopImmediatePropagation();
+		};
+		window.addEventListener('keydown', ask, true);
+		for (chord of chords) {
+			el.dispatchEvent(
+				new KeyboardEvent('keydown', { ...chordInit(chord), bubbles: true, cancelable: true })
+			);
+		}
+		window.removeEventListener('keydown', ask, true);
+		return answers;
+	} finally {
+		await editor.destroy();
+	}
+}
+
+// A claimed text key passes whatever the handler does, so only the unclaimed ones press the key.
+async function expectTextKeysParity(context: ClaimContext, chords: string[]): Promise<void> {
+	const answers = await askClaims(context, chords);
+	for (const chord of chords) {
+		expect(answers.has(chord), `${context.name} ${chord}: claimsChord was never asked`).toBe(true);
+		if (!answers.get(chord)) await expectParity(context, chord);
+	}
+}
+
+/** One row per non-text chord per context, and one row per context for its text keys. */
+export function describeParity(contexts: ClaimContext[]): void {
+	describe('claimsChord reads the focus its handler stands at', () => {
+		it.each(contexts.filter((context) => context.focus))('$name', expectFocusAgrees);
+	});
+	describe.each(contexts)('claimsChord agrees with the keydown: $name', (context) => {
+		const chords = contextChords(context);
+		it.each(chords.filter((chord) => !isTextKey(chord)))('%s', (chord) =>
+			expectParity(context, chord)
+		);
+		it('text keys', { timeout: 60_000 }, () =>
+			expectTextKeysParity(
+				context,
+				chords.filter((chord) => isTextKey(chord))
+			)
+		);
+	});
 }
 
 /** `claimsChord`'s read of where a key lands agrees with where the context's handler stands, the
