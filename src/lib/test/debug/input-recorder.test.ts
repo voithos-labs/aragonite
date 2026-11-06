@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { startInputRecording, type InputRecorderDeps } from '#lib/debug/input-recorder.js';
-import { hashSource, type InputRecording } from '#lib/debug/input-recording.js';
+import type { InputRecording } from '#lib/debug/input-recording.js';
+import { hashSource } from '#lib/core/string-hash.js';
 
 // Miss-analysis: new module; these rows pin its privacy rule, its step boundaries and its
 // listener lifetime, none of which a replay through the editor would notice breaking.

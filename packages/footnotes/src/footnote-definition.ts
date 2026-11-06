@@ -170,7 +170,7 @@ export function registerFootnoteDefinition(view: BlockView): void {
 		container: {
 			contract: 'strip',
 			rebuildRaw: rebuildFootnoteDefRaw,
-			lines: { marker: 'first-line', lazy: true },
+			lines: { marker: 'first-line', lazy: true, indent: CONTINUATION_COLUMN },
 			merges: { key: 'label' },
 			reorderChildren: {},
 			// The marker lives in metadata rather than the first line, so lifting the first child
