@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { pointAtRaw } from '../../../text-runs';
+import { skipUnlessSupported } from '../../../browser-engine';
 
 // A finger's way to a table's row and column actions: the button at the focused cell, where a
 // long press makes the cell's word the editor's range and opens no menu. Requirements:
@@ -20,6 +21,7 @@ async function tapCenter(page: Page, target: Locator): Promise<void> {
 }
 
 async function open(page: Page): Promise<EditorPage> {
+	skipUnlessSupported(page, 'touch');
 	const editor = new EditorPage(page);
 	await editor.goto();
 	await editor.loadContent(TABLE);

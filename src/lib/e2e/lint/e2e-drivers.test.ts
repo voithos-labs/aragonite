@@ -199,6 +199,22 @@ describeManifests(
 				'await page.touchscreen.tap(x, y);'
 			]
 		},
+		// Miss-analysis: the cell menu button's spec tapped with no skip, and every row went red on
+		// Firefox, whose BiDi driver delivers no touch event at all.
+		{
+			id: 'every e2e spec that touches the screen skips where the driver has no touch',
+			population: SCANNED_SPECS,
+			matches: (file) =>
+				/\btouchscreen\s*\./.test(file.code) &&
+				!/skipUnlessSupported\(\s*page\s*,\s*'touch'\s*\)|\bopenTouch\s*\(/.test(file.code),
+			declared: {},
+			reason: `skip with skipUnlessSupported(page, 'touch'), or open through openTouch (${TOUCH_HELPER}): Firefox over BiDi delivers no touch event, so every tap is lost`,
+			hits: ['await page.touchscreen.tap(x, y);'],
+			misses: [
+				"skipUnlessSupported(page, 'touch');\nawait page.touchscreen.tap(x, y);",
+				'const editor = await openTouch(page, DOC);\nawait page.touchscreen.tap(x, y);'
+			]
+		},
 		// Miss-analysis: Playwright's Firefox insert fires a bare input no browser sends, and the
 		// specs that typed through it went red only on real Firefox.
 		{
