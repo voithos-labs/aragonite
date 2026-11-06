@@ -121,8 +121,9 @@ export function spliceReading(
 	/** The whole lines `change` leaves where it was made. */
 	function written(change: ByteChange): string[] {
 		const from = before.lastIndexOf('\n', change.from - 1) + 1;
+		// Through the line break, so a CRLF line's `\r` leaves with its ending.
 		const end = before.indexOf('\n', change.to);
-		const rest = before.slice(change.to, end < 0 ? before.length : end);
+		const rest = before.slice(change.to, end < 0 ? before.length : end + 1);
 		return splitLines(before.slice(from, change.from) + change.insert + rest).map((l) => l.text);
 	}
 
@@ -184,7 +185,10 @@ export function spliceReading(
 
 	/** The first block below `hi` with a line that may close one `read` leaves waiting, or -1. */
 	function closerBelow(read: readonly CstNode[], hi: number): number {
-		const waiting = readings.filter((reading) => read.some((block) => reading.notFinal(block.raw)));
+		// A reading no line closes (a link definition's) waits on nothing below.
+		const waiting = readings.filter(
+			(reading) => reading.closer !== null && read.some((block) => reading.notFinal(block.raw))
+		);
 		if (waiting.length === 0) return -1;
 		const closes = (line: { text: string }) => waiting.some((r) => r.mayClose(line.text));
 		for (let c = hi + 1; c <= last; c++) if (splitLines(children[c].raw).some(closes)) return c;

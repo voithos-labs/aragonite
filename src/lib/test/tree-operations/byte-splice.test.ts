@@ -78,6 +78,7 @@ const INSERTS = [
 	'[^1]: ',
 	'$$\n',
 	'x',
+	':',
 	'two words',
 	'**',
 	''
@@ -85,11 +86,14 @@ const INSERTS = [
 
 /** Lines that open or close a block apart from each other, so a closer sits far from its opener. */
 const arbLinesApart = fc
-	.array(fc.constantFrom('a', '- x', '  y', '> q', '```', ':::note', ':::', '$$', '', ''), {
-		minLength: 1,
-		maxLength: 12
-	})
-	.map((lines) => lines.join('\n') + '\n');
+	.tuple(
+		fc.array(fc.constantFrom('a', '- x', '  y', '> q', '```', ':::note', ':::', '::', '$$', ''), {
+			minLength: 1,
+			maxLength: 12
+		}),
+		fc.constantFrom('\n', '\r\n')
+	)
+	.map(([lines, ending]) => lines.join(ending) + ending);
 
 /** One to three disjoint changes, each at a spot drawn over the document; some close together, so
  *  their windows meet. */
@@ -159,6 +163,11 @@ describe('a splice reads as the document it leaves', () => {
 			':::note\na\n\nb\n\nc\n:::\n'
 		],
 		['a math closer far below finishes the opener', '$$\na\n\nb\n\nc\n', '$$\na\n\nb\n\nc\n$$\n'],
+		[
+			'a closer finished mid-line under CRLF',
+			':::note\r\na\r\n\r\nb\r\n\r\n::\r\n',
+			':::note\r\na\r\n\r\nb\r\n\r\n:::\r\n'
+		],
 		[
 			'an opener typed above a directive takes its closer',
 			'<details>\n<summary>S</summary>\n</details>\n\n:::note\n:::\n',
