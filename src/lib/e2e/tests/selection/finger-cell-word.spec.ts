@@ -110,7 +110,8 @@ const ACTIONS: Action[] = [
 			await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 		}
 	},
-	{ name: 'Shift+ArrowRight', act: (page) => page.keyboard.press('Shift+ArrowRight') }
+	{ name: 'Shift+ArrowRight', act: (page) => page.keyboard.press('Shift+ArrowRight') },
+	{ name: 'Shift+ArrowDown', act: (page) => page.keyboard.press('Shift+ArrowDown') }
 ];
 
 for (const action of ACTIONS) {

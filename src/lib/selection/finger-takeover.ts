@@ -34,8 +34,9 @@ export function takeOverBrowserRange(deps: TakeoverDeps, press: FingerPress): vo
 	document.addEventListener(
 		'selectionchange',
 		() => {
-			// Anything that ended the range (a key, a command) ends the adopting too.
-			if (!deps.selection.isCustomRendered) return done.abort();
+			// Anything that ended the range or replaced it (a key, a command, a cell rectangle the key
+			// started) ends the adopting too, or the word left native under the new range comes back.
+			if (!deps.selection.rangeInOneBlock) return done.abort();
 			if (takeOnce(deps, press, path)) return;
 			const live = readNativeSelection();
 			assertInvariant('finger-range-leaves-caret', () =>

@@ -37,3 +37,6 @@ the document, the selection and the clipboard come out the same, with no dev war
 - The toolbar's Paste (Ctrl+V for the mouse) of `a|b` puts it in the word's place, escaped.
 - The toolbar's bold wraps the word.
 - Shift+ArrowRight from a keyboard grows the word by one character.
+- Shift+ArrowDown from a keyboard takes the cell and the one below it as a rectangle.
+  - Miss-analysis: the parity rows stepped sideways only; the cell's own Shift+ArrowDown leaves
+    the word native under its rectangle, and the takeover, still watching, took the word back.
