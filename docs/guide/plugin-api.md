@@ -161,6 +161,7 @@ What `registerBlockKind` accepts: the descriptor's fields, plus the `view` that 
 - `pageRole`, whether it reads as prose (no drag handle) or as an object.
 - `estimateHeight(node, env)`, its height guess before it's measured (`env` is a `HeightEstimateEnv`).
 - `dragLabel`, what the drag ghost calls it.
+- `textPosition: 'while-source-shows'`, for a block your own component draws as a picture of its source until a click opens the text. Cut, copy and paste only reach the text while it's open. A DOM view with `surface: 'render-primary'` already says this, so it doesn't need the field.
 
 Fields that only work together are declared together:
 
@@ -180,7 +181,7 @@ The patch `augmentBlockKind` merges into a kind your plugin registered. Top-leve
 Some fields are fixed at registration, and an augment naming one throws, even from plain JavaScript:
 
 - the view and the opener;
-- the fields other fields depend on: `contextDependentKind`, `blockFocus`, `supportsInline`, `contentStart`, the title row and the unwrap strategies.
+- the fields other fields depend on: `contextDependentKind`, `blockFocus`, `supportsInline`, `textPosition`, `contentStart`, the title row and the unwrap strategies.
 
 #### `WriteRule`, `WriteContext`
 
@@ -228,6 +229,7 @@ The rest are optional:
 - the body wrap (`bodyWrap`) and the body write rule (`bodyWrite`);
 - the reserved title line (`reservedChrome`) and unwrap behavior (`unwrapRole`);
 - paste merging (`containerPaste`);
+- how its marker rides its lines (`lines`: `{ marker: 'every-line' | 'first-line', lazy }`), and when two of it count as one container (`merges`: `{ key }` names the metadata field they share, `{}` means any two), which cut, copy and paste read;
 - a content line's first space (`contentStartSpace`);
 - which child holds its last line (`lastLineChild`), for a container whose own bytes end it, like a table holding only its header row;
 - whether its children reorder among themselves (`reorderChildren`).

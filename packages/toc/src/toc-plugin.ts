@@ -48,6 +48,7 @@ export function registerTocBlock(view: BlockView): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		textPosition: 'while-source-shows',
 		// Render-primary like the math blocks: the rendered view gives the caret nowhere to sit
 		// at either edge, so both edges take the gap caret.
 		gapEdges: 'both',

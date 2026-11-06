@@ -193,6 +193,12 @@ export interface BlockKindDescriptor {
 	bodyWrite?: WriteRule;
 	reservedChrome?: ReservedChrome;
 	containerPaste?: ContainerPaste;
+	/** How a strip container's lines carry its marker: on every line, or on the first with an indent
+	 *  after. `lazy` when a line without the marker still continues a paragraph inside it. */
+	lines?: { marker: 'every-line' | 'first-line'; lazy: boolean };
+	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key).
+	 *  Quote and list repeat it in `containerPaste` until `tree-operations/paste/` reads this field. */
+	merges?: { key?: string };
 	unwrapRole?: UnwrapRole;
 	/**
 	 * The first space typed at a child's content start, while its marker lacks one, is the marker's:
@@ -206,6 +212,9 @@ export interface BlockKindDescriptor {
 	keymap?: KeyBinding[];
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
+	/** The block draws a picture of its source until a click shows the source, so a caret reaches its
+	 *  text only then. A DOM view's `surface: 'render-primary'` sets it. */
+	textPosition?: 'while-source-shows';
 	/** The registration's `contentStart.range`. Absent = the default `start=0, end=displayLength`. */
 	getContentRange?: ContentStart['range'];
 	/** The registration's `contentStart.backspace`. */
@@ -273,11 +282,14 @@ export const DESCRIPTOR_FIELDS = [
 	'bodyWrite',
 	'reservedChrome',
 	'containerPaste',
+	'lines',
+	'merges',
 	'unwrapRole',
 	'contentStartSpace',
 	'reorderChildren',
 	'keymap',
 	'supportsInline',
+	'textPosition',
 	'getContentRange',
 	'contentStartBackspace',
 	'bodyRange',
@@ -321,6 +333,8 @@ interface ContainerBase {
 	bodyWrap?: ContainerBodyWrap;
 	lastLineChild?: (node: NodeView) => number;
 	containerPaste?: ContainerPaste;
+	lines?: BlockKindDescriptor['lines'];
+	merges?: BlockKindDescriptor['merges'];
 	contentStartSpace?: 'complete-marker';
 	reorderChildren?: ReorderChildrenRole;
 	bodyWrite?: WriteRule;
@@ -353,6 +367,8 @@ export const CONTAINER_ONLY_KEYS = [
 	'rebuildRaw',
 	'reservedChrome',
 	'containerPaste',
+	'lines',
+	'merges',
 	'unwrapRole',
 	'contentStartSpace',
 	'reorderChildren',
@@ -387,6 +403,7 @@ export const FIXED_AT_REGISTRATION = [
 	'contextDependentKind',
 	'blockFocus',
 	'supportsInline',
+	'textPosition',
 	'contentStart',
 	'container.reservedChrome',
 	'container.unwrapRole'
@@ -406,6 +423,7 @@ type RegistrationBase = Omit<BlockKindDescriptor, GroupedKey | FixedTopKey>;
 export interface WholeBlockRegistration extends RegistrationBase {
 	blockFocus: 'whole-block';
 	supportsInline: false;
+	textPosition?: never;
 	contentStart?: never;
 	container?: ContainerWithoutChrome;
 }
@@ -416,6 +434,7 @@ export type CaretBlockRegistration = CaretLeafRegistration | CaretContainerRegis
 interface CaretLeafRegistration extends RegistrationBase {
 	blockFocus?: never;
 	supportsInline: boolean;
+	textPosition?: BlockKindDescriptor['textPosition'];
 	contentStart?: ContentStart;
 	container?: undefined;
 }
@@ -424,6 +443,7 @@ interface CaretLeafRegistration extends RegistrationBase {
 interface CaretContainerRegistration extends RegistrationBase {
 	blockFocus?: never;
 	supportsInline: false;
+	textPosition?: never;
 	contentStart?: ContentStart;
 	container: ContainerDescriptorGroup;
 }
@@ -578,6 +598,7 @@ function storeKind(
 	rejectIncoherentPairs(kind, registration);
 	const { opener } = registration;
 	const descriptor = normalizeRegistration(registration);
+	if (view && opensTextOnClick(view)) descriptor.textPosition = 'while-source-shows';
 	if (descriptor.keymap) descriptor.keymap = registeredKeymap(entry, kind, descriptor.keymap);
 	const owner = registry.ownerOf(kind);
 	registry.register(
@@ -588,6 +609,11 @@ function storeKind(
 			(owner ? ` — first declared by plugin '${owner}'` : '')
 	);
 	enqueueRegistrationCheck(kind, opener ? 'opener' : 'descriptor');
+}
+
+// A DOM view's surface already says what `textPosition` declares for a kind a component draws.
+function opensTextOnClick(view: BlockView): boolean {
+	return blockViewForm(view) === 'dom' && domViewSpec(view).surface === 'render-primary';
 }
 
 function existingEntry(entry: string, kind: AnyBlockKind): KindEntry {

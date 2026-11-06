@@ -170,6 +170,8 @@ export function registerFootnoteDefinition(view: BlockView): void {
 		container: {
 			contract: 'strip',
 			rebuildRaw: rebuildFootnoteDefRaw,
+			lines: { marker: 'first-line', lazy: true },
+			merges: { key: 'label' },
 			reorderChildren: {},
 			// The marker lives in metadata rather than the first line, so lifting the first child
 			// out leaves a definition behind, not the plain blockquote a quote lift leaves.

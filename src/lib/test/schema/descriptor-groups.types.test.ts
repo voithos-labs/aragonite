@@ -46,6 +46,16 @@ const typePins = (): void => {
 	// @ts-expect-error [whole-block-content-start] a whole-block unit has no caret, so no content start
 	registerBlockKind(kind, { ...leaf, blockFocus: 'whole-block', contentStart: { range } });
 
+	registerBlockKind(kind, {
+		...leaf,
+		blockFocus: 'whole-block',
+		// @ts-expect-error a whole-block unit has no text a caret reaches, shown or not
+		textPosition: 'while-source-shows'
+	});
+	// @ts-expect-error a container's text sits in its children
+	registerBlockKind(kind, { ...leaf, container: group, textPosition: 'while-source-shows' });
+	registerBlockKind(kind, { ...leaf, textPosition: 'while-source-shows' });
+
 	// @ts-expect-error [whole-block-title-row] a title row means the block is never childless
 	registerBlockKind(kind, {
 		...leaf,
@@ -105,6 +115,8 @@ const typePins = (): void => {
 	augmentBlockKind(kind, { blockFocus: 'whole-block' });
 	// @ts-expect-error inline support is fixed at registration
 	augmentBlockKind(kind, { supportsInline: true });
+	// @ts-expect-error so is whether its text shows only on a click, which focus constrains
+	augmentBlockKind(kind, { textPosition: 'while-source-shows' });
 	// @ts-expect-error the content start is fixed at registration
 	augmentBlockKind(kind, { contentStart: { range } });
 	// @ts-expect-error the opener is fixed at registration, so no grammar change slips in late

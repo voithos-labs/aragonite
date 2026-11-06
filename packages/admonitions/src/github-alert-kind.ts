@@ -109,6 +109,8 @@ export function registerGithubAlert(view: BlockView): void {
 			contract: 'strip',
 			rebuildRaw: rebuildGithubAlertRaw,
 			bodyWrap: BODY_WRAP,
+			lines: { marker: 'every-line', lazy: true },
+			merges: { key: 'alertType' },
 			// The alert is a blockquote with a marker, so it unwraps as one: lifting the
 			// first child out drops the marker and reparses plain.
 			unwrapRole: {

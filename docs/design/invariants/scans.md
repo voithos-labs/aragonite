@@ -229,6 +229,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.292 | Every documented `npm create` command for a plugin asks for `@latest` | L |
 | G4.295 | The range-edit law harness imports only the routes and reads it names | L |
 | G4.296 | Whether a selection is held is asked of the editor's selection before the browser's, in one module | L |
+| G4.303 | Every block kind's cut, copy and paste facts agree with its registration and its own parse | harness |
 
 ### The entries
 
@@ -666,3 +667,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.295 · The law harness drives the editor by its routes.** A file under `src/lib/test/range-laws/` imports the shared test harness, the generators, the public entry point, the e2e case table, and the few reads the law checks need, each listed with its reason; anything else, a tree operation above all, fails. A law checked by calling the core directly would pass while the routes that reach it disagree, which is where the range-edit bugs have lived. `lint/range-laws-imports.test.ts`.
 
 **G4.296 · Whether a selection is held is asked in one place.** While the editor holds a range or a widget, the browser's selection is a caret, so a read of the browser's alone takes the user's selection for none, and a menu's Cut and Copy go dark over a range across blocks. `selection/held-selection.ts` asks the editor's selection first, and only it reads `holdsNativeRange` and `nativeRangeIn`, anywhere in the library. `file-rules.test.ts`.
+
+**G4.303 · Block facts agree with the registrations.** `schema/block-facts.ts :: blockFacts` gives a kind's cut, copy and paste facts as data. With every bundled plugin installed, each one must equal what the registration already says (`bodyWrap`, `mergeRole`, `mustHoldChild`, the title row, a DOM view's surface), and the test writes out only what nothing else states. Every container has a line shape, and a merge key names a field the kind's own parse sets, or every pair would merge. When it fires, fix the kind's declaration. `test/schema/block-facts.test.ts`.
