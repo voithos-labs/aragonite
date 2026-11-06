@@ -13,6 +13,7 @@ import {
 	pasteGesture,
 	placeRange,
 	typeGesture,
+	Undetermined,
 	type Editor
 } from '../range-laws/gestures';
 import { caretField, textField, undoField, warnsField, type Row } from './rows';
@@ -78,7 +79,7 @@ export async function rangeRows(
 			rows.push({ in: `${at} *`, took: 'no range', warns: warnsField(tagsTaken()) });
 			return rows;
 		}
-		const { took, clipboard } = await drive(editor, gesture);
+		const { took, clipboard } = await drive(editor, gesture).catch(notReplayed);
 		const edited = editor.source();
 		const caret = caretOf(editor);
 		const { undone, redone } =
@@ -95,6 +96,12 @@ export async function rangeRows(
 		});
 	}
 	return rows;
+}
+
+/** A gesture the byte splice couldn't replay (`range-laws/through-splice.ts`), as its row says. */
+function notReplayed(error: unknown): { took: string } {
+	if (!(error instanceof Undetermined)) throw error;
+	return { took: `not replayed: ${error.message}` };
 }
 
 async function drive(
