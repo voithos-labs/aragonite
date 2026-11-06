@@ -308,6 +308,20 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
 }
 
+/** L9 at the caret a cut left, for the cut's own clipboard and for `text`. */
+export function pasteAtCutCaret(
+	call: Call,
+	host: CheckHost,
+	input: RangeInput,
+	text?: string
+): string[] {
+	const cut = call(input.source, input.range, 'cut', input.mode);
+	if (!cut) return [];
+	const at = { source: cut.source, mode: input.mode, at: cut.caret.at };
+	const texts = text === undefined ? [cut.clipboard ?? ''] : [cut.clipboard ?? '', text];
+	return texts.flatMap((t) => pasteAtCaret(call, host, { ...at, text: t }));
+}
+
 /** L10, in source mode: a copy carries the markers of the containers it enters or leaves, none of
  *  the one both ends share; a range the cut takes nothing from holds no text and copies none. */
 export function copyMarkers(call: Call, host: CheckHost, input: RangeInput): string[] {

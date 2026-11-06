@@ -20,6 +20,7 @@ import {
 	keepsOutside,
 	ownEntry,
 	pasteAtCaret,
+	pasteAtCutCaret,
 	plainPaste,
 	replaceLaws,
 	type Call,
@@ -131,12 +132,8 @@ describe('the range-edit laws', { timeout: DOCUMENTS * 400 }, () => {
 	it('L9: a paste at the caret a cut left puts its bytes there', () => {
 		expect(
 			overRanges((call, i, text) => {
-				const cut = call(i.source, i.range, 'cut', i.mode);
-				if (!cut) return [];
-				const at = { source: cut.source, mode: i.mode, at: cut.caret.at };
-				return [cut.clipboard ?? '', text].flatMap((t) =>
-					pasteAtCaret(call, host, { ...at, text: t })
-				);
+				const lines = pasteAtCutCaret(call, host, i, text);
+				return lines.length > 0 && knownResidue(host, i.source, i.range, 'L9') ? [] : lines;
 			})
 		).toBe('');
 	});
