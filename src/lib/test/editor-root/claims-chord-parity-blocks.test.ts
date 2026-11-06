@@ -57,7 +57,8 @@ const CONTEXTS: ClaimContext[] = [
 			'ArrowUp',
 			'Shift+ArrowUp',
 			'Mod+ArrowUp',
-			'Mod+Shift+ArrowUp'
+			'Mod+Shift+ArrowUp',
+			'Mod+B'
 		],
 		enter: caretAt([6], 0)
 	},
