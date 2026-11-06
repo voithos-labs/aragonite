@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { pointAtRaw } from '../../../text-runs';
 
 // A finger's way to a table's row and column actions: the button at the focused cell, where a
 // long press makes the cell's word the editor's range and opens no menu. Requirements:
@@ -65,6 +66,18 @@ test("a finger's tap in a cell shows the button at that cell's corner, a mouse's
 	await expect(button).toHaveCount(1);
 	await editor.setPresentationMode('reading');
 	await expect(button).toHaveCount(0);
+});
+
+test("a finger's tap on the next cell's first letter moves there, past the button", async ({
+	page
+}) => {
+	await open(page);
+	await tapCenter(page, cells(page).nth(2));
+	await expect(page.locator(BUTTON)).toHaveCount(1);
+	const first = await pointAtRaw(page, [0, 1, 1], 0);
+	await page.touchscreen.tap(first.x + 2, first.y);
+	await expect(cells(page).nth(3)).toBeFocused();
+	await expect(page.getByRole('menu')).toHaveCount(0);
 });
 
 test('the button opens the cell menu without taking focus, and its Delete row takes the row', async ({

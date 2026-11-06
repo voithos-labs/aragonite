@@ -18,5 +18,9 @@ right-click and Shift+F10), never in reading mode, and takes no focus, so the ce
 
 - A finger's long press in a cell (a `contextmenu` after a touch press) opens no menu, the cell
   keeping focus.
+- A finger's tap on the next cell's first letter moves the caret there, never into the menu: the
+  button's box reaches only a cell's padding past its dot.
+  - Miss-analysis: the rows tapped the button's centre and the cells' centres, never a neighbour's
+    text near the corner, so a box covering the start of four cells' text stayed green.
 - A mouse's click in a cell shows no button, and a finger's tap after it brings it back.
 - Reading mode shows no button.

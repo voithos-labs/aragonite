@@ -162,10 +162,12 @@ test("a finger's word's end handle grows it into a rectangle of cells, and back 
 	await expect
 		.poll(async () => Math.round((await handle.boundingBox())!.x))
 		.toBe(Math.round(corner.x));
-	await dragEndHandle(page, corner, await pointAtRaw(page, APPLE.path, 8));
+	// The text's end, near the cell's corner, where the cell menu button's box sits.
+	const textEnd = await pointAtRaw(page, APPLE.path, 9);
+	await dragEndHandle(page, corner, { x: textEnd.x - 1, y: textEnd.y - 8 });
 	await expect
 		.poll(() => selection(editor))
-		.toEqual({ anchor: { path: APPLE.path, offset: 0 }, focus: { path: APPLE.path, offset: 8 } });
+		.toEqual({ anchor: { path: APPLE.path, offset: 0 }, focus: { path: APPLE.path, offset: 9 } });
 	expect(await editor.bridge.ownsRange()).toBe(true);
 	expect(await nativeCollapsed(page)).toBe(true);
 });

@@ -738,13 +738,13 @@
 			transition: none;
 		}
 	}
-	/* A fingertip's box around a small quiet dot; the box overhangs the cell's corner. */
+	/* A quiet dot on the cell's corner; a wider box would take taps on the next cell's text. */
 	.table-cell-menu {
 		position: absolute;
 		z-index: 3;
-		width: 44px;
-		height: 44px;
-		margin: -22px 0 0 -22px;
+		width: 30px;
+		height: 30px;
+		margin: -15px 0 0 -15px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
