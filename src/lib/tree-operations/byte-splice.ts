@@ -7,8 +7,13 @@
 
 import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import type { GrammarView } from '../schema/block-openers';
+import {
+	unfinishedReadings,
+	waitingAboveClosedBy,
+	type GrammarView
+} from '../schema/block-openers';
 import { isBlankParagraph } from '../core/parser';
+import { splitLines } from '../core/lines';
 import { readAsOpened } from '../schema/opened-reading';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
 import { carryIdsDeep } from '../block-id';
@@ -56,19 +61,34 @@ export function spliceReading(
 	const children = doc.children;
 	const last = children.length - 1;
 	const ends = segmentEnds(doc);
+	const readings = unfinishedReadings(grammar);
 	const rawStartOf = (i: number) =>
 		(i === 0 ? doc.prefix.length : ends[i - 1]) + children[i].leadingTrivia.length;
 	const holding = (byte: number) => {
 		const i = ends.findIndex((end) => byte < end);
 		return i < 0 ? last : i;
 	};
-	const pending = changes.map((change) => {
+	const pending: Span[] = [];
+	for (const change of changes) {
 		const first = holding(change.from);
 		let lo = first - 1;
 		while (lo > 0 && isBlankParagraph(children[lo])) lo--;
+		lo = Math.max(lo, 0);
+		// A closer the change writes finishes a block above it that waits on one.
+		const waiting = waitingAboveClosedBy(written(change), (i) => children[i].raw, lo, readings);
 		const hi = Math.max(first, holding(Math.max(change.to - 1, change.from)));
-		return { lo: Math.max(lo, 0), hi, top: first === 0, changes: [change] };
-	});
+		let span: Span = { lo: waiting >= 0 ? waiting : lo, hi, top: first === 0, changes: [change] };
+		while (pending.length > 0 && span.lo <= pending[pending.length - 1].hi) {
+			const above = pending.pop()!;
+			span = {
+				lo: Math.min(above.lo, span.lo),
+				hi: Math.max(above.hi, span.hi),
+				top: above.top || span.top,
+				changes: [...above.changes, ...span.changes]
+			};
+		}
+		pending.push(span);
+	}
 	const windows: SpliceWindow[] = [];
 	let suffix = doc.suffix;
 	while (pending.length > 0) {
@@ -86,15 +106,24 @@ export function spliceReading(
 				continue;
 			}
 			const read = span.hi === last ? readTail(start, span.changes) : readUpTo(span, start, k);
-			if (read) {
+			if (!read) span.hi = Math.min(last, span.hi + grow);
+			else if ('closerAt' in read) span.hi = read.closerAt;
+			else {
 				if (read.suffix !== undefined) suffix = read.suffix;
 				windows.push(trimmed(doc, span.lo, span.hi, carried, read.blocks));
 				break;
 			}
-			span.hi = Math.min(last, span.hi + grow);
 		}
 	}
 	return { windows, suffix };
+
+	/** The whole lines `change` leaves where it was made. */
+	function written(change: ByteChange): string[] {
+		const from = before.lastIndexOf('\n', change.from - 1) + 1;
+		const end = before.indexOf('\n', change.to);
+		const rest = before.slice(change.to, end < 0 ? before.length : end);
+		return splitLines(before.slice(from, change.from) + change.insert + rest).map((l) => l.text);
+	}
 
 	/** The first block after `hi` with text of its own, or the last block. */
 	function textAfter(hi: number): number {
@@ -125,10 +154,10 @@ export function spliceReading(
 	/** The window through block `span.hi`, when block `k` (the next with text) still starts where
 	 *  it stood, the blank blocks before it reading as they did. */
 	function readUpTo(
-		span: { hi: number; changes: ByteChange[] },
+		span: Span,
 		start: number,
 		k: number
-	): { blocks: CstNode[]; suffix?: undefined } | null {
+	): { blocks: CstNode[]; suffix?: undefined } | { closerAt: number } | null {
 		const { hi } = span;
 		if (isBlankParagraph(children[k])) return null;
 		const head = changed(start, ends[hi], span.changes);
@@ -147,8 +176,27 @@ export function spliceReading(
 			if (!now || now.leadingTrivia !== was.leadingTrivia) return null;
 			if (j < k && (now.kind !== was.kind || now.raw !== was.raw)) return null;
 		}
-		return { blocks: blocks.slice(0, m) };
+		// A block the window leaves waiting on a closer reads on to the first line below that may be it.
+		const closerAt = closerBelow(blocks.slice(0, m), hi);
+		return closerAt < 0 ? { blocks: blocks.slice(0, m) } : { closerAt };
 	}
+
+	/** The first block below `hi` with a line that may close one `read` leaves waiting, or -1. */
+	function closerBelow(read: readonly CstNode[], hi: number): number {
+		const waiting = readings.filter((reading) => read.some((block) => reading.notFinal(block.raw)));
+		if (waiting.length === 0) return -1;
+		const closes = (line: { text: string }) => waiting.some((r) => r.mayClose(line.text));
+		for (let c = hi + 1; c <= last; c++) if (splitLines(children[c].raw).some(closes)) return c;
+		return -1;
+	}
+}
+
+/** Top-level blocks `[lo, hi]` and the changes they read with. */
+interface Span {
+	lo: number;
+	hi: number;
+	top: boolean;
+	changes: ByteChange[];
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────

@@ -74,6 +74,7 @@ const INSERTS = [
 	':::\n',
 	'<details>\n<summary>S</summary>\n',
 	'</details>\n',
+	'<details>\n<summary>S</summary>\n</details>\n',
 	'[^1]: ',
 	'$$\n',
 	'x',
@@ -82,10 +83,18 @@ const INSERTS = [
 	''
 ];
 
+/** Lines that open or close a block apart from each other, so a closer sits far from its opener. */
+const arbLinesApart = fc
+	.array(
+		fc.constantFrom('a', '- x', '  y', '> q', '```', '<!--', '-->', ':::note', ':::', '$$', '', ''),
+		{ minLength: 1, maxLength: 12 }
+	)
+	.map((lines) => lines.join('\n') + '\n');
+
 /** One to three disjoint changes, each at a spot drawn over the document; some close together, so
  *  their windows meet. */
 const arbEdit = fc.record({
-	source: arbLawDocument,
+	source: fc.oneof(arbLawDocument, arbLinesApart),
 	spots: fc.array(
 		fc.record({
 			at: fc.double({ min: 0, max: 1, noNaN: true }),
@@ -136,7 +145,25 @@ describe('a splice reads as the document it leaves', () => {
 		['a delimiter row makes a table of the paragraph above', 'h\n\nafter\n', 'h\n|-|\n\nafter\n'],
 		['CRLF and no final line break', 'a\r\n\r\nb', 'a\r\nx\r\n\r\nb'],
 		['an emptied document', 'a\n\nb\n', ''],
-		['a closed fence below stays closed', '```\na\n```\n\nb\n', '```\na\n```\n\nbc\n']
+		['a closed fence below stays closed', '```\na\n```\n\nb\n', '```\na\n```\n\nbc\n'],
+		// Miss-analysis: the generator drew openers and closers, never one far from the other.
+		['an opener finds its closer far below', 'a\n\nb\n\n:::\n', ':::note\na\n\nb\n\n:::\n'],
+		[
+			'a details opener finds its closing tag far below',
+			'a\n\nb\n\n</details>\n',
+			'<details>\n<summary>S</summary>\na\n\nb\n\n</details>\n'
+		],
+		[
+			'a closer far below finishes the opener above',
+			':::note\na\n\nb\n\nc\n',
+			':::note\na\n\nb\n\nc\n:::\n'
+		],
+		['a math closer far below finishes the opener', '$$\na\n\nb\n\nc\n', '$$\na\n\nb\n\nc\n$$\n'],
+		[
+			'an opener typed above a directive takes its closer',
+			'<details>\n<summary>S</summary>\n</details>\n\n:::note\n:::\n',
+			':::note\n<details>\n<summary>S</summary>\n</details>\n\n:::note\n:::\n'
+		]
 	])('%s', (_name, before, after) => {
 		expect(divergence(before, to(after))).toBeNull();
 	});
