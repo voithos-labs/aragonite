@@ -6,7 +6,11 @@
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
-import { documentByteMap } from '../tree-operations/container-offsets';
+import {
+	childTriviaStart,
+	containerLines,
+	documentByteMap
+} from '../tree-operations/container-offsets';
 
 export interface LaidLine {
 	from: number;
@@ -68,7 +72,8 @@ export function documentLayout(doc: DocumentView): Layout {
 			leaves.set(path.join(), node);
 			return;
 		}
-		const lines = map.lines(path);
+		const container = map.containerMap(node);
+		const lines = container && containerLines(container);
 		if (lines) {
 			block.lines = lines.map((line) => ({
 				from: map.byteOf(path, line.start)!,
@@ -78,8 +83,8 @@ export function documentLayout(doc: DocumentView): Layout {
 			}));
 		}
 		node.children.forEach((child, i) => {
-			const trivia = map.triviaStart(path, i);
-			lay(child, [...path, i], trivia === null ? 0 : map.byteOf(path, trivia)!);
+			const trivia = container ? map.byteOf(path, childTriviaStart(container, node, i))! : 0;
+			lay(child, [...path, i], trivia);
 		});
 	};
 	let at = doc.prefix.length;
