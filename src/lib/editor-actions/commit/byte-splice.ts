@@ -30,6 +30,12 @@ import { replaceRefs } from '../../block-lists/child-refs';
 import { assertIdsInLockstep, assertRunsReadBack } from '../../invariants/install';
 import type { EditorActionsDeps } from '../deps';
 import type { CommitArgs } from './structural-commit';
+import {
+	unfinishedReadings,
+	waitingReading,
+	type UnfinishedReading
+} from '../../schema/block-openers';
+import { splitLines } from '../../core/lines';
 
 export function createByteSplice(
 	deps: EditorActionsDeps,
@@ -87,10 +93,15 @@ export function createByteSplice(
 			},
 			check: () => {
 				const live = deps.doc.children;
-				// Each window read with the block on either side, so a window cut short shows.
-				const runs = placed(windows).map(({ at, count }) =>
-					live.slice(Math.max(at - 1, 0), at + count + 1)
-				);
+				const readings = unfinishedReadings(deps.reading.grammar);
+				// Each window read with the block on either side, so a window cut short shows; one
+				// holding a block that waits on a closer, or a line that may be one, reads to that end.
+				const runs = placed(windows).map(({ at, count }) => {
+					const run = live.slice(Math.max(at - 1, 0), at + count + 1);
+					const waits = run.some((block) => waitingReading(block.raw, readings));
+					const closes = run.some((block) => mayCloseAbove(block.raw, readings));
+					return live.slice(closes ? 0 : Math.max(at - 1, 0), waits ? live.length : at + count + 1);
+				});
 				assertRunsReadBack(runs, deps.reading.grammar);
 			},
 			rollback: () => {
@@ -106,6 +117,10 @@ export function createByteSplice(
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/** Whether a line of `raw` may close a block above it that waits on one. */
+const mayCloseAbove = (raw: string, readings: readonly UnfinishedReading[]): boolean =>
+	splitLines(raw).some((line) => readings.some((r) => !r.readsOn && r.mayClose(line.text)));
 
 function changeOf({ at, count, blocks }: SpliceWindow): StructuralChange {
 	if (count > 0 && blocks.length > 0) return replacePreservingFirst(at, count, blocks.length);

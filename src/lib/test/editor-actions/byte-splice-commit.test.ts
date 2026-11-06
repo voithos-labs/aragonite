@@ -106,6 +106,14 @@ describe('a byte splice', () => {
 		expect(kinds).toEqual(['fencedCode']);
 	});
 
+	// Miss-analysis: every commit test's opener and closer sat in one window.
+	it('reads a closer typed far below the opener it finishes', async () => {
+		const editor = await mounted(':::note\na\n\nb\n\nc\n');
+		await editor.instance.__test.spliceSource(':::note\na\n\nb\n\nc\n:::\n', text(19), OP);
+		const kinds = editor.instance.__test.getDocument().children.map((n) => n.kind);
+		expect(kinds).toEqual(['admonition']);
+	});
+
 	// Miss-analysis: the commit's own tests landed carets only; the range replay found the stale range.
 	it('ends a range it replaces, which named the blocks before it', async () => {
 		const editor = await mounted('x\n# h\n| A | B |\n| - | - |\n');
