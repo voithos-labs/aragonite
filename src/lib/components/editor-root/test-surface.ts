@@ -17,6 +17,8 @@ import type { GrammarView } from '../../schema/block-openers';
 import type { UndoManager } from '../../undo/types';
 import type { DrawnCaret } from '../../caret/drawn-caret.svelte';
 import type { CaretWriter } from '../../browser/caret-writer';
+import type { SpliceCaret } from '../../action-contracts';
+import type { OpDescriptor } from '../../schema/operations';
 
 export interface EditorTestSurface {
 	/** The live CST; read-only by contract, since a write bypasses the undo pipeline. */
@@ -57,4 +59,7 @@ export interface EditorTestSurface {
 	getDrawnCaret(): DrawnCaret;
 	/** This editor's caret writer, whose writes request that paint. */
 	getCaretWriter(): CaretWriter;
+	/** Writes `source` through the byte splice, the commit the range gestures move onto, until a
+	 *  gesture calls it: the range laws' twin editor and the perf rows reach it here. */
+	spliceSource(source: string, caret: SpliceCaret, op: OpDescriptor): Promise<boolean>;
 }

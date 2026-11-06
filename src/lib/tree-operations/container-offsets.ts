@@ -6,8 +6,14 @@
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
-import { displayLength, isWhitespaceChar, splitLines, type ParsedLine } from '../core/lines';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import {
+	displayLength,
+	isBlankText,
+	isWhitespaceChar,
+	splitLines,
+	type ParsedLine
+} from '../core/lines';
+import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
 
 export interface LeafPosition {
@@ -50,6 +56,12 @@ export function byteOfLeaf(
 	const top = children[path[0]];
 	const inBlock = byteIn(top, path.slice(1), offset, false);
 	return inBlock === null ? null : start + top.leadingTrivia.length + inBlock;
+}
+
+/** Where each child of the container `node` starts in its raw, past the child's blank lines. */
+export function childRawStarts(node: NodeView): number[] {
+	const map = bodyMap(node);
+	return map.childStarts.map((start) => map.toRaw(start));
 }
 
 // The two below keep a strip-only refusal (null past a fenced or grid container's opener line)
@@ -141,7 +153,7 @@ interface BodyMap {
 
 function bodyMap(node: NodeView): BodyMap {
 	const children = node.children ?? [];
-	const grid = tryGetBlockKindDescriptor(node.kind)?.containerContract === 'grid';
+	const grid = isGridKind(node.kind);
 	return grid && children.every((child) => !child.children) ? cellMap(node) : lineMap(node);
 }
 
@@ -220,7 +232,7 @@ const MARKER_ONLY =
 function textColumn(raw: ParsedLine, body: ParsedLine): number | null {
 	if (raw.lineEnding !== body.lineEnding) return null;
 	const { text } = body;
-	if (text.trim() === '') {
+	if (isBlankText(text)) {
 		if (!MARKER_ONLY.test(raw.text)) return null;
 		// A blank body line's spaces sit at the end of its marker.
 		return raw.text.endsWith(text) ? raw.text.length - text.length : raw.text.length;

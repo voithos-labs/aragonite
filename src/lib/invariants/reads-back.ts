@@ -1,8 +1,8 @@
 /**
  * G1.55: a top-level block an edit wrote reads back, alone, as the tree the editor holds, empty
- * bytes included. The edit names the blocks it wrote, so the check costs what the edit touched,
- * never the document; one larger than {@link READ_BACK_LIMIT} is skipped, so a keystroke in a giant
- * one pays no parse.
+ * bytes included; a byte splice's run of blocks reads back together. The edit names what it wrote,
+ * so the check costs what the edit touched, never the document; anything larger than
+ * {@link READ_BACK_LIMIT} is skipped, so a keystroke in a giant block pays no parse.
  */
 
 import type { NodeView } from '../core/node-views';
@@ -24,11 +24,23 @@ export function takeReadBackBytes(): number {
 }
 
 export function checkReadsBack(node: NodeView, grammar: GrammarView): InvariantViolation | null {
-	if (node.raw.length > READ_BACK_LIMIT) return null;
-	bytesRead += node.raw.length;
-	const read = readAsOpened(node.raw, { grammar, scope: 'fragment' });
-	const divergence = describeShapeDivergence({ children: [node] }, read);
+	return checkRunReadsBack([node], grammar);
+}
+
+/** Adjacent top-level blocks, read together from the first one's own bytes. */
+export function checkRunReadsBack(
+	run: readonly NodeView[],
+	grammar: GrammarView
+): InvariantViolation | null {
+	if (run.length === 0) return null;
+	const bytes = run.map((node, i) => (i === 0 ? '' : node.leadingTrivia) + node.raw).join('');
+	if (bytes.length > READ_BACK_LIMIT) return null;
+	bytesRead += bytes.length;
+	const read = readAsOpened(bytes, { grammar, scope: 'fragment' });
+	const held = run.map((node, i) => (i === 0 ? { ...node, leadingTrivia: '' } : node));
+	const divergence = describeShapeDivergence({ children: held }, read);
+	const kinds = run.map((node) => node.kind).join(', ');
 	return divergence === null
 		? null
-		: { code: 'reads-back', message: `${node.kind}'s bytes read as another tree: ${divergence}` };
+		: { code: 'reads-back', message: `${kinds}'s bytes read as another tree: ${divergence}` };
 }

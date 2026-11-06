@@ -47,7 +47,7 @@ The other way round works too: after a commit, `CommitController`'s `continueTyp
 
 ## The commit primitive
 
-Every structural mutation routes through one internal commit helper. Three entry points name the three scopes (`src/lib/action-contracts.ts` :: `CommitController`): **`commitStructural`** (the document's children array), **`commitContainerStructural`** (one container's children array), and **`commitMultiScope`** (several container states in one logical step, a cross-container delete or an indent/unindent: one snapshot, one edit event, one atomic reactivity publish across every touched scope). The first two are just the third over a single scope, the document or one container, so every commit runs the same steps. A caller describes the change and the helper runs the commit steps around it, and each entry point resolves to whether any bytes landed (false when reading mode refused the write, the commit rolled back, or a `discardIfNoop` commit found nothing had changed). A commit can also pass `announce`, the line a screen reader hears about it ("Moved block to position 2 of 3"), spoken only after a commit that wrote. The split, from `editor-actions/block-edit-core.ts`:
+Every structural mutation routes through one internal commit helper. Three entry points name the three scopes (a fourth, for an edit that already knows its bytes, is § The byte splice) (`src/lib/action-contracts.ts` :: `CommitController`): **`commitStructural`** (the document's children array), **`commitContainerStructural`** (one container's children array), and **`commitMultiScope`** (several container states in one logical step, a cross-container delete or an indent/unindent: one snapshot, one edit event, one atomic reactivity publish across every touched scope). The first two are just the third over a single scope, the document or one container, so every commit runs the same steps. A caller describes the change and the helper runs the commit steps around it, and each entry point resolves to whether any bytes landed (false when reading mode refused the write, the commit rolled back, or a `discardIfNoop` commit found nothing had changed). A commit can also pass `announce`, the line a screen reader hears about it ("Moved block to position 2 of 3"), spoken only after a commit that wrote. The split, from `editor-actions/block-edit-core.ts`:
 
 ```ts
 await scope.commit({
@@ -108,6 +108,23 @@ The same check quietly refuses a write made for a document a `source` swap has r
 Two snapshots still come from outside the primitive. The typing batch's, pushed at a burst's first keystroke before its write, because a keystroke written in place pushes nothing of its own; and undo and redo's own, the current state they push onto the opposite stack before they swap (`captureCurrentState`).
 
 **Persistent history.** The undo stack is session-scoped: in memory, cleared when the document closes. Cross-session history belongs at the save boundary, outside the editor, which only hands over the serialized document.
+
+## The byte splice
+
+Some edits know their answer as bytes before they touch the tree (a range edit works out the new Markdown first, then needs it applied). That's what `commitSource` on the same `CommitController` is for: you hand it a sorted list of byte changes to the current source (`{ from, to, insert }`, none overlapping) and where the caret goes in the result, and it does the rest.
+
+```ts
+await controller.commitSource({
+	changes: [{ from: 6, to: 10, insert: 'four' }], // `changesBetween(before, after)` makes one from a whole new source
+	caret: { at: 10, holds: 'text' }, // or 'block' (focused whole) or 'boundary' (the gap caret)
+	op: { kind: 'paste', detail: { count: 1 } },
+	snapshot: { path, offset } // where undo puts the caret when nothing's focused
+});
+```
+
+Each change re-reads the top-level blocks it reaches (`src/lib/tree-operations/byte-splice.ts` :: `spliceReading`). The read starts at the last block before the change that has text of its own (a blank line above can change how the block before it ends) and runs on past the change until the next block with text still starts where it stood. So an unclosed fence swallows everything below it, the way a reload would, and a typo fix in a paragraph re-reads one paragraph. Two windows that grow into each other read as one.
+
+It goes through the same commit frame as everything else (reading-mode gate, undo entry, rollback, dev checks, the `edit` event, the landing), with two things missing on purpose: no list fix-up and no open-tail step. The bytes you hand it are final, so nothing may add or drop a line. Blocks outside every window keep their nodes; inside one, the first replaced block keeps its id and so do the unchanged blocks around the change at every depth, so their components and measured heights survive. G1.55 reads each window back together with the block on either side, which is how a window cut short shows up in dev.
 
 ## The event channel
 

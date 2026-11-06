@@ -27,11 +27,8 @@ export function idsAcrossReread(
 	next: readonly NodeView[]
 ): string[] | undefined {
 	if (!ids || ids.length !== previous.length) return undefined;
-	const same = (a: NodeView, b: NodeView): boolean =>
-		a.kind === b.kind && a.leadingTrivia === b.leadingTrivia && a.raw === b.raw;
 	const shorter = Math.min(previous.length, next.length);
-	let head = 0;
-	while (head < shorter && same(previous[head], next[head])) head++;
+	const head = unchangedHead(previous, next);
 	let tail = 0;
 	while (
 		tail < shorter - head &&
@@ -44,6 +41,28 @@ export function idsAcrossReread(
 		i === 0 && changed > 0 ? ids[head] : generateBlockId()
 	);
 	return [...ids.slice(0, head), ...created, ...ids.slice(previous.length - tail)];
+}
+
+/** {@link idsAcrossReread} at every depth of `next`, a re-read of `previous`: down the first
+ *  changed child at each level, the blocks the re-read left alone keep their ids. */
+export function carryIdsDeep(previous: NodeView, next: NodeView): void {
+	if (previous.kind !== next.kind || !previous.children || !next.children) return;
+	const ids = idsAcrossReread(previous.children, previous.childIds, next.children);
+	if (!ids) return;
+	next.childIds = ids;
+	const head = unchangedHead(previous.children, next.children);
+	const [was, now] = [previous.children[head], next.children[head]];
+	if (was && now && ids[head] === previous.childIds![head]) carryIdsDeep(was, now);
+}
+
+const same = (a: NodeView, b: NodeView): boolean =>
+	a.kind === b.kind && a.leadingTrivia === b.leadingTrivia && a.raw === b.raw;
+
+function unchangedHead(previous: readonly NodeView[], next: readonly NodeView[]): number {
+	const shorter = Math.min(previous.length, next.length);
+	let head = 0;
+	while (head < shorter && same(previous[head], next[head])) head++;
+	return head;
 }
 
 /** Call before a freshly parsed subtree is spliced in: a reused container reads `childIds` in its

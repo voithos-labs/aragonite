@@ -27,6 +27,7 @@
 	import { createCompositionTracker } from '../browser/composition';
 	import { caretRectAt } from '../browser/visual-lines';
 	import { docPathFrom } from '../core/coordinate-spaces';
+	import { changesBetween } from '../tree-operations/byte-splice';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createScrollOwner } from '../windowing/scroll-owner';
 	import { createScrollHostResolution } from './editor-root/scroll-host';
@@ -1448,7 +1449,14 @@
 		getWidthVersion: layout.widthVersion,
 		setBlockRefSlot: blockRefSlots.set,
 		getDrawnCaret: () => drawnCaret,
-		getCaretWriter: () => caretWriter
+		getCaretWriter: () => caretWriter,
+		spliceSource: (source, caret, op) =>
+			controller.commitSource({
+				changes: changesBetween(currentSource.read(), source),
+				caret,
+				op,
+				snapshot: { path: docPathFrom([0]), offset: 0 }
+			})
 	};
 </script>
 

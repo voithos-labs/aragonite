@@ -1,6 +1,6 @@
 // G1.55: a written block whose bytes read back as another tree fails the check, the keystroke and
 // the commit both run it on the blocks they name, looking inside no other, and a block past its
-// size bound costs it nothing.
+// size bound costs it nothing; a byte splice's window read with its neighbours fails the same way.
 // Miss-analysis: the in-place keystroke ran no read-back check at all, and the commit compares
 // bytes, which a list whose second item a reload nests under the first still passes.
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -11,7 +11,12 @@ import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { checkReadsBack, READ_BACK_LIMIT, takeReadBackBytes } from '#lib/invariants/reads-back.js';
+import {
+	checkReadsBack,
+	checkRunReadsBack,
+	READ_BACK_LIMIT,
+	takeReadBackBytes
+} from '#lib/invariants/reads-back.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
@@ -184,5 +189,18 @@ describe('G1.55 runs on the keystroke and the commit, bounded by size', () => {
 		typeAtEnd(source, [0, 1250], 'Q');
 
 		expect(takeReadBackBytes()).toBe(0);
+	});
+});
+
+describe('G1.55 over a run of blocks', () => {
+	it('fails a run whose blocks read as fewer together, and passes one that reads as itself', () => {
+		const apart = parse('```\nx\n\ny\n').children;
+		// An unclosed fence takes in the paragraph a window that stopped short left beside it.
+		const cut: CstNode[] = [
+			{ ...apart[0], raw: '```\nx\n' },
+			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'y\n' }
+		];
+		expect(checkRunReadsBack(cut, defaultGrammarView)?.code).toBe('reads-back');
+		expect(checkRunReadsBack(parse('a\n\n# b\n').children, defaultGrammarView)).toBeNull();
 	});
 });
