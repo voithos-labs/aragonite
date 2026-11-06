@@ -4,6 +4,7 @@ On a touch screen a long press in a cell makes its word the editor's range with 
 toolbar over it, so it opens no cell menu. A finger reaches the row and column actions through a
 button at the focused cell instead. It shows only after a finger's press (a mouse has the
 right-click and Shift+F10), never in reading mode, and takes no focus, so the cell keeps its caret.
+Firefox over BiDi delivers no touch event, so these rows skip there.
 
 ## Happy paths
 
@@ -13,6 +14,8 @@ right-click and Shift+F10), never in reading mode, and takes no focus, so the ce
   button never takes focus.
   - Miss-analysis: the touch takeover's cell row asserted the long press's cell menu, which a
     finger then lost, and iOS never had one; no row reached the row and column actions by touch.
+  - Miss-analysis: the button cancelled its pointerdown to keep the cell's focus, and WebKit sends
+    no click after a cancelled touch pointerdown; the row had only run on Chromium, which still does.
 
 ## Edge cases
 

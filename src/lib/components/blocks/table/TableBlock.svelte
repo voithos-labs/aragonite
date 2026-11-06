@@ -338,6 +338,8 @@
 		};
 	});
 
+	// The button cancels its mousedown, not its pointerdown, so the cell keeps focus and WebKit
+	// still sends the click, which it drops after a cancelled touch pointerdown.
 	function openFocusedCellMenu(): void {
 		if (caretCell) ctx.openCellMenu(caretCell.rowIdx, caretCell.colIdx);
 	}
@@ -669,7 +671,7 @@
 		{...{ [POINTER_GESTURE_ATTR]: '' }}
 		style:left="{cellButtonAt.left}px"
 		style:top="{cellButtonAt.top}px"
-		onpointerdown={(e) => e.preventDefault()}
+		onmousedown={(e) => e.preventDefault()}
 		onclick={openFocusedCellMenu}><MenuIcon name="ellipsis-vertical" size={14} /></button
 	>{/if}
 
