@@ -38,6 +38,7 @@ import {
 } from '../blocks/text/link-at-point';
 import { rawOffsetAt } from '../../browser/offsets';
 import { onRoot, removeAll } from './listeners';
+import { menuHostOf } from './menus';
 import type { LinkCardState } from '../link-card/link-card-state.svelte';
 import type { Reading } from '../../schema/reading';
 import type { ReadingFocus } from './reading-focus.svelte';
@@ -305,20 +306,11 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	}
 
 	// Ahead of every block's own pointerdown: a context press keeps the selection it lands on for
-	// its menu, and ends one it misses as a click there would.
+	// its menu, and ends one it misses only where a menu then opens for what it pressed.
 	function noteContextPointerDown(root: HTMLElement, e: PointerEvent): void {
 		contextPress = notePress(root, e, null);
-		if (!contextPress || contextPress.range || leavesSelectionAlone(e.target)) return;
+		if (!contextPress || contextPress.range || !menuHostOf(e, deps.isHostChrome)) return;
 		resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false);
-	}
-
-	// What a click leaves the selection alone on: the editor's menus and toolbar, the host's own
-	// content, and an element that runs its own gesture (the find bar).
-	function leavesSelectionAlone(target: EventTarget | null): boolean {
-		if (!(target instanceof Element)) return false;
-		return (
-			!!target.closest('.md-menu') || claimsPointerGesture(target) || deps.isHostChrome(target)
-		);
 	}
 
 	/** `planned` is the record this press's pointerdown wrote, whose caret plans it keeps. */

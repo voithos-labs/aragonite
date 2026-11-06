@@ -1,6 +1,6 @@
 # Feature: the right-click menu over a range the editor holds
 
-A range across blocks is the editor's own: it paints the range itself and leaves the browser's selection a caret. A right-click on the painted range keeps it and offers Cut and Copy over it, as one on the browser's range does (`context-menu-press-selection.md`); a right-click anywhere else ends it, as a click there would, and opens the menu of what's under the pointer. Most rows start from a range from `first` into `last`, with a list, a quote, a rule and a table between them and the same four again below `last`.
+A range across blocks is the editor's own: it paints the range itself and leaves the browser's selection a caret. A right-click on the painted range keeps it and offers Cut and Copy over it, as one on the browser's range does (`context-menu-press-selection.md`); a right-click anywhere else that opens a menu ends it, as a click there would, and the menu is the one for what's under the pointer. A right-click that opens no menu (the editor's padding, one of its own menus) leaves the range alone. Most rows start from a range from `first` into `last`, with a list, a quote, a rule and a table between them and the same four again below `last`.
 
 ## Happy paths
 
@@ -14,7 +14,8 @@ A range across blocks is the editor's own: it paints the range itself and leaves
 
 - Right-click the same four targets below the range: each ends the range and opens the menu of what's under the pointer.
 - Right-click the first line's text before the range starts, where nothing is painted: the range ends and the prose menu opens with Insert block.
-- With the menu open over the range, right-click one of its rows, then pick Copy: the clipboard holds what Ctrl+C writes, since a press on the editor's own menu leaves the range as a click there does.
+- With the menu open over the range, right-click one of its rows, then pick Copy: the clipboard holds what Ctrl+C writes, since no menu opens for a press on the editor's own menu.
+- Right-click the editor's padding beside the range, where no menu opens: the range stays.
 
 ## Miss-analysis
 

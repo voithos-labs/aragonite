@@ -116,6 +116,23 @@ test.describe('the right-click menu over a range the editor holds', () => {
 		expect(await editor.bridge.getSource()).toBe(DOC);
 	});
 
+	test('a right-click in the editor’s padding beside the range keeps it, since no menu opens there', async ({
+		page
+	}) => {
+		await selectAcross();
+		const block = await box(page, `[data-block-path="[${INSIDE}]"]`);
+		const root = await box(page, '.editor');
+		const padding = { x: (root.x + block.x) / 2, y: block.y + block.height / 2 };
+		const onRoot = await page.evaluate(
+			({ x, y }) => document.elementFromPoint(x, y)?.classList.contains('editor'),
+			padding
+		);
+		expect(onRoot).toBe(true);
+		await rightClick(padding);
+		await expect(page.getByRole('menuitem')).toHaveCount(0);
+		expect(await editor.bridge.ownsRange()).toBe(true);
+	});
+
 	test('a right-click on the open menu keeps the range for the row picked next', async ({
 		page
 	}) => {

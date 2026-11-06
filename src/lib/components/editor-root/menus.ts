@@ -90,6 +90,17 @@ const EDIT_LINK = 'link.edit';
 const isBlockHost = (node: EventTarget): node is HTMLElement =>
 	node instanceof HTMLElement && node.matches('.block-host[data-block-path]');
 
+/** The block a right-click opens its menu for, read off the event's path; null where no menu
+ *  opens: outside every block, on the host's own content, or on one of the editor's menus. */
+export function menuHostOf(
+	e: Event,
+	isHostChrome: (node: Node | null) => boolean
+): HTMLElement | null {
+	const target = e.target instanceof Element ? e.target : null;
+	if (!target || isHostChrome(target) || target.closest('.md-menu')) return null;
+	return e.composedPath().find(isBlockHost) ?? null;
+}
+
 interface Point {
 	x: number;
 	y: number;
@@ -213,12 +224,9 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		// Cancelled for a finger too, or the phone's own menu shows beside the toolbar.
 		e.preventDefault();
 		if (deps.finger()) return;
-		// The keyboard's contextmenu event (Windows fires it on the ContextMenu key's release)
-		// lands on the item the keydown's own menu already focused: that menu is the answer.
-		if (target.closest('.md-menu')) return;
-		// Read off the event's path, fixed at dispatch: the caret placed for the menu may have shown
-		// a widget's source, which takes the target out of the page.
-		const host = e.composedPath().find(isBlockHost) ?? null;
+		// Off the event's path, fixed at dispatch: the caret placed for the menu may have shown a
+		// widget's source, which takes the target out of the page.
+		const host = menuHostOf(e, deps.isHostChrome);
 		const path = readBlockPath(host);
 		if (!host || !path) return;
 		const point = { x: e.clientX, y: e.clientY };

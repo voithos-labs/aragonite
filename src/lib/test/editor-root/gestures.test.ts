@@ -418,29 +418,38 @@ describe('editor-root gestures: the right-click press record', () => {
 			expect(h.gestures.rangeAtContextPress(h.root)).toBe(true);
 		});
 
-		it('a press beside its paint ends it, as a click would', () => {
+		/** An element inside a block the right-click menu opens for. */
+		function inBlock(h: ReturnType<typeof harness>, el = document.createElement('div')) {
+			const block = document.createElement('div');
+			block.className = 'block-host';
+			block.setAttribute('data-block-path', '[5]');
+			block.append(el);
+			h.root.querySelector('.block-list')!.append(block);
+			return el;
+		}
+
+		it('a press on a block beside its paint ends it, as a click would', () => {
 			const h = harness();
 			h.withRange();
 			paintRange(h, FAR_BELOW);
-			h.press(h.editable, { button: 2 });
+			h.press(inBlock(h), { button: 2 });
 			expect(h.selection.ownsRange).toBe(false);
 			expect(h.gestures.rangeAtContextPress(h.root)).toBe(false);
 		});
 
-		// A click on any of them leaves the range, so a row of the open menu still acts on it.
+		// No menu opens for any of them, so nothing needs the range gone; one open keeps acting on it.
 		it.each<[string, (h: ReturnType<typeof harness>) => Element]>([
+			['the dead space around the blocks', (h) => h.root],
 			[
-				'an open menu',
+				'a block’s own open menu',
 				(h) => {
 					const menu = document.createElement('div');
 					menu.className = 'md-menu';
 					menu.append(document.createElement('button'));
-					h.root.append(menu);
-					return menu.firstElementChild!;
+					return inBlock(h, menu).firstElementChild!;
 				}
 			],
-			['the host’s own content', (h) => h.headerLink],
-			['an element running its own gesture', (h) => h.widget]
+			['the host’s own content', (h) => h.headerLink]
 		])('a press on %s beside its paint keeps it', (_, target) => {
 			const h = harness();
 			h.withRange();
