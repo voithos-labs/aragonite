@@ -4,7 +4,7 @@ import {
 	getAllRegisteredKinds,
 	getBlockKindDescriptor
 } from '#lib/schema/block-kind-descriptor.js';
-import { runCell } from '#lib/testing/conformance-core.js';
+import { assertReasonDocumented, runCell } from '#lib/testing/conformance-core.js';
 import {
 	assertProfileCoverageFloor,
 	CONTAINER_CONFORMANCE_CELLS,
@@ -77,8 +77,10 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 
 	// An excused cell runs nothing, so it is listed as skipped with its reason; one with a falsifier
 	// still runs it.
+	const excuses: [string, string][] = [];
 	for (const cell of CONTAINER_CONFORMANCE_CELLS) {
 		const coverage = cell.coverage?.({ kind, profile }) ?? { mode: 'assert' as const };
+		if (coverage.mode !== 'assert') excuses.push([cell.cell, coverage.reason]);
 		if (coverage.mode !== 'assert' && !cell.falsify) {
 			it.skip(`${cell.cell}: ${coverage.reason}`);
 		} else {
@@ -87,6 +89,10 @@ describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) =>
 			});
 		}
 	}
+
+	it.runIf(excuses.length > 0)('every excused cell says why', () => {
+		for (const [cell, reason] of excuses) assertReasonDocumented(reason, `${kind} ${cell}`);
+	});
 
 	// Non-vacuous ancestry: a reversed (outer-first) rebuild must leave the root stale.
 	it.runIf(profile.ancestry.mode === 'assert')('ancestry check is non-vacuous', () => {
