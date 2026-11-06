@@ -7,10 +7,11 @@ import { definitionsOf } from '../../../core/inline/scan/definitions';
 import { parseInline } from '../../../core/inline/index';
 import { metadataOf } from '../../../core/nodes';
 import { describeRoundTrips } from '#lib/test/harness/round-trip.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 
 function parseOne(source: string) {
 	const lines = splitLines(source);
-	return parseLinkReferenceDefinition(lines, 0, lines.length, '');
+	return parseLinkReferenceDefinition(lines, 0, lines.length, '', fixtureGrammar);
 }
 
 // ── Escaped brackets in labels (CommonMark §4.7) ────────────────────────────

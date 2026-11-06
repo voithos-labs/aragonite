@@ -11,7 +11,7 @@ import { parse } from '../../core/parser';
 import { cloneDocument } from '../../tree-operations/clone';
 import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { createSharingState } from '../../tree-operations/sharing';
-import { defaultGrammarView } from '../../schema/block-openers';
+import { defaultGrammarView } from '../../schema/editor-grammar';
 import {
 	disablePerfInstruments,
 	docByteLength,

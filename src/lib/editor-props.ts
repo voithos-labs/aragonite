@@ -23,12 +23,12 @@ import type { EditorRects } from './editor-rects';
 import type { InlineMenuRegistry } from './inline-menu/types';
 import type { InsertEntry } from './schema/insert-catalogue';
 import type { EditorPluginEntry } from './schema/plugin-install';
-import type { SyntaxOptions } from './schema/registry-view';
+import type { SyntaxOptions } from './schema/editor-grammar';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 import type { InputRecordingHandle, InputRecordingOptions } from './debug/input-recorder';
 
 export type { EditorPluginEntry } from './schema/plugin-install';
-export type { SyntaxOptions } from './schema/registry-view';
+export type { SyntaxOptions } from './schema/editor-grammar';
 export type { InteractionTraceEntry } from './debug/interaction-trace';
 export type { InputRecordingHandle, InputRecordingOptions } from './debug/input-recorder';
 export type { InputRecording } from './debug/input-recording';

@@ -132,7 +132,13 @@ export const BUILT_IN_OPENERS = {
 	linkReferenceDefinition: {
 		priority: OPENER_PRIORITIES.linkReferenceDefinition,
 		tryOpen(ctx) {
-			return parseLinkReferenceDefinition(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia);
+			return parseLinkReferenceDefinition(
+				ctx.lines,
+				ctx.index,
+				ctx.end,
+				ctx.leadingTrivia,
+				ctx.grammar
+			);
 		},
 		interruptsParagraph: false,
 		// A definition ends at a blank line, so no line past one finishes it.

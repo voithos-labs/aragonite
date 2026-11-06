@@ -2,7 +2,7 @@
 // asks to show. Inclusive on both edges, because the markers must appear before the arrow step
 // that would land in them, and the whole chain for nested constructs. The DOM side is
 // construct-reveal-trigger.test.ts.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { getInlineContent } from '#lib/core/inline/inline-cache.js';

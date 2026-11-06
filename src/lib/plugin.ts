@@ -6,7 +6,7 @@
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
 import { textBlockView } from './components/blocks/text/text-block-view';
 import { computeInlineContent as parseLeafInline } from './core/inline';
-import { defaultGrammarView } from './schema/block-openers';
+import { defaultGrammarView } from './schema/editor-grammar';
 import { everyInstalledPlugin } from './schema/plugin-activation';
 import {
 	getLanguageAliases as aliasesIn,

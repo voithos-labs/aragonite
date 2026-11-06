@@ -4,7 +4,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { reorderSettled } from '#lib/test/harness/settle-funnel.js';
 
 // An HTML block ends only at a blank line, so a move that takes away the block holding that line

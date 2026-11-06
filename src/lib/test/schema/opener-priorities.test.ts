@@ -4,14 +4,14 @@
  * skips the constant and a constant key with no registration are the same defect.
  */
 import { describe, it, expect } from 'vitest';
-import { getOrderedOpeners } from '../../schema/block-openers';
 import { openerRecords } from '../../schema/block-kind-descriptor';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { isBuiltinBlockKind } from '../../core/nodes';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('OPENER_PRIORITIES ↔ registry parity', () => {
 	it('equals the built-in openers the registry holds after registration', () => {
-		getOrderedOpeners();
+		defaultGrammarView.orderedOpeners();
 		const registered = Object.fromEntries(
 			openerRecords()
 				.filter((o) => isBuiltinBlockKind(o.key))

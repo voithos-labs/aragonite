@@ -88,7 +88,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'reads a node by path out of a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-unwrap.test.ts': {
-		specifiers: ['#lib/tree-operations/index.js', '#lib/schema/block-openers.js'],
+		specifiers: ['#lib/tree-operations/index.js', '#lib/schema/editor-grammar.js'],
 		reason:
 			'nothing published unwraps a child from its quote off a parsed document, or names the grammar the unwrap reads its remainder with'
 	},
@@ -111,7 +111,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/editor-actions/paste-coordinator.js',
 			'#lib/invariants/node-shape.js',
 			'#lib/block-lists/state-registry.js',
-			'#lib/schema/block-openers.js',
+			'#lib/schema/editor-grammar.js',
 			'#lib/tree-operations/paste/dispatch.js'
 		],
 		reason:
@@ -140,7 +140,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'#lib/core/inline/inline-widgets.js',
 			'#lib/core/inline/widget-shell.js',
-			'#lib/schema/block-openers.js'
+			'#lib/schema/editor-grammar.js'
 		],
 		reason:
 			'no registry read-back: a widget kind registers its editing policy but never reads it, ' +
@@ -177,7 +177,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'renders into'
 	},
 	'src/lib/test/plugins/footnotes/reference.test.ts': {
-		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/block-openers.js'],
+		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/editor-grammar.js'],
 		reason:
 			'no registry read-back: a widget kind registers its component but never reads it, and ' +
 			'the read takes a grammar no entry point publishes'
@@ -194,7 +194,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'no registry read-back: an inline syntax handler registers on a trigger but is never listed back'
 	},
 	'src/lib/test/plugins/latex/inline.test.ts': {
-		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/block-openers.js'],
+		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/editor-grammar.js'],
 		reason:
 			'no registry read-back for a widget kind, no published core widget shell builder, and ' +
 			'no published grammar for either read'
@@ -234,7 +234,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'#lib/editor-actions/enter-completion.js',
 			'#lib/schema/block-completions.js',
-			'#lib/schema/block-openers.js'
+			'#lib/schema/editor-grammar.js'
 		],
 		reason:
 			'a completer registers but nothing published runs one, and the Enter handler that consults ' +

@@ -1,6 +1,6 @@
 // Miss-analysis: every write into a list item's first line kept its marker's width, so no test
 // wrote a leading space there, where a reload reads the space as part of a wider marker.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';

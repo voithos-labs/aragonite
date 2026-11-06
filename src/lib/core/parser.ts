@@ -10,17 +10,12 @@ import type { CstNode, Document } from './nodes';
 import { isBlankLine, isBlankText, splitLines, type ParsedLine } from './lines';
 import { perfEnabled, recordParse } from '../perf/instruments';
 import {
-	defaultGrammarView,
 	type BlockOpenerResult,
 	type GrammarView,
 	type OpenContext
 } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 import { parseParagraph } from './parsers/paragraph';
-import { registerTableCompleter } from './parsers/table-completion';
-
-// The Enter completer is the typing-side counterpart of the table grammar, so it loads here
-// rather than behind a side-effect import the production build tree-shakes away.
-registerTableCompleter();
 
 /**
  * Container-nesting cap: past it the rest parses as paragraph text instead of recursing, so deep

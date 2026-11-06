@@ -3,7 +3,7 @@
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { serialize } from '#lib/core/serializer.js';
 import { getContentRange } from '#lib/core/inline/index.js';

@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { isBlankParagraph, parse, parseContainerBody } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence, describeRunDivergence } from '#lib/test/harness/parse-converged.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';

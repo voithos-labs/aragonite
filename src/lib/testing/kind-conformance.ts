@@ -47,7 +47,8 @@ import {
 	type KitCell
 } from './conformance-core';
 import { installOwnRaw } from '../tree-operations/node-primitives';
-import { defaultGrammarView, type BlockOpener, type OpenContext } from '../schema/block-openers';
+import { type BlockOpener, type OpenContext } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 import { createHeadlessActions } from './headless-actions';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
 import { assertParseConverged } from './parse-convergence';

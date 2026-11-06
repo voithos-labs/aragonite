@@ -9,7 +9,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { documentLineEnding, trailingLineEnding } from '#lib/core/lines.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { deleteSettled } from '#lib/test/harness/settle-funnel.js';
 

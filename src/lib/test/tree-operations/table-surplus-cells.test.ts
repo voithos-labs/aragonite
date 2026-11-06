@@ -9,7 +9,7 @@ import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { rebuildTableRaw } from '#lib/schema/container-rebuilders.js';
 import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import {
 	deleteColumn,
 	deleteRow,

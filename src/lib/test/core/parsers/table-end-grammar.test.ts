@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
@@ -40,7 +40,7 @@ describe('a table under the editor’s grammar', () => {
 	});
 
 	it('takes an indented line as a row when indented code is switched off', () => {
-		const off = createRegistryView({ syntax: { indentedCode: false } }).grammar;
+		const off = createEditorGrammar({ syntax: { indentedCode: false } });
 		const doc = parse(TABLE + '    code\n', { grammar: off });
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['table']);
@@ -49,7 +49,7 @@ describe('a table under the editor’s grammar', () => {
 	});
 
 	it('keeps a plugin kind the editor did not list out of the check', () => {
-		const withoutMath = createRegistryView({ plugins: activationFor([]) }).grammar;
+		const withoutMath = createEditorGrammar({ plugins: activationFor([]) });
 
 		expect(kinds(TABLE + '$$\nx\n$$\n', withoutMath)).toEqual(['table']);
 	});

@@ -4,7 +4,7 @@
  */
 
 import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
-import { defaultGrammarView } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 import type { Reading } from '../schema/reading';
 
 export function kitReading(mode: () => PresentationMode = () => 'source'): Reading {

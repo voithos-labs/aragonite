@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib';
 import { checkStaleRaw } from '#lib/invariants/node-shape.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('the strip stale-raw check compares metadata with the reparse', () => {
 	// A bare `rebuildRaw` is a rebuild outside every route that re-reads the metadata.

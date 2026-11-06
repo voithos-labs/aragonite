@@ -6,7 +6,7 @@ import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { reorderSettled } from '#lib/test/harness/settle-funnel.js';

@@ -1,6 +1,6 @@
 // Miss-analysis: the keystroke cost tests covered lists and quotes, whose rebuild copies only the
 // edited chain, and no test counted what a table rebuild copied, which was every row.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';

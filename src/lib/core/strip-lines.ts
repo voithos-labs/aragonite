@@ -3,11 +3,8 @@
  * it holds, written once so the parser and the rebuild read a line the same way.
  */
 
-import {
-	defaultGrammarView,
-	lineInterruptsParagraph,
-	lineStartsOuterBlock
-} from '../schema/block-openers';
+import { lineStartsOuterBlock } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
 
 /** Where a body line sits: on the container's opening line, or in the blank run that ends it. */
@@ -112,9 +109,10 @@ export function hangingIndentLines(shape: HangingIndent): LineCodec {
 	};
 }
 
-/** CommonMark's paragraph continuation, read per line: not blank, and not a paragraph interrupter. */
+/** CommonMark's paragraph continuation, read per line: not blank, and not a paragraph interrupter
+ *  under every installed plugin, as `opensOuterBlock` reads. */
 const keepsParagraph = (text: string): boolean =>
-	!isBlankLine(text) && !lineInterruptsParagraph(text);
+	!isBlankLine(text) && !defaultGrammarView.interruptsParagraph(text);
 
 /** Whether a tab sits in `text`'s leading whitespace, which a read at a column off the tab stops
  *  rewrites as spaces. */

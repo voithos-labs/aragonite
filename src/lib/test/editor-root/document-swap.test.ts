@@ -6,8 +6,8 @@ import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { Document } from '#lib/core/nodes.js';
 import type { LinkReferenceResolver } from '#lib/core/inline/scan/definitions.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 // Miss-analysis: the swap was tested one consequence at a time, so a dropped middle step passed.
@@ -26,7 +26,7 @@ describe('initDocument', () => {
 	});
 
 	it('reads the source in the editor grammar, so a switched-off syntax loads as prose', () => {
-		const grammar = createRegistryView({ syntax: { indentedCode: false } }).grammar;
+		const grammar = createEditorGrammar({ syntax: { indentedCode: false } });
 		expect(initDocument('\tnotes\n', grammar).doc.children[0].kind).toBe('paragraph');
 	});
 });

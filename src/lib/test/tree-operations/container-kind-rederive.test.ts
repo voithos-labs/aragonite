@@ -4,10 +4,11 @@ import { setPluginMetadata } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { reclassifyContainer } from '#lib/tree-operations/index.js';
 import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
-import { createGrammarView, defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { checkStaleRaw } from '#lib/invariants/node-shape.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import { grammarWithout } from '#lib/test/harness/grammar-without.js';
 
 // The pure half of the container kind-change path: a container whose rebuilt raw opens
 // as a different kind is replaced in its parent's children. Eligibility is the opener
@@ -92,7 +93,7 @@ describe('reclassifyContainer', () => {
 	it('resolves through the instance grammar, not the global registry', () => {
 		const doc: Document = parse('> [!TI\n');
 		editFirstLeaf(doc.children[0], '[!TIP]\n');
-		const withoutAlerts = createGrammarView((kind) => kind !== 'githubAlert');
+		const withoutAlerts = grammarWithout('githubAlert');
 
 		expect(reclassifyContainer(doc, 0, withoutAlerts)).toBeNull();
 		expect(doc.children[0].kind).toBe('blockquote');

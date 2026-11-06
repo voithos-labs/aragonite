@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The caret-edge dispatch around widgets: decoration widgets, modifier chords, a range
 // opening on a widget, and the caret a write stores.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';

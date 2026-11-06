@@ -5,7 +5,7 @@ import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A fragment parse splits a half's trailing blank line off into `doc.suffix`, and that line stands

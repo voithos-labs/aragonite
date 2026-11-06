@@ -13,7 +13,7 @@ import { createLinkCardState } from '#lib/components/link-card/link-card-state.s
 import type { InlineRangeCommit } from '#lib/editor-actions/inline-range-commit.js';
 import type { CaretRestore } from '#lib/selection/caret-restore.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { commandContext } from '../../harness/command-context';
 import { resolveHref } from '#lib/core/inline-render.js';
 import {

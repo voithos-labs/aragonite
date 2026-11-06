@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-	getOrderedOpeners,
-	createGrammarView,
-	lineInterruptsParagraph,
-	type BlockOpener
-} from '../../schema/block-openers';
+import type { BlockOpener } from '../../schema/block-openers';
+import { createEditorGrammar, defaultGrammarView } from '../../schema/editor-grammar';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import type { AnyBlockKind } from '../../core/nodes';
 
@@ -33,26 +29,26 @@ describe('block-opener registry', () => {
 		testLeaf(HEAD, { opener: opener(20, () => true) });
 		testLeaf(FENCE, { opener: opener(10, () => true) });
 		testLeaf(QUOTE, { opener: opener(40, () => true) });
-		expect(priorities(getOrderedOpeners())).toEqual([10, 20, 40]);
+		expect(priorities(defaultGrammarView.orderedOpeners())).toEqual([10, 20, 40]);
 	});
 
 	it('re-sorts after a later registration (cache invalidation)', () => {
 		testLeaf(HEAD, { opener: opener(20, () => true) });
-		expect(priorities(getOrderedOpeners())).toEqual([20]);
+		expect(priorities(defaultGrammarView.orderedOpeners())).toEqual([20]);
 		testLeaf(FENCE, { opener: opener(10, () => true) });
-		expect(priorities(getOrderedOpeners())).toEqual([10, 20]);
+		expect(priorities(defaultGrammarView.orderedOpeners())).toEqual([10, 20]);
 	});
 
-	it('lineInterruptsParagraph ORs registered predicates and skips `false` entries', () => {
+	it('the interrupt scan ORs registered predicates and skips `false` entries', () => {
 		testLeaf(HEAD, { opener: opener(20, (t) => t.startsWith('@#')) });
 		testLeaf(QUIET, { opener: opener(60, false) });
-		expect(lineInterruptsParagraph('@# h')).toBe(true);
-		expect(lineInterruptsParagraph('@@ quiet')).toBe(false);
+		expect(defaultGrammarView.interruptsParagraph('@# h')).toBe(true);
+		expect(defaultGrammarView.interruptsParagraph('@@ quiet')).toBe(false);
 	});
 
 	// Miss: only the global read was checked after a late registration, never an editor's own view.
 	it("an editor's grammar sees an opener registered after its first read", () => {
-		const grammar = createGrammarView(() => true);
+		const grammar = createEditorGrammar();
 		testLeaf(HEAD, { opener: opener(20, () => true) });
 		expect(priorities(grammar.orderedOpeners())).toEqual([20]);
 		testLeaf(FENCE, { opener: opener(10, () => true) });
@@ -61,24 +57,8 @@ describe('block-opener registry', () => {
 
 	it('re-evaluates interrupts after a later registration (cache invalidation)', () => {
 		testLeaf(HEAD, { opener: opener(20, (t) => t.startsWith('@#')) });
-		expect(lineInterruptsParagraph('@> quote')).toBe(false);
+		expect(defaultGrammarView.interruptsParagraph('@> quote')).toBe(false);
 		testLeaf(QUOTE, { opener: opener(40, (t) => t.startsWith('@>')) });
-		expect(lineInterruptsParagraph('@> quote')).toBe(true);
-	});
-
-	// A predicate must drop a disabled kind's opener from an editor's grammar without
-	// disturbing the cached global read.
-	describe('enablement filter', () => {
-		beforeEach(() => {
-			testLeaf(HEAD, { opener: opener(20, (t) => t.startsWith('@#')) });
-			testLeaf(QUOTE, { opener: opener(40, (t) => t.startsWith('@>')) });
-		});
-
-		it('drops a disabled kind opener from the ordered dispatch', () => {
-			const grammar = createGrammarView((kind) => kind !== QUOTE);
-			expect(priorities(grammar.orderedOpeners())).toEqual([20]);
-			// The unfiltered read is unchanged: filtering never changes the cache.
-			expect(priorities(getOrderedOpeners())).toEqual([20, 40]);
-		});
+		expect(defaultGrammarView.interruptsParagraph('@> quote')).toBe(true);
 	});
 });

@@ -9,7 +9,7 @@ import { fixUpWrite } from '#lib/tree-operations/fix-up/apply.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { settled } from '#lib/test/harness/settle-funnel.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The parser keeps a document's one trailing blank line in `doc.suffix` only while the tail block

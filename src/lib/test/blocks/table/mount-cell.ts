@@ -2,7 +2,7 @@
 // asked its table for (`mount-table.ts` mounts the real table instead). Read-only questions and
 // single gestures only: a commit replaces the node and nothing above re-renders with it.
 
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { vi } from 'vitest';
 import TableCellBlock from '#lib/components/blocks/table/TableCellBlock.svelte';
 import type { BlockComponent } from '#lib/block-component.js';

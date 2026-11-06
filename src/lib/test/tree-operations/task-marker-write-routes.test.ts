@@ -13,7 +13,7 @@ import {
 	makePasteCommit,
 	registerStubBlockListState
 } from '#lib/test/harness/editor-actions.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 const TABLE = '| a | b |\n| --- | --- |\n';

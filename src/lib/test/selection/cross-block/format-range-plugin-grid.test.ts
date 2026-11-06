@@ -3,7 +3,7 @@
 // plugin contract, so the toggle's grid branch is reached by kinds with no table metadata, whose
 // endpoints never snap to cell space and arrive as deep `[grid, row, col]` paths.
 // Miss-analysis: every case fed the branch a parsed table lying wholly inside the range.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, expect, it } from 'vitest';
 import { setPluginMetadata } from '#lib/core/nodes.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';

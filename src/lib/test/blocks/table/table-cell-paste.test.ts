@@ -12,7 +12,7 @@ import { updateNodeContent } from '../../../tree-operations/content-write';
 import { writeTableRow } from '../../../schema/container-rebuilders';
 import { parse } from '../../../core/parser';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { Reading } from '#lib/schema/reading.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 

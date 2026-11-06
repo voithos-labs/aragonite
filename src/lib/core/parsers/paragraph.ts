@@ -5,11 +5,7 @@
 
 import { OPTIONAL_LINE_ENDING, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
-import {
-	lineInterruptsParagraph,
-	type BlockOpenerResult,
-	type GrammarView
-} from '../../schema/block-openers';
+import type { BlockOpenerResult, GrammarView } from '../../schema/block-openers';
 import { matchTableOpening, parseTable } from './table';
 import { matchThematicBreak } from './thematic-break';
 
@@ -29,7 +25,11 @@ export function parseParagraph(
 
 	let i = startIndex + 1;
 
-	while (i < endIndex && !isBlankLine(lines[i].text) && !lineInterruptsParagraph(lines[i].text)) {
+	while (
+		i < endIndex &&
+		!isBlankLine(lines[i].text) &&
+		!grammar.interruptsParagraph(lines[i].text)
+	) {
 		const setext = matchSetextUnderline(lines[i].text);
 		// With setext headings off, `---` is the thematic break GFM reads once setext is out.
 		if (setext && !grammar.setextHeading) {

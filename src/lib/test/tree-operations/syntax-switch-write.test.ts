@@ -6,17 +6,17 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { cascadeCleanupEmptyAncestors, splitNode } from '#lib/tree-operations/index.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { mergePrevSettled, writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // A write reads its neighbours in the editor's grammar, so a paragraph that comes to sit over
 // `---` in an editor without setext headings stays a paragraph over a divider.
 
-const off = createRegistryView({ syntax: { setextHeading: false } }).grammar;
+const off = createEditorGrammar({ syntax: { setextHeading: false } });
 
 describe('a write beside a switched-off syntax', () => {
 	it('a heading demoted over `---` stays a paragraph and a divider', () => {

@@ -17,7 +17,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import { fixtureReading, TOP_SLOT, topLevelStore } from '../harness/fixture-grammar';
 import { isPlainSplice } from '../harness/plain-splice';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {

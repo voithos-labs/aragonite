@@ -6,7 +6,7 @@ import type { PluginInlineKind } from '#lib/core/nodes.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 let kind: PluginInlineKind;

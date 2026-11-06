@@ -5,7 +5,7 @@ The words this catalog leans on, and what the enforcement levels mean, are in [t
 These checks run in three kinds of place:
 
 - **The commit primitive**: `invariants/install.ts :: assertCommittedNodes`, invoked from `editor-actions/commit/undo-controller.ts` after each commit's raw rebuild. Anything shaped like "a committed node is coherent" runs here.
-- **Bootstrap**: the registration-check flush (`schema/registration-checks.ts`), first at Editor mount via `runStartupInvariantChecks`, then at the next mount or grammar read (`getOrderedOpeners`), never mid-batch, so forward references inside one registration batch stay quiet. Registry completeness (G1.2) checks built-ins only, the one closed set of kinds.
+- **Bootstrap**: the registration-check flush (`schema/registration-checks.ts`), first at Editor mount via `runStartupInvariantChecks`, then at the next mount or grammar read (`grammarRecords`), never mid-batch, so forward references inside one registration batch stay quiet. Registry completeness (G1.2) checks built-ins only, the one closed set of kinds.
 - **Its own machinery**: the guard fires inside the code it protects. One exception: G1.33 fires in the editor root's focus handler (`components/editor-root/focus.ts`), above every caret entry, so a consumer's own caret component inherits it.
 
 | ID | What stays true | Codes |

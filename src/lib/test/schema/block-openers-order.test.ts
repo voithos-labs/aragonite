@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { AnyBlockKind } from '#lib/core/nodes.js';
-import { getOrderedOpeners, type BlockOpener } from '#lib/schema/block-openers.js';
+import type { BlockOpener } from '#lib/schema/block-openers.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 const opener = (priority: number): BlockOpener => ({
 	priority,
@@ -16,7 +17,7 @@ const TIE = 9000;
 
 // The built-in openers stay registered; only this case's own kinds are read back.
 function orderedKinds(kindByOpener: Map<BlockOpener, AnyBlockKind>): AnyBlockKind[] {
-	return getOrderedOpeners().flatMap((o) => kindByOpener.get(o) ?? []);
+	return defaultGrammarView.orderedOpeners().flatMap((o) => kindByOpener.get(o) ?? []);
 }
 
 describe('opener order is registration-independent', () => {

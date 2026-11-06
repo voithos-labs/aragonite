@@ -7,12 +7,11 @@ import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
 import { INNER_LINE, opensOuterBlock, type LineCodec } from '../strip-lines';
 import {
-	defaultGrammarView,
-	lineInterruptsParagraph,
 	lineStartsOuterBlock,
 	type BlockOpenerResult,
 	type GrammarView
 } from '../../schema/block-openers';
+import { defaultGrammarView } from '../../schema/editor-grammar';
 
 export function matchBlockquote(text: string): boolean {
 	return /^ {0,3}>/.test(text);
@@ -40,15 +39,17 @@ export const quoteLines: LineCodec = {
 				line[1] === ' ' &&
 				line.slice(2) === text,
 	continuesLazily: (above, line) =>
-		wouldKeepParagraphOpen(above) && wouldKeepParagraphOpen(line) && !opensOuterBlock(line)
+		wouldKeepParagraphOpen(above, defaultGrammarView) &&
+		wouldKeepParagraphOpen(line, defaultGrammarView) &&
+		!opensOuterBlock(line)
 };
 
 const stripBlockquotePrefix = (text: string): string => quoteLines.read(text, INNER_LINE)!.text;
 
 /** Lazy continuation extends only an open paragraph, not an open list or other container. */
-function wouldKeepParagraphOpen(strippedText: string): boolean {
+function wouldKeepParagraphOpen(strippedText: string, grammar: GrammarView): boolean {
 	if (isBlankLine(strippedText)) return false;
-	if (lineInterruptsParagraph(strippedText)) return false;
+	if (grammar.interruptsParagraph(strippedText)) return false;
 	if (matchBlockquote(strippedText)) return false;
 	return true;
 }
@@ -67,13 +68,13 @@ export function blockquoteExtent(
 		const lineText = lines[i].text;
 		if (matchBlockquote(lineText)) {
 			const stripped = stripBlockquotePrefix(lineText);
-			paragraphOpen = wouldKeepParagraphOpen(stripped);
+			paragraphOpen = wouldKeepParagraphOpen(stripped, grammar);
 			i++;
 			continue;
 		}
 		if (
 			paragraphOpen &&
-			wouldKeepParagraphOpen(lineText) &&
+			wouldKeepParagraphOpen(lineText, grammar) &&
 			!lineStartsOuterBlock(lines[i], { paragraphOpen: true, grammar })
 		) {
 			i++;

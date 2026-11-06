@@ -6,7 +6,7 @@ import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 
 // A replace that empties an item or a quote leaves bytes that reload as the container still shown:

@@ -6,7 +6,7 @@ import { mergeWithNext, splitNode } from '../../tree-operations';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { settled, deleteSettled } from '#lib/test/harness/settle-funnel.js';
 import type { FixedUpWrite } from '#lib/tree-operations/content-write.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 

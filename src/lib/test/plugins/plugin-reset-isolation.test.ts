@@ -26,7 +26,7 @@ import {
 } from '#lib/components/blocks/code/code-languages.js';
 import { completeTypedLine } from '#lib/schema/block-completions.js';
 import { isInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { LanguageFn } from 'highlight.js';
 import type { NodeView } from '#lib/core/node-views.js';
 

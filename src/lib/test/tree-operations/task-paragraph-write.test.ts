@@ -6,7 +6,7 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 

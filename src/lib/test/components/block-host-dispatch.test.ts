@@ -5,7 +5,7 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { svelteBlockView } from '#lib/components/svelte-block-view.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
 import { mountBlockHost } from './mount-host';
@@ -123,9 +123,9 @@ describe('BlockHost falls back to a raw-editable surface when no component resol
 		]);
 		const doc = parse('disabled text\n');
 		doc.children[0].kind = kind!;
-		const registryView = createRegistryView({ plugins: activationFor([]) });
+		const grammar = createEditorGrammar({ plugins: activationFor([]) });
 
-		mounted = mountBlockHost(doc, {}, { services: { registryView } });
+		mounted = mountBlockHost(doc, {}, { services: { grammar } });
 
 		expect(mounted.el.querySelector('.recording-block')).toBeNull();
 		expect(mounted.el.querySelector('.raw-block')?.textContent).toBe('disabled text');

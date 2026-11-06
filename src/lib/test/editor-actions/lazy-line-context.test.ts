@@ -2,7 +2,7 @@
 // reading a reload gives those bytes.
 // Miss-analysis: every rebuild re-prefixed a lazy line, so no test had a kept lazy line lose the
 // paragraph it continued, and nothing asked what the bytes then read as.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';

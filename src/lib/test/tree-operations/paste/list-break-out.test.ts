@@ -3,7 +3,7 @@ import { parse } from '#lib/core/parser.js';
 import { metadataOf } from '#lib/core/nodes.js';
 import { buildListBreakOutReplacement } from '#lib/tree-operations/paste/list-break-out.js';
 import { focusIndexBeforeResidue } from '#lib/tree-operations/paste/focus-target.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('buildListBreakOutReplacement', () => {
 	// A break-out from an ordered list whose first item is not "1." must keep the list's own

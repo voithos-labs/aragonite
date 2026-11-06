@@ -31,7 +31,8 @@ import {
 } from '../editor-actions/unwrap-strategies';
 import type { EditEvent } from '../editor-events';
 import { isDirectiveKind } from '../core/directive/registry';
-import { defaultGrammarView, unfinishedReadings, waitingReading } from '../schema/block-openers';
+import { unfinishedReadings, waitingReading } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 import { kitReading } from './kit-reading';
 import { cellFailure, CONTAINER_CELL_CONTRACTS } from './cell-contracts';
 import {

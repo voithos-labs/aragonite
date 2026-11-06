@@ -3,7 +3,7 @@
 
 import { beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { registerBlockCompleter } from '#lib/schema/block-completions.js';
 import { mergeWithNext } from '#lib/tree-operations/index.js';
@@ -17,7 +17,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 import { deleteRange } from '../harness/range-delete';
 import { reorderSettled } from '#lib/test/harness/settle-funnel.js';
 
-const noIndentedCode = createRegistryView({ syntax: { indentedCode: false } }).grammar;
+const noIndentedCode = createEditorGrammar({ syntax: { indentedCode: false } });
 const read = (source: string) => parse(source, { grammar: noIndentedCode });
 const kindsOf = (nodes: readonly CstNode[]) => nodes.map((n) => n.kind);
 

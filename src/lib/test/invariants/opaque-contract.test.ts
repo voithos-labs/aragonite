@@ -6,7 +6,7 @@ import { concatChildren } from '../../core/serializer';
 import { trimTrailingLineEnding } from '../../core/lines';
 import type { AnyBlockKind, CstNode } from '../../core/nodes';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // ── Callout-shaped opaque kind with a registered opener ────────────────────
 // A title child at index 0 makes `strip(raw) !== serialize(children)`, and the opener stores

@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { serialize } from '#lib/core/serializer.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { rebuildAncestryRaw } from '#lib/schema/container-raw.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';

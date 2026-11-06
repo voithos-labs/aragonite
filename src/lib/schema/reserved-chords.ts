@@ -7,7 +7,7 @@ import { getAllRegisteredKinds } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, kindKeymap, pluginGlobalChords, reservedUiChords } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 import type { PluginActivation } from './plugin-activation';
-import { kindEnablementFor } from './registry-view';
+import { kindEnablementFor } from './editor-grammar';
 import { textKeyChords } from './keybindings';
 
 // ── Composition ──────────────────────────────────────────────────────────────

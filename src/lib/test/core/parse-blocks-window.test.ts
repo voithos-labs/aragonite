@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseBlocks } from '../../core/parser';
 import { splitLines } from '../../core/lines';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 function flat(r: ReturnType<typeof parseBlocks>): string {
 	return r.children.map((c) => c.leadingTrivia + c.raw).join('') + r.suffix;

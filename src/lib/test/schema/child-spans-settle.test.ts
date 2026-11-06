@@ -13,7 +13,7 @@ import { ensureUnsharedPath } from '#lib/tree-operations/unshare.js';
 import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The first keystroke fills in the spans and the second one uses them, so a single keypress
 // cannot show stale spans.

@@ -2,7 +2,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 import { parse } from '../../../core/parser';
-import { createGrammarView } from '../../../schema/block-openers';
 import { createSharingState } from '../../../tree-operations/sharing';
 import {
 	makeStubBlockEdit,
@@ -16,6 +15,7 @@ import type { CstNode } from '../../../core/nodes';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createScopeWriter } from '#lib/editor-actions/commit/scope-writes.js';
+import { grammarWithout } from '#lib/test/harness/grammar-without.js';
 
 // ── Container-matching merge runs its raw mutation inside commitMultiScope ────
 
@@ -119,7 +119,7 @@ describe('pasteDispatch: cross-block inline join reparse', () => {
 
 	// The join reparse is a content commit, so it parses with the editor instance's grammar.
 	it('threads the instance grammar so a disabled list opener leaves a paragraph', async () => {
-		const reading = fixtureReading({ grammar: createGrammarView((kind) => kind !== 'list') });
+		const reading = fixtureReading({ grammar: grammarWithout('list') });
 		const h = makePasteCommit(parse('. item\n').children, { reading });
 
 		await runPasteDispatch(

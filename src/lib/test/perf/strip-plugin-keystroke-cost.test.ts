@@ -2,7 +2,7 @@
 // length: the bundled strip containers rebuild through the quote's and list item's line pairing.
 // Miss-analysis: no perf row types inside an alert or a footnote, so a rebuild that fell back to
 // writing every line per key would have passed every gate.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installPlugins } from '#lib';
 import type { CstNode } from '#lib/core/nodes.js';

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
-import { createRegistryView, kindEnablementFor } from '#lib/schema/registry-view.js';
+import { createEditorGrammar, kindEnablementFor } from '#lib/schema/editor-grammar.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { blockViewFor, registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
@@ -49,7 +49,7 @@ describe('kind enablement derived from an instance activation set', () => {
 		const listed = installKindPlugin('listed', '@a');
 		const unlisted = installKindPlugin('unlisted', '@b');
 
-		const view = createRegistryView({ plugins: activationFor(['listed']) });
+		const view = createEditorGrammar({ plugins: activationFor(['listed']) });
 		expect(view.blockView(listed)).toBe(stubView);
 		expect(view.blockView(unlisted)).toBeUndefined();
 		// Never filtered: the degraded block still needs its descriptor to fall back.
@@ -60,9 +60,21 @@ describe('kind enablement derived from an instance activation set', () => {
 		installKindPlugin('listed', '@a');
 		installKindPlugin('unlisted', '@b');
 
-		const grammar = createRegistryView({ plugins: activationFor(['listed']) }).grammar;
+		const grammar = createEditorGrammar({ plugins: activationFor(['listed']) });
 		expect(parse('@a hi\n', { grammar }).children[0].kind).toBe('listed-block');
 		expect(parse('@b hi\n', { grammar }).children[0].kind).toBe('paragraph');
+	});
+
+	// Miss-analysis: every interrupt case read the process-wide scan, so none asked an editor that
+	// left the plugin out.
+	it("ends a paragraph at a listed plugin's line, not at an unlisted one's", () => {
+		installKindPlugin('listed', '@a');
+		installKindPlugin('unlisted', '@b');
+
+		const grammar = createEditorGrammar({ plugins: activationFor(['listed']) });
+		const kinds = (source: string) => parse(source, { grammar }).children.map((c) => c.kind);
+		expect(kinds('text\n@a hi\n')).toEqual(['paragraph', 'listed-block']);
+		expect(kinds('text\n@b hi\n')).toEqual(['paragraph']);
 	});
 
 	it('never gates a kind no plugin owns, built-ins included', () => {
@@ -114,9 +126,9 @@ describe('one activation rule for every plugin registration', () => {
 		});
 		expect(() => installPlugins([setupThrows])).toThrow(/setup failed halfway/);
 
-		const view = createRegistryView();
+		const view = createEditorGrammar();
 		expect(view.blockView(kind!)).toBeUndefined();
-		expect(parse('@h hi\n', { grammar: view.grammar }).children[0].kind).toBe('paragraph');
+		expect(parse('@h hi\n', { grammar: view }).children[0].kind).toBe('paragraph');
 		expect(parse('@h hi\n').children[0].kind).toBe('paragraph');
 	});
 });
@@ -126,7 +138,7 @@ describe("a kind's view answers to the plugin that registered the kind", () => {
 		const listed = installKindPlugin('listed', '@a');
 		const unlisted = installKindPlugin('unlisted', '@b');
 
-		const editor = createRegistryView({ plugins: activationFor(['listed']) });
+		const editor = createEditorGrammar({ plugins: activationFor(['listed']) });
 		expect(editor.blockView(listed)).toBe(stubView);
 		expect(editor.blockView(unlisted)).toBeUndefined();
 		expect(blockViewFor(unlisted, activationFor(['unlisted']))).toBe(stubView);

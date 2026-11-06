@@ -2,7 +2,8 @@
 // prop: every installed plugin, no link definitions, styled source. Each shape that carries the
 // grammar or the reading gets it from here.
 import type { RenderInlineOptions } from '#lib/core/inline-render.js';
-import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import { type GrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { Reading } from '#lib/schema/reading.js';
 import type { ChildSlot } from '#lib/tree-operations/list/task-paragraph.js';
 import type { NodeView } from '#lib/core/node-views.js';
@@ -25,7 +26,7 @@ export function renderOptions(over: Partial<RenderInlineOptions> = {}): RenderIn
  */
 export function fixtureReading(over: Partial<Reading> = {}, mode?: PresentationMode): Reading {
 	const reading = {
-		grammar: defaultGrammarView,
+		grammar: defaultGrammarView as GrammarView,
 		resolver: undefined,
 		resolverSignature: '',
 		resolverEpoch: 0,

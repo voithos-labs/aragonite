@@ -16,7 +16,7 @@ import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { buildQuoteExitReplacement, plainQuote } from '#lib/tree-operations/blockquote.js';
 import { liftFirstChild } from '#lib/tree-operations/container-lift.js';
 import { buildExitReplacement } from '#lib/tree-operations/list/exit-replacement.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,

@@ -136,7 +136,7 @@
 	import { activationFor, everyInstalledPlugin } from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
-	import { createRegistryView } from '../schema/registry-view';
+	import { createEditorGrammar } from '../schema/editor-grammar';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
@@ -233,14 +233,14 @@
 	// ── State ───────────────────────────────────────────────────────────
 
 	// svelte-ignore state_referenced_locally
-	const registryView = createRegistryView({
+	const editorGrammar = createEditorGrammar({
 		plugins: pluginEntries ? activePlugins : undefined,
 		syntax
 	});
 
 	// Plain state, not $derived: structural edits write `doc` and `blockIds` directly.
 	// svelte-ignore state_referenced_locally
-	const initial = initDocument(source ?? '', registryView.grammar);
+	const initial = initDocument(source ?? '', editorGrammar);
 	let doc: Document = $state(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
@@ -261,7 +261,7 @@
 	/** This editor's one reading context, shared by the block components (through context) and
 	 *  the action bundles (through their deps), so a post-commit rebuild reaches both. */
 	const reading: Reading = {
-		grammar: registryView.grammar,
+		grammar: editorGrammar,
 		get resolver(): LinkReferenceResolver {
 			return currentResolver;
 		},
@@ -425,7 +425,7 @@
 	});
 
 	const documentSwap = createDocumentSwap({
-		grammar: registryView.grammar,
+		grammar: editorGrammar,
 		currentSource: currentSource.readUnchecked,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
@@ -870,7 +870,7 @@
 		caretLanding,
 		pasteCoordinator,
 		reorder,
-		registryView,
+		grammar: editorGrammar,
 		activePlugins,
 		rects,
 		commands,
@@ -1432,7 +1432,7 @@
 
 	export const __test: EditorTestSurface = {
 		getDocument: () => doc,
-		getGrammar: () => registryView.grammar,
+		getGrammar: () => editorGrammar,
 		getContentVersion: contentVersion.read,
 		getBlockComponent,
 		getUndoStack: () => undoManager.getStacks(),

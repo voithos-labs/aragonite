@@ -3,12 +3,12 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 
 // The `syntax` prop takes indented code and setext headings out of one editor's grammar. The
 // bytes never change; only how they read does, and a nested body reads them the same way.
 
-const off = createRegistryView({ syntax: { indentedCode: false, setextHeading: false } }).grammar;
+const off = createEditorGrammar({ syntax: { indentedCode: false, setextHeading: false } });
 
 function kinds(source: string, grammar?: GrammarView): string[] {
 	const doc = parse(source, { grammar });
@@ -62,13 +62,13 @@ describe('syntax switches: setext headings', () => {
 
 describe('syntax switches: each switch alone', () => {
 	it('switching setext off leaves indented code on', () => {
-		const grammar = createRegistryView({ syntax: { setextHeading: false } }).grammar;
+		const grammar = createEditorGrammar({ syntax: { setextHeading: false } });
 		expect(kinds('\tnotes\n', grammar)).toEqual(['indentedCode']);
 		expect(kinds('Plan\n---\n', grammar)).toEqual(['paragraph', 'thematicBreak']);
 	});
 
 	it('switching indented code off leaves setext on', () => {
-		const grammar = createRegistryView({ syntax: { indentedCode: false } }).grammar;
+		const grammar = createEditorGrammar({ syntax: { indentedCode: false } });
 		expect(kinds('\tnotes\n', grammar)).toEqual(['paragraph']);
 		expect(kinds('Plan\n---\n', grammar)).toEqual(['setextHeading']);
 	});

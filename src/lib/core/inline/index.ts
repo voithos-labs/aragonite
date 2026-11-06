@@ -8,7 +8,8 @@ import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 // is explicit because a bare side-effect import is tree-shaken from the production build.
 import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { Reading } from '../../schema/reading';
-import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
+import { type GrammarView } from '../../schema/block-openers';
+import { defaultGrammarView } from '../../schema/editor-grammar';
 import { readInline } from './scan';
 import { codeFenceWidth } from './scan/code-span';
 import type { LinkReferenceResolver } from './scan/definitions';

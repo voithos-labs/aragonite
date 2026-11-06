@@ -1,4 +1,4 @@
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import { parse, serialize } from '#lib';
 import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';

@@ -2,7 +2,7 @@
 // slot and its neighbours, never the whole list it sits in, at the root or inside any container.
 // Miss-analysis: the keystroke cost rows counted parses and rebuilt lines, never reads of the
 // leaf's own list, so a copy of that list on every key passed them all.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
 import type { CstNode } from '#lib/core/nodes.js';

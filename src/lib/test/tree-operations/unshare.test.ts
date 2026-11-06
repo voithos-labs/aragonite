@@ -10,7 +10,7 @@ import {
 	rebuildOwnedContainer
 } from '../../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 function sharedDoc(src: string) {
 	const sharing = createSharingState();

@@ -6,11 +6,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
-import {
-	defaultGrammarView,
-	unfinishedReadings,
-	type UnfinishedReading
-} from '#lib/schema/block-openers.js';
+import { unfinishedReadings, type UnfinishedReading } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
 import { readBack } from '#lib/core/inline/live-edit/read-back.js';

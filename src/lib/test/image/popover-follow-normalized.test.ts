@@ -2,7 +2,7 @@
 // Miss-analysis: every follow case wrote a paragraph, never a kind whose write rule changes bytes.
 import { describe, expect, it } from 'vitest';
 import { tick } from 'svelte';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';
 import { selectWidgetWhole } from '../../selection/place-caret';

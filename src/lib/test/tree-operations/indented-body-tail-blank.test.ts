@@ -9,7 +9,7 @@ import { documentLineEnding, trailingLineEnding } from '#lib/core/lines.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { settled } from '#lib/test/harness/settle-funnel.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A list item's or footnote's body ends where its indentation ends, so an emptied last block's

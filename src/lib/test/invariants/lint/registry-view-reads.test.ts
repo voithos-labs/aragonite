@@ -145,7 +145,11 @@ const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
 	'src/lib/core/directive/activate.ts :: activateDirectiveGrammar':
 		'the published recognizer type takes an optional grammar',
 	'src/lib/core/strip-lines.ts :: opensOuterBlock':
-		'a quote or list item rebuild asks whether a kept lazy line still continues, under every plugin as the parsers’ extent scans do'
+		'a quote or list item rebuild asks whether a kept lazy line still continues, under every plugin as the parsers’ extent scans do',
+	'src/lib/core/strip-lines.ts :: <module>':
+		'the same rebuild asks whether a lazy line still keeps the paragraph open, under every plugin',
+	'src/lib/components/BlockHost.svelte :: <module>':
+		'a block mounted with no editor around it reads every installed plugin'
 };
 
 const FALLBACK_EXEMPT = notUnder(
@@ -153,7 +157,7 @@ const FALLBACK_EXEMPT = notUnder(
 	SOURCE.parser,
 	SOURCE_DIR.blockParsers,
 	SOURCE.blockOpeners,
-	SOURCE.registryView,
+	SOURCE.editorGrammar,
 	SOURCE.pluginBarrel
 );
 

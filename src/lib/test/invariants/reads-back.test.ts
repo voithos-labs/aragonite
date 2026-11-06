@@ -10,7 +10,7 @@ import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { checkReadsBack, READ_BACK_LIMIT, takeReadBackBytes } from '#lib/invariants/reads-back.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';

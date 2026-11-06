@@ -3,7 +3,7 @@
 // on whitespace, and a write whose delimiters form no construct. The span split and the direction
 // rule are `./format-range.test.ts`.
 // Miss-analysis: every partial span there started and ended on a word boundary, never a space.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';

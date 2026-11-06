@@ -8,7 +8,7 @@ import type { CstNode, ListItemMetadata } from '#lib/core/nodes.js';
 import { checkTaskMarkerSlot } from '#lib/invariants/node-shape.js';
 import { paragraphNode } from '#lib/tree-operations/node-primitives.js';
 import { assertCommittedNodes } from '#lib/invariants/install.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 const check = (node: CstNode) => checkTaskMarkerSlot(node, defaultGrammarView);

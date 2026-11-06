@@ -6,7 +6,7 @@ import { splitNode } from '#lib/tree-operations/node-ops.js';
 import { expectParseConverged, layoutOf as layout } from '#lib/test/harness/parse-converged.js';
 import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The typing-equals-loading rule at tree level: the simulation compares source bytes across the

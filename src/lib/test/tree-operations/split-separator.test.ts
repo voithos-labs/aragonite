@@ -13,7 +13,7 @@ import { describeConvergence } from '../harness/parse-converged';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 

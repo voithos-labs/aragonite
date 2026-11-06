@@ -1,7 +1,7 @@
 // A typing session over a document: each call writes one block's bytes through the keystroke route
 // and its settle, and fails on a live tree that a reload would read differently.
 
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';

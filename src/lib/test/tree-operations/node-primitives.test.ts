@@ -6,7 +6,7 @@ import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('emptyParagraph', () => {
 	it('creates the empty-paragraph placeholder shape, blank lines and ending parameterized', () => {

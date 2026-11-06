@@ -35,7 +35,7 @@ import { createReadingFocus } from '#lib/components/editor-root/reading-focus.sv
 import { createDraftRegistry } from '#lib/components/draft-registry.js';
 import { createShownSourceState } from '#lib/components/blocks/text/shown-source.svelte.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
-import { defaultRegistryView } from '#lib/schema/registry-view.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createEditorEvents, emitCommandError } from '#lib/editor-events.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
@@ -136,7 +136,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		caretLanding: {} as EditorServices['caretLanding'],
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],
 		reorder: {} as EditorServices['reorder'],
-		registryView: defaultRegistryView,
+		grammar: defaultGrammarView,
 		activePlugins: everyInstalledPlugin,
 		rects: {} as EditorServices['rects'],
 		// Filled in by `editorMountContext`, which reads the other groups' overrides.
@@ -210,7 +210,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	// own. The grammar is a getter because the services are built from the document below.
 	docBase.reading = fixtureReading({
 		get grammar() {
-			return services.registryView.grammar;
+			return services.grammar;
 		},
 		mode: overrides.mode ?? (() => 'source')
 	});

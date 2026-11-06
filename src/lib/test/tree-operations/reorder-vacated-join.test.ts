@@ -4,7 +4,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { reorderSettled } from '#lib/test/harness/settle-funnel.js';
 
 // Moving a block out from between two keeps a blank line in the join when either side of it had

@@ -11,13 +11,14 @@ import {
 	type BlockKindRegistration
 } from '#lib/schema/block-kind-descriptor.js';
 import { registerBlockCommand } from '#lib/schema/block-commands.js';
-import { getOrderedOpeners, type BlockOpener } from '#lib/schema/block-openers.js';
+import type { BlockOpener } from '#lib/schema/block-openers.js';
 import { registerChromeLeaf } from '#lib/plugin.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 import { testClosure } from '#lib/test/harness/closure.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { collector } from '#lib/test/harness/violation-collector.js';
 import { testView } from '#lib/test/harness/test-view.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 
@@ -66,7 +67,7 @@ describe('checkLateOpenerRegistration', () => {
 describe('flushPendingRegistrationChecks', () => {
 	it('reports a late opener exactly once, only at the flush', () => {
 		flushPendingRegistrationChecks();
-		getOrderedOpeners();
+		defaultGrammarView.orderedOpeners();
 		const kind = declarePluginKind('late-kind');
 		registerBlockKind(kind, { ...leaf, opener: opener(101) });
 
@@ -82,7 +83,7 @@ describe('flushPendingRegistrationChecks', () => {
 	it('reports an opener registered pre-flush after an editorless grammar read', () => {
 		// A `parse()` with no editor marks the grammar used without running the checks, so
 		// `didFirstFlush` stays false and a late opener must still warn (G1.17).
-		getOrderedOpeners();
+		defaultGrammarView.orderedOpeners();
 		const kind = declarePluginKind('pre-flush-late');
 		registerBlockKind(kind, { ...leaf, opener: opener(9108) });
 
@@ -122,11 +123,11 @@ describe('flushPendingRegistrationChecks', () => {
 
 	it('drains pending checks on the next grammar read', () => {
 		flushPendingRegistrationChecks();
-		getOrderedOpeners();
+		defaultGrammarView.orderedOpeners();
 		const kind = declarePluginKind('parse-flushed');
 		registerBlockKind(kind, { ...leaf, opener: opener(104) });
 
-		getOrderedOpeners();
+		defaultGrammarView.orderedOpeners();
 
 		const { violations, report } = collector();
 		flushPendingRegistrationChecks(report);
@@ -136,7 +137,7 @@ describe('flushPendingRegistrationChecks', () => {
 
 	it('resets both latches and the pending set via the schema reset', () => {
 		flushPendingRegistrationChecks();
-		getOrderedOpeners();
+		defaultGrammarView.orderedOpeners();
 		const stale = declarePluginKind('stale-kind');
 		registerBlockKind(stale, { ...leaf, opener: opener(9105) });
 
