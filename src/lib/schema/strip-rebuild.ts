@@ -195,7 +195,8 @@ function runsIntoTail(old: OldLine[], fresh: BodyLineOut[], first: KeptLine): bo
 		: holds(old[shorter], first.fresh);
 }
 
-function bodyHasNoBytes(node: CstNode): boolean {
+/** Whether no child and no inner suffix holds a byte, as in a body emptied by a range delete. */
+export function bodyHasNoBytes(node: CstNode): boolean {
 	if (node.innerSuffix) return false;
 	// Stops at the first child with bytes, which is the first child in all but an emptied body.
 	for (const child of node.children!) if (child.leadingTrivia || child.raw) return false;

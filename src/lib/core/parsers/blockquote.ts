@@ -5,7 +5,7 @@
 
 import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
-import { INNER_LINE, opensOuterBlock, type LineCodec } from '../strip-lines';
+import { INNER_LINE, opensOuterBlock, type LineCodec, type MarkedLines } from '../strip-lines';
 import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
@@ -19,6 +19,15 @@ export function matchBlockquote(text: string): boolean {
 }
 
 const QUOTE_PREFIX = /^ {0,3}>[ \t]?/;
+
+/** The quote's lines: `>` after up to three spaces, then one optional space or tab. */
+export const QUOTE_LINES: MarkedLines = {
+	shape: 'marked',
+	first: '> ',
+	rest: '> ',
+	reads: QUOTE_PREFIX,
+	lazy: true
+};
 
 /** A quote line: up to three spaces, `>`, then one optional space or tab; a line with no `>`
  *  is a lazy continuation. */

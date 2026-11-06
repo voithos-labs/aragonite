@@ -14,6 +14,7 @@ import {
 	INNER_LINE,
 	hangingIndentLines,
 	opensOuterBlock,
+	type IndentedLines,
 	type LineCodec
 } from '../strip-lines';
 import {
@@ -79,6 +80,18 @@ export function readItemShape(line: string): ItemLineShape | null {
 	const task = matchTaskCheckbox(line.slice(m[0].length));
 	return { indent: m[1], marker: m[2], taskMarker: task?.rawMarker ?? null };
 }
+
+/** A list item's lines: indent, marker, gap and task box on the first line, the rest indented to
+ *  the content column. A field the data lacks is one no first line gave it. */
+export const LIST_ITEM_LINES: IndentedLines<ItemLineShape> = {
+	shape: 'indented',
+	open: new RegExp(`^( {0,3})(${MARKER}${GAP})(\\[[ xX]\\]${GAP})?`),
+	data: (match) => ({ indent: match[1], marker: match[2], taskMarker: match[3] ?? null }),
+	first: (data) => (data.indent ?? '') + data.marker + (data.taskMarker ?? ''),
+	rest: (data) => ' '.repeat((data.indent ?? '').length + data.marker.length),
+	lazy: true,
+	paragraphHead: (data) => data.taskMarker ?? ''
+};
 
 /** A list item's line syntax: the marker on its first line, read back only with the same
  *  indent, marker and task box, and its other lines indented to the item's content column. */
