@@ -9,6 +9,7 @@ import type { Editor, PluginError } from '#lib/schema/plugin-unit.js';
 import { createEditor } from '#lib/create-editor.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { testView } from '#lib/test/harness/test-view.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -113,6 +114,18 @@ describe('an error raised while the editor mounts', () => {
 		expect(m.instance.plugins).toEqual(['unit-rejects', 'unit-hook-throws']);
 	});
 
+	// A Svelte parent's `onMount` runs after the editor's own, so only `onError` serves it.
+	it('reaches an error listener a createEditor caller adds before the editor mounts', async () => {
+		const target = document.body.appendChild(document.createElement('div'));
+		const handle = createEditor(target, { source: 'x\n', plugins });
+		const heard: unknown[] = [];
+		handle.on('error', (e) => heard.push(e.context?.plugin));
+		await settleEditor();
+		expect(heard).toEqual(['unit-throws', 'unit-rejects', 'unit-hook-throws']);
+		handle.destroy();
+		target.remove();
+	});
+
 	it('reaches onError through createEditor', () => {
 		const errors: PluginError[] = [];
 		const target = document.body.appendChild(document.createElement('div'));
@@ -120,6 +133,39 @@ describe('an error raised while the editor mounts', () => {
 		expect(heard(errors)).toContain('unit-throws contributes');
 		handle.destroy();
 		target.remove();
+	});
+});
+
+// Miss-analysis: no listener a plugin added ever threw, so a throw reported without its plugin passed.
+describe('a listener a plugin added that throws', () => {
+	const fail = () => {
+		throw new Error('listener failed');
+	};
+	const value = definePlugin({
+		name: 'unit-listens',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({ setup: (editor) => void editor.on('edit', fail) })
+	});
+	const old = definePlugin({
+		name: 'unit-old-listens',
+		setup: (ctx) => ctx.onEditor((editor) => editor.events.on('edit', fail))
+	});
+
+	it('reaches onError naming the plugin, from either plugin shape', async () => {
+		const errors: PluginError[] = [];
+		const m = mountEditor({
+			source: 'text\n',
+			plugins: [value, old],
+			onError: (e) => errors.push(e)
+		});
+		await m.settle();
+		typeInFirstBlock(m.target, 'texts');
+		await m.settle();
+		expect(errors.map((e) => `${e.plugin} ${e.doing}`).sort()).toEqual([
+			"unit-listens on('edit')",
+			"unit-old-listens on('edit')"
+		]);
 	});
 });
 

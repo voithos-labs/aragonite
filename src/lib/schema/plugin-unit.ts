@@ -227,18 +227,31 @@ function contribute(
 	raw: object,
 	report: (error: PluginError) => void
 ): Contribution | null {
-	let options = mergeOptions(spec.defaults, raw);
+	const options = validOptions(spec, mergeOptions(spec.defaults, raw), report);
 	try {
-		const problem = spec.validate?.(options);
-		if (problem !== undefined) {
-			report({ plugin: spec.name, doing: 'validate', cause: new Error(problem) });
-			options = mergeOptions(spec.defaults, undefined);
-		}
 		return spec.contributes(options);
 	} catch (cause) {
 		report({ plugin: spec.name, doing: 'contributes', cause });
 		return null;
 	}
+}
+
+// A `validate` that throws is read as one that returned a sentence: reported, and the defaults run.
+function validOptions(
+	spec: PluginSpec<object>,
+	options: object,
+	report: (error: PluginError) => void
+): object {
+	let problem: unknown;
+	try {
+		const sentence = spec.validate?.(options);
+		if (sentence === undefined) return options;
+		problem = new Error(sentence);
+	} catch (cause) {
+		problem = cause;
+	}
+	report({ plugin: spec.name, doing: 'validate', cause: problem });
+	return mergeOptions(spec.defaults, undefined);
 }
 
 function installError(report: (error: PluginError) => void, name: string, problem: string): void {

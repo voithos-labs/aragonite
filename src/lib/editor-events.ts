@@ -53,6 +53,8 @@ export interface EditorEventMap {
 	/** Fires at each write, as it lands: a structural edit, one keystroke, an undo or a redo. */
 	edit: EditEvent;
 	selectionChange: SelectionChangeEvent;
+	/** A failure the editor contained. A listener added after the editor mounts (in a Svelte
+	 *  parent's `onMount`, say) misses the plugin errors raised while it mounted; `onError` hears those. */
 	error: EditorError;
 	/** The mode in effect after a `presentationMode` prop change (never fired at mount). */
 	presentationModeChange: PresentationMode;

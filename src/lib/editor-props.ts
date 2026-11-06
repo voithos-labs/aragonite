@@ -108,8 +108,9 @@ export interface EditorOptions {
 	 *  per-editor ones); a `setup` plugin installs once per process, and `{ plugin, options }`
 	 *  gives it options here. No prop at all runs every installed `setup` plugin. */
 	plugins?: PluginsProp;
-	/** Hears every error a plugin causes, from the ones raised while the editor mounts on, which
-	 *  no `error` listener added after mount can hear. */
+	/** Hears what a plugin throws installing, reading its options, setting up or in a listener, the
+	 *  errors raised while the editor mounts included. Its commands, views and decorations still
+	 *  report on the `error` event alone. */
 	onError?: (error: PluginError) => void;
 	/** GFM syntaxes to switch off in this editor, each on by default and read once at mount:
 	 *  `indentedCode: false` reads a line indented by a tab or four spaces as prose, and

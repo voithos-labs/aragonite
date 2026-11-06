@@ -5,6 +5,7 @@
  * once, through the editor's own report.
  */
 import type { DocumentView } from '../core/node-views';
+import type { EditorEventMap } from '../editor-events';
 import { inlineReaderFor } from '../core/inline';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
@@ -106,7 +107,10 @@ export function createEditorPluginContexts(deps: {
 				get documentGeneration() {
 					return deps.getDocumentGeneration();
 				},
-				events: deps.events,
+				events:
+					pluginName === ''
+						? deps.events
+						: { on: (event, listen) => listenAs(pluginName, event, listen) },
 				options: optionsFor(pluginName),
 				decorations: deps.decorations,
 				rects: deps.rects,
@@ -145,7 +149,7 @@ export function createEditorPluginContexts(deps: {
 				return deps.getTheme();
 			},
 			on(event, listen) {
-				const disposer = { plugin, dispose: deps.events.on(event, listen) };
+				const disposer = { plugin, dispose: listenAs(plugin, event, listen) };
 				disposers.push(disposer);
 				return () => disposeOne(disposer);
 			},
@@ -153,6 +157,22 @@ export function createEditorPluginContexts(deps: {
 			can: (commandId) => deps.canRunCommand(commandId),
 			claims: (event) => deps.claims(event)
 		};
+	}
+
+	// A throw is reported naming the plugin; an `error` listener's would report back to itself.
+	function listenAs<K extends keyof EditorEventMap>(
+		plugin: string,
+		event: K,
+		listen: (payload: EditorEventMap[K]) => void
+	): () => void {
+		if (event === 'error') return deps.events.on(event, listen);
+		return deps.events.on(event, (payload) => {
+			try {
+				listen(payload);
+			} catch (cause) {
+				report({ plugin, doing: `on('${event}')`, cause });
+			}
+		});
 	}
 
 	function attach(names: ReadonlySet<string> | null): void {

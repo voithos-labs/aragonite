@@ -130,6 +130,25 @@ describe('options and contributes', () => {
 		expect(seen).toEqual([{ size: 1 }]);
 	});
 
+	// Miss-analysis: validate only ever returned a sentence, so a throw filed under contributes passed.
+	it('reads a throwing validate as a validate sentence', () => {
+		const seen: unknown[] = [];
+		const p = definePlugin({
+			name: 'p',
+			version: '1.0.0',
+			editor: '*',
+			defaults: { size: 1 },
+			validate: () => {
+				throw new Error('cannot read size');
+			},
+			contributes: (options) => (seen.push(options), {})
+		});
+		const { names, errors } = install([p({ size: -1 })]);
+		expect(names).toEqual(['p']);
+		expect(messages(errors)).toEqual(['p validate: cannot read size']);
+		expect(seen).toEqual([{ size: 1 }]);
+	});
+
 	it('reports a throwing contributes and leaves only that plugin out', () => {
 		const contribution: Contribution = {};
 		const throwing = unit('bad', {

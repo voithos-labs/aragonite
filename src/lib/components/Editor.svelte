@@ -1500,9 +1500,15 @@
 		reservedChords,
 		claimsChord,
 		use,
-		plugins: pluginList,
-		mode,
-		theme: themeName,
+		get plugins() {
+			return pluginList;
+		},
+		get mode() {
+			return mode;
+		},
+		get theme() {
+			return themeName;
+		},
 		on,
 		run,
 		can,
