@@ -16,9 +16,8 @@
 
 ## Behavior pinned outside this spec
 
-These ship and are guarded, but elsewhere: the cell keydown plan is owned by the unit test
-`cell-keydown-plan.test.ts` with the cell-to-cell arithmetic in `table-navigation.test.ts`, and the
-sticky-X hand-off is pinned e2e by `sticky-column-windowed.md` and `wide-table-scroll.md` with the
+These ship and are guarded, but elsewhere: the cell keydown plan, with its cell-to-cell arithmetic, is owned by the unit test
+`cell-keydown-plan.test.ts`, and the sticky-X hand-off is pinned e2e by `sticky-column-windowed.md` and `wide-table-scroll.md` with the
 column-from-X mapping in `cell-x-mapping.test.ts`.
 
 - Shift+Tab from a non-first cell moves to the previous cell (left; wraps to previous row's last cell).

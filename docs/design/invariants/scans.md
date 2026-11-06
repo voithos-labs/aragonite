@@ -492,7 +492,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.150 · One placer for a hidden edge.** Which side of a hidden edge a letter takes is decided in `components/blocks/text/edge-seat.ts :: hiddenEdges` alone, from the caret memory's record, and no other file reads that record or how the caret arrived. `lint/edge-rule-guards.test.ts`.
 
-**G4.151 · One click-side check.** `components/blocks/text/click-side.ts :: clickSide` (a fresh start past a line's end, or the side of a code chip's border) is called only from `widget-interaction.ts :: snapClickToWidgetEdge`, the click entry both prose blocks' `onClick` go through, and neither `onClick` measures the press against its text itself. `lint/edge-rule-guards.test.ts`.
+**G4.151 · One click-side check.** `components/blocks/text/click-side.ts :: clickSide` (a fresh start past a line's end, or the side of a code chip's border) is called only from `widget-interaction.ts :: snapClickToWidgetEdge`, the click entry both prose blocks' `onClick` go through (G4.252 holds that), and neither `onClick` measures the press against its text itself. `lint/edge-rule-guards.test.ts`.
 
 **G4.152 · Everything a click follows can be edited.** Following and Edit link read one answer, `link-at-point.ts :: clickFollowsAt`: a construct whose policy row declares `followEdit`, or a widget whose kind claims the activation click. `follow-edit-parity.test.ts` renders every built-in inline kind and the other link shapes, and each `a[href]` must resolve to such a construct with a live edit target. `lint/file-rules.test.ts` keeps following a link (`window.open`, `activateLink`, `closest('a[href]')`) to the root click in `gestures.ts`, after `clickFollowsAt`.
 
