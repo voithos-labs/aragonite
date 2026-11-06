@@ -426,7 +426,9 @@ export async function measureListPaste(
 				const pasted = 'one\n  two';
 				const next = source.slice(0, at) + pasted + source.slice(at);
 				const start = performance.now();
-				await (window as any).__test.spliceSource(next, at + pasted.length);
+				// A splice that wrote nothing would time as fast as one that did.
+				if (!(await (window as any).__test.spliceSource(next, at + pasted.length)))
+					throw new Error('the byte splice wrote nothing');
 				await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
 				return performance.now() - start;
 			}, item)
