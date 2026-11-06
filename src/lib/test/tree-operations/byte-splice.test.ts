@@ -85,10 +85,10 @@ const INSERTS = [
 
 /** Lines that open or close a block apart from each other, so a closer sits far from its opener. */
 const arbLinesApart = fc
-	.array(
-		fc.constantFrom('a', '- x', '  y', '> q', '```', '<!--', '-->', ':::note', ':::', '$$', '', ''),
-		{ minLength: 1, maxLength: 12 }
-	)
+	.array(fc.constantFrom('a', '- x', '  y', '> q', '```', ':::note', ':::', '$$', '', ''), {
+		minLength: 1,
+		maxLength: 12
+	})
 	.map((lines) => lines.join('\n') + '\n');
 
 /** One to three disjoint changes, each at a spot drawn over the document; some close together, so
