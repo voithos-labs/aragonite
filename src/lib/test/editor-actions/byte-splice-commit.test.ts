@@ -160,6 +160,20 @@ describe('a byte splice in an undo step', () => {
 		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(1);
 	});
 
+	// Miss-analysis: the only no-op tested came through `changesBetween`, which drops equal bytes.
+	it('writes nothing for a change list that leaves the bytes as they are', async () => {
+		const harness = makeEditorActionsDeps('a\n\nb\n');
+		const controller = createUndoController(harness.deps);
+		const wrote = await controller.commitSource({
+			changes: [{ from: 0, to: 1, insert: 'a' }],
+			caret: text(0),
+			op: OP,
+			snapshot: { path: docPathFrom([0]), offset: 0 }
+		});
+		expect(wrote).toBe(false);
+		expect(harness.deps.undoManager.getStacks().undo).toHaveLength(0);
+	});
+
 	it('rolls back its blocks and ids when the write throws', async () => {
 		const harness = makeEditorActionsDeps('a\n\nb\n');
 		const controller = createUndoController(harness.deps);

@@ -50,14 +50,15 @@ export function changesBetween(before: string, after: string): ByteChange[] {
 }
 
 /** `doc`, whose bytes are `before`, read again with `changes` made (sorted, none overlapping),
- *  each change in its own window unless they grow into each other; null for no changes. */
+ *  each change in its own window unless they grow into each other; null when none changes a byte. */
 export function spliceReading(
 	doc: DocumentView,
 	before: string,
 	changes: readonly ByteChange[],
 	grammar: GrammarView
 ): SpliceReading | null {
-	if (changes.length === 0) return null;
+	const made = changes.filter((change) => before.slice(change.from, change.to) !== change.insert);
+	if (made.length === 0) return null;
 	const children = doc.children;
 	const last = children.length - 1;
 	const ends = segmentEnds(doc);
@@ -69,7 +70,7 @@ export function spliceReading(
 		return i < 0 ? last : i;
 	};
 	const pending: Span[] = [];
-	for (const change of changes) {
+	for (const change of made) {
 		const first = holding(change.from);
 		let lo = first - 1;
 		while (lo > 0 && isBlankParagraph(children[lo])) lo--;
