@@ -77,6 +77,7 @@ describe('fields fixed at registration refuse every augment', () => {
 		{ field: 'contextDependentKind', fields: () => ({ contextDependentKind: true }) },
 		{ field: 'blockFocus', fields: () => ({ blockFocus: 'whole-block' }) },
 		{ field: 'supportsInline', fields: () => ({ supportsInline: true }) },
+		{ field: 'textPosition', fields: () => ({ textPosition: 'while-source-shows' }) },
 		{
 			field: 'contentStart',
 			fields: () => ({ contentStart: { range: () => ({ start: 1, end: 1 }) } })
