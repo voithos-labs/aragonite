@@ -15,15 +15,15 @@ import {
 	QUOTE_LINES,
 	registerBlockKind,
 	setPluginMetadata,
+	stripShapedLines,
 	type BlockOpenerResult,
 	type BlockView,
 	type ContainerBodyWrap,
 	type CstNode,
 	type MarkedLines,
-	type OpenContext,
-	type ParsedLine
+	type OpenContext
 } from '@voithos-labs/aragonite/plugin';
-import { matchAlertMarker, stripQuoteMarker } from './gh-alert';
+import { matchAlertMarker } from './gh-alert';
 import { GITHUB_ALERT, type GithubAlertMetadata } from './kinds';
 
 /** The `> [!TYPE]` line is the alert's own marker, so a blank line against it separates
@@ -40,8 +40,10 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const consumed = nextIndex - ctx.index;
 	if (consumed <= 0) return null;
 
-	// A fresh parse entry, so the body's own line 0 must not read as the document top.
-	const body = parseContainerBody(stripBody(ctx.lines, ctx.index + 1, nextIndex), BODY_WRAP, {
+	// Read through the lines the writer writes, as a fresh parse entry, so the body's own line 0
+	// must not read as the document top.
+	const lines = ctx.lines.slice(ctx.index + 1, nextIndex);
+	const body = parseContainerBody(stripShapedLines(ALERT_LINES, { alertType }, lines), BODY_WRAP, {
 		scope: 'fragment',
 		grammar: ctx.grammar
 	});
@@ -56,12 +58,6 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	};
 	setPluginMetadata<GithubAlertMetadata>(node, { alertType });
 	return { node, consumed };
-}
-
-function stripBody(lines: ParsedLine[], start: number, end: number): string {
-	let out = '';
-	for (let i = start; i < end; i++) out += stripQuoteMarker(lines[i].text) + lines[i].lineEnding;
-	return out;
 }
 
 /** The alert's lines: a quote's, under a `> [!TYPE]` head line that holds no child. */
