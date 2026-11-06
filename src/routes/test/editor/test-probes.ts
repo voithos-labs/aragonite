@@ -8,7 +8,7 @@ import type {
 } from '#lib';
 import type { Editor, EditorProps } from '#lib/svelte.js';
 import { readBlocks } from '#lib/core/parser.js';
-import { hashSource } from '#lib/debug/input-recording.js';
+import { hashSource } from '#lib/core/string-hash.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import { serialize } from '#lib/core/serializer.js';
 import { parseConverges } from '#lib/testing/parse-convergence.js';

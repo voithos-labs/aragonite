@@ -22,6 +22,8 @@ export interface BlockFacts {
 	lines: 'every-line' | 'first-line' | 'fenced' | 'items' | 'rows' | 'cells' | 'none';
 	/** A line without its marker still continues a paragraph open inside it. */
 	lazyParagraphLines: boolean;
+	/** The columns a line after the first takes, where that isn't the first line's marker width. */
+	indent?: number;
 	/** The kinds a pasted block of this kind joins rather than nesting in, the metadata field both
 	 *  must share, and what a same-kind block with another value does. */
 	merges: { into: string[]; key?: string; onMismatch: 'nest' | 'break-out' };
@@ -47,6 +49,9 @@ export function blockFacts(kind: string): BlockFacts {
 		container,
 		lines,
 		lazyParagraphLines: container && (descriptor?.lines?.lazy ?? false),
+		...(container && descriptor?.lines?.indent !== undefined
+			? { indent: descriptor.lines.indent }
+			: {}),
 		merges: container ? mergesOf(kind, descriptor, lines) : { into: [], onMismatch: 'nest' },
 		countsMarkers: lines === 'items',
 		...(titleRow

@@ -193,9 +193,9 @@ export interface BlockKindDescriptor {
 	bodyWrite?: WriteRule;
 	reservedChrome?: ReservedChrome;
 	containerPaste?: ContainerPaste;
-	/** How a strip container's lines carry its marker: on every line, or on the first with an indent
-	 *  after. `lazy` when a line without the marker still continues a paragraph inside it. */
-	lines?: { marker: 'every-line' | 'first-line'; lazy: boolean };
+	/** How a strip container's lines carry its marker: on every line, or the first (later lines take
+	 *  `indent` columns, else the marker's width); `lazy`: an unmarked line continues its paragraph. */
+	lines?: { marker: 'every-line' | 'first-line'; lazy: boolean; indent?: number };
 	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key).
 	 *  Quote and list repeat it in `containerPaste` until `tree-operations/paste/` reads this field. */
 	merges?: { key?: string };

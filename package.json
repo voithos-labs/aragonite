@@ -132,6 +132,7 @@
 		"test:editor:search": "vitest run src/lib/test/search",
 		"test:editor:perf": "vitest run src/lib/test/perf",
 		"test:editor:exhaustive": "vitest run src/lib/test/exhaustive",
+		"test:editor:range-edit": "vitest run src/lib/test/range-edit",
 		"test:e2e": "playwright test",
 		"test:e2e:top": "playwright test --project=e2e-top",
 		"test:e2e:blocks": "playwright test --project=e2e-blocks",
