@@ -87,11 +87,18 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'>\t\tfoo\n> new\n'
 	],
 	[
-		'a straddled tab is spaces once its line changes',
+		'a straddled tab stays on a line that changes',
 		'-\tfoo\n\tbar\n',
 		'x on last line child 0',
 		'listItem',
-		'-\tfoo\n    barx\n'
+		'-\tfoo\n\tbarx\n'
+	],
+	[
+		'a tab-indented nested item keeps its tab when it changes',
+		'- a\n\t- b\n',
+		'x on line 0 child 1',
+		'listItem',
+		'- a\n\t- bx\n'
 	],
 	[
 		'an untouched straddled line keeps its tab',
@@ -101,11 +108,11 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'-\tfoox\n\tbar\n'
 	],
 	[
-		'a three-wide item rewrites its straddled line',
+		'a three-wide item keeps its straddled tab',
 		'1. a\n\n \tb\n',
 		'x on line 0 child 1',
 		'listItem',
-		'1. a\n\n    bx\n'
+		'1. a\n\n \tbx\n'
 	],
 	[
 		'a tab on the column keeps its byte prefix',

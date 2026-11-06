@@ -678,9 +678,10 @@ function kept(
 	// A blank line is spelled the container's way, so a prefix passes only between text lines,
 	// and onto the lines of a body emptied of its text where the container keeps its marker.
 	const blank = isBlankLine(line.text) && !writing.emptiedKeepsMarker;
-	if (body.prefix === null || isBlankLine(body.text) || blank) return null;
-	const candidate = body.prefix + line.text;
-	return readsAs(candidate, body.lazy) && (!body.lazy || continues(candidate))
+	if (isBlankLine(body.text) || blank) return null;
+	const candidate =
+		body.prefix === null ? behindCutTab(old.text, body.text, line.text) : body.prefix + line.text;
+	return candidate !== null && readsAs(candidate, body.lazy) && (!body.lazy || continues(candidate))
 		? candidate + line.ending
 		: null;
 
@@ -688,6 +689,17 @@ function kept(
 		const read = readLine(lines, bytes, place);
 		return read !== null && read.text === line.text && read.lazy === lazy;
 	}
+}
+
+/** `text` behind `line`'s bytes up to the tab its reading cut through, where `text` still opens
+ *  with the spaces that tab left over in `read`; null where it doesn't. */
+function behindCutTab(line: string, read: string, text: string): string | null {
+	let same = 0;
+	while (same < line.length && line[line.length - 1 - same] === read[read.length - 1 - same])
+		same++;
+	const leftover = read.slice(0, read.length - same);
+	if (!text.startsWith(leftover)) return null;
+	return line.slice(0, line.length - same) + text.slice(leftover.length);
 }
 
 /** Whether reading `old` under `codec` at `place` repeats the reading it was taken with. */
