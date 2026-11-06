@@ -1,7 +1,7 @@
 /**
  * Writes a container's bytes from its children: through the line shape its kind states, or, for a
  * list, a table and a kind registered with its own rebuild, through that. `writeContainerRaw` is
- * the one way in, and the one reader of either.
+ * the one reader of either; the list's and table's rebuilds are also called by name.
  */
 
 import type { CstNode } from '../core/nodes';

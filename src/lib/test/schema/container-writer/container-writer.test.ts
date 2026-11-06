@@ -18,6 +18,7 @@ import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { createEditorGrammar, defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import {
 	differentialDocuments,
 	rowsOf,
@@ -51,19 +52,20 @@ describe('the container writer against today’s writers', () => {
 	}, 600_000);
 });
 
-/** The two ruled changes from the writers before: a quote line emptied of its text keeps its
- *  marker as spelled, and an alert's head line keeps its spelling while it writes the same type. */
+/** The two ruled changes from the writers before: a quote emptied of all its text keeps its
+ *  markers as spelled, and an alert's head line keeps its spelling while it writes the same type. */
 function ruled({ kind, before, today, shaped, rereads }: Mismatch): boolean {
 	if (rereads[0] !== rereads[1] || (kind !== 'blockquote' && kind !== 'githubAlert')) return false;
 	const [was, old, now] = [before, today, shaped].map((raw) => raw.split('\n'));
 	const markerOnly = (line: string) => /^[ \t>]*\r?$/.test(line);
 	const markers = (line: string) => line.replace(/[ \t\r]/g, '');
+	const emptied = (kind === 'githubAlert' ? now.slice(1) : now).every(markerOnly);
 	return (
 		old.length === now.length &&
 		old.every(
 			(line, i) =>
 				line === now[i] ||
-				(markerOnly(line) && markerOnly(now[i]) && markers(line) === markers(now[i])) ||
+				(emptied && markerOnly(line) && markerOnly(now[i]) && markers(line) === markers(now[i])) ||
 				(kind === 'githubAlert' && i === 0 && now[0] === was[0])
 		)
 	);
@@ -86,6 +88,8 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'blockquote',
 		'>\t\tfoo\n> new\n'
 	],
+	// Miss-analysis: these rows pinned the lost tab as today's bytes, and none typed in a
+	// tab-indented nested item, where every keystroke lost it.
 	[
 		'a straddled tab stays on a line that changes',
 		'-\tfoo\n\tbar\n',
@@ -250,8 +254,53 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'x on line 0 child 1',
 		'directiveContainer',
 		':::spoiler\nhiddenx\n:::::\n'
+	],
+	// A last line with no line ending that reads as nothing is held by no child, so no writer can
+	// give it back; the parser would have to give it a home.
+	[
+		'an alert’s bare `>` last line with no ending is lost',
+		'> [!NOTE]\n>',
+		'unchanged',
+		'githubAlert',
+		'> [!NOTE]'
+	],
+	[
+		'an item’s blank last line with no ending is lost',
+		'- a\n\n  b\n  ',
+		'unchanged',
+		'listItem',
+		'- a\n\n  b\n'
+	],
+	[
+		'a details block’s tag lines take its opening line’s ending',
+		'<details>\n<summary>T</summary>\r\n\nx\n\n</details>\n',
+		'unchanged',
+		'details',
+		'<details>\n<summary>T</summary>\n\nx\n\n</details>\n'
 	]
 ];
+
+// No bundled container states a shape whose lines are never lazy, so a kind made here holds it.
+describe('a shape whose lines are never lazy', () => {
+	it.each([
+		['marked', QUOTE_LINES, '> a\nb\n', '> a\n> b\n'],
+		['indented', LIST_ITEM_LINES, '- a\nb\n', '- a\n  b\n']
+	] as const)(
+		'writes its marker on a line a lazy one left bare (%s)',
+		(name, lines, source, bytes) => {
+			const kind = testLeaf(`never-lazy-${name}`, {
+				mergeRole: 'container',
+				container: { lines: { ...lines, lazy: false } }
+			});
+			// An item is read inside its list.
+			const read = parse(source).children[0];
+			const node = name === 'indented' ? read.children![0] : read;
+			node.kind = kind;
+			writeContainerRaw(node, defaultGrammarView);
+			expect(node.raw).toBe(bytes);
+		}
+	);
+});
 
 describe('the built-in containers', () => {
 	it.each([
@@ -300,7 +349,7 @@ describe('the editor’s grammar', () => {
 		installPlugins([tocPlugin()]);
 		const grammar = createEditorGrammar({ plugins: activationFor([]) });
 		const quote = parse('> a\n[[toc]]\n', { grammar }).children[0];
-		quote.children[0].raw = 'ab\n[[toc]]\n';
+		quote.children![0].raw = 'ab\n[[toc]]\n';
 		writeContainerRaw(quote, grammar);
 		expect(quote.raw).toBe('> ab\n[[toc]]\n');
 	});

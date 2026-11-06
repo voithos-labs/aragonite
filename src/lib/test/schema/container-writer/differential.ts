@@ -201,6 +201,13 @@ function editsFor(node: CstNode, kind: string): Edit[] {
 			)
 		);
 		edits.push(
+			lineEdit(i, 'blank line added', (lines) =>
+				lines.length && i >= bodyStart
+					? [...linesAfter(lines[0], '', ending), ...lines.slice(1)]
+					: null
+			)
+		);
+		edits.push(
 			lineEdit(i, 'first line removed', (lines) => (lines.length > 1 ? lines.slice(1) : null))
 		);
 		if (i >= bodyStart) {
