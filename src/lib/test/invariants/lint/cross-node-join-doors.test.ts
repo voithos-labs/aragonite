@@ -44,7 +44,9 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 		'the first-slot reader gives back the spaces a marker line takes from the bytes it was handed: one write’s bytes, re-split',
 	'src/lib/schema/child-spans.ts':
 		"a container splicing ONE child's region back into its own raw: both surrounding operands are bytes that container already emitted",
-	'src/lib/schema/container-writer.ts':
+	'src/lib/schema/colon-lines.ts':
+		"a `:::` container writing its fence lines around its children's bytes: no two leaves' bytes meet",
+	'src/lib/schema/fenced-lines.ts':
 		"a container writing its own lines around its children's bytes: no two leaves' bytes meet",
 	'src/lib/schema/strip-rebuild.ts':
 		'a quote or list item writing its rewritten lines between the head and tail lines it kept: both kept operands are bytes that container already emitted',

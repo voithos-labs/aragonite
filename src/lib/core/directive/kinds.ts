@@ -23,7 +23,7 @@ import { mintWidgetShell } from '../inline/widget-shell';
 import { matchDirectiveOpener } from './grammar';
 import { directiveContainerOpener } from './container-opener';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_OPENER_LINE } from './container-shape';
-import { COLON_LINES } from '../../schema/container-writer';
+import { COLON_LINES } from '../../schema/colon-lines';
 
 export { DIRECTIVE_CONTAINER, DIRECTIVE_OPENER_LINE };
 export const DIRECTIVE_LEAF = 'directiveLeaf';

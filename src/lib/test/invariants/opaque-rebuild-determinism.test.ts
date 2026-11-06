@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { checkOpaqueRebuildDeterminism } from '../../invariants/node-shape';
 import { testContainer, testLeaf } from '#lib/test/harness/test-kinds.js';
-import { fencedLines } from '#lib/schema/container-writer.js';
+import { fencedLines } from '#lib/schema/fenced-lines.js';
 import { concatChildren } from '../../core/serializer';
 import { setPluginMetadata, getPluginMetadata, type CstNode } from '../../core/nodes';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';

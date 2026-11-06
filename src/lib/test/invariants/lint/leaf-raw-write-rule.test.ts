@@ -74,8 +74,16 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild, the whole-body fallback, and the opener line set aside and put back around them'
 	},
 	'src/lib/schema/container-writer.ts': {
-		count: 4,
-		why: "a container's own bytes written from its children and its line shape: an emptied head-line container, a `:::` container and a section"
+		count: 1,
+		why: "an emptied head-line container's own bytes, written from its line shape"
+	},
+	'src/lib/schema/colon-lines.ts': {
+		count: 2,
+		why: "a `:::` container's own bytes, written from its children around its fence lines"
+	},
+	'src/lib/schema/fenced-lines.ts': {
+		count: 1,
+		why: "a container's own bytes, written from its children inside the lines its shape writes"
 	},
 	'packages/mermaid/src/mermaid-kind.ts': {
 		count: 1,

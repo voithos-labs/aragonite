@@ -5,23 +5,14 @@
  */
 
 import type { CstNode } from '../core/nodes';
-import { concatChildren } from '../core/serializer';
-import {
-	firstDisplayLine,
-	firstLineEnding,
-	ownTrailingLineEnding,
-	trimTrailingLineEnding
-} from '../core/lines';
+import { firstDisplayLine, ownTrailingLineEnding } from '../core/lines';
 import {
 	codecFromShape,
 	WRITES_LINES,
-	type ColonLines,
-	type FencedLines,
 	type IndentedLines,
 	type LineShape,
 	type MarkedLines
 } from '../core/strip-lines';
-import { escalatedColonCount, matchDirectiveOpener } from '../core/directive/grammar';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import type { GrammarView } from './block-openers';
 import { dropChildSpans, type ChildRawChange } from './child-spans';
@@ -99,53 +90,4 @@ function writeHeaded<D>(
 		return;
 	}
 	return rebuildStripRaw(node, codecFromShape(shape), { grammar, changed, opener: line });
-}
-
-// ── Shapes that bring their writer ───────────────────────────────────────────
-
-/** A `:::name` container: the opener line (child 0) as it stands, the body, then a closing line as
- *  long as the one it replaces, every colon run widened past a body line that would close it. */
-export const COLON_LINES: ColonLines = { shape: 'colon', [WRITES_LINES]: writeColon };
-
-function writeColon(node: CstNode): void {
-	const [row, ...body] = node.children!;
-	const line = row ? trimTrailingLineEnding(row.raw) : '';
-	const fence = matchDirectiveOpener(line);
-	const ending = (row && ownTrailingLineEnding(row.raw)) || '\n';
-	const inner = (node.innerPrefix ?? '') + concatChildren(body) + (node.innerSuffix ?? '');
-	const closer = closingLine(node.raw, fence?.colonCount ?? 3);
-	const closerEnding = closer.newline ? ownTrailingLineEnding(node.raw) || ending : '';
-	// A line that stopped opening a fence is kept as typed; the re-read reads what it now is.
-	if (!fence) {
-		node.raw = line + ending + inner + ':'.repeat(closer.colons) + closerEnding;
-		return;
-	}
-	const colons = escalatedColonCount(inner, fence.colonCount);
-	const opener = ':'.repeat(colons) + fence.name + fence.info;
-	node.raw = opener + ending + inner + ':'.repeat(Math.max(colons, closer.colons)) + closerEnding;
-}
-
-/** The closing line's colon count, and whether a line ending follows it, in the bytes `raw` holds. */
-function closingLine(raw: string, fallback: number): { colons: number; newline: boolean } {
-	const text = trimTrailingLineEnding(raw);
-	const last = text.slice(text.lastIndexOf('\n') + 1);
-	const colons = /^:+$/.test(last) ? last.length : fallback;
-	return { colons, newline: ownTrailingLineEnding(raw) !== '' };
-}
-
-/** A container with opening lines written from its data and title row (child 0), and a closing
- *  line; every line takes the opening line's ending, the closing one only where it had one. */
-export function fencedLines<D>(write: FencedLines<D>['write']): FencedLines<D> {
-	return { shape: 'fenced', write, [WRITES_LINES]: (node) => writeFenced(node, write) };
-}
-
-function writeFenced<D>(node: CstNode, write: FencedLines<D>['write']): void {
-	const [row, ...body] = node.children!;
-	const data = (node.metadata ?? {}) as D;
-	const ending = firstLineEnding(node.raw) ?? '\n';
-	const title = row ? trimTrailingLineEnding(row.raw) : '';
-	const opening = write.open(data, title).map((line) => line + ending);
-	const inner = (node.innerPrefix ?? '') + concatChildren(body) + (node.innerSuffix ?? '');
-	const closer = write.close(data) + (ownTrailingLineEnding(node.raw) ? ending : '');
-	node.raw = opening.join('') + inner + closer;
 }

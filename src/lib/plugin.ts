@@ -269,8 +269,8 @@ export { blockquoteExtent } from './core/parsers/blockquote';
 // A container states how its lines look as `container.lines`, and the editor writes its bytes from
 // that. `stripShapedLines` reads an opener's lines the same way, until the editor parses them itself.
 export { QUOTE_LINES } from './core/parsers/blockquote';
-export { stripShapedLines } from './core/strip-lines';
-export { fencedLines } from './schema/container-writer';
+export { stripShapedLines } from './core/strip-shaped-lines';
+export { fencedLines } from './schema/fenced-lines';
 export type {
 	LineShape,
 	MarkedLines,
@@ -350,7 +350,7 @@ export {
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
 // The lines of a `:::` container (`container.lines`): child 0 is its opener line, which the grammar
 // puts there, and the editor widens every colon run past a body line that would close it.
-export { COLON_LINES } from './schema/container-writer';
+export { COLON_LINES } from './schema/colon-lines';
 // The wrap every `:::` body parses with (a kind's `container.bodyWrap`), and the kind of every `:::`
 // container's opener-line row (what a folding `:::` kind names as its `reservedChrome.kind`).
 export { DIRECTIVE_BODY_WRAP, DIRECTIVE_OPENER_LINE } from './core/directive/container-shape';

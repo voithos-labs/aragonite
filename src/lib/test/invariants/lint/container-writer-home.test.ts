@@ -10,9 +10,6 @@ import { SOURCE_DIR } from './source-paths';
 
 const HOME = 'src/lib/schema/container-writer.ts';
 
-/** Where a shape's writer symbol is declared, beside the shape types. */
-const SHAPE_TYPES = 'src/lib/core/strip-lines.ts';
-
 /** The conformance kits check that a kind registered with its own rebuild declares a `rebuildRaw`;
  *  delete the entry when they check a plugin's shapes instead. */
 const READS_REBUILD_RAW = [SOURCE_DIR.testing];
@@ -35,7 +32,7 @@ function scan(sources: SourceFile[]): { rebuildRaw: string[]; shapeWriter: strin
 		if (!READS_REBUILD_RAW.some((dir) => file.relPath.startsWith(dir))) {
 			rebuildRaw.push(...hits(file, /\.rebuildRaw\b/g));
 		}
-		if (file.relPath !== SHAPE_TYPES) shapeWriter.push(...hits(file, /\bWRITES_LINES\b/g));
+		shapeWriter.push(...hits(file, /\[WRITES_LINES\]\s*\(/g));
 	}
 	return { rebuildRaw, shapeWriter };
 }
@@ -63,5 +60,6 @@ describe('G4.305 a container is written through writeContainerRaw', () => {
 		expect(flagged('descriptor.rebuildRaw?.(node);', HOME)).toBe(false);
 		expect(flagged('d.rebuildRaw;', `${SOURCE_DIR.testing}kit.ts`)).toBe(false);
 		expect(flagged('shape[WRITES_LINES](node);', `${SOURCE_DIR.testing}kit.ts`)).toBe(true);
+		expect(flagged("const lines = { shape: 'colon', [WRITES_LINES]: writeColon };")).toBe(false);
 	});
 });

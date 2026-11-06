@@ -9,7 +9,7 @@ import {
 	lineStartsOuterBlock,
 	type GrammarView
 } from '../schema/block-openers';
-import { indentColumns, isBlankLine, stripIndentColumns, type ParsedLine } from './lines';
+import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
 
 // ── Line shapes ──────────────────────────────────────────────────────────────
 
@@ -120,17 +120,6 @@ export function keepsParagraphOpen<D>(shape: StripShape<D>, text: string): boole
 function opensOuterBlock(line: string, grammar: GrammarView): boolean {
 	const parsed = { raw: line, text: line, lineEnding: '', start: 0, end: line.length };
 	return lineStartsOuterBlock(parsed, { paragraphOpen: true, grammar });
-}
-
-/** The body text `lines` hold as a container of `shape` reads them, a line it can't read kept whole. */
-export function stripShapedLines<D>(shape: StripShape<D>, data: D, lines: ParsedLine[]): string {
-	const codec = codecFromShape(shape, data);
-	let out = '';
-	for (let i = 0; i < lines.length; i++) {
-		const place = i === 0 ? FIRST_LINE : INNER_LINE;
-		out += (codec.read(lines[i].text, place)?.text ?? lines[i].text) + lines[i].lineEnding;
-	}
-	return out;
 }
 
 // A marked shape holds no data, so its syntax is derived once.
