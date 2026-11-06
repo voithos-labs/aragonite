@@ -9,10 +9,12 @@ import { isValidPluginName } from './plugin-name';
 import {
 	definePluginUnit,
 	definingCopy,
+	isPluginValue,
 	markDefinedHere,
 	mergeOptions,
 	THIS_COPY,
 	type Plugin,
+	type PluginList,
 	type PluginSpec
 } from './plugin-unit';
 import { enrollTestReset } from './registry-reset';
@@ -160,31 +162,45 @@ export function installPlugins(plugins: readonly EditorPlugin[]): void {
 /** A `plugins` prop entry: a plugin on its own, or a plugin with options for this editor. */
 export type EditorPluginEntry = EditorPlugin | { plugin: EditorPlugin; options?: unknown };
 
+/** What the `plugins` prop and `use` take: `setup` plugins and plugin values, in one list. */
+export type PluginsProp = readonly (EditorPluginEntry | PluginList[number])[];
+
 /**
  * The options belong to one editor even though a plugin installs once per process. A plugin listed
  * twice keeps its first entry, the rule `installPlugins` uses, so the two cannot disagree.
  */
-export function normalizePluginEntries(entries: readonly EditorPluginEntry[]): {
+export function normalizePluginEntries(entries: PluginsProp): {
 	plugins: EditorPlugin[];
 	optionsByName: Map<string, unknown>;
+	/** The plugin values, in list order, for the editor's own install pass. */
+	values: PluginList[number][];
 } {
 	const plugins: EditorPlugin[] = [];
 	const optionsByName = new Map<string, unknown>();
+	const values: PluginList[number][] = [];
+	// A plugin value listed twice is left to the editor's own install pass, which reports it.
+	const valueNames = new Set<string>();
 	const seen = new Set<string>();
 	for (const entry of entries) {
-		const plugin = 'plugin' in entry ? entry.plugin : entry;
-		if (seen.has(plugin.name)) {
+		const plugin = isPluginValue(entry) ? entry : 'plugin' in entry ? entry.plugin : entry;
+		const value = isPluginValue(entry);
+		if (seen.has(plugin.name) || (!value && valueNames.has(plugin.name))) {
 			devWarn(
 				'plugin-install',
 				`plugin '${plugin.name}' listed twice in one plugins prop; the first entry (and its options) wins`
 			);
 			continue;
 		}
+		if (value) {
+			valueNames.add(plugin.name);
+			values.push(entry);
+			continue;
+		}
 		seen.add(plugin.name);
-		plugins.push(plugin);
+		plugins.push(plugin as EditorPlugin);
 		if ('plugin' in entry && 'options' in entry) optionsByName.set(plugin.name, entry.options);
 	}
-	return { plugins, optionsByName };
+	return { plugins, optionsByName, values };
 }
 
 /** One editor's options for a plugin: its defaults, then each defined field of the entry that

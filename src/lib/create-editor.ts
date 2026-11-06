@@ -22,7 +22,7 @@ export type CreateEditorOptions = EditorOptions & {
 /** The mounted editor's methods, plus the two a Svelte host gets from the component itself. */
 export interface EditorHandle extends EditorInstance {
 	/** New values for any options: an unchanged one does nothing, `undefined` clears one (`source`
-	 *  keeps the document), and the mount-only `plugins`, `syntax` and `scrollMode` are ignored. */
+	 *  keeps the document), and the mount-only `plugins` (see `use`), `syntax`, `scrollMode` wait. */
 	update(options: Partial<CreateEditorOptions>): void;
 	/** Unmounts the editor, taking out of `target` what it added; a second call does nothing. */
 	destroy(): void;
@@ -40,9 +40,10 @@ export function createEditor(target: HTMLElement, options: CreateEditorOptions =
 	occupiedTargets.add(target);
 	const instance = mount(Editor, { target, props });
 	let mounted = true;
-	return {
-		...instance,
-		update(next) {
+	// Copied as accessors, not spread, so `plugins`, `mode` and `theme` read the editor live.
+	const handle = Object.defineProperties({}, Object.getOwnPropertyDescriptors(instance));
+	return Object.assign(handle, {
+		update(next: Partial<CreateEditorOptions>) {
 			for (const key of propKeys(next)) {
 				if (EDITOR_OPTION_SPECS[key].timing === 'once') continue;
 				(props as Record<string, unknown>)[key] = propValue(key, next[key]);
@@ -54,7 +55,7 @@ export function createEditor(target: HTMLElement, options: CreateEditorOptions =
 			occupiedTargets.delete(target);
 			void unmount(instance);
 		}
-	};
+	}) as EditorHandle;
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

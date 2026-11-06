@@ -54,18 +54,21 @@ export function createEditorGrammar(
 	const activation = options.plugins ?? everyInstalledPlugin;
 	const indentedCode = options.syntax?.indentedCode ?? true;
 	const enabled = kindEnablementFor(activation);
-	// A reparse reads both lists once per block, so they're kept against the registered records and
-	// the installed set, and rebuilt when either changes.
+	// A reparse reads both lists once per block, so they're kept against the registered records, the
+	// installed set and the editor's own list, and rebuilt when any of them changes.
 	let builtFrom: readonly OpenerRecord[] | null = null;
 	let builtAt = -1;
+	let builtForList: number | undefined;
 	let openers: readonly BlockOpener[] = [];
 	let interrupts: ((lineText: string) => boolean)[] = [];
 	const refresh = (): void => {
 		const records = grammarRecords();
 		const generation = pluginInstallGeneration();
-		if (records === builtFrom && generation === builtAt) return;
+		if (records === builtFrom && generation === builtAt && activation.generation === builtForList)
+			return;
 		builtFrom = records;
 		builtAt = generation;
+		builtForList = activation.generation;
 		// A switched-off syntax leaves the grammar only: a block of that kind still renders.
 		const kept = records.filter(
 			(r) =>

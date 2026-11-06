@@ -4,10 +4,19 @@
  * prop turns on every plugin installed in the process
  * (`docs/design/plugin-contract.md` § Per-instance enablement).
  */
-import { isPluginInstalled } from './plugin-install';
+import { installedPluginNames, isPluginInstalled } from './plugin-install';
 
 export interface PluginActivation {
 	isActive(pluginName: string): boolean;
+	/** Counts the changes to an activation that changes in place, so a list built from it rebuilds. */
+	readonly generation?: number;
+}
+
+/** One editor's plugins, by name, which `use` changes in place; `null` turns on every installed one. */
+export interface EditorActivation extends PluginActivation {
+	readonly generation: number;
+	readonly names: readonly string[];
+	set(names: readonly string[] | null): void;
 }
 
 /** The default when no `plugins` prop is given. A plugin whose setup threw is never installed, so
@@ -19,6 +28,24 @@ export const everyInstalledPlugin: PluginActivation = {
 export function activationFor(pluginNames: readonly string[]): PluginActivation {
 	const active = new Set(pluginNames);
 	return { isActive: (name) => active.has(name) && isPluginInstalled(name) };
+}
+
+export function createEditorActivation(names: readonly string[] | null): EditorActivation {
+	let active = names && new Set(names);
+	let generation = 0;
+	return {
+		isActive: (name) => (active ? active.has(name) : isPluginInstalled(name)),
+		get generation() {
+			return generation;
+		},
+		get names() {
+			return active ? [...active] : installedPluginNames();
+		},
+		set(next) {
+			active = next && new Set(next);
+			generation++;
+		}
+	};
 }
 
 /** An entry no plugin owns always resolves; a plugin's only where the editor turned it on. */

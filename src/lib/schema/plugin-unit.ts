@@ -94,6 +94,7 @@ export interface PluginError {
 /** A plugin the install pass kept for one editor, with what it contributed there. */
 export interface InstalledPlugin {
 	readonly name: string;
+	readonly plugin: PluginList[number];
 	readonly contribution: Contribution;
 }
 
@@ -115,7 +116,9 @@ export function isPluginValue(entry: unknown): entry is Plugin<object> {
  *  plugin joins ahead of the first one needing it. */
 export function installPluginList(
 	list: PluginList,
-	report: (error: PluginError) => void
+	report: (error: PluginError) => void,
+	// What the editor ran before `use`: a plugin value still listed keeps its contribution.
+	previous: readonly InstalledPlugin[] = []
 ): InstalledPlugin[] {
 	const listed = new Map<string, PluginList[number]>();
 	for (const plugin of list) {
@@ -148,8 +151,9 @@ export function installPluginList(
 		if (devChecksOn && !satisfiesRange(ARAGONITE_VERSION, spec.editor)) {
 			installError(report, spec.name, `runs on editor ${spec.editor}, not ${ARAGONITE_VERSION}`);
 		}
-		const contribution = contribute(spec, options, report);
-		if (contribution) installed.push({ name: spec.name, contribution });
+		const kept = previous.find((p) => p.plugin === plugin);
+		const contribution = kept?.contribution ?? contribute(spec, options, report);
+		if (contribution) installed.push({ name: spec.name, plugin, contribution });
 	}
 	return installed;
 }

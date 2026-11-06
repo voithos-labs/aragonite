@@ -7,6 +7,7 @@ import type { InsertMarkdownOptions } from '#lib/editor-props.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
 import { createDraftRegistry } from '#lib/components/draft-registry.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import type { InstalledPlugin, PluginError } from '#lib/schema/plugin-unit.js';
 
 export const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
@@ -46,6 +47,11 @@ export const pluginContextDeps = (
 		options?: InsertMarkdownOptions
 	) => Promise<boolean>,
 	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
+	canRunCommand: (() => false) as (commandId: string) => boolean,
+	claims: (() => false) as (event: KeyboardEvent) => boolean,
+	units: (): readonly InstalledPlugin[] => [],
+	pluginNames: (): readonly string[] => [],
+	report: (() => {}) as (error: PluginError) => void,
 	openDraft: createDraftRegistry(createDocumentStamps()).open,
 	reading: kitReading()
 });
