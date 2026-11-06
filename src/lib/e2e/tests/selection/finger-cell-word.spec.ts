@@ -156,7 +156,12 @@ test("a finger's word's end handle grows it into a rectangle of cells, and back 
 	await expect
 		.poll(() => selection(editor))
 		.toEqual({ anchor: { path: [1], offset: 0 }, focus: { path: [1], offset: 1 } });
+	// The end handle hangs from the rectangle's corner once it has moved there.
 	const corner = { x: next.x + next.width, y: next.y + next.height / 2 };
+	const handle = page.locator('.selection-handle[data-handle="end"]');
+	await expect
+		.poll(async () => Math.round((await handle.boundingBox())!.x))
+		.toBe(Math.round(corner.x));
 	await dragEndHandle(page, corner, await pointAtRaw(page, APPLE.path, 8));
 	await expect
 		.poll(() => selection(editor))

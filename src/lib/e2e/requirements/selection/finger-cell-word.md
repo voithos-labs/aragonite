@@ -18,6 +18,8 @@ mouse's word in that cell. Chromium only (CDP touch); the long press itself runs
   editor's, with no native range for the phone to draw handles on.
   - Miss-analysis: the shrink-back rows started from a rectangle and read only the selection, so
     a native range left in the cell under a finger stayed green.
+  - The cell menu button overhangs the cell's top-right corner, so for the drag's length it takes
+    no hit test, as the handles and the toolbar don't, or a drag back to the cell's end lands on it.
 
 ## Edge cases
 
