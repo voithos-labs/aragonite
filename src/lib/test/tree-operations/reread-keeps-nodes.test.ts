@@ -1,7 +1,7 @@
 // A re-read keeps every block whose bytes it left alone as the node it was, on each route that
 // installs one (the byte splice, a spill at the top level, a container taking its own reading, a
-// container's reading put in its slot), and an undo entry holding such a node never sees a later
-// write through it.
+// container's reading put in its slot, replace-all), and an undo entry holding such a node never
+// sees a later write through it.
 
 import { afterEach, describe, expect, it } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
@@ -14,6 +14,8 @@ import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
+import { scanCompiled } from '#lib/test/harness/search-replace.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
@@ -43,6 +45,10 @@ const splice = (h: TopHarness, from: number, to: number, insert: string) =>
 		op: { kind: 'paste', detail: { count: 1 } },
 		snapshot: { path: docPathFrom([0]), offset: 0 }
 	});
+
+/** Every `query` replaced by `template` through search's replace-all. */
+const replaceAll = (h: TopHarness, query: string, template: string) =>
+	createSearchReplace(h.deps, h.controller).replaceAll(scanCompiled(h.deps.doc, query), template);
 
 const at = (root: { children?: CstNode[] }, path: number[]) =>
 	path.reduce((node: { children?: CstNode[] }, i) => node.children![i], root) as CstNode;
@@ -144,6 +150,22 @@ const ROWS: Record<string, Row> = {
 			]
 		],
 		fresh: [[0, 0]]
+	},
+	'replace-all': {
+		source: '- a\n- bX\n- c\n',
+		reread: async (h) => void (await replaceAll(h, 'X', 'Y')),
+		after: '- a\n- bY\n- c\n',
+		kept: [
+			[
+				[0, 0],
+				[0, 0]
+			],
+			[
+				[0, 2],
+				[0, 2]
+			]
+		],
+		fresh: [[0, 1]]
 	}
 };
 
@@ -231,6 +253,16 @@ const UNDO_ROWS: Record<string, UndoRow> = {
 		],
 		leaf: [0, 2, 0],
 		typed: 'cZ\n'
+	},
+	'replace-all': {
+		source: '- a\n- bX\n- c\n',
+		reread: (h) => replaceAll(h, 'X', 'Y'),
+		kept: [
+			[0, 0],
+			[0, 0]
+		],
+		leaf: [0, 0, 0],
+		typed: 'aZ\n'
 	}
 };
 
@@ -272,6 +304,7 @@ describe('the route list', () => {
 
 	it('every file that keeps a re-read’s nodes is a route with rows above', () => {
 		expect(callers('keepUnchanged').sort()).toEqual([
+			'src/lib/editor-actions/search-replace.ts',
 			'src/lib/schema/container-raw.ts',
 			'src/lib/tree-operations/chain-rebuild.ts',
 			'src/lib/tree-operations/content-write.ts'
