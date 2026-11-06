@@ -7,7 +7,8 @@
 
 import type { NodeView } from '../core/node-views';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
-import type { GrammarView } from '../schema/block-openers';
+import { unfinishedReadings, waitingReading, type GrammarView } from '../schema/block-openers';
+import { splitLines } from '../core/lines';
 import { describeShapeDivergence } from '../core/shape-divergence';
 import { readAsOpened } from '../schema/opened-reading';
 
@@ -45,4 +46,22 @@ export function checkRunReadsBack(
 	return divergence === null
 		? null
 		: { code: 'reads-back', message: `${kinds}'s bytes read as another tree: ${divergence}` };
+}
+
+/** The runs a byte splice's windows read back as: each window with the block on either side, and
+ *  on to the document's end (or start) around an opener still waiting for its closer. */
+export function spliceRuns(
+	top: readonly NodeView[],
+	windows: readonly { at: number; count: number }[],
+	grammar: GrammarView
+): NodeView[][] {
+	const readings = unfinishedReadings(grammar);
+	const closes = (node: NodeView) =>
+		splitLines(node.raw).some((line) => readings.some((r) => !r.readsOn && r.mayClose(line.text)));
+	return windows.map(({ at, count }) => {
+		const run = top.slice(Math.max(at - 1, 0), at + count + 1);
+		const waits = run.some((node) => waitingReading(node.raw, readings));
+		const from = run.some(closes) ? 0 : Math.max(at - 1, 0);
+		return top.slice(from, waits ? top.length : at + count + 1);
+	});
 }

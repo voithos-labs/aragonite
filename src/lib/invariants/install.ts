@@ -26,7 +26,7 @@ import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 import { checkLastLineKept } from './open-tail';
 import { checkKeepsABlock } from './keeps-a-block';
-import { checkReadsBack, checkRunReadsBack, READ_BACK_LIMIT } from './reads-back';
+import { checkReadsBack, checkRunReadsBack, READ_BACK_LIMIT, spliceRuns } from './reads-back';
 import { checkListMarkerWidths } from './list-marker-widths';
 import { perfEnabled } from '../perf/instruments';
 import { checkTopLevelUntouched } from './top-level-untouched';
@@ -122,13 +122,15 @@ export function assertReadsBack(tops: readonly CstNode[], grammar: GrammarView):
 	for (const top of tops) assertInvariant('reads-back', () => checkReadsBack(top, grammar));
 }
 
-/** G1.55 after a byte splice: each run of top-level blocks, read together, reads as itself. */
-export function assertRunsReadBack(
-	runs: readonly (readonly CstNode[])[],
+/** G1.55 after a byte splice: each window of `top`, read with what could change it, reads as itself. */
+export function assertSpliceReadsBack(
+	top: readonly CstNode[],
+	windows: readonly { at: number; count: number }[],
 	grammar: GrammarView
 ): void {
 	if (!devChecksOn || perfEnabled()) return;
-	for (const run of runs) assertInvariant('reads-back', () => checkRunReadsBack(run, grammar));
+	for (const run of spliceRuns(top, windows, grammar))
+		assertInvariant('reads-back', () => checkRunReadsBack(run, grammar));
 }
 
 /** G1.118, at the same moments as G1.55 and under the same size limit: each list in `tops` keeps

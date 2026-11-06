@@ -14,6 +14,7 @@ import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import {
 	checkReadsBack,
 	checkRunReadsBack,
+	spliceRuns,
 	READ_BACK_LIMIT,
 	takeReadBackBytes
 } from '#lib/invariants/reads-back.js';
@@ -202,5 +203,19 @@ describe('G1.55 over a run of blocks', () => {
 		];
 		expect(checkRunReadsBack(cut, defaultGrammarView)?.code).toBe('reads-back');
 		expect(checkRunReadsBack(parse('a\n\n# b\n').children, defaultGrammarView)).toBeNull();
+	});
+
+	// Miss-analysis: a window holding an opener far from its closer was read with its neighbours alone.
+	it('reads a window holding a waiting opener, or a line that may close one, to the far end', () => {
+		installPlugins([admonitionsPlugin()]);
+		const spans = (top: CstNode[], at: number) =>
+			spliceRuns(top, [{ at, count: 1 }], defaultGrammarView).map((run) => [
+				top.indexOf(run[0]),
+				run.length
+			]);
+		const waiting = parse(':::note\na\n\nb\n\nc\n\nd\n').children;
+		expect(spans(waiting, 0)).toEqual([[0, 4]]);
+		expect(spans(waiting, 2)).toEqual([[1, 3]]);
+		expect(spans(parse('a\n\nb\n\nc\n\n:::\n').children, 3)).toEqual([[0, 4]]);
 	});
 });
