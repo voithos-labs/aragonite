@@ -691,15 +691,12 @@ function kept(
 	}
 }
 
-/** `text` behind `line`'s bytes up to the tab its reading cut through, where `text` still opens
- *  with the spaces that tab left over in `read`; null where it doesn't. */
+/** `text` behind `line`'s leading whitespace, the tab its reading cut through included, where
+ *  `text` opens with the whitespace `read` gave that run; null where it doesn't. */
 function behindCutTab(line: string, read: string, text: string): string | null {
-	let same = 0;
-	while (same < line.length && line[line.length - 1 - same] === read[read.length - 1 - same])
-		same++;
-	const leftover = read.slice(0, read.length - same);
-	if (!text.startsWith(leftover)) return null;
-	return line.slice(0, line.length - same) + text.slice(leftover.length);
+	const lead = read.length - read.trimStart().length;
+	if (!text.startsWith(read.slice(0, lead))) return null;
+	return line.slice(0, line.length - read.length + lead) + text.slice(lead);
 }
 
 /** Whether reading `old` under `codec` at `place` repeats the reading it was taken with. */
