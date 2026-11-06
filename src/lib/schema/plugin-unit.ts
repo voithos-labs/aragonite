@@ -25,7 +25,8 @@ export interface PluginSpec<O extends object = Record<never, never>> {
 	defaults?: O;
 	/** A sentence when the options are unusable: the editor reports it and runs on the defaults. */
 	validate?(options: Readonly<O>): string | undefined;
-	/** Plugins this one needs; an editor running it adds any that aren't listed, with defaults. */
+	/** Plugins this one needs: an editor adds any that aren't listed, with defaults, and leaves this
+	 *  one out where one of them is left out. */
 	needs?: PluginList;
 	/** Names of plugins this one can't run beside; where an editor lists both, the later one is left out. */
 	conflicts?: readonly string[];
@@ -140,6 +141,16 @@ export function installPluginList(
 	const installed: InstalledPlugin[] = [];
 	for (const plugin of keepFirstListed(ordered, conflictBetween, report)) {
 		const { spec, options } = unitOf(plugin);
+		// A need is placed ahead of its plugin, so one left out is already missing here.
+		const missing = spec.needs?.find((need) => !installed.some((p) => p.name === need.name));
+		if (missing) {
+			installError(
+				report,
+				spec.name,
+				`needs '${missing.name}', which is left out, so it's left out too`
+			);
+			continue;
+		}
 		assertInvariant('plugin-one-core-copy', () =>
 			checkDefinedByThisCopy(spec.name, definingCopy(plugin), THIS_COPY)
 		);

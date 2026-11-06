@@ -51,6 +51,26 @@ describe('one name, one plugin per list', () => {
 });
 
 describe('needs and conflicts', () => {
+	// Miss-analysis: every needs row kept the needed plugin, so none left one out under a dependant.
+	it.each([
+		['a conflict', [unit('a', { conflicts: ['b'] })], unit('b')],
+		[
+			'a throwing contributes',
+			[],
+			unit('b', {
+				contributes: () => {
+					throw new Error('boom');
+				}
+			})
+		]
+	])('leaves out a plugin whose need %s left out, naming the need', (_, before, need) => {
+		const { names, errors } = install([...before, unit('c', { needs: [need] })]);
+		expect(names).not.toContain('c');
+		expect(messages(errors).at(-1)).toBe(
+			"c install: plugin 'c' needs 'b', which is left out, so it's left out too"
+		);
+	});
+
 	it('adds a needed plugin ahead of the first plugin needing it, with its defaults', () => {
 		const seen: unknown[] = [];
 		const base = definePlugin({
