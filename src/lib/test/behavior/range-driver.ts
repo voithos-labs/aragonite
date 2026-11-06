@@ -99,7 +99,7 @@ export async function rangeRows(
 }
 
 /** A gesture the byte splice couldn't replay (`range-laws/through-splice.ts`), as its row says. */
-function notReplayed(error: unknown): { took: string } {
+function notReplayed(error: unknown): { took?: string; clipboard?: string } {
 	if (!(error instanceof Undetermined)) throw error;
 	return { took: `not replayed: ${error.message}` };
 }
