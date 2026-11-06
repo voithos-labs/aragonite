@@ -27,7 +27,7 @@ export interface PluginSpec<O extends object = Record<never, never>> {
 	validate?(options: Readonly<O>): string | undefined;
 	/** Plugins this one needs; an editor running it adds any that aren't listed, with defaults. */
 	needs?: PluginList;
-	/** Names of plugins this one can't run beside; listing both is reported and this one is left out. */
+	/** Names of plugins this one can't run beside; where an editor lists both, the later one is left out. */
 	conflicts?: readonly string[];
 	/** What the plugin adds to one editor; its local variables are that editor's state. */
 	contributes(options: Readonly<O>): Contribution;
@@ -138,13 +138,8 @@ export function installPluginList(
 	for (const plugin of listed.values()) place(plugin);
 
 	const installed: InstalledPlugin[] = [];
-	for (const plugin of ordered) {
+	for (const plugin of keepFirstListed(ordered, conflictBetween, report)) {
 		const { spec, options } = unitOf(plugin);
-		const conflict = spec.conflicts?.find((name) => placed.has(name));
-		if (conflict !== undefined) {
-			installError(report, spec.name, `can't run beside '${conflict}', so it's left out`);
-			continue;
-		}
 		assertInvariant('plugin-one-core-copy', () =>
 			checkDefinedByThisCopy(spec.name, definingCopy(plugin), THIS_COPY)
 		);
@@ -156,6 +151,25 @@ export function installPluginList(
 		if (contribution) installed.push({ name: spec.name, plugin, contribution });
 	}
 	return installed;
+}
+
+/** Settles every clash between two plugins on one editor by list order: the one listed first stays,
+ *  and the later one is left out and reported naming both. `clash` phrases what they share, or null. */
+export function keepFirstListed<T extends { readonly name: string }>(
+	listed: Iterable<T>,
+	clash: (later: T, first: T) => string | null,
+	report: (error: PluginError) => void
+): T[] {
+	const kept: T[] = [];
+	for (const later of listed) {
+		const lost = kept.map((first) => ({ first, over: clash(later, first) })).find((c) => c.over);
+		if (!lost) kept.push(later);
+		else {
+			const problem = `${lost.over} '${lost.first.name}', listed before it, so it's left out`;
+			installError(report, later.name, problem);
+		}
+	}
+	return kept;
 }
 
 /** One editor's options: the defaults, then each field the host set that isn't `undefined`. */
@@ -200,6 +214,12 @@ function configured<O extends object>(spec: PluginSpec<O>, options: Partial<O>):
 	});
 	markDefinedHere(plugin);
 	return plugin;
+}
+
+function conflictBetween(later: PluginList[number], first: PluginList[number]): string | null {
+	const declares = (a: PluginList[number], b: PluginList[number]) =>
+		unitOf(a).spec.conflicts?.includes(b.name);
+	return declares(later, first) || declares(first, later) ? "can't run beside" : null;
 }
 
 function contribute(

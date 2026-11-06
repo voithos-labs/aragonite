@@ -80,12 +80,23 @@ describe('needs and conflicts', () => {
 		expect(seen).toEqual([{ level: 3 }]);
 	});
 
-	it('leaves out a plugin that declares a conflict with a listed one, and says so', () => {
-		const { names, errors } = install([unit('a'), unit('b', { conflicts: ['a'] })]);
-		expect(names).toEqual(['a']);
+	// Miss-analysis: the one conflict row listed the declaring plugin last, where both rules agree.
+	const declares = unit('a', { conflicts: ['legacy'] });
+	const legacy = unit('legacy');
+	it.each([
+		['declaring it first', [declares, legacy], 'a', 'legacy'],
+		['declaring it second', [legacy, declares], 'legacy', 'a']
+	])('keeps the plugin listed first in a conflict, %s', (_, list, first, later) => {
+		const { names, errors } = install(list);
+		expect(names).toEqual([first]);
 		expect(messages(errors)).toEqual([
-			"b install: plugin 'b' can't run beside 'a', so it's left out"
+			`${later} install: plugin '${later}' can't run beside '${first}', listed before it, so it's left out`
 		]);
+	});
+
+	it('weighs a conflict only against plugins still running', () => {
+		const middle = unit('b', { conflicts: ['c'] });
+		expect(install([unit('a', { conflicts: ['b'] }), middle, unit('c')]).names).toEqual(['a', 'c']);
 	});
 });
 

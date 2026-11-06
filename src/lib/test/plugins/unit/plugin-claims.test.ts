@@ -10,15 +10,17 @@ function refuse(claimants: { plugin: string; claims: PluginClaims }[]) {
 }
 
 describe('refusedClaims', () => {
-	it('leaves out the second plugin to claim a `:::` name', () => {
-		expect(
-			refuse([
-				{ plugin: 'callouts', claims: { colons: ['note', 'tip'] } },
-				{ plugin: 'notes', claims: { colons: ['note'] } }
-			])
-		).toEqual({
-			refused: ['notes'],
-			messages: ["plugin 'notes' claims the `:::` name \"note\", which 'callouts' already has"]
+	const callouts = { plugin: 'callouts', claims: { colons: ['note', 'tip'] } };
+	const notes = { plugin: 'notes', claims: { colons: ['note'] } };
+	it.each([
+		['callouts first', [callouts, notes], 'callouts', 'notes'],
+		['notes first', [notes, callouts], 'notes', 'callouts']
+	])('leaves out the later plugin to claim a `:::` name, %s', (_, claimants, first, later) => {
+		expect(refuse(claimants)).toEqual({
+			refused: [later],
+			messages: [
+				`plugin '${later}' shares the \`:::\` name "note" with '${first}', listed before it, so it's left out`
+			]
 		});
 	});
 
@@ -26,6 +28,16 @@ describe('refusedClaims', () => {
 		expect(refuse([{ plugin: 'finder', claims: { chords: ['Mod+f'] } }])).toEqual({
 			refused: ['finder'],
 			messages: ['plugin \'finder\' claims the chord "Mod+f", which search takes']
+		});
+	});
+
+	// Miss-analysis: no row claimed a malformed chord, which also fired the keymap's dev warning.
+	it('reports a malformed chord once, with what is wrong with it', () => {
+		expect(refuse([{ plugin: 'keys', claims: { chords: ['Ctrl+B'] } }])).toEqual({
+			refused: ['keys'],
+			messages: [
+				'plugin \'keys\' claims the chord "Ctrl+B", which isn\'t one: unrecognized modifier "Ctrl" (use Mod/Alt/Shift)'
+			]
 		});
 	});
 
