@@ -21,6 +21,7 @@ import { caretOffsetAtPoint, elementAtPoint } from '../../../browser/point';
 import { applySingleBlockRange } from '../../../selection/native-bridge';
 import type { CaretWriter } from '../../../browser/caret-writer';
 import type { PaddingPress } from '../../../selection/cross-block/pointer';
+import { fingerPress, type FingerPress } from '../../../selection/pointer-gesture';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -67,12 +68,15 @@ export function installCellDragListener(
 	// `anchor.tableEl` is `[role="table"]`; the scrollable element is its first
 	// scrollable descendant (the `.table-block` grid).
 	const tableScrollEl = firstScrollableDescendant(anchor.tableEl) ?? anchor.tableEl;
+	// A drag the editor owns under a finger: a selection handle's.
+	const finger = ctx.touch === 'own' ? fingerPress(down) : null;
 
 	function processMove(clientX: number, clientY: number): void {
 		const cellHit = cellAtPoint(clientX, clientY, anchor.tableEl);
 
 		if (cellHit) {
 			if (cellHit.rowIdx === anchor.rowIdx && cellHit.colIdx === anchor.colIdx) {
+				if (finger && padding) return ownInAnchorCell(finger, padding, clientX, clientY);
 				// Back in the anchor cell: collapse so the browser resumes selecting inside it.
 				if (ctx.selection.ownsRange) {
 					ctx.selection.collapse();
@@ -90,6 +94,24 @@ export function installCellDragListener(
 		if (target && anchor.tableEl.contains(target)) return;
 
 		extendToForeignBlock(clientX, clientY);
+	}
+
+	// A finger's handle back in its cell: no browser drag runs underneath, so the range inside the
+	// cell stays the editor's, as one inside any other block does.
+	function ownInAnchorCell(
+		press: FingerPress,
+		from: CellPaddingPress,
+		clientX: number,
+		clientY: number
+	): void {
+		const focus = caretOffsetAtPoint(from.surface, clientX, clientY);
+		if (focus === null || focus === from.press.offset) return;
+		const path = [...anchor.tablePath, anchor.rowIdx, anchor.colIdx];
+		ctx.selection.ownBlockRange(
+			{ path, offset: from.press.offset },
+			{ path, offset: focus },
+			press
+		);
 	}
 
 	function paintInAnchorCell(clientX: number, clientY: number): void {

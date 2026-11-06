@@ -293,6 +293,7 @@ for (const {
 		await expect
 			.poll(() => page.evaluate(() => (window as any).__test.getSelection()))
 			.toEqual({ anchor: { path, offset: want.anchor }, focus: { path, offset: want.focus } });
+		expect(await nativeCollapsed(page)).toBe(true);
 	});
 }
 

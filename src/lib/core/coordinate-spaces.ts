@@ -92,6 +92,17 @@ export function rowMajorCellIndex(row: number, col: number, colCount: number): C
 	return asCellIndex(row * colCount + col);
 }
 
+/** The cell of the grid at `gridPath` that `path` sits in, or null outside its cells. A grid's
+ *  cells have no host of their own, so the grid's overlays paint them through this one lookup. */
+export function gridCellOf(
+	gridPath: readonly number[],
+	path: readonly number[]
+): { row: number; col: number } | null {
+	if (path.length < gridPath.length + 2) return null;
+	for (let i = 0; i < gridPath.length; i++) if (path[i] !== gridPath[i]) return null;
+	return { row: path[gridPath.length], col: path[gridPath.length + 1] };
+}
+
 /** A rect in a block's own pixels, from the block box's top-left corner. */
 export interface LocalRect {
 	left: number;

@@ -42,8 +42,8 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
     blocks, where Shift+Arrow steps a block at a time; none extended a finger's word.
 - A rectangle of cells whose handle is dragged back into the cell at its other corner becomes a
   range in that cell, from the cell's edge on the rectangle's side to the finger, as a mouse drag
-  back into its cell does. Either handle: the end handle back into the first cell, the start
-  handle back into the last.
+  back into its cell does, and it stays the editor's, with no native range under it. Either
+  handle: the end handle back into the first cell, the start handle back into the last.
   - Miss-analysis: the cell row only grew a rectangle; no row shrank one, and a rectangle's corner
     handed the drag no cell to select in.
 - Reading mode shows no handles.
