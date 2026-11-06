@@ -34,7 +34,9 @@ export function checkRunReadsBack(
 ): InvariantViolation | null {
 	if (run.length === 0) return null;
 	const bytes = run.map((node, i) => (i === 0 ? '' : node.leadingTrivia) + node.raw).join('');
-	if (bytes.length > READ_BACK_LIMIT) return null;
+	// An emptied document's one paragraph holds no bytes, and a read of none gives no block.
+	const emptied = bytes === '' && run.every((node) => !node.children?.length);
+	if (emptied || bytes.length > READ_BACK_LIMIT) return null;
 	bytesRead += bytes.length;
 	const read = readAsOpened(bytes, { grammar, scope: 'fragment' });
 	const held = run.map((node, i) => (i === 0 ? { ...node, leadingTrivia: '' } : node));

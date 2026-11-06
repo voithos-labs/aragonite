@@ -106,6 +106,27 @@ describe('a byte splice', () => {
 		expect(kinds).toEqual(['fencedCode']);
 	});
 
+	// Miss-analysis: the commit's own tests landed carets only; the range replay found the stale range.
+	it('ends a range it replaces, which named the blocks before it', async () => {
+		const editor = await mounted('x\n# h\n| A | B |\n| - | - |\n');
+		const range = { anchor: { path: [0], offset: 1 }, focus: { path: [1], offset: 3 } };
+		// Resolves false in jsdom even once placed, since its scroll never arrives.
+		await editor.instance.setSelection(range);
+		await editor.settle();
+		await editor.instance.__test.spliceSource('x\n\n| A | B |\n| - | - |\n', text(1), OP);
+		await editor.settle();
+		const point = { path: [0], offset: 1 };
+		expect(editor.instance.getSelection()).toEqual({ anchor: point, focus: point });
+	});
+
+	// Miss-analysis: the read-back check had never met an emptied document's byteless paragraph.
+	it('empties a document to one paragraph with no bytes', async () => {
+		const editor = await mounted('a\n\nb\n');
+		await editor.instance.__test.spliceSource('', text(0), OP);
+		expect(editor.source()).toBe('');
+		expect(editor.instance.__test.getDocument().children).toHaveLength(1);
+	});
+
 	it('writes nothing for the bytes it already holds', async () => {
 		const editor = await mounted('one\n');
 		expect(await editor.instance.__test.spliceSource('one\n', text(1), OP)).toBe(false);

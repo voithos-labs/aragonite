@@ -71,6 +71,11 @@ export function createByteSplice(
 				assertIdsInLockstep('commitSource', ids.length, children.length);
 				deps.setBlockIds(ids);
 				replaceRefs(deps.blockRefs, refs);
+				// A range the editor holds names the blocks just replaced; the landing puts the caret down.
+				if (deps.selectionState.ownsRange) {
+					deps.selectionState.clear();
+					deps.caretWriter.clear();
+				}
 				return true;
 			},
 			written: () => {
