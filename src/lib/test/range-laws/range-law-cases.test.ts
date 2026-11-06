@@ -34,7 +34,7 @@ import {
 	Undetermined
 } from './gestures';
 import { LAW_SPECS } from './law-specs';
-import { KNOWN_VIOLATIONS } from './known-failures';
+import { KNOWN_VIOLATIONS, knownClassOf } from './known-failures';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -111,7 +111,8 @@ describe('each known violation still reproduces', () => {
 			const spec = LAW_SPECS.find((s) => s.law === row.repro.law)!;
 			const run = await spec.run(row.repro.args);
 			expect(
-				run.lines.filter((line) => row.lines.test(line)),
+				// The repro must land in its own row, what it keeps and the rows above it included.
+				run.lines.filter((line) => knownClassOf(line) === row),
 				'the repro no longer fails: if a fix closed the class, delete its row'
 			).not.toEqual([]);
 		}, 30_000);
