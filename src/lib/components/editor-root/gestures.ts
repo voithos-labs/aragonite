@@ -14,11 +14,14 @@ import type { BlockElLookup } from '../../caret/block-el-lookup';
 import { BLOCK_TEXT_SELECTOR } from '../../caret/block-content-selector';
 import {
 	planPaddingPress,
-	rangeCoversPoint,
 	resetForPointerDown,
 	resetForPress
 } from '../../selection/cross-block/pointer';
-import { nativeRangeIn } from '../../browser/selection-read';
+import {
+	holdsSelection,
+	isContextPress,
+	pressLandsOnSelection
+} from '../../selection/held-selection';
 import { createDeadSpaceCaret } from '../../selection/dead-space-caret';
 import { installDragListener } from '../../selection/drag-pointer';
 import { installMultiClickSelect } from '../../selection/multi-click';
@@ -26,7 +29,7 @@ import { findSurfacePathForElement } from '../../selection/path-lookup';
 import { claimsPointerGesture } from '../../selection/pointer-gesture';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
-import { isSecondaryPress, pressesSelectedWidget } from '../../selection/widget-press';
+import { pressesSelectedWidget } from '../../selection/widget-press';
 import {
 	LINK_ELEMENT_SELECTOR,
 	clickFollowsAt,
@@ -64,10 +67,10 @@ export interface RootGesturesDeps {
 	readingFocus: Pick<ReadingFocus, 'noteClick'>;
 }
 
-/** What a secondary press means, read at the press: it can move the caret out of a shown source,
+/** What a context press means, read at the press: it can move the caret out of a shown source,
  *  which redraws the line before `contextmenu` arrives. */
 interface ContextPress {
-	/** The press landed on the user's own range. */
+	/** The press landed on the user's selection. */
 	range: boolean;
 	onWidget: boolean;
 	/** The caret for the press's point, as a click there would place it. */
@@ -84,8 +87,8 @@ export interface RootGestures {
 	/** The caret a context menu opens over: where its press pointed, read at the press, or at the
 	 *  menu event's point when no press opened it (the keyboard's menu key). */
 	placeMenuCaret(root: HTMLElement, x: number, y: number): boolean;
-	/** Whether a context menu's press landed on a selected range (Safari selects the word under a
-	 *  right-click before `contextmenu`); a menu the keyboard opened asks of the live selection. */
+	/** Whether a context menu's press landed on the user's selection (Safari selects the word under
+	 *  a right-click before `contextmenu`); a menu the keyboard opened asks whether one is held. */
 	rangeAtContextPress(root: HTMLElement): boolean;
 }
 
@@ -285,7 +288,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 			onRoot(root, 'mousedown', handleMouseDown),
 			// Every pointerdown writes the record, since a widget showing its source cancels it and no
 			// mousedown follows; a mousedown re-reads only the range, after the block's own pointerdown.
-			onRoot<PointerEvent>(root, 'pointerdown', (e) => (contextPress = notePress(root, e, null)), {
+			onRoot<PointerEvent>(root, 'pointerdown', (e) => noteContextPointerDown(root, e), {
 				capture: true
 			}),
 			onRoot<MouseEvent>(
@@ -301,20 +304,23 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		);
 	}
 
+	// Ahead of every block's own pointerdown: a context press keeps the selection it lands on for
+	// its menu, and ends one it misses as a click there would.
+	function noteContextPointerDown(root: HTMLElement, e: PointerEvent): void {
+		contextPress = notePress(root, e, null);
+		if (contextPress && !contextPress.range) {
+			resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false);
+		}
+	}
+
 	/** `planned` is the record this press's pointerdown wrote, whose caret plans it keeps. */
 	function notePress(
 		root: HTMLElement,
 		e: MouseEvent,
 		planned: ContextPress | null
 	): ContextPress | null {
-		if (!isSecondaryPress(e)) return null;
-		// A widget the editor holds selected is the user's own selection, as a range is. A range
-		// across blocks is painted by the editor, so the browser's rectangles don't show it.
-		const range =
-			pressesSelectedWidget(deps.selection, e.target) ||
-			(deps.selection.ownsRange
-				? nativeRangeIn(root)
-				: rangeCoversPoint(root, e.clientX, e.clientY));
+		if (!isContextPress(e)) return null;
+		const range = pressLandsOnSelection(deps.selection, root, e);
 		const onWidget = e.target instanceof Element && !!e.target.closest('[data-inline-widget]');
 		if (planned) return { ...planned, range, onWidget };
 		return {
@@ -328,14 +334,14 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	// Before any menu reads the caret: Safari's word select stays for the clipboard rows, while a
 	// widget it selected whole gives way to the caret every other engine puts beside it.
 	function placeCaretForMenu(): void {
-		if (!contextPress || contextPress.range || deps.selection.ownsRange) return;
+		if (!contextPress || contextPress.range) return;
 		if (deps.reading.mode() === 'reading') return;
 		if (contextPress.onWidget) contextPress.atPoint?.();
 		else contextPress.inPadding?.();
 	}
 
 	function rangeAtContextPress(root: HTMLElement): boolean {
-		return contextPress?.range ?? nativeRangeIn(root);
+		return contextPress?.range ?? holdsSelection(deps.selection, root);
 	}
 
 	return {

@@ -123,7 +123,7 @@ The right-click menu on a block of `kind` (a code block, a table, a plugin's own
 
 - The rows show only in the editors that list your plugin, and no menu opens in reading mode.
 - Several providers can share one kind under different names (a taken name throws), and the kind `'*'` registers for every kind, listed after the editor's own rows.
-- Right-clicking the text of a `pageRole: 'prose'` block (a paragraph, a heading) gives the clipboard rows instead, and never asks your provider.
+- Right-clicking the text of a `pageRole: 'prose'` block (a paragraph, a heading), or right-clicking a selection, gives the clipboard rows instead, and never asks your provider.
 - The provider's third argument, `noun`, is what the menu calls the block ("code block", or "images" for a paragraph of two pictures), handy for a label that matches the editor's own "Copy code block".
 
 ```ts

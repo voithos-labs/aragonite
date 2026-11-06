@@ -3,6 +3,7 @@
 
 import type { LinkTarget } from '../blocks/text/link-at-point';
 import type { SelectionState } from '../../selection/selection-state.svelte';
+import { rangeHolder } from '../../selection/held-selection';
 
 /** The create gesture's target: the raw range a commit would wrap. A range, not a construct,
  *  since the document holds nothing until Enter writes it, so Escape has nothing to clean up. */
@@ -49,15 +50,14 @@ export interface LinkCardOptions {
  *  a range inside one block, the editor's or the browser's, is one a create wraps. */
 export function linkCardGates(
 	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock'>,
-	holdsNativeRange: () => boolean,
 	onOpen: () => void
 ): LinkCardOptions {
 	const spansBlocks = () => selection.ownsRange && !selection.rangeInOneBlock;
 	return {
 		onOpen,
-		canOpen: () => !selection.ownsRange && !holdsNativeRange(),
+		canOpen: () => rangeHolder(selection) === null,
 		canEnter: () => !spansBlocks(),
-		canOpenCreate: () => selection.rangeInOneBlock || (!selection.ownsRange && holdsNativeRange())
+		canOpenCreate: () => selection.rangeInOneBlock || rangeHolder(selection) === 'browser'
 	};
 }
 

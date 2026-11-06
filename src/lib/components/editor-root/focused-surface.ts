@@ -18,7 +18,9 @@ import { escapeMarkdownLiteral } from '../../tree-operations/paste/markdown-lite
 export interface FocusedSurfaceDeps {
 	/** A getter, never a value: the root binds after construction. */
 	get editorEl(): HTMLElement | undefined;
-	selection: Pick<SelectionState, 'gapCaret'>;
+	selection: Pick<SelectionState, 'gapCaret' | 'ownsRange'>;
+	/** Pastes `md` over the range the editor holds, as Ctrl+V at the editor root does. */
+	pasteOverRange(md: string): Promise<boolean>;
 	getDoc: DocumentGetter;
 	getBlockComponent(path: number[]): BlockComponent | null;
 	isReading(): boolean;
@@ -40,7 +42,7 @@ export interface FocusedSurface {
 	 *  paragraph after the top-level block. Resolves once the insert has landed. */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/** An insert at the caret, aimed now at the focused block and document, for an insert that
-	 *  waits on something first (a menu's clipboard read); null with no block to aim at. */
+	 *  waits on something first (a menu's clipboard read); null with no block and no range to aim at. */
 	aimInsertAtFocus(): AimedInsert | null;
 	/** Pastes `md` as blocks into the paragraph `mint` opens and focuses, the paste route and one
 	 *  undo entry seeded at `at`: a paste at a gap or on a block focused whole. */
@@ -66,13 +68,20 @@ export function createFocusedSurface(deps: FocusedSurfaceDeps): FocusedSurface {
 	function aimAtFocus(madeFor: DocumentStamp): AimedInsert | null {
 		const at = path();
 		const block = at && deps.getBlockComponent(at);
-		if (!block?.insertMarkdown) return null;
 		const land = async (insert: () => boolean | Promise<boolean> | undefined) => {
 			if (!madeFor.live) return false;
 			const before = deps.contentVersion();
 			const handled = (await insert()) ?? false;
 			return handled && madeFor.live && deps.contentVersion() !== before;
 		};
+		if (!block?.insertMarkdown) {
+			// A range holding one block whole parks focus on the editor root, so the range is the target.
+			if (!deps.selection.ownsRange) return null;
+			return {
+				markdown: (md) => land(() => deps.pasteOverRange(md)),
+				plainText: (text) => land(() => deps.pasteOverRange(escapeMarkdownLiteral(text)))
+			};
+		}
 		return {
 			markdown: (md) => land(() => block.insertMarkdown?.(md)),
 			// A block that never says how it takes text literally gets the prose answer, escaped.

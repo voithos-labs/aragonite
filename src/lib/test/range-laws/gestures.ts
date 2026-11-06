@@ -96,6 +96,9 @@ export async function clipboardGesture(
 	route: ClipboardRoute
 ): Promise<Payload> {
 	systemClipboard.clear();
+	if (route === 'menu without command' && !editor.instance.__test.ownsRange()) {
+		throw new Undetermined("WebKit's command fires over the browser's own range");
+	}
 	if (route === 'menu' || route === 'menu without command') {
 		setCommandFires(route === 'menu');
 		await pickMenuRow(editor, type === 'copy' ? 'Copy' : 'Cut');

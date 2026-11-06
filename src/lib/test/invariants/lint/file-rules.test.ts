@@ -546,8 +546,8 @@ const RULES: FileRule[] = [
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'a shown source’s whole box, for a double-click’s hit test',
 			'src/lib/editor-rects.ts': 'a selection’s box; a collapsed one goes through `caretRectAt`',
-			'src/lib/selection/cross-block/pointer.ts':
-				'whether a selected range covers a right-click; a collapsed one is never measured'
+			'src/lib/selection/held-selection.ts':
+				'whether the browser’s selected range covers a right-click; a collapsed one is never measured'
 		},
 		reason:
 			'WebKit and Firefox measure a caret right after a `\\n` on the line the `\\n` ends, so a caret measured anywhere else reads the wrong line at every line start: call `caretRectAt`',
@@ -1635,6 +1635,27 @@ const RULES: FileRule[] = [
 			'expect(await editor.bridge.isCrossBlockActive()).toBe(true);'
 		],
 		misses: ['if (selection.ownsRange) return;', 'if (rangeSpansBlocks(coverage)) paint();']
+	},
+	{
+		id: 'G4.296 whether a selection is held is asked of the editor’s selection first',
+		matches: /\b(?:holdsNativeRange|nativeRangeIn|rangeCoversPoint)\b/,
+		allowed: {
+			[SOURCE.selectionRead]: 'the reads themselves',
+			'src/lib/selection/held-selection.ts':
+				'the one module that asks the browser, once the editor holds no range or widget'
+		},
+		reason:
+			'while the editor holds a range or a widget the browser’s selection is a caret, so a read of the browser’s alone takes the user’s selection for none: ask `selection/held-selection.ts` (`holdsSelection`, `rangeHolder`, `pressLandsOnSelection`, `selectionCoversPoint`, `browserRangeIn`)',
+		hits: [
+			"import { holdsNativeRange } from '../browser/selection-read';",
+			'const selected = !!focused && holdsNativeRange();',
+			'if (nativeRangeIn(root)) place();',
+			'return rangeCoversPoint(root, x, y);'
+		],
+		misses: [
+			'const selected = holdsSelection(deps.selection, root);',
+			'function nativeRangeInFocusedBlock(path: number[]) {}'
+		]
 	},
 	{
 		id: 'G4.284 Mod+A is read where its steps are decided',

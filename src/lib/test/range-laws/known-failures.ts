@@ -349,6 +349,25 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
+		issue: 'new: copy-leaving-a-quote',
+		lane: 'rebuild',
+		defect:
+			'a copy that starts inside a quote and leaves it writes the quote’s marker on the start line it starts past, and drops the markers before the end',
+		lines: /^L10 \[[^|\]]*\| [^\]]*blockquote>paragraph → /,
+		keeps: sameWords,
+		repro: {
+			law: 'L10',
+			args: [
+				{
+					source: '>>>a\n>>\n>>a\na\n>a\n>\n>a\n>\n>a\n',
+					mode: 'source',
+					seed: { a: end(1, 'start'), b: end(0, 'end') }
+				},
+				'key'
+			]
+		}
+	},
+	{
 		issue: '#819',
 		lane: 'rebuild',
 		defect:

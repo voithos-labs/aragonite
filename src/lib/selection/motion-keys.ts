@@ -7,7 +7,7 @@
 
 import type { CaretWriter } from '../browser/caret-writer';
 import { widgetTouching } from '../browser/painted';
-import { holdsNativeRange, rawSelectionIn, readNativeSelection } from '../browser/selection-read';
+import { readNativeSelection } from '../browser/selection-read';
 import { lineStepBesideWidget, WIDGET_SHELLS } from '../browser/visual-lines';
 import { motionTarget, type CaretUnitSource } from '../caret/caret-motion';
 import type { DeleteContext } from '../caret/delete-extent';
@@ -18,6 +18,7 @@ import { usesMacEditingConventions } from '../schema/platform-conventions';
 import type { ScrollOwner } from '../windowing/scroll-owner';
 import type { CaretLanding } from './caret-landing';
 import { extendWithinBlock } from './keyboard-extend';
+import { browserRangeIn } from './held-selection';
 import type { SelectionState } from './selection-state.svelte';
 import { showCaret } from './show-caret';
 
@@ -51,10 +52,10 @@ export function handleMotion(
 ): boolean {
 	if (ctx.selection.ownsRange) return false;
 	// Over a range a Mac's Cmd+Shift+Arrow grows the range's own end, the platform's way, left to it.
-	if (key.arrow && key.extend && usesMacEditingConventions() && heldRange(el)) return false;
+	if (key.arrow && key.extend && usesMacEditingConventions() && browserRangeIn(el)) return false;
 	if (key.unit === 'word' && !hasWordSegmenter()) return false;
 	// With Shift the moving end; over a range, its edge on the key's side, as a plain arrow collapses it.
-	const held = key.extend ? null : heldRange(el);
+	const held = key.extend ? null : browserRangeIn(el);
 	const edges = held && held.start !== null && held.end !== null ? held : null;
 	const from = key.extend
 		? ctx.getFocusOffset()
@@ -110,12 +111,6 @@ export function stepBesideWidget(
 function decided(ctx: Pick<MotionKeyContext, 'caretWriter' | 'scroll'>, el: HTMLElement): void {
 	ctx.caretWriter.noteDecidedMotion();
 	showCaret(el, ctx.scroll);
-}
-
-/** The range the selection holds in `el`; null for a caret, which costs no walk of the block. */
-function heldRange(el: HTMLElement): ReturnType<typeof rawSelectionIn> {
-	const range = holdsNativeRange() ? rawSelectionIn(el) : null;
-	return range && !range.collapsed ? range : null;
 }
 
 /** The line's edge by the browser's own move, which keeps a soft wrap's side; `target` (a layout

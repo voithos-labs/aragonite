@@ -42,7 +42,7 @@ const RULES: FileRule[] = [
 		reaches: [SOURCE.nativeBridge, SOURCE.commands, SOURCE.pointLookup],
 		mustMatch: [SOURCE.selectionRead],
 		reason:
-			'engines differ in what the selection reports (a caret inside a widget, an anchor inside a CRLF pair), so the editor reads it in one place, browser/ included: call a reader in browser/selection-read.ts (`readNativeSelection`, `rawSelectionIn`, `rawSelectionFocus`, `nativeRangeIn`, `holdsNativeRange`), or take one as a parameter where your directory cannot import browser/',
+			'engines differ in what the selection reports (a caret inside a widget, an anchor inside a CRLF pair), so the editor reads it in one place, browser/ included: call a reader in browser/selection-read.ts (`readNativeSelection`, `rawSelectionIn`, `rawSelectionFocus`), ask `selection/held-selection.ts` whether a selection is held, or take one as a parameter where your directory cannot import browser/',
 		hits: [
 			'const sel = window.getSelection();',
 			'if (window.getSelection()?.isCollapsed) return;',

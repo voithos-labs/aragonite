@@ -33,7 +33,7 @@ function harness(component: Partial<BlockComponent> = {}, opts: { writes?: boole
 	const outside = document.createElement('button');
 	root.append(host, created.host);
 	document.body.append(root, outside);
-	const selection = { gapCaret: null as GapCaretPosition | null };
+	const selection = { gapCaret: null as GapCaretPosition | null, ownsRange: false };
 	const doc = parse('# a\n\nprose\n');
 	let reading = false;
 	let version = 0;
@@ -49,6 +49,11 @@ function harness(component: Partial<BlockComponent> = {}, opts: { writes?: boole
 			return root;
 		},
 		selection,
+		pasteOverRange: async (md) => {
+			calls.push(`range ${md}`);
+			if (opts.writes !== false) version++;
+			return true;
+		},
 		getDoc: () => doc,
 		getBlockComponent: (path) => {
 			const logged = (name: string, insert?: (text: string) => boolean | Promise<boolean>) =>
@@ -128,6 +133,17 @@ describe('editor-root focused surface', () => {
 		h.outside.focus();
 		expect(await insert.markdown('- ')).toBe(true);
 		expect(h.calls).toEqual(['insert - at [1]']);
+	});
+
+	// Miss-analysis: #820, every aimed insert had a block focused; a range holding one block whole
+	// parks focus on the root, where the menu's Paste found nothing to aim at.
+	it('with no block focused, an aimed insert pastes over the range the editor holds', async () => {
+		const h = harness({ insertMarkdown: async () => true });
+		h.selection.ownsRange = true;
+		const insert = h.focused.aimInsertAtFocus()!;
+		expect(await insert.markdown('- ')).toBe(true);
+		expect(await insert.plainText('*a*')).toBe(true);
+		expect(h.calls).toEqual(['range - ', 'range \\*a\\*']);
 	});
 
 	it('an aimed plain-text insert reaches the block’s plain-text entry, not its Markdown one', async () => {

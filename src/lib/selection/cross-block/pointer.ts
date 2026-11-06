@@ -6,7 +6,6 @@ import type { CaretMemory } from '../../caret/caret-memory';
 import { handleShiftClick } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
 import { applyCollapsedCaret } from '../native-bridge';
-import { nativeRangeIn, readNativeSelection } from '../../browser/selection-read';
 import type { CaretWriter } from '../../browser/caret-writer';
 import { isInPaddingRow, offsetFromViewportPoint } from '../../browser/point';
 import { installDragListener } from '../drag-pointer';
@@ -14,6 +13,7 @@ import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { isWholeBlockInputProxy } from '../whole-block-input';
 import { clearOnPress } from '../pointer-gesture';
 import { takeOverBrowserRange } from '../finger-takeover';
+import { isContextPress } from '../held-selection';
 import type { BlockElLookup } from '../../caret/block-el-lookup';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -96,6 +96,10 @@ function handlePointerDown(
 	if (!el) return false;
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
+
+	// The editor root keeps or ends the selection under a context press (`editor-root/gestures.ts`),
+	// which starts no drag or shift-click.
+	if (isContextPress(e)) return false;
 
 	resetForPress(
 		{
@@ -226,15 +230,6 @@ export function planPaddingPress(writer: CaretWriter, e: MouseEvent): (() => voi
 	const path = findBlockPathForElement(surface);
 	if (offset === null || !path) return null;
 	return () => applyCollapsedCaret(writer, surface, { path, offset });
-}
-
-/** Whether the browser's selected range inside `root` covers the viewport point. */
-export function rangeCoversPoint(root: HTMLElement, x: number, y: number): boolean {
-	const live = readNativeSelection();
-	if (!live || !nativeRangeIn(root)) return false;
-	return Array.from(live.range.getClientRects()).some(
-		(r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
-	);
 }
 
 function editingHostOf(target: EventTarget | null): HTMLElement | null {

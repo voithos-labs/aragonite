@@ -25,7 +25,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { commandContextWith } from '../../harness/command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { holdsNativeRange } from '#lib/browser/selection-read.js';
+import { rangeHolder } from '#lib/selection/held-selection.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { displayLength } from '#lib/core/lines.js';
 
@@ -110,7 +110,7 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 			getPresentationMode: () => opts.presentationMode ?? 'source',
 			ownsRange: () => selection.ownsRange,
 			rangeInOneBlock: () => selection.rangeInOneBlock,
-			holdsNativeRange,
+			holdsRange: () => rangeHolder(selection) !== null,
 			crossBlockCommands,
 			onCommandError
 		}),
