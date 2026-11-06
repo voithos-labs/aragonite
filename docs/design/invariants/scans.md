@@ -228,6 +228,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.291 | The template's declaration step is the repo's, byte for byte | L |
 | G4.292 | Every documented `npm create` command for a plugin asks for `@latest` | L |
 | G4.295 | The range-edit law harness imports only the routes and reads it names | L |
+| G4.296 | Whether a selection is held is asked of the editor's selection before the browser's, in one module | L |
 
 ### The entries
 
@@ -663,3 +664,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.292 · The documented command asks for `@latest`.** npm runs a starter it fetched before when the command names no version, so a reader who copies a command without `@latest` can get an old template. Every `npm create`, `npm init` or `npx` spelling of it in the docs and the package READMEs says `@latest`; the changelog is exempt. `plugins/create-plugin.test.ts`.
 
 **G4.295 · The law harness drives the editor by its routes.** A file under `src/lib/test/range-laws/` imports the shared test harness, the generators, the public entry point, the e2e case table, and the few reads the law checks need, each listed with its reason; anything else, a tree operation above all, fails. A law checked by calling the core directly would pass while the routes that reach it disagree, which is where the range-edit bugs have lived. `lint/range-laws-imports.test.ts`.
+
+**G4.296 · Whether a selection is held is asked in one place.** While the editor holds a range or a widget, the browser's selection is a caret, so a read of the browser's alone takes the user's selection for none, and a menu's Cut and Copy go dark over a range across blocks. `selection/held-selection.ts` asks the editor's selection first, and only it reads `holdsNativeRange` and `nativeRangeIn`, anywhere in the library. `file-rules.test.ts`.

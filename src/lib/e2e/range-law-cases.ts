@@ -150,8 +150,7 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		select: range({ path: [0], offset: 1 }, { path: [1], offset: 2 }),
 		steps: [{ do: 'cut', route: 'menu' }],
 		issue: '#820',
-		expected: { source: 'oo\n', clipboard: 'ne\n\ntw' },
-		today: { source: 'one\n\ntwo\n', clipboard: '' }
+		expected: { source: 'oo\n', clipboard: 'ne\n\ntw' }
 	},
 	{
 		name: 'blocks pasted by insertMarkdown in the middle of a paragraph',

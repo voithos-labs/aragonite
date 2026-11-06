@@ -56,7 +56,7 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { createWidgetEdgeHolder, type DrawnCaret } from '#lib/caret/drawn-caret.svelte.js';
 import { bindActivationClick, createPressTracker } from '#lib/activation-click.js';
 import { createTextMoves } from '#lib/components/overlays/text-moves.js';
-import { holdsNativeRange } from '#lib/browser/selection-read.js';
+import { rangeHolder } from '#lib/selection/held-selection.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -112,13 +112,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		scrollOwner: {} as EditorServices['scrollOwner'],
 		// Real: a `link.openCard` keypress asks it to record a target, and the entry rule reads it
 		// back. The checks mirror production, so a component test runs the ones it ships with.
-		linkCard: createLinkCardState(
-			linkCardGates(
-				selection,
-				() => window.getSelection()?.isCollapsed === false,
-				() => {}
-			)
-		),
+		linkCard: createLinkCardState(linkCardGates(selection, () => {})),
 		// A bare mount has no inline menu, so no block is ever a combobox.
 		inlineMenuCombobox: () => null,
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
@@ -127,6 +121,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		readingFocus: {} as EditorServices['readingFocus'],
 		containerChords: {} as EditorServices['containerChords'],
 		pasteAsBlocks: () => Promise.resolve(false),
+		// A bare mount has no editor root to take a range's copy, and no block to paste into.
+		menuClipboard: { take: () => null, pasteTarget: () => null },
 		stamps,
 		drafts: createDraftRegistry(stamps),
 		shownSource: createShownSourceState(),
@@ -270,7 +266,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		getPresentationMode: () => doc.reading.mode(),
 		ownsRange: () => services.selection.ownsRange,
 		rangeInOneBlock: () => services.selection.rangeInOneBlock,
-		holdsNativeRange,
+		holdsRange: () => rangeHolder(services.selection) !== null,
 		// Inert: a bare mount has no cross-block range, so every member answers no.
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		// Inert too: a bare mount activates no decoration.

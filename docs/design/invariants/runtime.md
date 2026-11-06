@@ -117,6 +117,7 @@ These checks run in three kinds of place:
 | G1.170 | The editor owns a range inside one block only when a finger's press made it | A·N |
 | G1.171 | A copy into or out of a container reads back inside it, its markers written by its own rebuild | harness·P |
 | G1.174 | A block writes a typed character only while the editor owns no range | A·N |
+| G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 
 ### The entries
 
@@ -319,3 +320,5 @@ These checks run in three kinds of place:
 **G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, written by its own `rebuildRaw`. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `selection/clipboard-text.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.
 
 **G1.174 · A key typed over a range is the range's** (`typed-write-outside-range`). A character typed while the editor owns a range replaces the range (G4.108), and the range's handler takes it at its keydown, since beside a picture no engine sends a `beforeinput`. A block that writes a typed key itself under a range took one that was never its own, so dev fails a typed write through a block's text write (`editable-surface.ts`) while a range is owned. `checkTypedWriteOutsideRange` · `typed-write-outside-range.test.ts`.
+
+**G1.175 · The menu over a selection has one to act on** (`menu-over-selection`). A right-click whose press landed on the selection opens Cut and Copy over it, so something that dropped the selection between the press and the menu (a press handler ending the range, say) would offer them over nothing. Dev fails a menu opened over the selection while `holdsSelection` says none is held (`editor-root/menus.ts`). `checkMenuOverSelection` · `menus.test.ts`.

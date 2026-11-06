@@ -4,11 +4,6 @@ import { widgetSourceRange } from '../core/inline/widget-shell';
 import { findSurfacePathForElement } from './path-lookup';
 import type { SelectionState } from './selection-state.svelte';
 
-/** A press that opens a context menu: the right button, or Control with the primary on a Mac. */
-export function isSecondaryPress(press: Pick<MouseEvent, 'button' | 'ctrlKey'>): boolean {
-	return press.button === 2 || (press.button === 0 && press.ctrlKey);
-}
-
 /** Whether a press lands on the widget the editor holds selected. */
 export function pressesSelectedWidget(
 	selection: Pick<SelectionState, 'widgetIn'>,

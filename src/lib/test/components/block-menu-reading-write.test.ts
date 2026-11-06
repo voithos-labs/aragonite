@@ -4,6 +4,7 @@
 // Miss-analysis (GH #517): every reading-mode test switched modes before opening a menu.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root/menus.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import { serialize } from '#lib/core/serializer.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
@@ -46,7 +47,7 @@ async function removeFenceAfterSwitchToReading() {
 		blockEdit: editor.actions,
 		placeMenuCaret: () => true,
 		rangeAtContextPress: () => false,
-		holdsWidget: () => false,
+		selection: createSelectionState(),
 		finger: () => false,
 		insertMarkdown: async () => true,
 		clipboard: { take: () => null, pasteTarget: () => null },

@@ -76,7 +76,8 @@
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
 	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
-	import { holdsNativeRange, readNativeSelection } from '../browser/selection-read';
+	import { readNativeSelection } from '../browser/selection-read';
+	import { rangeHolder } from '../selection/held-selection';
 	import { readCurrentSelection, readDomPoint } from '../selection/native-bridge';
 	import { createCaretRestore, type CaretRestoreDeps } from '../selection/caret-restore';
 	import { createRoundTripRestore } from '../selection/round-trip-restore';
@@ -493,7 +494,7 @@
 	// The caret snapshot and entry checks live on the link card state so no entry path skips
 	// them. Each refuses a range across blocks; a click also refuses a selection, which create needs.
 	const linkCard = createLinkCardState(
-		linkCardGates(selectionState, holdsNativeRange, () => linkCardCaret.saveCurrent())
+		linkCardGates(selectionState, () => linkCardCaret.saveCurrent())
 	);
 
 	// ── Hidden-run class check ──────────────────────────────────────────
@@ -821,7 +822,7 @@
 		getPresentationMode: reading.mode,
 		ownsRange: () => selectionState.ownsRange,
 		rangeInOneBlock: () => selectionState.rangeInOneBlock,
-		holdsNativeRange,
+		holdsRange: () => rangeHolder(selectionState) !== null,
 		crossBlockCommands,
 		markActivation,
 		undoStack: undoManager,
@@ -843,6 +844,12 @@
 		selection: selectionState,
 		getDoc
 	});
+
+	// Read at a row's press, when both halves exist.
+	const menuClipboard: MenuClipboard = {
+		take: () => rootClipboard.takeForMenu(),
+		pasteTarget: () => focusedSurface.aimInsertAtFocus()
+	};
 
 	setContext(EDITOR_SERVICES_KEY, {
 		events,
@@ -868,6 +875,7 @@
 		rects,
 		commands,
 		menuPresence,
+		menuClipboard,
 		drafts,
 		shownSource,
 		stamps,
@@ -964,11 +972,6 @@
 		);
 	});
 
-	// Read at a row's press, when both halves exist.
-	const menuClipboard: MenuClipboard = {
-		take: () => rootClipboard.takeForMenu(),
-		pasteTarget: () => focusedSurface.aimInsertAtFocus()
-	};
 	const rootMenus = createRootMenus({
 		get editorEl() {
 			return editorEl;
@@ -983,7 +986,7 @@
 		placeMenuCaret: (x: number, y: number) =>
 			editorEl ? rootGestures.placeMenuCaret(editorEl, x, y) : false,
 		rangeAtContextPress: () => (editorEl ? rootGestures.rangeAtContextPress(editorEl) : false),
-		holdsWidget: () => selectionState.widget !== null,
+		selection: selectionState,
 		insertMarkdown,
 		clipboard: menuClipboard,
 		insertCatalogue: getInsertCatalogue,
@@ -1304,6 +1307,7 @@
 			return editorEl;
 		},
 		selection: selectionState,
+		pasteOverRange: (md) => editorCrossBlock.handlePaste(null, md),
 		getDoc,
 		getBlockComponent,
 		isReading: () => effectiveMode === 'reading',

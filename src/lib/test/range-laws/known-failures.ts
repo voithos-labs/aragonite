@@ -39,6 +39,15 @@ const words = (text: string) =>
 		.replace(/(^|\n)[ \t>]*(?:\d{1,9}[.)])?/g, '$1')
 		.replace(/[^\p{L}\p{N}]/gu, '');
 
+/** The same text, the containers' line markers and spacing aside: unlike `sameWords`, a lost
+ *  emphasis mark or table pipe still shows. */
+const sameBesideMarkers = (got: string, wanted: string) => unmarked(got) === unmarked(wanted);
+
+const unmarked = (text: string) =>
+	text
+		.replace(/(^|\n)(?:[ \t>]|[-*+](?=[ \t])|\d{1,9}[.)](?=[ \t]|$))*/g, '$1')
+		.replace(/\s+/g, '');
+
 /** The same characters in another order, whitespace aside. */
 const sameCharacters = (got: string, wanted: string) => characters(got) === characters(wanted);
 
@@ -345,6 +354,40 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 					seed: { a: end(44, 'start'), b: end(63, 'start', 31) }
 				},
 				'key at body'
+			]
+		}
+	},
+	{
+		issue: '#819',
+		lane: 'rebuild',
+		defect:
+			'a copy that starts inside a quote and leaves it writes the markers of the start line it starts past, and drops the markers before the end',
+		lines: /^L10 \[[^|\]]*\| [^\]]*blockquote>paragraph → /,
+		keeps: sameBesideMarkers,
+		repro: {
+			law: 'L10',
+			args: [
+				{
+					source: '>>>a\n>>\n>>a\na\n>a\n>\n>a\n>\n>a\n',
+					mode: 'source',
+					seed: { a: end(1, 'start'), b: end(0, 'end') }
+				},
+				'key'
+			]
+		}
+	},
+	{
+		issue: '#819',
+		lane: 'rebuild',
+		defect:
+			'a copy from the end of a list item into the start of a quote writes the item’s marker, which the range starts past, and drops the quote’s markers before the end',
+		lines: /^L10 \[[^|\]]*\| [^\]]*listItem>paragraph → [^\]]*blockquote>paragraph\] /,
+		keeps: sameBesideMarkers,
+		repro: {
+			law: 'L10',
+			args: [
+				{ source: '- a\n\n> a\n', mode: 'source', seed: { a: end(0, 'end'), b: end(1, 'start') } },
+				'key'
 			]
 		}
 	},

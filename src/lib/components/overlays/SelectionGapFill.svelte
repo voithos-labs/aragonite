@@ -9,13 +9,14 @@
 	import { regionGaps } from './rects';
 	import { observeResize } from '../../windowing/observe-resize';
 	import { rangeSpansBlocks } from '../../selection/primitives';
+	import { SELECTION_PAINT_SELECTOR } from '../../caret/block-content-selector';
 
 	let { getEditorEl }: { getEditorEl: () => HTMLElement | null } = $props();
 
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 
 	// A block's own paint, never a gap rect: reading or observing those would re-measure forever.
-	const BLOCK_PAINT = '.selection-overlay:not(.selection-overlay-gap)';
+	const BLOCK_PAINT = `${SELECTION_PAINT_SELECTOR}:not(.selection-overlay-gap)`;
 
 	const spansBlocks = $derived.by(() => {
 		const coverage = services?.rangeCoverage();

@@ -16,9 +16,9 @@ function menuFor(
 	cell: { rowIdx: number; colIdx: number },
 	dims: { rowCount: number; colCount: number },
 	alignments: readonly TableAlignment[] = PLAIN,
-	clipboard: { hasSelection: boolean; hasRect?: boolean } = { hasSelection: false }
+	selected = false
 ): TableMenuItem[] {
-	return tableMenuItems(cell, dims, alignments, clipboard);
+	return tableMenuItems(cell, dims, alignments, selected);
 }
 
 /** The list with every flyout opened into it, so enablement reads the same either way. */
@@ -148,7 +148,7 @@ describe('tableMenuItems: clipboard group', () => {
 	const cell = { rowIdx: 1, colIdx: 0 };
 
 	it('leads with Cut/Copy/Paste then a separator, ahead of the row group', () => {
-		const items = menuFor(cell, dims, PLAIN, { hasSelection: true });
+		const items = menuFor(cell, dims, PLAIN, true);
 		const lastClip = items.findIndex((i) => i.kind === 'clipboard' && i.action === 'paste');
 		const firstSep = items.findIndex((i) => i.kind === 'separator');
 		const rowGroup = items.findIndex((i) => i.kind === 'group' && i.id === 'row');
@@ -158,22 +158,14 @@ describe('tableMenuItems: clipboard group', () => {
 	});
 
 	it('disables Cut/Copy without a selection but keeps Paste enabled', () => {
-		const items = menuFor(cell, dims, PLAIN, { hasSelection: false });
+		const items = menuFor(cell, dims, PLAIN, false);
 		expect(clipItem(items, 'cut')?.enabled).toBe(false);
 		expect(clipItem(items, 'copy')?.enabled).toBe(false);
 		expect(clipItem(items, 'paste')?.enabled).toBe(true);
 	});
 
 	it('enables Cut/Copy with a selection', () => {
-		const items = menuFor(cell, dims, PLAIN, { hasSelection: true });
-		expect(clipItem(items, 'cut')?.enabled).toBe(true);
-		expect(clipItem(items, 'copy')?.enabled).toBe(true);
-	});
-
-	// An intra-table rectangle suppresses the cell's native selection, so hasSelection
-	// is false; the rect is exactly what Cut/Copy exist to serve, so they enable on it.
-	it('enables Cut/Copy for an active rectangle with no cell selection', () => {
-		const items = menuFor(cell, dims, PLAIN, { hasSelection: false, hasRect: true });
+		const items = menuFor(cell, dims, PLAIN, true);
 		expect(clipItem(items, 'cut')?.enabled).toBe(true);
 		expect(clipItem(items, 'copy')?.enabled).toBe(true);
 	});
@@ -183,7 +175,7 @@ describe('tableMenuItems: Edit link', () => {
 	it('leads with Edit link and a separator when the caret is on a link, and only then', () => {
 		const dims = { rowCount: 3, colCount: 2 };
 		const cell = { rowIdx: 1, colIdx: 0 };
-		const over = tableMenuItems(cell, dims, PLAIN, { hasSelection: false }, true);
+		const over = tableMenuItems(cell, dims, PLAIN, false, true);
 		expect(over.slice(0, 3).map((i) => i.kind)).toEqual(['editLink', 'separator', 'clipboard']);
 		expect(menuFor(cell, dims).some((i) => i.kind === 'editLink')).toBe(false);
 	});

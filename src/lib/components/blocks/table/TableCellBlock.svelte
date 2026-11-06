@@ -33,6 +33,8 @@
 	import { selectionRemoval } from '../editable/surface-write';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
+	import { isContextPress } from '../../../selection/held-selection';
+	import { runClipboardAction } from '../../menu/clipboard-actions';
 	import type { PointerPressOptions } from '../../../selection/cross-block/dispatch';
 	import { publishRefSlot, type RefSlots } from '../../../block-lists/child-refs';
 	import { extendFromCell } from '../../../selection/keyboard-extend';
@@ -44,7 +46,7 @@
 		type CellKeyState
 	} from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
-	import { cellPoint } from '../../../selection/primitives';
+	import { cellPoint, rangeSpansBlocks } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
@@ -118,7 +120,8 @@
 		rangeCoverage,
 		shownSource,
 		presses,
-		textMoves
+		textMoves,
+		menuClipboard
 	} = wiring.services;
 	const ownPairs = autoPairs.forBlock();
 	const { theme: getTheme, resolveLinkUrl, activationClick } = wiring.policies;
@@ -669,9 +672,9 @@
 
 	function onPointerDown(e: PointerEvent): void {
 		if (!el) return;
-		// The clear + drag-install below would collapse an active rectangle before
-		// contextmenu fires, leaving the menu's Cut/Copy nothing to act on.
-		if (e.button === 2) return;
+		// The editor root keeps or ends the selection under a context press (`editor-root/gestures.ts`);
+		// the cell's own widget press, shift-click and drag are the primary button's.
+		if (isContextPress(e)) return;
 		// A click on a widget that can show its source is this editor's gesture: cancel the
 		// browser's caret default and skip the drag so nothing races its own placement.
 		if (widgetInteraction.notePress(e)) {
@@ -722,13 +725,15 @@
 		};
 	}
 
-	// A pasted grid (spreadsheet tabs or a GFM table) fills cells from the live rectangle's
-	// top-left or this cell, growing the table; a whole-table selection still replaces.
+	// A pasted grid (spreadsheet tabs or a GFM table) fills cells from the live rectangle's top-left
+	// or this cell, growing the table; over the whole table or a range across blocks it replaces.
 	async function pasteGridHere(text: string): Promise<boolean> {
 		const grid = parseClipboardGrid(text);
 		if (!grid) return false;
 		const tablePath = myPath.slice(0, -2);
-		const cells = rangeCoverage()?.grid ?? null;
+		const coverage = rangeCoverage();
+		if (coverage && rangeSpansBlocks(coverage)) return false;
+		const cells = coverage?.grid ?? null;
 		if (cells && !pathsEqual(cells.path, tablePath)) return false;
 		if (cells?.kind === 'table') return false;
 		const rect = cells?.rect;
@@ -781,16 +786,12 @@
 		sel: { start: number; end: number }
 	): Promise<void> {
 		if (!el) return;
-		// Right-click deliberately skips the pointerdown reset, so a source may still be showing
-		// and `sel` was captured against that DOM, which is why it is hidden before anything else.
+		// A right-click skips the cell's own press handling, so a source may still be showing and
+		// `sel` was captured against that DOM, which is why it is hidden before anything else.
 		const fold = widgetInteraction.foldRevealBeforeMutation();
 		if (fold) await fold.settled;
-		// A rectangle has no range inside one cell to restore: refocusing keeps it live in
-		// `SelectionState`, where the cell's cut and copy find it.
-		const hasRect = action !== 'paste' && !!rangeCoverage()?.grid;
-		if (action !== 'paste' && !hasRect && sel.start === sel.end) return;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses before
-		// mutating: execCommand needs the restored range, paste needs a focused caret.
+		// mutating: a copy needs the restored range, paste needs a focused caret.
 		caretMemory.forget();
 		el.focus({ preventScroll: true });
 		if (action === 'paste') {
@@ -803,9 +804,9 @@
 			await clipboard.insertMarkdown(raw);
 			return;
 		}
-		if (!hasRect) setSelection(sel.start, sel.end);
-		// The document's own command fires the clipboard event, so cut and copy run the cell's handlers.
-		document.execCommand(action);
+		// A range the editor holds stays as it is, as for a paste.
+		if (!selection.ownsRange) setSelection(sel.start, sel.end);
+		await runClipboardAction(action, menuClipboard);
 	}
 
 	// A click past a widget leaves the caret with no text to sit in, so it moves to the

@@ -19,7 +19,7 @@ import {
 	type ProbedHit
 } from './nearest-block';
 import { placeGapCaret } from './place-caret';
-import { holdsNativeRange } from '../browser/selection-read';
+import { rangeHolder } from './held-selection';
 import { canGapStop, type GapStopScope } from './gap-caret';
 import { caretOffsetAtPoint, elementAtPoint } from '../browser/point';
 import type { CaretPosition, SelectionEndpoint } from './primitives';
@@ -180,9 +180,9 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			const place = pressPlan;
 			pressPlan = null;
 			if (!place || !isDeadSpace(root, event.target)) return false;
-			// A drag that ended in the margin leaves a native range the user just selected. A
-			// cross-block range leaves the native selection empty, so it is ended below instead.
-			if (holdsNativeRange()) return false;
+			// A drag that ended in the margin leaves the browser's range the user just selected; one
+			// the editor holds is ended below instead.
+			if (rangeHolder(deps.gapScope.selection) === 'browser') return false;
 			place();
 			return true;
 		},
