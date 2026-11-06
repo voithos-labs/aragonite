@@ -391,3 +391,52 @@ export async function measureStructuralRebuild(
 		p95Ms: percentileMs(samples, 95)
 	};
 }
+
+/** A paste at the end of item `item` of a giant list, through today's paste and through the byte
+ *  splice, each timed to the frame after it lands; either way the whole list is read again. */
+export async function measureListPaste(
+	page: Page,
+	editor: EditorPage,
+	bytes: number,
+	item: number,
+	pastes: number
+): Promise<{ loadMs: number; today: LatencyMeasurement; splice: LatencyMeasurement }> {
+	await editor.goto();
+	const loadMs = await loadFixture(page, editor, generateFixture('giant-single-list', bytes));
+	const leaf = [0, item, 0];
+	await assertMounted(page, leaf, 'list item');
+	const today: number[] = [];
+	const splice: number[] = [];
+	for (let i = 0; i < pastes; i++) {
+		await editor.focusBlockAtPath(leaf, Number.MAX_SAFE_INTEGER);
+		today.push(
+			await page.evaluate(async () => {
+				const start = performance.now();
+				await (window as any).__test.insertMarkdown('one\ntwo');
+				await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+				return performance.now() - start;
+			})
+		);
+		splice.push(
+			await page.evaluate(async (item) => {
+				const source: string = (window as any).__test.getSource();
+				let at = 0;
+				for (let line = 0; line <= item; line++) at = source.indexOf('\n', at) + 1;
+				at -= 1;
+				const pasted = 'one\n  two';
+				const next = source.slice(0, at) + pasted + source.slice(at);
+				const start = performance.now();
+				await (window as any).__test.spliceSource(next, at + pasted.length);
+				await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+				return performance.now() - start;
+			}, item)
+		);
+	}
+	const measured = (samples: number[]): LatencyMeasurement => ({
+		loadMs,
+		samples,
+		p50Ms: percentileMs(samples, 50),
+		p95Ms: percentileMs(samples, 95)
+	});
+	return { loadMs, today: measured(today), splice: measured(splice) };
+}
