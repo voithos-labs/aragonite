@@ -18,9 +18,19 @@ import type { NodeView } from './core/node-views';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 
 // ── Plugin unit (pre-freeze) ─────────────────────────────────────────────────
-// Installation happens once per process; the editor's `plugins` prop does it, so a
-// consumer rarely calls `installPlugins` directly.
+// A spec with `contributes` makes a plugin value each editor reads for itself; a spec with
+// `setup` installs once per process, through the editor's `plugins` prop.
 export { definePlugin, isPluginInstalled } from './schema/plugin-install';
+export type {
+	BlockType,
+	Contribution,
+	Editor,
+	Plugin,
+	PluginError,
+	PluginList,
+	PluginSpec
+} from './schema/plugin-unit';
+export { builtin } from './schema/plugin-unit';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';

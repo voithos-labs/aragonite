@@ -4,9 +4,17 @@ import {
 	devWarn,
 	isTestProcess
 } from '@voithos-labs/aragonite/dev-checks';
-import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-copy';
-import { ARAGONITE_VERSION } from '../version';
+import { checkDefinedByThisCopy } from '../invariants/one-core-copy';
 import { isValidPluginName } from './plugin-name';
+import {
+	definePluginUnit,
+	definingCopy,
+	markDefinedHere,
+	mergeOptions,
+	THIS_COPY,
+	type Plugin,
+	type PluginSpec
+} from './plugin-unit';
 import { enrollTestReset } from './registry-reset';
 // Type-only: `editor-events` already imports this module at runtime, so importing a value back
 // would close a cycle from `schema/` to the root.
@@ -99,18 +107,19 @@ let coreDepth = 0;
 // Bumped whenever the installed set changes, so a cache filtered by installation can tell it is stale.
 let generation = 0;
 
-// Every copy of the core marks the plugins it defines under one shared key, each with its own value.
-const DEFINED_BY = Symbol.for('@voithos-labs/aragonite:defined-by');
-const THIS_COPY: CoreCopy = Object.freeze({ version: ARAGONITE_VERSION });
-
-const definingCopy = (plugin: EditorPlugin): CoreCopy | undefined =>
-	(plugin as { [DEFINED_BY]?: CoreCopy })[DEFINED_BY];
-
 // ── Public API ───────────────────────────────────────────────────────────────
 
+/** A plugin value from a spec with `contributes`, or a `setup` plugin installed once per process. */
+export function definePlugin<O extends object = Record<never, never>>(
+	spec: PluginSpec<O>
+): Plugin<O>;
 export function definePlugin<Options extends object = Record<never, never>>(
 	plugin: EditorPlugin<Options>
-): EditorPlugin<Options> {
+): EditorPlugin<Options>;
+export function definePlugin(
+	plugin: EditorPlugin<object> | PluginSpec<object>
+): EditorPlugin<object> | Plugin<object> {
+	if ('contributes' in plugin) return definePluginUnit(plugin);
 	if (typeof plugin.setup !== 'function') {
 		throw new Error(`definePlugin: '${plugin.name}' setup must be a function`);
 	}
@@ -119,8 +128,7 @@ export function definePlugin<Options extends object = Record<never, never>>(
 			`definePlugin: invalid plugin name "${plugin.name}"; lowercase first letter, then letters/digits/hyphens`
 		);
 	}
-	// Marked in every build, not just with checks on: the copy that defined it may run without them.
-	if (Object.isExtensible(plugin)) Object.defineProperty(plugin, DEFINED_BY, { value: THIS_COPY });
+	markDefinedHere(plugin);
 	return plugin;
 }
 
@@ -186,7 +194,7 @@ export function resolvePluginOptions<Options extends object>(
 	raw: unknown
 ): Options {
 	const entry = raw === undefined ? {} : plugin.parseOptions ? plugin.parseOptions(raw) : raw;
-	return { ...plugin.defaults, ...definedFields(entry) } as Options;
+	return mergeOptions(plugin.defaults, entry);
 }
 
 export function installedPlugin(name: string): EditorPlugin | undefined {
@@ -305,12 +313,6 @@ function makeSetupContext(pluginName: string): { ctx: PluginSetupContext; close:
 		}
 	};
 	return { ctx, close: () => (open = false) };
-}
-
-// An entry's field set to `undefined` keeps its default, the same as leaving it out.
-function definedFields(value: unknown): Record<string, unknown> {
-	if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
-	return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined));
 }
 
 // `name@version` when the plugin carries a version, so a clash between two versions is
