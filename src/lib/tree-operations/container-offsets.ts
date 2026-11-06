@@ -202,7 +202,13 @@ function lineMap(node: NodeView): BodyMap {
 		toRaw(bodyOffset) {
 			const b = lineHolding(bodyLines, bodyOffset);
 			const r = carrier[b];
-			if (r === undefined) return node.raw.length;
+			if (r === undefined) {
+				// A body line no raw line carries (an empty body under a title) sits at the end of the
+				// raw line before the next one carried.
+				const below = carrier.slice(b + 1).find((at) => at !== undefined) ?? raw.length;
+				const line = raw[Math.max(below - 1, 0)];
+				return line ? line.start + line.text.length : 0;
+			}
 			const column = Math.min(bodyOffset - bodyLines[b].start, bodyLines[b].text.length);
 			const at = Math.min(Math.max(paired[r]!.at + column, 0), raw[r].text.length);
 			return raw[r].start + at;
@@ -215,8 +221,9 @@ function cellMap(node: NodeView): BodyMap {
 	let cursor = 0;
 	const childStarts = (node.children ?? []).map((cell) => {
 		const found = cell.raw === '' ? -1 : node.raw.indexOf(cell.raw, cursor);
-		// An empty or padded cell sits just past the next pipe.
-		const start = found >= 0 ? found : Math.min(node.raw.indexOf('|', cursor) + 1, node.raw.length);
+		// An empty or padded cell sits just past the next pipe, or where the cells before it end.
+		const pipe = node.raw.indexOf('|', cursor);
+		const start = found >= 0 ? found : pipe >= 0 ? pipe + 1 : cursor;
 		cursor = start + cell.raw.length;
 		return start;
 	});
@@ -230,14 +237,14 @@ const MARKER_ONLY =
 /** Where `body`'s text starts in raw line `raw`, or null when the line carries none of it: its
  *  tail behind a marker, its text behind a marker a tab was cut in, or a title inside tags. */
 function textColumn(raw: ParsedLine, body: ParsedLine): number | null {
-	if (raw.lineEnding !== body.lineEnding) return null;
 	const { text } = body;
 	if (isBlankText(text)) {
 		if (!MARKER_ONLY.test(raw.text)) return null;
 		// A blank body line's spaces sit at the end of its marker.
 		return raw.text.endsWith(text) ? raw.text.length - text.length : raw.text.length;
 	}
-	if (raw.text.endsWith(text)) return raw.text.length - text.length;
+	const behind = raw.text.length - text.length;
+	if (raw.text.endsWith(text) && MARKER_ONLY.test(raw.text.slice(0, behind))) return behind;
 	const content = text.trimStart();
 	const marker = raw.text.slice(0, raw.text.length - content.length);
 	if (raw.text.endsWith(content) && MARKER_ONLY.test(marker)) {
