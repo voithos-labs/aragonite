@@ -1444,10 +1444,11 @@
 
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
 	export function use(next: PluginsProp): void {
-		const entries = normalizePluginEntries(next);
-		// First, so a `setup` that throws leaves the editor running what it ran.
-		installPlugins(entries.plugins);
+		// Read before installing: with no list, the names are whatever the page has installed.
 		const before = new Set(activePlugins.names);
+		const entries = normalizePluginEntries(next);
+		// Before any write, so a `setup` that throws leaves the editor running what it ran.
+		installPlugins(entries.plugins);
 		const beforeEntries = pluginEntries;
 		const beforeUnits = units;
 		pluginEntries = entries;

@@ -225,6 +225,21 @@ describe('use', () => {
 		expect(attached).toEqual(['a', 'b']);
 	});
 
+	// Miss-analysis: every `use` row mounted with a list, where the names on before `use` don't
+	// move when a plugin installs.
+	it('attaches a setup plugin new to the page in an editor mounted with no list', async () => {
+		const attached: string[] = [];
+		const late = definePlugin({
+			name: 'unit-late',
+			setup: (ctx) => ctx.onEditor((editor) => void attached.push(editor.editorId))
+		});
+		const m = mountEditor({ source: 'x\n' });
+		await m.settle();
+		m.instance.use([late]);
+		await m.settle();
+		expect(attached).toHaveLength(1);
+	});
+
 	it('is read live through a createEditor handle', () => {
 		const target = document.body.appendChild(document.createElement('div'));
 		const handle = createEditor(target, { source: 'x\n', plugins: [marks] });
