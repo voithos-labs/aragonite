@@ -75,30 +75,3 @@ test.describe('table block: the cell menu and the editor’s switches', () => {
 		await expect(page.getByRole('menu')).toHaveCount(0);
 	});
 });
-
-// Android hands a long press's contextmenu to the page. A cell's word stays the browser's, so the
-// cell menu is its one menu there, and a phone reaches the row and column actions through it.
-test.describe('table block: the cell menu under a finger', () => {
-	test.use({ hasTouch: true });
-
-	test("a finger's long press in a cell opens the cell menu, and the toolbar steps aside", async ({
-		page
-	}) => {
-		const editor = new EditorPage(page);
-		await editor.goto();
-		await editor.loadContent(TABLE);
-		const cell = page.locator('.table-cell').nth(2);
-		const box = (await cell.boundingBox())!;
-		await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-		await cell.evaluate(
-			(el, at) => {
-				const init = { bubbles: true, cancelable: true, clientX: at.x, clientY: at.y };
-				el.dispatchEvent(new MouseEvent('contextmenu', init));
-			},
-			{ x: box.x + box.width / 2, y: box.y + box.height / 2 }
-		);
-		await expect(page.getByRole('menu')).toBeVisible();
-		await expect(page.getByRole('menuitem', { name: 'Row', exact: true })).toBeVisible();
-		await expect(page.locator('[data-testid="selection-toolbar"]')).toHaveCount(0);
-	});
-});

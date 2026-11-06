@@ -34,7 +34,8 @@
 	import TableRowBlock from './TableRowBlock.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
 	import MenuIcon from '../../menu/MenuIcon.svelte';
-	import { ADD_COLUMN_RIGHT, ADD_ROW_BELOW } from '../../../a11y-strings';
+	import { ADD_COLUMN_RIGHT, ADD_ROW_BELOW, TABLE_ACTIONS } from '../../../a11y-strings';
+	import { POINTER_GESTURE_ATTR } from '../../../selection/pointer-gesture';
 	import { tableMenuItems, type ClipboardAction } from './table-menu-model';
 
 	let {
@@ -65,7 +66,8 @@
 		caretWriter,
 		menuPresence,
 		caretLanding,
-		rangeCoverage
+		rangeCoverage,
+		finger
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		editorRoot: getEditorRoot,
@@ -306,6 +308,42 @@
 		return observeResize(el, measure);
 	});
 
+	// A finger has no right-click, so the focused cell carries a button to its menu, centred on
+	// the cell's top-right corner and hidden while the grid's scroll hides that corner.
+	const showCellButton = $derived(finger() && !readOnly && !menu && caretCell !== null);
+	let cellButtonAt = $state<{ left: number; top: number } | null>(null);
+	$effect(() => {
+		const el = tableEl;
+		const host = el?.parentElement;
+		const cell = showCellButton ? caretCell : null;
+		if (!el || !host || !cell) {
+			cellButtonAt = null;
+			return;
+		}
+		const measure = () => {
+			const corner = cellElementAt(cell.rowIdx, cell.colIdx)?.getBoundingClientRect();
+			const grid = el.getBoundingClientRect();
+			const box = host.getBoundingClientRect();
+			const seen = corner && corner.right >= grid.left && corner.right <= grid.right + 1;
+			cellButtonAt = seen
+				? { left: corner.right - box.left - host.clientLeft, top: corner.top - box.top }
+				: null;
+		};
+		measure();
+		el.addEventListener('scroll', measure, { passive: true });
+		const stopResize = observeResize(el, measure);
+		return () => {
+			el.removeEventListener('scroll', measure);
+			stopResize();
+		};
+	});
+
+	// The button cancels its mousedown, not its pointerdown, so the cell keeps focus and WebKit
+	// still sends the click, which it drops after a cancelled touch pointerdown.
+	function openFocusedCellMenu(): void {
+		if (caretCell) ctx.openCellMenu(caretCell.rowIdx, caretCell.colIdx);
+	}
+
 	// The open point as an offset into an element's box, so a scroll re-reads it where the
 	// element is now rather than where the viewport left it.
 	function anchorOn(el: Element, point: { x: number; y: number }): () => { x: number; y: number } {
@@ -339,9 +377,9 @@
 	}
 
 	// `preventDefault` only over a cell, so a right-click in the table's padding gaps keeps
-	// the browser's menu.
+	// the browser's menu. A finger's long press is left to the editor root, which opens nothing.
 	function openCellMenu(e: MouseEvent): void {
-		if (readOnly || !tableEl) return;
+		if (readOnly || !tableEl || finger()) return;
 		const cell = cellAtPoint(e.clientX, e.clientY, tableEl);
 		if (!cell) return;
 		e.preventDefault();
@@ -624,7 +662,18 @@
 			onclick={() => void ctx.insertRowBelow(rowCount - 1)}
 			><MenuIcon name="plus" size={12} /></button
 		>
-	</div>{/if}
+	</div>{/if}{#if cellButtonAt}<button
+		type="button"
+		class="table-cell-menu"
+		tabindex="-1"
+		aria-label={TABLE_ACTIONS}
+		aria-haspopup="menu"
+		{...{ [POINTER_GESTURE_ATTR]: '' }}
+		style:left="{cellButtonAt.left}px"
+		style:top="{cellButtonAt.top}px"
+		onmousedown={(e) => e.preventDefault()}
+		onclick={openFocusedCellMenu}><MenuIcon name="ellipsis-vertical" size={14} /></button
+	>{/if}
 
 <style>
 	.table-block {
@@ -690,6 +739,30 @@
 		.table-add {
 			transition: none;
 		}
+	}
+	/* A quiet dot on the cell's corner; a wider box would take taps on the next cell's text. */
+	.table-cell-menu {
+		position: absolute;
+		z-index: 3;
+		width: 30px;
+		height: 30px;
+		margin: -15px 0 0 -15px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--color-ui-muted);
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.table-cell-menu :global(svg) {
+		box-sizing: content-box;
+		padding: 3px;
+		border: 1px solid var(--color-border);
+		border-radius: 50%;
+		background: var(--color-bg-secondary);
 	}
 	/* Spacers are direct grid children; span all columns to reserve a full row band. */
 	.vr-spacer {

@@ -861,6 +861,7 @@
 		caretMemory,
 		caretWriter,
 		presses,
+		finger: () => fingerPress,
 		drawnCaret,
 		composition,
 		autoPairs,
@@ -1529,7 +1530,7 @@
 			{menuPresence}
 		/>
 	{/if}
-	{#if selectionToolbar && effectiveMode !== 'reading'}
+	{#if (selectionToolbar || fingerPress) && effectiveMode !== 'reading'}
 		<SelectionToolbar
 			editor={{
 				getSelection,
@@ -1542,6 +1543,7 @@
 			}}
 			root={editorEl}
 			finger={() => fingerPress}
+			formatting={() => selectionToolbar}
 			clipboard={menuClipboard}
 			{menuPresence}
 		/>
