@@ -156,7 +156,13 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'footnote-def',
 		'[^1]: b\n'
 	],
-	['an emptied quote keeps its marker as spelled', '> quoted', 'text deleted', 'blockquote', '> '],
+	[
+		'a quote emptied of all its text keeps its marker as spelled',
+		'> quoted',
+		'text deleted',
+		'blockquote',
+		'> '
+	],
 	['an emptied quote keeps an unspaced marker', '>quoted', 'text deleted', 'blockquote', '>'],
 	['an emptied item keeps its marker', '- item', 'body emptied', 'listItem', '- '],
 	[
@@ -167,7 +173,7 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'[^1]: \n'
 	],
 	[
-		'an emptied alert keeps its head line and its body line’s marker',
+		'an alert emptied of all its text keeps its head line and its body line’s marker',
 		'> [!NOTE]\n> a\n',
 		'text deleted',
 		'githubAlert',
@@ -253,6 +259,18 @@ describe('named rows', () => {
 	it.each(NAMED_ROWS)('%s', (_, source, edit, kind, bytes) => {
 		const rows = rowsOf(source, edit, shaped).filter((row) => row.kind === kind);
 		expect(rows.map((row) => row.raw)).toEqual([bytes]);
+	});
+
+	// The emptied-container rule is for a whole quote: a reorder or a split inside one that still
+	// holds text pairs a blank line with a line that had text, which must not lend it `> `.
+	it('writes a line it empties in a quote still holding text as a bare `>`', () => {
+		const quote = parse('> a\n> b\n> c\n').children[0];
+		quote.children = [
+			{ kind: 'paragraph', leadingTrivia: '', raw: 'a\n' },
+			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'c\n' }
+		];
+		writeContainerRaw(quote, defaultGrammarView);
+		expect(quote.raw).toBe('> a\n>\n> c\n');
 	});
 
 	it('writes a blank line it adds to a quote as a bare `>`', () => {
