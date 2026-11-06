@@ -13,6 +13,7 @@ import {
 import { edgeKey } from '../../platform-keys';
 import { textRunCenter, textRunStart } from '../../text-runs';
 import { dragSelection } from '../../selection-drag';
+import { multiClick } from '../../multi-click';
 
 /**
  * The `<details>` collapsible, the second block with an editable title row. Collapsing clamps the
@@ -237,7 +238,7 @@ test.describe('plugin container: <details> collapsible', () => {
 			'<details open>\n<summary>Summary</summary>\n\nBody text\n\n</details>\n'
 		);
 		const word = await textRunCenter(page, 'Body');
-		await page.mouse.dblclick(word.x, word.y);
+		await multiClick(page, word, 2);
 		await expect.poll(() => page.evaluate(() => getSelection()?.toString())).toBe('Body');
 		await dragSelection(page, word, await textRunStart(page, 'Summary'));
 		await editor.bridge.waitForSourceEquals(
