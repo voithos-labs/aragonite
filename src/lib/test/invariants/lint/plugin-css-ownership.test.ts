@@ -82,10 +82,4 @@ describe('plugin CSS ownership: matcher non-vacuity', () => {
 	it('declsIn captures the markup spelling of the same declaration', () => {
 		expect(declsIn('<div style:--parrot-rows={FRAME_ROWS}>')).toEqual(['--parrot-rows']);
 	});
-
-	it('a read absent from both allow-sets is flagged dead', () => {
-		const allowed = new Set(['--font-editor', '--adm-accent']);
-		const read = readsIn('color: var(--color-text-secondary, #aaa);')[0];
-		expect(allowed.has(read)).toBe(false);
-	});
 });

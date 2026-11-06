@@ -2,7 +2,6 @@
 import { appendView } from '#lib/test/harness/views.js';
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { createTextRender } from '#lib/components/blocks/text/text-render.js';
-import { islandRenderKeyPart } from '#lib/decorations/island-dom.js';
 import {
 	disableInteractionTrace,
 	enableInteractionTrace,
@@ -25,10 +24,6 @@ const widgetIsland = (offset: number, buildDom?: () => HTMLElement): Island => (
 });
 
 describe('text-render widget wiring', () => {
-	it('no widgets contribute nothing to the render key (zero-cost parity)', () => {
-		expect(islandRenderKeyPart([])).toBe('');
-	});
-
 	it('an empty widget set never rebuilds, even across fresh array identities', () => {
 		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);

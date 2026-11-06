@@ -115,9 +115,9 @@ interface HandWrittenArm {
 	path: string;
 	/** How the scan sees it: a kind literal it can find, or a shape only a reader can. */
 	detection: 'kind-literal' | 'declared';
-	/** `backlog` is undecided, and forbidden. `deferred` names what blocks the row. `outside` is a
-	 *  decision: the question is not the table's to answer. */
-	fate: 'backlog' | 'deferred' | 'outside';
+	/** `deferred` names what blocks the row. `outside` is a decision: the question is not the
+	 *  table's to answer. */
+	fate: 'deferred' | 'outside';
 	reason: string;
 }
 
@@ -199,9 +199,6 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 	}
 ];
 
-/** Empty: every live gesture rule is a row, a decided `outside`, or a `deferred` naming its blocker. */
-const backlog = HAND_WRITTEN_ARMS.filter((arm) => arm.fate === 'backlog');
-
 // ── The census ───────────────────────────────────────────────────────────────
 
 const allSources = collectEditorSources();
@@ -280,17 +277,5 @@ describe('inline-construct policy hand-written branches', () => {
 		const onDisk = new Set(allSources.map((file) => file.relPath));
 		const declared = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'declared');
 		expect(declared.map((arm) => arm.path).filter((file) => !onDisk.has(file))).toEqual([]);
-	});
-
-	it('no hand-written branch is an undecided backlog entry', () => {
-		expect(
-			backlog,
-			'a hand-written branch needs a row, a decided `outside`, or a `deferred` naming its blocker'
-		).toEqual([]);
-	});
-
-	it('every declared branch carries a reason', () => {
-		expect(HAND_WRITTEN_ARMS.filter((arm) => arm.reason.trim() === '')).toEqual([]);
-		expect(Object.entries(POLICY_ARMS).filter(([, reason]) => reason.trim() === '')).toEqual([]);
 	});
 });

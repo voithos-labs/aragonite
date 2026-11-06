@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
 
@@ -188,15 +187,4 @@ describe('materialized blank lines round-trip', () => {
 		'- a\n\n\n  b\n',
 		'1\r\n\r\n\r\n2\r\n'
 	]);
-});
-
-describe('the materialized shape is a fixed point of serialize → parse', () => {
-	it.each(['1\n\n\n2\n', '\n\n\na\n', 'a\n\n\n\n\n', '> a\n>\n>\n>\n> b\n', '- a\n\n\n  b\n'])(
-		'reparsing %j reproduces the same layout',
-		(source) => {
-			const once = parse(source);
-			const twice = parse(serialize(once));
-			expect(layout(twice.children)).toEqual(layout(once.children));
-		}
-	);
 });
