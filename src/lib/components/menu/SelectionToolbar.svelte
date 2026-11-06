@@ -73,6 +73,7 @@
 		editor,
 		root,
 		finger,
+		formatting,
 		clipboard,
 		menuPresence
 	}: {
@@ -81,6 +82,8 @@
 		/** Whether the last press was a finger: the bar then sits above the range, clear of the
 		 *  selection handles below it, and is that range's one menu, with Cut and Paste too. */
 		finger: () => boolean;
+		/** The `selectionToolbar` prop: off, a finger's range keeps the clipboard row alone. */
+		formatting: () => boolean;
 		/** What the Cut, Copy and Paste rows act through. */
 		clipboard: MenuClipboard;
 		menuPresence: MenuPresence;
@@ -98,6 +101,9 @@
 	// bar's shape, while a row that does nothing is noise over a selection it cannot act on.
 	const rows = $derived(ROWS.filter((row) => !declined.has(row.command)));
 	const offersHeading = $derived(!declined.has(TURN_INTO_COMMAND));
+	// The editor took the phone's own menu away, so with the formatting bar off a finger's range
+	// still gets its clipboard row.
+	const clipboardOnly = $derived(finger() && !formatting());
 
 	interface Placement {
 		x: number;
@@ -220,8 +226,8 @@
 	// The editor decides where the bar belongs: over a code fence or an equation's source it
 	// refuses every mark, and a bar of greyed-out buttons is worse than none.
 	function shownOver(selection: EditorSelection): Placement | null {
-		if (menuOpen || pointerHeld) return null;
-		if (MARKS.every((mark) => declined.has(mark.command))) return null;
+		if (menuOpen || pointerHeld || !(formatting() || finger())) return null;
+		if (!clipboardOnly && MARKS.every((mark) => declined.has(mark.command))) return null;
 		return place(selection);
 	}
 
@@ -301,88 +307,7 @@
 		tabindex="-1"
 		onpointerleave={closeOnLeave}
 	>
-		<div class="selection-toolbar-marks">
-			{#each MARKS as button (button.command)}
-				<button
-					type="button"
-					class="md-menu-item selection-toolbar-mark"
-					data-testid="toolbar-{button.command}"
-					title={button.title}
-					disabled={declined.has(button.command)}
-					aria-pressed={active.has(button.command)}
-					onmousedown={(e) => e.preventDefault()}
-					onclick={() => fire(button.command)}
-				>
-					<MenuIcon name={button.icon} size={button.size} />
-				</button>
-			{/each}
-		</div>
-		<div class="md-menu-divider" aria-hidden="true"></div>
-		{#if offersHeading}
-			<div
-				class="selection-toolbar-row"
-				role="presentation"
-				onpointerenter={() => (turnIntoOpen = true)}
-			>
-				<button
-					type="button"
-					class="md-menu-item"
-					data-testid="toolbar-set-heading"
-					aria-haspopup="menu"
-					aria-expanded={turnIntoOpen}
-					onmousedown={(e) => e.preventDefault()}
-					onclick={openFlyout}
-				>
-					<span class="md-menu-icon"><MenuIcon name="heading" size={14} /></span>
-					<span class="selection-toolbar-label">Set heading</span>
-					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
-				</button>
-				{#if turnIntoOpen}
-					<div
-						class="md-menu selection-toolbar-flyout"
-						role="menu"
-						{@attach keepFlyoutOnScreen}
-						{@attach menuPresence.trackUncounted(closeFlyout, {
-							edits: true,
-							inside: () => [barEl]
-						})}
-					>
-						{#each TURN_INTO as option (option.level)}
-							{@const chosen = option.level === 0 ? blockKind === 'paragraph' : false}
-							<button
-								type="button"
-								class="md-menu-item"
-								role="menuitemradio"
-								data-testid="toolbar-set-heading-{option.level}"
-								aria-checked={chosen}
-								onmousedown={(e) => e.preventDefault()}
-								onclick={() => fire(TURN_INTO_COMMAND, option.level)}
-							>
-								<span class="selection-toolbar-label">{option.label}</span>
-								{#if chosen}<span class="md-menu-icon"><MenuIcon name="check" size={13} /></span
-									>{/if}
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		{/if}
-		{#each rows as row (row.command)}
-			<button
-				type="button"
-				class="md-menu-item"
-				data-testid="toolbar-{row.command}"
-				aria-pressed={active.has(row.command)}
-				onmousedown={(e) => e.preventDefault()}
-				onclick={() => fire(row.command)}
-			>
-				<span class="md-menu-icon"><MenuIcon name={row.icon} size={14} /></span>
-				<span class="selection-toolbar-label">{row.label}</span>
-				{#if active.has(row.command)}<span class="md-menu-icon"
-						><MenuIcon name="check" size={13} /></span
-					>{/if}
-			</button>
-		{/each}
+		{#if !clipboardOnly}{@render formattingRows()}{/if}
 		{#each finger() ? FINGER_CLIPBOARD : DESK_CLIPBOARD as row (row.action)}
 			<button
 				type="button"
@@ -397,6 +322,90 @@
 		{/each}
 	</div>
 {/if}
+
+{#snippet formattingRows()}
+	<div class="selection-toolbar-marks">
+		{#each MARKS as button (button.command)}
+			<button
+				type="button"
+				class="md-menu-item selection-toolbar-mark"
+				data-testid="toolbar-{button.command}"
+				title={button.title}
+				disabled={declined.has(button.command)}
+				aria-pressed={active.has(button.command)}
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => fire(button.command)}
+			>
+				<MenuIcon name={button.icon} size={button.size} />
+			</button>
+		{/each}
+	</div>
+	<div class="md-menu-divider" aria-hidden="true"></div>
+	{#if offersHeading}
+		<div
+			class="selection-toolbar-row"
+			role="presentation"
+			onpointerenter={() => (turnIntoOpen = true)}
+		>
+			<button
+				type="button"
+				class="md-menu-item"
+				data-testid="toolbar-set-heading"
+				aria-haspopup="menu"
+				aria-expanded={turnIntoOpen}
+				onmousedown={(e) => e.preventDefault()}
+				onclick={openFlyout}
+			>
+				<span class="md-menu-icon"><MenuIcon name="heading" size={14} /></span>
+				<span class="selection-toolbar-label">Set heading</span>
+				<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+			</button>
+			{#if turnIntoOpen}
+				<div
+					class="md-menu selection-toolbar-flyout"
+					role="menu"
+					{@attach keepFlyoutOnScreen}
+					{@attach menuPresence.trackUncounted(closeFlyout, {
+						edits: true,
+						inside: () => [barEl]
+					})}
+				>
+					{#each TURN_INTO as option (option.level)}
+						{@const chosen = option.level === 0 ? blockKind === 'paragraph' : false}
+						<button
+							type="button"
+							class="md-menu-item"
+							role="menuitemradio"
+							data-testid="toolbar-set-heading-{option.level}"
+							aria-checked={chosen}
+							onmousedown={(e) => e.preventDefault()}
+							onclick={() => fire(TURN_INTO_COMMAND, option.level)}
+						>
+							<span class="selection-toolbar-label">{option.label}</span>
+							{#if chosen}<span class="md-menu-icon"><MenuIcon name="check" size={13} /></span>{/if}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
+	{#each rows as row (row.command)}
+		<button
+			type="button"
+			class="md-menu-item"
+			data-testid="toolbar-{row.command}"
+			aria-pressed={active.has(row.command)}
+			onmousedown={(e) => e.preventDefault()}
+			onclick={() => fire(row.command)}
+		>
+			<span class="md-menu-icon"><MenuIcon name={row.icon} size={14} /></span>
+			<span class="selection-toolbar-label">{row.label}</span>
+			{#if active.has(row.command)}<span class="md-menu-icon"
+					><MenuIcon name="check" size={13} /></span
+				>{/if}
+		</button>
+	{/each}
+{/snippet}
 
 <style>
 	/* The panel and its rows are the shared `.md-menu` family (editor.css); only the marks row

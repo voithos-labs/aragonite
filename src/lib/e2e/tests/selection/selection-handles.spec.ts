@@ -297,6 +297,25 @@ for (const {
 	});
 }
 
+const toolbarRows = (page: Page) =>
+	page
+		.locator('[data-testid="selection-toolbar"] [data-testid^="toolbar-"]')
+		.evaluateAll((rows) => rows.map((row) => row.getAttribute('data-testid')));
+const CLIPBOARD_ROWS = ['toolbar-cut', 'toolbar-copy', 'toolbar-paste'];
+
+test("with the selection toolbar off, a finger's word keeps the clipboard row alone, a mouse's word no bar", async ({
+	page
+}) => {
+	const editor = await openTouch(page, DOC);
+	await editor.goto('?selectionToolbar=off');
+	await editor.loadContent(DOC);
+	await doubleTapWord(page, editor, [1], 5);
+	await expect.poll(() => toolbarRows(page)).toEqual(CLIPBOARD_ROWS);
+	await multiClick(page, await pointAtRaw(page, [2], 2), 2);
+	await expect.poll(() => selection(editor)).toMatchObject({ anchor: { path: [2] } });
+	await expect(page.locator('[data-testid="selection-toolbar"]')).toHaveCount(0);
+});
+
 test('reading mode shows no handles', async ({ page }) => {
 	const editor = await openTouch(page, DOC);
 	await tapThenSelect(page, RANGE);

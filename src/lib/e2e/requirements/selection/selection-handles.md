@@ -86,3 +86,7 @@ the unit layer and on the phones (`requirements/mobile/android.md` and `ios.md`)
   the block the same.
 - A mouse's toolbar only copies, since a mouse's range has the keyboard's Cut and Paste and the
   right-click menu.
+- With `selectionToolbar` off, a finger's word still gets a bar with Cut, Copy and Paste alone,
+  since the editor replaced the phone's own menu; a mouse's word gets no bar.
+  - Miss-analysis: every toolbar row ran with the prop on, so turning it off left a finger's word
+    with no clipboard at all and nothing went red.
