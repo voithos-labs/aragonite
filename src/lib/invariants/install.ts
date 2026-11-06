@@ -36,8 +36,8 @@ import { concatChildren } from '../core/serializer';
 import { checkWrittenUnshared } from './written-unshared';
 import type { SharingState } from '../tree-operations/sharing';
 
-/** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
- *  container's raw is that rebuild's output. */
+/** Checks only the nodes a commit touched. Call it after the commit writes its containers, so a
+ *  strip container's raw is that write's output. */
 export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): void {
 	// Off under the perf instruments, as G1.55 is: the stale-raw check re-reads each container.
 	if (perfEnabled()) return;

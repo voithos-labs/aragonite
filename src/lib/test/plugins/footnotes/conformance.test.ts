@@ -34,7 +34,7 @@ describe('footnote definition conformance', () => {
 		const { cells } = await runKindConformance(declaredPluginKind(FOOTNOTE_DEF_KIND));
 		const roundTrip = cells.find((c) => c.cell === 'roundTrip')!;
 		expect(roundTrip.status).toBe('asserted');
-		expect(roundTrip.detail).toContain('rebuildRaw parse-identity');
+		expect(roundTrip.detail).toContain('writer parse-identity');
 
 		const merge = cells.find((c) => c.cell === 'mergeBackspace')!;
 		expect(merge.status).toBe('asserted');

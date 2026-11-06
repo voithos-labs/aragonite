@@ -123,8 +123,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				try {
 					newNodes = buildSubtree(topIndex, group, template);
 				} catch (error) {
-					// buildSubtree calls the kind's `rebuildRaw`, plugin code running outside any
-					// commit, so nothing else would report this error.
+					// buildSubtree runs the container writer, which can run plugin code outside
+					// any commit, so nothing else would report this error.
 					deps.events.emit('error', {
 						origin: 'commit',
 						error,

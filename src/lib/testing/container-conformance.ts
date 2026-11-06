@@ -740,15 +740,15 @@ function assertUntouchedLinesKept(
 	const moved = before.findIndex(
 		(line, i) => (i < above || i >= before.length - below) && line !== after[at(i)]
 	);
-	assert(mark >= 0, `${kind} rebuildRaw dropped the line the edit added to its last child`);
+	assert(mark >= 0, `${kind}'s writer dropped the line the edit added to its last child`);
 	assert(
 		moved < 0,
-		`${kind} rebuildRaw rewrote lines outside the child it was told changed: line ${moved + 1} ` +
+		`${kind}'s writer rewrote lines outside the child it was told changed: line ${moved + 1} ` +
 			`"${before[moved]}" became "${after[at(moved)]}"`
 	);
 }
 
-/** `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
+/** The writer's changed-child hint is a shortcut, never a different answer: the same children
  *  rebuilt with and without it give the same bytes. */
 function assertHintedRebuildMatchesFull(
 	kind: AnyBlockKind,
@@ -769,7 +769,7 @@ function assertHintedRebuildMatchesFull(
 	assertIs(
 		hinted,
 		node.raw,
-		`${kind} rebuildRaw writes the same bytes for a changed-child hint as for a full rebuild`
+		`${kind}'s writer writes the same bytes for a changed-child hint as for a full rebuild`
 	);
 }
 
@@ -809,7 +809,7 @@ function assertContentStartSpaceIsRebuilt(
 	const line = lines[0];
 	assert(
 		line.endsWith(` ${CONTENT_START_PROBE}`) && line.length > CONTENT_START_PROBE.length + 1,
-		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for an ` +
+		`${kind} declares container.contentStartSpace but its writer emits "${line}" for an ` +
 			`empty body child given "${CONTENT_START_PROBE}": the consumed space only appears where ` +
 			`the rebuild writes the marker's own space on a line that gains text`
 	);

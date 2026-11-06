@@ -183,7 +183,7 @@ function registerDomViews(): void {
 			lines: COLON_LINES
 		},
 		closure: containerClosure({
-			roundTripVia: 'container contract=opaque, the directive rebuild',
+			roundTripVia: 'container lines — the colon shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'the container surface' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: { mode: 'inherit-default' },

@@ -63,7 +63,7 @@ export function registerTitleRowLeaf(
 		closure: {
 			roundTrip: {
 				mode: 'implemented',
-				via: 'contextDependentKind — the container rebuildRaw emits the chrome bytes into its opener line'
+				via: 'contextDependentKind — the container writer emits the chrome bytes into its opener line'
 			},
 			focus: {
 				mode: 'implemented',

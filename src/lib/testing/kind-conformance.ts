@@ -243,9 +243,9 @@ function execRoundTrip(
 	if (descriptor.isContainer) {
 		const first = rebuildRawOf(ctx);
 		const second = rebuildRawOf(ctx);
-		assertIs(first, second, `"${kind}" rebuildRaw is deterministic`);
+		assertIs(first, second, `"${kind}"'s writer is deterministic`);
 		assertRebuildKeepsParsedBytes(descriptor, freshSubject(ctx), `"${kind}"`);
-		return 'byte round-trip + rebuildRaw parse-identity + determinism';
+		return 'byte round-trip + writer parse-identity + determinism';
 	}
 	return 'byte round-trip';
 }

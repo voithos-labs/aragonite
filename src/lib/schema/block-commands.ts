@@ -37,7 +37,7 @@ export interface BlockCommandContext extends CommandRun {
 	/** A read-only view of the node; a command changes it through one of the writes below. */
 	node: NodeView;
 	arg: unknown;
-	/** A container's metadata patch, which its `rebuildRaw` writes into the bytes. A leaf's
+	/** A container's metadata patch, which the editor writes into its bytes. A leaf's
 	 *  metadata comes from its bytes, so on a leaf this writes nothing and reports an error. */
 	updateMetadata(patch: Record<string, unknown>): void;
 	/** Rewrite the block's bytes as one undo entry; the parse derives its kind and metadata. */

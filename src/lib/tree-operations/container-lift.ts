@@ -31,7 +31,7 @@ export function liftFirstChild(container: NodeView, rebuildRemainder: RemainderB
 	return [lifted, remaining];
 }
 
-/** The remainder keeps the container's kind, and its `rebuildRaw` re-emits the syntax, so a
+/** The remainder keeps the container's kind, and the container writer re-emits the syntax, so a
  *  marker held in metadata survives. */
 export function sameContainer(grammar: GrammarView): RemainderBuilder {
 	return (container, children) => {

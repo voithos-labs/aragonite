@@ -361,8 +361,8 @@ export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/
 // The lines of a `:::` container (`container.lines`): child 0 is its opener line, which the grammar
 // puts there, and the editor widens every colon run past a body line that would close it.
 export { COLON_LINES } from './schema/colon-lines';
-// The wrap every `:::` body parses with (a kind's `container.bodyWrap`), and the kind of every `:::`
-// container's opener-line row (what a folding `:::` kind names as its `reservedChrome.kind`).
+// The wrap every `:::` body parses with (`COLON_LINES` gives it a kind), and the kind of each
+// `:::` container's opener-line row (what a folding `:::` kind names as its `reservedChrome.kind`).
 export { DIRECTIVE_BODY_WRAP, DIRECTIVE_OPENER_LINE } from './core/directive/container-shape';
 
 // ── Renderer utilities (pre-freeze) ──────────────────────────────────────────

@@ -148,9 +148,9 @@ export function assertRebuildKeepsParsedBytes(
 	try {
 		writeContainerRaw(node, defaultGrammarView);
 	} catch (error) {
-		fail(`${label} rebuildRaw throws over a parsed fixture: ${(error as Error).message}`);
+		fail(`${label}'s writer throws over a parsed fixture: ${(error as Error).message}`);
 	}
-	assertIs(node.raw, before, `${label} rebuildRaw keeps the bytes it was parsed from`);
+	assertIs(node.raw, before, `${label}'s writer keeps the bytes it was parsed from`);
 }
 
 // ── Cell subjects ────────────────────────────────────────────────────────────

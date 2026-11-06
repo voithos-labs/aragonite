@@ -29,7 +29,7 @@ export interface AdmonitionMetadata {
 	closerNewline: boolean;
 }
 
-/** The marker's type as typed (`NOTE`, `Note`), stored verbatim so `rebuildRaw` re-emits
+/** The marker's type as typed (`NOTE`, `Note`), stored verbatim so the writer re-emits
  *  the source casing; display code lowercases it through `coerceAdmonitionName`. */
 export interface GithubAlertMetadata {
 	alertType: string;

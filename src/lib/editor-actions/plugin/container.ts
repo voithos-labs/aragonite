@@ -137,8 +137,8 @@ export interface ContainerBlock {
 	getEditor(): EditorContext | undefined;
 	/** The `BlockComponent` the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
-	/** Commit a shallow metadata patch as one undo entry, through the kind's `rebuildRaw`; the commit
-	 *  puts the caret at `caret`, relative to this container (`[]` is the block), once it renders. */
+	/** Commit a shallow metadata patch as one undo entry, written into the container's bytes; the
+	 *  caret lands at `caret`, relative to this container (`[]` is the block), once it renders. */
 	updateOwnMetadata(
 		patch: Record<string, unknown>,
 		options?: { caret?: { path: number[]; offset: number } }

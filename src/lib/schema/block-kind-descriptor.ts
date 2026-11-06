@@ -179,7 +179,7 @@ export interface BlockKindDescriptor {
 	lastLineChild?: (node: NodeView) => number;
 	/**
 	 * The kind has no opener of its own, so `parse(raw)` would not reproduce it: its container's
-	 * `rebuildRaw` owns the syntax, and a content edit writes `raw` without reparsing the kind.
+	 * writer owns the syntax, and a content edit writes `raw` without reparsing the kind.
 	 */
 	contextDependentKind?: boolean;
 	/**
@@ -203,7 +203,7 @@ export interface BlockKindDescriptor {
 	unwrapRole?: UnwrapRole;
 	/**
 	 * The first space typed at a child's content start, while its marker lacks one, is the marker's:
-	 * written into the marker's line at once, or by `rebuildRaw` when an empty line gains text.
+	 * written into the marker's line at once, or by the writer when an empty line gains text.
 	 */
 	contentStartSpace?: 'complete-marker';
 	/** This container's direct children reorder among themselves. Absent means they do not. */
@@ -466,7 +466,7 @@ interface CaretContainerRegistration extends RegistrationBase {
 
 /**
  * The parser's way into the kind. A context-dependent kind has none of its own: its container's
- * `rebuildRaw` owns the syntax, so an opener beside it would never re-derive the kind.
+ * writer owns the syntax, so an opener beside it would never re-derive the kind.
  */
 type OpenerFacet =
 	| { contextDependentKind: true; opener?: never }
