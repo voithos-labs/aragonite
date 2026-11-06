@@ -127,6 +127,8 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'plugin.ts -> schema',
 	'plugin.ts -> selection',
 	'plugin.ts -> tree-operations',
+	'range-edit -> core',
+	'range-edit -> tree-operations',
 	'renderer-slot.ts -> bounded-memo.ts',
 	'renderer-slot.ts -> schema',
 	'scan-index.ts -> bounded-memo.ts',

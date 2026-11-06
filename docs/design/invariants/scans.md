@@ -230,6 +230,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.295 | The range-edit law harness imports only the routes and reads it names | L |
 | G4.296 | Whether a selection is held is asked of the editor's selection before the browser's, in one module | L |
 | G4.303 | Every block kind's cut, copy and paste facts agree with its registration and its own parse | harness |
+| G4.313 | The range-edit layout reads every block and container line back from the document's bytes | harness |
 
 ### The entries
 
@@ -669,3 +670,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.296 · Whether a selection is held is asked in one place.** While the editor holds a range or a widget, the browser's selection is a caret, so a read of the browser's alone takes the user's selection for none, and a menu's Cut and Copy go dark over a range across blocks. `selection/held-selection.ts` asks the editor's selection first, and only it reads `holdsNativeRange` and `nativeRangeIn`, anywhere in the library. `file-rules.test.ts`.
 
 **G4.303 · Block facts agree with the registrations.** `schema/block-facts.ts :: blockFacts` gives a kind's cut, copy and paste facts as data. With every bundled plugin installed, each one must equal what the registration already says (`bodyWrap`, `mergeRole`, `mustHoldChild`, the title row, a DOM view's surface), and the test writes out only what nothing else states. Every container has a line shape, and a merge key names a field the kind's own parse sets, or every pair would merge. When it fires, fix the kind's declaration. `test/schema/block-facts.test.ts`.
+
+**G4.313 · The range layout reads back from the bytes.** `range-edit/layout.ts` is where the range-edit core reads each block's span and each container line's marker, and it's built on the byte map in `tree-operations/container-offsets.ts`, never a second one. Every block starts at its first byte and ends past its own line ending (not on the next line's markers), and each container line past its marker holds the next line its children write. A tab cut by a marker, a blank line and a title inside a tag are the allowed spellings. `test/range-edit/layout.test.ts`.
