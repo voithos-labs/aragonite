@@ -116,6 +116,22 @@ test.describe('the right-click menu over a range the editor holds', () => {
 		expect(await editor.bridge.getSource()).toBe(DOC);
 	});
 
+	test('a right-click on the open menu keeps the range for the row picked next', async ({
+		page
+	}) => {
+		await selectAcross();
+		await page.keyboard.press('ControlOrMeta+c');
+		await editor.waitForClipboardWrite();
+		const chord = await editor.readClipboard();
+		await editor.seedClipboard('');
+		// On the end line, so the menu hangs over the blocks below the range, where nothing is painted.
+		await rightClick(await pointAtRaw(page, [5], 1));
+		await rightClick(await centerOf(page, '.md-menu [role="menuitem"]:has-text("Paste")'));
+		expect(await editor.bridge.ownsRange()).toBe(true);
+		await menuItem(page, 'Copy').click();
+		await expect.poll(() => editor.readClipboard()).toBe(chord);
+	});
+
 	test("the cell menu's Cut over the range ends as Ctrl+X does", async ({ page }) => {
 		await selectAcross();
 		await page.keyboard.press('ControlOrMeta+x');
@@ -138,6 +154,33 @@ test.describe('the right-click menu over a range the editor holds', () => {
 			}))
 			.toEqual(chord);
 	});
+});
+
+test("the cell menu's Paste of copied cells over the range replaces it, as Ctrl+V does", async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	const doc = 'one\n\n| a | b |\n| - | - |\n| c | d |\n\nafter\n';
+	await editor.loadContent(doc);
+	await editor.seedClipboard('X\tY');
+	const selectAcross = async () => {
+		await editor.focusBlockAtPath([0], 1);
+		await editor.shiftClickBlock([2], 2);
+		await expect.poll(() => editor.bridge.ownsRange()).toBe(true);
+	};
+	await selectAcross();
+	await editor.paste();
+	await expect.poll(() => editor.bridge.getSource()).not.toBe(doc);
+	const chord = await editor.bridge.getSource();
+	await editor.undo();
+	await editor.bridge.waitForSourceEquals(doc);
+
+	await selectAcross();
+	const cell = await box(page, '[data-block-path="[1]"] .table-cell');
+	await page.mouse.click(cell.x + 2, cell.y + cell.height / 2, { button: 'right' });
+	await menuItem(page, 'Paste').click();
+	await editor.bridge.waitForSourceEquals(chord);
 });
 
 test("the menu's Paste over a rule held whole replaces it, as Ctrl+V does", async ({ page }) => {

@@ -308,9 +308,17 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	// its menu, and ends one it misses as a click there would.
 	function noteContextPointerDown(root: HTMLElement, e: PointerEvent): void {
 		contextPress = notePress(root, e, null);
-		if (contextPress && !contextPress.range) {
-			resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false);
-		}
+		if (!contextPress || contextPress.range || leavesSelectionAlone(e.target)) return;
+		resetForPointerDown(deps.selection, deps.caretWriter, deps.caretMemory, false);
+	}
+
+	// What a click leaves the selection alone on: the editor's menus and toolbar, the host's own
+	// content, and an element that runs its own gesture (the find bar).
+	function leavesSelectionAlone(target: EventTarget | null): boolean {
+		if (!(target instanceof Element)) return false;
+		return (
+			!!target.closest('.md-menu') || claimsPointerGesture(target) || deps.isHostChrome(target)
+		);
 	}
 
 	/** `planned` is the record this press's pointerdown wrote, whose caret plans it keeps. */

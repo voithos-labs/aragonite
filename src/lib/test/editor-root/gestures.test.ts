@@ -427,6 +427,27 @@ describe('editor-root gestures: the right-click press record', () => {
 			expect(h.gestures.rangeAtContextPress(h.root)).toBe(false);
 		});
 
+		// A click on any of them leaves the range, so a row of the open menu still acts on it.
+		it.each<[string, (h: ReturnType<typeof harness>) => Element]>([
+			[
+				'an open menu',
+				(h) => {
+					const menu = document.createElement('div');
+					menu.className = 'md-menu';
+					menu.append(document.createElement('button'));
+					h.root.append(menu);
+					return menu.firstElementChild!;
+				}
+			],
+			['the host’s own content', (h) => h.headerLink],
+			['an element running its own gesture', (h) => h.widget]
+		])('a press on %s beside its paint keeps it', (_, target) => {
+			const h = harness();
+			h.withRange();
+			h.press(target(h), { button: 2 });
+			expect(h.selection.ownsRange).toBe(true);
+		});
+
 		it('a menu the keyboard opens acts on it', () => {
 			const h = harness();
 			h.withRange();

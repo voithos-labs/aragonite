@@ -46,7 +46,7 @@
 		type CellKeyState
 	} from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
-	import { cellPoint } from '../../../selection/primitives';
+	import { cellPoint, rangeSpansBlocks } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
@@ -725,13 +725,15 @@
 		};
 	}
 
-	// A pasted grid (spreadsheet tabs or a GFM table) fills cells from the live rectangle's
-	// top-left or this cell, growing the table; a whole-table selection still replaces.
+	// A pasted grid (spreadsheet tabs or a GFM table) fills cells from the live rectangle's top-left
+	// or this cell, growing the table; over the whole table or a range across blocks it replaces.
 	async function pasteGridHere(text: string): Promise<boolean> {
 		const grid = parseClipboardGrid(text);
 		if (!grid) return false;
 		const tablePath = myPath.slice(0, -2);
-		const cells = rangeCoverage()?.grid ?? null;
+		const coverage = rangeCoverage();
+		if (coverage && rangeSpansBlocks(coverage)) return false;
+		const cells = coverage?.grid ?? null;
 		if (cells && !pathsEqual(cells.path, tablePath)) return false;
 		if (cells?.kind === 'table') return false;
 		const rect = cells?.rect;
