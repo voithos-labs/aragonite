@@ -71,6 +71,17 @@ describe('two editors on one page', () => {
 		expect(kinds(a)).toEqual(['paragraph', 'unit-marks-block']);
 		expect(kinds(b)).toEqual(['paragraph', 'paragraph']);
 	});
+
+	it('end a paragraph only at their own plugin syntax', async () => {
+		const { plugin } = recorder();
+		const a = mountEditor({ source: 'text\n@b hi\n', plugins: [marks, plugin] });
+		const b = mountEditor({ source: 'text\n@b hi\n', plugins: [plugin] });
+		await a.settle();
+
+		expect(kinds(a)).toEqual(['paragraph', 'unit-marks-block']);
+		expect(kinds(b)).toEqual(['paragraph', null]);
+		expect(b.target.querySelectorAll('.text-editable-block')).toHaveLength(1);
+	});
 });
 
 // Miss-analysis (#657): every error case subscribed with `getEvents().on('error')` before the
@@ -197,6 +208,21 @@ describe('use', () => {
 		expect(seen[0].edits).toBe(0);
 		expect(kept.seen).toHaveLength(1);
 		expect(kept.seen[0].edits).toBe(1);
+	});
+
+	// Miss-analysis: every `use` row listed plugin values, where new options are a new value.
+	it('gives a setup plugin listed again with new options a fresh start on them', async () => {
+		const attached: string[] = [];
+		const old = definePlugin<{ tag: string }>({
+			name: 'unit-old-options',
+			defaults: { tag: '' },
+			setup: (ctx) => ctx.onEditor((editor) => void attached.push(editor.options.tag))
+		});
+		const m = mountEditor({ source: 'x\n', plugins: [{ plugin: old, options: { tag: 'a' } }] });
+		await m.settle();
+		m.instance.use([{ plugin: old, options: { tag: 'b' } }]);
+		await m.settle();
+		expect(attached).toEqual(['a', 'b']);
 	});
 
 	it('is read live through a createEditor handle', () => {

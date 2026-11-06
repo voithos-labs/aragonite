@@ -1444,15 +1444,20 @@
 
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
 	export function use(next: PluginsProp): void {
+		const entries = normalizePluginEntries(next);
+		// First, so a `setup` that throws leaves the editor running what it ran.
+		installPlugins(entries.plugins);
 		const before = new Set(activePlugins.names);
+		const beforeEntries = pluginEntries;
 		const beforeUnits = units;
-		pluginEntries = normalizePluginEntries(next);
-		installPlugins(pluginEntries.plugins);
-		units = installPluginList(pluginEntries.values, reportPluginError, beforeUnits);
+		pluginEntries = entries;
+		units = installPluginList(entries.values, reportPluginError, beforeUnits);
 		const after = listedNames() ?? [];
+		// A plugin listed again with other options starts over on them, whichever shape it has.
 		const replaced = (name: string) =>
 			beforeUnits.find((u) => u.name === name)?.contribution !==
-			units.find((u) => u.name === name)?.contribution;
+				units.find((u) => u.name === name)?.contribution ||
+			beforeEntries?.optionsByName.get(name) !== entries.optionsByName.get(name);
 		for (const name of before)
 			if (!after.includes(name) || replaced(name)) pluginContexts.detach(name);
 		activePlugins.set(after);
