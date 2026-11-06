@@ -37,6 +37,8 @@ on-screen keyboard. Each bullet's name before the colon is the row's key, and
 - the cell menu button deletes a row: a tap in a table cell shows the cell menu's button at that
   cell; tapping it opens the cell menu, and its Delete row takes the row. iOS fires no
   `contextmenu` on a long press, so it's the one touch route to the row and column actions.
+  - Miss-analysis: the row's table held one body row, which a table always keeps, so Delete row
+    was disabled and a working menu read as a broken one; the Playwright row used two body rows.
 - the end handle joins a tall outline a line past its edge: on the page with plugins, the end
   handle of a long-pressed word dragged a little more than a line into a table of contents below
   it (far short of its middle) takes the outline into the range.

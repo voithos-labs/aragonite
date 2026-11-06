@@ -14,7 +14,9 @@ const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 
 // The range's formatting toolbar sits over the first paragraphs and takes a tap as a command, so a
 // gesture meant for the text lands on `filler line 4`, well below it.
 const BELOW_RANGE = 6;
-const TABLE = 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n';
+// Two body rows, since a table's last body row can't be deleted.
+const TABLE =
+	'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n| elder | fig |\n';
 // `epsilon zeta`: the paste row's second word.
 const PASTE_INTO = 2;
 // A table of contents a dozen headings long, most of a phone's screen, on the page with plugins.
@@ -203,11 +205,13 @@ export const rows = {
 		ctx.device.screenshot('cell-button-menu');
 		const del = await ctx.page.evaluate(menuItemBox('Delete row'));
 		if (!del) return { reasons: ['the button opened no menu with Delete row'] };
+		if (!del.enabled) return { reasons: ['the menu shows Delete row disabled'] };
 		const delAt = (await screenMap(ctx, 0))(del.x, del.y);
 		ctx.device.tap(delAt.x, delAt.y);
 		await sleep(1000);
 		const after = await source(ctx);
-		const reasons = after.includes('cherry') ? [`Delete row left ${json(after)}`] : [];
+		const deleted = !after.includes('cherry') && after.includes('elder');
+		const reasons = deleted ? [] : [`Delete row left ${json(after)}`];
 		return { reasons, evidence: { after } };
 	},
 
@@ -412,11 +416,11 @@ const cellPoint = (row, col) => `(() => {
 	return { x: r.left + 24, y: (r.top + r.bottom) / 2 };
 })()`;
 
-// The centre of the open menu's row labelled `label`, in page coordinates.
+// The centre of the open menu's row labelled `label`, in page coordinates, and whether it's enabled.
 const menuItemBox = (label) => `(() => {
 	const item = [...document.querySelectorAll('.md-menu-item')].find((i) => i.textContent.trim() === ${JSON.stringify(label)});
 	const b = item?.getBoundingClientRect();
-	return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+	return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, enabled: !item.disabled };
 })()`;
 
 // A tap on the toolbar's `action` row, mapped to the screen through block `index`; false when the

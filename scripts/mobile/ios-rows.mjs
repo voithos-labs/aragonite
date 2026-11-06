@@ -12,7 +12,9 @@ const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 
 // The first paragraph below the range: a finger's toolbar sits above the range, and the
 // Simulator's screen ends a few paragraphs further down.
 const BELOW_RANGE = 3;
-const TABLE = 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n';
+// Two body rows, since a table's last body row can't be deleted.
+const TABLE =
+	'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n| elder | fig |\n';
 // A table of contents a dozen headings long, most of a phone's screen, on the page with plugins.
 const HEADINGS = Array.from({ length: 12 }, (_, i) => `## Heading number ${i + 1}`);
 const OUTLINE = `alpha beta gamma\n\n[[toc]]\n\n${HEADINGS.join('\n\n')}\n`;
@@ -126,12 +128,14 @@ export const rows = {
 		const tagged =
 			await ctx.run(`const item = [...document.querySelectorAll('.md-menu-item')].find((i) => i.textContent.trim() === 'Delete row');
 			item?.setAttribute('data-row-probe', 'delete-row');
-			return !!item;`);
+			return item ? (item.disabled ? 'disabled' : 'enabled') : null;`);
 		if (!tagged) return { reasons: ['the button opened no menu with Delete row'] };
+		if (tagged === 'disabled') return { reasons: ['the menu shows Delete row disabled'] };
 		await ctx.click(await ctx.find('css selector', '[data-row-probe="delete-row"]'));
 		await sleep(1000);
 		const after = await ctx.source();
-		const reasons = after.includes('cherry') ? [`Delete row left ${JSON.stringify(after)}`] : [];
+		const deleted = !after.includes('cherry') && after.includes('elder');
+		const reasons = deleted ? [] : [`Delete row left ${JSON.stringify(after)}`];
 		return { reasons, evidence: { after } };
 	},
 
