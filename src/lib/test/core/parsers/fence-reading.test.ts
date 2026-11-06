@@ -1,6 +1,7 @@
 // A fence's reading waits on a closer only while nothing closes it; every closed shape is final.
 import { describe, it, expect } from 'vitest';
 import { fenceReading } from '#lib/core/parsers/fence-syntax.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('a fence reading that a line below could still change', () => {
 	it.each([
@@ -11,7 +12,7 @@ describe('a fence reading that a line below could still change', () => {
 		['a closer shorter than the opener', '````\ncode\n```\n'],
 		['a closer of the other marker', '```\ncode\n~~~\n']
 	])('waits: %s', (_, raw) => {
-		expect(fenceReading.notFinal(raw)).toBe(true);
+		expect(fenceReading.notFinal(raw, defaultGrammarView)).toBe(true);
 	});
 
 	it.each([
@@ -26,7 +27,7 @@ describe('a fence reading that a line below could still change', () => {
 		['a paragraph', 'text\n'],
 		['indented code', '    ```\n']
 	])('is final: %s', (_, raw) => {
-		expect(fenceReading.notFinal(raw)).toBe(false);
+		expect(fenceReading.notFinal(raw, defaultGrammarView)).toBe(false);
 	});
 
 	it('may be closed only by a bare run of three or more markers', () => {

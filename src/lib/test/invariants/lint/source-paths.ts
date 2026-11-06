@@ -40,7 +40,7 @@ export const SOURCE = {
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'src/lib/schema/block-openers.ts',
-	registryView: 'src/lib/schema/registry-view.ts',
+	editorGrammar: 'src/lib/schema/editor-grammar.ts',
 	pluginActivation: 'src/lib/schema/plugin-activation.ts',
 	inlineConstructPolicy: 'src/lib/schema/inline-construct-policy.ts',
 	commands: 'src/lib/schema/commands.ts',
@@ -206,7 +206,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'export interface OpenContext',
-	registryView: 'export type KindEnablement',
+	editorGrammar: 'export interface EditorGrammar',
 	pluginActivation: 'export interface PluginActivation',
 	inlineConstructPolicy: 'export type InlineMarkKind',
 	commands: 'export const GLOBAL_COMMAND_IDS',

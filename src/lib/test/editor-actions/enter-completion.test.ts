@@ -15,7 +15,7 @@ import {
 	makeTopHarness,
 	parseLeaf as leaf
 } from '#lib/test/harness/editor-actions.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The split command's completion step: which Enters reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table

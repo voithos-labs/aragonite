@@ -4,11 +4,7 @@
  */
 
 import type { CstNode } from './nodes';
-import {
-	lineInterruptsParagraph,
-	lineStartsOuterBlock,
-	type GrammarView
-} from '../schema/block-openers';
+import { lineStartsOuterBlock, type GrammarView } from '../schema/block-openers';
 import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
 
 // ── Line shapes ──────────────────────────────────────────────────────────────
@@ -110,10 +106,14 @@ export function codecFromShape<D>(shape: StripShape<D>, data?: D): LineCodec {
 }
 
 /** Whether a body line holding `text` leaves a paragraph open for a lazy line, read per line: not
- *  blank, not the shape's own marker, and no paragraph interrupter. */
-export function keepsParagraphOpen<D>(shape: StripShape<D>, text: string): boolean {
+ *  blank, not the shape's own marker, and nothing `grammar` lets interrupt a paragraph. */
+export function keepsParagraphOpen<D>(
+	shape: StripShape<D>,
+	text: string,
+	grammar: GrammarView
+): boolean {
 	const own = shape.shape === 'marked' ? shape.reads : shape.open;
-	return !isBlankLine(text) && !own.test(text) && !lineInterruptsParagraph(text);
+	return !isBlankLine(text) && !own.test(text) && !grammar.interruptsParagraph(text);
 }
 
 /** Whether `line` opens a block at the outer level, which ends a lazy continuation. */
@@ -144,8 +144,8 @@ function markedCodec<D>(shape: MarkedLines<D>): LineCodec {
 		spells: (line, text, place) => line === write(text, place),
 		blankKeepsMarker: true,
 		continuesLazily: (above, line, _aboveFirst, grammar) =>
-			keepsParagraphOpen(shape, above) &&
-			keepsParagraphOpen(shape, line) &&
+			keepsParagraphOpen(shape, above, grammar) &&
+			keepsParagraphOpen(shape, line, grammar) &&
 			!opensOuterBlock(line, grammar)
 	};
 	markedCodecs.set(shape, codec);
@@ -196,8 +196,8 @@ function indentedCodec<D>(shape: IndentedLines<D>, data: D): LineCodec {
 			);
 		},
 		continuesLazily: (above, line, aboveFirst, grammar) =>
-			keepsParagraphOpen(shape, aboveFirst ? head + above : above) &&
-			keepsParagraphOpen(shape, line) &&
+			keepsParagraphOpen(shape, aboveFirst ? head + above : above, grammar) &&
+			keepsParagraphOpen(shape, line, grammar) &&
 			!opensOuterBlock(line, grammar)
 	};
 }

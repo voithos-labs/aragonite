@@ -57,8 +57,16 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | --- | --- |
 | [`definePlugin`](#defineplugin) | Validate a plugin unit and return it, ready for the editor's `plugins` prop |
 | `isPluginInstalled` | Has a plugin of this name installed? For the rare setup that has to branch on it |
+| `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
+| `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
+| `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
+| `Contribution` | What `contributes` hands back for one editor: for now, a `setup(editor)` that runs once that editor mounts |
+| `Editor` | What `setup` gets: the plugins on, the mode, the theme, `on`, `run`, `can` and `claims`. A listener you add there goes away with your plugin |
+| `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, or `on('edit')` for a listener that threw), and the cause |
+| `BlockType` | A block type by name |
+| `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
 | `EditorPlugin` | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these |
-| The `plugins` prop | Installs once per process, and activates per editor: an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all activates every installed one) |
+| The `plugins` prop | A `setup` plugin installs once per process and a plugin value is read by each editor on its own, but either way an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all runs every installed one). The host's `use` changes the list later |
 | `EditorPluginEntry` | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor. A field you pass replaces the plugin's default for it (arrays too); the rest keep theirs |
 | `PluginSetupContext` | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously) |
 | `OnEditorCallback` | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount |

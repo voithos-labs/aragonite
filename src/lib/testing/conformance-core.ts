@@ -16,7 +16,7 @@ import { collectCrossBlockText } from '../selection/clipboard-text';
 import { coverRange, rangeCoverage } from '../selection/range-coverage';
 import { kitReading } from './kit-reading';
 import { writeContainerRaw } from '../schema/container-writer';
-import { defaultGrammarView } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 
 export { show };
 

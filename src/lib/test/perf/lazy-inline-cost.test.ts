@@ -1,4 +1,4 @@
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { computeInlineContent } from '../../core/inline';
 import { getInlineContent } from '../../core/inline/inline-cache';

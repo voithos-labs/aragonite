@@ -3,7 +3,7 @@
 // its own, so it must land exactly what the single-block toggle lands on the same bytes
 // (`core/inline/format-toggle-cross-kind-nest.test.ts`).
 // Miss-analysis: no case put a block the toggle writes but then reads as unchanged into a range.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';

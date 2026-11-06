@@ -12,7 +12,7 @@ import { codecFromShape, type LineCodec } from '#lib/core/strip-lines.js';
 import { rebuildConcatRaw } from '#lib/schema/child-spans.js';
 import { rebuildStripRaw } from '#lib/schema/strip-rebuild.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView as grammar } from '#lib/schema/block-openers.js';
+import { defaultGrammarView as grammar } from '#lib/schema/editor-grammar.js';
 import { arbRespelledContainerDoc, freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(292929) } as const;

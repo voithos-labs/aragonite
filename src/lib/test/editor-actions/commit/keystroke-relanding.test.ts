@@ -2,7 +2,7 @@
 // the text it was in front of, found by its byte position in the container, not its leaf offset.
 // Miss-analysis: the fold rows checked a fold's index and bytes, never the caret after a fold that
 // kept its index but moved the leaf's bytes (a space a widened marker took).
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';

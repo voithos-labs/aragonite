@@ -1,7 +1,8 @@
 /**
- * Built-in block kinds (descriptor and opener) and inline-construct policies. Nothing registers on
- * import: the first grammar read, `core/inline/index.ts` and `components/built-in-blocks.ts` call
- * `registerBuiltInDescriptors()`, since tree-shaking keeps only a called binding.
+ * Built-in block kinds (descriptor and opener), the table's Enter completer and inline-construct
+ * policies. Nothing registers on import: the first grammar read, `core/inline/index.ts` and
+ * `components/built-in-blocks.ts` call `registerBuiltInDescriptors()`, since tree-shaking keeps
+ * only a called binding.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -26,6 +27,7 @@ import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { registerAsCore } from './plugin-install';
 import { registerBuiltInRangeIndent } from './range-indent-forms';
+import { registerTableCompleter } from '../core/parsers/table-completion';
 import { asCodeSpan } from '../core/inline/scan/code-span';
 import {
 	containerEstimate,
@@ -249,6 +251,7 @@ export function registerBuiltInDescriptors(): void {
 
 function registerBuiltIns(): void {
 	registerBuiltInInlinePolicies();
+	registerTableCompleter();
 
 	registerBuiltinBlockKind('paragraph', {
 		pageRole: 'prose',

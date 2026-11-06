@@ -8,7 +8,7 @@ import {
 import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 /** Both halves read as plain fragments, as they do outside a task item. */
 const plainHalves = {

@@ -4,7 +4,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { testView } from '#lib/test/harness/test-view.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 const TWO_PARA = ':::callout\nHello **world**\n\nSecond para\n:::\n';
 const TITLED = ':::callout My Title\nBody\n:::\n';

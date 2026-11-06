@@ -4,7 +4,7 @@ import { serialize } from '../../../core/serializer';
 
 import type { Document } from '../../../core/nodes';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // CommonMark §5.2 lazy continuation for list items, mirroring the blockquote laziness pins
 // in parser-structure.test.ts. Every fixture asserts the byte round-trip, because the

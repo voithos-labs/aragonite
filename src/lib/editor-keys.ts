@@ -16,7 +16,7 @@ import type { UserScrollport } from './windowing/scroll-ancestors';
 import type { ScrollportReader } from './windowing/scrollport';
 import type { ActivationClick, PressTracker } from './activation-click';
 import type { EditorContext } from './schema/plugin-install';
-import type { RegistryView } from './schema/registry-view';
+import type { EditorGrammar } from './schema/editor-grammar';
 import type { Reading } from './schema/reading';
 import type { PluginActivation } from './schema/plugin-activation';
 import type { CommandDispatchContext } from './schema/block-commands';
@@ -136,11 +136,10 @@ export interface EditorServices {
 	caretLanding: CaretLanding;
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;
-	/** This instance's view of the global block definitions, so a per-instance list of
-	 *  enabled kinds reaches the render path. */
-	registryView: RegistryView;
+	/** This editor's grammar and block views, built from its own plugin list. */
+	grammar: EditorGrammar;
 	/** The plugins this instance activated, so a paste narrows the transform pipeline the
-	 *  way `registryView` narrows the kinds. */
+	 *  way `grammar` narrows the kinds. */
 	activePlugins: PluginActivation;
 	/** The instance's `EditorRects`, handed to every block component as a prop so a block can
 	 *  measure, scroll into view, or scroll to a path through one entry point. */

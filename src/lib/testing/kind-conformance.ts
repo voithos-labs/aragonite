@@ -48,7 +48,8 @@ import {
 } from './conformance-core';
 import { installOwnRaw } from '../tree-operations/node-primitives';
 import { writeContainerRaw } from '../schema/container-writer';
-import { defaultGrammarView, type BlockOpener, type OpenContext } from '../schema/block-openers';
+import { type BlockOpener, type OpenContext } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 import { createHeadlessActions } from './headless-actions';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
 import { assertParseConverged } from './parse-convergence';
@@ -407,12 +408,12 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 			(opener) =>
 				lines.length > 1 &&
 				opensKind(opener, ctx.node.raw, ctx.kind) &&
-				opener.readingNotFinal?.notFinal(opened)
+				opener.readingNotFinal?.notFinal(opened, defaultGrammarView)
 		);
 	if (waiting.length === 0) {
 		// A fence that nothing closes takes in every block below, so its opener has to say so.
 		assert(
-			lines.length < 2 || !fenceReading.notFinal(opened),
+			lines.length < 2 || !fenceReading.notFinal(opened, defaultGrammarView),
 			`${ctx.kind}'s fixture is a fence, but its opener declares no readingNotFinal: declare ` +
 				`fenceReading, or an edit that moves where the fence closes leaves the blocks below ` +
 				`paired the old way`

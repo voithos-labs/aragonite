@@ -10,7 +10,7 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { buildExitReplacement, unwrapFirstItemFromList } from '#lib/tree-operations/index.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 const GHOST_RAW = '1. ghost\n';
 

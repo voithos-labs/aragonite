@@ -41,9 +41,13 @@ const OPENED_KINDS = [
 	'table'
 ];
 
-// The modules on the parser's import cycle, plus the two entries that always worked.
+// The modules on the parser's import cycle, the modules whose built-ins the first read registers,
+// and the two entries that always worked.
 const ENTRIES = [
 	'#lib/core/parser.js',
+	'#lib/core/parsers/table-completion.js',
+	'#lib/schema/editor-grammar.js',
+	'#lib/tree-operations/paste/hooks.js',
 	'#lib/core/inline/index.js',
 	'#lib/schema/built-in-descriptors.js',
 	'#lib/schema/container-rebuilders.js',
@@ -71,6 +75,24 @@ describe('built-ins register on the first grammar read', () => {
 			expect(await parsedKinds()).toEqual(OPENED_KINDS);
 			const { getBlockKindDescriptor } = await import('#lib/schema/block-kind-descriptor.js');
 			expect(getBlockKindDescriptor('list').isContainer).toBe(true);
+		}
+	);
+
+	it.each(ENTRIES)(
+		'importing %s first, an editor grammar built from a plugin list reads every built-in',
+		{ timeout: 60_000 },
+		async (entry) => {
+			vi.resetModules();
+			await import(/* @vite-ignore */ entry);
+			const { createEditorGrammar } = await import('#lib/schema/editor-grammar.js');
+			const { activationFor } = await import('#lib/schema/plugin-activation.js');
+			const { parse } = await import('#lib/core/parser.js');
+			const { completeTypedLine } = await import('#lib/schema/block-completions.js');
+			const grammar = createEditorGrammar({ plugins: activationFor([]) });
+			const kinds = parse(FIXTURE, { grammar }).children.map((child) => child.kind);
+			expect(kinds.filter((kind) => kind !== 'paragraph')).toEqual(OPENED_KINDS);
+			expect(grammar.interruptsParagraph('# h')).toBe(true);
+			expect(completeTypedLine('| a | b |', grammar)).not.toBeNull();
 		}
 	);
 

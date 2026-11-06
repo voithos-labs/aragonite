@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib';
 import { checkStaleRaw } from '#lib/invariants/node-shape.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 describe('the strip stale-raw check compares metadata with the reparse', () => {

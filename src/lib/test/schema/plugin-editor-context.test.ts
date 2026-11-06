@@ -157,7 +157,7 @@ describe('createEditorPluginContexts', () => {
 			})
 		]);
 		const ctxs = createEditorPluginContexts(deps({ children: [] }));
-		ctxs.attachAll(() => {});
+		ctxs.attachAll();
 		// toBe, not toEqual: "one context object" is a claim about identity, so a duplicate with
 		// the same shape must fail this test.
 		expect(seen).toHaveLength(1);
@@ -187,8 +187,11 @@ describe('createEditorPluginContexts', () => {
 				}
 			})
 		]);
-		const ctxs = createEditorPluginContexts(deps({ children: [] }));
-		ctxs.attachAll((r) => errors.push(r.plugin));
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			report: (error) => errors.push(error.plugin)
+		});
+		ctxs.attachAll();
 		expect(errors).toEqual(['bad']);
 		expect(fired).toEqual(['good']);
 	});
@@ -231,7 +234,7 @@ describe('createEditorPluginContexts', () => {
 			})
 		]);
 		const ctxs = createEditorPluginContexts({ ...deps(doc), events, decorations: registry });
-		ctxs.attachAll(() => {});
+		ctxs.attachAll();
 
 		expect(received).toBe(registry);
 		expect(engine.marksForPath([0])).toHaveLength(1);
@@ -258,7 +261,7 @@ describe('createEditorPluginContexts', () => {
 			})
 		]);
 		const ctxs = createEditorPluginContexts({ ...deps({ children: [] }), rects });
-		ctxs.attachAll(() => {});
+		ctxs.attachAll();
 
 		// Identity, not shape: a copy per context would break the contract that there is one.
 		expect(received).toBe(rects);
@@ -281,7 +284,7 @@ describe('inline menus reach a plugin through its context', () => {
 			})
 		]);
 		const ctxs = createEditorPluginContexts({ ...deps({ children: [] }), inlineMenus });
-		ctxs.attachAll(() => {});
+		ctxs.attachAll();
 
 		expect(received).toBe(inlineMenus);
 		expect(ctxs.get('suggester')!.inlineMenus).toBe(inlineMenus);
@@ -296,7 +299,7 @@ describe('activation scopes an instance to the plugins it listed', () => {
 			...deps({ children: [] }),
 			activation: activationFor(['alpha'])
 		});
-		ctxs.attachAll(() => {});
+		ctxs.attachAll();
 		expect(attached).toEqual(['alpha']);
 	});
 
@@ -304,7 +307,7 @@ describe('activation scopes an instance to the plugins it listed', () => {
 		const attached: string[] = [];
 		installPair(attached);
 		const ctxs = createEditorPluginContexts(deps({ children: [] }));
-		ctxs.attachAll(() => {});
+		ctxs.attachAll();
 		expect(attached).toEqual(['alpha', 'beta']);
 	});
 

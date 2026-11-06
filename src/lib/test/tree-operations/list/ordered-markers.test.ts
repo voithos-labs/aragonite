@@ -10,7 +10,7 @@ import {
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { setPluginMetadata, type CstNode } from '#lib/core/nodes.js';
 import { bodyUnder } from '#lib/tree-operations/node-primitives.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('ordered-markers reads', () => {
 	it('orderedBaseOf reads numeric prefix; defaults to 1', () => {

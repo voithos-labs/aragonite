@@ -38,7 +38,7 @@ import { blockNodeAt, documentBody } from '#lib/tree-operations/node-primitives.
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from '../harness/fixture-grammar';

@@ -5,7 +5,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import type { Document } from '../../core/nodes';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { KeyboardExtendContext } from '../../selection/keyboard-extend';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
 export function stateAt(doc: Document, path: number[]) {

@@ -5,7 +5,8 @@ import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { registerInlineSyntax } from '#lib/plugin.js';
 import { completeLineOnType, registerBlockCompleter } from '#lib/schema/block-completions.js';
 import { resolveDelimiterAutoPair } from '#lib/components/blocks/text/delimiter-autopair.js';
-import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import { type GrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { grammarListing } from './grammar-listing';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 

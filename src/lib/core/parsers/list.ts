@@ -117,14 +117,17 @@ export function parseList(
 		const contentIndent = itemMatch.indent;
 		const itemStartIndex = i;
 		// The marker line strips to its content; a paragraph is open unless that content opens a block.
-		let paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
+		let paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent), grammar);
 		i++;
 
 		// Any line indented to the content column belongs to the body, a whitespace-only one too; a
 		// run of bare blank lines is taken in only when such a line follows it.
 		while (i < endIndex) {
 			if (indentColumns(lines[i].text) >= contentIndent) {
-				paragraphOpen = wouldKeepParagraphOpen(stripIndentColumns(lines[i].text, contentIndent));
+				paragraphOpen = wouldKeepParagraphOpen(
+					stripIndentColumns(lines[i].text, contentIndent),
+					grammar
+				);
 				i++;
 			} else if (isBlankLine(lines[i].text)) {
 				let j = i;
@@ -142,7 +145,7 @@ export function parseList(
 				}
 			} else if (
 				paragraphOpen &&
-				wouldKeepParagraphOpen(lines[i].text) &&
+				wouldKeepParagraphOpen(lines[i].text, grammar) &&
 				!lineStartsOuterBlock(lines[i], { paragraphOpen: true, grammar })
 			) {
 				// Lazy continuation: the verbatim bytes stay in raw, and the item's line reading
@@ -207,8 +210,8 @@ export function parseList(
 
 /** Lazy continuation extends only an open paragraph. Every list marker is left to the item loop, so
  *  an ordered marker not at 1 is excluded here too. */
-const wouldKeepParagraphOpen = (strippedText: string): boolean =>
-	keepsParagraphOpen(LIST_ITEM_LINES, strippedText);
+const wouldKeepParagraphOpen = (strippedText: string, grammar: GrammarView): boolean =>
+	keepsParagraphOpen(LIST_ITEM_LINES, strippedText, grammar);
 
 // ── Marker widths ────────────────────────────────────────────────────────────
 

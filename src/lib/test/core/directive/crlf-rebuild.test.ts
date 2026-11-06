@@ -3,7 +3,7 @@ import { parse } from '#lib/core/parser.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
 // edit re-synthesizes the fence lines, which must not normalize CRLF to `\n`.

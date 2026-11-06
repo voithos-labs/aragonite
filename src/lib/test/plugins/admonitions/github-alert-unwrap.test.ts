@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { liftFirstChild, plainQuote } from '#lib/tree-operations/index.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 
 // The alert branch of the shared quote-unwrap primitive (Rule U2): a `[!TYPE]` marker

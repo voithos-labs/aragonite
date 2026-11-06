@@ -10,7 +10,7 @@ import {
 } from '#lib/test/harness/editor-actions.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // Miss-analysis (GH #220): each list action was tested only over sublists that held items.
 

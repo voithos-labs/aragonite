@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { pluginContextDeps } from '../harness/plugin-context-deps';
+import type { PluginError } from '#lib/schema/plugin-unit.js';
 
 interface BadgeOptions {
 	label: string;
@@ -27,10 +28,11 @@ function installBadge(parseOptions: (raw: unknown) => Partial<BadgeOptions> = pa
 	installPlugins([definePlugin({ name: 'badge', defaults: DEFAULTS, parseOptions, setup() {} })]);
 }
 
-const contextsWith = (raw: unknown) =>
+const contextsWith = (raw: unknown, report: (error: PluginError) => void = () => {}) =>
 	createEditorPluginContexts({
 		...pluginContextDeps(),
-		optionsFor: (name) => (name === 'badge' ? raw : undefined)
+		optionsFor: (name) => (name === 'badge' ? raw : undefined),
+		report
 	});
 
 describe("a plugin's options in one editor", () => {
@@ -83,36 +85,22 @@ describe("a plugin's options in one editor", () => {
 				})
 		});
 		installPlugins([bare]);
-		contextsWith(undefined).attachAll(() => {});
+		contextsWith(undefined).attachAll();
 		expect(reads).toEqual([undefined]);
 	});
 
-	it('fall back to the defaults when parseOptions throws, reported once the error handler attaches', () => {
+	it('fall back to the defaults when parseOptions throws, reported once at the first read', () => {
 		const boom = new Error('bad entry');
 		installBadge(() => {
 			throw boom;
 		});
-		const contexts = contextsWith({ depth: 2 });
-		// A block reads its options while it renders, before the editor attaches its error handler.
+		const reports: PluginError[] = [];
+		// A block reads its options while it renders, before the editor has mounted.
+		const contexts = contextsWith({ depth: 2 }, (error) => reports.push(error));
 		expect(contexts.get('badge')!.options).toEqual(DEFAULTS);
-
-		const reports: { plugin: string; error: unknown }[] = [];
-		contexts.attachAll((report) => reports.push(report));
+		expect(contexts.get('badge')!.options).toEqual(DEFAULTS);
 		expect(reports).toHaveLength(1);
-		expect(reports[0].plugin).toBe('badge');
-		expect((reports[0].error as Error).cause).toBe(boom);
-	});
-
-	it('report a parseOptions throw at once when the error handler is already attached', () => {
-		installBadge(() => {
-			throw new Error('bad entry');
-		});
-		const contexts = contextsWith({ depth: 2 });
-		const reports: string[] = [];
-		contexts.attachAll((report) => reports.push(report.plugin));
-		expect(reports).toEqual([]);
-		expect(contexts.get('badge')!.options).toEqual(DEFAULTS);
-		expect(contexts.get('badge')!.options).toEqual(DEFAULTS);
-		expect(reports).toEqual(['badge']);
+		expect([reports[0].plugin, reports[0].doing]).toEqual(['badge', 'validate']);
+		expect((reports[0].cause as Error).cause).toBe(boom);
 	});
 });

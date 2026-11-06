@@ -14,7 +14,7 @@ import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { writtenBelow } from '#lib/test/harness/settle-funnel.js';

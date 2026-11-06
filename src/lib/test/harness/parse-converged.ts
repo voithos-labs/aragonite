@@ -8,7 +8,8 @@ import type { NodeView } from '#lib/core/node-views.js';
 import { endsInBlankLine } from '#lib/core/lines.js';
 import { isBlankParagraph, parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import { type GrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
 
 export {

@@ -3,15 +3,15 @@
 // builds, so the join-paste reparse honors per-instance enablement. The apply path's side is
 // `test/tree-operations/paste/dispatch-commit.test.ts`.
 import { describe, it, expect } from 'vitest';
-import { createGrammarView } from '#lib/schema/block-openers.js';
 import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { grammarWithout } from '#lib/test/harness/grammar-without.js';
 
 // A cross-block paste whose collapsed caret lands at offset 0 of a `. item` block: pasting `1`
 // completes the marker to `1. item`, and the join reparse must resolve through the grammar.
 describe('a cross-block paste forwards the instance grammar to the join reparse', () => {
 	it('a grammar that disables the list opener leaves the completion a paragraph', async () => {
-		const grammar = createGrammarView((kind) => kind !== 'list');
+		const grammar = grammarWithout('list');
 		const env = makeEnv('x\n\n. item\n', fixtureReading({ grammar }));
 		selectAcross(env.selectionState, [0], [1]);
 

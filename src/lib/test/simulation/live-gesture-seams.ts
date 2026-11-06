@@ -5,7 +5,7 @@
  * that calls them is what this tests.
  */
 
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';

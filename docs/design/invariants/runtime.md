@@ -5,7 +5,7 @@ The words this catalog leans on, and what the enforcement levels mean, are in [t
 These checks run in three kinds of place:
 
 - **The commit primitive**: `invariants/install.ts :: assertCommittedNodes`, invoked from `editor-actions/commit/undo-controller.ts` after each commit's raw rebuild. Anything shaped like "a committed node is coherent" runs here.
-- **Bootstrap**: the registration-check flush (`schema/registration-checks.ts`), first at Editor mount via `runStartupInvariantChecks`, then at the next mount or grammar read (`getOrderedOpeners`), never mid-batch, so forward references inside one registration batch stay quiet. Registry completeness (G1.2) checks built-ins only, the one closed set of kinds.
+- **Bootstrap**: the registration-check flush (`schema/registration-checks.ts`), first at Editor mount via `runStartupInvariantChecks`, then at the next mount or grammar read (`grammarRecords`), never mid-batch, so forward references inside one registration batch stay quiet. Registry completeness (G1.2) checks built-ins only, the one closed set of kinds.
 - **Its own machinery**: the guard fires inside the code it protects. One exception: G1.33 fires in the editor root's focus handler (`components/editor-root/focus.ts`), above every caret entry, so a consumer's own caret component inherits it.
 
 | ID | What stays true | Codes |
@@ -308,7 +308,7 @@ These checks run in three kinds of place:
 
 **G1.165 · Retired upward.** A container's kind chords run from the block a key is pressed in, the last step of its keydown (`editor-actions/container-chords.ts`), so no container element carries a mark for `claimsChord` to find, and both read one walk.
 
-**G1.166 · One copy of the editor** (`plugin-one-core-copy`). `definePlugin` marks each plugin with the copy of the core it ran in, so a plugin package that resolved a second copy (a version that doesn't match, or a bundler that didn't dedupe) warns at `installPlugins` instead of registering where the editor never reads. The mark is written in every build, so a copy running without checks is still caught; a hand-built plugin object carries none. `checkDefinedByThisCopy` · `schema/plugin-install.ts` · `plugin-one-core-copy.test.ts`.
+**G1.166 · One copy of the editor** (`plugin-one-core-copy`). `definePlugin` marks each plugin with the copy of the core it ran in, so a plugin package that resolved a second copy (a version that doesn't match, or a bundler that didn't dedupe) warns at install, `installPlugins` or an editor's own list, instead of running where the editor never reads. The mark is written in every build, so a copy running without checks is still caught; a hand-built plugin object carries none. `checkDefinedByThisCopy` · `schema/plugin-unit.ts` · `plugin-one-core-copy.test.ts`.
 
 **G1.167 · A plugin's conformance covers all of it** (`runPluginConformance`). The run installs a plugin's units on a blank platform and runs the kind checkup on every block kind they declared, the container checkup on each container and the inline checkup on each inline profile. A container or inline kind with no profile fails, and so does a profile naming no declared kind. A dev warning fails the run, and with dev checks off it won't start. `testing/plugin-conformance.ts` · `plugin-conformance.test.ts`.
 

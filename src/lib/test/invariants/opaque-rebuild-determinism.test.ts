@@ -4,7 +4,7 @@ import { testContainer, testLeaf } from '#lib/test/harness/test-kinds.js';
 import { fencedLines } from '#lib/schema/fenced-lines.js';
 import { concatChildren } from '../../core/serializer';
 import { setPluginMetadata, getPluginMetadata, type CstNode } from '../../core/nodes';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 	function opaqueNode(kind: CstNode['kind']): CstNode {

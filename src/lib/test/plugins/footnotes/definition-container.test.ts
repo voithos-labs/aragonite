@@ -4,7 +4,7 @@ import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/inde
 import { getPluginMetadata } from '#lib/plugin.js';
 import { type FootnoteDefMetadata } from '#packages/footnotes/src/footnote-definition.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The definition is a strip container shaped like a list item: its `[^label]: ` marker is
 // syntax living only in the container's own raw, never in a child, which is what makes

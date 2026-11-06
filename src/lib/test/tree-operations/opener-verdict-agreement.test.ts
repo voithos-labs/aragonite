@@ -10,7 +10,7 @@ import {
 	getBlockKindDescriptor,
 	hasOwnOpener
 } from '#lib/schema/block-kind-descriptor.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { lineOpensAs } from '#lib/schema/container-raw.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';

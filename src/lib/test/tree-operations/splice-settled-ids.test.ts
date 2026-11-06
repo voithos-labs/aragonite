@@ -5,7 +5,7 @@ import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { rebuildOwnedContainer } from '#lib/tree-operations/unshare.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // A splice outside a commit can merge at any depth no commit descriptor reaches, so it keeps
 // `childIds` in step itself.

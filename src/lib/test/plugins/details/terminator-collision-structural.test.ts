@@ -10,7 +10,7 @@ import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 import { testView } from '#lib/test/harness/test-view.js';
 import { mergePrevSettled, writtenBelow } from '#lib/test/harness/settle-funnel.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The structural paths into the same `</details>` escape: they write the body themselves,
 // with no per-block commit to apply the rule.

@@ -5,7 +5,7 @@ import { settleSublistSeparator } from '#lib/tree-operations/list/sublist-separa
 
 import type { CstNode } from '#lib/core/nodes.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The blank line a sublist needs wherever a paragraph above would swallow its first line, across
 // every such line rather than the one shape the Enter+Tab test reaches.

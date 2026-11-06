@@ -3,7 +3,7 @@ import { installPlugins, parse, serialize } from '#lib';
 import { admonitionsPlugin, convertGithubAlerts } from '#packages/admonitions/src/index.js';
 import { stripQuoteMarker } from '#packages/admonitions/src/gh-alert.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The plugin's quote grammar is capped at CommonMark's 0 to 3 space block indent,
 // like the built-in blockquote's. Over-accepting strips a `>` the built-in keeps

@@ -37,7 +37,7 @@ import { registerCodeContextActions } from '../../components/blocks/code/code-co
 import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { deleteRange } from '../harness/range-delete';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 interface EditGesture {
 	name: string;

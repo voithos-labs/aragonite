@@ -5,7 +5,7 @@ import type { Document } from '#lib/core/nodes.js';
 import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { mergePrevSettled, deleteSettled } from '#lib/test/harness/settle-funnel.js';

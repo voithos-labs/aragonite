@@ -12,7 +12,7 @@
 	import DecorationOverlay from './overlays/DecorationOverlay.svelte';
 	import BlockDragHandle from './BlockDragHandle.svelte';
 	import { showsDragHandle } from './drag-handle';
-	import { defaultRegistryView } from '../schema/registry-view';
+	import { defaultGrammarView } from '../schema/editor-grammar';
 	import { blockViewEntry } from './block-view-entry';
 	import { RAW_TEXT_VIEW } from './blocks/text/text-block-view';
 	import { isGridDescriptor } from '../schema/block-kind-descriptor';
@@ -56,8 +56,8 @@
 	if (services?.stamps) stampBlockContexts(services);
 	const editorEvents = services?.events;
 	const engine = services?.decorations;
-	// A bare mount reads the global registry view.
-	const registryView = services?.registryView ?? defaultRegistryView;
+	// A bare mount reads every installed plugin's grammar.
+	const grammar = services?.grammar ?? defaultGrammarView;
 	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
 	const getDoc = editorDoc?.doc;
 	// Stable object, so a plain read rather than a getter.
@@ -69,7 +69,7 @@
 	const isReading = $derived(editorDoc?.reading.mode() === 'reading');
 	// A bare mount has no editor reading: every installed plugin's syntax, no link definitions.
 	const inlineReading = editorDoc?.reading ?? {
-		grammar: registryView.grammar,
+		grammar,
 		resolver: undefined,
 		resolverSignature: ''
 	};
@@ -80,7 +80,7 @@
 
 	let myPath = $derived([...parentPath, index]);
 
-	let descriptor = $derived(registryView.descriptor(node.kind));
+	let descriptor = $derived(grammar.descriptor(node.kind));
 	let isContainer = $derived(descriptor.isContainer);
 	// Decided once for both overlays: a container with children (not a grid) leaves painting its
 	// rectangles to the children's own hosts.
@@ -99,7 +99,7 @@
 		isContainer && !delegatesPainting && !!ref?.measurePartialRects
 	);
 
-	let view = $derived(registryView.blockView(node.kind));
+	let view = $derived(grammar.blockView(node.kind));
 	let entry = $derived(blockViewEntry(view ?? RAW_TEXT_VIEW));
 
 	$effect(() => {

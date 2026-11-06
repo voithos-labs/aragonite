@@ -4,7 +4,7 @@ import { getPluginMetadata } from '#lib/plugin.js';
 import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // A canonical open details with a titled summary and a blank-line-wrapped body.
 const OPEN_SRC = '<details open>\n<summary>Title</summary>\n\nBody\n\n</details>\n';

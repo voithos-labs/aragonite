@@ -29,7 +29,7 @@ import {
 } from '#lib/test/harness/editor-actions.js';
 import { makeHarness, runOp, type Op } from '#lib/test/undo/restoration-ops.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 type Route = (source: string) => Promise<Document>;
 

@@ -3,13 +3,13 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { splitNode } from '#lib/tree-operations/index.js';
 import { describeConvergence } from '../harness/parse-converged';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
-const noIndentedCode = createRegistryView({ syntax: { indentedCode: false } }).grammar;
+const noIndentedCode = createEditorGrammar({ syntax: { indentedCode: false } });
 
 describe('a split reads its halves in the editor grammar', () => {
 	it('Enter before a tab leaves a paragraph when indented code is off', () => {

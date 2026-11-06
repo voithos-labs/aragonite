@@ -7,7 +7,7 @@ import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-w
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { spliceFixedUp } from '#lib/tree-operations/fix-up/apply.js';
 

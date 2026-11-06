@@ -15,7 +15,7 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '#lib/perf/instruments.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';

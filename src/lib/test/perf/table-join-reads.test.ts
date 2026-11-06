@@ -9,7 +9,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { fixUpEdit } from '#lib/tree-operations/fix-up/apply.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

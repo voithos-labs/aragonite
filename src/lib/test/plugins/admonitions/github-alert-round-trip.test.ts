@@ -4,7 +4,7 @@ import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // Load is byte-exact off the stored raw; a post-edit rebuild re-emits the marker
 // (casing preserved from metadata) + `> `-prefixed body, CRLF threaded, and reparses

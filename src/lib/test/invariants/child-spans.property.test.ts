@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { makeBlockNode, type BlockMetadata, type CstNode } from '#lib/core/nodes.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { ChildRawChange } from '#lib/schema/child-spans.js';
 import { spliceChildren } from '#lib/tree-operations/children.js';
 

@@ -11,7 +11,7 @@ import { rebuildListRaw } from '#lib/schema/container-rebuilders.js';
 import { checkStaleRaw } from '#lib/invariants/node-shape.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 
 /** The body of the list that is `source`'s first block, as a list scope's commit sees it. */

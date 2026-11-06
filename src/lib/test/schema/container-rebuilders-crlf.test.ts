@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 
 import { parse } from '../../core/parser';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('the quote writer over a CRLF source', () => {
 	it('re-emits a blank quote line as `>` + CRLF, not `> ` + CR', () => {

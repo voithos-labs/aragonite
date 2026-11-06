@@ -9,7 +9,7 @@ import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // Source mode, where a copied range carries its bytes as they stand.
 const SOURCE_READING = fixtureReading({}, 'source');

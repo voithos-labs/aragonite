@@ -6,11 +6,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
-import {
-	defaultGrammarView,
-	unfinishedReadings,
-	type UnfinishedReading
-} from '#lib/schema/block-openers.js';
+import { unfinishedReadings, type GrammarReading } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import type { EditorActionsDeps } from '#lib/editor-actions/deps.js';
 import { readBack } from '#lib/core/inline/live-edit/read-back.js';
@@ -44,7 +41,7 @@ function walkOf(text: string, index = BLOCKS - 1, body = BODY) {
 /** What the openers' declarations were asked while `run` ran over `body`. */
 function asking(body: string, run: (deps: EditorActionsDeps) => void) {
 	const { deps } = makeEditorActionsDeps(body);
-	const readings = unfinishedReadings(deps.reading.grammar) as UnfinishedReading[];
+	const readings = unfinishedReadings(deps.reading.grammar) as GrammarReading[];
 	const saved = readings.map((reading) => ({ ...reading }));
 	const blocks = new Set<string>();
 	let asked = 0;

@@ -13,10 +13,11 @@ import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { parse } from '#lib/core/parser.js';
 import { parseInline } from '#lib/core/inline/index.js';
-import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import { type GrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { grammarListing } from './grammar-listing';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 
 const unlisted = definePlugin({
@@ -54,7 +55,7 @@ describe('an unlisted directive name resolves to the generic directive', () => {
 
 	// Miss-analysis: no case asked for the generic kinds' component with admonitions left out.
 	it('draws the generic container with its own component where admonitions is left out', () => {
-		const view = createRegistryView({ plugins: activationFor(['unlisted']) });
+		const view = createEditorGrammar({ plugins: activationFor(['unlisted']) });
 		expect(view.blockView(declaredPluginKind(DIRECTIVE_CONTAINER))).toBeDefined();
 	});
 

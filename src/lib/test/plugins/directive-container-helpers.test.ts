@@ -4,7 +4,7 @@ import { chromeChild, declarePluginKind } from '#lib/plugin.js';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { testView } from '#lib/test/harness/test-view.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The colon writer is the one every `:::` container uses, so its byte assembly is pinned once
 // here, through the callout that declares it.

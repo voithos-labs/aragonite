@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { checkOpenerRegistry } from '#lib/invariants/registry.js';
-import { getOrderedOpeners } from '#lib/schema/block-openers.js';
 import { openerRecords } from '#lib/schema/block-kind-descriptor.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('G1.10 opener priorities', () => {
 	it('holds over the real registrations once the grammar has been read', () => {
-		getOrderedOpeners();
+		defaultGrammarView.orderedOpeners();
 		const entries = openerRecords().map(({ key, value }) => ({
 			kind: key,
 			priority: value.priority

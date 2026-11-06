@@ -2,7 +2,7 @@
 // The fence rule on the code block's own commit path: both commit paths, a keystroke and an IME
 // composition end, hand the write what the browser left as typed bytes, and the write's fence
 // rule reconciles them.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { parse } from '#lib/core/parser.js';

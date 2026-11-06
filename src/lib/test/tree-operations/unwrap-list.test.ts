@@ -4,7 +4,7 @@ import { serialize } from '../../core/serializer';
 import { unwrapFirstItemFromList } from '../../tree-operations';
 import { assertContainerParity, seedChildIdsRecursive } from '../harness/container-parity';
 import type { CstNode } from '../../core/nodes';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('unwrapFirstItemFromList', () => {
 	function parseList(src: string): CstNode {

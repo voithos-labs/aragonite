@@ -18,7 +18,7 @@ import type { BlockComponent } from '#lib/block-component.js';
 import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { replaceRefs } from '#lib/block-lists/child-refs.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { TOP_SLOT } from '#lib/test/harness/fixture-grammar.js';
 
 /**

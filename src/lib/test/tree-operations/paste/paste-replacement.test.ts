@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildPastedReplacement } from '#lib/tree-operations/paste/paste-replacement.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { TOP_SLOT } from '#lib/test/harness/fixture-grammar.js';
 
 describe('buildPastedReplacement: blank-line preservation between blocks', () => {

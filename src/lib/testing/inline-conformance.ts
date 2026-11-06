@@ -38,7 +38,7 @@ import {
 	type KitCell
 } from './conformance-core';
 import { INLINE_CELL_CONTRACTS } from './cell-contracts';
-import { defaultGrammarView } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 

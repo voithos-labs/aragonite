@@ -5,7 +5,7 @@ import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { registerMathFence, MATH_FENCE } from '#packages/latex/src/latex-kind.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { testView } from '#lib/test/harness/test-view.js';
 

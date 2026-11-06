@@ -8,8 +8,9 @@ import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-wri
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { DETAILS, registerDetailsKind } from '#packages/details/src/details-kind.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
-import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
+import { type GrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
 import {
 	makeStubBlockEdit,
@@ -23,7 +24,7 @@ const PARROT_LINE = '%%parrot party responsibly\n';
 
 /** The grammar an editor whose `plugins` prop lists `names` parses through. */
 function grammarListing(names: string[]) {
-	return createRegistryView({ plugins: activationFor(names) }).grammar;
+	return createEditorGrammar({ plugins: activationFor(names) });
 }
 
 beforeEach(() => {

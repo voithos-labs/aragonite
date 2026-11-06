@@ -6,7 +6,7 @@ import { ensureEditableContainers } from '#lib/schema/opened-reading.js';
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 describe('emptyParagraph', () => {

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { reorderChildren } from '#lib/tree-operations/reorder.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { takeDevWarns } from '../support/warn-gate';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { BodyParent } from '#lib/tree-operations/node-primitives.js';
 import { reorderSettled } from '#lib/test/harness/settle-funnel.js';

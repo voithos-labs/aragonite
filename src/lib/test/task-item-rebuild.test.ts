@@ -3,7 +3,7 @@ import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { createSharingState } from '../tree-operations/sharing';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('task items: rebuild keeps the marker variant', () => {
 	it('rebuild after inner paragraph edit preserves taskMarker variant', () => {

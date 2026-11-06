@@ -2,7 +2,7 @@
 // delimiter row and every other cell keep their padding.
 // Miss-analysis: every table fixture was already canonical, so a rebuild that respelled every
 // row wrote the bytes it had read and no test saw the rest of the table move.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { documentLineEnding } from '#lib/core/lines.js';

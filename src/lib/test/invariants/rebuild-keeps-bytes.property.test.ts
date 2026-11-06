@@ -18,7 +18,7 @@ import {
 	freshOrFixedSeed
 } from './arbitraries';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(151515) } as const;
 

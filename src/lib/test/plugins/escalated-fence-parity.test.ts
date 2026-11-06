@@ -1,6 +1,6 @@
 // Miss-analysis: every escalation test checked the bytes of one bare rebuild and never edited the
 // block again, so no test compared a live session with a reload of the escalated bytes.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, serialize } from '#lib';
 import {

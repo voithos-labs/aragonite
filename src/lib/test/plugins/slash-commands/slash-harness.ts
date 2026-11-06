@@ -74,10 +74,11 @@ export function slashPluginHarness(
 		const contexts = createEditorPluginContexts({
 			...pluginContextDeps(),
 			...host,
-			optionsFor: (name) => optionsByName.get(name)
+			optionsFor: (name) => optionsByName.get(name),
+			report: ({ cause }) => onError(cause)
 		});
 		host.ownSources(contexts.get(plugins[0].name)!);
-		contexts.attachAll(({ error }) => onError(error));
+		contexts.attachAll();
 		return contexts.get(plugins[0].name)!;
 	});
 }

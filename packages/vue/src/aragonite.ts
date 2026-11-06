@@ -21,7 +21,7 @@ import {
 	EDITOR_OPTION_SPECS,
 	type CreateEditorOptions,
 	type EditorHandle,
-	type EditorPluginEntry
+	type PluginsProp
 } from '@voithos-labs/aragonite';
 
 // The props only Vue has; every other prop is the editor option of the same name.
@@ -137,10 +137,10 @@ function editorOptions(props: AragoniteProps, header: HTMLElement | null): Creat
 
 // The editor keeps a plugin by identity, and a list built from reactive state (`held.filter(...)`,
 // `[{ plugin: store.plugin }]`) holds a proxy in each entry even when the list itself is plain.
-function rawPlugins(entries: readonly EditorPluginEntry[] | undefined) {
-	return toRaw(entries)?.map((entry): EditorPluginEntry => {
+function rawPlugins(entries: PluginsProp | undefined): PluginsProp | undefined {
+	return toRaw(entries)?.map((entry) => {
 		const raw = toRaw(entry);
-		if (!('plugin' in raw)) return raw;
+		if (typeof raw === 'function' || !('plugin' in raw)) return raw;
 		const plugin = toRaw(raw.plugin);
 		return 'options' in raw ? { plugin, options: toRaw(raw.options) } : { plugin };
 	});

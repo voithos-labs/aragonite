@@ -143,7 +143,9 @@ const EVERY_PLUGIN_FALLBACKS: Record<string, string> = {
 	'src/lib/core/inline/index.ts :: parseInline':
 		'the published parseInline takes an optional grammar',
 	'src/lib/core/directive/activate.ts :: activateDirectiveGrammar':
-		'the published recognizer type takes an optional grammar'
+		'the published recognizer type takes an optional grammar',
+	'src/lib/components/BlockHost.svelte :: <module>':
+		'a block mounted with no editor around it reads every installed plugin'
 };
 
 const FALLBACK_EXEMPT = notUnder(
@@ -151,7 +153,7 @@ const FALLBACK_EXEMPT = notUnder(
 	SOURCE.parser,
 	SOURCE_DIR.blockParsers,
 	SOURCE.blockOpeners,
-	SOURCE.registryView,
+	SOURCE.editorGrammar,
 	SOURCE.pluginBarrel
 );
 

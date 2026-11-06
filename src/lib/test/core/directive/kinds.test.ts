@@ -12,7 +12,7 @@ import {
 } from '#lib/core/directive/kinds.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { readBlocks } from '#lib/core/parser.js';
 
 describe('registerDirectiveKinds', () => {

@@ -13,11 +13,8 @@ import {
 import { concatChildren } from '#lib/core/serializer.js';
 import type { LineCodec } from '#lib/core/strip-lines.js';
 import { matchDirectiveOpener, serializeDirective } from '#lib/core/directive/grammar.js';
-import {
-	defaultGrammarView,
-	lineInterruptsParagraph,
-	lineStartsOuterBlock
-} from '#lib/schema/block-openers.js';
+import { lineStartsOuterBlock } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { rebuildStripRaw } from '#lib/schema/strip-rebuild.js';
 import type { ChildRawChange } from '#lib/schema/child-spans.js';
 import type { Writer } from './differential';
@@ -34,7 +31,7 @@ function opensOuterBlock(line: string): boolean {
 const QUOTE_PREFIX = /^ {0,3}>[ \t]?/;
 
 const quoteKeepsParagraph = (text: string): boolean =>
-	!isBlankLine(text) && !lineInterruptsParagraph(text) && !/^ {0,3}>/.test(text);
+	!isBlankLine(text) && !grammar.interruptsParagraph(text) && !/^ {0,3}>/.test(text);
 
 const quoteLines: LineCodec = {
 	read(line, place) {
@@ -71,7 +68,7 @@ interface HangingIndent {
 }
 
 const keepsParagraph = (text: string): boolean =>
-	!isBlankLine(text) && !lineInterruptsParagraph(text);
+	!isBlankLine(text) && !grammar.interruptsParagraph(text);
 
 function leadingTab(text: string): boolean {
 	for (let i = 0; text[i] === ' ' || text[i] === '\t'; i++) if (text[i] === '\t') return true;
@@ -133,7 +130,7 @@ function readItemShape(line: string): ItemLineShape | null {
 }
 
 const itemKeepsParagraph = (text: string): boolean =>
-	!isBlankLine(text) && !ITEM_START.test(text) && !lineInterruptsParagraph(text);
+	!isBlankLine(text) && !ITEM_START.test(text) && !grammar.interruptsParagraph(text);
 
 function listItemLines(shape: ItemLineShape): LineCodec {
 	const opener = shape.indent + shape.marker + (shape.taskMarker ?? '');

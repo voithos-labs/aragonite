@@ -45,7 +45,8 @@ export type { Match } from './search/document-scan';
 // installPlugins is for editor-less `parse()` pipelines that need the grammar live
 // without mounting <Editor>.
 export { installPlugins } from './schema/plugin-install';
-export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
+export type { EditorPlugin, EditorPluginEntry, PluginsProp } from './schema/plugin-install';
+export type { PluginError } from './schema/plugin-unit';
 
 // ── Selection + keybindings ────────────────────────────────────────────────────
 

@@ -7,7 +7,7 @@ import {
 	pairsItself,
 	registerInlineSyntax
 } from '#lib/core/inline/scan/plugin-syntax.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { grammarListing } from './grammar-listing';
 
 /** A plugin pairing `%` at its own priority, so both registrations stand side by side. */

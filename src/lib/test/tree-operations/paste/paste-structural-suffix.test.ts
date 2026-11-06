@@ -1,7 +1,7 @@
 // Miss-analysis: no paste case cut a block with structure past its text.
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { buildPastedReplacement } from '#lib/tree-operations/paste/paste-replacement.js';
 import { splitLeafForPaste } from '#lib/tree-operations/list/list-builders.js';
 import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';

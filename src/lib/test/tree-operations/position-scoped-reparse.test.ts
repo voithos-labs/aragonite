@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { FRONT_MATTER, registerDocumentTopKind } from '../harness/position-scoped-kind';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 const BROKEN_CLOSER = '---\ntitle: x\n--\n';

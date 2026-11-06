@@ -19,7 +19,7 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { Commit } from './widget-selected-fixture';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { stubCaretMemory } from '#lib/testing/headless-actions.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';

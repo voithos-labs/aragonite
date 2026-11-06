@@ -1,7 +1,7 @@
 // A paste into a fenced code block holding `display`, taken as far as the bytes the write would
 // store: `codePasteSurface` splices, and the write's fence rule makes the result legal.
 
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { parse } from '#lib/core/parser.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';

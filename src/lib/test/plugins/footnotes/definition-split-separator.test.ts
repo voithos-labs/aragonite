@@ -10,7 +10,7 @@ import { describeConvergence } from '#lib/testing/parse-convergence.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('footnote definition Enter at the end of the body', () => {
 	beforeEach(() => {

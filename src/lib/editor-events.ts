@@ -53,6 +53,8 @@ export interface EditorEventMap {
 	/** Fires at each write, as it lands: a structural edit, one keystroke, an undo or a redo. */
 	edit: EditEvent;
 	selectionChange: SelectionChangeEvent;
+	/** A failure the editor contained. A listener added after the editor mounts (in a Svelte
+	 *  parent's `onMount`, say) misses the plugin errors raised while it mounted; `onError` hears those. */
 	error: EditorError;
 	/** The mode in effect after a `presentationMode` prop change (never fired at mount). */
 	presentationModeChange: PresentationMode;
@@ -86,6 +88,8 @@ export interface EditorEvents {
 
 /** The editor's own side of the channel: `end` at unmount, after which nothing is emitted. */
 export interface EditorEventChannel extends EditorEvents {
+	/** Also says whether a listener heard it. */
+	emit<K extends keyof EditorEventMap>(event: K, payload: EditorEventMap[K]): boolean;
 	end(): void;
 }
 
@@ -110,9 +114,9 @@ export function createEditorEvents(): EditorEventChannel {
 		};
 	}
 
-	function emit<K extends keyof EditorEventMap>(event: K, payload: EditorEventMap[K]): void {
+	function emit<K extends keyof EditorEventMap>(event: K, payload: EditorEventMap[K]): boolean {
 		const set = handlers[event];
-		if (!set || ended) return;
+		if (!set?.size || ended) return false;
 		// Copy so self-disposing handlers don't mutate the set mid-iteration.
 		// try/catch per handler so one throwing subscriber doesn't starve others.
 		for (const handler of [...set]) {
@@ -132,6 +136,7 @@ export function createEditorEvents(): EditorEventChannel {
 				}
 			}
 		}
+		return true;
 	}
 
 	return {

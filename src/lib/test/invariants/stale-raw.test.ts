@@ -6,7 +6,7 @@ import {
 	assembleListHalf,
 	buildListItemWithContent
 } from '../../tree-operations/list/list-builders';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 function firstBlock(source: string): CstNode {
 	return parse(source).children[0];

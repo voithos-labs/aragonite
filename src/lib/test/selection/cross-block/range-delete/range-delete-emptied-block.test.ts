@@ -7,7 +7,7 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { expectParseConverged } from '../../../harness/parse-converged';
 import type { Document } from '#lib/core/nodes.js';
 import { fixtureReading } from '../../../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { deleteRange } from '../../../harness/range-delete';
 
 // A selection covering a block's whole text leaves it blank, and a blank block is the separating

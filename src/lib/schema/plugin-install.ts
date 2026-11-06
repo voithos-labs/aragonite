@@ -4,9 +4,20 @@ import {
 	devWarn,
 	isTestProcess
 } from '@voithos-labs/aragonite/dev-checks';
-import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-copy';
-import { ARAGONITE_VERSION } from '../version';
+import { checkDefinedByThisCopy } from '../invariants/one-core-copy';
 import { isValidPluginName } from './plugin-name';
+import {
+	definePluginUnit,
+	definingCopy,
+	isPluginValue,
+	markDefinedHere,
+	mergeOptions,
+	THIS_COPY,
+	type InstalledPlugin,
+	type Plugin,
+	type PluginList,
+	type PluginSpec
+} from './plugin-unit';
 import { enrollTestReset } from './registry-reset';
 // Type-only: `editor-events` already imports this module at runtime, so importing a value back
 // would close a cycle from `schema/` to the root.
@@ -99,18 +110,19 @@ let coreDepth = 0;
 // Bumped whenever the installed set changes, so a cache filtered by installation can tell it is stale.
 let generation = 0;
 
-// Every copy of the core marks the plugins it defines under one shared key, each with its own value.
-const DEFINED_BY = Symbol.for('@voithos-labs/aragonite:defined-by');
-const THIS_COPY: CoreCopy = Object.freeze({ version: ARAGONITE_VERSION });
-
-const definingCopy = (plugin: EditorPlugin): CoreCopy | undefined =>
-	(plugin as { [DEFINED_BY]?: CoreCopy })[DEFINED_BY];
-
 // ── Public API ───────────────────────────────────────────────────────────────
 
+/** A plugin value from a spec with `contributes`, or a `setup` plugin installed once per process. */
+export function definePlugin<O extends object = Record<never, never>>(
+	spec: PluginSpec<O>
+): Plugin<O>;
 export function definePlugin<Options extends object = Record<never, never>>(
 	plugin: EditorPlugin<Options>
-): EditorPlugin<Options> {
+): EditorPlugin<Options>;
+export function definePlugin(
+	plugin: EditorPlugin<object> | PluginSpec<object>
+): EditorPlugin<object> | Plugin<object> {
+	if ('contributes' in plugin) return definePluginUnit(plugin);
 	if (typeof plugin.setup !== 'function') {
 		throw new Error(`definePlugin: '${plugin.name}' setup must be a function`);
 	}
@@ -119,8 +131,7 @@ export function definePlugin<Options extends object = Record<never, never>>(
 			`definePlugin: invalid plugin name "${plugin.name}"; lowercase first letter, then letters/digits/hyphens`
 		);
 	}
-	// Marked in every build, not just with checks on: the copy that defined it may run without them.
-	if (Object.isExtensible(plugin)) Object.defineProperty(plugin, DEFINED_BY, { value: THIS_COPY });
+	markDefinedHere(plugin);
 	return plugin;
 }
 
@@ -152,31 +163,66 @@ export function installPlugins(plugins: readonly EditorPlugin[]): void {
 /** A `plugins` prop entry: a plugin on its own, or a plugin with options for this editor. */
 export type EditorPluginEntry = EditorPlugin | { plugin: EditorPlugin; options?: unknown };
 
+/** What the `plugins` prop and `use` take: `setup` plugins and plugin values, in one list. */
+export type PluginsProp = readonly (EditorPluginEntry | PluginList[number])[];
+
 /**
  * The options belong to one editor even though a plugin installs once per process. A plugin listed
  * twice keeps its first entry, the rule `installPlugins` uses, so the two cannot disagree.
  */
-export function normalizePluginEntries(entries: readonly EditorPluginEntry[]): {
+export function normalizePluginEntries(entries: PluginsProp): {
 	plugins: EditorPlugin[];
 	optionsByName: Map<string, unknown>;
+	/** The plugin values, in list order, for the editor's own install pass. */
+	values: PluginList[number][];
+	/** Every entry's name, both shapes, in list order. */
+	order: string[];
 } {
 	const plugins: EditorPlugin[] = [];
 	const optionsByName = new Map<string, unknown>();
+	const values: PluginList[number][] = [];
+	const order: string[] = [];
+	// A plugin value listed twice is left to the editor's own install pass, which reports it.
+	const valueNames = new Set<string>();
 	const seen = new Set<string>();
 	for (const entry of entries) {
-		const plugin = 'plugin' in entry ? entry.plugin : entry;
-		if (seen.has(plugin.name)) {
+		const plugin = isPluginValue(entry) ? entry : 'plugin' in entry ? entry.plugin : entry;
+		const value = isPluginValue(entry);
+		if (seen.has(plugin.name) || (!value && valueNames.has(plugin.name))) {
 			devWarn(
 				'plugin-install',
 				`plugin '${plugin.name}' listed twice in one plugins prop; the first entry (and its options) wins`
 			);
 			continue;
 		}
+		if (!valueNames.has(plugin.name)) order.push(plugin.name);
+		if (value) {
+			valueNames.add(plugin.name);
+			values.push(entry);
+			continue;
+		}
 		seen.add(plugin.name);
-		plugins.push(plugin);
+		plugins.push(plugin as EditorPlugin);
 		if ('plugin' in entry && 'options' in entry) optionsByName.set(plugin.name, entry.options);
 	}
-	return { plugins, optionsByName };
+	return { plugins, optionsByName, values, order };
+}
+
+/** The plugins an editor runs, in its list's order; a plugin the install pass added for a need comes
+ *  just ahead of the first one needing it, where the pass placed it. */
+export function runningNames(
+	listed: ReturnType<typeof normalizePluginEntries>,
+	units: readonly InstalledPlugin[]
+): string[] {
+	const names: string[] = [];
+	let next = 0;
+	for (const name of listed.order) {
+		const at = units.findIndex((unit) => unit.name === name);
+		if (at >= next) for (; next <= at; next++) names.push(units[next].name);
+		else if (listed.plugins.some((plugin) => plugin.name === name)) names.push(name);
+	}
+	for (; next < units.length; next++) names.push(units[next].name);
+	return names;
 }
 
 /** One editor's options for a plugin: its defaults, then each defined field of the entry that
@@ -186,7 +232,7 @@ export function resolvePluginOptions<Options extends object>(
 	raw: unknown
 ): Options {
 	const entry = raw === undefined ? {} : plugin.parseOptions ? plugin.parseOptions(raw) : raw;
-	return { ...plugin.defaults, ...definedFields(entry) } as Options;
+	return mergeOptions(plugin.defaults, entry);
 }
 
 export function installedPlugin(name: string): EditorPlugin | undefined {
@@ -305,12 +351,6 @@ function makeSetupContext(pluginName: string): { ctx: PluginSetupContext; close:
 		}
 	};
 	return { ctx, close: () => (open = false) };
-}
-
-// An entry's field set to `undefined` keeps its default, the same as leaving it out.
-function definedFields(value: unknown): Record<string, unknown> {
-	if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
-	return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined));
 }
 
 // `name@version` when the plugin carries a version, so a clash between two versions is

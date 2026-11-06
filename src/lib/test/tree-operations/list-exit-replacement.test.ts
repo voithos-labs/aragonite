@@ -4,7 +4,7 @@ import { serialize } from '../../core/serializer';
 import { buildExitReplacement } from '../../tree-operations';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode } from '../../core/nodes';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

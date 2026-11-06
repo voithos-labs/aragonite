@@ -12,7 +12,7 @@ import {
 	describeConvergence
 } from '#lib/test/harness/parse-converged.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The check on the check. Using the parse comparison wherever a round-trip proves nothing is only
 // sound if it catches the live-tree-versus-raw differences bytes cannot see and stays green on the

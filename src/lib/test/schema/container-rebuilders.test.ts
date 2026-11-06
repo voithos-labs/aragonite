@@ -4,7 +4,7 @@ import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 /** Blank the field the rebuilder writes: a node built by the parser already holds the right
  *  bytes, so a rebuild that wrote nothing would pass silently. */

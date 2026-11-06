@@ -4,7 +4,7 @@ import { getPluginMetadata } from '#lib/plugin.js';
 import { registerDetailsKind, type DetailsMetadata } from '#packages/details/src/details-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The three tag lines the details writer builds have to reproduce the authored line ending rather
 // than rewrite CRLF to `\n`. The same rule `serializeDirective` follows.

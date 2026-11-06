@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins, parse, serialize, parseInline, type CstNode, type InlineNode } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';

@@ -185,7 +185,7 @@ describe('coherence check scope', () => {
 		return kind;
 	};
 
-	// The parser's getOrderedOpeners empties the same queue inside parse-only unit tests, where no
+	// The parser's opener read empties the same queue inside parse-only unit tests, where no
 	// editor mounts.
 	it('stays out of the registration flush the parser also drains', () => {
 		incoherent('scope-parser');

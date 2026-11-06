@@ -5,7 +5,7 @@
 	import type { AnyBlockKind, Document } from '../core/nodes';
 	import type { EditorProps } from './editor-component-props';
 	import type { EditorInstance, EditorDiagnostics, InsertMarkdownOptions } from '../editor-props';
-	import type { EditorEvents } from '../editor-events';
+	import type { EditorEventMap, EditorEvents } from '../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
@@ -133,11 +133,17 @@
 		type CommandErrorSink
 	} from '../schema/block-commands';
 	import type { AnyCommandId } from '../schema/command-id';
-	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
-	import { activationFor, everyInstalledPlugin } from '../schema/plugin-activation';
+	import {
+		installPlugins,
+		normalizePluginEntries,
+		runningNames,
+		type PluginsProp
+	} from '../schema/plugin-install';
+	import { createEditorActivation } from '../schema/plugin-activation';
+	import { installPluginList, type InstalledPlugin, type PluginError } from '../schema/plugin-unit';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
-	import { createRegistryView } from '../schema/registry-view';
+	import { createEditorGrammar } from '../schema/editor-grammar';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
@@ -155,7 +161,7 @@
 	import { createInlineRangeCommit } from '../editor-actions/inline-range-commit';
 	import { createLinkCardState, linkCardGates } from './link-card/link-card-state.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
-	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+	import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
 	import { checkHostColorsResolve } from '../invariants/theme-stylesheet';
 	import { registerEditorBuiltIns } from './editor-built-ins';
@@ -186,6 +192,7 @@
 		caret = 'auto',
 		scrollMode = 'self',
 		plugins,
+		onError,
 		syntax,
 		..._unlisted
 	}: EditorProps = $props();
@@ -203,16 +210,42 @@
 		hostScroll
 	});
 
-	// Installed before the first parse of `source`; a later change to `plugins` is ignored.
-	// svelte-ignore state_referenced_locally
-	const pluginEntries = plugins?.length ? normalizePluginEntries(plugins) : undefined;
-	if (pluginEntries) installPlugins(pluginEntries.plugins);
+	// Mount-time errors reach `onError` at once, and the `error` event once the editor has mounted.
+	const heldErrors: PluginError[] = [];
+	let errorsOpen = false;
+	function reportPluginError(error: PluginError): void {
+		onError?.(error);
+		if (errorsOpen) emitPluginError(error);
+		else heldErrors.push(error);
+	}
+	function emitPluginError(error: PluginError): void {
+		const heard = events.emit('error', {
+			origin: 'subscriber',
+			error: error.cause,
+			context: { plugin: error.plugin }
+		});
+		// A dev build says so once when nothing hears it; production stays silent.
+		if (devChecksOn && !heard && !onError) {
+			devWarn(
+				'plugin-error',
+				`plugin '${error.plugin}' failed (${error.doing}) and nothing heard it: pass onError`,
+				error.cause
+			);
+		}
+	}
 
-	// The editor activates exactly the plugins it lists; with no `plugins` prop, every installed
-	// plugin stays active.
-	const activePlugins = pluginEntries
-		? activationFor(pluginEntries.plugins.map((p) => p.name))
-		: everyInstalledPlugin;
+	// Installed before the first parse of `source`; `use` changes them, a new prop value doesn't.
+	// svelte-ignore state_referenced_locally
+	let pluginEntries = plugins?.length ? normalizePluginEntries(plugins) : undefined;
+	if (pluginEntries) installPlugins(pluginEntries.plugins);
+	let units: readonly InstalledPlugin[] = pluginEntries
+		? installPluginList(pluginEntries.values, reportPluginError)
+		: [];
+
+	// The editor runs exactly the plugins it lists; with no `plugins` prop, every installed one.
+	const listedNames = () => (pluginEntries ? runningNames(pluginEntries, units) : null);
+	const activePlugins = createEditorActivation(listedNames());
+	let pluginNames = $state<readonly string[]>(activePlugins.names);
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
@@ -234,14 +267,11 @@
 	// ── State ───────────────────────────────────────────────────────────
 
 	// svelte-ignore state_referenced_locally
-	const registryView = createRegistryView({
-		plugins: pluginEntries ? activePlugins : undefined,
-		syntax
-	});
+	const editorGrammar = createEditorGrammar({ plugins: activePlugins, syntax });
 
 	// Plain state, not $derived: structural edits write `doc` and `blockIds` directly.
 	// svelte-ignore state_referenced_locally
-	const initial = initDocument(source ?? '', registryView.grammar);
+	const initial = initDocument(source ?? '', editorGrammar);
 	let doc: Document = $state(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
@@ -262,7 +292,7 @@
 	/** This editor's one reading context, shared by the block components (through context) and
 	 *  the action bundles (through their deps), so a post-commit rebuild reaches both. */
 	const reading: Reading = {
-		grammar: registryView.grammar,
+		grammar: editorGrammar,
 		get resolver(): LinkReferenceResolver {
 			return currentResolver;
 		},
@@ -426,7 +456,7 @@
 	});
 
 	const documentSwap = createDocumentSwap({
-		grammar: registryView.grammar,
+		grammar: editorGrammar,
 		currentSource: currentSource.readUnchecked,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
@@ -704,11 +734,16 @@
 		getTheme: () => theme,
 		activationClick,
 		activation: activePlugins,
-		// Called at use, never here: both read state declared further down this component.
+		// Called at use, never here: these read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
 		runCommand: (commandId, arg) => runCommand(commandId, arg),
+		canRunCommand: (commandId) => canRunCommand(commandId),
+		claims: (event) => claimsChord(event),
 		openDraft: drafts.open,
-		reading
+		reading,
+		units: () => units,
+		pluginNames: () => pluginNames,
+		report: reportPluginError
 	});
 
 	// One lookup for every dispatch level, so block, cross-block and root route plugins alike.
@@ -720,9 +755,9 @@
 	onMount(() => {
 		const root = editorEl;
 		if (root) assertInvariant('host-colors-resolve', () => checkHostColorsResolve(root));
-		pluginContexts.attachAll(({ plugin, error }) =>
-			events.emit('error', { origin: 'subscriber', error, context: { plugin } })
-		);
+		errorsOpen = true;
+		for (const error of heldErrors.splice(0)) emitPluginError(error);
+		pluginContexts.attachAll();
 		return () => pluginContexts.dispose();
 	});
 
@@ -872,7 +907,7 @@
 		caretLanding,
 		pasteCoordinator,
 		reorder,
-		registryView,
+		grammar: editorGrammar,
 		activePlugins,
 		rects,
 		commands,
@@ -1390,6 +1425,57 @@
 		return keyClaims.claims(event);
 	}
 
+	// ── The editor object a plugin's `setup` also gets ────────────────────
+
+	const pluginList = $derived(pluginNames);
+	const mode = $derived(effectiveMode);
+	const themeName = $derived(theme);
+	export { pluginList as plugins, mode, themeName as theme };
+
+	export function on<K extends keyof EditorEventMap>(
+		event: K,
+		listen: (payload: EditorEventMap[K]) => void
+	): () => void {
+		return events.on(event, listen);
+	}
+
+	export function run(commandId: string, arg?: unknown): boolean {
+		return runCommand(commandId, arg);
+	}
+
+	export function can(commandId: string): boolean {
+		return canRunCommand(commandId);
+	}
+
+	export function claims(event: KeyboardEvent): boolean {
+		return claimsChord(event);
+	}
+
+	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
+	export function use(next: PluginsProp): void {
+		// Read before installing: with no list, the names are whatever the page has installed.
+		const before = new Set(activePlugins.names);
+		const entries = normalizePluginEntries(next);
+		// Before any write, so a `setup` that throws leaves the editor running what it ran.
+		installPlugins(entries.plugins);
+		const beforeEntries = pluginEntries;
+		const beforeUnits = units;
+		pluginEntries = entries;
+		units = installPluginList(entries.values, reportPluginError, beforeUnits);
+		const after = listedNames() ?? [];
+		// A plugin listed again with other options starts over on them, whichever shape it has.
+		const replaced = (name: string) =>
+			beforeUnits.find((u) => u.name === name)?.contribution !==
+				units.find((u) => u.name === name)?.contribution ||
+			beforeEntries?.optionsByName.get(name) !== entries.optionsByName.get(name);
+		for (const name of before)
+			if (!after.includes(name) || replaced(name)) pluginContexts.detach(name);
+		activePlugins.set(after);
+		pluginNames = activePlugins.names;
+		documentSwap.reparse();
+		pluginContexts.attach(after.filter((name) => !before.has(name) || replaced(name)));
+	}
+
 	const diagnostics = createEditorDiagnostics({
 		getSelection,
 		getSource,
@@ -1427,14 +1513,28 @@
 		getRects,
 		getDiagnostics,
 		reservedChords,
-		claimsChord
+		claimsChord,
+		use,
+		get plugins() {
+			return pluginList;
+		},
+		get mode() {
+			return mode;
+		},
+		get theme() {
+			return themeName;
+		},
+		on,
+		run,
+		can,
+		claims
 	} satisfies EditorInstance);
 
 	// ── Test-only hooks ─────────────────────────────────────────────────
 
 	export const __test: EditorTestSurface = {
 		getDocument: () => doc,
-		getGrammar: () => registryView.grammar,
+		getGrammar: () => editorGrammar,
 		getContentVersion: contentVersion.read,
 		getBlockComponent,
 		getUndoStack: () => undoManager.getStacks(),

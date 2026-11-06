@@ -15,7 +15,9 @@ import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { createEditorGrammar, defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
+import { tocPlugin } from '#packages/toc/src/index.js';
 import {
 	differentialDocuments,
 	rowsOf,
@@ -281,5 +283,18 @@ describe('named rows', () => {
 		];
 		writeContainerRaw(quote, defaultGrammarView);
 		expect(quote.raw).toBe('> a\n>\n> b\n');
+	});
+});
+
+describe('the editor’s grammar', () => {
+	// A plugin the editor leaves off interrupts no paragraph there, so the line it would open stays
+	// the quote's lazy line when the line above it changes.
+	it('keeps a lazy line that only the editor’s grammar continues', () => {
+		installPlugins([tocPlugin()]);
+		const grammar = createEditorGrammar({ plugins: activationFor([]) });
+		const quote = parse('> a\n[[toc]]\n', { grammar }).children[0];
+		quote.children[0].raw = 'ab\n[[toc]]\n';
+		writeContainerRaw(quote, grammar);
+		expect(quote.raw).toBe('> ab\n[[toc]]\n');
 	});
 });
