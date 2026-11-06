@@ -817,3 +817,8 @@ export function isBlockKindRegistered(kind: string): boolean {
 export function getAllRegisteredKinds(): AnyBlockKind[] {
 	return registry.records().map((r) => r.key);
 }
+
+/** The kinds an editor with this activation resolves: a kind its plugin left out isn't one. */
+export function registeredKinds(activation: PluginActivation): AnyBlockKind[] {
+	return registry.entries(activation).map(([kind]) => kind);
+}

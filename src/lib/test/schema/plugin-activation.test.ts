@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
-import { createEditorGrammar, kindEnablementFor } from '#lib/schema/editor-grammar.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
-import { blockViewFor, registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
+import {
+	blockViewFor,
+	registerBlockKind,
+	registeredKinds
+} from '#lib/schema/block-kind-descriptor.js';
 import { unfinishedReadings, type BlockOpener } from '#lib/schema/block-openers.js';
 import { testClosure } from '#lib/test/harness/closure.js';
 import {
@@ -81,9 +85,9 @@ describe('kind enablement derived from an instance activation set', () => {
 		// Declared outside any install, so the registry records no owner for it.
 		const ownerless = testLeaf('ownerless-block');
 
-		const isEnabled = kindEnablementFor(activationFor([]));
-		expect(isEnabled(ownerless)).toBe(true);
-		expect(isEnabled('paragraph')).toBe(true);
+		const kinds = registeredKinds(activationFor([]));
+		expect(kinds).toContain(ownerless);
+		expect(kinds).toContain('paragraph');
 	});
 });
 

@@ -19,7 +19,6 @@ import {
 } from './block-openers';
 import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
 import { pluginInstallGeneration } from './plugin-install';
-import { pluginKindOwner } from './plugin-kind';
 
 /** GFM syntaxes a host can switch off for one editor (the `syntax` prop); each is on by default. */
 export interface SyntaxOptions {
@@ -37,13 +36,6 @@ export interface EditorGrammar extends GrammarView {
 	tryDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined;
 }
 
-/** `false` leaves a plugin kind out of one editor; built-ins are switched only by `syntax`. */
-export type KindEnablement = (kind: AnyBlockKind) => boolean;
-
-export function kindEnablementFor(activation: PluginActivation): KindEnablement {
-	return (kind) => resolvesIn(activation, pluginKindOwner(kind));
-}
-
 export function createEditorGrammar(
 	options: {
 		/** The plugins this editor turns on; absent turns on every installed plugin. */
@@ -53,7 +45,6 @@ export function createEditorGrammar(
 ): EditorGrammar {
 	const activation = options.plugins ?? everyInstalledPlugin;
 	const indentedCode = options.syntax?.indentedCode ?? true;
-	const enabled = kindEnablementFor(activation);
 	// A reparse reads both lists once per block, so they're kept against the registered records, the
 	// installed set and the editor's own list, and rebuilt when any of them changes.
 	let builtFrom: readonly OpenerRecord[] | null = null;
@@ -71,10 +62,7 @@ export function createEditorGrammar(
 		builtForList = activation.generation;
 		// A switched-off syntax leaves the grammar only: a block of that kind still renders.
 		const kept = records.filter(
-			(r) =>
-				resolvesIn(activation, r.owner) &&
-				enabled(r.key) &&
-				(indentedCode || r.key !== 'indentedCode')
+			(r) => resolvesIn(activation, r.owner) && (indentedCode || r.key !== 'indentedCode')
 		);
 		openers = kept.map((r) => r.value);
 		interrupts = kept.flatMap((r) => r.value.interruptsParagraph || []);
@@ -90,7 +78,7 @@ export function createEditorGrammar(
 			refresh();
 			return interrupts.some((interrupt) => interrupt(lineText));
 		},
-		blockView: (kind) => (enabled(kind) ? blockViewFor(kind, activation) : undefined),
+		blockView: (kind) => blockViewFor(kind, activation),
 		descriptor: (kind) => getBlockKindDescriptor(kind),
 		tryDescriptor: (kind) => tryGetBlockKindDescriptor(kind)
 	};
