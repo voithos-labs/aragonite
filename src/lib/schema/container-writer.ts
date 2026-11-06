@@ -78,8 +78,8 @@ function writeIndented<D>(
 	return rebuildStripRaw(node, lines, { grammar, changed, previous });
 }
 
-/** The head line written from the data, the body as the shape's lines below it; an emptied body
- *  leaves the head line alone, which still opens the container. */
+/** The head line, kept as spelled while it writes the same data, the body as the shape's lines
+ *  below it; an emptied body leaves the head line alone, which still opens the container. */
 function writeHeaded<D>(
 	node: CstNode,
 	shape: MarkedLines<D>,
@@ -90,7 +90,9 @@ function writeHeaded<D>(
 	const old = firstDisplayLine(node.raw).text;
 	const marker = shape.reads.exec(old);
 	const read = marker ? head.match.exec(old.slice(marker[0].length)) : null;
-	const line = shape.first + head.write(dataOver(node, read ? head.data(read) : undefined));
+	const was = read ? head.data(read) : undefined;
+	const written = head.write(dataOver(node, was));
+	const line = was !== undefined && head.write(was) === written ? old : shape.first + written;
 	if (!node.innerPrefix && bodyHasNoBytes(node)) {
 		node.raw = line + ownTrailingLineEnding(node.raw);
 		dropChildSpans(node);

@@ -35,7 +35,7 @@ describe('a replace that empties the first item under a paragraph', () => {
 describe('a replace that empties the last container at the end of the document', () => {
 	it.each([
 		['an item', '- x', [0, 0, 0], '- \n'],
-		['a quote', '> x', [0, 0], '>\n']
+		['a quote', '> x', [0, 0], '> \n']
 	])('keeps %s a reload reads the same', async (_, source, path, after) => {
 		const { deps } = makeEditorActionsDeps(initDocument(source, defaultGrammarView).doc);
 		const sr = createSearchReplace(deps, createUndoController(deps));

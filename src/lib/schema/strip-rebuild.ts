@@ -102,12 +102,16 @@ function rebuildStripBody(
 	previous: LineCodec,
 	grammar: GrammarView
 ): StripRebuild {
+	const writing: Writing = {
+		grammar,
+		emptiedKeepsMarker: lines.blankKeepsMarker === true && bodyHoldsNoText(node)
+	};
 	// Written whole, since the region and line-by-line writes give an empty body no line at all.
-	if (bodyHasNoBytes(node)) return rebuildWholeStrip(node, lines, previous, grammar);
+	if (bodyHasNoBytes(node)) return rebuildWholeStrip(node, lines, previous, writing);
 	if (changed && previous === lines) {
 		const outcome = { rereads: false };
 		const rewrite: RegionRewrite = (region, at) => {
-			const written = rewriteStripRegion(region, at, changed, lines, grammar);
+			const written = rewriteStripRegion(region, at, changed, lines, writing);
 			outcome.rereads = written?.rereads ?? false;
 			return written?.out ?? null;
 		};
@@ -128,7 +132,7 @@ function rebuildStripBody(
 
 	// A child ending mid-line shares that line with whatever follows, so its lines can't be told
 	// apart from the next child's: the whole body is written as one text.
-	if (opensMidLine(children, suffix)) return rebuildWholeStrip(node, lines, previous, grammar);
+	if (opensMidLine(children, suffix)) return rebuildWholeStrip(node, lines, previous, writing);
 
 	const raw = node.raw;
 	const spans = new Uint32Array(children.length * 2);
@@ -136,7 +140,7 @@ function rebuildStripBody(
 	const keeps = previous === lines;
 	const head = keeps ? keptHead(raw, children, lines, spans) : NO_HEAD;
 	let tail = keeps && suffix === '' ? keptTail(raw, children, lines, head) : noTail(raw, children);
-	const syntax = { lines, previous, grammar };
+	const syntax = { lines, previous, writing };
 	let rest = writeBetween(raw, children, suffix, syntax, head, tail, tailIsBlank);
 	if (rest === null) {
 		tail = noTail(raw, children);
@@ -159,7 +163,7 @@ function writeBetween(
 	raw: string,
 	children: CstNode[],
 	suffix: string,
-	{ lines, previous, grammar }: { lines: LineCodec; previous: LineCodec; grammar: GrammarView },
+	{ lines, previous, writing }: { lines: LineCodec; previous: LineCodec; writing: Writing },
 	head: KeptHead,
 	tail: KeptTail,
 	tailIsBlank: (i: number) => () => boolean
@@ -184,7 +188,7 @@ function writeBetween(
 
 	const old = readOldLines(raw.slice(head.rawEnd, tail.rawStart), previous, head.rawEnd === 0);
 	if (tail.first && runsIntoTail(old, fresh, tail.first)) return null;
-	const written = writeLines(old, fresh, lines, grammar, head.above);
+	const written = writeLines(old, fresh, lines, writing, head.above);
 	return { ...written, bounds };
 }
 
@@ -197,6 +201,22 @@ function runsIntoTail(old: OldLine[], fresh: BodyLineOut[], first: KeptLine): bo
 	return old.length < fresh.length
 		? holds(first.old, fresh[shorter])
 		: holds(old[shorter], first.fresh);
+}
+
+/** What a strip write reads beside the line syntax: the grammar that decides a lazy line, and
+ *  whether the body's text is all gone, so an emptied line keeps a marker that keeps one. */
+interface Writing {
+	grammar: GrammarView;
+	emptiedKeepsMarker: boolean;
+}
+
+/** Whether every child and the inner suffix hold only whitespace; stops at the first text. */
+function bodyHoldsNoText(node: CstNode): boolean {
+	if (!isBlankText(node.innerSuffix ?? '')) return false;
+	for (const child of node.children!) {
+		if (!isBlankText(child.leadingTrivia) || !isBlankText(child.raw)) return false;
+	}
+	return true;
 }
 
 /** Whether no child and no inner suffix holds a byte, as in a body emptied by a range delete. */
@@ -424,14 +444,14 @@ function rebuildWholeStrip(
 	node: CstNode,
 	lines: LineCodec,
 	previous: LineCodec,
-	grammar: GrammarView
+	writing: Writing
 ): StripRebuild {
 	const fresh: BodyLineOut[] = [];
 	pushLines(fresh, concatChildren(node.children!) + (node.innerSuffix ?? ''), true, () => true);
 	// An empty body still sits on the container's opening line, which holds its marker; with no
 	// line written, a reload reads no container at all.
 	if (fresh.length === 0) fresh.push({ text: '', ending: '', place: FIRST_LINE });
-	const written = writeLines(readOldLines(node.raw, previous, true), fresh, lines, grammar);
+	const written = writeLines(readOldLines(node.raw, previous, true), fresh, lines, writing);
 	node.childSpans = undefined;
 	node.raw = written.out;
 	return { rereads: written.rereads };
@@ -561,7 +581,7 @@ function writeLines(
 	old: OldLine[],
 	fresh: BodyLineOut[],
 	lines: LineCodec,
-	grammar: GrammarView,
+	writing: Writing,
 	above?: KeptLine
 ): { out: string; offsets: number[]; rereads: boolean } {
 	let head = 0;
@@ -614,9 +634,9 @@ function writeLines(
 			((oldAbove !== undefined &&
 				bodyOf(oldAbove)?.text === freshAbove.text &&
 				old[i].text === lazyLine) ||
-				lines.continuesLazily(freshAbove.text, lazyLine, freshAbove.place.first, grammar));
+				lines.continuesLazily(freshAbove.text, lazyLine, freshAbove.place.first, writing.grammar));
 		const bytes: string =
-			(paired !== null ? kept(paired, line, place, lines, continues, reread) : null) ??
+			(paired !== null ? kept(paired, line, place, lines, writing, continues, reread) : null) ??
 			lines.write(line.text, line.place) + line.ending;
 		written[j] = bytes;
 		const text: string = bytes.slice(0, bytes.length - line.ending.length);
@@ -639,6 +659,7 @@ function kept(
 	line: BodyLineOut,
 	place: LinePlace,
 	lines: LineCodec,
+	writing: Writing,
 	continues: (lazyLine: string) => boolean,
 	reread: () => void
 ): string | null {
@@ -654,8 +675,10 @@ function kept(
 		if (body.lazy && !continues(old.text)) reread();
 		return old.raw;
 	}
-	// A blank line is spelled the container's way, so a prefix passes only between text lines.
-	if (body.prefix === null || isBlankLine(body.text) || isBlankLine(line.text)) return null;
+	// A blank line is spelled the container's way, so a prefix passes only between text lines,
+	// and onto the lines of a body emptied of its text where the container keeps its marker.
+	const blank = isBlankLine(line.text) && !writing.emptiedKeepsMarker;
+	if (body.prefix === null || isBlankLine(body.text) || blank) return null;
 	const candidate = body.prefix + line.text;
 	return readsAs(candidate, body.lazy) && (!body.lazy || continues(candidate))
 		? candidate + line.ending
@@ -682,7 +705,7 @@ function rewriteStripRegion(
 	at: RegionAt,
 	changed: ChildRawChange,
 	lines: LineCodec,
-	grammar: GrammarView
+	writing: Writing
 ): { out: string; rereads: boolean } | null {
 	const before: BodyLineOut[] = [];
 	pushChildLines(before, at.trivia, changed.previousRaw, at.first, at);
@@ -696,5 +719,5 @@ function rewriteStripRegion(
 	}
 	const fresh: BodyLineOut[] = [];
 	pushChildLines(fresh, at.trivia, at.child.raw, at.first, at);
-	return writeLines(old, fresh, lines, grammar);
+	return writeLines(old, fresh, lines, writing);
 }

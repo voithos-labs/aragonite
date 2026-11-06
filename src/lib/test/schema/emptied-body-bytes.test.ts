@@ -27,9 +27,9 @@ const CASES: EmptiedCase[] = [
 	{ kind: 'ordered item', source: '1. a', container: [0, 0], leaf: 0, emptied: '1. ' },
 	{ kind: 'task item', source: '- [ ] a', container: [0, 0], leaf: 0, emptied: '- [ ] ' },
 	{ kind: 'second item', source: '- a\n- b', container: [0, 1], leaf: 0, emptied: '- a\n- ' },
-	{ kind: 'quote', source: '> a', container: [0], leaf: 0, emptied: '>' },
+	{ kind: 'quote', source: '> a', container: [0], leaf: 0, emptied: '> ' },
 	{ kind: 'item in a quote', source: '> - a', container: [0, 0, 0], leaf: 0, emptied: '> - ' },
-	{ kind: 'quote in an item', source: '- > a', container: [0, 0, 0], leaf: 0, emptied: '- >' },
+	{ kind: 'quote in an item', source: '- > a', container: [0, 0, 0], leaf: 0, emptied: '- > ' },
 	{ kind: 'footnote definition', source: '[^1]: a', container: [0], leaf: 0, emptied: '[^1]: ' },
 	{ kind: 'alert', source: '> [!NOTE]\n> a', container: [0], leaf: 0, emptied: '> [!NOTE]' },
 	{

@@ -34,7 +34,7 @@ describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => 
 
 	it('generic branch rebuilding an emptied blockquote', () => {
 		expect(run('> q\r\n\r\nafter\r\n', { path: [0, 0], offset: 0 }, { path: [1], offset: 5 })).toBe(
-			'>\r\n'
+			'> \r\n'
 		);
 	});
 

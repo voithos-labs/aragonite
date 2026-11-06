@@ -65,7 +65,7 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 		empty(doc, [0, 0]);
 
 		const quote = doc.children[0];
-		expect(serialize(doc)).toBe('>\n>\n');
+		expect(serialize(doc)).toBe('> \n>\n');
 		expect(quote.children!.map((c) => [c.leadingTrivia, c.raw])).toEqual([
 			['', '\n'],
 			['', '\n']

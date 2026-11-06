@@ -10,11 +10,18 @@ import { COLON_LINES, writeContainerRaw } from '#lib/schema/container-writer.js'
 import { QUOTE_LINES } from '#lib/core/parsers/blockquote.js';
 import { LIST_ITEM_LINES } from '#lib/core/parsers/list.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { differentialDocuments, rowsOf, runDifferential, type Writer } from './differential';
+import {
+	differentialDocuments,
+	rowsOf,
+	runDifferential,
+	type Mismatch,
+	type Writer
+} from './differential';
 import { todayWriter } from './today-writers';
 
 const shaped: Writer = (node: CstNode, changed) =>
@@ -33,9 +40,31 @@ describe('the container writer against today’s writers', () => {
 		expect(tally.cases).toBeGreaterThan(scale === 'full' ? 100_000 : 1_000);
 		expect(tally.throws).toEqual([]);
 		expect(tally.warns).toEqual({});
-		expect(tally.mismatches.slice(0, 3)).toEqual([]);
+		expect(tally.mismatches.filter((m) => !ruled(m)).slice(0, 3)).toEqual([]);
+		// Both ruled changes show up in the run, so the filter above can't hide a quiet writer.
+		expect(new Set(tally.mismatches.map((m) => m.kind))).toEqual(
+			new Set(['blockquote', 'githubAlert'])
+		);
 	}, 600_000);
 });
+
+/** The two ruled changes from the writers before: a quote line emptied of its text keeps its
+ *  marker as spelled, and an alert's head line keeps its spelling while it writes the same type. */
+function ruled({ kind, before, today, shaped, rereads }: Mismatch): boolean {
+	if (rereads[0] !== rereads[1] || (kind !== 'blockquote' && kind !== 'githubAlert')) return false;
+	const [was, old, now] = [before, today, shaped].map((raw) => raw.split('\n'));
+	const markerOnly = (line: string) => /^[ \t>]*\r?$/.test(line);
+	const markers = (line: string) => line.replace(/[ \t\r]/g, '');
+	return (
+		old.length === now.length &&
+		old.every(
+			(line, i) =>
+				line === now[i] ||
+				(markerOnly(line) && markerOnly(now[i]) && markers(line) === markers(now[i])) ||
+				(kind === 'githubAlert' && i === 0 && now[0] === was[0])
+		)
+	);
+}
 
 // Today's bytes after one edit, which the container writer gives too. A row whose bytes disagree
 // with the container facts says so in its name.
@@ -126,13 +155,8 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'footnote-def',
 		'[^1]: b\n'
 	],
-	[
-		'an emptied quote is >, where the facts say "> "',
-		'> quoted',
-		'text deleted',
-		'blockquote',
-		'>'
-	],
+	['an emptied quote keeps its marker as spelled', '> quoted', 'text deleted', 'blockquote', '> '],
+	['an emptied quote keeps an unspaced marker', '>quoted', 'text deleted', 'blockquote', '>'],
 	['an emptied item keeps its marker', '- item', 'body emptied', 'listItem', '- '],
 	[
 		'an emptied footnote keeps its marker',
@@ -142,11 +166,11 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'[^1]: \n'
 	],
 	[
-		'an emptied alert keeps its head line',
+		'an emptied alert keeps its head line and its body line’s marker',
 		'> [!NOTE]\n> a\n',
 		'text deleted',
 		'githubAlert',
-		'> [!NOTE]\n>\n'
+		'> [!NOTE]\n> \n'
 	],
 	[
 		'an emptied callout keeps its fences',
@@ -184,11 +208,18 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'::::note\nx\n:::\n::::'
 	],
 	[
-		'an alert head is respelled, where the facts keep it',
+		'an alert head keeps its spelling',
 		'>[!NOTE]\n> a\n',
 		'x on line 0 child 0',
 		'githubAlert',
-		'> [!NOTE]\n> ax\n'
+		'>[!NOTE]\n> ax\n'
+	],
+	[
+		'an alert head whose type changed is written the alert’s way',
+		'>[!NOTE]\n> a\n',
+		'type changed',
+		'githubAlert',
+		'> [!TIP]\n> a\n'
 	],
 	[
 		'an untouched spelled line keeps its bytes',
@@ -221,5 +252,15 @@ describe('named rows', () => {
 	it.each(NAMED_ROWS)('%s', (_, source, edit, kind, bytes) => {
 		const rows = rowsOf(source, edit, shaped).filter((row) => row.kind === kind);
 		expect(rows.map((row) => row.raw)).toEqual([bytes]);
+	});
+
+	it('writes a blank line it adds to a quote as a bare `>`', () => {
+		const quote = parse('> a\n').children[0];
+		quote.children = [
+			{ kind: 'paragraph', leadingTrivia: '', raw: 'a\n' },
+			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'b\n' }
+		];
+		writeContainerRaw(quote, defaultGrammarView);
+		expect(quote.raw).toBe('> a\n>\n> b\n');
 	});
 });

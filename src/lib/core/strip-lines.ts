@@ -93,6 +93,9 @@ export interface LineCodec {
 	/** Whether `grammar` takes `line`, with no prefix, as continuing a paragraph the body line
 	 *  `above` leaves open; `aboveFirst` when that line is the container's opening one. */
 	continuesLazily(above: string, line: string, aboveFirst: boolean, grammar: GrammarView): boolean;
+	/** Whether the lines of a body emptied of its text keep their markers as spelled (a quote's
+	 *  `> `), where a blank line is otherwise written the container's way. */
+	blankKeepsMarker?: boolean;
 }
 
 /** A line read anywhere but a body's opening or blank-tail line. */
@@ -150,6 +153,7 @@ function markedCodec<D>(shape: MarkedLines<D>): LineCodec {
 		write,
 		// `reads` takes the written marker whole, so the written spelling always reads back.
 		spells: (line, text, place) => line === write(text, place),
+		blankKeepsMarker: true,
 		continuesLazily: (above, line, _aboveFirst, grammar) =>
 			keepsParagraphOpen(shape, above) &&
 			keepsParagraphOpen(shape, line) &&
