@@ -556,6 +556,8 @@ function registerBuiltIns(): void {
 			contract: 'strip',
 			rebuildRaw: rebuildBlockquoteRaw,
 			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
+			lines: { marker: 'every-line', lazy: true },
+			merges: {},
 			unwrapRole: {
 				firstChildBackspace: 'lift-first-child-drop-opener',
 				middleChildBackspace: 'default-merge'
@@ -597,6 +599,7 @@ function registerBuiltIns(): void {
 					(metadataOf(ancestor, 'list')?.ordered ?? false),
 				siblingAbsorb: true
 			},
+			merges: { key: 'ordered' },
 			unwrapRole: {
 				firstChildBackspace: 'list-item-cascade',
 				middleChildBackspace: 'list-item-cascade'
@@ -626,7 +629,11 @@ function registerBuiltIns(): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		container: { contract: 'strip', rebuildRaw: rebuildListItemRaw },
+		container: {
+			contract: 'strip',
+			rebuildRaw: rebuildListItemRaw,
+			lines: { marker: 'first-line', lazy: true }
+		},
 		keymap: [
 			{ chord: 'Tab', command: 'list.indent' },
 			{ chord: 'Shift+Tab', command: 'list.unindent' },

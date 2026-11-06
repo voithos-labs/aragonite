@@ -248,6 +248,7 @@ export function registerMathBlock(view: BlockView): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		textPosition: 'while-source-shows',
 		// The open source takes Enter as a literal newline and never splits, so neither edge
 		// can grow a neighbouring block.
 		gapEdges: 'both',
@@ -316,6 +317,7 @@ export function registerMathFence(view: BlockView): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		textPosition: 'while-source-shows',
 		gapEdges: 'both',
 		caretTargetAtPoint: mathCaretAtPoint,
 		bodyRange: mathBodyRange,
