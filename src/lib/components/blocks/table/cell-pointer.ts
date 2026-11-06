@@ -7,6 +7,7 @@
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import {
 	cellPoint,
+	isWholeBlockEndpoint,
 	type CellSelectionPoint,
 	type SelectionEndpoint,
 	type SelectionPoint
@@ -14,7 +15,8 @@ import {
 import { rowMajorCellIndex } from '../../../core/coordinate-spaces';
 import { createPointerDragSession, type PointerPosition } from '../../../selection/pointer-session';
 import { blockNearPoint } from '../../../selection/nearest-block';
-import { collapseNativeRangeOnTakeover } from '../../../selection/drag-pointer';
+import { collapseNativeRangeOnTakeover, reachesWholeBlock } from '../../../selection/drag-pointer';
+import { blockContentElAt } from '../../../caret/block-el-lookup';
 import { firstScrollableDescendant } from '../../../windowing/scroll-ancestors';
 import { TABLE_CELL_SELECTOR } from '../../../caret/block-content-selector';
 import { caretOffsetAtPoint, elementAtPoint } from '../../../browser/point';
@@ -150,6 +152,10 @@ export function installCellDragListener(
 		// whole-row snap just as the anchor does, and a kind with no editable element is skipped.
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
+		if (isWholeBlockEndpoint(focusPoint)) {
+			const box = blockContentElAt(ctx.editorRoot, near.path)?.getBoundingClientRect();
+			if (!reachesWholeBlock(box, anchor.tablePath, near.path, clientY, finger !== null)) return;
+		}
 		extendTo(focusPoint);
 	}
 
