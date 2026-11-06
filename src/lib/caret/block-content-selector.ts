@@ -3,14 +3,17 @@
  * that is not an overlay, badge, gutter or handle. Shared by the runtime and the e2e page object.
  */
 
+/** The overlay's paint over a range the editor draws, a box over each block and the fill between:
+ *  what a block's content is not, and what a press on the range is measured against. */
+export const SELECTION_PAINT_SELECTOR = '.selection-overlay';
+
 /** For `querySelector`, which returns the first match only, so what must be excluded is
  *  whatever can come before the block content. */
-export const BLOCK_CONTENT_SELECTOR = ':scope > :not(.selection-overlay):not(.decoration-badge)';
+export const BLOCK_CONTENT_SELECTOR = `:scope > :not(${SELECTION_PAINT_SELECTOR}):not(.decoration-badge)`;
 
 /** For a Playwright `locator`, which returns every match, so each extra child has to be
  *  named; the decoration overlay is one per painted mark, not one per block. */
-export const BLOCK_CONTENT_LOCATOR_SELECTOR =
-	':scope > *:not(.selection-overlay):not(.decoration-overlay):not(.block-drag-handle):not(.decoration-badge):not(.code-rail):not(.md-drawn-caret)';
+export const BLOCK_CONTENT_LOCATOR_SELECTOR = `:scope > *:not(${SELECTION_PAINT_SELECTOR}):not(.decoration-overlay):not(.block-drag-handle):not(.decoration-badge):not(.code-rail):not(.md-drawn-caret)`;
 
 /** On the element a DOM leaf view fills, whose content element is then the text element marked
  *  with `VIEW_TEXT_ATTR` inside it: the element that takes focus and holds the caret offsets. */

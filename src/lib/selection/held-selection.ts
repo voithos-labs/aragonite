@@ -10,6 +10,7 @@ import {
 	rawSelectionIn,
 	readNativeSelection
 } from '../browser/selection-read';
+import { SELECTION_PAINT_SELECTOR } from '../caret/block-content-selector';
 import { usesMacEditingConventions } from '../schema/platform-conventions';
 import type { SelectionState } from './selection-state.svelte';
 import { pressesSelectedWidget } from './widget-press';
@@ -65,7 +66,7 @@ export function selectionCoversPoint(
 	y: number
 ): boolean {
 	if (selection.ownsRange && selection.isCustomRendered) {
-		const paint = Array.from(root.querySelectorAll(RANGE_PAINT), (el) =>
+		const paint = Array.from(root.querySelectorAll(SELECTION_PAINT_SELECTOR), (el) =>
 			el.getBoundingClientRect()
 		);
 		return covers(paint, x, y);
@@ -73,9 +74,6 @@ export function selectionCoversPoint(
 	const live = readNativeSelection();
 	return !!live && nativeRangeIn(root) && covers(Array.from(live.range.getClientRects()), x, y);
 }
-
-// The overlay's boxes over each block and the fill between them (`components/overlays/`).
-const RANGE_PAINT = '.selection-overlay';
 
 function covers(rects: readonly DOMRect[], x: number, y: number): boolean {
 	return rects.some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom);
