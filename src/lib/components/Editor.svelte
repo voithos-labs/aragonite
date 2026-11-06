@@ -136,6 +136,7 @@
 	import {
 		installPlugins,
 		normalizePluginEntries,
+		runningNames,
 		type PluginsProp
 	} from '../schema/plugin-install';
 	import { createEditorActivation } from '../schema/plugin-activation';
@@ -242,10 +243,7 @@
 		: [];
 
 	// The editor runs exactly the plugins it lists; with no `plugins` prop, every installed one.
-	const listedNames = () =>
-		pluginEntries
-			? [...pluginEntries.plugins.map((p) => p.name), ...units.map((u) => u.name)]
-			: null;
+	const listedNames = () => (pluginEntries ? runningNames(pluginEntries, units) : null);
 	const activePlugins = createEditorActivation(listedNames());
 	let pluginNames = $state<readonly string[]>(activePlugins.names);
 

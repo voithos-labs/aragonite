@@ -13,6 +13,7 @@ import {
 	markDefinedHere,
 	mergeOptions,
 	THIS_COPY,
+	type InstalledPlugin,
 	type Plugin,
 	type PluginList,
 	type PluginSpec
@@ -174,10 +175,13 @@ export function normalizePluginEntries(entries: PluginsProp): {
 	optionsByName: Map<string, unknown>;
 	/** The plugin values, in list order, for the editor's own install pass. */
 	values: PluginList[number][];
+	/** Every entry's name, both shapes, in list order. */
+	order: string[];
 } {
 	const plugins: EditorPlugin[] = [];
 	const optionsByName = new Map<string, unknown>();
 	const values: PluginList[number][] = [];
+	const order: string[] = [];
 	// A plugin value listed twice is left to the editor's own install pass, which reports it.
 	const valueNames = new Set<string>();
 	const seen = new Set<string>();
@@ -191,6 +195,7 @@ export function normalizePluginEntries(entries: PluginsProp): {
 			);
 			continue;
 		}
+		if (!valueNames.has(plugin.name)) order.push(plugin.name);
 		if (value) {
 			valueNames.add(plugin.name);
 			values.push(entry);
@@ -200,7 +205,24 @@ export function normalizePluginEntries(entries: PluginsProp): {
 		plugins.push(plugin as EditorPlugin);
 		if ('plugin' in entry && 'options' in entry) optionsByName.set(plugin.name, entry.options);
 	}
-	return { plugins, optionsByName, values };
+	return { plugins, optionsByName, values, order };
+}
+
+/** The plugins an editor runs, in its list's order; a plugin the install pass added for a need comes
+ *  just ahead of the first one needing it, where the pass placed it. */
+export function runningNames(
+	listed: ReturnType<typeof normalizePluginEntries>,
+	units: readonly InstalledPlugin[]
+): string[] {
+	const names: string[] = [];
+	let next = 0;
+	for (const name of listed.order) {
+		const at = units.findIndex((unit) => unit.name === name);
+		if (at >= next) for (; next <= at; next++) names.push(units[next].name);
+		else if (listed.plugins.some((plugin) => plugin.name === name)) names.push(name);
+	}
+	for (; next < units.length; next++) names.push(units[next].name);
+	return names;
 }
 
 /** One editor's options for a plugin: its defaults, then each defined field of the entry that

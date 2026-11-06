@@ -59,6 +59,16 @@ function recorder(name = 'unit-recorder') {
 const kinds = (m: ReturnType<typeof mountEditor>) =>
 	[0, 1].map((i) => m.instance.getBlockKindAt([i]));
 
+// Miss-analysis: every list put its `setup` plugins first, so their order and the list's agreed.
+describe("an editor's plugins", () => {
+	it('read in list order, whichever shape each plugin takes', async () => {
+		const { plugin } = recorder();
+		const m = mountEditor({ source: 'text\n', plugins: [plugin, marks] });
+		await m.settle();
+		expect(m.instance.plugins).toEqual(['unit-recorder', 'unit-marks']);
+	});
+});
+
 describe('two editors on one page', () => {
 	it('run their own plugins with their own options', async () => {
 		const { plugin, seen } = recorder();
