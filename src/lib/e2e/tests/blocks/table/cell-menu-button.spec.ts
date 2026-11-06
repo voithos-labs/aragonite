@@ -74,8 +74,9 @@ test("a finger's tap on the next cell's first letter moves there, past the butto
 	await open(page);
 	await tapCenter(page, cells(page).nth(2));
 	await expect(page.locator(BUTTON)).toHaveCount(1);
+	// Just below the letter's middle, which the button's box stops short of and a 44 px box covers.
 	const first = await pointAtRaw(page, [0, 1, 1], 0);
-	await page.touchscreen.tap(first.x + 2, first.y);
+	await page.touchscreen.tap(first.x + 2, first.y + 2);
 	await expect(cells(page).nth(3)).toBeFocused();
 	await expect(page.getByRole('menu')).toHaveCount(0);
 });
