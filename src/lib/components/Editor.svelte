@@ -860,6 +860,7 @@
 		caretMemory,
 		caretWriter,
 		presses,
+		finger: () => fingerPress,
 		drawnCaret,
 		composition,
 		autoPairs,
