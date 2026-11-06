@@ -1,3 +1,4 @@
+import type { CstNode } from './core/nodes';
 import type { NodeView } from './core/node-views';
 
 // A per-module-instance prefix: a dev-server reload restarts the counter while the live tree
@@ -19,44 +20,45 @@ export function assignIds(children: readonly NodeView[]): string[] {
 	return ids;
 }
 
-/** Ids for `next`, a re-read of `previous`: an unchanged run at either end keeps its ids, the first
- *  changed block keeps its own (the edit was in it), and each block the re-read made is new. */
-export function idsAcrossReread(
-	previous: readonly NodeView[],
-	ids: readonly string[] | undefined,
-	next: readonly NodeView[]
-): string[] | undefined {
-	if (!ids || ids.length !== previous.length) return undefined;
-	const { head, tail } = unchangedEnds(previous, next);
-	const changed = previous.length - head - tail;
-	const created = Array.from({ length: next.length - head - tail }, (_, i) =>
-		i === 0 && changed > 0 ? ids[head] : generateBlockId()
-	);
-	return [...ids.slice(0, head), ...created, ...ids.slice(previous.length - tail)];
+/** `next`, a re-read of `previous`, takes back the children whose bytes it left alone, and the ids.
+ *  A kept node an undo entry holds stays shared, so a write copies it first (G1.9). */
+export function keepUnchanged(previous: CstNode, next: CstNode): void {
+	keepChildren(previous, next);
 }
 
-/** {@link idsAcrossReread} at every depth of `next`, a re-read of `previous`: a child that keeps
- *  its id is the block it was, so its own children keep theirs. */
-export function carryIdsDeep(previous: NodeView, next: NodeView): void {
-	if (previous.kind !== next.kind || !previous.children || !next.children) return;
-	const ids = idsAcrossReread(previous.children, previous.childIds, next.children);
-	if (!ids) return;
-	next.childIds = ids;
+/** {@link keepUnchanged} down the first changed child to the leaf, for the byte splice alone: its
+ *  bytes come from outside the tree, so no block shows text its re-read moved, as a keystroke's can. */
+export function keepUnchangedDeep(previous: CstNode, next: CstNode): void {
+	const changed = keepChildren(previous, next);
+	if (changed !== null) keepUnchangedDeep(previous.children![changed], next.children![changed]);
+}
+
+/** Where `next`'s first changed child is, when both sides still hold one there. */
+function keepChildren(previous: CstNode, next: CstNode): number | null {
+	if (previous.kind !== next.kind || !previous.children || !next.children) return null;
 	const [was, now] = [previous.children, next.children];
 	const { head, tail } = unchangedEnds(was, now);
-	for (let i = 0; i < head; i++) copyIdsDeep(was[i], now[i]);
-	for (let i = 1; i <= tail; i++) copyIdsDeep(was[was.length - i], now[now.length - i]);
-	if (ids[head] !== undefined && ids[head] === previous.childIds![head]) {
-		carryIdsDeep(was[head], now[head]);
-	}
+	next.childIds = idsAcross(previous.childIds, was.length, now.length, head, tail);
+	for (let i = 0; i < head; i++) now[i] = was[i];
+	for (let i = 1; i <= tail; i++) now[now.length - i] = was[was.length - i];
+	return head < was.length - tail && head < now.length - tail ? head : null;
 }
 
-/** Blocks with the same bytes hold the same children, so the ids copy down as they stand. */
-function copyIdsDeep(previous: NodeView, next: NodeView): void {
-	if (!previous.childIds || !next.children) return;
-	next.childIds = [...previous.childIds];
-	for (let i = 0; i < next.children.length; i++)
-		copyIdsDeep(previous.children![i], next.children[i]);
+/** The ids after a re-read: an unchanged run at either end keeps its ids, the first changed block
+ *  keeps its own (the edit was in it), and each block the re-read made is new. */
+function idsAcross(
+	ids: readonly string[] | undefined,
+	before: number,
+	after: number,
+	head: number,
+	tail: number
+): string[] | undefined {
+	if (!ids || ids.length !== before) return undefined;
+	const changed = before - head - tail;
+	const created = Array.from({ length: after - head - tail }, (_, i) =>
+		i === 0 && changed > 0 ? ids[head] : generateBlockId()
+	);
+	return [...ids.slice(0, head), ...created, ...ids.slice(before - tail)];
 }
 
 const same = (a: NodeView, b: NodeView): boolean =>
