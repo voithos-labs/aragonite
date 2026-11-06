@@ -78,10 +78,10 @@ export interface BlockType<D = never> {
 
 /** The built-in block types, to place a plugin's block relative to one or tell a block's type. */
 export const builtin: { readonly blocks: Readonly<Record<BlockKind, BlockType>> } = {
-	blocks: Object.fromEntries(ALL_BLOCK_KINDS.map((kind) => [kind, { name: kind }])) as Record<
-		BlockKind,
-		BlockType
-	>
+	// Marked pure so a build that never reads the table leaves it out.
+	blocks: /* @__PURE__ */ Object.fromEntries(
+		/* @__PURE__ */ ALL_BLOCK_KINDS.map((kind) => [kind, { name: kind }])
+	) as Record<BlockKind, BlockType>
 };
 
 /** An error a plugin caused, naming the plugin and what the editor was doing with it. */
