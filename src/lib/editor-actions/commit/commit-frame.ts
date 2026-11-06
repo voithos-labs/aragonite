@@ -23,6 +23,7 @@ import {
 	assertReadsBack
 } from '../../invariants/install';
 import type { UndoManager } from '../../undo/types';
+import type { ByteChange } from '../../tree-operations/byte-splice';
 import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps } from '../deps';
 
@@ -46,6 +47,9 @@ export interface FrameWrite {
 	op?: ScopedOpDescriptor;
 	/** Where undo puts the caret back when nothing is focused. */
 	snapshot: CommitSnapshotArg;
+	/** The byte changes the write makes, where it knows them (the byte splice), for a history that
+	 *  records changes rather than snapshots. */
+	changes?: readonly ByteChange[];
 	history: FrameHistory;
 	/** Copies what the write will write, before its undo entry; false when it can't, which writes
 	 *  nothing. */

@@ -632,6 +632,13 @@ export function installTestProbes({
 		placeCaretAtPoint: (x: number, y: number): boolean => editor.placeCaretAtPoint(x, y),
 		// The insertion call, made the way a consumer's toolbar makes it.
 		insertMarkdown: (md: string): Promise<boolean> => editor.insertMarkdown(md),
+		// The byte splice with a text caret, which the perf rows time beside today's paste.
+		spliceSource: (md: string, at: number): Promise<boolean> =>
+			editor.__test.spliceSource(
+				md,
+				{ at, holds: 'text' },
+				{ kind: 'paste', detail: { count: 1 } }
+			),
 		// The command call, made the way a toolbar's button makes it: an id and its argument,
 		// no key combination, no keydown.
 		runCommand: (commandId: string, arg?: unknown): boolean => editor.runCommand(commandId, arg),
