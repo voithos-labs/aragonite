@@ -11,6 +11,8 @@ import {
 	OPEN_WITH_BELOW
 } from './details-helpers';
 import { edgeKey } from '../../platform-keys';
+import { textRunCenter, textRunStart } from '../../text-runs';
+import { dragSelection } from '../../selection-drag';
 
 /**
  * The `<details>` collapsible, the second block with an editable title row. Collapsing clamps the
@@ -225,6 +227,23 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.typeText('q');
 		await editor.bridge.waitForSourceContains('qBody');
 		expect((await readDetails(page, 0)).childTexts).toEqual(['SummaryZ', 'qBody']);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('a word dragged from the body into the summary lands in its text, the row kept', async ({
+		page
+	}) => {
+		await editor.loadContent(
+			'<details open>\n<summary>Summary</summary>\n\nBody text\n\n</details>\n'
+		);
+		const word = await textRunCenter(page, 'Body');
+		await page.mouse.dblclick(word.x, word.y);
+		await expect.poll(() => page.evaluate(() => getSelection()?.toString())).toBe('Body');
+		await dragSelection(page, word, await textRunStart(page, 'Summary'));
+		await editor.bridge.waitForSourceEquals(
+			'<details open>\n<summary>BodySummary</summary>\n\n text\n\n</details>\n'
+		);
+		expect((await readDetails(page, 0)).childKinds).toEqual(['details-summary', 'paragraph']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

@@ -31,10 +31,11 @@ body child really does unmount. These checks read behavior: the tree read by pat
 - Backspace below an open details merges normally: the block below joins the last body child at the join point, since the collapsed-container check never fires on an open container
 - cross-block copy ending mid-summary: drag-selecting from the prose above into the middle of the summary and copying builds the closing bytes the selection is missing, so pasting below yields a second `details` carrying the shortened summary and the current open flag
 - typing the terminator into a body child: typing `</details>` in a body paragraph commits as `&lt;/details>`, so the container survives, the block stays a paragraph, the line still reads `</details>` on screen, and the caret stays in that block
+- a word dragged into the summary: a mouse's word dragged from the body to the start of the summary text lands there, the summary stays the title row, and the rest of the body stays in the body
 
 ## User interactions
 
-- clicking the toggle, Ctrl+Z, Enter, the arrow keys, typing, and drag-select plus copy and paste are real keystrokes and pointer events, each asserted against the tree read by path, the serialized bytes, or the number of mounted block hosts
+- clicking the toggle, Ctrl+Z, Enter, the arrow keys, typing, drag-select plus copy and paste, and a drag and drop are real keystrokes and pointer events, each asserted against the tree read by path, the serialized bytes, or the number of mounted block hosts
 - the disclosure toggle is a real keyboard-accessible `<button aria-expanded>`; a mouse toggle keeps the caret in the body (the mousedown default is suppressed) so the caret rule can be observed
 
 ## Error cases
@@ -46,3 +47,5 @@ body child really does unmount. These checks read behavior: the tree read by pat
 - The caret-into-a-closed-body case: every existing check reached a hidden body through a
   navigation (the outline, search), whose walk kept opening it, so no check covered the walks
   an edit's caret or a restore takes.
+- The word dragged into the summary: the drop reread the summary's bytes as a plain fragment, so
+  it became a paragraph and pulled the body's text into it; no drop row targeted a title row.
