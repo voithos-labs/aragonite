@@ -6,10 +6,9 @@ import { describe, it, expect } from 'vitest';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import {
 	activateDirectives,
-	createDirectiveRebuild,
+	COLON_LINES,
 	declarePluginKind,
 	declaredPluginKind,
-	DIRECTIVE_BODY_WRAP,
 	getPluginMetadata,
 	registerBlockKind,
 	registerChromeLeaf,
@@ -62,9 +61,7 @@ function registerBox(
 		editable: true,
 		supportsInline: false,
 		container: {
-			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild(),
-			bodyWrap: DIRECTIVE_BODY_WRAP,
+			lines: COLON_LINES,
 			...(over.reservedChrome ? { reservedChrome: over.reservedChrome } : {})
 		},
 		closure: over.clipboardInherits

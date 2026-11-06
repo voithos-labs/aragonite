@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { getPluginMetadata } from '#lib/plugin.js';
-import {
-	registerDetailsKind,
-	rebuildDetailsRaw,
-	type DetailsMetadata
-} from '#packages/details/src/details-kind.js';
+import { registerDetailsKind, type DetailsMetadata } from '#packages/details/src/details-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
-// Without edits an opaque container emits its `raw` verbatim, so only `rebuildDetailsRaw`
-// is at risk: the three tag lines it builds have to reproduce the authored line ending rather
+// The three tag lines the details writer builds have to reproduce the authored line ending rather
 // than rewrite CRLF to `\n`. The same rule `serializeDirective` follows.
 
 const CRLF_SRC = '<details>\r\n<summary>T</summary>\r\n\r\nbody\r\n\r\n</details>\r\n';
@@ -28,7 +25,7 @@ describe('details rebuild preserves CRLF chrome line endings', () => {
 		const details = parse(CRLF_SRC).children[0];
 		// Structural edit: rewrite the body child, then rebuild (what a commit does).
 		details.children![1].raw = 'edited\r\n';
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		expect(details.raw).toBe(
 			'<details>\r\n<summary>T</summary>\r\n\r\nedited\r\n\r\n</details>\r\n'
 		);
@@ -37,14 +34,14 @@ describe('details rebuild preserves CRLF chrome line endings', () => {
 	it('reproduces CRLF chrome for an open details', () => {
 		const src = '<details open>\r\n<summary>Title</summary>\r\n\r\nBody\r\n\r\n</details>\r\n';
 		const details = parse(src).children[0];
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		expect(details.raw).toBe(src);
 	});
 
 	it('keeps `\\n` chrome lines for an LF-authored details after rebuild (unchanged)', () => {
 		const details = parse(LF_SRC).children[0];
 		details.children![1].raw = 'edited\n';
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		expect(details.raw).toBe('<details>\n<summary>T</summary>\n\nedited\n\n</details>\n');
 	});
 

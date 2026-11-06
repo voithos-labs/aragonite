@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import {
-	registerCalloutKind,
-	rebuildCalloutRaw
-} from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { testView } from '#lib/test/harness/test-view.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 const TWO_PARA = ':::callout\nHello **world**\n\nSecond para\n:::\n';
 const TITLED = ':::callout My Title\nBody\n:::\n';
@@ -63,28 +62,28 @@ describe('callout kind round-trip', () => {
 	});
 });
 
-// `rebuildCalloutRaw` runs when the callout's children change and puts the title back on the
-// opener line; the round trips above only read the opener's verbatim `raw`.
-describe('callout rebuildRaw is the opener inverse', () => {
+// The writer runs when the callout's children change and puts the title back on the opener
+// line; the round trips above only read the opener's verbatim `raw`.
+describe('the callout writer is the opener inverse', () => {
 	beforeEach(() => {
 		registerCalloutKind(testView());
 	});
 
 	it('reproduces the parsed raw, including the inner blank-line separator', () => {
 		const note = parse(TWO_PARA).children[0];
-		rebuildCalloutRaw(note);
+		writeContainerRaw(note, defaultGrammarView);
 		expect(note.raw).toBe(TWO_PARA);
 	});
 
 	it('re-emits an opener-line title from child 0', () => {
 		const note = parse(TITLED).children[0];
-		rebuildCalloutRaw(note);
+		writeContainerRaw(note, defaultGrammarView);
 		expect(note.raw).toBe(TITLED);
 	});
 
 	it('preserves a non-note fence label from metadata (no hardcoded type)', () => {
 		const note = parse(':::aside\nx\n:::\n').children[0];
-		rebuildCalloutRaw(note);
+		writeContainerRaw(note, defaultGrammarView);
 		expect(note.raw).toBe(':::aside\nx\n:::\n');
 	});
 });

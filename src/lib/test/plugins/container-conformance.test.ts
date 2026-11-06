@@ -20,9 +20,8 @@ import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
 import { FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/constants.js';
 import { parse } from '#lib/core/parser.js';
-import { getBlockKindDescriptor, openerRecords } from '#lib/schema/block-kind-descriptor.js';
-import { writeShapedRaw } from '#lib/schema/container-writer.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { openerRecords } from '#lib/schema/block-kind-descriptor.js';
+import { todayAlertWriter } from '../schema/container-writer/today-writers';
 import type { AnyBlockKind } from '#lib/core/nodes.js';
 import { childHoldingLastLine } from '#lib/schema/container-raw.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
@@ -332,11 +331,10 @@ describe('the kit holds an edit to the lines it changed', () => {
 	});
 });
 
-/** The alert's opener and lines under a kind written by a rebuild of its own, one that respells
+/** The alert's opener under a kind written by a rebuild of its own, one that respells
  *  lines once an edit has run: the bug the kit's untouched-lines row is there to catch. */
 function respellingAlert(name: string, respell: (raw: string) => string): AnyBlockKind {
 	const alert = declaredPluginKind(GITHUB_ALERT);
-	const lines = getBlockKindDescriptor(alert).lines!;
 	const opener = openerRecords().find((record) => record.key === alert)!.value;
 	const kind = declarePluginKind(name);
 	registerBlockKind(kind, {
@@ -359,7 +357,7 @@ function respellingAlert(name: string, respell: (raw: string) => string): AnyBlo
 			contract: 'strip',
 			// Keeps the bytes it parsed, so only the edit row can see the respell.
 			rebuildRaw: (node, changed) => {
-				const written = writeShapedRaw(node, lines, defaultGrammarView, changed);
+				const written = todayAlertWriter(node, changed);
 				if (changed) node.raw = respell(node.raw);
 				return written;
 			}

@@ -4,9 +4,8 @@ import { describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
 import {
 	activateDirectives,
-	createDirectiveRebuild,
+	COLON_LINES,
 	declarePluginKind,
-	DIRECTIVE_BODY_WRAP,
 	registerBlockKind,
 	registerDirective,
 	setPluginMetadata,
@@ -62,9 +61,7 @@ function registerTitledKind(): PluginBlockKind {
 		editable: true,
 		supportsInline: false,
 		container: {
-			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild(),
-			bodyWrap: DIRECTIVE_BODY_WRAP
+			lines: COLON_LINES
 		},
 		conformanceFixture: ':::titled T\n\nbody\n\n:::\n',
 		closure: testClosure

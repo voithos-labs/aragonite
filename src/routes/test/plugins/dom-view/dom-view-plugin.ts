@@ -9,12 +9,11 @@ import {
 	OPENER_PRIORITIES,
 	activateDirectives,
 	containerClosure,
-	createDirectiveRebuild,
 	declarePluginKind,
 	declaredPluginKind,
 	defineBlockView,
 	definePlugin,
-	DIRECTIVE_BODY_WRAP,
+	COLON_LINES,
 	registerBlockKind,
 	registerDirective,
 	setPluginMetadata,
@@ -181,9 +180,7 @@ function registerDomViews(): void {
 		editable: true,
 		supportsInline: false,
 		container: {
-			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild(),
-			bodyWrap: DIRECTIVE_BODY_WRAP
+			lines: COLON_LINES
 		},
 		closure: containerClosure({
 			roundTripVia: 'container contract=opaque, the directive rebuild',

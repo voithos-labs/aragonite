@@ -39,8 +39,7 @@ export function writeContainerRaw(
 	return descriptor?.rebuildRaw?.(node, changed) ?? undefined;
 }
 
-/** `node`'s bytes written from `shape`. */
-export function writeShapedRaw<D>(
+function writeShapedRaw<D>(
 	node: CstNode,
 	shape: LineShape<D>,
 	grammar: GrammarView,
@@ -140,7 +139,7 @@ export function fencedLines<D>(write: FencedLines<D>['write']): FencedLines<D> {
 
 function writeFenced<D>(node: CstNode, write: FencedLines<D>['write']): void {
 	const [row, ...body] = node.children!;
-	const data = node.metadata as D;
+	const data = (node.metadata ?? {}) as D;
 	const ending = firstLineEnding(node.raw) ?? '\n';
 	const title = row ? trimTrailingLineEnding(row.raw) : '';
 	const opening = write.open(data, title).map((line) => line + ending);

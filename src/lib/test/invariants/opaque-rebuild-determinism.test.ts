@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { checkOpaqueRebuildDeterminism } from '../../invariants/node-shape';
-import { testContainer } from '#lib/test/harness/test-kinds.js';
+import { testContainer, testLeaf } from '#lib/test/harness/test-kinds.js';
+import { fencedLines } from '#lib/schema/container-writer.js';
 import { concatChildren } from '../../core/serializer';
 import { setPluginMetadata, getPluginMetadata, type CstNode } from '../../core/nodes';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
@@ -32,6 +33,18 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 			rebuildRaw: (node) => {
 				node.raw = `::x ${calls++}\n::\n`;
 			}
+		});
+		expect(checkOpaqueRebuildDeterminism(opaqueNode(kind), defaultGrammarView)?.code).toBe(
+			'opaque-rebuild-nondeterministic'
+		);
+	});
+
+	// The writer is the container writer's for a kind with a line shape, so the check has to run it.
+	it('fires for a line shape whose written lines vary over identical committed state', () => {
+		let calls = 0;
+		const kind = testLeaf('spec-shape-nondet', {
+			mergeRole: 'container',
+			container: { lines: fencedLines({ open: () => [`::x ${calls++}`], close: () => '::' }) }
 		});
 		expect(checkOpaqueRebuildDeterminism(opaqueNode(kind), defaultGrammarView)?.code).toBe(
 			'opaque-rebuild-nondeterministic'

@@ -4,11 +4,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { getPluginMetadata, setPluginMetadata } from '#lib/plugin.js';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registerMermaidKind, type MermaidMetadata } from '#packages/mermaid/src/mermaid-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -24,7 +24,7 @@ describe('the opaque stale-raw check compares metadata with the reparse (#640)',
 	])('fires on %s whose bare rebuild lengthened the fence', (_label, source, bodyIndex) => {
 		const node = parse(source).children[0];
 		node.children![bodyIndex].raw = node.children![bodyIndex].raw + ':::\n';
-		getBlockKindDescriptor(node.kind).rebuildRaw!(node);
+		writeContainerRaw(node, defaultGrammarView);
 
 		const violation = checkOpaqueStaleRaw(node, defaultGrammarView);
 		expect(violation?.code).toBe('opaque-stale-raw');

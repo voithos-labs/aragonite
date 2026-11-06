@@ -3,11 +3,12 @@ import type { CstNode, PluginBlockKind } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
-import { rebuildDirectiveContainerRaw } from '#lib/core/directive/kinds.js';
 import { registerDirective } from '#lib/core/directive/registry.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 beforeEach(() => activateDirectiveGrammar(testDirectiveViews()));
 
@@ -46,7 +47,7 @@ describe('directive container rebuild is the opener inverse', () => {
 		it(`reconstructs ${JSON.stringify(src)} from captured fields`, () => {
 			const node = parse(src).children[0];
 			const before = node.raw;
-			rebuildDirectiveContainerRaw(node);
+			writeContainerRaw(node, defaultGrammarView);
 			expect(node.raw).toBe(before);
 		});
 	}

@@ -526,9 +526,9 @@ function rebuildBoxRaw(node: CstNode): void {
 // the editor calls it after a child edit; node.raw now reads ':::box\nedited line\n:::\n'
 ```
 
-A `:::` directive container doesn't hand-write this at all: `createDirectiveRebuild` in the walkthrough does the same job with the opener line, the closing line and the line ending handled for you.
+A `:::` directive container doesn't hand-write this at all: `container: { lines: COLON_LINES }` in the walkthrough has the editor write the opener line, the closing line and the line ending for you.
 
-The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw }`) is a performance opt-in for a container big enough that re-reading every child on every keystroke costs real time (the built-in list and quote use it). It names the one child whose raw just changed and the bytes it held before, so you can re-emit that child's region alone. If you take it:
+The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw }`) is a performance opt-in for a container big enough that re-reading every child on every keystroke costs real time (the built-in list's rebuild takes it). It names the one child whose raw just changed and the bytes it held before, so you can re-emit that child's region alone. If you take it:
 
 - Your kind has to know exactly where each child's bytes sit inside its raw.
 - Keep those offsets in `node.childSpans` (a start and an end offset per child). It's the one cache the editor clears for you when its own edits move a sibling's bytes, and a span that no longer matches falls back to the full rebuild. Offsets you cache anywhere else are yours to invalidate.

@@ -6,10 +6,9 @@ import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { perfEnabled } from '#lib/perf/instruments.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { COLON_LINES, fencedLines, writeShapedRaw } from '#lib/schema/container-writer.js';
+import { COLON_LINES, writeContainerRaw } from '#lib/schema/container-writer.js';
 import { QUOTE_LINES } from '#lib/core/parsers/blockquote.js';
 import { LIST_ITEM_LINES } from '#lib/core/parsers/list.js';
-import type { LineShape } from '#lib/core/strip-lines.js';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
@@ -18,22 +17,8 @@ import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { differentialDocuments, rowsOf, runDifferential, type Writer } from './differential';
 import { todayWriter } from './today-writers';
 
-const DETAILS_LINES = fencedLines<{ open: boolean }>({
-	open: (data, title) => [`<details${data.open ? ' open' : ''}>`, `<summary>${title}</summary>`],
-	close: () => '</details>'
-});
-
-// The kinds still on their own rebuild, until they declare these shapes.
-const SHAPES: Record<string, LineShape<never>> = {
-	directiveContainer: COLON_LINES,
-	admonition: COLON_LINES,
-	details: DETAILS_LINES as LineShape<never>
-};
-
-const shapeOf = (kind: string): LineShape<unknown> =>
-	tryGetBlockKindDescriptor(kind as AnyBlockKind)?.lines ?? SHAPES[kind];
 const shaped: Writer = (node: CstNode, changed) =>
-	writeShapedRaw(node, shapeOf(node.kind), defaultGrammarView, changed);
+	writeContainerRaw(node, defaultGrammarView, changed);
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin(), detailsPlugin(), footnotesPlugin()]);
@@ -224,7 +209,8 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 describe('the built-in containers', () => {
 	it.each([
 		['blockquote', QUOTE_LINES],
-		['listItem', LIST_ITEM_LINES]
+		['listItem', LIST_ITEM_LINES],
+		['directiveContainer', COLON_LINES]
 	])('%s declares its lines and no rebuildRaw', (kind, lines) => {
 		const descriptor = tryGetBlockKindDescriptor(kind as AnyBlockKind)!;
 		expect([descriptor.lines, descriptor.rebuildRaw]).toEqual([lines, undefined]);

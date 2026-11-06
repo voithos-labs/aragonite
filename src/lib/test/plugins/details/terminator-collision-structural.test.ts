@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
-import { rebuildDetailsRaw, registerDetailsKind } from '#packages/details/src/details-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { mergeWithNext, splitNode } from '#lib/tree-operations/node-ops.js';
 import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delete.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
@@ -9,6 +9,8 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 import { testView } from '#lib/test/harness/test-view.js';
 import { mergePrevSettled, writtenBelow } from '#lib/test/harness/settle-funnel.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // The structural paths into the same `</details>` escape: they write the body themselves,
 // with no per-block commit to apply the rule.
@@ -129,7 +131,7 @@ describe('details terminator escape at the join entry points', () => {
 		const doc = parse(SPLIT_TAG);
 		const details = doc.children[0];
 		join({ children: details.children!, owner: details, lineEnding: '\n' });
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		return { doc, details };
 	};
 

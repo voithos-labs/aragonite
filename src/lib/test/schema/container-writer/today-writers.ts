@@ -267,3 +267,6 @@ const WRITERS: Record<string, Writer> = {
 
 /** Today's writer for the container's kind. */
 export const todayWriter: Writer = (node, changed) => WRITERS[node.kind](node, changed);
+
+/** Today's writer for a GitHub alert, for a kind that writes like one. */
+export const todayAlertWriter: Writer = rebuildGithubAlertRaw;

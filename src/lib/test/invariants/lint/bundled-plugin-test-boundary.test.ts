@@ -42,16 +42,16 @@ const ALLOWLIST: Record<string, Exemption> = {
 	},
 	'src/lib/test/plugins/admonitions/fence-escalation.test.ts': {
 		specifiers: [
-			'#lib/schema/block-kind-descriptor.js',
 			'#lib/invariants/node-shape.js',
 			'#lib/tree-operations/sharing.js',
 			'#lib/tree-operations/chain-rebuild.js',
-			'#lib/schema/block-openers.js'
+			'#lib/schema/block-openers.js',
+			'#lib/schema/container-writer.js'
 		],
 		reason:
-			'no registry read-back, the opaque stale-raw / rebuild-determinism predicates are off the ' +
-			'testing barrel (only checkCopyIsRawByteSlice is published), and nothing published runs ' +
-			'the ancestor rebuild a commit runs over a parsed document'
+			'the opaque stale-raw / rebuild-determinism predicates are off the testing barrel (only ' +
+			'checkCopyIsRawByteSlice is published), and nothing published runs the ancestor rebuild a ' +
+			'commit runs over a parsed document or writes a container alone'
 	},
 	'src/lib/test/plugins/admonitions/formation-harness.ts': {
 		specifiers: [
@@ -133,11 +133,21 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/selection/cross-block/range-delete/range-delete.js',
 			'#lib/selection/range-coverage.js',
 			'#lib/tree-operations/node-ops.js',
-			'#lib/tree-operations/sharing.js'
+			'#lib/tree-operations/sharing.js',
+			'#lib/schema/container-writer.js',
+			'#lib/schema/block-openers.js'
 		],
 		reason:
-			'nothing published splits, joins or range-deletes a parsed document, and no published opaque ' +
-			'stale-raw predicate to hold the result to'
+			'nothing published splits, joins or range-deletes a parsed document or writes a container ' +
+			'alone, and no published opaque stale-raw predicate to hold the result to'
+	},
+	'src/lib/test/plugins/details/crlf-rebuild.test.ts': {
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/block-openers.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
+	},
+	'src/lib/test/plugins/details/round-trip.test.ts': {
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/block-openers.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/emoji/coexistence.test.ts': {
 		specifiers: ['#lib/core/directive/kinds.js'],

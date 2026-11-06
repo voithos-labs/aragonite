@@ -9,10 +9,9 @@
 import {
 	activateDirectives,
 	containerClosure,
-	createDirectiveRebuild,
 	declarePluginKind,
 	declaredPluginKind,
-	DIRECTIVE_BODY_WRAP,
+	COLON_LINES,
 	withDirectiveName,
 	registerBlockKind,
 	registerBlockCommand,
@@ -55,9 +54,6 @@ function calloutFromDirective(parsed: ParsedDirective): CstNode {
 	return node;
 }
 
-/** Rebuilds the container's raw text when its children change, which the commit path runs. */
-export const rebuildCalloutRaw = createDirectiveRebuild();
-
 export function registerCalloutKind(view: BlockView): void {
 	// The shared directive grammar must be live before the callout names resolve.
 	// Idempotent, so it re-runs cleanly after a schema reset.
@@ -81,15 +77,10 @@ export function registerCalloutKind(view: BlockView): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		container: {
-			// The fence lines break `strip(raw) === serialize(children)`: see the header.
-			contract: 'opaque',
-			rebuildRaw: rebuildCalloutRaw,
-			bodyWrap: DIRECTIVE_BODY_WRAP
-		},
+		container: { lines: COLON_LINES },
 		conformanceFixture: ':::callout My Title\n\nbody\n\n:::\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=opaque — rebuildCalloutRaw (directive)',
+			roundTripVia: 'container lines — the colon shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: {

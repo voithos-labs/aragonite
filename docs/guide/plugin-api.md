@@ -546,27 +546,19 @@ _(pre-freeze / unstable)_ The `:::name` grammar itself is the [directives guide]
 | `parseDirectiveAttributes` | Opt-in reader pulling a `[label]` and a `{#id .class key=val}` block out of a directive's info string; one-way, it reads and never writes back |
 | `serializeDirective` | Re-emit a directive's exact bytes from its parts (colon count, name, verbatim info string, body, closer shape), growing the fences itself so no body line reads as the closer |
 | `escalatedColonCount` | The fence length a body forces, for an emitter building `:::name` text by hand instead of through `serializeDirective` |
-| [`createDirectiveRebuild`](#createdirectiverebuild) | Build the `rebuildRaw` hook for a `:::` container |
+| [`COLON_LINES`](#colon_lines) | A `:::` container's lines, for your kind's `container.lines`: the editor writes its bytes from them |
 | `withDirectiveName` | Rename a `:::` container by rewriting its opener line, for a command that switches variants through `replaceRaw` |
-| `DIRECTIVE_BODY_WRAP` | The wrap every `:::` body parses with; declare it as your container kind's `bodyWrap` so a blank line against the fence stays with the fence |
+| `DIRECTIVE_BODY_WRAP` | The wrap every `:::` body parses with, for a parser of your own (a kind with `lines: COLON_LINES` gets it without asking) |
 | `DIRECTIVE_OPENER_LINE` | The kind of every `:::` container's first row, its opener line; a `:::` kind that folds names it as `reservedChrome.kind` |
 | `DirectiveDefinition`, `ParsedDirective` | The registration's shape, and the parsed fence your factory receives: the fence parts, the parsed body, the exact consumed bytes |
 | `DirectiveTier`, `DirectiveFence`, `DirectiveAttributes` | The three tiers (container, leaf, text), one parsed opener line, and what the attribute reader returns |
 
-#### `createDirectiveRebuild`
+#### `COLON_LINES`
+
+The lines of a `:::` container, as your kind's `container.lines`. The editor writes the opener line (child 0) back as typed, then the body, then a closing line as long as the one it replaces, widening every colon run past a body line that would close it. The grammar builds that child 0 for every `:::` container (kind `directiveOpenerLine`), so your factory returns only the body.
 
 ```ts
-function createDirectiveRebuild(): (node: CstNode) => void;
-```
-
-Builds the raw-recompute hook (`rebuildRaw`) for a `:::` container. It writes child 0, the opener line, back as typed, then the body and the closer, CRLF included. The grammar builds that child 0 for every `:::` container (kind `directiveOpenerLine`), so your factory returns only the body.
-
-```ts
-container: {
-	contract: 'opaque',
-	rebuildRaw: createDirectiveRebuild(),
-	bodyWrap: DIRECTIVE_BODY_WRAP
-}
+container: { lines: COLON_LINES }
 ```
 
 ### Container authoring
@@ -588,6 +580,8 @@ _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the bor
 | `ChildList` | A container's children as the editor walks down to one: their references, their render window, and whether the body is collapsed. `containerApi.childList()` returns it; the factory builds yours, so you'd only write one for a hand-rolled container |
 | `ChromeLeafOptions` | `registerChromeLeaf`'s options: the name a screen reader and the block menu give the line, a CSS class for styling it, keymap overrides, the merge role |
 | [`LineShape`, `MarkedLines`, `IndentedLines`](#lineshape-markedlines-indentedlines) | How your container's lines look, as data on `container.lines`. The editor writes the bytes from it, so there's no `rebuildRaw` to write |
+| `fencedLines`, `FencedLines` | Lines of your own around the body, like `<details>` and `</details>`: `fencedLines({ open, close })` writes the opening lines from your metadata and the title row (child 0), and the closing line after the body |
+| `ColonLines` | The type of `COLON_LINES` |
 | `QUOTE_LINES` | The built-in quote's lines, to build yours on (an alert is a quote with a head line) |
 | `stripShapedLines` | Your opener's lines read the way the editor writes them, so the two can't disagree. It goes away once the editor parses a shaped container itself |
 | `StripRebuild` | What a `rebuildRaw` may return: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole |

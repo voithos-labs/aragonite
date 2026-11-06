@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, serialize } from '#lib';
 import { getPluginMetadata } from '#lib/plugin.js';
-import { registerDetailsKind, rebuildDetailsRaw } from '#packages/details/src/details-kind.js';
+import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // A canonical open details with a titled summary and a blank-line-wrapped body.
 const OPEN_SRC = '<details open>\n<summary>Title</summary>\n\nBody\n\n</details>\n';
@@ -120,20 +122,20 @@ describe('details rebuildRaw is the opener inverse', () => {
 
 	it('reproduces the parsed raw, including the blank-line body wrap', () => {
 		const details = parse(OPEN_SRC).children[0];
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		expect(details.raw).toBe(OPEN_SRC);
 	});
 
 	it('re-emits the closed opener from metadata', () => {
 		const details = parse(CLOSED_SRC).children[0];
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		expect(details.raw).toBe(CLOSED_SRC);
 	});
 
 	it('re-emits an empty summary line', () => {
 		const src = '<details>\n<summary></summary>\n\nBody\n\n</details>\n';
 		const details = parse(src).children[0];
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		expect(details.raw).toBe(src);
 	});
 
@@ -142,15 +144,15 @@ describe('details rebuildRaw is the opener inverse', () => {
 	it('preserves interior summary padding, trimming only the line ending', () => {
 		const src = '<details>\n<summary>  Padded  </summary>\n\nBody\n\n</details>\n';
 		const details = parse(src).children[0];
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		expect(details.raw).toBe(src);
 	});
 
 	it('is deterministic across repeated rebuilds (G1.13)', () => {
 		const details = parse(OPEN_SRC).children[0];
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		const first = details.raw;
-		rebuildDetailsRaw(details);
+		writeContainerRaw(details, defaultGrammarView);
 		expect(details.raw).toBe(first);
 	});
 });

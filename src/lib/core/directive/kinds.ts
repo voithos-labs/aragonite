@@ -1,8 +1,8 @@
 /**
  * Generic fallback kinds for the `:::name` directive primitive, so `:::anything` stays lossless
- * with no plugin installed. Every `:::` container is `'opaque'` and rebuilt by
- * `rebuildDirectiveContainerRaw`, which writes its first child, the opener line, back as it stands.
- * Imports stay core-relative because the plugin barrel (`plugin.ts`) would cycle back through core.
+ * with no plugin installed. Every `:::` container is written from the colon line shape, which
+ * keeps its first child, the opener line, as it stands. Imports stay core-relative because the
+ * plugin barrel (`plugin.ts`) would cycle back through core.
  */
 
 import {
@@ -15,15 +15,15 @@ import type { BlockView } from '../../schema/block-view';
 import { containerClosure } from '../../schema/closure';
 import { registerTitleRowLeaf } from '../../schema/title-row-leaf';
 import type { KeyBinding } from '../../schema/keybindings';
-import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
+import type { InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
-import { displayLength, ownTrailingLineEnding, trimTrailingLineEnding } from '../lines';
-import { concatChildren as serializeChildren } from '../serializer';
+import { displayLength, trimTrailingLineEnding } from '../lines';
 import { registerCoreInlineWidget } from '../inline/inline-widgets';
 import { mintWidgetShell } from '../inline/widget-shell';
-import { matchDirectiveOpener, serializeDirective } from './grammar';
+import { matchDirectiveOpener } from './grammar';
 import { directiveContainerOpener } from './container-opener';
-import { DIRECTIVE_BODY_WRAP, DIRECTIVE_CONTAINER, DIRECTIVE_OPENER_LINE } from './container-shape';
+import { DIRECTIVE_CONTAINER, DIRECTIVE_OPENER_LINE } from './container-shape';
+import { COLON_LINES } from '../../schema/container-writer';
 
 export { DIRECTIVE_CONTAINER, DIRECTIVE_OPENER_LINE };
 export const DIRECTIVE_LEAF = 'directiveLeaf';
@@ -57,14 +57,10 @@ export function registerDirectiveKinds(views: DirectiveViews): void {
 		supportsInline: false,
 		// An opaque container has no text of its own at either edge, so both take the gap caret.
 		gapEdges: 'both',
-		container: {
-			contract: 'opaque',
-			rebuildRaw: rebuildDirectiveContainerRaw,
-			bodyWrap: DIRECTIVE_BODY_WRAP
-		},
+		container: { lines: COLON_LINES },
 		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=opaque — rebuildDirectiveContainerRaw',
+			roundTripVia: 'container lines — the colon shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
 			mergeBackspace: {
 				mode: 'implemented',
@@ -148,43 +144,4 @@ export function directiveLineContentRange(node: NodeView): { start: number; end:
 	if (!fence) return { start: 0, end: displayLength(node.raw) };
 	const gap = /^[ \t]*/.exec(fence.info)![0].length;
 	return { start: fence.colonCount + fence.name.length + gap, end: displayLength(node.raw) };
-}
-
-/** Writes the opener line (child 0) back as it stands, the body behind it, and the closing line;
- *  the colon runs widen when a body line would otherwise read as the closer. */
-export function rebuildDirectiveContainerRaw(node: CstNode): void {
-	const meta = getPluginMetadata<DirectiveClosingLine>(node);
-	const [row, ...body] = node.children ?? [];
-	const line = row ? trimTrailingLineEnding(row.raw) : '';
-	const fence = matchDirectiveOpener(line);
-	const innerPrefix = node.innerPrefix ?? '';
-	const innerSuffix = node.innerSuffix ?? '';
-	const closerColonCount = meta?.closerColonCount ?? fence?.colonCount ?? 3;
-	const closerNewline = meta?.closerNewline ?? true;
-	// The closer is the raw's last line, so its ending is the raw's own, else the opener's.
-	const closerLineEnding = ownTrailingLineEnding(node.raw) || undefined;
-	const lineEnding = (row && ownTrailingLineEnding(row.raw)) || '\n';
-	// A line that stopped opening a fence is kept as typed; the re-read reads what it now is.
-	node.raw = fence
-		? serializeDirective({
-				colonCount: fence.colonCount,
-				name: fence.name,
-				info: fence.info,
-				innerPrefix,
-				body: serializeChildren(body),
-				innerSuffix,
-				closerColonCount,
-				closerNewline,
-				lineEnding,
-				closerLineEnding
-			})
-		: `${line}${lineEnding}${innerPrefix}${serializeChildren(body)}${innerSuffix}` +
-			':'.repeat(closerColonCount) +
-			(closerNewline ? (closerLineEnding ?? lineEnding) : '');
-}
-
-/** What a `:::` container's metadata keeps of its closing line, which no child holds. */
-interface DirectiveClosingLine {
-	closerColonCount: number;
-	closerNewline: boolean;
 }

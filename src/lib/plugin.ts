@@ -270,7 +270,14 @@ export { blockquoteExtent } from './core/parsers/blockquote';
 // that. `stripShapedLines` reads an opener's lines the same way, until the editor parses them itself.
 export { QUOTE_LINES } from './core/parsers/blockquote';
 export { stripShapedLines } from './core/strip-lines';
-export type { LineShape, MarkedLines, IndentedLines } from './core/strip-lines';
+export { fencedLines } from './schema/container-writer';
+export type {
+	LineShape,
+	MarkedLines,
+	IndentedLines,
+	FencedLines,
+	ColonLines
+} from './core/strip-lines';
 export type { StripRebuild } from './schema/strip-rebuild';
 
 // ── CST node access (pre-freeze; the metadata pair below is stable) ──────────
@@ -341,8 +348,9 @@ export {
 	withDirectiveName
 } from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
-// The `rebuildRaw` for a `:::` container: child 0 is its opener line, which the grammar puts there.
-export { createDirectiveRebuild } from './editor-actions/plugin/directive-container';
+// The lines of a `:::` container (`container.lines`): child 0 is its opener line, which the grammar
+// puts there, and the editor widens every colon run past a body line that would close it.
+export { COLON_LINES } from './schema/container-writer';
 // The wrap every `:::` body parses with (a kind's `container.bodyWrap`), and the kind of every `:::`
 // container's opener-line row (what a folding `:::` kind names as its `reservedChrome.kind`).
 export { DIRECTIVE_BODY_WRAP, DIRECTIVE_OPENER_LINE } from './core/directive/container-shape';
