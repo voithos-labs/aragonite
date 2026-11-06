@@ -43,16 +43,18 @@ export function idsAcrossReread(
 	return [...ids.slice(0, head), ...created, ...ids.slice(previous.length - tail)];
 }
 
-/** {@link idsAcrossReread} at every depth of `next`, a re-read of `previous`: down the first
- *  changed child at each level, the blocks the re-read left alone keep their ids. */
+/** {@link idsAcrossReread} at every depth of `next`, a re-read of `previous`: a child that keeps
+ *  its id is the block it was, so its own children keep theirs. */
 export function carryIdsDeep(previous: NodeView, next: NodeView): void {
 	if (previous.kind !== next.kind || !previous.children || !next.children) return;
 	const ids = idsAcrossReread(previous.children, previous.childIds, next.children);
 	if (!ids) return;
 	next.childIds = ids;
-	const head = unchangedHead(previous.children, next.children);
-	const [was, now] = [previous.children[head], next.children[head]];
-	if (was && now && ids[head] === previous.childIds![head]) carryIdsDeep(was, now);
+	const was = new Map(previous.childIds!.map((id, i) => [id, previous.children![i]]));
+	next.children.forEach((child, i) => {
+		const old = was.get(ids[i]);
+		if (old) carryIdsDeep(old, child);
+	});
 }
 
 const same = (a: NodeView, b: NodeView): boolean =>

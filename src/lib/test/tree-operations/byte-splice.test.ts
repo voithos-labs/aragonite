@@ -208,4 +208,11 @@ describe('a splice keeps the blocks the change did not reach', () => {
 		const nested = (node: CstNode) => node.children![1].children![1];
 		expect(nested(list).childIds).toEqual(nested(oldList).childIds);
 	});
+
+	// Miss-analysis: the depth test changed the last nested item, so no unchanged item held children.
+	it('keeps the ids inside an unchanged item beside the change', () => {
+		const { doc, kept } = splice('- a\n  - x\n  - y\n- b\n', to('- a\n  - x\n  - y\n- bX\n'));
+		const ids = (node: CstNode) => [node.childIds, node.children![1].childIds];
+		expect(ids(doc.children[0].children![0])).toEqual(ids(kept[0].children![0]));
+	});
 });
