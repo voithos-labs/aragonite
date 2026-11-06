@@ -380,6 +380,21 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
+			'a copy from the end of a list item into the start of a quote writes the item’s marker, which the range starts past, and drops the quote’s markers before the end',
+		lines: /^L10 \[[^|\]]*\| [^\]]*listItem>paragraph → [^\]]*blockquote>paragraph\] /,
+		keeps: sameBesideMarkers,
+		repro: {
+			law: 'L10',
+			args: [
+				{ source: '- a\n\n> a\n', mode: 'source', seed: { a: end(0, 'end'), b: end(1, 'start') } },
+				'key'
+			]
+		}
+	},
+	{
+		issue: '#819',
+		lane: 'rebuild',
+		defect:
 			'a paste in a mixed-ending document swaps the caret line’s ending with the pasted line’s',
 		lines: /^L9 \[[^\]]*\] paste:\S+ text \w+\/mixed: /,
 		keeps: (got, wanted) =>
