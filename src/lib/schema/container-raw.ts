@@ -1,7 +1,7 @@
 /**
- * Rebuilds container `raw` up a node's ancestors, looking up `descriptor.rebuildRaw`, so a
- * plugin container joins in by declaring one. A container's metadata follows its rebuilt bytes
- * (`docs/design/structural-edits.md` § The container `raw` contract).
+ * Rebuilds container `raw` up a node's ancestors through the container writer, then reads the
+ * metadata a reload of the rebuilt bytes gives (`docs/design/structural-edits.md` § The container
+ * `raw` contract).
  */
 
 import type { AnyBlockKind, CstNode } from '../core/nodes';
@@ -21,8 +21,7 @@ import {
 } from './block-kind-descriptor';
 import type { GrammarView } from './block-openers';
 import { readAsOpened } from './opened-reading';
-import type { ChildRawChange } from './child-spans';
-import type { StripRebuild } from './strip-rebuild';
+import { writeContainerRaw } from './container-writer';
 import { reservedChromeKindOf, rowIsOpenerLine } from './reserved-chrome';
 
 /**
@@ -48,19 +47,14 @@ export function rebuildAncestryRaw(root: CstNode, path: number[], grammar: Gramm
 	rebuildContainerRaw(root, grammar);
 }
 
-/**
- * Calls the `rebuildRaw` on the kind's descriptor, then re-reads the metadata a moved outer line
- * may carry; throws on a leaf.
- */
+/** Writes the container's bytes, then re-reads the metadata a moved outer line may carry; throws
+ *  on a leaf. */
 export function rebuildContainerRaw(node: CstNode, grammar: GrammarView): void {
-	const rebuild = tryGetBlockKindDescriptor(node.kind)?.rebuildRaw;
-	if (!rebuild) {
-		throw new Error(
-			`rebuildContainerRaw: kind "${node.kind}" has no rebuildRaw; only container kinds are valid`
-		);
+	if (!tryGetBlockKindDescriptor(node.kind)?.isContainer) {
+		throw new Error(`rebuildContainerRaw: kind "${node.kind}" is no container`);
 	}
 	const rawBefore = node.raw;
-	const whole = rebuild(node)?.rereads ?? false;
+	const whole = writeContainerRaw(node, grammar)?.rereads ?? false;
 	const reading = followBytes(node, rawBefore, grammar, { whole });
 	// No position to put a new node at, so the node takes its reading in place.
 	if (reading.outcome === 'reread') takeReread(node, reading.node);
@@ -72,17 +66,6 @@ export function adoptOwnReading(node: CstNode, grammar: GrammarView): boolean {
 	const reading = followBytes(node, node.raw, grammar, { whole: true });
 	if (reading.outcome === 'reread') takeReread(node, reading.node);
 	return reading.outcome !== 'diverged';
-}
-
-/**
- * The chain rebuild's step, which re-derives kind and metadata itself once it knows whether an
- * outer line moved; a rebuild outside the chain uses {@link rebuildContainerRaw}.
- */
-export function rebuildContainerRawIfContainer(
-	node: CstNode,
-	changed?: ChildRawChange
-): StripRebuild | undefined {
-	return tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node, changed) ?? undefined;
 }
 
 // ── Metadata that follows the bytes ──────────────────────────────────────────

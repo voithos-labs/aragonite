@@ -3,15 +3,15 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib';
 import { checkStaleRaw } from '#lib/invariants/node-shape.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 describe('the strip stale-raw check compares metadata with the reparse', () => {
 	// A bare `rebuildRaw` is a rebuild outside every route that re-reads the metadata.
 	it('fires on a quote whose bare rebuild put a quote on its first line', () => {
 		const node = parse('> a\n').children[0];
 		node.children = parse('> a\n').children;
-		getBlockKindDescriptor(node.kind).rebuildRaw!(node);
+		writeContainerRaw(node, defaultGrammarView);
 
 		const violation = checkStaleRaw(node, defaultGrammarView);
 		expect(violation?.detail).toMatchObject({ reason: 'metadata-diverges' });

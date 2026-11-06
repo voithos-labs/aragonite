@@ -2,7 +2,7 @@
  * Native GitHub alerts as a strip container shaped like a blockquote: the source bytes are
  * kept, never rewritten to `:::note`. The marker lives only in the container's raw and
  * metadata, so `strip(raw)` equals the serialized children. Its own kind rather than a
- * variant of the directive admonition, so kind stability and rebuildRaw stay unambiguous.
+ * variant of the directive admonition, so kind stability and the line shape stay unambiguous.
  */
 
 import {
@@ -11,18 +11,15 @@ import {
 	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
-	getPluginMetadata,
-	ownTrailingLineEnding,
 	parseContainerBody,
-	quoteLines,
-	rebuildStripRaw,
+	QUOTE_LINES,
 	registerBlockKind,
 	setPluginMetadata,
 	type BlockOpenerResult,
 	type BlockView,
-	type ChildRawChange,
 	type ContainerBodyWrap,
 	type CstNode,
+	type MarkedLines,
 	type OpenContext,
 	type ParsedLine
 } from '@voithos-labs/aragonite/plugin';
@@ -67,23 +64,15 @@ function stripBody(lines: ParsedLine[], start: number, end: number): string {
 	return out;
 }
 
-/** The marker line written from the metadata, and below it the body as quote lines, each kept as
- *  it stood unless the edit changed it. */
-export function rebuildGithubAlertRaw(node: CstNode, changed?: ChildRawChange) {
-	const alertType = getPluginMetadata<GithubAlertMetadata>(node)?.alertType ?? 'NOTE';
-	const marker = `> [!${alertType}]`;
-	if (bodyIsEmpty(node)) {
-		node.raw = marker + ownTrailingLineEnding(node.raw);
-		return;
+/** The alert's lines: a quote's, under a `> [!TYPE]` head line that holds no child. */
+const ALERT_LINES: MarkedLines<GithubAlertMetadata> = {
+	...QUOTE_LINES,
+	head: {
+		match: /^[ \t]*\[!([A-Za-z]+)\][ \t]*$/,
+		data: (match) => ({ alertType: match[1] }),
+		write: (data) => `[!${data.alertType}]`
 	}
-	return rebuildStripRaw(node, quoteLines, { changed, opener: marker });
-}
-
-/** Stops at the first byte, so a keystroke in a long alert reads one child. */
-const bodyIsEmpty = (node: CstNode): boolean =>
-	!node.innerPrefix &&
-	!node.innerSuffix &&
-	(node.children ?? []).every((child) => child.leadingTrivia === '' && child.raw === '');
+};
 
 export function registerGithubAlert(view: BlockView): void {
 	const kind = declarePluginKind(GITHUB_ALERT);
@@ -106,10 +95,7 @@ export function registerGithubAlert(view: BlockView): void {
 		supportsInline: false,
 		conformanceFixture: '> [!NOTE]\n> Heads up.\n',
 		container: {
-			contract: 'strip',
-			rebuildRaw: rebuildGithubAlertRaw,
-			bodyWrap: BODY_WRAP,
-			lines: { marker: 'every-line', lazy: true },
+			lines: ALERT_LINES,
 			merges: { key: 'alertType' },
 			// The alert is a blockquote with a marker, so it unwraps as one: lifting the
 			// first child out drops the marker and reparses plain.
@@ -117,12 +103,12 @@ export function registerGithubAlert(view: BlockView): void {
 				firstChildBackspace: 'lift-first-child-drop-opener',
 				middleChildBackspace: 'default-merge'
 			},
-			// The marker is position-independent, so rebuildRaw re-emits it after a move.
+			// The head line holds no child, so the body's children move under it freely.
 			reorderChildren: {}
 		},
 		closure: containerClosure({
 			roundTripVia:
-				'container contract=strip — rebuildGithubAlertRaw writes the > [!TYPE] marker from metadata and the edited body lines with >, keeping the rest, CRLF threaded',
+				'container lines — a quote shape with a > [!TYPE] head line, written by the container writer',
 			focus: {
 				mode: 'implemented',
 				via: 'focus walks into the first body child via createContainerBlock'

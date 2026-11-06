@@ -29,6 +29,7 @@ import {
 } from '#lib/test/harness/editor-actions.js';
 import { makeHarness, runOp, type Op } from '#lib/test/undo/restoration-ops.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 type Route = (source: string) => Promise<Document>;
 
@@ -102,7 +103,12 @@ const quoteExit: Route = async (source) => {
 const listExit = (itemIndex: number): Route =>
 	top((h) => {
 		const list = h.deps.doc.children[1];
-		const exit = buildExitReplacement(list, itemIndex, documentLineEnding(h.deps.doc));
+		const exit = buildExitReplacement(
+			list,
+			itemIndex,
+			documentLineEnding(h.deps.doc),
+			defaultGrammarView
+		);
 		return h.actions.replaceBlock(
 			1,
 			exit.blocks,

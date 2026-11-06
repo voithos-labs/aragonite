@@ -5,11 +5,11 @@ import { footnotesPlugin } from '#packages/footnotes/src/index.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 // A rebuild writes a body's blank lines the way the parser reads them: the separator after a
 // block bare, an empty paragraph's own line indented, so one keystroke moves no other byte.
@@ -42,7 +42,7 @@ function typeX(doc: Document, path: number[]): void {
 		createSharingState()
 	);
 	for (let i = chain.length - 1; i >= 0; i--) {
-		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
+		writeContainerRaw(chain[i], defaultGrammarView);
 	}
 }
 

@@ -6,11 +6,11 @@ import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { documentLineEnding, trailingLineEnding } from '#lib/core/lines.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { settled } from '#lib/test/harness/settle-funnel.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 // A list item's or footnote's body ends where its indentation ends, so an emptied last block's
 // own line is written with the body's indent and reloads as the empty paragraph it is.
@@ -48,7 +48,7 @@ function empty(doc: Document, path: number[]): void {
 		createSharingState()
 	);
 	for (let i = chain.length - 1; i >= 0; i--) {
-		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
+		writeContainerRaw(chain[i], defaultGrammarView);
 	}
 }
 

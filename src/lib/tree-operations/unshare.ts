@@ -10,9 +10,10 @@ import type { SharingState } from './sharing';
 import { spliceList, type NodeParent } from './node-primitives';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
-import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { writeContainerRaw } from '../schema/container-writer';
 import type { ChildRawChange } from '../schema/child-spans';
 import type { StripRebuild } from '../schema/strip-rebuild';
+import type { GrammarView } from '../schema/block-openers';
 import { cloneMetadata } from './clone';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
@@ -112,7 +113,8 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
  *  place changed, which only an edit that already copied the row causes; the undo digest checks. */
 export function rebuildOwnedContainer(
 	node: CstNode,
+	grammar: GrammarView,
 	changed?: ChildRawChange
 ): StripRebuild | undefined {
-	return rebuildContainerRawIfContainer(node, changed);
+	return writeContainerRaw(node, grammar, changed);
 }

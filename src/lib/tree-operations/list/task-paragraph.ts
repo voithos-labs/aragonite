@@ -15,7 +15,7 @@ import type { DocumentView, NodeView } from '../../core/node-views';
 import { blockNodeAt } from '../node-primitives';
 import { readBlocks, parseTaskItemBody } from '../../core/parser';
 import type { GrammarView } from '../../schema/block-openers';
-import { rebuildListItemRaw } from '../../schema/container-rebuilders';
+import { writeContainerRaw } from '../../schema/container-writer';
 
 export type FragmentReader = (text: string) => Document;
 
@@ -103,7 +103,7 @@ function readMarkerLine(
 		metadata: { ...meta },
 		children: [makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: text })]
 	});
-	rebuildListItemRaw(probe);
+	writeContainerRaw(probe, grammar);
 	const doc = readBlocks(probe.raw, { grammar, scope: 'fragment' });
 	const lists = doc.children;
 	const items = lists.length === 1 && lists[0].kind === 'list' ? (lists[0].children ?? []) : [];

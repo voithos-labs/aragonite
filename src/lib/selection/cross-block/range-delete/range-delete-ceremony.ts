@@ -5,6 +5,7 @@
  * reinstalled the way a reload would parse it, and an ordered list that lost items keeps its start.
  */
 
+import type { GrammarView } from '../../../schema/block-openers';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import type { CstNode, Document } from '../../../core/nodes';
@@ -215,7 +216,7 @@ export interface DeletionPlan {
 	openedItems: CstNode[][];
 	chromeClearChain: CstNode[] | null;
 	/** Each ordered list on a parent chain, with its numbering read before any splice. */
-	listNumbering: Map<CstNode, (sharing: SharingState) => void>;
+	listNumbering: Map<CstNode, ReturnType<typeof holdOrderedNumbering>>;
 	/** The scope the plan was collected against, which the apply step's splices go through. */
 	scope: ScopeWrites;
 }
@@ -242,7 +243,7 @@ export function planCrossBlockDeletion(
 	const opens = taken.map((path) => opensItem(doc, path));
 	const parentChains = taken.map((path) => scope.own(path.slice(0, -1)));
 	// Read once every chain is copied, so a later chain's copy cannot replace an item read here.
-	const listNumbering = new Map<CstNode, (sharing: SharingState) => void>();
+	const listNumbering: DeletionPlan['listNumbering'] = new Map();
 	for (const node of parentChains.flat()) {
 		if (node.kind === 'list' && !listNumbering.has(node)) {
 			listNumbering.set(node, holdOrderedNumbering(node));
@@ -285,7 +286,7 @@ export function finishPlannedDeletion(doc: Document, plan: DeletionPlan, reading
 	const holding = innermostFirst.filter((chain) => !removeIfBare(doc, chain, plan.scope));
 	const attached = new Set(plan.parentChains.flatMap((chain) => attachedChainPrefix(doc, chain)));
 	for (const [list, renumber] of plan.listNumbering) {
-		if (attached.has(list)) renumber(plan.scope.sharing);
+		if (attached.has(list)) renumber(plan.scope.sharing, reading.grammar);
 	}
 	for (const chain of holding) dropMarkerLine(doc, chain, plan.scope, reading);
 }
@@ -315,7 +316,7 @@ function dropMarkerLine(
 	const listPath = path.slice(0, -1);
 	const index = path[path.length - 1];
 	const list = blockNodeAt(doc, listPath)!;
-	rebuildWritten(list, scope.sharing);
+	rebuildWritten(list, scope.sharing, reading.grammar);
 	const base = orderedBaseOf(list.children![0]);
 	let bytes = bytesWithoutMarkerLine(list.children!, index);
 	// At the list's top the blank line above the marker line is the list's own, and the blank lines
@@ -325,9 +326,9 @@ function dropMarkerLine(
 	installSurvivor(doc, listPath, { ...list, leadingTrivia: lead }, bytes, list.raw, scope, reading);
 	const reread = blockNodeAt(doc, listPath);
 	if (reread?.kind !== 'list') return;
-	renumberOrderedListFrom(reread, base, scope.sharing);
+	renumberOrderedListFrom(reread, base, scope.sharing, reading.grammar);
 	// The commit rebuilds the chains it owned, and a list the read made is on none of them.
-	rebuildOwnedContainer(reread);
+	rebuildOwnedContainer(reread, reading.grammar);
 }
 
 function leadingBlankLines(text: string): string {
@@ -354,11 +355,11 @@ function pathAlong(doc: Document, chain: readonly CstNode[]): number[] | null {
 
 /** Rebuilds the raw of every container below `root` this edit copied, deepest first, so the bytes
  *  read from them are current; a shared one is untouched and an undo entry's. */
-function rebuildWritten(root: CstNode, sharing: SharingState): void {
+function rebuildWritten(root: CstNode, sharing: SharingState, grammar: GrammarView): void {
 	for (const child of root.children ?? []) {
 		if (!child.children || sharing.isShared(child)) continue;
-		rebuildWritten(child, sharing);
-		rebuildOwnedContainer(child);
+		rebuildWritten(child, sharing, grammar);
+		rebuildOwnedContainer(child, grammar);
 	}
 }
 

@@ -10,15 +10,13 @@ import type { NodeView } from '../node-views';
 import { indentColumns, remapStrippedLines, stripIndentColumns, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 import {
+	codecFromShape,
 	FIRST_LINE,
 	INNER_LINE,
-	hangingIndentLines,
-	opensOuterBlock,
-	type IndentedLines,
-	type LineCodec
+	keepsParagraphOpen,
+	type IndentedLines
 } from '../strip-lines';
 import {
-	lineInterruptsParagraph,
 	lineStartsOuterBlock,
 	type BlockOpenerResult,
 	type GrammarView
@@ -73,14 +71,6 @@ export interface ItemLineShape {
 	taskMarker: string | null;
 }
 
-/** `line` read as a list item's first line, or null when it opens no item. */
-export function readItemShape(line: string): ItemLineShape | null {
-	const m = line.match(ITEM_START);
-	if (!m) return null;
-	const task = matchTaskCheckbox(line.slice(m[0].length));
-	return { indent: m[1], marker: m[2], taskMarker: task?.rawMarker ?? null };
-}
-
 /** A list item's lines: indent, marker, gap and task box on the first line, the rest indented to
  *  the content column. A field the data lacks is one no first line gave it. */
 export const LIST_ITEM_LINES: IndentedLines<ItemLineShape> = {
@@ -93,27 +83,10 @@ export const LIST_ITEM_LINES: IndentedLines<ItemLineShape> = {
 	paragraphHead: (data) => data.taskMarker ?? ''
 };
 
-/** A list item's line syntax: the marker on its first line, read back only with the same
- *  indent, marker and task box, and its other lines indented to the item's content column. */
-export function listItemLines(shape: ItemLineShape): LineCodec {
-	const opener = shape.indent + shape.marker + (shape.taskMarker ?? '');
-	return hangingIndentLines({
-		opener,
-		column: shape.indent.length + shape.marker.length,
-		readOpener(line) {
-			const read = readItemShape(line);
-			const same =
-				read?.indent === shape.indent &&
-				read.marker === shape.marker &&
-				read.taskMarker === shape.taskMarker;
-			return same ? opener : null;
-		},
-		// The parser asks the opening line with its task marker still on it.
-		continuesLazily: (above, line, aboveFirst) =>
-			wouldKeepParagraphOpen(aboveFirst ? (shape.taskMarker ?? '') + above : above) &&
-			wouldKeepParagraphOpen(line) &&
-			!opensOuterBlock(line)
-	});
+/** `line` read as a list item's first line, or null when it opens no item. */
+export function readItemShape(line: string): ItemLineShape | null {
+	const match = LIST_ITEM_LINES.open.exec(line);
+	return match && LIST_ITEM_LINES.data(match);
 }
 
 /** CommonMark §5.2: a marker interrupts a paragraph only as a bullet or at `1`, with a non-empty
@@ -185,7 +158,7 @@ export function parseList(
 		// (GFM task lists).
 		const shape = readItemShape(lines[itemStartIndex].text)!;
 		widths.add(shape);
-		const itemLines = listItemLines(shape);
+		const itemLines = codecFromShape(LIST_ITEM_LINES, shape);
 		const strippedLines = remapStrippedLines(
 			lines.slice(itemStartIndex, i),
 			(line, index) => itemLines.read(line.text, index === 0 ? FIRST_LINE : INNER_LINE)!.text
@@ -234,12 +207,8 @@ export function parseList(
 
 /** Lazy continuation extends only an open paragraph. Every list marker is left to the item loop, so
  *  an ordered marker not at 1 is excluded here too. */
-function wouldKeepParagraphOpen(strippedText: string): boolean {
-	if (isBlankLine(strippedText)) return false;
-	if (matchListItem(strippedText)) return false;
-	if (lineInterruptsParagraph(strippedText)) return false;
-	return true;
-}
+const wouldKeepParagraphOpen = (strippedText: string): boolean =>
+	keepsParagraphOpen(LIST_ITEM_LINES, strippedText);
 
 // ── Marker widths ────────────────────────────────────────────────────────────
 

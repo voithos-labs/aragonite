@@ -1,12 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import {
-	rebuildBlockquoteRaw,
-	rebuildListItemRaw,
-	rebuildListRaw
-} from '../../schema/container-rebuilders';
+import { rebuildListRaw } from '../../schema/container-rebuilders';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 /** Blank the field the rebuilder writes: a node built by the parser already holds the right
  *  bytes, so a rebuild that wrote nothing would pass silently. */
@@ -15,7 +13,7 @@ function cleared(node: CstNode): CstNode {
 	return node;
 }
 
-describe('rebuildBlockquoteRaw', () => {
+describe('the quote writer', () => {
 	it.each([
 		['a single paragraph', '> Hello\n'],
 		['two paragraphs split by a blank quote line', '> Hello\n>\n> World\n'],
@@ -23,12 +21,12 @@ describe('rebuildBlockquoteRaw', () => {
 		['an empty paragraph', '>\n']
 	])('re-emits a blockquote holding %s', (_case, source) => {
 		const node = cleared(parse(source).children[0]);
-		rebuildBlockquoteRaw(node);
+		writeContainerRaw(node, defaultGrammarView);
 		expect(node.raw).toBe(source);
 	});
 });
 
-describe('rebuildListItemRaw', () => {
+describe('the list item writer', () => {
 	it.each([
 		['a one-line paragraph', '- Item text\n'],
 		['a multi-line paragraph indented to the marker', '- Line 1\n  Line 2\n'],
@@ -37,7 +35,7 @@ describe('rebuildListItemRaw', () => {
 		['a nested list', '- Item\n  - Nested a\n  - Nested b\n']
 	])('re-emits an item holding %s', (_case, source) => {
 		const node = cleared(parse(source).children[0].children![0]);
-		rebuildListItemRaw(node);
+		writeContainerRaw(node, defaultGrammarView);
 		expect(node.raw).toBe(source);
 	});
 });
@@ -60,8 +58,8 @@ describe('rebuildListRaw', () => {
 // Miss-analysis: GH #76; every rebuilder case built its node with `innerPrefix` already empty.
 describe('the wrap-less rebuilders ignore innerPrefix', () => {
 	it.each([
-		['blockquote', '> quoted\n', (n: CstNode) => rebuildBlockquoteRaw(n)],
-		['listItem', '- item\n', (n: CstNode) => rebuildListItemRaw(n)]
+		['blockquote', '> quoted\n', (n: CstNode) => writeContainerRaw(n, defaultGrammarView)],
+		['listItem', '- item\n', (n: CstNode) => writeContainerRaw(n, defaultGrammarView)]
 	] as const)('%s re-emits its own bytes with a stray slot filled', (_kind, source, rebuild) => {
 		const top = parse(source).children[0];
 		const node = cleared(top.kind === 'list' ? top.children![0] : top);
@@ -80,14 +78,14 @@ describe('parse + rebuild round-trip', () => {
 		const list = cleared(doc.children[0]);
 		const item1 = cleared(list.children![0]);
 
-		rebuildListItemRaw(item1);
+		writeContainerRaw(item1, defaultGrammarView);
 		rebuildListRaw(list);
 
 		expect(serialize(doc)).toBe(source);
 	});
 });
 
-describe('rebuildListItemRaw: task items', () => {
+describe('the list item writer: task items', () => {
 	it.each([
 		['the marker between the list marker and the content', '- [x] hello\n'],
 		['an uppercase X', '- [X] upper\n'],
@@ -96,7 +94,7 @@ describe('rebuildListItemRaw: task items', () => {
 	])('re-emits %s', (_case, source) => {
 		const item = cleared(parse(source).children[0].children![0]);
 
-		rebuildListItemRaw(item);
+		writeContainerRaw(item, defaultGrammarView);
 
 		expect(item.raw).toBe(source);
 	});

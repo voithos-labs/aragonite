@@ -8,6 +8,7 @@
 import type { CommitLanding } from '../../action-contracts';
 import { metadataOf, type CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
+import type { GrammarView } from '../../schema/block-openers';
 import type { SharingState } from '../sharing';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { ensureUnsharedChild } from '../unshare';
@@ -35,6 +36,7 @@ type Landed = ReturnType<CommitLanding>;
  *  same-kind sublist; `landing` gets the moved item's path below `list`. */
 export function nestListItem(
 	commits: ItemMoveCommits,
+	grammar: GrammarView,
 	list: MultiScopeTarget,
 	itemIndex: number,
 	landing: (movedTo: number[]) => Landed = () => null
@@ -86,8 +88,8 @@ export function nestListItem(
 						destScope.children.push(movedItem);
 						// The item takes the sublist's marker style, as a paste does; a fresh list has none.
 						const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
-						normalizeItemMarkerToList(moved, destList);
-						numberJoinedItems(destList, destScope.children.length - 1, sharing);
+						normalizeItemMarkerToList(moved, destList, grammar);
+						numberJoinedItems(destList, destScope.children.length - 1, sharing, grammar);
 					} else {
 						const shell = buildListShell(ordered, [movedItem]);
 						sharing.stamp(shell);
@@ -95,13 +97,13 @@ export function nestListItem(
 						// Write, then read back (tree-operations/unshare.ts): the writes below go through the
 						// value in the tree, not the list the proxy has observed.
 						const destList = destScope.children[destScope.children.length - 1];
-						numberJoinedItems(destList, 0, sharing);
+						numberJoinedItems(destList, 0, sharing, grammar);
 						// A new sublist sits below the commit's chain, which never rebuilds it; the blank-line
 						// rule below reads its bytes too.
 						destScope.rebuild(destList);
 						settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					}
-					renumberOrderedList(outerScope.node, itemIndex, sharing);
+					renumberOrderedList(outerScope.node, itemIndex, sharing, grammar);
 
 					return [
 						{ op: 'delete', at: itemIndex, count: 1 },
@@ -122,6 +124,7 @@ export function nestListItem(
  *  after that item, taking everything after it there as its own children; `landing` gets its index. */
 export function liftNestedItem(
 	commits: ItemMoveCommits,
+	grammar: GrammarView,
 	outer: MultiScopeTarget,
 	parentItemIdx: number,
 	nestedList: NodeView,
@@ -177,10 +180,10 @@ export function liftNestedItem(
 					const laterBlocks = parentScope.children.slice(nestedIdxInParent + 1);
 					spliceChildren(parentScope.node, nestedIdxInParent + 1, laterBlocks.length, []);
 					const ordered = metadataOf(nestedScope.node, 'list').ordered;
-					adoptAsLastChildren(item, laterItems, ordered, sharing, outerScope.rebuild);
+					adoptAsLastChildren(item, laterItems, ordered, sharing, grammar, outerScope.rebuild);
 					appendLaterBlocks(item, laterBlocks, sharing);
 					if (laterItems.length + laterBlocks.length > 0) outerScope.rebuild(item);
-					normalizeItemMarkerToList(item, outerScope.node);
+					normalizeItemMarkerToList(item, outerScope.node, grammar);
 					spliceChildren(outerScope.node, promotedAt, 0, [item]);
 
 					// What the move emptied goes, up to this list, which now holds the promoted item.
@@ -192,8 +195,9 @@ export function liftNestedItem(
 					]);
 					promotedAt -= outerCount - outerScope.children.length;
 
-					if (nestedScope.children.length > 0) renumberOrderedList(nestedScope.node, 1, sharing);
-					renumberOrderedList(outerScope.node, promotedAt, sharing);
+					if (nestedScope.children.length > 0)
+						renumberOrderedList(nestedScope.node, 1, sharing, grammar);
+					renumberOrderedList(outerScope.node, promotedAt, sharing, grammar);
 
 					return ledgers.map((ledger) => {
 						const change = ledger.read();
@@ -219,6 +223,7 @@ function adoptAsLastChildren(
 	later: CstNode[],
 	ordered: boolean,
 	sharing: SharingState,
+	grammar: GrammarView,
 	rebuild: (node: CstNode) => void
 ): void {
 	if (later.length === 0 || !item.children) return;
@@ -229,7 +234,7 @@ function adoptAsLastChildren(
 		first = list.children!.length;
 		spliceChildren(list, first, 0, later);
 		for (let i = first; i < list.children!.length; i++) {
-			normalizeItemMarkerToList(ensureUnsharedChild(list, i, sharing), list);
+			normalizeItemMarkerToList(ensureUnsharedChild(list, i, sharing), list, grammar);
 		}
 	} else {
 		const shell = buildListShell(ordered, later);
@@ -239,7 +244,7 @@ function adoptAsLastChildren(
 	// Write, then read back (tree-operations/unshare.ts) before the writes below.
 	const at = item.children.length - 1;
 	const list = item.children[at];
-	numberJoinedItems(list, first, sharing);
+	numberJoinedItems(list, first, sharing, grammar);
 	rebuild(list);
 	settleSublistSeparator(item.children, at);
 }
@@ -274,9 +279,14 @@ function separatorBelow(above: CstNode, below: CstNode): string | null {
 }
 
 /** Numbers the items a move put at `from` and after; items that open the list start it at 1. */
-function numberJoinedItems(list: CstNode, from: number, sharing: SharingState): void {
-	if (from === 0) renumberOrderedListFrom(list, 1, sharing);
-	else renumberOrderedList(list, from, sharing);
+function numberJoinedItems(
+	list: CstNode,
+	from: number,
+	sharing: SharingState,
+	grammar: GrammarView
+): void {
+	if (from === 0) renumberOrderedListFrom(list, 1, sharing, grammar);
+	else renumberOrderedList(list, from, sharing, grammar);
 }
 
 function isListOfKind(node: NodeView | undefined, ordered: boolean): boolean {

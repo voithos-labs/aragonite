@@ -20,14 +20,16 @@ import { GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { registerFootnoteDefinition } from '#packages/footnotes/src/footnote-definition.js';
 import { FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/constants.js';
 import { parse } from '#lib/core/parser.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { getBlockKindDescriptor, openerRecords } from '#lib/schema/block-kind-descriptor.js';
+import { writeShapedRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
 import { childHoldingLastLine } from '#lib/schema/container-raw.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
-// The container conformance kit pointed at real plugin containers, the audience it is for.
-// Unlike the built-in sweep (`test/invariants/container-conformance.test.ts`), which takes its
-// kinds from the registry, an author opts in explicitly with a profile.
+// The container conformance kit pointed at real plugin containers, which opt in with a profile,
+// unlike the built-in sweep (`test/invariants/container-conformance.test.ts`) over the registry.
 
 const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 const DETAILS_KIND = () => declaredPluginKind(DETAILS);
@@ -318,24 +320,50 @@ describe('the kit holds an edit to the lines it changed', () => {
 			respell: (raw: string) => raw.replace('>a\n', '> a\n'),
 			source: '> [!NOTE]\n>a\n>\n>  b\n'
 		}
-	])('fails a rebuild that respells $name an edit left alone', ({ respell, source }) => {
-		const alert = declaredPluginKind(GITHUB_ALERT);
-		const keeps = getBlockKindDescriptor(alert).rebuildRaw!;
-		augmentBlockKind(alert, {
-			container: {
-				// Keeps the bytes it parsed, so only the edit row can see the respell.
-				rebuildRaw: (node, changed) => {
-					keeps(node, changed);
-					if (changed) node.raw = respell(node.raw);
-				}
-			}
-		});
+	])('fails a rebuild that respells $name an edit left alone', ({ name, respell, source }) => {
+		const kind = respellingAlert(`respelling-${name.replaceAll(' ', '-')}`, respell);
 
 		expect(() =>
-			checkDeclarationSanity(alert, {
+			checkDeclarationSanity(kind, {
 				...calloutProfile,
 				deepNesting: { source, leafPath: [0, 0] }
 			})
 		).toThrow(/rewrote lines outside the child it was told changed/);
 	});
 });
+
+/** The alert's opener and lines under a kind written by a rebuild of its own, one that respells
+ *  lines once an edit has run: the bug the kit's untouched-lines row is there to catch. */
+function respellingAlert(name: string, respell: (raw: string) => string): AnyBlockKind {
+	const alert = declaredPluginKind(GITHUB_ALERT);
+	const lines = getBlockKindDescriptor(alert).lines!;
+	const opener = openerRecords().find((record) => record.key === alert)!.value;
+	const kind = declarePluginKind(name);
+	registerBlockKind(kind, {
+		view: testView(),
+		gapEdges: 'none',
+		mergeRole: 'container',
+		editable: true,
+		supportsInline: false,
+		closure: testClosure,
+		opener: {
+			...opener,
+			priority: opener.priority - 0.5,
+			tryOpen(ctx) {
+				const read = opener.tryOpen(ctx);
+				if (read) read.node.kind = kind;
+				return read;
+			}
+		},
+		container: {
+			contract: 'strip',
+			// Keeps the bytes it parsed, so only the edit row can see the respell.
+			rebuildRaw: (node, changed) => {
+				const written = writeShapedRaw(node, lines, defaultGrammarView, changed);
+				if (changed) node.raw = respell(node.raw);
+				return written;
+			}
+		}
+	});
+	return kind;
+}

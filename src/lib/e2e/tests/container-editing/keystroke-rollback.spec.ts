@@ -9,10 +9,10 @@ import { attachIme } from '../../simulation/ime';
 const THROWN = 'probe rebuildRaw blew up';
 
 const leafText = (page: Page) =>
-	page.locator(`[data-block-path='${JSON.stringify([0, 0])}'] [contenteditable]`).first();
+	page.locator(`[data-block-path='${JSON.stringify([0, 0, 0])}'] [contenteditable]`).first();
 
-const throwOnQuoteRebuild = (page: Page, on: boolean) =>
-	page.evaluate((value) => (window as any).__test.throwOnQuoteRebuild(value), on);
+const throwOnListRebuild = (page: Page, on: boolean) =>
+	page.evaluate((value) => (window as any).__test.throwOnListRebuild(value), on);
 
 const capturedErrors = (page: Page): Promise<string[]> =>
 	page.evaluate(() => (window as any).__test.getCapturedErrors());
@@ -25,54 +25,54 @@ test.describe('a keystroke inside a container whose rebuild throws', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await editor.loadContent('> ab\n');
+		await editor.loadContent('- ab\n');
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
-		await editor.focusBlockAtPath([0, 0], 2);
+		await editor.focusBlockAtPath([0, 0, 0], 2);
 	});
 
 	test.afterEach(async ({ page }) => {
-		await throwOnQuoteRebuild(page, false);
+		await throwOnListRebuild(page, false);
 	});
 
 	test('a typed key reports the throw and leaves the source and the text as they were', async ({
 		page
 	}) => {
-		await throwOnQuoteRebuild(page, true);
+		await throwOnListRebuild(page, true);
 
 		await editor.typeSlowly('x');
 
 		await expect.poll(() => capturedErrors(page)).toContain('commit');
-		expect(await editor.bridge.getSource()).toBe('> ab\n');
+		expect(await editor.bridge.getSource()).toBe('- ab\n');
 		await expect(leafText(page)).toHaveText('ab');
 	});
 
 	test('the next key writes once the rebuild stops throwing, and one undo takes it back', async ({
 		page
 	}) => {
-		await throwOnQuoteRebuild(page, true);
+		await throwOnListRebuild(page, true);
 		await editor.typeSlowly('x');
 		await expect.poll(() => capturedErrors(page)).toContain('commit');
-		await throwOnQuoteRebuild(page, false);
+		await throwOnListRebuild(page, false);
 
 		await editor.typeSlowly('y');
 		await editor.bridge.waitForSourceContains('aby');
 		await editor.undo();
 
-		await editor.bridge.waitForSourceMatches(/^> ab\n$/);
+		await editor.bridge.waitForSourceMatches(/^- ab\n$/);
 		await expect(leafText(page)).toHaveText('ab');
 	});
 
 	// Each kind of editable element repaints itself, so each gets the typed-key row.
 	for (const [kind, source, path, offset, kept] of [
-		['code block', '> ```\n> ab\n> ```\n', [0, 0], 6, 'ab'],
-		['table cell', '> | a | b |\n> | - | - |\n> | cd | e |\n', [0, 0, 1, 0], 1, 'cd']
+		['code block', '- ```\n  ab\n  ```\n', [0, 0, 0], 6, 'ab'],
+		['table cell', '- | a | b |\n  | - | - |\n  | cd | e |\n', [0, 0, 0, 1, 0], 1, 'cd']
 	] as const) {
-		test(`a key typed in a ${kind} inside the quote leaves the source and the text`, async ({
+		test(`a key typed in a ${kind} inside the list leaves the source and the text`, async ({
 			page
 		}) => {
 			await editor.loadContent(source);
 			await editor.clickBlockAtPath([...path], offset);
-			await throwOnQuoteRebuild(page, true);
+			await throwOnListRebuild(page, true);
 
 			await editor.typeSlowly('x');
 
@@ -90,14 +90,14 @@ test.describe('a keystroke inside a container whose rebuild throws', () => {
 	test('an IME commit reports the throw and leaves the source and the text as they were', async ({
 		page
 	}) => {
-		await throwOnQuoteRebuild(page, true);
+		await throwOnListRebuild(page, true);
 		const ime = await attachIme(page);
 
 		await ime.compose('か');
 		await ime.commit('か');
 
 		await expect.poll(() => capturedErrors(page)).toContain('commit');
-		expect(await editor.bridge.getSource()).toBe('> ab\n');
+		expect(await editor.bridge.getSource()).toBe('- ab\n');
 		await expect(leafText(page)).toHaveText('ab');
 	});
 });

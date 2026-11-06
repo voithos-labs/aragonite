@@ -10,6 +10,7 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { buildExitReplacement, unwrapFirstItemFromList } from '#lib/tree-operations/index.js';
 import type { CstNode } from '#lib/core/nodes.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 const GHOST_RAW = '1. ghost\n';
 
@@ -53,22 +54,32 @@ describe.each(CHILDLESS_SHAPES)('matching-ordered sublist with $label', ({ child
 	const fixture = () => listWithEmptySublist(childrenOf());
 
 	it('unwrap (U1) lifts it as a top-level block, bytes intact', () => {
-		const blocks = unwrapFirstItemFromList(fixture());
+		const blocks = unwrapFirstItemFromList(fixture(), defaultGrammarView);
 
 		expect(sublistIn(blocks)).toBeDefined();
 		expect(serializeBlocks(blocks)).toContain(GHOST_RAW);
 	});
 
 	it('exit lifts it as a top-level block, bytes intact', () => {
-		const { blocks } = buildExitReplacement(blankFirstParagraph(fixture()), 0, '\n');
+		const { blocks } = buildExitReplacement(
+			blankFirstParagraph(fixture()),
+			0,
+			'\n',
+			defaultGrammarView
+		);
 
 		expect(sublistIn(blocks)).toBeDefined();
 		expect(serializeBlocks(blocks)).toContain(GHOST_RAW);
 	});
 
 	it('both entry points give it the same disposition', () => {
-		const unwrapped = unwrapFirstItemFromList(fixture());
-		const exited = buildExitReplacement(blankFirstParagraph(fixture()), 0, '\n').blocks;
+		const unwrapped = unwrapFirstItemFromList(fixture(), defaultGrammarView);
+		const exited = buildExitReplacement(
+			blankFirstParagraph(fixture()),
+			0,
+			'\n',
+			defaultGrammarView
+		).blocks;
 
 		expect(sublistIn(unwrapped)).toBeDefined();
 		expect(sublistIn(exited)?.raw).toBe(sublistIn(unwrapped)?.raw);

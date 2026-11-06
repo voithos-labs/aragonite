@@ -9,49 +9,31 @@ import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js'
 import { COLON_LINES, fencedLines, writeShapedRaw } from '#lib/schema/container-writer.js';
 import { QUOTE_LINES } from '#lib/core/parsers/blockquote.js';
 import { LIST_ITEM_LINES } from '#lib/core/parsers/list.js';
-import type { IndentedLines, LineShape, MarkedLines } from '#lib/core/strip-lines.js';
-import type { CstNode } from '#lib/core/nodes.js';
+import type { LineShape } from '#lib/core/strip-lines.js';
+import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { differentialDocuments, rowsOf, runDifferential, type Writer } from './differential';
-
-const ALERT_LINES: MarkedLines<{ alertType: string }> = {
-	...QUOTE_LINES,
-	head: {
-		match: /^[ \t]*\[!([A-Za-z]+)\][ \t]*$/,
-		data: (match) => ({ alertType: match[1] }),
-		write: (data) => `[!${data.alertType}]`
-	}
-};
-
-const DEFINITION_LINES: IndentedLines<{ label: string }> = {
-	shape: 'indented',
-	open: /^ {0,3}\[\^([^\]]+)\]: ?/,
-	data: (match) => ({ label: match[1] }),
-	first: (data) => `[^${data.label}]: `,
-	rest: () => '    ',
-	lazy: true
-};
+import { todayWriter } from './today-writers';
 
 const DETAILS_LINES = fencedLines<{ open: boolean }>({
 	open: (data, title) => [`<details${data.open ? ' open' : ''}>`, `<summary>${title}</summary>`],
 	close: () => '</details>'
 });
 
+// The kinds still on their own rebuild, until they declare these shapes.
 const SHAPES: Record<string, LineShape<never>> = {
-	blockquote: QUOTE_LINES,
-	githubAlert: ALERT_LINES as LineShape<never>,
-	listItem: LIST_ITEM_LINES as LineShape<never>,
-	'footnote-def': DEFINITION_LINES as LineShape<never>,
 	directiveContainer: COLON_LINES,
 	admonition: COLON_LINES,
 	details: DETAILS_LINES as LineShape<never>
 };
 
-const today: Writer = (node, changed) =>
-	tryGetBlockKindDescriptor(node.kind)!.rebuildRaw!(node, changed);
-const shaped: Writer = (node: CstNode, changed) => writeShapedRaw(node, SHAPES[node.kind], changed);
+const shapeOf = (kind: string): LineShape<unknown> =>
+	tryGetBlockKindDescriptor(kind as AnyBlockKind)?.lines ?? SHAPES[kind];
+const shaped: Writer = (node: CstNode, changed) =>
+	writeShapedRaw(node, shapeOf(node.kind), defaultGrammarView, changed);
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin(), detailsPlugin(), footnotesPlugin()]);
@@ -62,7 +44,7 @@ describe('the container writer against today’s writers', () => {
 		// A region splice compares itself with a full rebuild only under the dev checks.
 		expect([devChecksOn, perfEnabled()]).toEqual([true, false]);
 		const scale = process.env.CONTAINER_WRITER_DIFF === 'full' ? 'full' : 'quick';
-		const tally = runDifferential(differentialDocuments(scale, 20261106), today, shaped);
+		const tally = runDifferential(differentialDocuments(scale, 20261106), todayWriter, shaped);
 		expect(tally.cases).toBeGreaterThan(scale === 'full' ? 100_000 : 1_000);
 		expect(tally.throws).toEqual([]);
 		expect(tally.warns).toEqual({});
@@ -238,6 +220,16 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		':::spoiler\nhiddenx\n:::::\n'
 	]
 ];
+
+describe('the built-in containers', () => {
+	it.each([
+		['blockquote', QUOTE_LINES],
+		['listItem', LIST_ITEM_LINES]
+	])('%s declares its lines and no rebuildRaw', (kind, lines) => {
+		const descriptor = tryGetBlockKindDescriptor(kind as AnyBlockKind)!;
+		expect([descriptor.lines, descriptor.rebuildRaw]).toEqual([lines, undefined]);
+	});
+});
 
 describe('named rows', () => {
 	it.each(NAMED_ROWS)('%s', (_, source, edit, kind, bytes) => {

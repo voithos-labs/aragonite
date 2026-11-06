@@ -3,6 +3,7 @@ import { checkOpaqueRebuildDeterminism } from '../../invariants/node-shape';
 import { testContainer } from '#lib/test/harness/test-kinds.js';
 import { concatChildren } from '../../core/serializer';
 import { setPluginMetadata, getPluginMetadata, type CstNode } from '../../core/nodes';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 	function opaqueNode(kind: CstNode['kind']): CstNode {
@@ -22,7 +23,7 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 				node.raw = `::x\n${concatChildren(node.children ?? [])}::\n`;
 			}
 		});
-		expect(checkOpaqueRebuildDeterminism(opaqueNode(kind))).toBeNull();
+		expect(checkOpaqueRebuildDeterminism(opaqueNode(kind), defaultGrammarView)).toBeNull();
 	});
 
 	it('fires for a rebuilder whose output varies over identical committed state', () => {
@@ -32,7 +33,7 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 				node.raw = `::x ${calls++}\n::\n`;
 			}
 		});
-		expect(checkOpaqueRebuildDeterminism(opaqueNode(kind))?.code).toBe(
+		expect(checkOpaqueRebuildDeterminism(opaqueNode(kind), defaultGrammarView)?.code).toBe(
 			'opaque-rebuild-nondeterministic'
 		);
 	});
@@ -48,7 +49,7 @@ describe('checkOpaqueRebuildDeterminism (opaque containers)', () => {
 		const node = opaqueNode(kind);
 		setPluginMetadata(node, { tone: 'calm' });
 
-		checkOpaqueRebuildDeterminism(node);
+		checkOpaqueRebuildDeterminism(node, defaultGrammarView);
 
 		expect(node.raw).toBe('::x \nbody\n::\n');
 		expect(node.children).toHaveLength(1);

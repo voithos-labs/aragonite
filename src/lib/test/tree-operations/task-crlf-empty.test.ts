@@ -4,11 +4,11 @@ import { describe, it, expect } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 // A CRLF to-do keeps its own line ending through being emptied and typed into again (G4.20): the
 // marker is `[x] ` and nothing more, and the paragraph keeps the `\r\n`.
@@ -28,8 +28,8 @@ function writeTaskText(doc: Document, listIndex: number, item: number, text: str
 		defaultGrammarView,
 		createSharingState()
 	);
-	getBlockKindDescriptor('listItem').rebuildRaw?.(owner);
-	getBlockKindDescriptor('list').rebuildRaw?.(list);
+	writeContainerRaw(owner, defaultGrammarView);
+	writeContainerRaw(list, defaultGrammarView);
 }
 
 describe('emptying a CRLF task item', () => {

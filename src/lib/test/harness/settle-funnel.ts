@@ -94,7 +94,7 @@ export function deleteSettled(
 	sharing: SharingState = createSharingState()
 ): StructuralChange {
 	const removal = (body: BodyParent) => ({
-		change: deleteNode(body, index, sharing),
+		change: deleteNode(body, index, sharing, defaultGrammarView),
 		removed: true as const
 	});
 	return settledIn(parent, removal, grammar, sharing);

@@ -1,3 +1,4 @@
+import type { GrammarView } from '../../schema/block-openers';
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { LineEnding } from '../../core/lines';
@@ -11,9 +12,10 @@ import { dissolveItem } from './item-partition';
 export function buildExitReplacement(
 	list: NodeView,
 	itemIndex: number,
-	lineEnding: LineEnding
+	lineEnding: LineEnding,
+	grammar: GrammarView
 ): { blocks: CstNode[]; paragraphIndex: number } {
 	// Every byte this op creates is a line ending, the document's.
-	const exit = dissolveItem(list, itemIndex, emptyParagraph('', lineEnding));
+	const exit = dissolveItem(list, itemIndex, grammar, emptyParagraph('', lineEnding));
 	return { blocks: exit.blocks, paragraphIndex: exit.firstBlockIndex };
 }

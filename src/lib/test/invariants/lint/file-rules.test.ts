@@ -1475,7 +1475,6 @@ const RULES: FileRule[] = [
 		id: 'G4.86 a list item’s marker is read where the list is built, drawn or dumped',
 		matches: LIST_MARKER_READ,
 		allowed: {
-			'src/lib/schema/container-rebuilders.ts': 'writes the marker back in front of the item',
 			'src/lib/tree-operations/list/ordered-markers.ts':
 				'renumbers an ordered list, and asks whether two items read as one list',
 			'src/lib/tree-operations/list/task-paragraph.ts':

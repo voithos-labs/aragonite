@@ -141,7 +141,7 @@ export async function applyContainerMatchingPaste(
 		return;
 	}
 
-	templatePastedItemMarkers(unwrap.items, outer, unwrap.spliceIndex);
+	templatePastedItemMarkers(unwrap.items, outer, unwrap.spliceIndex, ctx.reading.grammar);
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
@@ -159,7 +159,8 @@ export async function applyContainerMatchingPaste(
 			renumberOrderedList(
 				scopeView.node,
 				unwrap.spliceIndex + unwrap.items.length,
-				scopeView.sharing
+				scopeView.sharing,
+				ctx.reading.grammar
 			);
 			return [change];
 		},
@@ -216,7 +217,7 @@ async function applyContainerMatchingMerge(
 	const remainingItems = unwrap.items.slice(1);
 	// The first item merges into the target leaf, keeping its marker; only the trailing
 	// siblings splice in, landing after the target.
-	templatePastedItemMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
+	templatePastedItemMarkers(remainingItems, outer, unwrap.spliceIndex + 1, ctx.reading.grammar);
 
 	const leafIndex = merge.targetLeafPath[merge.targetLeafPath.length - 1];
 	/** The merged leaf's new text, written below the scope node through its holder's write rule. */
@@ -307,7 +308,12 @@ async function applyContainerMatchingMerge(
 			stampStructuralChange(scopeView.children, change, sharing);
 			// The already-proxied tail below the spliced siblings; the merged target keeps
 			// its number.
-			renumberOrderedList(scopeView.node, insertAt + remainingItems.length, sharing);
+			renumberOrderedList(
+				scopeView.node,
+				insertAt + remainingItems.length,
+				sharing,
+				ctx.reading.grammar
+			);
 			return [change];
 		},
 		op: {

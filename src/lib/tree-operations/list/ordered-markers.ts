@@ -4,7 +4,8 @@ import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataIfKind, metadataOf } from '../../core/nodes';
 import type { SharingState } from '../sharing';
-import { rebuildListItemRaw } from '../../schema/container-rebuilders';
+import { writeContainerRaw } from '../../schema/container-writer';
+import type { GrammarView } from '../../schema/block-openers';
 import { ensureUnsharedChild } from '../unshare';
 
 // ── Marker reads ─────────────────────────────────────────────────────────────
@@ -47,7 +48,12 @@ export function bumpOrderedMarker(marker: string): string {
 
 /** Renumber an ordered list from `fromIndex` on, any other block left as it is. Item 0 keeps the
  *  list's start; an edit that moves, removes or creates item 0 calls `renumberOrderedListFrom`. */
-export function renumberOrderedList(list: CstNode, fromIndex: number, sharing: SharingState): void {
+export function renumberOrderedList(
+	list: CstNode,
+	fromIndex: number,
+	sharing: SharingState,
+	grammar: GrammarView
+): void {
 	if (!list.children) return;
 	if (!metadataIfKind(list, 'list')?.ordered) return;
 	// Each item's metadata and raw is written, so `ensureUnsharedChild` copies it out of the undo
@@ -58,38 +64,45 @@ export function renumberOrderedList(list: CstNode, fromIndex: number, sharing: S
 		const meta = metadataOf(item, 'listItem');
 		const suffix = meta.marker.replace(/^\d+/, '');
 		meta.marker = String(prevNum + 1) + suffix;
-		rebuildListItemRaw(item);
+		writeContainerRaw(item, grammar);
 	}
 }
 
 /** Renumber a whole ordered list from `start`, keeping marker suffixes. A caller reads `start`
  *  before its edit when that edit moves or removes the first item. */
-export function renumberOrderedListFrom(list: CstNode, start: number, sharing: SharingState): void {
+export function renumberOrderedListFrom(
+	list: CstNode,
+	start: number,
+	sharing: SharingState,
+	grammar: GrammarView
+): void {
 	if (!metadataIfKind(list, 'list')?.ordered) return;
 	if (!list.children || list.children.length === 0) return;
 	const first = ensureUnsharedChild(list, 0, sharing);
 	const meta = metadataOf(first, 'listItem');
 	meta.marker = String(start) + (meta.marker.replace(/^\d+/, '') || '. ');
-	rebuildListItemRaw(first);
-	renumberOrderedList(list, 1, sharing);
+	writeContainerRaw(first, grammar);
+	renumberOrderedList(list, 1, sharing, grammar);
 }
 
 /** Reads an ordered list's numbering before items are removed from it, and returns the renumber
  *  to run after: from the first item the removal shifted, a new first item taking the start. */
-export function holdOrderedNumbering(list: CstNode): (sharing: SharingState) => void {
+export function holdOrderedNumbering(
+	list: CstNode
+): (sharing: SharingState, grammar: GrammarView) => void {
 	if (!metadataIfKind(list, 'list')?.ordered || !list.children) {
 		return keepNumbering;
 	}
 	const before = list.children.slice();
 	const start = orderedBaseOf(before[0]);
-	return (sharing) => {
+	return (sharing, grammar) => {
 		const after = list.children ?? [];
 		if (after.length >= before.length) return;
 		let shifted = 0;
 		while (shifted < after.length && after[shifted] === before[shifted]) shifted++;
 		if (shifted === after.length) return;
-		if (shifted === 0) renumberOrderedListFrom(list, start, sharing);
-		else renumberOrderedList(list, shifted, sharing);
+		if (shifted === 0) renumberOrderedListFrom(list, start, sharing, grammar);
+		else renumberOrderedList(list, shifted, sharing, grammar);
 	};
 }
 
@@ -101,7 +114,11 @@ const keepNumbering = (): void => {};
  * Rewrite `item`'s marker glyph and suffix to match `parentList`'s first item; the number is left
  * to the caller's renumber pass.
  */
-export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): void {
+export function normalizeItemMarkerToList(
+	item: CstNode,
+	parentList: CstNode,
+	grammar: GrammarView
+): void {
 	const parentOrdered = metadataOf(parentList, 'list')?.ordered ?? false;
 	const meta = metadataOf(item, 'listItem');
 	const itemOrdered = /^\d/.test(meta.marker);
@@ -122,7 +139,7 @@ export function normalizeItemMarkerToList(item: CstNode, parentList: CstNode): v
 	target = keepingWidth(target, meta.marker);
 	if (meta.marker === target) return;
 	meta.marker = target;
-	rebuildListItemRaw(item);
+	writeContainerRaw(item, grammar);
 }
 
 /** `target`, keeping `current`'s run of spaces when it is the wider one: those spaces are the
@@ -140,7 +157,8 @@ function keepingWidth(target: string, current: string): string {
 export function templatePastedItemMarkers(
 	items: CstNode[],
 	outer: CstNode,
-	firstIndex: number
+	firstIndex: number,
+	grammar: GrammarView
 ): void {
 	if (outer.kind !== 'list') return;
 	if (metadataOf(outer, 'list')?.ordered) {
@@ -150,9 +168,9 @@ export function templatePastedItemMarkers(
 			const meta = metadataOf(item, 'listItem');
 			if (!meta) return;
 			meta.marker = keepingWidth(String(base + firstIndex + i) + suffix, meta.marker);
-			rebuildListItemRaw(item);
+			writeContainerRaw(item, grammar);
 		});
 	} else {
-		for (const item of items) normalizeItemMarkerToList(item, outer);
+		for (const item of items) normalizeItemMarkerToList(item, outer, grammar);
 	}
 }

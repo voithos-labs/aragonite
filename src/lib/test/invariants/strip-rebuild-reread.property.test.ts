@@ -6,12 +6,13 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { metadataOf } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { firstDisplayLine, splitLines } from '#lib/core/lines.js';
-import { quoteLines } from '#lib/core/parsers/blockquote.js';
-import { listItemLines, readItemShape } from '#lib/core/parsers/list.js';
-import type { LineCodec } from '#lib/core/strip-lines.js';
+import { QUOTE_LINES } from '#lib/core/parsers/blockquote.js';
+import { LIST_ITEM_LINES, readItemShape, type ItemLineShape } from '#lib/core/parsers/list.js';
+import { codecFromShape, type LineCodec } from '#lib/core/strip-lines.js';
 import { rebuildConcatRaw } from '#lib/schema/child-spans.js';
 import { rebuildStripRaw } from '#lib/schema/strip-rebuild.js';
-import { rebuildContainerRawIfContainer } from '#lib/schema/container-raw.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView as grammar } from '#lib/schema/block-openers.js';
 import { arbRespelledContainerDoc, freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(292929) } as const;
@@ -104,7 +105,10 @@ function applyEdit(doc: { children: CstNode[] }, pick: number, edit: Edit): void
 /** The line syntax read with no shortcut: every previous line is read, and none is a spelling. */
 const readEveryLine = (codec: LineCodec): LineCodec => ({ ...codec, spells: () => false });
 
-/** `rebuildListItemRaw` with every previous line read: the shipped rebuild's reference. */
+const itemLines = (data: ItemLineShape): LineCodec => codecFromShape(LIST_ITEM_LINES, data);
+const quoteLines = codecFromShape(QUOTE_LINES);
+
+/** The list item's write with every previous line read: the shipped writer's reference. */
 function rebuildItemReadingEveryLine(item: CstNode): boolean {
 	const meta = metadataOf(item, 'listItem');
 	const before = readItemShape(firstDisplayLine(item.raw).text);
@@ -113,9 +117,9 @@ function rebuildItemReadingEveryLine(item: CstNode): boolean {
 		marker: meta.marker ?? '- ',
 		taskMarker: meta.taskMarker ?? null
 	};
-	const lines = listItemLines(shape);
-	const previous = readEveryLine(before ? listItemLines(before) : lines);
-	return rebuildStripRaw(item, lines, { previous }).rereads;
+	const lines = itemLines(shape);
+	const previous = readEveryLine(before ? itemLines(before) : lines);
+	return rebuildStripRaw(item, lines, { grammar, previous }).rereads;
 }
 
 /** Every container rebuilt innermost first, as shipped or reading every line, and what each
@@ -125,12 +129,13 @@ function rebuildAll(nodes: readonly CstNode[], readingEveryLine: boolean): unkno
 		if (!node.children) return [];
 		const inner = rebuildAll(node.children, readingEveryLine);
 		let rereads: boolean | undefined;
-		if (!readingEveryLine) rereads = rebuildContainerRawIfContainer(node)?.rereads;
+		if (!readingEveryLine) rereads = writeContainerRaw(node, grammar)?.rereads;
 		else if (node.kind === 'blockquote') {
-			rereads = rebuildStripRaw(node, quoteLines, { previous: readEveryLine(quoteLines) }).rereads;
+			const previous = readEveryLine(quoteLines);
+			rereads = rebuildStripRaw(node, quoteLines, { grammar, previous }).rereads;
 		} else if (node.kind === 'listItem') rereads = rebuildItemReadingEveryLine(node);
 		else if (node.kind === 'list') rebuildConcatRaw(node);
-		else rereads = rebuildContainerRawIfContainer(node)?.rereads;
+		else rereads = writeContainerRaw(node, grammar)?.rereads;
 		return [...inner, node.raw, Array.from(node.childSpans ?? []), rereads];
 	});
 }

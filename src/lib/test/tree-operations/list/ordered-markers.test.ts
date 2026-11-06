@@ -10,6 +10,7 @@ import {
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { setPluginMetadata, type CstNode } from '#lib/core/nodes.js';
 import { bodyUnder } from '#lib/tree-operations/node-primitives.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 describe('ordered-markers reads', () => {
 	it('orderedBaseOf reads numeric prefix; defaults to 1', () => {
@@ -46,7 +47,7 @@ describe('a renumber rewrites the number and only the lines the new width leaves
 		['a tab continuation that still reads', '1. a\n\tb\n', 2, '2. a\n\tb\n']
 	])('%s', (_name, source, base, after) => {
 		const list = parse(source).children[0];
-		renumberOrderedListFrom(list, base, createSharingState());
+		renumberOrderedListFrom(list, base, createSharingState(), defaultGrammarView);
 		expect(list.children![0].raw).toBe(after);
 	});
 });
@@ -55,7 +56,7 @@ describe('a renumber rewrites the number and only the lines the new width leaves
 // reset item 0 to 1 went unasked.
 it('a renumber from index 0 keeps the first item’s number as the list’s start', () => {
 	const list = parse('8. a\n3. b\n').children[0];
-	renumberOrderedList(list, 0, createSharingState());
+	renumberOrderedList(list, 0, createSharingState(), defaultGrammarView);
 	expect(list.children!.map((item) => item.raw)).toEqual(['8. a\n', '9. b\n']);
 });
 
@@ -67,17 +68,17 @@ describe('a renumber touches only an ordered list', () => {
 		{
 			route: 'deleteNode',
 			removed: 1,
-			edit: (q: CstNode) => deleteNode(bodyUnder(q, '\n'), 0, sharing())
+			edit: (q: CstNode) => deleteNode(bodyUnder(q, '\n'), 0, sharing(), defaultGrammarView)
 		},
 		{
 			route: 'renumberOrderedList',
 			removed: 0,
-			edit: (q: CstNode) => renumberOrderedList(q, 1, sharing())
+			edit: (q: CstNode) => renumberOrderedList(q, 1, sharing(), defaultGrammarView)
 		},
 		{
 			route: 'renumberOrderedListFrom',
 			removed: 0,
-			edit: (q: CstNode) => renumberOrderedListFrom(q, 1, sharing())
+			edit: (q: CstNode) => renumberOrderedListFrom(q, 1, sharing(), defaultGrammarView)
 		}
 	])(
 		'$route leaves a plugin container whose metadata says ordered as it was',

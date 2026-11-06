@@ -47,6 +47,7 @@ import {
 	type KitCell
 } from './conformance-core';
 import { installOwnRaw } from '../tree-operations/node-primitives';
+import { writeContainerRaw } from '../schema/container-writer';
 import { defaultGrammarView, type BlockOpener, type OpenContext } from '../schema/block-openers';
 import { createHeadlessActions } from './headless-actions';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
@@ -238,9 +239,9 @@ function execRoundTrip(
 		ctx.fixture,
 		`serialize(parse(fixture)) round-trips for "${kind}"`
 	);
-	if (descriptor.rebuildRaw) {
-		const first = rebuildRawOf(ctx, descriptor);
-		const second = rebuildRawOf(ctx, descriptor);
+	if (descriptor.isContainer) {
+		const first = rebuildRawOf(ctx);
+		const second = rebuildRawOf(ctx);
 		assertIs(first, second, `"${kind}" rebuildRaw is deterministic`);
 		assertRebuildKeepsParsedBytes(descriptor, freshSubject(ctx), `"${kind}"`);
 		return 'byte round-trip + rebuildRaw parse-identity + determinism';
@@ -554,9 +555,9 @@ function freshSubject(ctx: KindCellContext): CstNode {
 	return subjectNode(parse(ctx.fixture), ctx.kind, ctx.nodePath, 'conformanceFixture');
 }
 
-function rebuildRawOf(ctx: KindCellContext, descriptor: BlockKindDescriptor): string {
+function rebuildRawOf(ctx: KindCellContext): string {
 	const node = freshSubject(ctx);
-	descriptor.rebuildRaw!(node);
+	writeContainerRaw(node, defaultGrammarView);
 	return node.raw;
 }
 

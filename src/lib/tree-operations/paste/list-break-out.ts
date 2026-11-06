@@ -188,14 +188,16 @@ export function buildListBreakOutReplacement(
 	const base = orderedBaseOf(items[0]);
 	const replacement: CstNode[] = [];
 	if (firstHalfItems.length > 0) {
-		replacement.push(assembleListHalf(list, firstHalfItems, base));
+		replacement.push(assembleListHalf(list, firstHalfItems, base, grammar));
 	}
 	for (const block of pastedBlocks) replacement.push(cloneNode(block));
 	const hasTrailingResidue = secondHalfItems.length > 0;
 	if (hasTrailingResidue) {
 		// Continue numbering across the paste gap: the split item consumes one slot in each
 		// half, so the second half starts past the first half's count.
-		replacement.push(assembleListHalf(list, secondHalfItems, base + firstHalfItems.length));
+		replacement.push(
+			assembleListHalf(list, secondHalfItems, base + firstHalfItems.length, grammar)
+		);
 	}
 
 	return { replacement, hasTrailingResidue };

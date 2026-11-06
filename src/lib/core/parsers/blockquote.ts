@@ -4,11 +4,10 @@
  */
 
 import { remapStrippedLines, type ParsedLine } from '../lines';
-import { joinRaw, parseBlocks, isBlankLine } from '../parser';
-import { INNER_LINE, opensOuterBlock, type LineCodec, type MarkedLines } from '../strip-lines';
+import { joinRaw, parseBlocks } from '../parser';
+import { codecFromShape, INNER_LINE, keepsParagraphOpen, type MarkedLines } from '../strip-lines';
 import {
 	defaultGrammarView,
-	lineInterruptsParagraph,
 	lineStartsOuterBlock,
 	type BlockOpenerResult,
 	type GrammarView
@@ -29,38 +28,13 @@ export const QUOTE_LINES: MarkedLines = {
 	lazy: true
 };
 
-/** A quote line: up to three spaces, `>`, then one optional space or tab; a line with no `>`
- *  is a lazy continuation. */
-export const quoteLines: LineCodec = {
-	read(line, place) {
-		const prefix = QUOTE_PREFIX.exec(line)?.[0];
-		if (prefix === undefined) {
-			return place.first || isBlankLine(line) ? null : { text: line, prefix: '', lazy: true };
-		}
-		return { text: line.slice(prefix.length), prefix, lazy: false };
-	},
-	write: (text) => (text === '' ? '>' : '> ' + text),
-	// The marker's one optional space is the space written, so any text after it reads back.
-	spells: (line, text) =>
-		text === ''
-			? line === '>'
-			: line.length === text.length + 2 &&
-				line[0] === '>' &&
-				line[1] === ' ' &&
-				line.slice(2) === text,
-	continuesLazily: (above, line) =>
-		wouldKeepParagraphOpen(above) && wouldKeepParagraphOpen(line) && !opensOuterBlock(line)
-};
+const quoteLines = codecFromShape(QUOTE_LINES);
 
 const stripBlockquotePrefix = (text: string): string => quoteLines.read(text, INNER_LINE)!.text;
 
 /** Lazy continuation extends only an open paragraph, not an open list or other container. */
-function wouldKeepParagraphOpen(strippedText: string): boolean {
-	if (isBlankLine(strippedText)) return false;
-	if (lineInterruptsParagraph(strippedText)) return false;
-	if (matchBlockquote(strippedText)) return false;
-	return true;
-}
+const wouldKeepParagraphOpen = (strippedText: string): boolean =>
+	keepsParagraphOpen(QUOTE_LINES, strippedText);
 
 /** Byte-exact `raw` of a blockquote's extent plus the index past it, with no child decomposition,
  *  for an opener that decomposes its own body (`> [!NOTE]`). The grammar defaults to every plugin. */

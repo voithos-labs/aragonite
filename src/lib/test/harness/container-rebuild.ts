@@ -2,7 +2,8 @@
 // the rebuild its hint the way the typing path does.
 
 import { makeBlockNode, type BlockMetadata, type CstNode } from '#lib/core/nodes.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 export const paragraph = (raw: string, leadingTrivia = ''): CstNode =>
 	makeBlockNode({ kind: 'paragraph', leadingTrivia, raw });
@@ -32,7 +33,7 @@ export function container(
 }
 
 export function rebuild(node: CstNode, changed?: { index: number; previousRaw: string }): void {
-	getBlockKindDescriptor(node.kind).rebuildRaw!(node, changed);
+	writeContainerRaw(node, defaultGrammarView, changed);
 }
 
 export function rewriteChild(node: CstNode, index: number, raw: string): void {

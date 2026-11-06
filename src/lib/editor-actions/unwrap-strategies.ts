@@ -41,7 +41,7 @@ async function deleteEmptyItem(
 		snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
 		mutate: (scope) => {
 			scope.describeEdit({ removed: true });
-			return performDelete(scope.body, itemIndex, scope.sharing);
+			return performDelete(scope.body, itemIndex, scope.sharing, deps.reading.grammar);
 		},
 		op: { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) },
 		landing: () => ({ path: extendDocPath(deps.path, landAt.item), offset: landAt.offset })
@@ -100,7 +100,7 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<boole
 		return deleteEmptyItem(strategy, 0, { item: 0, offset: CURSOR_START });
 	}
 	if (firstChildEmpty) return removeEmptiedContainer(deps, 'Backspace');
-	const replacement = unwrapFirstItemFromList(node);
+	const replacement = unwrapFirstItemFromList(node, deps.reading.grammar);
 	if (replacement.length === 0) return false;
 	// The caret sat in the first item, which an offset into the list can't name; the live read
 	// records it.

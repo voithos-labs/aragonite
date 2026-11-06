@@ -21,6 +21,7 @@ import { blockViewForm, domViewSpec, isBlockView, type BlockView } from './block
 import type { PluginActivation } from './plugin-activation';
 import type { RegistryRecord } from './plugin-registry';
 import type { BlockOpener } from './block-openers';
+import type { LineShape } from '../core/strip-lines';
 
 /**
  * The Backspace-merge roles (`docs/design/structural-edits.md` § Merge eligibility: roles, not pairs).
@@ -193,9 +194,9 @@ export interface BlockKindDescriptor {
 	bodyWrite?: WriteRule;
 	reservedChrome?: ReservedChrome;
 	containerPaste?: ContainerPaste;
-	/** How a strip container's lines carry its marker: on every line, or on the first with an indent
-	 *  after. `lazy` when a line without the marker still continues a paragraph inside it. */
-	lines?: { marker: 'every-line' | 'first-line'; lazy: boolean };
+	/** How the container's lines are written: the editor writes its bytes from this and its
+	 *  children, and reads its markers, lazy lines and contract from it. */
+	lines?: LineShape<unknown>;
 	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key).
 	 *  Quote and list repeat it in `containerPaste` until `tree-operations/paste/` reads this field. */
 	merges?: { key?: string };
@@ -327,33 +328,48 @@ export interface ContentStart {
 
 /** Container-only fields as one unit, so a leaf can't carry any of them. Each is documented on
  *  `BlockKindDescriptor`, the flat read shape this group normalizes into. */
-interface ContainerBase {
-	contract: 'strip' | 'grid' | 'opaque';
-	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
-	bodyWrap?: ContainerBodyWrap;
-	lastLineChild?: (node: NodeView) => number;
+interface ContainerFields {
 	containerPaste?: ContainerPaste;
-	lines?: BlockKindDescriptor['lines'];
 	merges?: BlockKindDescriptor['merges'];
 	contentStartSpace?: 'complete-marker';
 	reorderChildren?: ReorderChildrenRole;
 	bodyWrite?: WriteRule;
 }
 
-interface ContainerWithoutChrome extends ContainerBase {
-	reservedChrome?: never;
-	unwrapRole?: ContainerUnwrapRole;
+/** The editor writes the bytes from `lines`, which also gives the contract and the body wrap. */
+interface ShapedContainer extends ContainerFields {
+	lines: LineShape<unknown>;
+	contract?: never;
+	rebuildRaw?: never;
+	bodyWrap?: never;
+	lastLineChild?: never;
 }
 
+/** The kind's own rebuild writes the bytes: a list, a table, a kind registered with one. */
+interface RebuiltContainer extends ContainerFields {
+	contract: 'strip' | 'grid' | 'opaque';
+	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
+	bodyWrap?: ContainerBodyWrap;
+	lastLineChild?: (node: NodeView) => number;
+	lines?: never;
+}
+
+type ContainerBase = ShapedContainer | RebuiltContainer;
+
+type ContainerWithoutChrome = ContainerBase & {
+	reservedChrome?: never;
+	unwrapRole?: ContainerUnwrapRole;
+};
+
 /** Backspace at a title row's start never lifts it out, so only the middle strategy is declared. */
-interface ContainerWithChrome extends ContainerBase {
+type ContainerWithChrome = ContainerBase & {
 	reservedChrome: ReservedChrome;
 	unwrapRole?: {
 		/** Implied: Backspace at the start of the title row keeps it. */
 		firstChildBackspace?: never;
 		middleChildBackspace: ContainerUnwrapRole['middleChildBackspace'];
 	};
-}
+};
 
 export type ContainerDescriptorGroup = ContainerWithChrome | ContainerWithoutChrome;
 
@@ -663,8 +679,10 @@ function normalizeRegistration(registration: BuiltinRegistration): BlockKindDesc
 		...flat,
 		...containerFields,
 		isContainer: true,
-		containerContract: contract
+		containerContract: container.lines ? contractOf(container.lines) : contract
 	};
+	const wrap = container.lines && bodyWrapOf(container.lines);
+	if (wrap) descriptor.bodyWrap = wrap;
 	// A title row implies its first-child strategy; the read shape spells it out for the dispatch.
 	if (container.reservedChrome) {
 		descriptor.unwrapRole = {
@@ -673,6 +691,19 @@ function normalizeRegistration(registration: BuiltinRegistration): BlockKindDesc
 		};
 	} else if (container.unwrapRole) descriptor.unwrapRole = container.unwrapRole;
 	return descriptor;
+}
+
+/** A marked or indented shape writes its markers on the body's own lines; the others write lines of
+ *  their own around the body. */
+function contractOf(lines: LineShape<unknown>): 'strip' | 'opaque' {
+	return lines.shape === 'marked' || lines.shape === 'indented' ? 'strip' : 'opaque';
+}
+
+/** The blank lines next to a shape's own lines that are the container's, not the body's. */
+function bodyWrapOf(lines: LineShape<unknown>): ContainerBodyWrap | undefined {
+	if (lines.shape === 'indented') return undefined;
+	if (lines.shape === 'marked') return lines.head ? { afterOpenerLine: true } : undefined;
+	return { afterOpenerLine: true, beforeCloserLine: true };
 }
 
 // A JavaScript caller or a cast gets past the augment types. Presence alone refuses, since an

@@ -12,19 +12,13 @@ import { SOURCE, SOURCE_DIR } from './source-paths';
 /** The rebuilds that name no kind: one node, one node's ancestry, a copied chain. */
 const KIND_FREE = [
 	'rebuildContainerRaw',
-	'rebuildContainerRawIfContainer',
+	'writeContainerRaw',
 	'rebuildAncestryRaw',
 	'rebuildOwnedContainer'
 ];
 
 /** The built-in rebuilders the registration read below must find. */
-const BUILT_IN_REBUILDERS = [
-	'rebuildTableRaw',
-	'rebuildTableRowRaw',
-	'rebuildListRaw',
-	'rebuildListItemRaw',
-	'rebuildBlockquoteRaw'
-];
+const BUILT_IN_REBUILDERS = ['rebuildTableRaw', 'rebuildTableRowRaw', 'rebuildListRaw'];
 
 /** Where the rebuilds themselves live. */
 const HOMES = [SOURCE_DIR.schema, SOURCE.chainRebuild, SOURCE.unshare];
@@ -62,22 +56,19 @@ const PINNED: Record<string, Pin> = {
 		why: 'rebuilds a clone of the dragged cell’s table to measure the cut'
 	},
 	'src/lib/testing/container-conformance.ts': {
-		calls: {
-			rebuildContainerRawIfContainer: 1,
-			'.rebuildRaw': 9
-		},
+		calls: { writeContainerRaw: 10 },
 		why: 'the conformance kit drives rebuilds directly, outside any commit'
 	},
 	'src/lib/testing/kind-conformance.ts': {
-		calls: { '.rebuildRaw': 1 },
+		calls: { writeContainerRaw: 1 },
 		why: 'the kind kit rebuilds a parsed fixture, outside any commit'
 	},
 	'src/lib/testing/conformance-core.ts': {
-		calls: { '.rebuildRaw': 1 },
+		calls: { writeContainerRaw: 1 },
 		why: 'the shared kit check rebuilds a parsed fixture, outside any commit'
 	},
 	'src/lib/selection/clipboard-text.ts': {
-		calls: { '.rebuildRaw': 1 },
+		calls: { writeContainerRaw: 1 },
 		why: 'a copy writes each container it enters or leaves around what it copied, a node no commit has seen'
 	},
 	'src/lib/tree-operations/blockquote.ts': {
@@ -93,15 +84,15 @@ const PINNED: Record<string, Pin> = {
 		why: 'a reparse that backfilled an empty container, a new node below the scope'
 	},
 	'src/lib/tree-operations/list/list-builders.ts': {
-		calls: { rebuildListItemRaw: 3, rebuildListRaw: 1 },
+		calls: { writeContainerRaw: 3, rebuildListRaw: 1 },
 		why: 'builds new items and list halves, nodes no commit has seen, and rewrites a new item whose first line widens its marker or opens below an empty one'
 	},
 	'src/lib/tree-operations/list/ordered-markers.ts': {
-		calls: { rebuildListItemRaw: 4 },
+		calls: { writeContainerRaw: 4 },
 		why: 'a renumber rewrites items below the scope, keeping each line its new number still reads'
 	},
 	'src/lib/tree-operations/list/task-paragraph.ts': {
-		calls: { rebuildListItemRaw: 1 },
+		calls: { writeContainerRaw: 1 },
 		why: 'a trial item, read back once and dropped'
 	},
 	'src/lib/tree-operations/list/unwrap-merge.ts': {
@@ -123,6 +114,10 @@ const PINNED: Record<string, Pin> = {
 	'src/lib/tree-operations/sub-table-copy.ts': {
 		calls: { rebuildTableRaw: 1 },
 		why: 'builds the table a rectangular copy writes'
+	},
+	'src/lib/invariants/node-shape.ts': {
+		calls: { writeContainerRaw: 1 },
+		why: 'G1.13 writes a trial copy twice to compare the bytes, a node no commit has seen'
 	},
 	'packages/mermaid/src/mermaid-kind.ts': {
 		calls: { rebuildMermaidRaw: 1 },

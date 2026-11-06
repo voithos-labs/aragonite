@@ -111,7 +111,7 @@ export function rebuildUnsharedChain(
 			child && childPreviousRaw !== undefined
 				? childRawChange(node, child, childPreviousRaw, hint?.path[i + 1])
 				: undefined;
-		const rereads = rebuildOwnedContainer(node, changed)?.rereads ?? false;
+		const rereads = rebuildOwnedContainer(node, grammar, changed)?.rereads ?? false;
 		if (hint) childPreviousRaw = i === chain.length - 1 ? hint.leafPreviousRaw : rawBefore;
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);

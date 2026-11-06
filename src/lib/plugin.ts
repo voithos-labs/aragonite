@@ -265,14 +265,13 @@ export { htmlBlockTagLineMatcher } from './core/parsers/html-block';
 // construct (`> [!NOTE]`) reuses CommonMark §5.1 lazy continuation instead of writing its own.
 export { blockquoteExtent } from './core/parsers/blockquote';
 
-// ── Line-prefixed container rebuild (pre-freeze) ─────────────────────────────
-// A container whose every line carries a prefix rebuilds through `rebuildStripRaw`, which keeps
-// every line an edit didn't touch; a `LineCodec` (`quoteLines`, `hangingIndentLines`) is the prefix.
-export { rebuildStripRaw } from './schema/strip-rebuild';
-export type { StripRebuild, StripRebuildOptions } from './schema/strip-rebuild';
-export { quoteLines } from './core/parsers/blockquote';
-export { hangingIndentLines } from './core/strip-lines';
-export type { LineCodec, LinePlace, BodyLine } from './core/strip-lines';
+// ── Container line shapes (pre-freeze) ───────────────────────────────────────
+// A container states how its lines look as `container.lines`, and the editor writes its bytes from
+// that. `stripShapedLines` reads an opener's lines the same way, until the editor parses them itself.
+export { QUOTE_LINES } from './core/parsers/blockquote';
+export { stripShapedLines } from './core/strip-lines';
+export type { LineShape, MarkedLines, IndentedLines } from './core/strip-lines';
+export type { StripRebuild } from './schema/strip-rebuild';
 
 // ── CST node access (pre-freeze; the metadata pair below is stable) ──────────
 export type { CstNode } from './core/nodes';

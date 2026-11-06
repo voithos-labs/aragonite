@@ -100,18 +100,18 @@ const throwProbePlugin = definePlugin({
 });
 
 let orphanKind: PluginBlockKind | undefined;
-let quoteRebuildThrows = false;
-let quoteThrowProbeInstalled = false;
+let listRebuildThrows = false;
+let listThrowProbeInstalled = false;
 
-// The blockquote's own rebuild, wrapped once per page to throw while the probe is on.
-const quoteThrowProbePlugin = definePlugin({
-	name: 'quote-throw-probe',
+// The list's own rebuild, wrapped once per page to throw while the probe is on.
+const listThrowProbePlugin = definePlugin({
+	name: 'list-throw-probe',
 	setup() {
-		const original = tryGetBlockKindDescriptor('blockquote')!.rebuildRaw!;
-		augmentBuiltin('blockquote', {
+		const original = tryGetBlockKindDescriptor('list')!.rebuildRaw!;
+		augmentBuiltin('list', {
 			container: {
 				rebuildRaw: (...args: Parameters<typeof original>) => {
-					if (quoteRebuildThrows) throw new Error('probe rebuildRaw blew up');
+					if (listRebuildThrows) throw new Error('probe rebuildRaw blew up');
 					return original(...args);
 				}
 			}
@@ -533,14 +533,14 @@ export function installTestProbes({
 			node.kind = kind;
 			doc.children = [...doc.children];
 		},
-		// A blockquote whose rebuild throws, as a broken plugin container's would, until it is
-		// turned off; a keystroke inside one rolls back.
-		throwOnQuoteRebuild: (on: boolean): void => {
-			if (on && !quoteThrowProbeInstalled) {
-				installPlugins([quoteThrowProbePlugin]);
-				quoteThrowProbeInstalled = true;
+		// A list whose rebuild throws, as a broken plugin container's would, until it is turned
+		// off; a keystroke inside one rolls back.
+		throwOnListRebuild: (on: boolean): void => {
+			if (on && !listThrowProbeInstalled) {
+				installPlugins([listThrowProbePlugin]);
+				listThrowProbeInstalled = true;
 			}
-			quoteRebuildThrows = on;
+			listRebuildThrows = on;
 		},
 		// A component that throws during render reaches BlockHost's <svelte:boundary>
 		// failed-snippet path.

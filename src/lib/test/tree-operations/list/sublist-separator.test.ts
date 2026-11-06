@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { settleSublistSeparator } from '#lib/tree-operations/list/sublist-separator.js';
-import { rebuildListItemRaw } from '#lib/schema/container-rebuilders.js';
+
 import type { CstNode } from '#lib/core/nodes.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // The blank line a sublist needs wherever a paragraph above would swallow its first line, across
 // every such line rather than the one shape the Enter+Tab test reaches.
@@ -30,7 +32,7 @@ describe('settleSublistSeparator', () => {
 		settleSublistSeparator(item.children!, 1);
 		expect(separatorOf(item)).toBe('\n');
 
-		rebuildListItemRaw(item);
+		writeContainerRaw(item, defaultGrammarView);
 		expect(item.raw).toBe('- x\n\n  - \n');
 	});
 
@@ -86,7 +88,7 @@ describe('settleSublistSeparator', () => {
 	it('leaves bytes that reparse to the tree they were written from', () => {
 		const item = itemWithSublist('x\n', '- \n');
 		settleSublistSeparator(item.children!, 1);
-		rebuildListItemRaw(item);
+		writeContainerRaw(item, defaultGrammarView);
 
 		const reparsed = parse(item.raw).children[0].children![0];
 		expect(reparsed.children!.map((c) => c.kind)).toEqual(['paragraph', 'list']);

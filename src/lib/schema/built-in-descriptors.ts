@@ -12,9 +12,9 @@ import { containerClosure, type ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import { registerBuiltinBlockKind } from './block-kind-descriptor';
 import { BUILT_IN_OPENERS } from '../core/parsers/built-in-openers';
+import { QUOTE_LINES } from '../core/parsers/blockquote';
+import { LIST_ITEM_LINES } from '../core/parsers/list';
 import {
-	rebuildBlockquoteRaw,
-	rebuildListItemRaw,
 	rebuildListRaw,
 	rebuildTableRaw,
 	rebuildTableRowRaw,
@@ -553,10 +553,8 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		container: {
-			contract: 'strip',
-			rebuildRaw: rebuildBlockquoteRaw,
+			lines: QUOTE_LINES,
 			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
-			lines: { marker: 'every-line', lazy: true },
 			merges: {},
 			unwrapRole: {
 				firstChildBackspace: 'lift-first-child-drop-opener',
@@ -567,7 +565,7 @@ function registerBuiltIns(): void {
 		},
 		conformanceFixture: '> quoted\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=strip — rebuildBlockquoteRaw',
+			roundTripVia: 'container lines — the quote shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks into the first child' },
 			mergeBackspace: {
 				mode: 'implemented',
@@ -629,11 +627,7 @@ function registerBuiltIns(): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		container: {
-			contract: 'strip',
-			rebuildRaw: rebuildListItemRaw,
-			lines: { marker: 'first-line', lazy: true }
-		},
+		container: { lines: LIST_ITEM_LINES },
 		keymap: [
 			{ chord: 'Tab', command: 'list.indent' },
 			{ chord: 'Shift+Tab', command: 'list.unindent' },
@@ -641,7 +635,7 @@ function registerBuiltIns(): void {
 		],
 		conformanceFixture: '- item\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=strip — rebuildListItemRaw',
+			roundTripVia: 'container lines — the list item shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks into the first child' },
 			mergeBackspace: {
 				mode: 'implemented',

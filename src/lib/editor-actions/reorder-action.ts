@@ -99,7 +99,7 @@ export function createReorderAction(
 				landedAt = moved.landing;
 				settled = scope.describeEdit({ moved: { to: landedAt, uncovered: moved.uncovered } });
 				// Only an ordered list renumbers; any other container keeps its children as moved.
-				renumberOrderedListFrom(scope.node, start, scope.sharing);
+				renumberOrderedListFrom(scope.node, start, scope.sharing, deps.reading.grammar);
 				return moved.change;
 			},
 			landing: landing(unit.parentPath),

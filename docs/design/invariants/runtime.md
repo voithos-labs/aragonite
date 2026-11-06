@@ -143,7 +143,7 @@ These checks run in three kinds of place:
 
 **G1.12 · Opaque container raw not stale.** An opaque container's raw reparses to children that byte-match the live ones (chrome compared by position for `reservedChrome` declarers), every metadata key equal (`metadata-parity.ts`), so a rebuild that skips the re-read fires at the next commit. Raw no longer reading as one block of its kind fires for a kind with an opener or directive, and is skipped otherwise. `checkOpaqueStaleRaw` (`node-shape.ts`) · commit primitive · `opaque-contract.test.ts`, `opaque-stale-raw-directive.test.ts`, `opaque-stale-metadata.test.ts`.
 
-**G1.13 · Opaque rebuild determinism.** `rebuildRaw` is deterministic over committed state, checked probe-vs-probe: run it twice, require the same bytes. Predicate `checkOpaqueRebuildDeterminism` (`node-shape.ts`) · commit primitive · `opaque-rebuild-determinism.test.ts`.
+**G1.13 · Opaque rebuild determinism.** An opaque container's writer (its line shape's, or its own `rebuildRaw`) is deterministic over committed state, checked probe-vs-probe: run it twice, require the same bytes. Predicate `checkOpaqueRebuildDeterminism` (`node-shape.ts`) · commit primitive · `opaque-rebuild-determinism.test.ts`.
 
 **G1.14 · Reserved-chrome slot.** A container with a title row holds a leaf of the row's kind at child 0: the kind its `reservedChrome` declares, or `directiveOpenerLine` for a `:::` container, whose row must also hold the container's first line byte for byte. Other kinds are exempt. Predicate `checkReservedChromeSlot` (`node-shape.ts`) · commit primitive · `reserved-chrome-slot.test.ts`.
 

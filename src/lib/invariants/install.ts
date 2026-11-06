@@ -44,7 +44,9 @@ export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): vo
 	for (const node of nodes) {
 		assertInvariant('stale-raw', () => checkStaleRaw(node, grammar));
 		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node, grammar));
-		assertInvariant('opaque-rebuild-determinism', () => checkOpaqueRebuildDeterminism(node));
+		assertInvariant('opaque-rebuild-determinism', () =>
+			checkOpaqueRebuildDeterminism(node, grammar)
+		);
 		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));

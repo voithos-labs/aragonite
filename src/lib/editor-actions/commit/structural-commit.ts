@@ -276,7 +276,7 @@ export function createStructuralCommit(
 								}
 							: null
 					);
-					rebuildOwnedContainer(node);
+					rebuildOwnedContainer(node, deps.reading.grammar);
 				},
 				describeEdit: (edit) => {
 					prepared.edit = { ...prepared.edit, ...edit };

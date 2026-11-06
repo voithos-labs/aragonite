@@ -12,6 +12,7 @@ import {
 	describeConvergence
 } from '#lib/test/harness/parse-converged.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
 
 // The check on the check. Using the parse comparison wherever a round-trip proves nothing is only
 // sound if it catches the live-tree-versus-raw differences bytes cannot see and stays green on the
@@ -35,7 +36,7 @@ describe('parseConverges on the empty-paragraph shapes the editor reaches', () =
 			[emptyParagraph()],
 			fixtureGrammar
 		);
-		const list = assembleListHalf(listTemplate, [emptyItem], 1);
+		const list = assembleListHalf(listTemplate, [emptyItem], 1, defaultGrammarView);
 		expect(list.raw).toBe('- \n');
 		expect(parseConverges(docOf([list]))).toBe(true);
 	});

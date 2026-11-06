@@ -29,6 +29,7 @@ import {
 	type BlockKindDescriptor
 } from '../schema/block-kind-descriptor';
 import type { Reading } from '../schema/reading';
+import { writeContainerRaw } from '../schema/container-writer';
 import { bytesLeavingLeaf } from '../tree-operations/leaf-range';
 import { storedAsAt } from '../tree-operations/stored-as';
 
@@ -63,8 +64,8 @@ export function collectCrossBlockText(
 
 // ── The slice ──────────────────────────────────────────────────────────────
 
-/** What the range covers of any node, a container written around its covered children by its own
- *  rebuild (`docs/design/selection.md` § Clipboard). */
+/** What the range covers of any node, a container written around its covered children by the
+ *  container writer (`docs/design/selection.md` § Clipboard). */
 function createRangeSlice(doc: DocumentView, coverage: RangeCoverage, reading: Reading) {
 	const { start, end } = coverage.range;
 	const ending = documentLineEnding(doc);
@@ -168,7 +169,7 @@ function createRangeSlice(doc: DocumentView, coverage: RangeCoverage, reading: R
 			innerSuffix: exited ? (node.innerSuffix ?? '') : '',
 			children
 		});
-		descriptor.rebuildRaw?.(synthetic);
+		writeContainerRaw(synthetic, reading.grammar);
 		// A closer the range never reached ends the copy without a line ending, as any end does.
 		return exited ? synthetic.raw : trimTrailingLineEnding(synthetic.raw);
 	}
@@ -177,7 +178,7 @@ function createRangeSlice(doc: DocumentView, coverage: RangeCoverage, reading: R
 	 *  one only where the range covers its opening line, so no closer stands without its opener. */
 	function wrapping(container: NodeView, path: number[]): BlockKindDescriptor | null {
 		const descriptor = tryGetBlockKindDescriptor(container.kind);
-		if (!descriptor?.rebuildRaw) return null;
+		if (!descriptor?.isContainer) return null;
 		if (descriptor.containerContract === 'strip') return descriptor;
 		if (descriptor.containerContract !== 'opaque') return null;
 		if (reservedChromeKindOf(container.kind) === undefined) return null;

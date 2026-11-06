@@ -40,7 +40,7 @@ describe('list-builders', () => {
 				fixtureGrammar
 			)
 		];
-		const half = assembleListHalf(tplList, items, 5);
+		const half = assembleListHalf(tplList, items, 5, defaultGrammarView);
 		expect(half.children![0].metadata).toMatchObject({ marker: '5. ' });
 		expect(half.children![1].metadata).toMatchObject({ marker: '6. ' });
 	});
@@ -59,7 +59,7 @@ describe('list-builders', () => {
 				fixtureGrammar
 			)
 		];
-		const half = assembleListHalf(tplList, items, 7);
+		const half = assembleListHalf(tplList, items, 7, defaultGrammarView);
 		expect(half.children![0].metadata).toMatchObject({ marker: '- ' });
 		expect(half.children![1].metadata).toMatchObject({ marker: '- ' });
 	});

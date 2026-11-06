@@ -21,7 +21,7 @@ describe('a scope splice whose settle folds', () => {
 		const sharing = createSharingState();
 		writtenBelow(doc, (scope) => scope.splice([0], 1, 1, []), defaultGrammarView, sharing);
 		// The function splices and fixes up; rebuilding the container's own bytes is its caller's job.
-		rebuildOwnedContainer(quote);
+		rebuildOwnedContainer(quote, defaultGrammarView);
 
 		expect(serialize(doc)).toBe('> a\n> b\n');
 		expect(describeConvergence(doc)).toBeNull();

@@ -137,8 +137,7 @@ A container declares its container-only fields as one `container` group, and `is
 ```ts
 // schema/built-in-descriptors.ts
 container: {
-	contract: 'strip',
-	rebuildRaw: rebuildBlockquoteRaw,
+	lines: QUOTE_LINES,
 	containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
 	unwrapRole: {
 		firstChildBackspace: 'lift-first-child-drop-opener',
@@ -149,11 +148,11 @@ container: {
 },
 ```
 
-`contract` and `rebuildRaw` are the two the group can't do without, since together they say how the container re-derives its own bytes from its children. Which of `'strip'`, `'grid'` and `'opaque'` yours is, and what each promises, is `docs/design/syntax-tree.md` § The container contract. The one thing it asks of a built-in specifically is that an opaque `rebuildRaw` be deterministic, since a dev check runs it twice and compares.
+The group has to say how the container's bytes come from its children, one of two ways. Most containers give their `lines`, a line shape the editor writes the bytes from (the quote's `QUOTE_LINES` above, the list item's `LIST_ITEM_LINES`). A list or a table, whose lines aren't a marker and an indent, gives a `contract` and a `rebuildRaw` of its own instead. What `'strip'`, `'grid'` and `'opaque'` each promise is `docs/design/syntax-tree.md` § The container contract (a shape picks its own). Either way an opaque container's writer has to be deterministic, since a dev check runs it twice and compares.
 
 Where the code behind the fields lives, for when yours needs a new one:
 
-- `rebuildRaw` implementations: `schema/container-rebuilders.ts`.
+- Line shapes and the one writer for them: `core/strip-lines.ts`, `schema/container-writer.ts`. The list's and the table's own rebuilds: `schema/container-rebuilders.ts`.
 - `unwrapRole` strategies: `editor-actions/unwrap-strategies.ts`.
 - `reorderChildren`: `tree-operations/reorder-unit.ts`.
 - A `rawWrite` rule to copy: the fenced code's, `schema/fenced-code-raw.ts`.

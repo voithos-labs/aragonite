@@ -283,7 +283,7 @@ describe('a container built from another keeps its source’s bytes', () => {
 
 	it('a list exit keeps the items it leaves', () => {
 		const list = parse('- a\n\tb\n- \n- c\n').children[0];
-		const { blocks } = buildExitReplacement(list, 1, '\n');
+		const { blocks } = buildExitReplacement(list, 1, '\n', defaultGrammarView);
 		expect([blocks[0].raw, blocks.at(-1)!.raw]).toEqual(['- a\n\tb\n', '- c\n']);
 	});
 });

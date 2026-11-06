@@ -587,12 +587,10 @@ _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the bor
 | `RefSlots` | The per-child reference accessors the child-list props carry |
 | `ChildList` | A container's children as the editor walks down to one: their references, their render window, and whether the body is collapsed. `containerApi.childList()` returns it; the factory builds yours, so you'd only write one for a hand-rolled container |
 | `ChromeLeafOptions` | `registerChromeLeaf`'s options: the name a screen reader and the block menu give the line, a CSS class for styling it, keymap overrides, the merge role |
-| [`rebuildStripRaw`](#rebuildstripraw) | Your `rebuildRaw` for a container that puts a prefix on every line |
-| `StripRebuild` | What `rebuildStripRaw` returns: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole. Your `rebuildRaw` returns it as it came |
-| `StripRebuildOptions` | `rebuildStripRaw`'s last argument: the `changed` hint, the `previous` codec when your metadata changed the prefix, and an `opener` line |
-| `quoteLines` | The codec for `>`-prefixed lines, the one the built-in blockquote uses |
-| [`hangingIndentLines`](#hangingindentlines) | Build the codec for a container written like a list item |
-| [`LineCodec`, `LinePlace`, `BodyLine`](#linecodec-lineplace-bodyline) | What a codec is, if neither of the two fits |
+| [`LineShape`, `MarkedLines`, `IndentedLines`](#lineshape-markedlines-indentedlines) | How your container's lines look, as data on `container.lines`. The editor writes the bytes from it, so there's no `rebuildRaw` to write |
+| `QUOTE_LINES` | The built-in quote's lines, to build yours on (an alert is a quote with a head line) |
+| `stripShapedLines` | Your opener's lines read the way the editor writes them, so the two can't disagree. It goes away once the editor parses a shaped container itself |
+| `StripRebuild` | What a `rebuildRaw` may return: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole |
 
 #### `ContainerBlock`, `ContainerBlockComponent`
 
@@ -639,72 +637,32 @@ What you get back:
 - `canWrite()`, to ask before the draft's commit, since a `source` swap or a write to those bytes drops it.
 - `end()`, once it closes or your block unmounts.
 
-#### `rebuildStripRaw`
+#### `LineShape`, `MarkedLines`, `IndentedLines`
 
 ```ts
-function rebuildStripRaw(node: CstNode, lines: LineCodec, options?: StripRebuildOptions): StripRebuild;
+container: { lines: LineShape<YourMetadata> }
 ```
 
-Your `rebuildRaw` for a container that puts a prefix on every line (a quote's `>`, a footnote's indent). It rebuilds the bytes from the children and keeps every line the edit didn't touch, as the author spelled it. Pass:
+Say how your container's lines look and the editor writes them for you. It keeps every line an edit didn't touch the way the author spelled it, and writes new lines your way. A container with `lines` declares no `contract`, `rebuildRaw` or `bodyWrap`, since the shape already says them.
 
-- the codec (`quoteLines`, `hangingIndentLines`, or your own `LineCodec`);
-- the `changed` hint `rebuildRaw` got;
-- `opener`, for a line above the body that holds none of it (an alert's `> [!NOTE]`).
+- `marked`: a marker on every line, like a quote's `>`. `first` and `rest` are what it writes; `reads` is how a marker reads back, and it has to read `first` and `rest` whole. `lazy` says a line without the marker can still continue a paragraph. A `head` is a first line that holds no child (an alert's `> [!NOTE]`): `match` reads it after the marker, `data` turns the match into your metadata, `write` spells it back.
+- `indented`: a marker on the first line and an indent after, like a footnote. `open` reads the marker, `data` turns the match into your metadata, `first(data)` writes the marker back, and `rest(data)` is the indent. It's spaces only, and its width is the column the body starts at (a tab counts to the next multiple of four, same as the parser).
 
-Return what it returns. The bundled alert's whole rebuild:
+The editor writes with your kind's metadata, so store what `data` returns as the metadata. The bundled footnote definition, whole:
 
 ```ts
-function rebuildGithubAlertRaw(node: CstNode, changed?: ChildRawChange) {
-	const alertType = getPluginMetadata<GithubAlertMetadata>(node)?.alertType ?? 'NOTE';
-	return rebuildStripRaw(node, quoteLines, { changed, opener: `> [!${alertType}]` });
-}
+const DEFINITION_LINES: IndentedLines<{ label: string }> = {
+	shape: 'indented',
+	open: /^ {0,3}\[\^([^\]]+)\]: ?/,
+	data: (match) => ({ label: match[1] }),
+	first: (data) => `[^${data.label}]: `,
+	rest: () => '    ',
+	lazy: true
+};
+// in the opener: setPluginMetadata(node, { label }), and the body read with
+// stripShapedLines(DEFINITION_LINES, { label }, lines)
+registerBlockKind(kind, { ..., container: { lines: DEFINITION_LINES } });
 ```
-
-#### `hangingIndentLines`
-
-```ts
-function hangingIndentLines(shape: {
-	opener: string;
-	column: number;
-	readOpener: (line: string) => string | null;
-	continuesLazily?: LineCodec['continuesLazily'];
-}): LineCodec;
-```
-
-Builds the codec for a container written like a list item: `opener` starts the first line, and every other line is indented `column` columns.
-
-- `readOpener` says how the parser reads the first line's marker back (any spelling it accepts).
-- `continuesLazily` is the parser's lazy-line rule, CommonMark's by default.
-
-```ts
-const footnote = hangingIndentLines({
-	opener: '[^1]: ',
-	column: 4,
-	readOpener: (line) => (line.startsWith('[^1]: ') ? '[^1]: ' : null)
-});
-footnote.write('first', { first: true, trailingBlank: false }); // '[^1]: first'
-footnote.write('second', { first: false, trailingBlank: false }); // '    second'
-```
-
-#### `LineCodec`, `LinePlace`, `BodyLine`
-
-```ts
-interface LineCodec {
-	read(line: string, place: LinePlace): BodyLine | null;
-	write(text: string, place: LinePlace): string;
-	spells(line: string, text: string, place: LinePlace): boolean;
-	continuesLazily(above: string, line: string, aboveFirst: boolean): boolean;
-}
-```
-
-What a codec is, if neither of the two fits:
-
-- `read` reads a line into the body line it holds (a `BodyLine`).
-- `write` writes one back.
-- `spells` is a cheap is-this-already-it check.
-- `continuesLazily` is the lazy-line rule.
-
-`LinePlace` says whether the line opens the container or sits in the blank run that ends it. Read the line the same way your parser strips it, or the rebuild respells lines it should have kept.
 
 ### Editable-leaf authoring
 

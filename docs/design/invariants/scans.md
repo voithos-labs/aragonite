@@ -230,6 +230,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.295 | The range-edit law harness imports only the routes and reads it names | L |
 | G4.296 | Whether a selection is held is asked of the editor's selection before the browser's, in one module | L |
 | G4.303 | Every block kind's cut, copy and paste facts agree with its registration and its own parse | harness |
+| G4.305 | Every container is written through `writeContainerRaw` | L |
 
 ### The entries
 
@@ -669,3 +670,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.296 · Whether a selection is held is asked in one place.** While the editor holds a range or a widget, the browser's selection is a caret, so a read of the browser's alone takes the user's selection for none, and a menu's Cut and Copy go dark over a range across blocks. `selection/held-selection.ts` asks the editor's selection first, and only it reads `holdsNativeRange` and `nativeRangeIn`, anywhere in the library. `file-rules.test.ts`.
 
 **G4.303 · Block facts agree with the registrations.** `schema/block-facts.ts :: blockFacts` gives a kind's cut, copy and paste facts as data. With every bundled plugin installed, each one must equal what the registration already says (`bodyWrap`, `mergeRole`, `mustHoldChild`, the title row, a DOM view's surface), and the test writes out only what nothing else states. Every container has a line shape, and a merge key names a field the kind's own parse sets, or every pair would merge. When it fires, fix the kind's declaration. `test/schema/block-facts.test.ts`.
+
+**G4.305 · One way to write a container.** `schema/container-writer.ts :: writeContainerRaw` writes every container's bytes, from the kind's line shape (`container.lines`) or through a list's, a table's or an old-style registration's own `rebuildRaw`. So no other file reads `.rebuildRaw`, and only the writer calls the writer a fenced or colon shape carries (`WRITES_LINES`). The conformance kits under `src/lib/testing/` are allowed to read `rebuildRaw` until they check plugin shapes instead. `lint/container-writer-home.test.ts`.

@@ -29,15 +29,24 @@ interface Exemption {
 /** Publishing the entry point an entry waits on empties that entry, and a dead one fails below. */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
-		specifiers: ['#lib/schema/block-kind-descriptor.js'],
-		reason: 'no registry read-back: a kind can be registered and probed, never read back'
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/block-openers.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
+	},
+	'src/lib/test/plugins/admonitions/github-alert-round-trip.test.ts': {
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/block-openers.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
+	},
+	'src/lib/test/plugins/footnotes/definition-container.test.ts': {
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/block-openers.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/admonitions/fence-escalation.test.ts': {
 		specifiers: [
 			'#lib/schema/block-kind-descriptor.js',
 			'#lib/invariants/node-shape.js',
 			'#lib/tree-operations/sharing.js',
-			'#lib/tree-operations/chain-rebuild.js'
+			'#lib/tree-operations/chain-rebuild.js',
+			'#lib/schema/block-openers.js'
 		],
 		reason:
 			'no registry read-back, the opaque stale-raw / rebuild-determinism predicates are off the ' +
@@ -150,11 +159,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'#lib/tree-operations/index.js',
 			'#lib/tree-operations/sharing.js',
-			'#lib/testing/parse-convergence.js'
+			'#lib/testing/parse-convergence.js',
+			'#lib/schema/container-writer.js',
+			'#lib/schema/block-openers.js'
 		],
 		reason:
 			'nothing published splits a parsed document (nor makes the sharing state the split takes), ' +
-			'and no published parse convergence'
+			'no published parse convergence, and nothing published writes a container from its line ' +
+			'shape outside a commit'
 	},
 	'src/lib/test/plugins/footnotes/numbering-incremental.test.ts': {
 		specifiers: [

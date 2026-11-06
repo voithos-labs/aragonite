@@ -6,23 +6,34 @@ import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import type { EditorError } from '#lib/editor-events.js';
 import { isCommitInProgress } from '#lib/commit-scope.js';
-import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { augmentBuiltin } from '#lib/schema/block-kind-descriptor.js';
+import { QUOTE_LINES } from '#lib/core/parsers/blockquote.js';
+import type { MarkedLines } from '#lib/core/strip-lines.js';
 import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
-const originalQuoteRebuild = tryGetBlockKindDescriptor('blockquote')!.rebuildRaw!;
-afterEach(() => {
-	augmentBuiltin('blockquote', { container: { rebuildRaw: originalQuoteRebuild } });
-});
+const THROWN = 'the quote writer blew up';
+
+/** The quote's lines, every marker throwing when the writer reads it. */
+const THROWING_LINES: MarkedLines = {
+	...QUOTE_LINES,
+	get first(): string {
+		throw new Error(THROWN);
+	},
+	get rest(): string {
+		throw new Error(THROWN);
+	},
+	get reads(): RegExp {
+		throw new Error(THROWN);
+	}
+};
+
+const restoreQuoteWriter = () =>
+	augmentBuiltin('blockquote', { container: { lines: QUOTE_LINES } });
+afterEach(restoreQuoteWriter);
 
 function throwOnQuoteRebuild(): void {
-	augmentBuiltin('blockquote', {
-		container: {
-			rebuildRaw: () => {
-				throw new Error('plugin rebuildRaw blew up');
-			}
-		}
-	});
+	augmentBuiltin('blockquote', { container: { lines: THROWING_LINES } });
 }
 
 function quoteHarness(source = '> ab\n') {
@@ -45,7 +56,7 @@ describe('a keystroke whose ancestor rebuild throws', () => {
 		const version = h.contentVersion();
 		throwOnQuoteRebuild();
 
-		await expect(typeX(h)).rejects.toThrow('plugin rebuildRaw blew up');
+		await expect(typeX(h)).rejects.toThrow(THROWN);
 
 		expect(serialize(h.deps.doc)).toBe('> ab\n');
 		expect((h.getNode().children![0] as CstNode).raw).toBe('ab\n');
@@ -67,7 +78,7 @@ describe('a keystroke whose ancestor rebuild throws', () => {
 
 		await expect(
 			h.bundle.blockEdit.updateBlockContent(1, '  b\n', 'authored', 'join-typing', 0)
-		).rejects.toThrow('plugin rebuildRaw blew up');
+		).rejects.toThrow(THROWN);
 
 		expect(serialize(h.deps.doc)).toBe(MERGES);
 		expect(blocks()).toEqual(before);
@@ -87,7 +98,7 @@ describe('a keystroke whose ancestor rebuild throws', () => {
 		const h = quoteHarness();
 		throwOnQuoteRebuild();
 		await expect(typeX(h)).rejects.toThrow();
-		augmentBuiltin('blockquote', { container: { rebuildRaw: originalQuoteRebuild } });
+		restoreQuoteWriter();
 
 		await typeX(h);
 

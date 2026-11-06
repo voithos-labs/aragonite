@@ -14,6 +14,7 @@ import {
 	type MergeRole
 } from './block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from './reserved-chrome';
+import type { LineShape } from '../core/strip-lines';
 
 export interface BlockFacts {
 	/** It holds blocks a caret enters; a container focused as one unit doesn't. */
@@ -46,7 +47,7 @@ export function blockFacts(kind: string): BlockFacts {
 	return {
 		container,
 		lines,
-		lazyParagraphLines: container && (descriptor?.lines?.lazy ?? false),
+		lazyParagraphLines: container && lazyLines(descriptor?.lines),
 		merges: container ? mergesOf(kind, descriptor, lines) : { into: [], onMismatch: 'nest' },
 		countsMarkers: lines === 'items',
 		...(titleRow
@@ -87,7 +88,12 @@ function linesOf(kind: string, descriptor: BlockKindDescriptor | undefined): Blo
 	const builtIn = BUILT_IN_LINES[kind];
 	if (builtIn) return builtIn;
 	if (descriptor?.bodyWrap?.beforeCloserLine) return 'fenced';
-	return descriptor?.lines?.marker ?? 'none';
+	const shape = descriptor?.lines?.shape;
+	return shape === 'marked' ? 'every-line' : shape === 'indented' ? 'first-line' : 'none';
+}
+
+function lazyLines(lines: LineShape<unknown> | undefined): boolean {
+	return (lines?.shape === 'marked' || lines?.shape === 'indented') && lines.lazy;
 }
 
 function mergesOf(

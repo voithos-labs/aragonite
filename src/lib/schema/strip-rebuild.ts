@@ -5,6 +5,7 @@
  */
 
 import type { CstNode } from '../core/nodes';
+import type { GrammarView } from './block-openers';
 import { perfEnabled, recordStripLinesRead } from '../perf/instruments';
 import { concatChildren } from '../core/serializer';
 import {
@@ -35,6 +36,8 @@ export interface StripRebuild {
 }
 
 export interface StripRebuildOptions {
+	/** The grammar the bytes are read under, which decides whether a line still continues lazily. */
+	grammar: GrammarView;
 	/** The child whose bytes changed and what they were, so only its lines are written. */
 	changed?: ChildRawChange;
 	/** The syntax the previous bytes were written in, when the container's metadata changed it. */
@@ -49,9 +52,9 @@ export interface StripRebuildOptions {
 export function rebuildStripRaw(
 	node: CstNode,
 	lines: LineCodec,
-	{ changed, previous = lines, opener }: StripRebuildOptions = {}
+	{ grammar, changed, previous = lines, opener }: StripRebuildOptions
 ): StripRebuild {
-	if (opener === undefined) return rebuildStripBody(node, lines, changed, previous);
+	if (opener === undefined) return rebuildStripBody(node, lines, changed, previous, grammar);
 	const raw = node.raw;
 	const marker = lineAt(raw, 0);
 	const markerEnd = marker.text.length + marker.ending.length;
@@ -60,7 +63,7 @@ export function rebuildStripRaw(
 	// The body is rebuilt as if it started the bytes, its child spans moved to match.
 	node.raw = raw.slice(head);
 	moveSpans(node, -head);
-	const outcome = rebuildStripBody(node, lines, changed, previous);
+	const outcome = rebuildStripBody(node, lines, changed, previous, grammar);
 	const ending = marker.ending || (firstLineEnding(node.raw) ?? '\n');
 	const above = opener + ending + (blank.kept ?? blank.written);
 	node.raw = above + node.raw;
@@ -96,18 +99,19 @@ function rebuildStripBody(
 	node: CstNode,
 	lines: LineCodec,
 	changed: ChildRawChange | undefined,
-	previous: LineCodec
+	previous: LineCodec,
+	grammar: GrammarView
 ): StripRebuild {
 	// Written whole, since the region and line-by-line writes give an empty body no line at all.
-	if (bodyHasNoBytes(node)) return rebuildWholeStrip(node, lines, previous);
+	if (bodyHasNoBytes(node)) return rebuildWholeStrip(node, lines, previous, grammar);
 	if (changed && previous === lines) {
 		const outcome = { rereads: false };
 		const rewrite: RegionRewrite = (region, at) => {
-			const written = rewriteStripRegion(region, at, changed, lines);
+			const written = rewriteStripRegion(region, at, changed, lines, grammar);
 			outcome.rereads = written?.rereads ?? false;
 			return written?.out ?? null;
 		};
-		const full = (scratch: CstNode) => rebuildStripBody(scratch, lines, undefined, lines);
+		const full = (scratch: CstNode) => rebuildStripBody(scratch, lines, undefined, lines, grammar);
 		if (spliceChildRegion(node, changed, rewrite) && spliceIsFaithful(node, full)) return outcome;
 	}
 
@@ -124,7 +128,7 @@ function rebuildStripBody(
 
 	// A child ending mid-line shares that line with whatever follows, so its lines can't be told
 	// apart from the next child's: the whole body is written as one text.
-	if (opensMidLine(children, suffix)) return rebuildWholeStrip(node, lines, previous);
+	if (opensMidLine(children, suffix)) return rebuildWholeStrip(node, lines, previous, grammar);
 
 	const raw = node.raw;
 	const spans = new Uint32Array(children.length * 2);
@@ -132,10 +136,11 @@ function rebuildStripBody(
 	const keeps = previous === lines;
 	const head = keeps ? keptHead(raw, children, lines, spans) : NO_HEAD;
 	let tail = keeps && suffix === '' ? keptTail(raw, children, lines, head) : noTail(raw, children);
-	let rest = writeBetween(raw, children, suffix, lines, previous, head, tail, tailIsBlank);
+	const syntax = { lines, previous, grammar };
+	let rest = writeBetween(raw, children, suffix, syntax, head, tail, tailIsBlank);
 	if (rest === null) {
 		tail = noTail(raw, children);
-		rest = writeBetween(raw, children, suffix, lines, previous, head, tail, tailIsBlank)!;
+		rest = writeBetween(raw, children, suffix, syntax, head, tail, tailIsBlank)!;
 	}
 	// The kept tail's bytes move by however much the lines above it grew or shrank.
 	const shift = head.rawEnd + rest.out.length - tail.rawStart;
@@ -154,8 +159,7 @@ function writeBetween(
 	raw: string,
 	children: CstNode[],
 	suffix: string,
-	lines: LineCodec,
-	previous: LineCodec,
+	{ lines, previous, grammar }: { lines: LineCodec; previous: LineCodec; grammar: GrammarView },
 	head: KeptHead,
 	tail: KeptTail,
 	tailIsBlank: (i: number) => () => boolean
@@ -180,7 +184,7 @@ function writeBetween(
 
 	const old = readOldLines(raw.slice(head.rawEnd, tail.rawStart), previous, head.rawEnd === 0);
 	if (tail.first && runsIntoTail(old, fresh, tail.first)) return null;
-	const written = writeLines(old, fresh, lines, head.above);
+	const written = writeLines(old, fresh, lines, grammar, head.above);
 	return { ...written, bounds };
 }
 
@@ -416,13 +420,18 @@ function lineAt(text: string, start: number): { text: string; ending: string } {
 	return { text: text.slice(start, crlf ? breakAt - 1 : breakAt), ending: crlf ? '\r\n' : '\n' };
 }
 
-function rebuildWholeStrip(node: CstNode, lines: LineCodec, previous: LineCodec): StripRebuild {
+function rebuildWholeStrip(
+	node: CstNode,
+	lines: LineCodec,
+	previous: LineCodec,
+	grammar: GrammarView
+): StripRebuild {
 	const fresh: BodyLineOut[] = [];
 	pushLines(fresh, concatChildren(node.children!) + (node.innerSuffix ?? ''), true, () => true);
 	// An empty body still sits on the container's opening line, which holds its marker; with no
 	// line written, a reload reads no container at all.
 	if (fresh.length === 0) fresh.push({ text: '', ending: '', place: FIRST_LINE });
-	const written = writeLines(readOldLines(node.raw, previous, true), fresh, lines);
+	const written = writeLines(readOldLines(node.raw, previous, true), fresh, lines, grammar);
 	node.childSpans = undefined;
 	node.raw = written.out;
 	return { rereads: written.rereads };
@@ -552,6 +561,7 @@ function writeLines(
 	old: OldLine[],
 	fresh: BodyLineOut[],
 	lines: LineCodec,
+	grammar: GrammarView,
 	above?: KeptLine
 ): { out: string; offsets: number[]; rereads: boolean } {
 	let head = 0;
@@ -604,7 +614,7 @@ function writeLines(
 			((oldAbove !== undefined &&
 				bodyOf(oldAbove)?.text === freshAbove.text &&
 				old[i].text === lazyLine) ||
-				lines.continuesLazily(freshAbove.text, lazyLine, freshAbove.place.first));
+				lines.continuesLazily(freshAbove.text, lazyLine, freshAbove.place.first, grammar));
 		const bytes: string =
 			(paired !== null ? kept(paired, line, place, lines, continues, reread) : null) ??
 			lines.write(line.text, line.place) + line.ending;
@@ -671,7 +681,8 @@ function rewriteStripRegion(
 	region: string,
 	at: RegionAt,
 	changed: ChildRawChange,
-	lines: LineCodec
+	lines: LineCodec,
+	grammar: GrammarView
 ): { out: string; rereads: boolean } | null {
 	const before: BodyLineOut[] = [];
 	pushChildLines(before, at.trivia, changed.previousRaw, at.first, at);
@@ -685,5 +696,5 @@ function rewriteStripRegion(
 	}
 	const fresh: BodyLineOut[] = [];
 	pushChildLines(fresh, at.trivia, at.child.raw, at.first, at);
-	return writeLines(old, fresh, lines);
+	return writeLines(old, fresh, lines, grammar);
 }
