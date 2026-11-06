@@ -188,7 +188,7 @@ test("the cell menu's Paste of copied cells over the range replaces it, as Ctrl+
 	};
 	await selectAcross();
 	await editor.paste();
-	await expect.poll(() => editor.bridge.getSource()).not.toBe(doc);
+	await editor.bridge.waitForSourceContains('X');
 	const chord = await editor.bridge.getSource();
 	await editor.undo();
 	await editor.bridge.waitForSourceEquals(doc);
