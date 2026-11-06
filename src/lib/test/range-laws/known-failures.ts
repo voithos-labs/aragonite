@@ -39,6 +39,15 @@ const words = (text: string) =>
 		.replace(/(^|\n)[ \t>]*(?:\d{1,9}[.)])?/g, '$1')
 		.replace(/[^\p{L}\p{N}]/gu, '');
 
+/** The same text, the containers' line markers and spacing aside: unlike `sameWords`, a lost
+ *  emphasis mark or table pipe still shows. */
+const sameBesideMarkers = (got: string, wanted: string) => unmarked(got) === unmarked(wanted);
+
+const unmarked = (text: string) =>
+	text
+		.replace(/(^|\n)(?:[ \t>]|[-*+](?=[ \t])|\d{1,9}[.)](?=[ \t]|$))*/g, '$1')
+		.replace(/\s+/g, '');
+
 /** The same characters in another order, whitespace aside. */
 const sameCharacters = (got: string, wanted: string) => characters(got) === characters(wanted);
 
@@ -349,12 +358,12 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		}
 	},
 	{
-		issue: 'new: copy-leaving-a-quote',
+		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'a copy that starts inside a quote and leaves it writes the quote’s marker on the start line it starts past, and drops the markers before the end',
+			'a copy that starts inside a quote and leaves it writes the markers of the start line it starts past, and drops the markers before the end',
 		lines: /^L10 \[[^|\]]*\| [^\]]*blockquote>paragraph → /,
-		keeps: sameWords,
+		keeps: sameBesideMarkers,
 		repro: {
 			law: 'L10',
 			args: [
