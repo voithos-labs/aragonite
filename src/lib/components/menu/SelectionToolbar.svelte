@@ -1,11 +1,13 @@
 <script lang="ts">
 	/**
 	 * The editor's own formatting popover over a selection: a row of marks, then labelled rows
-	 * for what acts on the whole selection. Built on the public API a host's toolbar would use
+	 * for what acts on the whole selection, and a spelling row when the selection is one misspelled
+	 * word. Built on the public API a host's toolbar would use
 	 * (`selectionChange`, the rect API, `runCommand`), so the consumer-guide recipe matches it; only
 	 * the heading flyout's close goes through the editor's menu presence.
 	 */
 	import type { EditorInstance } from '../../editor-props';
+	import type { Misspelling } from '../../spell/spell-state.svelte';
 	import type { EditorSelection } from '../../selection/primitives';
 	import { normalize as normalizeSelection } from '../../selection/primitives';
 	import { SELECTION_END } from '../../block-component';
@@ -26,6 +28,7 @@
 		| 'canRunCommand'
 		| 'isCommandActive'
 		| 'getEvents'
+		| 'getSpellcheck'
 	>;
 
 	// The bar: the three marks and the link. Beneath it, as rows: the heading picker, inline code
@@ -76,17 +79,57 @@
 	} = $props();
 
 	let turnIntoOpen = $state(false);
+	let spellingOpen = $state(false);
 	let blockKind = $state<string | null>(null);
 	let placement = $state<Placement | null>(null);
 	let declined = $state<ReadonlySet<string>>(new Set());
 	let active = $state<ReadonlySet<string>>(new Set());
-	let current: EditorSelection | null = null;
+	let current = $state<EditorSelection | null>(null);
 	let barEl: HTMLDivElement | undefined = $state();
 
 	// A labelled row the editor refuses is dropped, where a mark only dims: the icons keep the
 	// bar's shape, while a row that does nothing is noise over a selection it cannot act on.
 	const rows = $derived(ROWS.filter((row) => !declined.has(row.command)));
 	const offersHeading = $derived(!declined.has(TURN_INTO_COMMAND));
+
+	// The misspelled word the selection covers exactly, re-read as verdicts land. A rectangle in a
+	// table holds cell indices, which name no word.
+	const spelling = $derived.by((): Misspelling | null => {
+		if (!current) return null;
+		const { start, end } = normalizeSelection(current);
+		if ('cellCoordinate' in start || 'cellCoordinate' in end) return null;
+		if (start.path.join('.') !== end.path.join('.')) return null;
+		const word = editor.getSpellcheck().misspellingAt(start.path, start.offset);
+		return word && word.start === start.offset && word.end === end.offset ? word : null;
+	});
+	// Fetched as soon as the word is known, so the flyout opens filled; cached per word by the editor.
+	let suggestions = $state<readonly string[] | null>(null);
+	$effect(() => {
+		const word = spelling?.word;
+		suggestions = null;
+		spellingOpen = false;
+		if (word === undefined) return;
+		void editor
+			.getSpellcheck()
+			.suggestionsFor(word)
+			.then((list) => {
+				if (spelling?.word === word) suggestions = list;
+			});
+	});
+
+	function pickSuggestion(word: string): void {
+		const target = spelling;
+		spellingOpen = false;
+		if (!target) return;
+		void editor.getSpellcheck().replace(target, word);
+		placement = null;
+	}
+
+	function addToDictionary(): void {
+		const target = spelling;
+		spellingOpen = false;
+		if (target) void editor.getSpellcheck().addWord(target.word);
+	}
 
 	interface Placement {
 		x: number;
@@ -269,6 +312,7 @@
 	// button. A refused run means what the bar assumed has changed, so the bar hides.
 	function fire(command: string, arg?: unknown): void {
 		turnIntoOpen = false;
+		spellingOpen = false;
 		if (!editor.runCommand(command, arg)) placement = null;
 	}
 </script>
@@ -283,7 +327,10 @@
 		role="toolbar"
 		aria-label={SELECTION_TOOLBAR_LABEL}
 		tabindex="-1"
-		onpointerleave={() => (turnIntoOpen = false)}
+		onpointerleave={() => {
+			turnIntoOpen = false;
+			spellingOpen = false;
+		}}
 	>
 		<div class="selection-toolbar-marks">
 			{#each MARKS as button (button.command)}
@@ -302,11 +349,92 @@
 			{/each}
 		</div>
 		<div class="md-menu-divider" aria-hidden="true"></div>
+		{#if spelling}
+			<div
+				class="selection-toolbar-row"
+				role="presentation"
+				onpointerenter={() => {
+					spellingOpen = true;
+					turnIntoOpen = false;
+				}}
+			>
+				<button
+					type="button"
+					class="md-menu-item"
+					data-testid="toolbar-spelling"
+					aria-haspopup="menu"
+					aria-expanded={spellingOpen}
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => (spellingOpen = !spellingOpen)}
+				>
+					<span class="md-menu-icon"><MenuIcon name="spell-check" size={14} /></span>
+					<span class="selection-toolbar-label">Spelling</span>
+					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+				</button>
+				{#if spellingOpen}
+					<div
+						class="md-menu selection-toolbar-spelling-flyout"
+						role="menu"
+						{@attach keepFlyoutOnScreen}
+					>
+						{#if suggestions === null}
+							<button
+								type="button"
+								class="md-menu-item"
+								role="menuitem"
+								disabled
+								onmousedown={(e) => e.preventDefault()}
+							>
+								<span class="selection-toolbar-label">Finding suggestions…</span>
+							</button>
+						{:else if suggestions.length === 0}
+							<button
+								type="button"
+								class="md-menu-item"
+								role="menuitem"
+								disabled
+								onmousedown={(e) => e.preventDefault()}
+							>
+								<span class="selection-toolbar-label">No suggestions</span>
+							</button>
+						{:else}
+							{#each suggestions.slice(0, 5) as word (word)}
+								<button
+									type="button"
+									class="md-menu-item"
+									role="menuitem"
+									data-testid="toolbar-spelling-suggestion"
+									onmousedown={(e) => e.preventDefault()}
+									onclick={() => pickSuggestion(word)}
+								>
+									<span class="selection-toolbar-label">{word}</span>
+								</button>
+							{/each}
+						{/if}
+						{#if editor.getSpellcheck().canAddWord}
+							<button
+								type="button"
+								class="md-menu-item"
+								role="menuitem"
+								data-testid="toolbar-spelling-add"
+								onmousedown={(e) => e.preventDefault()}
+								onclick={addToDictionary}
+							>
+								<span class="selection-toolbar-label">Add to dictionary</span>
+							</button>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{/if}
 		{#if offersHeading}
 			<div
 				class="selection-toolbar-row"
 				role="presentation"
-				onpointerenter={() => (turnIntoOpen = true)}
+				onpointerenter={() => {
+					turnIntoOpen = true;
+					spellingOpen = false;
+				}}
 			>
 				<button
 					type="button"
@@ -420,7 +548,8 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.selection-toolbar-flyout {
+	.selection-toolbar-flyout,
+	.selection-toolbar-spelling-flyout {
 		position: absolute;
 		left: 100%;
 		top: -4px;

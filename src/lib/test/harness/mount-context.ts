@@ -100,6 +100,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		selection,
 		rangeCoverage: () => null,
 		search: {} as EditorServices['search'],
+		spell: {} as EditorServices['spell'],
 		caretMemory: makeCaretMemory(),
 		drawnCaret: bareDrawnCaret(),
 		// Real and uninstalled: no root listens for a dropped composition in a bare mount.
@@ -164,6 +165,7 @@ function stubbedPolicies(): EditorPolicies {
 		onPasteImage: () => undefined,
 		onRunCode: () => undefined,
 		codeMenuItems: () => undefined,
+		nativeSpellcheck: () => false,
 		brokenImageUrls: new Set<string>()
 	};
 }

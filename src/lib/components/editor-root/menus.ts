@@ -1,15 +1,16 @@
 /**
  * Editor-root menus: the block context menu (a right-click on a block runs its kind's registered
- * actions; prose and a selection get the clipboard rows, and prose an insert flyout; over a link
- * or a widget that goes somewhere, an "Edit link" row first). The open menu is `$state` in
- * `Editor.svelte`, written through `setMenu`; a menu takes no focus, so the caret it acts on
- * stays exactly where it is.
+ * actions; prose and a selection get the clipboard rows, prose an insert flyout, a link an "Edit
+ * link" row first, and a misspelled word its suggestions before everything). The open menu is
+ * `$state` in `Editor.svelte`, written through `setMenu`; a menu takes no focus, so the caret it
+ * acts on stays exactly where it is.
  */
 
 import type { BlockEditActions } from '../../action-contracts';
-import { BLOCK_ACTIONS_LABEL } from '../../a11y-strings';
+import { BLOCK_ACTIONS_LABEL, SPELLING_MENU_LABEL } from '../../a11y-strings';
 import type { NodeView } from '../../core/node-views';
 import type { DocumentGetter } from '../../editor-keys';
+import type { BlockElLookup } from '../../caret/block-el-lookup';
 import type { InsertMarkdownOptions } from '../../editor-props';
 import type { PresentationMode } from '../../presentation-mode';
 import {
@@ -31,6 +32,7 @@ import { rangeCoversPoint } from '../../selection/cross-block/pointer';
 import { holdsNativeRange, nativeRangeIn } from '../../browser/selection-read';
 import { documentLineEnding } from '../../core/lines';
 import { stampWrites, type DocumentStamps } from '../../editor-actions/commit/document-stamp';
+import type { Misspelling, SpellcheckState } from '../../spell/spell-state.svelte';
 
 export interface BlockMenuModel {
 	x: number;
@@ -71,14 +73,36 @@ export interface RootMenusDeps {
 	/** Whether Mod+K at the caret would edit something, and doing it: the "Edit link" row. */
 	canEditLinkAtCaret(): boolean;
 	editLinkAtCaret(): void;
+	/** The misspelled word under the caret the right-click placed, or null. */
+	misspellingAtCaret(): Misspelling | null;
+	/** The spell check's suggestions and writes for that word. */
+	spelling: Pick<
+		SpellcheckState,
+		'peekSuggestions' | 'suggestionsFor' | 'replace' | 'canAddWord' | 'addWord'
+	>;
+	/** The menu showing now, so suggestions that arrive late fill only the menu they were asked for. */
+	getMenu(): BlockMenuModel | null;
 	setMenu(menu: BlockMenuModel | null): void;
+	/** The block a hover's menu anchors to, so it follows the word through a scroll. */
+	getBlockElByPath: BlockElLookup;
+}
+
+/** A spelling menu once opened; `isOpen` goes false when any route closes it. */
+export interface SpellingMenuHandle {
+	isOpen(): boolean;
+	close(): void;
 }
 
 export interface RootMenus {
 	onRootContextMenu(event: MouseEvent): void;
+	/** The suggestions alone, under a hovered word's rect (viewport coordinates). */
+	openSpellingMenu(misspelling: Misspelling, anchor: DOMRect): SpellingMenuHandle;
 }
 
 const EDIT_LINK = 'link.edit';
+const ADD_WORD = 'spell.add';
+const SUGGESTION = 'spell.';
+const MAX_SUGGESTION_ROWS = 5;
 
 const isBlockHost = (node: EventTarget): node is HTMLElement =>
 	node instanceof HTMLElement && node.matches('.block-host[data-block-path]');
@@ -125,10 +149,84 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		return true;
 	}
 
+	/** The rows over a misspelled word: its suggestions (a dimmed row while they are fetched, or
+	 *  when there are none), then "Add to dictionary" where the checker takes words. */
+	function spellingRows(suggestions: readonly string[] | null, divider: boolean): MenuEntry[] {
+		const rows: MenuEntry[] =
+			suggestions === null
+				? [{ id: 'spell.pending', label: 'Finding suggestions…', disabled: true }]
+				: suggestions.length === 0
+					? [{ id: 'spell.none', label: 'No suggestions', disabled: true }]
+					: suggestions
+							.slice(0, MAX_SUGGESTION_ROWS)
+							.map((word, i) => ({ id: `${SUGGESTION}${i}`, label: word }));
+		if (deps.spelling.canAddWord) {
+			rows.push({ id: ADD_WORD, label: 'Add to dictionary' });
+		}
+		if (divider) rows.push({ id: 'sep-spell', label: '', divider: true });
+		return rows;
+	}
+
+	/** Runs a spelling row's pick; false for an id that is not one. */
+	function pickSpelling(
+		misspelling: Misspelling,
+		suggestions: readonly string[] | null,
+		id: string
+	): boolean {
+		if (id === ADD_WORD) {
+			void deps.spelling.addWord(misspelling.word);
+			return true;
+		}
+		if (!id.startsWith(SUGGESTION)) return false;
+		const word = suggestions?.[Number(id.slice(SUGGESTION.length))];
+		if (word !== undefined) void deps.spelling.replace(misspelling, word);
+		return true;
+	}
+
+	/** Shows `model` now, then again once the suggestions arrive, unless another menu replaced it
+	 *  (told apart by the anchor: the open menu is read back through a state proxy, not by identity). */
+	function showWithSuggestions(
+		misspelling: Misspelling,
+		anchor: () => Point,
+		model: (suggestions: readonly string[] | null) => BlockMenuModel
+	): void {
+		const cached = deps.spelling.peekSuggestions(misspelling.word);
+		deps.setMenu(model(cached));
+		if (cached !== null) return;
+		void deps.spelling.suggestionsFor(misspelling.word).then((suggestions) => {
+			if (deps.getMenu()?.anchor === anchor) deps.setMenu(model(suggestions));
+		});
+	}
+
+	function openSpellingMenu(misspelling: Misspelling, rect: DOMRect): SpellingMenuHandle {
+		const point = { x: rect.left, y: rect.bottom + 4 };
+		const anchorEl = deps.getBlockElByPath(misspelling.path) ?? deps.editorEl ?? document.body;
+		const anchor = anchorOn(anchorEl, point);
+		const model = (suggestions: readonly string[] | null): BlockMenuModel => ({
+			...point,
+			anchor,
+			items: spellingRows(suggestions, false),
+			label: SPELLING_MENU_LABEL,
+			pick: (id) => {
+				deps.setMenu(null);
+				pickSpelling(misspelling, suggestions, id);
+			}
+		});
+		showWithSuggestions(misspelling, anchor, model);
+		const isOpen = () => deps.getMenu()?.anchor === anchor;
+		return {
+			isOpen,
+			close: () => {
+				if (isOpen()) deps.setMenu(null);
+			}
+		};
+	}
+
 	/** `withInsert` adds the "Insert block" flyout, whose rows land below the block the caret was
 	 *  just placed in; false leaves the menu to the clipboard rows alone. */
 	function openClipboardMenu(point: Point, anchorEl: Element, withInsert: boolean): void {
 		const catalogue = deps.insertCatalogue();
+		const misspelling = deps.misspellingAtCaret();
 		const editLink: MenuEntry[] = deps.canEditLinkAtCaret()
 			? [
 					{ id: EDIT_LINK, label: 'Edit link', icon: 'link' },
@@ -146,19 +244,28 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 						children: catalogue.map(({ id, label, icon }) => ({ id, label, icon }))
 					}
 				];
-		deps.setMenu({
+		const anchor = anchorOn(anchorEl, point);
+		const model = (suggestions: readonly string[] | null): BlockMenuModel => ({
 			...point,
-			anchor: anchorOn(anchorEl, point),
-			items: [...editLink, ...clipboardRows(), ...insert],
+			anchor,
+			items: [
+				...(misspelling ? spellingRows(suggestions, true) : []),
+				...editLink,
+				...clipboardRows(),
+				...insert
+			],
 			label: BLOCK_ACTIONS_LABEL,
 			pick: (id) => {
 				deps.setMenu(null);
+				if (misspelling && pickSpelling(misspelling, suggestions, id)) return;
 				if (id === EDIT_LINK) return deps.editLinkAtCaret();
 				if (runClipboardRow(id)) return;
 				const entry = catalogue.find((e) => e.id === id);
 				if (entry && withInsert) void deps.insertMarkdown(entry.markdown, { placement: 'below' });
 			}
 		});
+		if (misspelling) showWithSuggestions(misspelling, anchor, model);
+		else deps.setMenu(model(null));
 	}
 
 	function openBlockActions(point: Point, host: HTMLElement, path: number[], node: NodeView): void {
@@ -236,5 +343,5 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		openBlockActions(point, host, path, node);
 	}
 
-	return { onRootContextMenu };
+	return { onRootContextMenu, openSpellingMenu };
 }

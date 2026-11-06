@@ -40,6 +40,15 @@ export type { LinkClick } from './activation-click';
 export type { SearchState, SearchOptions } from './search/search-state.svelte';
 export type { Match } from './search/document-scan';
 
+// ── Spell check ──────────────────────────────────────────────────────────────
+
+// The `spellcheck` and `spellChecker` props, `editor.getSpellcheck()`, and the built-in English
+// checker a host can configure with its own saved words.
+export type { SpellChecker, SpellcheckMode } from './spell/types';
+export type { SpellcheckState, Misspelling } from './spell/spell-state.svelte';
+export { createEnglishSpellChecker } from './spell/english/english-checker';
+export type { EnglishSpellCheckerOptions } from './spell/english/english-checker';
+
 // ── Plugins ────────────────────────────────────────────────────────────────────
 
 // installPlugins is for editor-less `parse()` pipelines that need the grammar live

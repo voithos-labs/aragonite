@@ -240,6 +240,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | **Plugins** | `installPlugins`, `EditorPlugin`, `EditorPluginEntry` | A parse-only pipeline with no editor mounted; the unit a plugin exports, and one `plugins` entry (a bare unit, or `{ plugin, options }`) |
 | **Selection and commands** | `EditorSelection`, `SelectionPoint`, `normalizeSelection`, `TOOLBAR_COMMANDS` | What `getSelection()` returns, its two endpoints put in document order, and the command ids a formatting toolbar runs through `runCommand()` |
 | **Search** | `SearchState`, `SearchOptions`, `Match` | The find/replace controller `getSearch()` returns, its options, and one hit |
+| **Spell check** | `SpellChecker` and `SpellcheckMode` (the checker hook and the mode prop), `SpellcheckState` and `Misspelling` (the controller the instance hands back, and the word it names), and `createEnglishSpellChecker` with its `EnglishSpellCheckerOptions`, the built-in checker with your own saved words |
 | **Decorations** | `DecorationRegistry`, `DecorationSource`, `Decoration` | What `getDecorations()` returns, a source you add to it, and the union a source produces |
 | **Plugin views** | `PluginView`, `PluginViewHandle` | The shape a decoration widget and an inline menu row draw with (a function that fills an element the editor makes); `/svelte`'s `svelteView()` makes one from a component |
 | **Rects** | `EditorRects`, `SELECTION_END`, `SelectionEnd` | What `getRects()` returns, and the value its range calls take as "through the end of the block" |
@@ -269,6 +270,8 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | `onPasteImage` | Import hook for a paste that carries image files: you store them, and return the Markdown that stands in (see [Image paste](#image-paste)) |
 | `onRunCode` | Execution hook for code blocks: installing it adds a run button to each code block (see [Running a code block](#running-a-code-block)) |
 | `codeMenuItems` | Overflow-menu hook for code blocks, asked for its items each time a block's menu opens (see [Running a code block](#running-a-code-block)) |
+| `spellcheck` | Who underlines misspelled words: `'on'` (default) is the editor's own checker, with suggestions in the right-click menu and the selection toolbar; `'native'` is the browser's, underlines only; `'off'` is neither (see [Spell check](#spell-check)) |
+| `spellChecker` | Your own checker in place of the built-in English one: a hunspell in your shell, a service, another language (see [Spell check](#spell-check)) |
 | `header` | Your own UI above the first block, rendered inside the editor's scroll container (see [The header slot](#the-header-slot)) |
 | `scrollMode` | `'self'` (default: the editor scrolls itself) or `'host'` (an ancestor of yours scrolls it; see [Host scroll mode](#host-scroll-mode)) |
 | `blockDragHandles` | The block drag handle, revealed on hover and shown outright on touch (default on; reading mode hides it). Only blocks you'd pick up whole carry one (code, tables, equations, diagrams, pictures, list items in a list of two or more, dividers, cards), never prose. `false` removes them, except on a picture; keyboard reorder (Alt+Arrow) always works |
@@ -277,11 +280,11 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | `selectionToolbar` | The built-in formatting popover over a selection: the marks, the link, a heading picker, inline code and copy (default on; reading mode never shows it; see [Recipe: a selection toolbar](consumer-guide/recipes.md#recipe-a-selection-toolbar)) |
 | `placeholder` | Faint text an empty block shows until something's typed: a string for an empty document, or a function asked about each empty block (see [A hint in an empty block](#a-hint-in-an-empty-block)) |
 
-**Set once at mount:** `scrollMode`, `plugins`, and `syntax`. A later value is ignored, so set them at mount and leave them.
+**Set once at mount:** `spellChecker`, `scrollMode`, `plugins`, and `syntax`. A later value is ignored, so set them at mount and leave them.
 
 **Hooks:** `onPasteImage`, `onRunCode`, `codeMenuItems`, and `onLinkActivate` can be swapped, added or dropped after mount, and the editor always calls the one you passed last. Same for `resolveImageUrl` and `resolveLinkUrl`, with one catch: they run when a block renders, so an image or link already on screen keeps its URL until its block renders again.
 
-**Read live:** `theme`, `caret`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `placeholder`, `presentationMode`, `linkClick`, `keybindings`, and `imageLoadPolicy` may change after mount, and so may `header`.
+**Read live:** `theme`, `caret`, `spellcheck`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `placeholder`, `presentationMode`, `linkClick`, `keybindings`, and `imageLoadPolicy` may change after mount, and so may `header`.
 
 ### Loading another document
 
@@ -749,6 +752,48 @@ The editor runs nothing. `onRunCode` is the hook that says your app can: install
 ```
 
 `codeMenuItems` is the same idea for the rail's overflow menu. It is consulted each time a menu opens, so an item can read live state (a `disabled` item renders dimmed and refuses activation), and a host answering nothing renders no menu at all: the editor has no app-level actions of its own to put there. Neither hook reaches the document: a run is not an edit, fires no `edit` event, and creates no undo entry. Writing a result back into the document is an `insertMarkdown` or a `source` rewrite of your own.
+
+### Spell check
+
+Misspelled words in prose get a red wave, and the editor offers to fix them: rest the pointer on the word for a moment and a small menu of its suggestions opens under it, right-click it and the same rows lead the menu, or select exactly the word and the selection toolbar grows a "Spelling" row with the same list. From the keyboard, the `decorations.activateAtCaret` command opens the menu for the word at the caret. Picking one rewrites the word as a single undo entry; "Add to dictionary" stops the underline for that word. Code blocks, equations, inline code, URLs and HTML are never checked, nor is the word the caret is still typing. This is the default: nothing to install, since an English dictionary ships with the editor and loads on the first check (about 600 KB, in a chunk of its own, so an editor that never shows prose never fetches it).
+
+```svelte
+<Editor {source} spellcheck="native" />  <!-- the browser's checker: underlines, no menu rows -->
+<Editor {source} spellcheck="off" />
+```
+
+`'native'` hands the words to the browser or webview, which underlines them but keeps its suggestions in a menu the editor replaces with its own; `'off'` does neither. Both read live, so a settings toggle is one prop write. The editor's checker and the browser's never run together: with `'on'`, every prose surface is `spellcheck="false"` to the browser.
+
+Your own dictionary, another language, or a shell with hunspell in it goes through `spellChecker`, set once at mount:
+
+```ts
+import type { SpellChecker } from '@voithos-labs/aragonite';
+
+const checker: SpellChecker = {
+	check: (word) => invoke('spell_check', { word }), // true when spelled right
+	suggest: (word) => invoke('spell_suggest', { word }), // best first; [] for none
+	addWord: (word) => invoke('spell_add', { word }) // optional: what puts "Add to dictionary" in the menus
+};
+```
+
+```svelte
+<Editor {source} {spellChecker} />
+```
+
+Each method may answer at once or with a promise. The editor asks `check` once per distinct word and keeps the answer, so a slow checker costs one round trip per new word, and `suggest` only when a menu opens over a misspelled word, never while typing. A throw or a rejection reaches the `error` event (`origin: 'decoration'`) and the word counts as spelled right.
+
+To keep the built-in English checker but seed it with words of your own, and hear about the ones a user adds, build it yourself:
+
+```ts
+import { createEnglishSpellChecker } from '@voithos-labs/aragonite';
+
+const spellChecker = createEnglishSpellChecker({
+	words: savedWords, // accepted beyond the dictionary
+	onAddWord: (word) => saveWord(word) // "Add to dictionary" went through
+});
+```
+
+`getSpellcheck()` on the instance is the controller the editor's own menus use, for a host drawing its own context menu: `misspellingAt(path, offset)` names the misspelled word at a position (null for a correct one, or one still being checked), `suggestionsFor(word)` its replacements, `replace(target, word)` rewrites it as one undo entry, and `addWord(word)` adds it, with `canAddWord` saying whether the checker takes words at all.
 
 ### Which URLs render
 

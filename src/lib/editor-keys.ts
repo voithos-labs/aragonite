@@ -53,6 +53,7 @@ import type {
 	ResolveLinkUrl,
 	RunCodeHook
 } from './host-hooks';
+import type { SpellState } from './spell/spell-state.svelte';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
@@ -106,6 +107,8 @@ export interface EditorServices {
 	 *  answer the delete and the copy read; null with no range. */
 	rangeCoverage: () => RangeCoverage | null;
 	search: SearchState;
+	/** The spell check: its marks, and the word reads and writes the menus make. */
+	spell: SpellState;
 	/** How the caret arrived: the sticky column, the side of a hidden marker run and the
 	 *  pending marks, kept and dropped as one. */
 	caretMemory: CaretMemory;
@@ -190,6 +193,9 @@ export interface EditorPolicies {
 	onPasteImage: () => PasteImageHook | undefined;
 	onRunCode: () => RunCodeHook | undefined;
 	codeMenuItems: () => CodeMenuItemsHook | undefined;
+	/** Read live: whether a prose surface lets the browser's own checker underline it (the
+	 *  `spellcheck` prop at `'native'`). The editor's checker and the browser's never both run. */
+	nativeSpellcheck: () => boolean;
 	/** Resolved image URLs that failed to load this session, one Set per instance so a failure never
 	 *  suppresses another editor's broken-state recompute. */
 	brokenImageUrls: Set<string>;

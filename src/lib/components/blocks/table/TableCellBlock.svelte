@@ -122,7 +122,7 @@
 		textMoves
 	} = wiring.services;
 	const ownPairs = autoPairs.forBlock();
-	const { theme: getTheme, resolveLinkUrl, activationClick } = wiring.policies;
+	const { theme: getTheme, resolveLinkUrl, activationClick, nativeSpellcheck } = wiring.policies;
 	const { contentVersion: getContentVersion, lifetime: editorLifetime } = wiring.doc;
 	const readOnly = $derived(reading.mode() === 'reading');
 
@@ -849,6 +849,7 @@
 	bind:this={el}
 	class={['table-cell', ...blockDecorations.classes]}
 	contenteditable={readOnly ? 'false' : 'true'}
+	spellcheck={nativeSpellcheck() ? 'true' : 'false'}
 	role={isHeaderRow ? 'columnheader' : 'cell'}
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}

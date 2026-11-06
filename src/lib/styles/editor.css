@@ -180,6 +180,15 @@
 	background: var(--search-match-active-bg);
 }
 
+/* A misspelled word: the wave sits on the rect's bottom edge, drawn by masking the colour to a
+   repeating curve so the token sets its colour. */
+:where(.editor) .spell-overlay {
+	background-color: var(--md-spell-color);
+	-webkit-mask: var(--md-spell-wave) repeat-x bottom / 6px 3px;
+	mask: var(--md-spell-wave) repeat-x bottom / 6px 3px;
+	border-radius: 0;
+}
+
 /* A non-editable badge put in front of the block; the consumer positions it. */
 :where(.editor) .decoration-badge {
 	user-select: none;
