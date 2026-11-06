@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
+import type { NodeView } from '#lib/core/node-views.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { legalizeWrite } from '#lib/tree-operations/content-write.js';
@@ -208,7 +209,7 @@ describe('G1.55 over a run of blocks', () => {
 	// Miss-analysis: a window holding an opener far from its closer was read with its neighbours alone.
 	it('reads a window holding a waiting opener, or a line that may close one, to the far end', () => {
 		installPlugins([admonitionsPlugin()]);
-		const spans = (top: CstNode[], at: number) =>
+		const spans = (top: readonly NodeView[], at: number) =>
 			spliceRuns(top, [{ at, count: 1 }], defaultGrammarView).map((run) => [
 				top.indexOf(run[0]),
 				run.length
