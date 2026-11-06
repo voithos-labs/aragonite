@@ -116,14 +116,18 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		}
 	},
 	{
-		gap: 'a container cut from its first text, or from past an opening line, out past its end nests a second one when pasted back',
+		gap: 'a container cut out past its end from past an opening line, or from its first text to a block that takes no joined text, nests a second one when pasted back',
 		lane: '2b',
 		law: 'L3',
-		matches: (read, range) =>
-			containersAt(read, range.from, 'start').some((c) => {
+		matches: (read, range, host) => {
+			const end = leafAt(read, range.to);
+			const endTakesNone = !!end && host.facts(end.type).joins === 'never';
+			return containersAt(read, range.from, 'start').some((c) => {
 				const first = read.layout.blocks.find((b) => b.text && b.from >= c.from && b.to <= c.to);
-				return c.to < range.to && (c.lines!.at(0)!.own || first?.text?.from === range.from);
-			}),
+				const fromText = first?.text?.from === range.from && endTakesNone;
+				return c.to < range.to && (c.lines!.at(0)!.own || fromText);
+			});
+		},
 		repro: {
 			source: '> [!TIP]\r\n> a\r\n>汉字\r\n   > word\r\n\r\n[^1]:- x\r\n     - x\r\n',
 			mode: 'source',

@@ -378,6 +378,12 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { clipboard: '\n\n```\nxy\n```' }
 	},
 	{
+		name: 'L10 the same inside a quote',
+		source: '> a⟦\n>\n> ```\n> xy⟧\n> ```\n',
+		gesture: 'copy',
+		expect: { clipboard: '\n\n```\nxy\n```' }
+	},
+	{
 		name: 'L9 a nested item cut out pastes back into the item it left, as any paste there lands',
 		source: '- a⟦\n  - b⟧\n',
 		gesture: 'cut',
