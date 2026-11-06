@@ -57,8 +57,9 @@ export interface BlockOpener {
 
 /** The two halves of {@link BlockOpener.readingNotFinal}, declared together. */
 export interface UnfinishedReading {
-	/** Given a block's own bytes: my reading of them isn't final, a line below could change it. */
-	notFinal: (raw: string) => boolean;
+	/** Given a block's own bytes, read in the editor's grammar: my reading of them isn't final, a
+	 *  line below could change it. */
+	notFinal: (raw: string, grammar: GrammarView) => boolean;
 	/** Whether a line could be the one that changes it. A cheap candidate test, not a match: true
 	 *  for every line this opener accepts as its closer, wider is fine, narrower breaks the edit. */
 	mayClose: (lineText: string) => boolean;
@@ -105,26 +106,34 @@ function registerBuiltIns(): void {
 }
 
 // Kept against the grammar's opener list, which a walk up a long body reads once per block.
-const readingsByOpeners = new WeakMap<readonly BlockOpener[], UnfinishedReading[]>();
+const readingsByOpeners = new WeakMap<readonly BlockOpener[], GrammarReading[]>();
 
-/** Every opener's declaration of a reading a line below can still change, each listed once. */
-export function unfinishedReadings(grammar: GrammarView): readonly UnfinishedReading[] {
+/** Every opener's declaration of a reading a line below can still change, each listed once and
+ *  reading a block's bytes in `grammar`. */
+export function unfinishedReadings(grammar: GrammarView): readonly GrammarReading[] {
 	const openers = grammar.orderedOpeners();
 	let readings = readingsByOpeners.get(openers);
 	if (!readings) {
 		// Kinds sharing one grammar (every fence) share one reading, asked once.
-		readings = [...new Set(openers.flatMap((opener) => opener.readingNotFinal ?? []))];
+		readings = [...new Set(openers.flatMap((opener) => opener.readingNotFinal ?? []))].map(
+			(reading) => ({ ...reading, notFinal: (raw: string) => reading.notFinal(raw, grammar) })
+		);
 		readingsByOpeners.set(openers, readings);
 	}
 	return readings;
 }
 
+/** A reading as one grammar hands it out, which reads a block's bytes in that grammar. */
+export type GrammarReading = Omit<UnfinishedReading, 'notFinal'> & {
+	notFinal(raw: string): boolean;
+};
+
 /** The reading under which a block of these bytes waits on a line below that closes it, or null:
  *  a reading with no closing line (a link definition's) never takes in the blocks below. */
 export function waitingReading(
 	raw: string,
-	readings: readonly UnfinishedReading[]
-): UnfinishedReading | null {
+	readings: readonly GrammarReading[]
+): GrammarReading | null {
 	return readings.find((reading) => reading.closer !== null && reading.notFinal(raw)) ?? null;
 }
 
@@ -134,7 +143,7 @@ export function waitingAboveClosedBy(
 	written: readonly string[],
 	rawAbove: (index: number) => string,
 	count: number,
-	readings: readonly UnfinishedReading[]
+	readings: readonly GrammarReading[]
 ): number {
 	const closing = readings.filter(
 		(reading) => !reading.readsOn && written.some((line) => reading.mayClose(line))

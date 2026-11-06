@@ -5,7 +5,7 @@ import { createEditorGrammar, kindEnablementFor } from '#lib/schema/editor-gramm
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { blockViewFor, registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
-import type { BlockOpener } from '#lib/schema/block-openers.js';
+import { unfinishedReadings, type BlockOpener } from '#lib/schema/block-openers.js';
 import { testClosure } from '#lib/test/harness/closure.js';
 import {
 	blockContextActionsFor,
@@ -84,6 +84,21 @@ describe('kind enablement derived from an instance activation set', () => {
 		const isEnabled = kindEnablementFor(activationFor([]));
 		expect(isEnabled(ownerless)).toBe(true);
 		expect(isEnabled('paragraph')).toBe(true);
+	});
+});
+
+// Miss-analysis: every unfinished-reading case read with the default grammar, so none asked an
+// editor that left out a plugin whose line interrupts a paragraph.
+describe("a block's reading on the edit route reads the editor's own grammar", () => {
+	it("keeps a definition's title across a line only an unlisted plugin interrupts on", () => {
+		installKindPlugin('unlisted', '@b');
+		const grammar = createEditorGrammar({ plugins: activationFor([]) });
+		const raw = '[a]: /url "x\n@b\ny"\n';
+		const [definition] = parse(raw, { grammar }).children;
+		expect(definition.kind).toBe('linkReferenceDefinition');
+		expect(definition.raw).toBe(raw);
+		// A definition with its title is final: no line below can change it.
+		expect(unfinishedReadings(grammar).some((reading) => reading.notFinal(raw))).toBe(false);
 	});
 });
 

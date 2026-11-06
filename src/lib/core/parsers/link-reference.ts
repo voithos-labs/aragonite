@@ -15,7 +15,6 @@ import {
 	titleValue
 } from '../inline/scan/link-grammar';
 import type { BlockOpenerResult, GrammarView } from '../../schema/block-openers';
-import { defaultGrammarView } from '../../schema/editor-grammar';
 import { matchSetextUnderline } from './paragraph';
 
 export function parseLinkReferenceDefinition(
@@ -146,17 +145,16 @@ function skipSpaces(text: string, pos: number): number {
 
 /** Whether lines below a block with these bytes could still change it: a label not closed yet, a
  *  `]:` awaiting its destination, or a definition with no title, which takes one from below. */
-export function definitionReadingNotFinal(raw: string): boolean {
+export function definitionReadingNotFinal(raw: string, grammar: GrammarView): boolean {
 	// The first line decides before any line is split, since a walk asks this of every block.
 	if (labelOpenerOffset(raw) < 0) return false;
 	const lines = splitLines(raw);
 	const labelStart = labelOpenerOffset(lines[0].text);
-	// A reading takes no grammar, so its lines below read as a parse with no editor would.
-	const window = new DefinitionWindow(lines, 0, lines.length, defaultGrammarView);
+	const window = new DefinitionWindow(lines, 0, lines.length, grammar);
 	const labelClose = readSpan(window, labelStart, labelEnd);
 	// A label that never closed may still close below; one followed by anything but `:` is a link.
 	if (labelClose >= 0 && window.text[labelClose] !== ':') return false;
-	const definition = parseLinkReferenceDefinition(lines, 0, lines.length, '', defaultGrammarView);
+	const definition = parseLinkReferenceDefinition(lines, 0, lines.length, '', grammar);
 	return definition === null || !('title' in (definition.node.metadata ?? {}));
 }
 

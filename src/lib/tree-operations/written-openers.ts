@@ -17,7 +17,7 @@ import {
 	unfinishedReadings,
 	waitingReading,
 	type GrammarView,
-	type UnfinishedReading
+	type GrammarReading
 } from '../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
@@ -37,7 +37,7 @@ export function writtenOpenerClosers(
 	before: string,
 	text: string,
 	read: FragmentReader,
-	readings: readonly UnfinishedReading[]
+	readings: readonly GrammarReading[]
 ): WrittenCloser[] {
 	const next = children[index + 1];
 	if (!next || !waitsOnWrittenLine(before, text, readings)) return [];
@@ -115,7 +115,7 @@ export function offsetPastClosers(offset: number, closers: readonly WrittenClose
 function waitsOnWrittenLine(
 	before: string,
 	text: string,
-	readings: readonly UnfinishedReading[]
+	readings: readonly GrammarReading[]
 ): boolean {
 	const span = writtenSpan(before, text);
 	for (let at = text.lastIndexOf('\n', span.start - 1) + 1; at <= span.end && at < text.length;) {
@@ -134,7 +134,7 @@ function takesCloserBelow(
 	opened: NodeView,
 	next: NodeView,
 	read: FragmentReader,
-	readings: readonly UnfinishedReading[]
+	readings: readonly GrammarReading[]
 ): boolean {
 	const hasBody = trimTrailingLineEnding(opened.raw).includes('\n');
 	if (!hasBody || next.leadingTrivia !== '') return false;
@@ -151,7 +151,7 @@ function takesBlocksBelow(
 	text: string,
 	parsed: Document,
 	k: number,
-	reading: UnfinishedReading,
+	reading: GrammarReading,
 	read: FragmentReader
 ): boolean {
 	let bytes = text;

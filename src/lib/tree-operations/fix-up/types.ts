@@ -3,7 +3,7 @@
 import type { CstNode, Document } from '../../core/nodes';
 import type { LineEnding } from '../../core/lines';
 import type { ContainerBodyWrap } from '../../core/parser';
-import type { UnfinishedReading } from '../../schema/block-openers';
+import type { GrammarReading } from '../../schema/block-openers';
 
 /** One list of sibling blocks: the document's top level, or a container's body. */
 export interface SiblingList {
@@ -85,7 +85,7 @@ export interface Host {
 	readInSlot(owner: CstNode | undefined, index: number, text: string): Document;
 	/** Whether a table right above a block with these bytes takes its first line as a row. */
 	continuesTableAbove(raw: string): boolean;
-	readingsThatMayChange(): readonly UnfinishedReading[];
+	readingsThatMayChange(): readonly GrammarReading[];
 	/** The topmost of the `count` blocks above that a line of `written` closes, or -1
 	 *  (`schema/block-openers.ts :: waitingAboveClosedBy`). */
 	waitingAboveClosedBy(
