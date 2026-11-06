@@ -12,6 +12,12 @@ const RANGE = { anchor: { path: [0], offset: 2 }, focus: { path: [1], offset: 5 
 // The first paragraph below the range: a finger's toolbar sits above the range, and the
 // Simulator's screen ends a few paragraphs further down.
 const BELOW_RANGE = 3;
+const TABLE = 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n';
+// A table of contents a dozen headings long, most of a phone's screen, on the page with plugins.
+const HEADINGS = Array.from({ length: 12 }, (_, i) => `## Heading number ${i + 1}`);
+const OUTLINE = `alpha beta gamma\n\n[[toc]]\n\n${HEADINGS.join('\n\n')}\n`;
+// Past a block's top edge by more than a line and well short of its middle.
+const PAST_EDGE = 40;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ── Rows ──────────────────────────
@@ -93,6 +99,71 @@ export const rows = {
 		return { reasons, evidence: { handle, after } };
 	},
 
+	"a long press in a table cell makes the editor's range": async (ctx) => {
+		await ctx.fresh(ctx.url, TABLE);
+		const at = await webToNative(ctx, 0);
+		if (!at) return { reasons: ['no native element for the line above the table'] };
+		const apple = await ctx.run(cellPoint(0, 0));
+		await holdAt(ctx, at(apple.x, apple.y));
+		await ctx.screenshot('cells-press').catch(() => {});
+		const after = await ctx.run(SNAPSHOT);
+		const menu = await safariMenu(ctx);
+		return { reasons: ownedWordReasons(after, 1, menu, [1, 0, 0]), evidence: { after, menu } };
+	},
+
+	'the cell menu button deletes a row': async (ctx) => {
+		await ctx.fresh(ctx.url, TABLE);
+		await ctx.click(
+			await ctx.find('css selector', '[role="table"] [data-table-row-idx="1"] > [role="cell"]')
+		);
+		await sleep(1200);
+		const button = await ctx.tryFind('css selector', '.table-cell-menu');
+		await ctx.screenshot('cell-button').catch(() => {});
+		if (!button) return { reasons: ['no cell menu button after a tap in a cell'] };
+		await ctx.click(button);
+		await sleep(1000);
+		await ctx.screenshot('cell-button-menu').catch(() => {});
+		const tagged =
+			await ctx.run(`const item = [...document.querySelectorAll('.md-menu-item')].find((i) => i.textContent.trim() === 'Delete row');
+			item?.setAttribute('data-row-probe', 'delete-row');
+			return !!item;`);
+		if (!tagged) return { reasons: ['the button opened no menu with Delete row'] };
+		await ctx.click(await ctx.find('css selector', '[data-row-probe="delete-row"]'));
+		await sleep(1000);
+		const after = await ctx.source();
+		const reasons = after.includes('cherry') ? [`Delete row left ${JSON.stringify(after)}`] : [];
+		return { reasons, evidence: { after } };
+	},
+
+	'the end handle joins a tall outline a line past its edge': async (ctx) => {
+		await ctx.fresh(`${ctx.url.replace('/test/editor', '/test/plugins')}?seed=toc`, OUTLINE);
+		const pressed = await pressWord(ctx, 0, 'outline-press');
+		if (pressed.reasons) return pressed;
+		const handle = await ctx.run(HANDLE_BOX);
+		if (!handle) return { reasons: ['no editor handle at the end of the long-pressed word'] };
+		const at = await webToNative(ctx, 0);
+		const top = await ctx.run(
+			`return document.querySelector("[data-block-path='[1]']").getBoundingClientRect().top`
+		);
+		const from = at(handle.x, handle.y);
+		const to = at(handle.x, handle.y + top + PAST_EDGE - handle.pointY);
+		await mobile(ctx, 'dragFromToForDuration', {
+			duration: 0.3,
+			fromX: from.x,
+			fromY: from.y,
+			toX: to.x,
+			toY: to.y
+		});
+		await sleep(1200);
+		await ctx.screenshot('outline-joined').catch(() => {});
+		const after = await ctx.run(SNAPSHOT);
+		const reasons =
+			after.editor?.focus.path[0] === 1
+				? []
+				: [`a drag a line into the outline left ${JSON.stringify(after.editor)}`];
+		return { reasons, evidence: { handle, after } };
+	},
+
 	"the toolbar's copy fills the pasteboard": async (ctx) => {
 		await ctx.fresh(ctx.url, SHORT);
 		await mobile(ctx, 'setPasteboard', { content: 'before the copy', encoding: 'utf8' });
@@ -168,15 +239,17 @@ async function pressWord(ctx, index, name) {
 	return { after: await ctx.run(SNAPSHOT), menu: await safariMenu(ctx) };
 }
 
-// What a long press leaves: the word as the editor's range in block `index`, painted there alone
-// with no native range under it, the editor's two handles, and the toolbar as the only menu.
-function ownedWordReasons(after, index, menu) {
+// What a long press leaves: the word as the editor's range at `path` (a cell's, inside a table),
+// painted in block `index` alone with no native range under it, the editor's two handles, and
+// the toolbar as the only menu.
+function ownedWordReasons(after, index, menu, path = [index]) {
 	const reasons = [];
 	const { editor } = after;
 	const json = JSON.stringify;
-	const inBlock = editor && editor.anchor.path[0] === index && editor.focus.path[0] === index;
+	const inBlock =
+		editor && json(editor.anchor.path) === json(path) && json(editor.focus.path) === json(path);
 	if (!inBlock || json(editor.anchor) === json(editor.focus))
-		reasons.push(`the long press left ${json(editor)}, not the word in block ${index}`);
+		reasons.push(`the long press left ${json(editor)}, not the word at ${json(path)}`);
 	if (!after.nativeCollapsed) reasons.push('a native range stands under the word');
 	if (!after.painted || after.paintedIn.some((path) => path !== `[${index}]`))
 		reasons.push(`the paint covers ${json(after.paintedIn)}, not block ${index} alone`);
@@ -220,6 +293,12 @@ async function mobile(ctx, command, args) {
 }
 
 const ELEMENT = 'element-6066-11e4-a52e-4f735466cecf';
+
+// The middle of the first word in the table's cell at `row`, `col`, in page coordinates.
+const cellPoint = (row, col) =>
+	`const cell = document.querySelectorAll('[role="table"] [data-table-row-idx="${row}"] > :is([role="cell"], [role="columnheader"])')[${col}];
+	const r = cell.getBoundingClientRect();
+	return { x: r.left + 20, y: (r.top + r.bottom) / 2 };`;
 
 // Block `index`'s text in page coordinates: where its text starts and ends, and its line's middle.
 function webBox(ctx, index) {

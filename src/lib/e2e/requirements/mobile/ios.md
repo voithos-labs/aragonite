@@ -29,5 +29,16 @@ on-screen keyboard. Each bullet's name before the colon is the row's key, and
 - the end handle drags a long-pressed word into the next block: a drag from the editor's end
   handle on the first word into the next block ends the range there, with no native range left
   beside the painted one.
+- a long press in a table cell makes the editor's range: the word Safari picked in the cell
+  becomes the editor's own range at the cell's path, painted with the editor's two handles and no
+  native range under it, and the toolbar is the only menu, Safari's callout gone.
+  - Miss-analysis: the touch lane ran its cell row on Android only, so nothing saw a cell keep
+    Safari's word and callout on iOS.
+- the cell menu button deletes a row: a tap in a table cell shows the cell menu's button at that
+  cell; tapping it opens the cell menu, and its Delete row takes the row. iOS fires no
+  `contextmenu` on a long press, so it's the one touch route to the row and column actions.
+- the end handle joins a tall outline a line past its edge: on the page with plugins, the end
+  handle of a long-pressed word dragged a little more than a line into a table of contents below
+  it (far short of its middle) takes the outline into the range.
 - the toolbar's copy fills the pasteboard: after a long press on a word, the toolbar's Copy puts
   the word on the system pasteboard, though no native range stands under it.

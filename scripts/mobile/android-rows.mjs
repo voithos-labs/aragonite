@@ -3,7 +3,7 @@
 // gets a freshly loaded page and returns the reasons it failed, none when it passed.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { centre, sleep } from './android-device.mjs';
+import { centre, HARNESS_URL, sleep } from './android-device.mjs';
 import { distinguishable, shape, softKeyboardReasons } from './judge.mjs';
 
 const WORD = 'hello';
@@ -17,6 +17,12 @@ const BELOW_RANGE = 6;
 const TABLE = 'lead line\n\n| apple | berry |\n| --- | --- |\n| cherry | damson |\n';
 // `epsilon zeta`: the paste row's second word.
 const PASTE_INTO = 2;
+// A table of contents a dozen headings long, most of a phone's screen, on the page with plugins.
+const HEADINGS = Array.from({ length: 12 }, (_, i) => `## Heading number ${i + 1}`);
+const OUTLINE = `alpha beta gamma\n\n[[toc]]\n\n${HEADINGS.join('\n\n')}\n`;
+const OUTLINE_URL = HARNESS_URL.replace('/test/editor', '/test/plugins?seed=toc');
+// Past a block's top edge by more than a line and well short of its middle.
+const PAST_EDGE = 40;
 
 // ── Rows ──────────────────────────
 
@@ -169,29 +175,61 @@ export const rows = {
 		return { reasons, evidence: { handle, after, pointerLog: log } };
 	},
 
-	"a long press in a table cell keeps the browser's word and opens the cell menu": async (ctx) => {
+	"a long press in a table cell makes the editor's range": async (ctx) => {
 		await ctx.fresh(TABLE);
 		const toScreen = await screenMap(ctx, 0);
-		const apple = await ctx.page.evaluate(`(() => {
-			const cell = document.querySelector('[role="table"] [data-table-row-idx="0"] > :is([role="cell"], [role="columnheader"])');
-			const r = cell.getBoundingClientRect();
-			return { x: r.left + 24, y: (r.top + r.bottom) / 2 };
-		})()`);
+		const apple = await ctx.page.evaluate(cellPoint(0, 0));
 		const press = toScreen(apple.x, apple.y);
 		const pressed = await pressReport(ctx, 'cells-press', () =>
 			ctx.device.swipe(press.x, press.y, press.x, press.y, 1500)
 		);
 		const nodes = menuNodes(ctx, 'cells-menus');
-		const { after } = pressed;
-		const reasons = [];
-		if (after.nativeCollapsed || !after.dom.text.includes('apple'))
-			reasons.push(`the long press left ${json(after.dom.text)} natively, not the cell's word`);
-		if (nodes.some((n) => !n.inPage)) reasons.push("Chrome's own menu shows");
-		// The cell menu, the one with the row and column actions, and nothing else of the editor's.
-		const cellMenu = (m) => !m.toolbar && m.items.includes('Row') && m.items.includes('Column');
-		if (after.menus.length !== 1 || !cellMenu(after.menus[0]))
-			reasons.push(`the editor shows ${json(after.menus)}, not the cell menu alone`);
+		const reasons = ownedWordReasons(pressed.after, 1, nodes, [1, 0, 0]);
 		return { reasons, evidence: { ...pressed, nodes } };
+	},
+
+	'the cell menu button deletes a row': async (ctx) => {
+		await ctx.fresh(TABLE);
+		const cherry = await ctx.page.evaluate(cellPoint(1, 0));
+		const tapped = (await screenMap(ctx, 0))(cherry.x, cherry.y);
+		ctx.device.tap(tapped.x, tapped.y);
+		await sleep(1500);
+		const button = await ctx.page.evaluate(boxOf('.table-cell-menu'));
+		ctx.device.screenshot('cell-button');
+		if (!button) return { reasons: ['no cell menu button after a tap in a cell'] };
+		const at = (await screenMap(ctx, 0))(button.x, button.y);
+		ctx.device.tap(at.x, at.y);
+		await sleep(1000);
+		ctx.device.screenshot('cell-button-menu');
+		const del = await ctx.page.evaluate(menuItemBox('Delete row'));
+		if (!del) return { reasons: ['the button opened no menu with Delete row'] };
+		const delAt = (await screenMap(ctx, 0))(del.x, del.y);
+		ctx.device.tap(delAt.x, delAt.y);
+		await sleep(1000);
+		const after = await source(ctx);
+		const reasons = after.includes('cherry') ? [`Delete row left ${json(after)}`] : [];
+		return { reasons, evidence: { after } };
+	},
+
+	'the end handle joins a tall outline a line past its edge': async (ctx) => {
+		await ctx.fresh(OUTLINE, OUTLINE_URL);
+		await longPress(ctx, 0, 'outline-press');
+		const handle = await handleOnScreen(ctx, 0, 'end');
+		if (!handle) return { reasons: ['no editor handle at the end of the long-pressed word'] };
+		const top = await ctx.page.evaluate(
+			`document.querySelector("[data-block-path='[1]']").getBoundingClientRect().top`
+		);
+		const into = (await screenMap(ctx, 0))(0, top + PAST_EDGE).y;
+		const log = await logPointers(ctx, async () =>
+			ctx.device.swipe(handle.x, handle.y, handle.x, handle.y + into - handle.pointY, 800)
+		);
+		ctx.device.screenshot('outline-joined');
+		const after = await ctx.page.evaluate(SNAPSHOT);
+		const reasons = [];
+		if (!log.counts.pointerdown) reasons.push("the swipe never reached the editor's handle");
+		if (after.editor?.focus.path[0] !== 1)
+			reasons.push(`a drag a line into the outline left ${json(after.editor)}`);
+		return { reasons, evidence: { handle, after, pointerLog: log } };
 	}
 };
 
@@ -367,6 +405,20 @@ const boxOf = (selector) => `(() => {
 	return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
 })()`;
 
+// The middle of the first word in the table's cell at `row`, `col`, in page coordinates.
+const cellPoint = (row, col) => `(() => {
+	const cell = document.querySelectorAll('[role="table"] [data-table-row-idx="${row}"] > :is([role="cell"], [role="columnheader"])')[${col}];
+	const r = cell.getBoundingClientRect();
+	return { x: r.left + 24, y: (r.top + r.bottom) / 2 };
+})()`;
+
+// The centre of the open menu's row labelled `label`, in page coordinates.
+const menuItemBox = (label) => `(() => {
+	const item = [...document.querySelectorAll('.md-menu-item')].find((i) => i.textContent.trim() === ${JSON.stringify(label)});
+	const b = item?.getBoundingClientRect();
+	return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+})()`;
+
 // A tap on the toolbar's `action` row, mapped to the screen through block `index`; false when the
 // toolbar shows no such row.
 async function tapToolbar(ctx, action, index) {
@@ -393,14 +445,16 @@ async function allowClipboardRead(ctx, name, landed) {
 	return { shown: null, afterTries: 16 };
 }
 
-// What a long press leaves: the word as the editor's range in block `index`, painted there alone
-// with no native range under it, the editor's two handles, and the toolbar as the only menu.
-function ownedWordReasons(after, index, nodes) {
+// What a long press leaves: the word as the editor's range at `path` (a cell's, inside a table),
+// painted in block `index` alone with no native range under it, the editor's two handles, and
+// the toolbar as the only menu.
+function ownedWordReasons(after, index, nodes, path = [index]) {
 	const reasons = [];
 	const { editor } = after;
-	const inBlock = editor && editor.anchor.path[0] === index && editor.focus.path[0] === index;
+	const inBlock =
+		editor && json(editor.anchor.path) === json(path) && json(editor.focus.path) === json(path);
 	if (!inBlock || same(editor, { anchor: editor.focus, focus: editor.focus }))
-		reasons.push(`the long press left ${json(editor)}, not the word in block ${index}`);
+		reasons.push(`the long press left ${json(editor)}, not the word at ${json(path)}`);
 	if (!after.nativeCollapsed) reasons.push('a native range stands under the word');
 	if (!after.painted || after.paintedIn.some((path) => path !== `[${index}]`))
 		reasons.push(`the paint covers ${json(after.paintedIn)}, not block ${index} alone`);

@@ -43,6 +43,17 @@ colon is the row's key, and `mobile-rows-lockstep.test.ts` holds the two lists t
   handle on the first word into the next block grows the range there. The page hears the swipe's
   press, so the finger landed on the editor's handle, and no native range stands beside the
   painted one.
-- a long press in a table cell keeps the browser's word and opens the cell menu: the word Chrome
-  picked in the cell stays native, and the cell menu (with its row and column actions) is the one
-  menu there. The toolbar doesn't show, and Chrome draws no menu of its own.
+- a long press in a table cell makes the editor's range: the word Chrome picked in the cell becomes
+  the editor's own range at the cell's path, painted with the editor's two handles and no native
+  range under it, and the toolbar is the only menu. The long press's `contextmenu` opens no cell
+  menu, and Chrome draws no menu of its own.
+  - Miss-analysis: the takeover row ran in a paragraph only, and the cell row pinned the old
+    behaviour, so a cell's word lost the handles a finger grows it into a rectangle with.
+- the cell menu button deletes a row: a tap in a table cell shows the cell menu's button at that
+  cell; tapping it opens the cell menu, and its Delete row takes the row. It's a finger's only
+  way to the row and column actions.
+- the end handle joins a tall outline a line past its edge: on the page with plugins, the end
+  handle of a long-pressed word dragged a little more than a line into a table of contents below
+  it (far short of its middle) takes the outline into the range.
+  - Miss-analysis: the join rule was tested with a mouse on short blocks only, where its middle is
+    a line away; on a phone an outline is most of the screen.
