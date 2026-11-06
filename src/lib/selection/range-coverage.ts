@@ -280,14 +280,16 @@ function samePathCoverage(
 		const grid = gridCoverage(node, path, start.offset, end.offset);
 		return grid.kind === 'table' ? heldWhole(path, grid) : { ...kept(start, end), grid };
 	}
-	// A paragraph emptied stays as the blank line between its neighbours; another kind emptied
-	// reads back as no block of that kind at all, so it goes.
+	// A paragraph emptied stays as the blank line between its neighbours, and a grid's cell as an
+	// empty cell; another kind emptied reads back as no block of that kind at all, so it goes.
+	const grid = start.path.length > 2 ? nodeAt(doc, start.path.slice(0, -2)) : null;
 	const heldAsUnit =
 		node !== null &&
 		isBlockNode(node) &&
 		start.offset === 0 &&
 		end.offset >= displayLength(node.raw) &&
-		!isBlankParagraph({ kind: node.kind, raw: '' });
+		!isBlankParagraph({ kind: node.kind, raw: '' }) &&
+		!(grid && isBlockNode(grid) && isGridKind(grid.kind));
 	return heldAsUnit ? heldWhole(path, null) : kept(start, end);
 }
 

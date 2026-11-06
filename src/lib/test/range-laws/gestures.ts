@@ -26,6 +26,7 @@ import {
 	type InsertionRoute
 } from '#lib/test/harness/insertion-routes.js';
 import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
+import { throughSplice } from './through-splice';
 
 export type Editor = MountedEditor<EditorTestSurface>;
 export type Payload = Record<string, string>;
@@ -95,6 +96,18 @@ export async function clipboardGesture(
 	type: 'copy' | 'cut',
 	route: ClipboardRoute
 ): Promise<Payload> {
+	if (type === 'copy') return writeClipboard(editor, type, route);
+	return throughSplice(editor, REMOVAL, () => writeClipboard(editor, type, route));
+}
+
+const REMOVAL = { kind: 'delete', detail: { crossBlock: true } } as const;
+const INSERTION = { kind: 'paste', detail: { count: 1 } } as const;
+
+async function writeClipboard(
+	editor: Editor,
+	type: 'copy' | 'cut',
+	route: ClipboardRoute
+): Promise<Payload> {
 	systemClipboard.clear();
 	if (route === 'menu without command' && !editor.instance.__test.ownsRange()) {
 		throw new Undetermined("WebKit's command fires over the browser's own range");
@@ -131,6 +144,10 @@ export async function pasteGesture(
 	payload: Payload,
 	route: PasteRoute
 ): Promise<void> {
+	return throughSplice(editor, INSERTION, () => paste(editor, payload, route));
+}
+
+async function paste(editor: Editor, payload: Payload, route: PasteRoute): Promise<void> {
 	systemClipboard.clear();
 	for (const [type, value] of Object.entries(payload)) systemClipboard.set(type, value);
 	if (route === 'insertMarkdown') {
@@ -147,9 +164,11 @@ export async function pasteGesture(
 
 /** The menu's Paste as plain text over the editor's selection. */
 export async function pastePlainGesture(editor: Editor, text: string): Promise<void> {
-	systemClipboard.clear();
-	systemClipboard.set('text/plain', text);
-	await pickMenuRow(editor, 'Paste as plain text');
+	return throughSplice(editor, INSERTION, async () => {
+		systemClipboard.clear();
+		systemClipboard.set('text/plain', text);
+		await pickMenuRow(editor, 'Paste as plain text');
+	});
 }
 
 /** Opens the menu over the focused element, as a right-click on the selection does, and picks
@@ -182,6 +201,10 @@ export class Undetermined extends Error {}
 /** Types `typed` at the editor's selection; false where the browser would have acted and jsdom
  *  can't (a key nothing prevented that the editor leaves to the browser). */
 export async function typeGesture(editor: Editor, typed: TypedKey): Promise<boolean> {
+	return throughSplice(editor, INSERTION, () => type(editor, typed));
+}
+
+async function type(editor: Editor, typed: TypedKey): Promise<boolean> {
 	if ('key' in typed) {
 		const took = await pressHardwareKey(focused(), { key: typed.key });
 		await editor.settle();
@@ -194,9 +217,11 @@ export async function typeGesture(editor: Editor, typed: TypedKey): Promise<bool
 
 /** Backspace or Delete at the editor's selection; false where only the browser would act. */
 export async function deleteGesture(editor: Editor, key: 'Backspace' | 'Delete'): Promise<boolean> {
-	const took = await pressHardwareKey(focused(), { key });
-	await editor.settle();
-	return took !== 'browser';
+	return throughSplice(editor, REMOVAL, async () => {
+		const took = await pressHardwareKey(focused(), { key });
+		await editor.settle();
+		return took !== 'browser';
+	});
 }
 
 // ── History ──────────────────────────────────────────────────────────────────

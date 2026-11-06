@@ -4,6 +4,7 @@
  */
 
 import type { Decoration, MarkDecoration } from './types';
+import { gridCellOf } from '../core/coordinate-spaces';
 
 /** A decoration paired with its position in the flat list: the stable key overlays render
  *  against. */
@@ -81,7 +82,7 @@ export interface CollapsedCellMark {
  *  sources in one cell compose instead of stacking translucent rects. */
 export function collapseCellMarks(
 	descMarks: readonly IndexedDecoration<MarkDecoration>[],
-	containerDepth: number
+	gridPath: readonly number[]
 ): CollapsedCellMark[] {
 	const byCell = new Map<
 		string,
@@ -93,9 +94,9 @@ export function collapseCellMarks(
 		}
 	>();
 	for (const mark of descMarks) {
-		const rowIdx = mark.dec.path[containerDepth];
-		const colIdx = mark.dec.path[containerDepth + 1];
-		if (rowIdx == null || colIdx == null) continue;
+		const at = gridCellOf(gridPath, mark.dec.path);
+		if (!at) continue;
+		const { row: rowIdx, col: colIdx } = at;
 		const cell = byCell.get(`${rowIdx},${colIdx}`);
 		if (cell) {
 			addClassTokens(cell.classes, mark.dec.class);

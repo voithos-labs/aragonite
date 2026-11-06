@@ -67,7 +67,9 @@ export interface EditorOptions {
 	placeholder?: string | ((block: PlaceholderBlock) => string | null);
 	searchBar?: boolean;
 	/** The editor's own formatting popover beside a prose selection (default on; reading mode
-	 *  never shows it). A host with its own bar over `runCommand` passes false. */
+	 *  never shows it). A host with its own bar over `runCommand` passes false. A finger's selection
+	 *  on a touch screen still gets a small Cut, Copy and Paste bar then, since the editor replaced
+	 *  the phone's own menu. */
 	selectionToolbar?: boolean;
 	/** Where the editor's own find/replace bar renders. Absent, it stays fixed inside the editor
 	 *  root; an element moves that same bar into it, theme styling included, so an embed that

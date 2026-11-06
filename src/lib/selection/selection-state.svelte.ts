@@ -27,6 +27,7 @@ import { displayLength } from '../core/lines';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
 import { checkOwnedRangeFromFinger } from '../invariants/owned-range-from-finger';
+import { checkCellTextEndpoint } from '../invariants/cell-text-endpoint';
 import { isFingerPress, type FingerPress } from './pointer-gesture';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
 
@@ -341,11 +342,12 @@ class SelectionStateImpl implements SelectionState {
 		if (!this.#anchor) {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
-		// Leaving a whole-block range: its anchor is the block as a whole again, so the side it
-		// means (start below the new focus, end above it) is resolved afresh rather than kept at 0.
-		const anchor = this.#wholeUnit
-			? this.#normalizePoint({ path: this.#wholeUnit, wholeBlock: true }, point.path)
-			: this.#anchor;
+		// Read again against the new focus: a whole-block range's anchor resolves its side afresh,
+		// and a finger's word in a cell becomes that cell once the focus leaves it.
+		const anchor = this.#normalizePoint(
+			this.#wholeUnit ? { path: this.#wholeUnit, wholeBlock: true } : this.#anchor,
+			point.path
+		);
 		const f = this.#normalizePoint(point, anchor.path);
 		// A focus back on the anchor's text leaf shrinks to a single-block range, even at the
 		// anchor's own offset: `extendFocus` never starts a pair, so landing there is a collapse.
@@ -364,13 +366,14 @@ class SelectionStateImpl implements SelectionState {
 		return node && 'raw' in node ? displayLength(node.raw) : 0;
 	}
 
-	// The endpoint coordinate check backs up `#normalizePoint` at every write of anchor and focus.
+	// The endpoint checks back up `#normalizePoint` at every write of anchor and focus.
 	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return;
 		assertInvariant('cross-block-endpoint-coordinates', () =>
 			checkCrossBlockEndpointCoordinates(getDoc(), anchor, focus)
 		);
+		assertInvariant('cell-text-endpoint', () => checkCellTextEndpoint(getDoc(), anchor, focus));
 	}
 
 	// Same text leaf, distinct offsets: the shape that must never enter cross-block state.
@@ -394,7 +397,7 @@ class SelectionStateImpl implements SelectionState {
 			);
 		}
 		if (point.cellCoordinate) return point;
-		const snapped = normalizeTableEndpoint(doc, point.path, point.offset);
+		const snapped = normalizeTableEndpoint(doc, point.path, point.offset, otherPath);
 		return snapped.cellCoordinate ? snapped : normalizeCharEndpoint(doc, snapped, otherPath);
 	}
 

@@ -26,7 +26,12 @@ const ALLOWED: Record<string, string> = {
 		'the coverage rules the laws take as input (table rows, a closed details, a block held whole)',
 	'src/lib/core/inline/link-source-bytes.ts': 'the text a block shows, which law 11 reads',
 	'src/lib/components/menu/default-context-actions.ts':
-		'the menu rows the editor registers at startup, which the menu routes press'
+		'the menu rows the editor registers at startup, which the menu routes press',
+	'src/lib/tree-operations/container-offsets.ts':
+		'the byte a caret sits at, which the byte-splice replay hands the splice (a read)',
+	'src/lib/tree-operations/node-primitives.ts': 'the block at a caret’s path (a read)',
+	'src/lib/schema/whole-block-unit.ts': 'whether a caret’s block is held whole (a read)',
+	'src/lib/core/parser.ts': 'whether a block is a blank line (a read)'
 };
 const PACKAGES = new Set(['vitest', 'fast-check', 'node:fs', 'node:path']);
 

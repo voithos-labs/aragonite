@@ -27,6 +27,14 @@ describe('a raw offset into a container', () => {
 		expect(leafAtRawOffset(top('> a\n> b\n'), 5)).toEqual({ path: [0], offset: 2 });
 	});
 
+	// Miss-analysis: every fixture indented with spaces, so a tab that cuts through a marker's
+	// columns read the line's text from its start.
+	it('reads a nested item indented with a tab from where its text starts', () => {
+		const list = top('- a\n\t- b\n');
+		expect(leafAtRawOffset(list, 8)).toEqual({ path: [0, 1, 0, 0], offset: 1 });
+		expect(rawOffsetOfLeaf(list, [0, 1, 0, 0], 1)).toBe(8);
+	});
+
 	it('is refused for a container whose bytes it cannot map', () => {
 		expect(leafAtRawOffset(top('| a |\n| - |\n| b |\n'), 3)).toBeNull();
 		expect(rawOffsetOfLeaf(top('| a |\n| - |\n| b |\n'), [0, 0], 0)).toBeNull();

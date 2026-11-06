@@ -16,6 +16,8 @@
 	import type { LocalRect } from '../../core/coordinate-spaces';
 	import { mergeRectsPerLine, reachLineEdges } from './rects';
 	import { WHOLE_BLOCK_INPUT_ATTR } from '../../selection/whole-block-input';
+	import { gridCellOf } from '../../core/coordinate-spaces';
+	import { componentAt } from '../../block-lists/child-list';
 
 	let {
 		path,
@@ -41,7 +43,14 @@
 
 	const coverage = $derived(services?.rangeCoverage() ?? null);
 
-	const classification = $derived(coverage ? classifyBlockForSelection(path, coverage) : 'outside');
+	// A grid's cells have no host of their own, so a finger's word in one paints here.
+	const rangeCell = $derived(
+		coverage && blockRef?.cellRect ? gridCellOf(path, coverage.range.start.path) : null
+	);
+
+	const classification = $derived(
+		rangeCell ? 'single-block' : coverage ? classifyBlockForSelection(path, coverage) : 'outside'
+	);
 
 	// Ignores who measures, on purpose: a block the range covers whole paints one box over
 	// everything it renders, markers included, and its children already paint nothing under it.
@@ -50,7 +59,7 @@
 	);
 
 	// The effect and the markup read this one value, so a painted rectangle is one the effect
-	// measured. A range inside one block is a grid's rectangle, or a finger's range in a leaf.
+	// measured. A range inside one block is a grid's rectangle, or a finger's range in a leaf or cell.
 	const paintsEndpoints = $derived(
 		!delegatesPainting &&
 			!paintsWholeBox &&
@@ -81,12 +90,15 @@
 		const ref = blockRef;
 		const el = blockEl;
 		const covered = services.rangeCoverage;
+		const cell = rangeCell;
 
 		function measure(): void {
 			const live = covered();
-			if (!live || !ref.measurePartialRects) return;
+			const cells = cell && ref.childList?.();
+			const measurer = cell ? cells && componentAt(cells, [cell.row, cell.col]) : ref;
+			if (!live || !measurer?.measurePartialRects) return;
 			const { from, to, textSide } = endpointMeasureSpan(classification, live);
-			const viewportRects: DOMRect[] = ref.measurePartialRects(from, to);
+			const viewportRects: DOMRect[] = measurer.measurePartialRects(from, to);
 			const blockRect = el.getBoundingClientRect();
 			const lines = mergeRectsPerLine(
 				viewportRects.map((r) => ({

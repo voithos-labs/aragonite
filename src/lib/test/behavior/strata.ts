@@ -22,6 +22,8 @@ import {
 	type Key
 } from './corpus';
 import { keyRows, scriptedRows, sequenceRows, sitesOf } from './key-driver';
+import { rangeRows, rangesOf } from './range-driver';
+import { ISSUE_DOCUMENTS } from '../range-laws/shapes';
 import { textField, type Row } from './rows';
 
 /** Every key at every offset of every site of the small documents and the flush joins, and each
@@ -58,6 +60,19 @@ export async function sequenceStratum(): Promise<Row[]> {
 	for (const [id, { source, keys }] of Object.entries(SCRIPTED_SEQUENCES)) {
 		for (const mode of ['source', 'live'] as const) {
 			rows.push(...(await scriptedRows(`seq ${mode} scripted ${id}`, source, keys, mode)));
+		}
+	}
+	return rows;
+}
+
+/** Each range gesture over each drawn range of the small documents, the flush joins and the filed
+ *  range repros, in `mode`. */
+export async function rangeStratum(mode: PresentationMode): Promise<Row[]> {
+	const rows: Row[] = [];
+	const documents = { ...SMALL_DOCUMENTS, ...FLUSH_JOIN_DOCUMENTS, ...ISSUE_DOCUMENTS };
+	for (const [id, source] of Object.entries(documents)) {
+		for (const range of await rangesOf(source, mode)) {
+			rows.push(...(await rangeRows(`range ${mode} ${id}`, source, mode, range)));
 		}
 	}
 	return rows;
