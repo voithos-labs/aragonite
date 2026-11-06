@@ -347,6 +347,65 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 				'key at body'
 			]
 		}
+	},
+	{
+		issue: '#819',
+		lane: 'rebuild',
+		defect:
+			'a paste in a mixed-ending document swaps the caret line’s ending with the pasted line’s',
+		lines: /^L9 \[[^\]]*\] paste:\S+ text \w+\/mixed: /,
+		keeps: (got, wanted) =>
+			got !== wanted && got.replace(/\r\n/g, '\n') === wanted.replace(/\r\n/g, '\n'),
+		repro: {
+			law: 'L9',
+			args: [
+				{
+					source: '- a\r\n  - x\n\r\n  a\n\r\n  a\na\r\n  > q\n',
+					mode: 'source',
+					caret: end(12, 'start')
+				},
+				'a\nb',
+				'menu'
+			]
+		}
+	},
+	{
+		issue: '#819',
+		lane: 'rebuild',
+		defect:
+			'a paste at the start of a paragraph just above a fence adds a blank line after the text',
+		lines: /^L9 \[document \| paragraph\] paste:\S+ text /,
+		keeps: (got, wanted) =>
+			got.length === wanted.length + 1 &&
+			[...got].some((ch, i) => ch === '\n' && got.slice(0, i) + got.slice(i + 1) === wanted),
+		repro: {
+			law: 'L9',
+			args: [
+				{ source: '    code\n\n\n```\n```\n\n    code\n', mode: 'source', caret: end(1, 'start') },
+				'x',
+				'menu'
+			]
+		}
+	},
+	{
+		issue: '#819',
+		lane: 'rebuild',
+		defect: 'a paste at an empty quote line keeps that line above the pasted ones',
+		lines: /^L9 \[(?:githubAlert|blockquote) \| paragraph\] paste:\S+ text /,
+		keeps: (got, wanted) =>
+			sameWords(got, wanted) && count(got, /\n/g) === count(wanted, /\n/g) + 1,
+		repro: {
+			law: 'L9',
+			args: [
+				{
+					source: '> [!NOTE]\r\n>\r\n>\r\n> two words\r\n> three',
+					mode: 'source',
+					caret: end(54, 'end', 58)
+				},
+				'a\nb',
+				'insertMarkdown'
+			]
+		}
 	}
 ];
 
