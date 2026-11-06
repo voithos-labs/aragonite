@@ -20,6 +20,11 @@ the counts from a read of the mounted items.
 ## Edge cases
 
 - both rows check the long list is windowed (it has spacers) and mounts under half its items
+- a byte splice adds a last item with a nine-digit marker below a three-item list: the second
+  item, whose bytes the splice left alone and which it keeps as the same node, re-wraps in the
+  narrower text column, and its list's height table holds its new drawn height within a pixel.
+  Miss-analysis: a kept node no longer re-measures on its own edit, and no row changed a block's
+  height from its parent.
 
 ## User interactions
 
