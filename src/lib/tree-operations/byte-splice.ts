@@ -16,7 +16,7 @@ import { isBlankParagraph } from '../core/parser';
 import { splitLines } from '../core/lines';
 import { readAsOpened } from '../schema/opened-reading';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
-import { keepUnchanged } from '../block-id';
+import { keepUnchangedDeep } from '../block-id';
 
 /** One run of the current bytes replaced: `[from, to)` gives way to `insert`. */
 export interface ByteChange {
@@ -246,6 +246,6 @@ function trimmed(
 	const at = lo + head;
 	const count = hi - lo + 1 - head - tail;
 	// Read, never written: its unchanged children move into the new block as they are.
-	if (blocks.length > 0 && count > 0) keepUnchanged(old[at] as CstNode, blocks[0]);
+	if (blocks.length > 0 && count > 0) keepUnchangedDeep(old[at] as CstNode, blocks[0]);
 	return { at, count, blocks };
 }

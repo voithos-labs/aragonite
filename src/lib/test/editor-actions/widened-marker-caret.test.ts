@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// A space typed at the start of a list item's text, which the item's widened marker takes, leaves
-// the caret right after the marker, also when the item's sublist spills out of the list.
-// Miss-analysis: the widened-marker rows ran headless and read no caret; the behavior differential
-// found this one in a seeded sequence, and a differential compares but pins nothing.
+// A space typed at the start of a list item's text, which the item's widened marker takes, puts
+// the next letter before the text, also when the item's next paragraph leaves the list.
+// Miss-analysis: the re-read rows checked which nodes and ids survived, never typed after one; a
+// typed leaf whose id survived its list's re-read kept showing the space its marker took.
 
 import { afterEach, beforeAll, expect, it } from 'vitest';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
@@ -23,20 +23,23 @@ afterEach(async () => {
 	expect(takeDevWarns()).toEqual([]);
 });
 
-it('a space the marker takes, as the sublist spills, leaves the caret after the marker', async () => {
-	const editor = mountEditor<EditorTestSurface>({
-		source: '- a\n- b\n- \\\n  c\n\n  - x\n',
-		presentationMode: 'live',
-		plugins: SYNTAX_PLUGINS
-	});
-	await editor.settle();
-	const el = surfaceAt(editor, [0, 2, 0]);
-	placeCaret(el, 0);
+it.each(['source', 'live'] as const)(
+	'the next letter goes before the text after the marker took a space, %s',
+	async (mode) => {
+		const editor = mountEditor<EditorTestSurface>({
+			source: '- ab\n\n  b\n',
+			presentationMode: mode,
+			plugins: SYNTAX_PLUGINS
+		});
+		await editor.settle();
+		const el = surfaceAt(editor, [0, 0, 0]);
+		placeCaret(el, 0);
 
-	await pressHardwareKey(el, { key: ' ' });
-	await editor.settle();
+		await pressHardwareKey(el, { key: ' ' });
+		await editor.settle();
+		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'X' });
+		await editor.settle();
 
-	expect(editor.source()).toBe('- a\n- b\n-  \\\n  c\n\n  - x\n');
-	const caret = { path: [0, 2, 0], offset: 0 };
-	expect(editor.instance.getSelection()).toEqual({ anchor: caret, focus: caret });
-});
+		expect(editor.source()).toBe('-  Xab\n\n  b\n');
+	}
+);
