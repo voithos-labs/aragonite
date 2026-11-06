@@ -160,7 +160,7 @@
 	import { createInlineRangeCommit } from '../editor-actions/inline-range-commit';
 	import { createLinkCardState, linkCardGates } from './link-card/link-card-state.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
-	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+	import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
 	import { checkHostColorsResolve } from '../invariants/theme-stylesheet';
 	import { registerEditorBuiltIns } from './editor-built-ins';
@@ -217,12 +217,21 @@
 		if (errorsOpen) emitPluginError(error);
 		else heldErrors.push(error);
 	}
-	const emitPluginError = (error: PluginError) =>
-		events.emit('error', {
+	function emitPluginError(error: PluginError): void {
+		const heard = events.emit('error', {
 			origin: 'subscriber',
 			error: error.cause,
 			context: { plugin: error.plugin }
 		});
+		// A dev build says so once when nothing hears it; production stays silent.
+		if (devChecksOn && !heard && !onError) {
+			devWarn(
+				'plugin-error',
+				`plugin '${error.plugin}' failed (${error.doing}) and nothing heard it: pass onError`,
+				error.cause
+			);
+		}
+	}
 
 	// Installed before the first parse of `source`; `use` changes them, a new prop value doesn't.
 	// svelte-ignore state_referenced_locally
