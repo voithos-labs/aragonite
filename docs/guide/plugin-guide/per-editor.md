@@ -96,7 +96,7 @@ slashCommandsPlugin({ entries: [stamp] }); // defaults: { entries: [stamp] }
 // { entries: [] }            { entries: [] }
 ```
 
-`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast. The type is your word, though, not a check. What checks is **`parseOptions(raw)`**: it gets an editor's options exactly as the host wrote them (once per editor, and only if the host wrote some) and returns the fields to apply. Leave a field out and it keeps its default. Throw, and the editor reports it on its `error` event (origin `subscriber`, naming your plugin) and runs your plugin on its defaults, so somebody's typo never takes their document down.
+`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast. The type is your word, though, not a check. What checks is **`parseOptions(raw)`**: it gets an editor's options exactly as the host wrote them (once per editor, and only if the host wrote some) and returns the fields to apply. Leave a field out and it keeps its default. Throw, and the editor reports it, naming your plugin, to the host's `onError` and on its `error` event (origin `subscriber`), and runs your plugin on its defaults, so somebody's typo never takes their document down.
 
 ```ts
 export const wordCountPlugin = definePlugin<WordCountOptions>({
