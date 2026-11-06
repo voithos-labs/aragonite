@@ -1,7 +1,7 @@
 /**
  * How bytes written into one child slot read back in place. A list item's first block sits on its
  * marker line, so bytes written there read as a reload reads that whole line, checkbox included
- * (GFM task lists). Everywhere else they read as a plain fragment.
+ * (GFM task lists). A table cell's read as a cell; everywhere else they read as a plain fragment.
  */
 
 import {
@@ -15,6 +15,7 @@ import type { DocumentView, NodeView } from '../../core/node-views';
 import { blockNodeAt } from '../node-primitives';
 import { readBlocks, parseTaskItemBody } from '../../core/parser';
 import type { GrammarView } from '../../schema/block-openers';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 
 export type FragmentReader = (text: string) => Document;
@@ -159,12 +160,23 @@ export function childSlotAt(doc: DocumentView, path: readonly number[]): ChildSl
 	return { owner, index: path[path.length - 1] };
 }
 
-/** {@link fragmentReaderAt} for the slot a document path names. */
+/** {@link fragmentReaderAt} for the slot a document path names. A kind with no opener of its own (a
+ *  table cell) reads as no fragment, so bytes written over one read back as that kind again. */
 export function slotReaderAt(
 	doc: DocumentView,
 	path: readonly number[],
 	grammar: GrammarView
 ): FragmentReader {
+	const held = blockNodeAt(doc, path);
+	if (held && tryGetBlockKindDescriptor(held.kind)?.contextDependentKind) {
+		const { kind, leadingTrivia, metadata } = held as CstNode;
+		return (text) => ({
+			kind: 'document',
+			prefix: '',
+			children: [makeBlockNode({ kind, leadingTrivia, raw: text, metadata })],
+			suffix: ''
+		});
+	}
 	const { owner, index } = childSlotAt(doc, path);
 	return fragmentReaderAt(owner, index, grammar);
 }

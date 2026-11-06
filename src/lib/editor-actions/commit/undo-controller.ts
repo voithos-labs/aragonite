@@ -20,6 +20,8 @@ import { createStructuralCommit, type CommitArgs } from './structural-commit';
 import { admitsSnapshot, admitsWrite } from './reading-write-gate';
 import { createCommitFrame, reportWriteError, type FrameHistory } from './commit-frame';
 import { createLeafCommit } from './leaf-commit';
+import { createByteSplice } from './byte-splice';
+import type { GapCaretSelection } from '../../selection/gap-caret';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
 	CommitLanding,
@@ -264,7 +266,7 @@ export function createUndoController(
 	});
 
 	/** The commit's landing, checked in dev to have moved no caret while it was read. */
-	function readLanding(landing: CommitLanding | undefined): Landing | null {
+	function readLanding(landing: CommitLanding | undefined): Landing | GapCaretSelection | null {
 		if (!landing) return null;
 		if (!devChecksOn) return landing();
 		const before = readCaretWhereabouts();
@@ -287,7 +289,8 @@ export function createUndoController(
 				endings = documentLineEndings(deps.doc);
 				return args.apply(wasOpen);
 			},
-			check: () => {
+			check: (written) => {
+				args.check?.(written);
 				assertLineEndingPairsKept(deps.doc, endings);
 				// A missed copy before write corrupts the newest undo entry, so the commit catches it
 				// rather than some distant undo (G1.9). Never throws.
@@ -312,12 +315,17 @@ export function createUndoController(
 		return true;
 	}
 
-	function placementOf(args: CommitArgs, landing: Landing, stamp: number): HeldLanding {
+	function placementOf(
+		args: CommitArgs,
+		landing: Landing | GapCaretSelection,
+		stamp: number
+	): HeldLanding {
 		const opts: LandOptions = { stamp, reveal: args.reveal };
 		return {
 			async place() {
 				try {
-					if ('anchor' in landing) await deps.caretLanding.restore(landing, opts);
+					if ('anchor' in landing || 'gapCaret' in landing)
+						await deps.caretLanding.restore(landing, opts);
 					else await deps.caretLanding.land(landing, opts);
 				} catch (err) {
 					reportWriteError(deps, args, err);
@@ -347,6 +355,7 @@ export function createUndoController(
 
 	const { commitStructural, commitContainerStructural, commitMultiScope, getDocScope } =
 		createStructuralCommit(deps, __commit);
+	const commitSource = createByteSplice(deps, __commit);
 
 	// ── State capture / checkpoint control ──────────────────────────────────
 
@@ -367,6 +376,7 @@ export function createUndoController(
 		commitStructural,
 		commitContainerStructural,
 		commitMultiScope,
+		commitSource,
 		getDocScope,
 		captureCurrentState,
 		flushDebouncedCheckpoint: textBatch.interrupt,

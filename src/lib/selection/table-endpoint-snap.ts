@@ -17,15 +17,16 @@ import {
 	cellRowCol,
 	type CellRect
 } from '../core/coordinate-spaces';
-import { comparePaths } from './path-math';
+import { comparePaths, pathsEqual } from './path-math';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 
-/** The one conversion into cell space, which `SelectionState` applies to every incoming point: an
- *  endpoint on or inside a table becomes the table path plus a flagged row-major cell index. */
+/** The one conversion into cell space, applied to every incoming point: a point on or inside a
+ *  table becomes a flagged cell index, unless it and its other end (`otherPath`) share one cell. */
 export function normalizeTableEndpoint(
 	doc: DocumentView,
 	path: number[],
-	offset: number
+	offset: number,
+	otherPath: readonly number[]
 ): SelectionPoint {
 	for (let d = 0; d < path.length; d++) {
 		const tablePath = path.slice(0, d + 1);
@@ -33,6 +34,7 @@ export function normalizeTableEndpoint(
 		if (!node || !countsCells(node)) continue;
 		// On the table's own path the offset is already the cell index.
 		if (d === path.length - 1) return cellPoint(tablePath, clampCellIndex(node, offset));
+		if (path.length === d + 3 && pathsEqual(path, otherPath)) break;
 		const colCount = metadataOf(node, 'table').columnCount;
 		return cellPoint(tablePath, rowMajorCellIndex(path[d + 1], path[d + 2] ?? 0, colCount));
 	}

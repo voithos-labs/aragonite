@@ -3,7 +3,7 @@
 // records of them.
 
 /** Field order in a line; a field a row doesn't have is left out. */
-const FIELDS = ['in', 'do', 'took', 'bytes', 'caret', 'undo', 'warns', 'outline'];
+const FIELDS = ['in', 'do', 'took', 'bytes', 'caret', 'clipboard', 'undo', 'warns', 'outline'];
 
 /** @typedef {{ in: string } & Record<string, string | string[] | undefined>} Row */
 

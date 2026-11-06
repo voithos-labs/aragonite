@@ -29,7 +29,7 @@ The bundled toc plugin does exactly that walk over its live document, and clicki
 
 ## Recipe: a selection toolbar
 
-The editor ships one: a popover that opens beside a prose selection with the marks, the link, a heading picker (inside one block only), inline code and copy, on by default and off with `selectionToolbar={false}`. It's built on the public calls below and nothing else, so this recipe is also how to replace it with your own. Nine steps, and the anchoring ones have a snippet after the list:
+The editor ships one: a popover that opens beside a prose selection with the marks, the link, a heading picker (inside one block only), inline code and copy, on by default and off with `selectionToolbar={false}` (a finger's selection on a touch screen keeps a small Cut, Copy and Paste bar even then, since the editor replaced the phone's own menu). It's built on the public calls below and nothing else, so this recipe is also how to replace it with your own. Nine steps, and the anchoring ones have a snippet after the list:
 
 1. **Subscribe to `selectionChange`.** A `null` payload or a collapsed selection (anchor equals focus) hides the bar.
 2. **Put the endpoints in document order first.** `normalizeSelection(snapshot)` answers `{ start, end }` (by path, then by offset when the paths match), so a backward drag anchors exactly like a forward one. Anchor to `start`; a hand-rolled comparison gets the container-and-its-child pair wrong, where the shorter path is the earlier one.

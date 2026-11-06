@@ -4,6 +4,7 @@ import { EditorPage } from '../../editor-page';
 import { type FixtureShape } from '../../../test/perf/fixtures/generate';
 import {
 	measureContainerInteriorTyping,
+	measureListPaste,
 	measureStructuralRebuild,
 	measureTypingLatency
 } from './latency-harness';
@@ -152,6 +153,27 @@ test.describe('perf gate: structural edit p50 within budget', () => {
 					`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) p95=${m.p95Ms.toFixed(1)}ms`
 			);
 			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
+		});
+	}
+});
+
+// A paste into a giant list re-reads the whole list either way, today's paste or the byte splice
+// the range gestures move onto. Reported beside each other until the controller blesses a ceiling.
+const LIST_PASTE_ROWS: Array<[size: string, pastes: number]> = [
+	['1MB', 8],
+	['10MB', 4]
+];
+
+test.describe('perf report: a paste inside a giant list', () => {
+	for (const [size, pastes] of LIST_PASTE_ROWS) {
+		test(`giant-single-list interior paste ${size}`, async ({ page }) => {
+			const m = await measureListPaste(page, new EditorPage(page), SIZE_BYTES[size], 3, pastes);
+			console.log(
+				`PERF-REPORT giant-single-list-interior-paste-${size} today p50=${m.today.p50Ms.toFixed(1)}ms ` +
+					`p95=${m.today.p95Ms.toFixed(1)}ms splice p50=${m.splice.p50Ms.toFixed(1)}ms ` +
+					`p95=${m.splice.p95Ms.toFixed(1)}ms load=${m.loadMs.toFixed(1)}ms`
+			);
+			expect(m.splice.samples).toHaveLength(pastes);
 		});
 	}
 });

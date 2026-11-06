@@ -20,6 +20,9 @@ import type { LegalWrite } from './tree-operations/content-write';
 import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
 import type { RemovalGesture } from './selection/caret-target';
 import type { CommandRun } from './schema/block-commands';
+import type { GapCaretSelection } from './selection/gap-caret';
+import type { ByteChange } from './tree-operations/byte-splice';
+import type { OpDescriptor } from './schema/operations';
 
 /**
  * Where the caret goes back to on undo when nothing is focused: `path` is a document-absolute
@@ -46,7 +49,25 @@ export type DiscardIfNoop = boolean;
  * It returns a value and places nothing; the commit puts the caret there through the editor's
  * caret landing (`selection/caret-landing.ts`), and null leaves the caret where it is.
  */
-export type CommitLanding = () => Landing | null;
+export type CommitLanding = () => Landing | GapCaretSelection | null;
+
+/** Where the caret lands in a byte splice's new bytes: at byte `at`, in a block's text, on the
+ *  block starting there focused whole, or between the two blocks meeting there. */
+export interface SpliceCaret {
+	at: number;
+	holds: 'text' | 'block' | 'boundary';
+}
+
+/** A byte splice: sorted, non-overlapping changes to the current bytes and the caret after them.
+ *  The edit event names `op` at the first block the splice replaced. */
+export interface SourceSplice {
+	changes: readonly ByteChange[];
+	caret: SpliceCaret;
+	op: OpDescriptor;
+	snapshot: CommitSnapshotArg;
+	history?: UndoGrouping;
+	reveal?: RevealPolicy;
+}
 
 /** A commit's caret kept by `holdLandings` instead of put down; `place` puts it down, unless an
  *  undo or a document swap came in since the commit. */
@@ -309,6 +330,9 @@ export interface CommitController {
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
 	): Promise<boolean>;
+	/** The document's bytes changed as given and the blocks they reach read again; no fix-up runs,
+	 *  since the bytes are final (`docs/design/commit-and-undo.md` § The byte splice). */
+	commitSource(splice: SourceSplice): Promise<boolean>;
 	/** The document root as a `MultiScopeTarget`, so a multi-scope commit can include root-level
 	 *  changes (a cross-block delete whose common ancestor is the root). */
 	getDocScope(): MultiScopeTarget;

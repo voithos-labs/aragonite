@@ -96,7 +96,7 @@ export function installDragListener(
 
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
-		if (isWholeBlockEndpoint(focusPoint) && !reachedCentreLine(near.path, clientY)) return;
+		if (isWholeBlockEndpoint(focusPoint) && !reaches(near.path, clientY)) return;
 		const painted = ctx.selection.isCustomRendered;
 		// A whole-block range re-enters rather than extends: entering picks the anchor's side
 		// against the new focus, where extending would keep the block's start as the anchor.
@@ -140,7 +140,7 @@ export function installDragListener(
 		}
 		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
-		if (isWholeBlockEndpoint(focusPoint) && !reachedCentreLine(near.path, clientY)) return;
+		if (isWholeBlockEndpoint(focusPoint) && !reaches(near.path, clientY)) return;
 		const after = comparePaths(near.path, anchorPoint.path) > 0;
 		const focus = isWholeBlockEndpoint(focusPoint)
 			? focusPoint
@@ -159,13 +159,9 @@ export function installDragListener(
 		}
 	}
 
-	// A block with no positions inside joins the range only once the pointer crosses its centre
-	// line from the anchor's side; a sweep that merely touches its edge has not asked for it.
-	function reachedCentreLine(path: number[], clientY: number): boolean {
+	function reaches(path: number[], clientY: number): boolean {
 		const box = ctx.getBlockElByPath(path)?.getBoundingClientRect();
-		if (!box) return true;
-		const middle = box.top + box.height / 2;
-		return comparePaths(anchorPoint.path, path) < 0 ? clientY >= middle : clientY <= middle;
+		return reachesWholeBlock(box, anchorPoint.path, path, clientY, finger !== null);
 	}
 
 	// A whole-block anchor (a table, an equation) has nothing to paint natively, so the block is
@@ -233,6 +229,25 @@ export function installDragListener(
 		},
 		lifetimeSignal: ctx.lifetimeSignal
 	});
+}
+
+/** About a line: how far past a tall block's edge a finger's drag must go to take it in. */
+const FINGER_REACH_PX = 24;
+
+/** Whether a drag at `clientY` takes `box`, a block with no positions inside, into the range: past
+ *  its centre line from the anchor's side, or for a finger a line past its edge if that's nearer. */
+export function reachesWholeBlock(
+	box: Pick<DOMRect, 'top' | 'height'> | undefined,
+	anchorPath: readonly number[],
+	path: readonly number[],
+	clientY: number,
+	finger: boolean
+): boolean {
+	if (!box) return true;
+	const reach = finger ? Math.min(FINGER_REACH_PX, box.height / 2) : box.height / 2;
+	return comparePaths(anchorPath, path) < 0
+		? clientY >= box.top + reach
+		: clientY <= box.top + box.height - reach;
 }
 
 /** Collapses the native range to a caret where it stood once an owned drag's range turns painted:
