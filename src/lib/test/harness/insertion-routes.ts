@@ -2,7 +2,7 @@
 // (keydown, then beforeinput, then the browser's own insert), a soft keyboard (beforeinput with no
 // keydown, or after one that names no key, as Android sends), an autocorrect replacement, an IME
 // commit, and a paste; plus any other hardware key, sent the same way. jsdom inserts nothing
-// itself, so the insert is done here at the DOM caret.
+// itself, so the insert is done here, replacing the DOM selection as a browser does.
 
 import { settleEditor } from './settle';
 import { surfaceAt, type MountedEditor } from './mount-editor.svelte';
@@ -149,10 +149,22 @@ async function inputEvent(el: HTMLElement, inputType: string, data: string): Pro
 	return before.defaultPrevented;
 }
 
+/** An IME run: the person types after `compositionstart` has done its work, and the browser sends
+ *  the rest to whatever holds focus by then, which a range's removal may have moved. */
 async function compose(el: HTMLElement, text: string): Promise<void> {
 	el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+	await settleEditor();
+	const at = document.activeElement instanceof HTMLElement ? document.activeElement : el;
 	insertAtCaret(text);
-	el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: text }));
+	at.dispatchEvent(
+		new InputEvent('input', {
+			inputType: 'insertCompositionText',
+			data: text,
+			isComposing: true,
+			bubbles: true
+		})
+	);
+	at.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: text }));
 	await settleEditor();
 }
 
@@ -161,11 +173,12 @@ async function paste(el: HTMLElement, text: string): Promise<void> {
 	await settleEditor();
 }
 
-/** The browser's insert: `text` at the collapsed DOM caret, the caret left after it. */
+/** The browser's insert: `text` in place of the DOM selection, the caret left after it. */
 function insertAtCaret(text: string): void {
 	const selection = window.getSelection();
 	if (!selection || selection.rangeCount === 0) throw new Error('no caret to insert at');
 	const range = selection.getRangeAt(0);
+	if (!range.collapsed) range.deleteContents();
 	const { startContainer, startOffset } = range;
 	const node =
 		startContainer instanceof Text ? startContainer : insertTextNode(startContainer, startOffset);

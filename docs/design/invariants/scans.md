@@ -227,6 +227,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.290 | The `npm create` package ships its bin and the plugin template, nothing else | L |
 | G4.291 | The template's declaration step is the repo's, byte for byte | L |
 | G4.292 | Every documented `npm create` command for a plugin asks for `@latest` | L |
+| G4.295 | The range-edit law harness imports only the routes and reads it names | L |
 
 ### The entries
 
@@ -660,3 +661,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.291 · One declaration step.** A stylesheet import in a published `.d.ts` fails a host that type-checks with `skipLibCheck` off (TS2882), so every package's build drops them. The template can't import a repo script, so `packages/create-aragonite-plugin/template/scripts/strip-declaration-css.mjs` is a copy of `scripts/pack/strip-declaration-css.mjs`, byte for byte. `plugins/parrot/guide-parity.test.ts`.
 
 **G4.292 · The documented command asks for `@latest`.** npm runs a starter it fetched before when the command names no version, so a reader who copies a command without `@latest` can get an old template. Every `npm create`, `npm init` or `npx` spelling of it in the docs and the package READMEs says `@latest`; the changelog is exempt. `plugins/create-plugin.test.ts`.
+
+**G4.295 · The law harness drives the editor by its routes.** A file under `src/lib/test/range-laws/` imports the shared test harness, the generators, the public entry point, the e2e case table, and the few reads the law checks need, each listed with its reason; anything else, a tree operation above all, fails. A law checked by calling the core directly would pass while the routes that reach it disagree, which is where the range-edit bugs have lived. `lint/range-laws-imports.test.ts`.

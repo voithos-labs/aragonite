@@ -25,6 +25,7 @@ No runtime check sees these; the test suite is the whole enforcement. Test files
 | G2.15 | A container rebuilt right after a parse writes back the bytes it read        | P·N   |
 | G2.16 | A leaf written its own bytes changes nothing, and a keystroke moves one line | P·N   |
 | G2.17 | A commit that throws leaves the document and the undo stacks as they were    | N     |
+| G2.18 | Copy, cut, paste, typing and deleting over a range keep the range-edit laws  | P·N   |
 
 ### The entries
 
@@ -113,3 +114,9 @@ scope's children, child ids and the bytes, metadata and list counts it saved, em
 `error{origin:'commit'}`, then re-throws in dev and swallows in production. A write deeper than a
 scope's direct children stays written; only an internal bug reaches it.
 `commit-rollback.test.ts`, `commit-rollback-bytes.test.ts`.
+
+**G2.18 · The range-edit laws.** The gestures that copy, remove, replace or paste a range agree:
+a copy and a cut write the same clipboard, a cut pasted back gives the bytes back, Backspace leaves
+what a cut leaves, and so on, ten laws as properties through the editor's event routes, a drop in
+the browser rows. A class that breaks one today is a row of `range-laws/known-failures.ts`
+(its repro must still fail). `range-edit-laws.property.test.ts`, `range-law-cases.test.ts`.
