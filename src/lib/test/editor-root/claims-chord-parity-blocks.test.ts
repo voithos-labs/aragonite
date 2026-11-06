@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: `claimsChord` was a second computation (every kind's keymap at once) that no test
 // held against what the keydown handlers do where the caret is, so a table chord was claimed in prose.
-import { beforeAll, describe, it } from 'vitest';
+import { beforeAll, expect, it } from 'vitest';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import {
 	installLayoutStubs,
@@ -9,7 +9,7 @@ import {
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { cellAt } from '../blocks/table/mount-table';
-import { expectFocusAgrees, expectParity, keysToProbe, type ClaimContext } from './claims-parity';
+import { describeParity, probe, type ClaimContext } from './claims-parity';
 
 beforeAll(installLayoutStubs);
 registerBuiltInDescriptors();
@@ -40,7 +40,27 @@ const CONTEXTS: ClaimContext[] = [
 		focus: { at: 'leaf', path: [0] },
 		enter: caretAt([0], 5)
 	},
-	{ name: 'paragraph, caret at its start', source: DOC, enter: caretAt([6], 0) },
+	{
+		name: 'paragraph, caret at its start',
+		source: DOC,
+		only: [
+			'Backspace',
+			'Alt+Backspace',
+			'Alt+Shift+Backspace',
+			'Mod+Backspace',
+			'Mod+Shift+Backspace',
+			'Mod+Alt+Backspace',
+			'Mod+Alt+Shift+Backspace',
+			'Shift+Backspace',
+			'ArrowLeft',
+			'Shift+ArrowLeft',
+			'ArrowUp',
+			'Shift+ArrowUp',
+			'Mod+ArrowUp',
+			'Mod+Shift+ArrowUp'
+		],
+		enter: caretAt([6], 0)
+	},
 	{ name: 'heading', source: DOC, enter: caretAt([1], 6) },
 	{
 		name: 'nested list item in a quote',
@@ -72,6 +92,8 @@ const CONTEXTS: ClaimContext[] = [
 		name: 'paragraph, tableCell-scoped override',
 		source: DOC,
 		keybindings: [{ kind: 'tableCell', chord: 'Mod+Shift+J', command: 'table.insertRowBelow' }],
+		pluginChords: ['Mod+Shift+J'],
+
 		enter: caretAt([0], 5)
 	},
 	{
@@ -79,16 +101,20 @@ const CONTEXTS: ClaimContext[] = [
 		source: DOC,
 		keybindings: [
 			{ chord: 'Mod+B', command: null },
-			{ chord: 'Mod+Z', command: null }
+			{ chord: 'Mod+Z', command: null },
+			{ chord: 'Mod+Shift+Z', command: null },
+			{ chord: 'Mod+Y', command: null }
 		],
 		enter: caretAt([0], 5)
 	}
 ];
 
-describe('claimsChord reads the focus its handler stands at', () => {
-	it.each(CONTEXTS.filter((context) => context.focus))('$name', expectFocusAgrees);
-});
+describeParity(CONTEXTS);
 
-describe.each(CONTEXTS)('claimsChord agrees with the keydown: $name', (context) => {
-	it.each(keysToProbe())('%s', (chord) => expectParity(context, chord));
+it('blocks the browser’s undo and redo in a paragraph with both unbound', async () => {
+	const context = CONTEXTS.find((c) => c.name === 'paragraph, global disable')!;
+	for (const chord of ['Mod+Z', 'Mod+Shift+Z', 'Mod+Y']) {
+		const { claimed, prevented } = await probe(context, chord);
+		expect([claimed, prevented], chord).toEqual([true, true]);
+	}
 });
