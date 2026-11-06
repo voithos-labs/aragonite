@@ -14,8 +14,15 @@ import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
-import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import {
+	makeBlockListState,
+	makeListContextAt,
+	makeTopHarness,
+	type TopHarness
+} from '#lib/test/harness/editor-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { callSites, collectEditorSources, LIBRARY_ROOTS } from '../invariants/lint/scan-source';
 
 afterEach(() => {
 	expect(takeDevWarns()).toEqual([]);
@@ -159,30 +166,115 @@ describe('a re-read keeps the blocks it left alone as the nodes they were', () =
 	});
 });
 
+/** A route run as its own undo step, then a keystroke into a block it kept. */
+interface UndoRow {
+	source: string;
+	reread(h: TopHarness): Promise<unknown>;
+	/** Old path, new path: the block the re-read kept, which holds or is the leaf typed into. */
+	kept: [number[], number[]];
+	/** The leaf the keystroke goes into, and its new bytes. */
+	leaf: number[];
+	typed: string;
+}
+
+/** A keystroke in a burst of its own, so each lands as its own undo entry. */
+const keystroke = (h: TopHarness, leaf: number[], text: string) =>
+	h.controller.typingKeystroke(docPathFrom(leaf), 0, leaf.join(), 'join-typing', async () =>
+		typeInto(h, leaf, text)
+	);
+
+/** Enter after the first character of item 0, whose later blocks move into the new item. */
+function splitFirstItem(h: TopHarness) {
+	const item = () => h.deps.doc.children[0].children![0];
+	registerBlockListState(item(), makeBlockListState(item) as never);
+	const { listContext } = makeListContextAt(h.deps, 0, { controller: h.controller });
+	return listContext.splitItemAtOffset(0, 0, 1);
+}
+
+const UNDO_ROWS: Record<string, UndoRow> = {
+	'the byte splice': {
+		source: '- a\n- b\n- c\n',
+		reread: (h) => splice(h, 6, 7, 'bX'),
+		kept: [
+			[0, 0],
+			[0, 0]
+		],
+		leaf: [0, 0, 0],
+		typed: 'aZ\n'
+	},
+	'a spill at the top level': {
+		source: '- x\n- a b\n\n  c\n',
+		reread: (h) => keystroke(h, [0, 1, 0], ' b\n'),
+		kept: [
+			[0, 0],
+			[0, 0]
+		],
+		leaf: [0, 0, 0],
+		typed: 'xZ\n'
+	},
+	'a container taking its own reading': {
+		source: '- a\n\n  b\n\n  c\n',
+		reread: splitFirstItem,
+		kept: [
+			[0, 0, 2],
+			[0, 1, 3]
+		],
+		leaf: [0, 1, 3],
+		typed: 'cZ\n'
+	},
+	"a container's reading put in its slot": {
+		source: '- a b\n  - sub\n- c\n- d\n',
+		reread: (h) => keystroke(h, [0, 0, 0], ' b\n'),
+		kept: [
+			[0, 1],
+			[0, 2]
+		],
+		leaf: [0, 2, 0],
+		typed: 'cZ\n'
+	}
+};
+
 describe('an undo entry holding a kept node', () => {
 	// Miss-analysis: before nodes were kept, every re-read handed out fresh ones, so no undo entry
-	// shared a node with the tree after it, and nothing tested a later write through one.
-	it('never sees a later write through it', async () => {
-		const source = '- a\n- b\n- c\n';
-		const h = makeTopHarness(source);
-		const item = h.deps.doc.children[0].children![0];
-
-		await splice(h, 6, 7, 'bX');
-		expect(h.deps.doc.children[0].children![0]).toBe(item);
-		const leaf = docPathFrom([0, 0, 0]);
-		await h.controller.typingKeystroke(leaf, 1, 'a', 'join-typing', async () =>
-			typeInto(h, [0, 0, 0], 'aZ\n')
-		);
-
-		const stack = h.deps.undoManager.getStacks().undo;
-		expect(serialize(stack[0].snapshot)).toBe(source);
-		expect(serialize(stack[1].snapshot)).toBe('- a\n- bX\n- c\n');
+	// shared a node with the tree after it, and the first undo row covered the splice alone.
+	it.each(Object.entries(UNDO_ROWS))('never sees a later write through it: %s', async (_, row) => {
+		const h = makeTopHarness(row.source);
+		const [from, to] = row.kept;
+		const kept = at(h.deps.doc, from);
+		await row.reread(h);
+		expect(at(h.deps.doc, to)).toBe(kept);
+		const reread = serialize(h.deps.doc);
+		await keystroke(h, row.leaf, row.typed);
+		expect(at(h.deps.doc, to)).not.toBe(kept);
+		const typed = serialize(h.deps.doc);
 		const history = createHistoryActions(h.deps, h.controller);
 		await history.requestUndo();
+		expect(serialize(h.deps.doc)).toBe(reread);
 		await history.requestUndo();
-		expect(serialize(h.deps.doc)).toBe(source);
+		expect(serialize(h.deps.doc)).toBe(row.source);
 		await history.requestRedo();
 		await history.requestRedo();
-		expect(serialize(h.deps.doc)).toBe('- aZ\n- bX\n- c\n');
+		expect(serialize(h.deps.doc)).toBe(typed);
+	});
+});
+
+describe('the route list', () => {
+	const sources = collectEditorSources(LIBRARY_ROOTS).filter(
+		(file) => file.relPath !== 'src/lib/block-id.ts'
+	);
+	const callers = (name: string) =>
+		sources.filter((file) => callSites(file.code, name).length > 0).map((file) => file.relPath);
+
+	// A keystroke's block can show text its re-read moved, and a kept id deeper down hides that.
+	it('only the byte splice keeps nodes down a changed child', () => {
+		expect(callers('keepUnchangedDeep')).toEqual(['src/lib/tree-operations/byte-splice.ts']);
+	});
+
+	it('every file that keeps a re-read’s nodes is a route with rows above', () => {
+		expect(callers('keepUnchanged').sort()).toEqual([
+			'src/lib/schema/container-raw.ts',
+			'src/lib/tree-operations/chain-rebuild.ts',
+			'src/lib/tree-operations/content-write.ts'
+		]);
 	});
 });

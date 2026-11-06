@@ -42,8 +42,8 @@ export function keepUnchanged(previous: CstNode, next: CstNode): void {
 	keepChildren(previous, next);
 }
 
-/** {@link keepUnchanged} at every depth, down the first changed child. Only for bytes written from
- *  outside the tree: a keystroke's leaf can show text its re-read moved, which a kept id would hide. */
+/** {@link keepUnchanged} down the first changed child to the leaf, for the byte splice alone: its
+ *  bytes come from outside the tree, so no block shows text its re-read moved, as a keystroke's can. */
 export function keepUnchangedDeep(previous: CstNode, next: CstNode): void {
 	const changed = keepChildren(previous, next);
 	if (changed !== null) keepUnchangedDeep(previous.children![changed], next.children![changed]);
