@@ -64,8 +64,8 @@ function bytesOfRange(doc: DocumentView, selection: EditorSelection, mode: Mode)
 	if (start.cellCoordinate && end.cellCoordinate && start.path.join() === end.path.join())
 		return null;
 	const layout = documentLayout(doc);
-	const blockAt = (path: readonly number[]) =>
-		layout.blocks.find((b) => b.path.join() === path.join());
+	const blocks = [...layout.within(0, Infinity)];
+	const blockAt = (path: readonly number[]) => blocks.find((b) => b.path.join() === path.join());
 	const at = (point: SelectionPoint, side: 'start' | 'end'): number | null => {
 		if (!point.cellCoordinate) return layout.byteOf(point.path, point.offset);
 		const table = blockNodeAt(doc, point.path);
@@ -88,7 +88,7 @@ function bytesOfRange(doc: DocumentView, selection: EditorSelection, mode: Mode)
 		from = Math.min(from, block.from);
 		to = Math.max(to, textEnd(root, block.to));
 	}
-	for (const block of layout.blocks) {
+	for (const block of blocks) {
 		if (block.lines || hasTextPosition(block.type, mode === 'source')) continue;
 		const end = textEnd(block.path, block.to);
 		if (block.from < from && from < end) from = block.from;

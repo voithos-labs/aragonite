@@ -77,7 +77,12 @@ export interface Fence {
 	mayClose(line: string): boolean;
 }
 
-export function rangeHost(reading: Reading): RangeHost {
+/** The host over `reading`. With `current`, the editor's own tree answers a read of its own bytes,
+ *  so a gesture over the document as it stands parses nothing; the core never writes to it. */
+export function rangeHost(
+	reading: Reading,
+	current?: { source: string; tree: DocumentView }
+): RangeHost {
 	// The editor's reading at the moment of the write, in the gesture's mode.
 	const readingIn = (mode: Mode): Reading => ({
 		grammar: reading.grammar,
@@ -103,9 +108,14 @@ export function rangeHost(reading: Reading): RangeHost {
 			after: legal.storedOffset(edit.afterRange)
 		};
 	};
+	let currentLayout: Layout | undefined;
 	return {
-		read: (source) => readAsOpened(source, { grammar: reading.grammar, scope: 'document' }),
-		layout: documentLayout,
+		read: (source) =>
+			source === current?.source
+				? current.tree
+				: readAsOpened(source, { grammar: reading.grammar, scope: 'document' }),
+		layout: (doc) =>
+			doc === current?.tree ? (currentLayout ??= documentLayout(doc)) : documentLayout(doc),
 		facts: blockFacts,
 		leaf: {
 			replace(doc, path, from, to, text, mode) {

@@ -13,6 +13,7 @@ import {
 	splitLines,
 	type ParsedLine
 } from '../core/lines';
+import { blockFacts } from '../schema/block-facts';
 import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
 
@@ -180,14 +181,16 @@ function leafIn(
 	if (stripOnly && tryGetBlockKindDescriptor(node.kind)?.containerContract !== 'strip') return null;
 	const map = mapOf(node);
 	const inner = map.toBody(rawOffset);
-	for (let i = 0; i < children.length; i++) {
-		const start = map.childStarts[i];
-		if (inner <= start + displayLength(children[i].raw) || i === children.length - 1) {
-			const leaf = leafIn(children[i], Math.max(inner - start, 0), stripOnly, mapOf);
-			return leaf && { path: [i, ...leaf.path], offset: leaf.offset };
-		}
+	// The first child whose text runs to `inner`, or the last.
+	let lo = 0;
+	let hi = children.length - 1;
+	while (lo < hi) {
+		const mid = (lo + hi) >> 1;
+		if (inner <= map.childStarts[mid] + displayLength(children[mid].raw)) hi = mid;
+		else lo = mid + 1;
 	}
-	return null;
+	const leaf = leafIn(children[lo], Math.max(inner - map.childStarts[lo], 0), stripOnly, mapOf);
+	return leaf && { path: [lo, ...leaf.path], offset: leaf.offset };
 }
 
 function byteIn(
@@ -234,6 +237,8 @@ function bodyMap(node: NodeView): ContainerMap {
 function lineMap(node: NodeView): ContainerMap {
 	const children = node.children ?? [];
 	const titled = reservedChromeKindOf(node.kind) !== undefined;
+	const verbatim = !titled && verbatimStarts(node);
+	if (verbatim) return identityMap(node.raw, verbatim);
 	const childStarts: number[] = [];
 	let body = '';
 	const add = (i: number) => {
@@ -287,6 +292,38 @@ function lineMap(node: NodeView): ContainerMap {
 			const at = Math.min(Math.max(paired[r]!.at + column, 0), raw[r].text.length);
 			return raw[r].start + at;
 		}
+	};
+}
+
+/** Where each child starts in a list's raw, which is its items' bytes and nothing else (its items
+ *  carry the markers); null for any other container. */
+function verbatimStarts(node: NodeView): number[] | null {
+	if (blockFacts(node.kind).lines !== 'items' || node.innerPrefix || node.innerSuffix) return null;
+	const starts: number[] = [];
+	let at = 0;
+	for (const child of node.children ?? []) {
+		at += child.leadingTrivia.length;
+		starts.push(at);
+		at += child.raw.length;
+	}
+	return at === node.raw.length ? starts : null;
+}
+
+/** A container that adds no bytes to its children's (a list): every offset is the same in both,
+ *  and its lines are split only when a caller asks for them. */
+function identityMap(raw: string, childStarts: number[]): ContainerMap {
+	let lines: ParsedLine[] | undefined;
+	const rawLines = () => (lines ??= splitLines(raw));
+	return {
+		childStarts,
+		get rawLines() {
+			return rawLines();
+		},
+		get paired() {
+			return rawLines().map((_, line) => ({ line, at: 0 }));
+		},
+		toBody: (rawOffset) => rawOffset,
+		toRaw: (bodyOffset) => bodyOffset
 	};
 }
 

@@ -1,11 +1,13 @@
 /**
- * Where every block of a parsed document sits in its bytes: each block's span, a text block's text
+ * Where the blocks of a parsed document sit in its bytes: each block's span, a text block's text
  * inside its own markers, each container line's marker, and the two-way map between a byte and a
- * text position. Read off the document's byte map (`tree-operations/container-offsets.ts`).
+ * text position. Read off the document's byte map (`tree-operations/container-offsets.ts`), one
+ * block at a time as a gesture asks, so a range edit's work stays near its range.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
+import { blockNodeAt } from '../tree-operations/node-primitives';
 import {
 	childTriviaStart,
 	containerLines,
@@ -32,13 +34,16 @@ export interface LaidBlock {
 	to: number;
 	/** A block without children: where its text sits, inside its own markers. */
 	text?: { from: number; to: number };
-	/** A container: its lines. */
-	lines?: LaidLine[];
+	/** A container whose children sit on lines of its own; its `lines` are read when asked. */
+	container: boolean;
+	readonly lines?: LaidLine[];
 }
 
 export interface Layout {
-	/** Every block, depth first, parents before children. */
-	blocks: LaidBlock[];
+	/** The block at `path`; undefined for the document itself or a path that names nothing. */
+	block(path: readonly number[]): LaidBlock | undefined;
+	/** Every block whose bytes reach `[from, to]`, ends included, parents before children. */
+	within(from: number, to: number): Iterable<LaidBlock>;
 	/** The byte offset `offset` of the text block at `path` sits at; null for any other path. */
 	byteOf(path: readonly number[], offset: number): number | null;
 	/** The text position at `byte`, or null where the byte belongs to no text (a marker, a closer). */
@@ -47,61 +52,106 @@ export interface Layout {
 
 export function documentLayout(doc: DocumentView): Layout {
 	const map = documentByteMap(doc);
-	const blocks: LaidBlock[] = [];
-	const leaves = new Map<string, NodeView>();
+	const laid = new Map<string, LaidBlock>();
 	const tops: { start: number; raw: string }[] = [];
+	let at = doc.prefix.length;
+	for (const node of doc.children) {
+		tops.push({ start: at, raw: node.raw });
+		at += node.leadingTrivia.length + node.raw.length;
+	}
+	const rawStart = (i: number) => tops[i].start + doc.children[i].leadingTrivia.length;
 	// A block's last line runs to the end of its line in the source, past a title's closing tag too.
 	const pastLine = (path: readonly number[], raw: string, end: number): number => {
 		if (!raw.endsWith('\n', end)) return map.byteOf(path, end)!;
-		const top = tops[path[0]];
-		const at = map.byteOf(path, end - (raw.endsWith('\r\n', end) ? 2 : 1))! - top.start;
-		return top.start + top.raw.indexOf('\n', at) + 1;
+		const top = path[0];
+		const byte = map.byteOf(path, end - (raw.endsWith('\r\n', end) ? 2 : 1))!;
+		return rawStart(top) + tops[top].raw.indexOf('\n', byte - rawStart(top)) + 1;
 	};
-	const lay = (node: NodeView, path: number[], start: number) => {
-		const block: LaidBlock = {
-			path,
+	const leaf = (path: readonly number[]): NodeView | null => {
+		const node = blockNodeAt(doc, path);
+		return node && !node.children ? node : null;
+	};
+
+	function block(path: readonly number[]): LaidBlock | undefined {
+		const key = path.join();
+		const known = laid.get(key);
+		if (known || path.length === 0) return known;
+		const node = blockNodeAt(doc, path);
+		if (!node) return undefined;
+		const parentPath = path.slice(0, -1);
+		const parent = parentPath.length > 0 ? blockNodeAt(doc, parentPath) : null;
+		const parentMap = parent && map.containerMap(parent);
+		const index = path[path.length - 1];
+		const start = !parent
+			? tops[index].start
+			: parentMap
+				? map.byteOf(parentPath, childTriviaStart(parentMap, parent, index))!
+				: 0;
+		const own = map.containerMap(node);
+		const laidBlock: LaidBlock = {
+			path: path.slice(),
 			type: node.kind,
 			start,
 			from: map.byteOf(path, 0)!,
-			to: pastLine(path, node.raw, node.raw.length)
+			to: pastLine(path, node.raw, node.raw.length),
+			container: own !== null && 'rawLines' in own
 		};
-		blocks.push(block);
 		if (!node.children) {
 			const text = getContentRange(node);
-			block.text = { from: map.byteOf(path, text.start)!, to: map.byteOf(path, text.end)! };
-			leaves.set(path.join(), node);
-			return;
+			laidBlock.text = { from: map.byteOf(path, text.start)!, to: map.byteOf(path, text.end)! };
+		} else if (laidBlock.container) {
+			let lines: LaidLine[] | undefined;
+			Object.defineProperty(laidBlock, 'lines', {
+				get: () =>
+					(lines ??= (containerLines(own!) ?? []).map((line) => ({
+						from: map.byteOf(path, line.start)!,
+						markerTo: line.own
+							? pastLine(path, node.raw, line.end)
+							: map.byteOf(path, line.markerEnd)!,
+						to: pastLine(path, node.raw, line.end),
+						own: line.own
+					})))
+			});
 		}
-		const container = map.containerMap(node);
-		const lines = container && containerLines(container);
-		if (lines) {
-			block.lines = lines.map((line) => ({
-				from: map.byteOf(path, line.start)!,
-				markerTo: line.own ? pastLine(path, node.raw, line.end) : map.byteOf(path, line.markerEnd)!,
-				to: pastLine(path, node.raw, line.end),
-				own: line.own
-			}));
+		laid.set(key, laidBlock);
+		return laidBlock;
+	}
+
+	/** Children `[first, count)` of the block at `path`, those reaching `[from, to]`, in order. */
+	function* reaching(
+		path: number[],
+		count: number,
+		from: number,
+		to: number
+	): Generator<LaidBlock> {
+		const at = (i: number) => block([...path, i])!;
+		// The first child whose bytes run to `from`; children lie in order, so the rest follow it.
+		let lo = 0;
+		let hi = count;
+		while (lo < hi) {
+			const mid = (lo + hi) >> 1;
+			if (at(mid).to < from) lo = mid + 1;
+			else hi = mid;
 		}
-		node.children.forEach((child, i) => {
-			const trivia = container ? map.byteOf(path, childTriviaStart(container, node, i))! : 0;
-			lay(child, [...path, i], trivia);
-		});
-	};
-	let at = doc.prefix.length;
-	doc.children.forEach((node, i) => {
-		tops.push({ start: at + node.leadingTrivia.length, raw: node.raw });
-		lay(node, [i], at);
-		at += node.leadingTrivia.length + node.raw.length;
-	});
+		for (let i = lo; i < count; i++) {
+			const child = at(i);
+			if (child.from > to) return;
+			yield child;
+			const children = blockNodeAt(doc, child.path)!.children;
+			if (children) yield* reaching(child.path, children.length, from, to);
+		}
+	}
+
 	return {
-		blocks,
+		block,
+		within: (from, to) => reaching([], doc.children.length, from, to),
 		byteOf(path, offset) {
-			const leaf = leaves.get(path.join());
-			return leaf && offset >= 0 && offset <= leaf.raw.length ? map.byteOf(path, offset) : null;
+			const node = leaf(path);
+			return node && offset >= 0 && offset <= node.raw.length ? map.byteOf(path, offset) : null;
 		},
 		pointAt(byte) {
 			const point = map.leafAt(byte);
-			return point && leaves.has(point.path.join()) && map.byteOf(point.path, point.offset) === byte
+			return point && leaf(point.path) && map.byteOf(point.path, point.offset) === byte
 				? point
 				: null;
 		}

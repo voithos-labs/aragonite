@@ -64,7 +64,7 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 /** A fenced block the range enters and ends inside closes with its closing line, so the copy never
  *  opens a block that swallows what follows where it is pasted. */
 function fenceCloser(doc: Doc, shared: LaidBlock | null, from: number, to: number, eol: string) {
-	for (const block of doc.layout.blocks) {
+	for (const block of doc.layout.within(from, to)) {
 		if (!block.text || factsOf(doc, block).body !== 'literal') continue;
 		if (from >= block.from || to <= block.from) continue;
 		const closer = doc.host.fence(nodeAt(doc, block.path).raw)?.closer;
@@ -93,7 +93,9 @@ function sharedContainer(
 /** `[from, to)` with the markers of `shared` and every container around it taken off each line
  *  after the first. */
 function withoutMarkers(doc: Doc, shared: LaidBlock | null, from: number, to: number): string {
-	if (!shared) return doc.source.slice(from, to);
+	// A top-level list's lines carry no marker of its own (its items carry theirs), so none comes off.
+	const bare = !shared || (shared.path.length === 1 && factsOf(doc, shared).lines === 'items');
+	if (bare) return doc.source.slice(from, to);
 	let out = '';
 	let at = from;
 	for (const line of shared.lines!) {

@@ -154,6 +154,22 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '- i0\n  - \n', clipboard: '- i1\n  - i2\n- i3', caret: text(9) },
 		then: { gesture: 'paste back', expect: backToStart('- i0\n  - i1\n    - i2\n  - i3\n') }
 	},
+	// Miss-analysis: the merge ran only for a clipboard whose last block takes joined text, and no
+	// row emptied a container and pasted a container ending in code back on its line.
+	{
+		name: 'L3 a quote cut out past its end into code pastes back into the quote it emptied',
+		source: '> ⟦q\n\n    code⟧\n',
+		gesture: 'cut',
+		expect: { source: '> \n', clipboard: '> q\n\n    code', caret: text(2) },
+		then: { gesture: 'paste back', expect: backToStart('> q\n\n    code\n') }
+	},
+	{
+		name: 'L3 an alert cut out past its end pastes back into the alert it emptied',
+		source: '> [!TIP]\n> ⟦a\n\n[^1]: x\n    - y⟧\n',
+		gesture: 'cut',
+		expect: {},
+		then: { gesture: 'paste back', expect: backToStart('> [!TIP]\n> a\n\n[^1]: x\n    - y\n') }
+	},
 	{
 		name: 'L3 a quote line read without its marker comes back with it',
 		source: '> alpha ⟦bravo\ncharlie⟧\n',
@@ -397,6 +413,19 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'a\n\n```\n\n```\n', caret: text(1) }
 	},
 	// ── Rulings at the land (2026-11-06) ──
+	// § 5.4 rule 6: a line holding only spaces is blank already, so blocks pasted on it add none.
+	{
+		name: 'L9 blocks pasted on a line holding only spaces add no blank line',
+		source: '  ⟦⟧\nafter\n',
+		gesture: paste(' \n> q'),
+		expect: { source: '  \n \n> q\nafter\n' }
+	},
+	{
+		name: 'L9 the same blocks pasted after text take a blank line first',
+		source: 'ab⟦⟧\n',
+		gesture: paste(' \n> q'),
+		expect: { source: 'ab\n\n \n> q\n' }
+	},
 	{
 		name: 'L12 a cut from a code block text through its closing line pastes back exact with its entry',
 		source: '```\nco⟦de\n```⟧\n\nafter\n',

@@ -60,7 +60,7 @@ it('every block and container line reads back from the bytes', () => {
 		const doc = readAsOpened(source, { grammar, scope: 'document' });
 		const layout = documentLayout(doc);
 		const q = (what: string) => misses.push(`${JSON.stringify(source)} ${what}`);
-		for (const block of layout.blocks) {
+		for (const block of layout.within(0, Infinity)) {
 			const node = blockNodeAt(doc, block.path)!;
 			const ending = /\r?\n$/.exec(node.raw)?.[0] ?? '';
 			if (source.slice(block.to - ending.length, block.to) !== ending || block.from > block.to)
