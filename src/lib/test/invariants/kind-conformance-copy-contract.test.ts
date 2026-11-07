@@ -15,7 +15,7 @@ vi.mock('#lib/selection/range-clipboard.js', async (importOriginal) => {
 	const { coverRange, rangeCoverage } = await import('#lib/selection/range-coverage.js');
 	type Args = Parameters<typeof actual.rangeClipboard>;
 	type Point = Args[1]['range']['start'];
-	const cut = (doc: Args[0], point: Point): Point => {
+	const cut = (doc: ReturnType<Args[0]['doc']>, point: Point): Point => {
 		const node = nodeAt(doc, point.path);
 		if (!node || !('raw' in node)) return point;
 		if (getBlockKindDescriptor(node.kind).blockFocus !== 'whole-block') return point;
@@ -24,12 +24,11 @@ vi.mock('#lib/selection/range-clipboard.js', async (importOriginal) => {
 	};
 	return {
 		...actual,
-		rangeClipboard: (doc: Args[0], { range }: Args[1], reading: Args[2]) =>
-			actual.rangeClipboard(
-				doc,
-				rangeCoverage(doc, coverRange(doc, cut(doc, range.start), cut(doc, range.end))),
-				reading
-			)
+		rangeClipboard: (bytes: Args[0], { range }: Args[1], reading: Args[2]) => {
+			const doc = bytes.doc();
+			const ends = coverRange(doc, cut(doc, range.start), cut(doc, range.end));
+			return actual.rangeClipboard(bytes, rangeCoverage(doc, ends), reading);
+		}
 	};
 });
 

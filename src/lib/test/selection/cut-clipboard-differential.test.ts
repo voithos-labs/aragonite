@@ -9,6 +9,7 @@ import { serialize } from '../../core/serializer';
 import { sharedPrefixLength, sharedSuffixLength } from '#lib/core/written-span.js';
 import { editRange } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type Mode } from '#lib/range-edit/host.js';
+import { documentLayout } from '#lib/range-edit/layout.js';
 import { isReservedChromeChild, rowContentRange } from '#lib/schema/reserved-chrome.js';
 import { rangeDelete } from '../../selection/cross-block/range-delete/range-delete';
 import { rangeBytes } from '#lib/selection/range-bytes.js';
@@ -19,6 +20,7 @@ import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
 import { readOf, startsBelowTableHead } from '../range-edit/expected';
 import { checkHost } from '../range-edit/test-host';
 
@@ -92,8 +94,13 @@ function cutLegs(c: CutCase) {
 	const reading = fixtureReading({}, c.mode);
 	const coverage = rangeCoverage(doc, coverRange(doc, c.start, c.end));
 	const source = serialize(doc);
-	const written = rangeClipboard(doc, coverage, reading)?.text ?? '';
-	const bytes = rangeBytes(doc, source, coverage)!;
+	const written =
+		rangeClipboard(
+			freshBytes(() => doc),
+			coverage,
+			reading
+		)?.text ?? '';
+	const bytes = rangeBytes(doc, coverage, documentLayout(doc))!;
 	const core = editRange(source, bytes, 'cut', c.mode, rangeHost(reading, { source, tree: doc }));
 	// Today's removal writes into the tree it reads, so it runs last.
 	const today = writtenBelow(

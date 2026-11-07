@@ -13,6 +13,8 @@ import { cellFailure, type CellContract } from './cell-contracts';
 import type { SelectionPoint } from '../selection/primitives';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { rangeClipboard } from '../selection/range-clipboard';
+import { documentBytes } from '../selection/range-bytes';
+import { serialize } from '../core/serializer';
 import { coverRange, rangeCoverage } from '../selection/range-coverage';
 import { kitReading } from './kit-reading';
 
@@ -238,7 +240,7 @@ export function copyThroughFunnel(
 	selection.enterCrossBlock(anchor, focus);
 	const { start, end } = selection;
 	if (!start || !end) fail('the selection funnel refused the cross-block endpoint pair');
-	return (
-		rangeClipboard(doc, rangeCoverage(doc, coverRange(doc, start, end)), kitReading())?.text ?? ''
-	);
+	const bytes = documentBytes({ version: () => 0, doc: () => doc, source: () => serialize(doc) });
+	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
+	return rangeClipboard(bytes, coverage, kitReading())?.text ?? '';
 }

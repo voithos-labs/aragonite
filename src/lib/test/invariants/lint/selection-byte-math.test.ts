@@ -25,7 +25,7 @@ const SELECTION_BYTES: FileRule = {
 		{ relPath: ROGUE, code: 'documentByteMap(doc).leafAt(byte)' }
 	],
 	misses: [
-		{ relPath: ROGUE, code: 'rangeBytes(doc, source, coverage)' },
+		{ relPath: ROGUE, code: 'rangeBytes(doc, coverage, layout)' },
 		{ relPath: ROGUE, code: 'const byteOffset = 3;' }
 	]
 };

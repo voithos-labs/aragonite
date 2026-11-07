@@ -13,6 +13,7 @@ import type { PluginActivation } from '#lib/schema/plugin-activation.js';
 import type { Reading } from '#lib/schema/reading.js';
 import type { RawRange } from '#lib/browser/offsets.js';
 import { blockRangeClipboard } from '#lib/selection/range-clipboard.js';
+import { freshBytes } from './copied-text';
 
 export interface ClipboardSurfaceParts extends Omit<SurfaceClipboardContext, 'copyRange'> {
 	blockEdit: BlockEditActions;
@@ -27,7 +28,7 @@ export interface ClipboardSurfaceParts extends Omit<SurfaceClipboardContext, 'co
 export function clipboardSurface(parts: ClipboardSurfaceParts): TextClipboardDeps['surface'] {
 	// The surface's own copy: the block's range read through the document, as the editor reads it.
 	const copyRange = (range: RawRange) =>
-		blockRangeClipboard(parts.getDoc(), parts.myPath, range, parts.reading);
+		blockRangeClipboard(freshBytes(parts.getDoc), parts.myPath, range, parts.reading);
 	return {
 		get caret() {
 			return parts.caret;

@@ -4,7 +4,6 @@
 
 import fc from 'fast-check';
 import type { DocumentView } from '#lib/core/node-views.js';
-import { serialize } from '#lib/core/serializer.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import type { EditorSelection, SelectionPoint } from '#lib/selection/primitives.js';
@@ -64,5 +63,5 @@ function bytesOfRange(doc: DocumentView, selection: EditorSelection): Range | nu
 			? point
 			: normalizeCharEndpoint(doc, point, other.path);
 	const covered = coverRange(doc, snapped(anchor, focus), snapped(focus, anchor));
-	return rangeBytes(doc, serialize(doc), rangeCoverage(doc, covered));
+	return rangeBytes(doc, rangeCoverage(doc, covered), documentLayout(doc));
 }

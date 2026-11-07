@@ -50,22 +50,30 @@ export interface Layout {
 	pointAt(byte: number): { path: number[]; offset: number } | null;
 }
 
+/** Reads nothing until asked, so a layout made ahead of its first question costs nothing. */
 export function documentLayout(doc: DocumentView): Layout {
 	const map = documentByteMap(doc);
 	const laid = new Map<string, LaidBlock>();
-	const tops: { start: number; raw: string }[] = [];
-	let at = doc.prefix.length;
-	for (const node of doc.children) {
-		tops.push({ start: at, raw: node.raw });
-		at += node.leadingTrivia.length + node.raw.length;
-	}
-	const rawStart = (i: number) => tops[i].start + doc.children[i].leadingTrivia.length;
+	let tops: { start: number; raw: string }[] | undefined;
+	const topAt = (i: number) => {
+		if (!tops) {
+			tops = [];
+			let at = doc.prefix.length;
+			for (let j = 0; j < doc.children.length; j++) {
+				const node = doc.children[j];
+				tops.push({ start: at, raw: node.raw });
+				at += node.leadingTrivia.length + node.raw.length;
+			}
+		}
+		return tops[i];
+	};
+	const rawStart = (i: number) => topAt(i).start + doc.children[i].leadingTrivia.length;
 	// A block's last line runs to the end of its line in the source, past a title's closing tag too.
 	const pastLine = (path: readonly number[], raw: string, end: number): number => {
 		if (!raw.endsWith('\n', end)) return map.byteOf(path, end)!;
 		const top = path[0];
 		const byte = map.byteOf(path, end - (raw.endsWith('\r\n', end) ? 2 : 1))!;
-		return rawStart(top) + tops[top].raw.indexOf('\n', byte - rawStart(top)) + 1;
+		return rawStart(top) + topAt(top).raw.indexOf('\n', byte - rawStart(top)) + 1;
 	};
 	const leaf = (path: readonly number[]): NodeView | null => {
 		const node = blockNodeAt(doc, path);
@@ -83,7 +91,7 @@ export function documentLayout(doc: DocumentView): Layout {
 		const parentMap = parent && map.containerMap(parent);
 		const index = path[path.length - 1];
 		const start = !parent
-			? tops[index].start
+			? topAt(index).start
 			: parentMap
 				? map.byteOf(parentPath, childTriviaStart(parentMap, parent, index))!
 				: 0;

@@ -6,13 +6,15 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
 import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
 
 function makeDeps(selection: SelectionState, deleteSpy = vi.fn(async () => {})) {
 	const doc = parse('hello\n\nworld\n');
 	const crossBlock = {
 		performCrossBlockCut: deleteSpy,
-		reading: fixtureReading()
+		reading: fixtureReading(),
+		bytes: freshBytes(() => doc)
 	} as unknown as CrossBlockHandlers;
 	return { selection, getDoc: () => doc, crossBlock };
 }

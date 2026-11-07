@@ -392,8 +392,6 @@ export async function measureStructuralRebuild(
 	};
 }
 
-/** A paste at the end of item `item` of a giant list, through today's paste and through the byte
- *  splice, each timed to the frame after it lands; either way the whole list is read again. */
 /** Copies of a range across `items` items of a giant list, from item `item` down, each timed from
  *  the copy command to its return: the copy writes before anything awaits. */
 export async function measureListCopy(
@@ -436,6 +434,8 @@ export async function measureListCopy(
 	};
 }
 
+/** A paste at the end of item `item` of a giant list, through today's paste and through the byte
+ *  splice, each timed to the frame after it lands; either way the whole list is read again. */
 export async function measureListPaste(
 	page: Page,
 	editor: EditorPage,

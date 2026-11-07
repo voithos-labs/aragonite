@@ -50,9 +50,8 @@ jsdom. `textcontent-spine.property.test.ts`.
 
 **G2.7 · Selection partition.** Every block strictly between a range's endpoints sits in exactly one
 subtree `rangeCoverage` holds whole, inside an endpoint's block, or is an ancestor of the end's
-block, and the overlay's class for every block is the one that coverage gives it: a subtree the
-range covers end to end paints one box, an endpoint's block included, and nothing under a box
-paints. `walkBetween` visits the blocks in order. `selection-partition.property.test.ts`.
+block. `walkBetween` visits the blocks in order. How the overlay paints the range is G1.187's.
+`selection-partition.property.test.ts`.
 
 **G2.8 · Structural alignment.** Split and merge round-trip, and the id, ref and children arrays
 stay aligned, in all scopes. `structural-id-ref-alignment.test.ts`.

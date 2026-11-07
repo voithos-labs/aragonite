@@ -2802,7 +2802,7 @@ const SYNTAX_MODULES: FileRule[] = [
 // ── G4.114 one paint decision for a block under a range ─────────────────────
 
 const ROGUE_PAINTER = `${SOURCE_DIR.components}RoguePaint.svelte`;
-const COVERAGE_FIELD = String.raw`\b(?:wholeRoots|coveredWhole|startEdge|endEdge|startCells|endCells)\b`;
+const COVERAGE_FIELD = String.raw`\b(?:wholeRoots|startEdge|endEdge|startCells|endCells)\b`;
 const END_PATH = (end: string) => String.raw`[\w.?]*\b${end}\??\.path\s*`;
 const ENDS_COMPARED = String.raw`pathsEqual\(\s*(?:${END_PATH('start')},\s*${END_PATH('end')}|${END_PATH('end')},\s*${END_PATH('start')})\)`;
 
@@ -2812,25 +2812,25 @@ const RANGE_PAINT: FileRule = {
 	// A dotted read, or an object pattern naming a field, assigned or typed as the coverage; or a
 	// range's two ends compared, which is `rangeSpansBlocks` worked out again.
 	matches: new RegExp(
-		String.raw`\.(?:coveredRootHolding|rootHolding)\s*\(|\.${COVERAGE_FIELD}|\{[^{}]*${COVERAGE_FIELD}[^{}]*\}\s*(?:=(?!=)|:\s*RangeCoverage\b)|${ENDS_COMPARED}`
+		String.raw`\.(?:boxHolding|rootHolding)\s*\(|\.${COVERAGE_FIELD}|\{[^{}]*${COVERAGE_FIELD}[^{}]*\}\s*(?:=(?!=)|:\s*RangeCoverage\b)|${ENDS_COMPARED}`
 	),
 	reaches: [SOURCE.selectionOverlay],
 	reason:
 		'a painter that reads the coverage itself, or compares the range ends, keeps its own copy of which block a range covers whole or whether it spans blocks, and the painters disagree on the shape: ask `classifyBlockForSelection`, `blockPaintsWholeBox` or `rangeSpansBlocks`',
 	hits: [
 		at(ROGUE_PAINTER, 'const boxed = coverage.rootHolding(path) !== null;'),
-		at(ROGUE_PAINTER, 'if (coverage.coveredRootHolding(path)) return;'),
+		at(ROGUE_PAINTER, 'if (paint.boxHolding(path)) return;'),
 		at(ROGUE_PAINTER, 'const roots = live.wholeRoots;'),
 		at(ROGUE_PAINTER, 'const from = coverage.startEdge?.offset ?? 0;'),
 		at(ROGUE_PAINTER, 'const run = coverage.endCells;'),
 		at(ROGUE_PAINTER, 'const { wholeRoots, startEdge } = coverage;'),
-		at(ROGUE_PAINTER, 'const {\n\tstartCells,\n\tcoveredWhole\n} = live;'),
+		at(ROGUE_PAINTER, 'const {\n\tstartCells,\n\twholeRoots\n} = live;'),
 		at(ROGUE_PAINTER, 'function paint({ endEdge }: RangeCoverage): void {}'),
 		at(ROGUE_PAINTER, 'const across = !pathsEqual(start.path, end.path);'),
 		at(ROGUE_PAINTER, 'if (pathsEqual(selection.end?.path, selection.start?.path)) return;')
 	],
 	misses: [
-		at(ROGUE_PAINTER, 'const box = blockPaintsWholeBox(path, coverage, null);'),
+		at(ROGUE_PAINTER, 'const box = blockPaintsWholeBox(path, paint, null);'),
 		at(ROGUE_PAINTER, 'const grid = rangeCoverage()?.grid;'),
 		at(ROGUE_PAINTER, 'const { start, end } = coverage.range;'),
 		at(ROGUE_PAINTER, 'if (a == { startEdge }) return;'),

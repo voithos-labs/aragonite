@@ -4,9 +4,12 @@
  * the overlay read a range through here.
  */
 
+import { untrack } from 'svelte';
 import type { DocumentView } from '../core/node-views';
 import { displayLength, ownTrailingLineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
+import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
+import { countsCells } from '../schema/block-kind-descriptor';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
@@ -14,13 +17,36 @@ import { pathsEqual } from './path-math';
 import type { SelectionPoint } from './primitives';
 import type { RangeCoverage } from './range-coverage';
 
-/** The range's bytes in `source`, the document's bytes; null for a rectangle of cells inside one
- *  table, which never reaches the core. */
+/** The editor's document as a range edit reads it: its tree, its bytes and their layout. */
+export interface DocumentBytes {
+	doc(): DocumentView;
+	source(): string;
+	layout(): Layout;
+}
+
+/** The layout is made once per `version`, which every byte writer bumps (G1.52). */
+export function documentBytes(deps: {
+	version(): number;
+	doc(): DocumentView;
+	source(): string;
+}): DocumentBytes {
+	let laid: { version: number; layout: Layout } | undefined;
+	return {
+		doc: deps.doc,
+		source: deps.source,
+		layout() {
+			const version = deps.version();
+			if (laid?.version !== version) laid = { version, layout: documentLayout(deps.doc()) };
+			return laid.layout;
+		}
+	};
+}
+
+/** The range's bytes; null for a rectangle of cells inside one table, which never reaches the core. */
 export function rangeBytes(
 	doc: DocumentView,
-	source: string,
 	coverage: RangeCoverage,
-	layout: Layout = documentLayout(doc)
+	layout: Layout
 ): Range | null {
 	if (coverage.grid) return null;
 	const { start, end } = coverage.range;
@@ -37,10 +63,46 @@ export function rangeBytes(
 	// every container's markers with it.
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
 	if (edges && from <= edges.first && to >= edges.last) from = 0;
-	// No end sits between a line's `\r` and its `\n`.
-	const offPair = (at: number) => (source[at - 1] === '\r' && source[at] === '\n' ? at - 1 : at);
-	return { from: offPair(from), to: offPair(to) };
+	return { from, to };
 }
+
+/** How a range across blocks paints: one box over each block whose bytes lie inside the range's
+ *  while its parent's don't. A table's rows paint through its cells, never as boxes, and a range
+ *  inside one block boxes only a unit it holds whole. */
+export interface RangePaint {
+	readonly coverage: RangeCoverage;
+	/** The block holding `path`, itself included, that paints as one box; null for none. */
+	boxHolding(path: readonly number[]): DocPath | null;
+}
+
+/** Reads nothing until asked, and untracked: a caller makes a new paint for each coverage and
+ *  content version. */
+export function rangePaint(doc: DocumentView, coverage: RangeCoverage, layout: Layout): RangePaint {
+	const { start, end } = coverage.range;
+	let range: Range | null | undefined;
+	const boxHolding = (path: readonly number[]): DocPath | null => {
+		if (range === undefined) {
+			range = pathsEqual(start.path, end.path) ? null : rangeBytes(doc, coverage, layout);
+		}
+		if (!range) return coverage.rootHolding(path);
+		for (let depth = 1; depth <= path.length; depth++) {
+			const block = layout.block(path.slice(0, depth));
+			if (!block) return null;
+			if (range.from <= block.from && textEnd(doc, block) <= range.to)
+				return docPathFrom(block.path);
+			if (countsCells(blockNodeAt(doc, block.path)!)) return null;
+		}
+		return null;
+	};
+	return { coverage, boxHolding: (path) => untrack(() => boxHolding(path)) };
+}
+
+// ── Internal ────────────────────────────────────────────────────────────────
+
+/** Where a block's own bytes end: its last line's text, since its line ending reads as the next
+ *  line's edge. */
+const textEnd = (doc: DocumentView, block: LaidBlock) =>
+	block.to - ownTrailingLineEnding(blockNodeAt(doc, block.path)!.raw).length;
 
 /** A text end's byte; a cell end's row, from its first byte or to its last; any other block's own
  *  edge on that side, since its offsets address no text. */
@@ -52,7 +114,11 @@ function endByte(
 ): number | null {
 	const node = blockNodeAt(doc, point.path);
 	if (!node) return null;
-	const byte = point.cellCoordinate ? null : layout.byteOf(point.path, point.offset);
+	// No end sits between a line's `\r` and its `\n`.
+	const { raw } = node;
+	const offset =
+		raw[point.offset - 1] === '\r' && raw[point.offset] === '\n' ? point.offset - 1 : point.offset;
+	const byte = point.cellCoordinate ? null : layout.byteOf(point.path, offset);
 	if (byte !== null) return byte;
 	const row = point.cellCoordinate
 		? Math.floor(point.offset / metadataOf(node, 'table').columnCount)
@@ -82,7 +148,3 @@ function edgeLeaf(doc: DocumentView, at: 0 | -1): number[] | null {
 	}
 	return path.length > 0 ? path : null;
 }
-
-/** Where a block held whole ends: its last line's text; its kind takes the line ending with it. */
-const textEnd = (doc: DocumentView, block: LaidBlock) =>
-	block.to - ownTrailingLineEnding(blockNodeAt(doc, block.path)!.raw).length;

@@ -10,6 +10,7 @@ import type { BlockComponent } from '#lib/block-component.js';
 import type { PasteImageHook } from '#lib/host-hooks.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/selection/whole-block-input.js';
 
@@ -52,7 +53,8 @@ function harness(options: HarnessOptions = {}) {
 			return false;
 		},
 		performCrossBlockCut: deleted,
-		reading: fixtureReading()
+		reading: fixtureReading(),
+		bytes: freshBytes(() => doc)
 	} as unknown as CrossBlockHandlers;
 
 	const events = createEditorEvents();

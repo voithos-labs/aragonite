@@ -128,6 +128,7 @@ import {
 	type TypedVerdict
 } from './typed-insert';
 import type { Reading } from '../../../schema/reading';
+import type { DocumentBytes } from '../../../selection/range-bytes';
 import { createPlaceholderHint, type PlaceholderPolicy } from '../placeholder-hint.svelte';
 import type { CompositionSeat } from '../text/composition-seat';
 import {
@@ -244,6 +245,8 @@ export interface EditableSurfaceDeps {
 	/** How this editor reads its bytes, for the cross-block join rules, the join-paste reparse and
 	 *  the reading-mode check. */
 	reading: Reading;
+	/** The document's bytes and their layout, made once per content version, which a copy reads. */
+	bytes: DocumentBytes;
 	/** The editor's command dispatch, which the keydown and cross-block handlers read. */
 	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
@@ -430,6 +433,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
 		reading: deps.reading,
+		bytes: deps.bytes,
 		commands: deps.commands,
 		pasteCoordinator: deps.pasteCoordinator,
 		activePlugins: deps.activePlugins,
@@ -946,7 +950,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	};
 
 	const copyRange = (range: RawRange): ClipboardWrite | null =>
-		blockRangeClipboard(deps.getDoc(), deps.getMyPath(), range, deps.reading);
+		blockRangeClipboard(deps.bytes, deps.getMyPath(), range, deps.reading);
 
 	function clipboard(block: BlockClipboard): ClipboardHandlers {
 		return createClipboardHandlers({

@@ -119,6 +119,7 @@ These checks run in three kinds of place:
 | G1.174 | A block writes a typed character only while the editor owns no range | A·N |
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 | G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
+| G1.187 | A range across blocks paints a box over exactly the blocks whose bytes a copy of it takes | harness·P |
 | G1.188 | A cut writes the words its removal takes, save five named classes, until range stage 3 | harness·N |
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
@@ -328,6 +329,8 @@ These checks run in three kinds of place:
 **G1.175 · The menu over a selection has one to act on** (`menu-over-selection`). A right-click whose press landed on the selection opens Cut and Copy over it, so something that dropped the selection between the press and the menu (a press handler ending the range, say) would offer them over nothing. Dev fails a menu opened over the selection while `holdsSelection` says none is held (`editor-root/menus.ts`). `checkMenuOverSelection` · `menus.test.ts`.
 
 **G1.178 · A cell's text range stays in its cell** (`cell-text-endpoint`). A finger's word in a table cell is stored at the cell's own path with text offsets, which only `SelectionState`'s cell snap keeps, and only while both ends sit in that cell. A text end there paired with one anywhere else is read as text where the delete, the copy and the paint expect a cell index, so dev fails one at every write of the pair. `checkCellTextEndpoint` · `owned-cell-range.test.ts`.
+
+**G1.187 · The overlay paints what a copy takes.** A range across blocks paints one box over each block whose own bytes, up to its last line's text, lie inside the range's bytes (`rangeBytes`, what a copy takes) while its parent's don't, and over no other block. A table's rows paint through its cells, never as boxes. Checked both ways, each its own row, over the selection-partition draw, with an empty item and a fenced body at the range's end as named rows. `selection/range-bytes.ts :: rangePaint` · `selection-paint.property.test.ts`, `classify-block-selection.test.ts`.
 
 **G1.188 · A cut writes what its removal takes.** Until range stage 3, a cut writes the range-edit core's clipboard and today's removal deletes. Over shaped ranges in both modes, the words the cut writes are the words the removal takes, save five named classes: two law 3 exceptions (a table's header, a title row's container), law 10's open edge, and two ways today's removal parts from the core's. Each class's repro must keep parting that way; the law harness lists the first three. `selection/cut-clipboard-differential.test.ts`, `range-laws/known-failures.ts`.
 

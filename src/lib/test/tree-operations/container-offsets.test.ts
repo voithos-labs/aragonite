@@ -109,3 +109,40 @@ describe('a grid whose rows leave their line breaks to the grid', () => {
 		expect(starts).toEqual([5, 8, 11, 14]);
 	});
 });
+
+// Miss-analysis: the cost rows counted blocks laid out, never the items a list's map read, so a
+// copy of four items of a 10 MB list read every item's length through the editor's proxies.
+describe('a list’s map reads only the items a lookup asks about', () => {
+	const ITEMS = 4000;
+	const counted = () => {
+		const doc = parse(Array.from({ length: ITEMS }, (_, i) => `- item ${i}\n`).join(''));
+		const list = doc.children[0] as CstNode;
+		const reads = { count: 0 };
+		// Each index read stands in for the trap a `$state` proxy pays.
+		list.children = new Proxy(list.children!, {
+			get: (items, key, receiver) => {
+				if (typeof key === 'string' && /^\d+$/.test(key)) reads.count++;
+				return Reflect.get(items, key, receiver);
+			}
+		});
+		return { doc, reads };
+	};
+
+	it('maps a byte near either end, and a byte back to its item, reading a handful of items', () => {
+		for (const item of [3, ITEMS - 3]) {
+			const { doc, reads } = counted();
+			const map = documentByteMap(doc);
+			const byte = map.byteOf([0, item, 0], 2)!;
+			expect(map.leafAt(byte)).toEqual({ path: [0, item, 0], offset: 2 });
+			expect(reads.count, `item ${item}`).toBeLessThan(4 * Math.log2(ITEMS));
+		}
+	});
+
+	it('sums the items when the list’s spans no longer hold them', () => {
+		const { doc } = counted();
+		const list = doc.children[0] as CstNode;
+		list.childSpans = list.childSpans!.map((at) => (at === 0 ? 0 : at + 1));
+		list.childSpans[list.childSpans.length - 1] = list.raw.length;
+		expect(documentByteMap(doc).byteOf([0, 5, 0], 0)).toBe(5 * 9 + 2);
+	});
+});

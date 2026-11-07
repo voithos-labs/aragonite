@@ -11,6 +11,8 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeCaretMemory } from '#lib/test/harness/editor-actions.js';
 import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
+import { parse } from '#lib/core/parser.js';
 import { commandContext } from '#lib/test/harness/command-context.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
@@ -26,7 +28,8 @@ const noCross: CrossBlockHandlers = {
 	handleCompositionStart: () => false,
 	handleCompositionEnd: () => {},
 	performCrossBlockCut: async () => {},
-	reading: fixtureReading()
+	reading: fixtureReading(),
+	bytes: freshBytes(() => parse(''))
 };
 
 function makeCtx(): SharedKeydownContext {

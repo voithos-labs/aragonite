@@ -29,7 +29,9 @@ export function crossBlockClipboardArm(deps: CrossBlockClipboardDeps): Clipboard
 			const cells = coverage.grid && gridClipboard(doc, coverage.grid);
 			const write = cells
 				? { text: cells.text, html: cells.html }
-				: (rangeClipboard(doc, coverage, deps.crossBlock.reading) ?? { text: '' });
+				: (rangeClipboard(deps.crossBlock.bytes, coverage, deps.crossBlock.reading) ?? {
+						text: ''
+					});
 			return { write, held: null };
 		},
 		remove: () => deps.crossBlock.performCrossBlockCut()

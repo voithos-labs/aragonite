@@ -24,6 +24,9 @@ const ALLOWED: Record<string, string> = {
 		'how the editor opens a document, so a law check’s positions name the blocks the editor has',
 	'src/lib/selection/range-coverage.ts':
 		'the coverage rules the laws take as input (table rows, a closed details, a block held whole)',
+	'src/lib/selection/range-bytes.ts':
+		'the blocks a range paints whole, which law 10 leaves open at their edges (a read)',
+	'src/lib/range-edit/layout.ts': 'where those blocks sit in the bytes (a read)',
 	'src/lib/core/inline/link-source-bytes.ts': 'the text a block shows, which law 11 reads',
 	'src/lib/components/menu/default-context-actions.ts':
 		'the menu rows the editor registers at startup, which the menu routes press',
