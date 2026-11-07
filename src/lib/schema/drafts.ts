@@ -9,7 +9,7 @@ export type DraftResult =
 	| { readonly ok: true }
 	| {
 			readonly ok: false;
-			readonly reason: 'moved' | 'unloaded' | 'reading' | 'overlap' | 'illegal' | 'empty';
+			readonly reason: 'moved' | 'unloaded' | 'off' | 'reading' | 'overlap' | 'illegal' | 'empty';
 			readonly message: string;
 	  };
 
@@ -29,8 +29,8 @@ export interface Draft {
 	end(): void;
 }
 
-/** Why the editor closes its drafts: a `source` swap drops them; a mode change, or an undo or redo
- *  about to replace the document, can still save them. */
+/** Why the editor closes its drafts: a `source` swap or a plugin list change drops them; a mode
+ *  change, or an undo or redo about to replace the document, can still save them. */
 export type DraftCloseCause = 'mode-change' | 'undo' | 'document-swap';
 
 /** A block's draft, closed by the editor when it swaps the document, switches modes or undoes. */

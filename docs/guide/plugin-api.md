@@ -61,7 +61,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
 | `Contribution` | What `contributes` hands back for one editor: for now, a `setup(editor)` that runs once that editor mounts |
-| `Editor` | What `setup` gets: the plugins on, the mode, the theme, `on`, `run`, `can` and `claims`. A listener you add there goes away with your plugin |
+| `Editor` | What `setup` gets: the plugins on, the mode, the theme, `on`, `run`, `can`, `claims` and `edit`. A listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type by name |
 | `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
@@ -142,10 +142,10 @@ interface Draft {
 
 type DraftResult =
 	| { ok: true }
-	| { ok: false; reason: 'moved' | 'unloaded' | 'reading' | 'overlap' | 'illegal' | 'empty'; message: string };
+	| { ok: false; reason: 'moved' | 'unloaded' | 'off' | 'reading' | 'overlap' | 'illegal' | 'empty'; message: string };
 ```
 
-The way your plugin writes bytes, from `EditorContext.edit()` (a host gets the same from `EditorInstance.edit()`). Positions are byte offsets into the document's text as it stood when you called `edit()`, so you can measure a range, go fetch something, and write when it comes back:
+The way your plugin writes bytes, from `edit()` on the `Editor` your `setup` gets or on an `EditorContext` (a host gets the same from `EditorInstance.edit()`). Positions are byte offsets into the document's text as it stood when you called `edit()`, so you can measure a range, go fetch something, and write when it comes back:
 
 ```ts
 const draft = editor.edit();
@@ -166,6 +166,7 @@ What a commit can come back with (nothing throws, and a refused commit writes no
 | --- | --- |
 | `moved` | Something wrote inside one of your ranges since `edit()`. Text written right before or after a range doesn't count, it just moves the range, except inside a quote or a list, where the same letter typed right next to a range counts as inside |
 | `unloaded` | The host loaded another document |
+| `off` | The host turned your plugin off in this editor (`use`). Turning other plugins on or off doesn't count, your ranges just follow the bytes |
 | `reading` | The editor's in reading mode |
 | `overlap` | Two of your own ranges overlap |
 | `illegal` | A range runs past the document's end or splits a `\r\n`, or the insert had no caret to land at |
@@ -666,7 +667,7 @@ interface DraftSpec {
 type DraftCloseCause = 'mode-change' | 'undo' | 'document-swap';
 ```
 
-A block holding an edit outside the document (a textarea's text) opens a [`Draft`](#draft-draftresult) of its own bytes with the container factory's `openDraft(spec)`. It goes `stale` once a write elsewhere touches the block, and the editor calls `close(cause)` on one you haven't ended: `'mode-change'` and `'undo'` (an undo or redo about to replace the document) may still save, `'document-swap'` writes nothing. `end()` it once your box closes or your block unmounts. [What your own editing surface has to do](plugin-guide/render-primary.md#what-your-own-editing-surface-has-to-do) walks through it.
+A block holding an edit outside the document (a textarea's text) opens a [`Draft`](#draft-draftresult) of its own bytes with the container factory's `openDraft(spec)`. It goes `stale` once a write elsewhere touches the block, and the editor calls `close(cause)` on one you haven't ended: `'mode-change'` and `'undo'` (an undo or redo about to replace the document) may still save, `'document-swap'` (another document, or the host switching plugins) writes nothing. `end()` it once your box closes or your block unmounts. [What your own editing surface has to do](plugin-guide/render-primary.md#what-your-own-editing-surface-has-to-do) walks through it.
 
 #### `LineShape`, `MarkedLines`, `IndentedLines`
 

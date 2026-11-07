@@ -15,6 +15,7 @@ export function idleDraftRegistry(
 		stamps,
 		doc,
 		isReading: () => false,
+		isOn: () => true,
 		writes: () => ({
 			commitSource: async () => false,
 			undoStep: async (_seed, run) => void (await run()),

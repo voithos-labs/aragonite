@@ -3,6 +3,10 @@
 // on, what a plugin adds dying with it, and `use` turning plugins on and off in a running editor.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { definePlugin } from '#lib/schema/plugin-install.js';
+import { registerDirective } from '#lib/core/directive/registry.js';
+import { activateDirectives } from '#lib/components/blocks/directive/activate-directives.js';
+import { DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
+import type { Draft } from '#lib/schema/drafts.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 import type { PluginBlockKind } from '#lib/core/nodes.js';
 import type { Editor, PluginError } from '#lib/schema/plugin-unit.js';
@@ -35,6 +39,15 @@ const marks = definePlugin({
 	name: 'unit-marks',
 	setup: () =>
 		void testLeaf('unit-marks-block', (kind) => ({ opener: markerOpener(kind), view: testView() }))
+});
+
+// A plugin whose only syntax is a `::` name: turning it off leaves the block openers as they were.
+const glosses = definePlugin({
+	name: 'unit-glosses',
+	setup: () => {
+		activateDirectives();
+		registerDirective('leaf', 'unit-gloss', { kind: testLeaf('unit-gloss-block') });
+	}
 });
 
 /** A plugin value that records, per editor, the options it got and the edits it heard. */
@@ -281,5 +294,73 @@ describe('use', () => {
 		await m.settle();
 		expect(m.source()).toBe('text\n\n@b hi\n');
 		expect(kinds(m)).toEqual(['paragraph', 'paragraph']);
+	});
+
+	const GLOSSED = 'text\n\n::unit-gloss hi\n';
+
+	// Miss-analysis: the restore row turned off a plugin with an opener of its own, never one whose
+	// syntax is a directive name, which the opener list doesn't show.
+	it('restores an undo step after a plugin list change that only moves a directive', async () => {
+		const m = mountEditor({ source: GLOSSED, plugins: [glosses] });
+		await m.settle();
+		expect(kinds(m)).toEqual(['paragraph', 'unit-gloss-block']);
+		typeInFirstBlock(m.target, 'texts');
+		await m.settle();
+		m.instance.use([]);
+		await m.settle();
+		m.instance.run('history.undo');
+		await m.settle();
+		expect(m.source()).toBe(GLOSSED);
+		expect(kinds(m)).toEqual(['paragraph', DIRECTIVE_LEAF]);
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	// Miss-analysis: `use` read the document again as a swap does, so every waiting draft was
+	// refused as unloaded though no byte had moved.
+	it("lands a host's waiting edit across a switch that left its bytes alone", async () => {
+		const m = mountEditor({ source: 'one\n@b hi\n', plugins: [marks] });
+		await m.settle();
+		expect(kinds(m)).toEqual(['paragraph', 'unit-marks-block']);
+		const draft = m.instance
+			.edit()
+			.replace({ from: 0, to: 3 }, 'ONE')
+			.replace({ from: 7, to: 9 }, 'yo');
+		m.instance.use([]);
+		await m.settle();
+		// The `@b` line now continues the paragraph above it, its bytes where they were.
+		expect(kinds(m)).toEqual(['paragraph', null]);
+		expect(await draft.commit()).toEqual({ ok: true });
+		await m.settle();
+		expect(m.source()).toBe('ONE\n@b yo\n');
+	});
+
+	it.each([
+		[
+			'an `onEditor` context',
+			(p: (edit: () => Draft) => void) =>
+				definePlugin({
+					name: 'unit-off-ctx',
+					setup: (ctx) => ctx.onEditor((editor) => void p(editor.edit))
+				})
+		],
+		[
+			'a `setup` editor',
+			(p: (edit: () => Draft) => void) =>
+				definePlugin({
+					name: 'unit-off-unit',
+					version: '1.0.0',
+					editor: '*',
+					contributes: () => ({ setup: (editor) => p(() => editor.edit()) })
+				})
+		]
+	])("refuses a plugin's waiting edit from %s once the plugin is off", async (_route, make) => {
+		let edit: (() => Draft) | null = null;
+		const m = mountEditor({ source: 'one\n', plugins: [make((e) => void (edit = e))] });
+		await m.settle();
+		const draft = edit!().replace({ from: 0, to: 3 }, 'ONE');
+		m.instance.use([]);
+		await m.settle();
+		expect(await draft.commit()).toMatchObject({ ok: false, reason: 'off' });
+		expect(m.source()).toBe('one\n');
 	});
 });

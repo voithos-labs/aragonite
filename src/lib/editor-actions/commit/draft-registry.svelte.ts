@@ -27,12 +27,13 @@ import {
 } from './change-record';
 
 export interface DraftRegistry {
-	/** An edit against the document as it is now. */
-	edit(): InternalDraft;
+	/** An edit against the document as it is now; one a plugin opens is refused once it's off. */
+	edit(plugin?: string): InternalDraft;
 	/** A block's draft over the bytes of the block at `path`, or over none, which the editor closes
 	 *  through `spec` until it ends. */
 	open(spec: DraftSpec, path?: readonly number[]): Draft;
-	/** A document swap, a mode change, and an undo or redo call it; each draft it closes is ended. */
+	/** A document swap, a re-read, a mode change, and an undo or redo call it; each block draft it
+	 *  closes is ended, and at a swap or a re-read it can't land, since its block is torn down. */
 	closeAll(cause: DraftCloseCause): void;
 	/** Whether a write must record what it changed: true while a draft is open. */
 	watching(): boolean;
@@ -56,6 +57,8 @@ export interface DraftRegistryDeps {
 	stamps: Pick<DocumentStamps, 'current' | 'historySwapping'>;
 	doc(): DocumentView;
 	isReading(): boolean;
+	/** Whether the editor still runs the plugin. */
+	isOn(plugin: string): boolean;
 	writes(): DraftWrites;
 }
 
@@ -63,14 +66,15 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 	// The writes since the oldest open draft opened; `base` numbers the first.
 	let log: RecordedChange[] = [];
 	let base = 0;
-	const open = new Set<{ start: number }>();
+	const open = new Set<Opened>();
 	const closers = new Map<Draft, DraftSpec>();
+	const torn = new WeakSet<Draft>();
 	// Read by `stale`, so a box drawn from it hears a write while it is open.
 	let version = $state(0);
 	// A draft nobody holds can never commit, so it stops costing writes once collected.
-	const collected = new FinalizationRegistry<{ start: number }>((opened) => drop(opened));
+	const collected = new FinalizationRegistry<Opened>((opened) => drop(opened));
 
-	function drop(opened: { start: number }): void {
+	function drop(opened: Opened): void {
 		open.delete(opened);
 		let oldest = base + log.length;
 		for (const { start } of open) oldest = Math.min(oldest, start);
@@ -78,11 +82,16 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		base = oldest;
 	}
 
-	function draft(watched: PartRange | null, onEnd: (made: Draft) => void): InternalDraft {
+	function draft(
+		watched: PartRange | null,
+		onEnd: (made: Draft) => void,
+		plugin?: string
+	): InternalDraft {
 		const openedOn = deps.stamps.current();
 		// The bytes it opened on, for the dev check that no write went unrecorded.
 		const openedText = devChecksOn ? serialize(deps.doc()) : '';
-		const opened = { start: base + log.length };
+		const opened = { start: base + log.length, on: openedOn };
+		const gone = () => !openedOn.live || torn.has(made);
 		open.add(opened);
 		const since = () => (open.has(opened) ? log.slice(opened.start - base) : []);
 		const writes: { range: PartRange; text: string }[] = [];
@@ -112,8 +121,9 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		}
 
 		async function land(caret: number | undefined): Promise<DraftResult> {
-			if (!openedOn.live)
-				return refused('unloaded', 'another document replaced the one it opened on');
+			if (gone()) return refused('unloaded', 'another document replaced the one it opened on');
+			if (plugin !== undefined && !deps.isOn(plugin))
+				return refused('off', `plugin '${plugin}' was turned off in this editor`);
 			if (deps.isReading()) return refused('reading', 'the editor is in reading mode');
 			if (deps.stamps.historySwapping())
 				return refused('moved', 'an undo was replacing the document');
@@ -182,7 +192,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		const made: InternalDraft = {
 			get stale() {
 				void version;
-				return !openedOn.live || touched();
+				return gone() || touched();
 			},
 			replace(range, text) {
 				lengths ??= lengthsBefore(partLengths(deps.doc()), since());
@@ -228,7 +238,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 	}
 
 	return {
-		edit: () => draft(null, () => {}),
+		edit: (plugin) => draft(null, () => {}, plugin),
 		open(spec, path) {
 			const watched = path ? blockRange(deps.doc(), path) : null;
 			const made = draft(watched, (ended) => closers.delete(ended));
@@ -238,11 +248,12 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		closeAll(cause) {
 			for (const [made, spec] of [...closers]) {
 				closers.delete(made);
+				if (cause === 'document-swap') torn.add(made);
 				spec.close(cause);
 				made.end();
 			}
-			// The records measure a document that's gone.
-			if (cause === 'document-swap') for (const opened of [...open]) drop(opened);
+			// The records measure a document that's gone; a re-read keeps it, and its drafts.
+			for (const opened of [...open]) if (!opened.on.live) drop(opened);
 			version++;
 		},
 		watching: () => open.size > 0,
@@ -255,6 +266,12 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/** An open draft: where its writes start in the log, and the document it was opened on. */
+interface Opened {
+	start: number;
+	on: { readonly live: boolean };
+}
 
 function refused(
 	reason: Exclude<DraftResult, { ok: true }>['reason'],

@@ -12,6 +12,8 @@ import type { EditorSelection } from '../selection/primitives';
 export interface GrammarStamp {
 	readonly openers: readonly unknown[];
 	readonly setextHeading: boolean;
+	/** How many times the editor's plugin list changed: a directive's name resolves through it. */
+	readonly plugins: number;
 }
 
 export interface UndoEntry {

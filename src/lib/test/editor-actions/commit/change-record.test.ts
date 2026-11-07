@@ -3,6 +3,8 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import {
 	byteAt,
 	captureChange,
@@ -14,17 +16,18 @@ import {
 	type PartRange
 } from '#lib/editor-actions/commit/change-record.js';
 
-/** The change from `before` to `after`, with the keystroke's typed text ending at `typedEnd` (a
- *  block and an offset into it), and `[from, to)` of `before` as a part range. */
+/** The change from `before` to `after` (read under `grammar`), the keystroke's typed text ending
+ *  at `typedEnd` (a block and an offset into it), and `[from, to)` of `before` as a part range. */
 function through(
 	before: string,
 	after: string,
 	[from, to]: [number, number],
-	typedEnd: { block: number; offset: number } | null = null
+	typedEnd: { block: number; offset: number } | null = null,
+	grammar: GrammarView = fixtureGrammar
 ): [number, number] | null {
 	const was = parse(before);
 	const capture = captureChange(was, null);
-	const now = parse(after);
+	const now = parse(after, { grammar });
 	const change = changeAfter(now, capture, typedEnd)!;
 	const lengths = partLengths(was);
 	const range: PartRange = { from: positionAt(lengths, from), to: positionAt(lengths, to) };
@@ -56,6 +59,15 @@ describe('a range through a write', () => {
 	// typing inside a range's last letters from typing just past them.
 	it('is refused by a write that may have gone inside it when no caret says where', () => {
 		expect(through('@que\n', '@quee\n', [0, 4])).toBeNull();
+	});
+
+	// Miss-analysis: every row changed bytes, never only how they split into blocks, which a re-read
+	// under another grammar does, and then every byte of the run counted as written.
+	it('keeps a range whose bytes a re-read only split into other blocks', () => {
+		const source = 'Keep\n\n    one\n\n    two\n';
+		const at = source.indexOf('two');
+		const split = createEditorGrammar({ syntax: { indentedCode: false } });
+		expect(through(source, source, [at, at + 3], null, split)).toEqual([at, at + 3]);
 	});
 
 	// Miss-analysis: a keystroke named only its own block, and the always-on record caught a broken

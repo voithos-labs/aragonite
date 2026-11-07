@@ -33,6 +33,7 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
 		stamps,
 		doc: () => host.document,
 		isReading: () => false,
+		isOn: () => true,
 		writes: () => ({
 			commitSource: async () => (writes.push('commitSource'), true),
 			undoStep: async (_seed, run) => void (await run()),

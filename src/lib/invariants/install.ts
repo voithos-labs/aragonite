@@ -160,7 +160,8 @@ export function assertRestoredUnderGrammar(
 	const openers = entry.openers as readonly BlockOpener[];
 	const was: GrammarView = {
 		orderedOpeners: () => openers,
-		interruptsParagraph: (line) => openers.some((o) => o.interruptsParagraph && o.interruptsParagraph(line)),
+		interruptsParagraph: (line) =>
+			openers.some((o) => o.interruptsParagraph && o.interruptsParagraph(line)),
 		setextHeading: entry.setextHeading,
 		activation: grammar.activation
 	};

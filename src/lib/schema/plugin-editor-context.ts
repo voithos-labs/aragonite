@@ -67,7 +67,8 @@ export function createEditorPluginContexts(deps: {
 	runCommand: (commandId: string, arg?: unknown) => boolean;
 	canRunCommand: (commandId: string) => boolean;
 	claims: (event: KeyboardEvent) => boolean;
-	edit: () => Draft;
+	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
+	edit: (plugin?: string) => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
 	reading: Reading;
 	/** The plugin values this editor runs, with what each contributed. */
@@ -120,7 +121,7 @@ export function createEditorPluginContexts(deps: {
 				},
 				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
 				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
-				edit: () => deps.edit(),
+				edit: () => deps.edit(pluginName || undefined),
 				get computeInlineContent() {
 					return inlineReaderFor(deps.reading);
 				},
@@ -155,7 +156,8 @@ export function createEditorPluginContexts(deps: {
 			},
 			run: (commandId, arg) => deps.runCommand(commandId, arg),
 			can: (commandId) => deps.canRunCommand(commandId),
-			claims: (event) => deps.claims(event)
+			claims: (event) => deps.claims(event),
+			edit: () => deps.edit(plugin)
 		};
 	}
 

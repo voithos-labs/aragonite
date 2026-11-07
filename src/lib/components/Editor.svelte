@@ -449,6 +449,7 @@
 		stamps,
 		doc: () => doc,
 		isReading: () => reading.mode() === 'reading',
+		isOn: (plugin) => activePlugins.isActive(plugin),
 		// Built below; a draft commits post-init.
 		writes: () => ({
 			commitSource: controller.commitSource,
@@ -470,6 +471,7 @@
 	const documentSwap = createDocumentSwap({
 		grammar: editorGrammar,
 		currentSource: currentSource.readUnchecked,
+		doc: () => doc,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
 		noteTreeSwap: () => caretLanding.noteTreeSwap(),
@@ -751,7 +753,7 @@
 		runCommand: (commandId, arg) => runCommand(commandId, arg),
 		canRunCommand: (commandId) => canRunCommand(commandId),
 		claims: (event) => claimsChord(event),
-		edit: () => drafts.edit(),
+		edit: (plugin) => drafts.edit(plugin),
 		reading,
 		units: () => units,
 		pluginNames: () => pluginNames,

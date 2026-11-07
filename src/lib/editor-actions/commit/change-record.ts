@@ -251,7 +251,10 @@ function runOf(change: RecordedChange): Run {
 	const inserted = end - head;
 	const removed = removedEnd - head;
 	const typedFrom = change.typedEnd === null ? -1 : change.typedEnd - inserted;
-	if (
+	if (inserted === 0 && removed === 0) {
+		// The same bytes split into other blocks (a re-read under another grammar): nothing moved.
+		run = { from: head, to: head, inserted: 0 };
+	} else if (
 		typedFrom >= 0 &&
 		typedFrom <= head &&
 		a.slice(typedFrom + removed) === b.slice(typedFrom + inserted)
