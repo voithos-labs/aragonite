@@ -4,7 +4,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
-import type { GrammarView } from '../schema/block-openers';
+import type { BlockOpener, GrammarView } from '../schema/block-openers';
 import type { DocPath } from '../core/coordinate-spaces';
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommitPathAddressable } from './commit-paths';
@@ -146,10 +146,21 @@ export function assertDraftBytesKept(
 	assertInvariant('change-record', () => checkDraftBytesKept(opened, now, ranges));
 }
 
-/** G1.189 after an undo or redo: each block it put back reads as itself under the editor's grammar. */
-export function assertRestoredUnderGrammar(tops: readonly CstNode[], grammar: GrammarView): void {
+/** G1.189 after an undo or redo: each block it put back that read as itself under its entry's
+ *  grammar still does under the editor's. */
+export function assertRestoredUnderGrammar(
+	tops: readonly CstNode[],
+	grammar: GrammarView,
+	entry: { readonly openers: readonly unknown[]; readonly setextHeading: boolean }
+): void {
 	if (!devChecksOn || perfEnabled()) return;
-	assertInvariant('restore-grammar', () => checkRestoredUnderGrammar(tops, grammar));
+	// The entry's grammar stamp: the opener list its grammar returned, untyped on the undo side.
+	const was: GrammarView = {
+		orderedOpeners: () => entry.openers as readonly BlockOpener[],
+		setextHeading: entry.setextHeading,
+		activation: grammar.activation
+	};
+	assertInvariant('restore-grammar', () => checkRestoredUnderGrammar(tops, grammar, was));
 }
 
 /** G1.55 after a byte splice: each window of `top`, read with what could change it, reads as itself. */
