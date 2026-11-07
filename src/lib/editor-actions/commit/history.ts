@@ -8,7 +8,7 @@
 import { tick } from 'svelte';
 import type { HistoryActions } from '../../action-contracts';
 import type { UndoEntry } from '../../undo/types';
-import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { checkInstalledEntry } from '../../invariants/history-install';
 import { admitsHistoryRequest } from './reading-write-gate';
@@ -79,14 +79,14 @@ export function createHistoryActions(
 
 	/** The entry's snapshot, installed as it stands: the editor still reads the grammar it was read under. */
 	function putBack(entry: UndoEntry): UndoEntry['selection'] {
-		const before = new Set(deps.doc.children);
+		const before = devChecksOn ? new Set(deps.doc.children) : null;
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		// A copy: live state splices this array in place, and the entry stays on the stack.
 		deps.setBlockIds([...entry.blockIds]);
-		assertRestoredUnderGrammar(
-			deps.doc.children.filter((top) => !before.has(top)),
-			deps.reading.grammar
-		);
+		if (before) {
+			const swapped = deps.doc.children.filter((top) => !before.has(top));
+			assertRestoredUnderGrammar(swapped, deps.reading.grammar);
+		}
 		return entry.selection;
 	}
 
