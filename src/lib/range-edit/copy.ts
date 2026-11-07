@@ -17,6 +17,7 @@ import {
 	titleAt,
 	type Doc
 } from './document';
+import { displayLength } from '../core/lines';
 import { byteAt, lineEnd } from './leaf-splice';
 import { openingOf } from './markers';
 
@@ -30,8 +31,10 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 		return doc.source.slice(from, Math.min(to, startRow.text!.to));
 	const titled = new Set([startRow, endRow].map((row) => row && parentOf(doc, row)));
 	// Live, a container the range starts on or runs past the end of is entered or left whole.
+	// A container the range holds whole (select-all over a quote) copies whole, markers and all.
 	const whole = (c: LaidBlock) =>
-		live && (c.from === from || (to === c.to && doc.source.endsWith('\n', c.to)));
+		(c.from === from && to >= contentEnd(doc, c)) ||
+		(live && (c.from === from || (to === c.to && doc.source.endsWith('\n', c.to))));
 	const shared = sharedContainer(doc, from, to, (c) => !titled.has(c) && !whole(c));
 	const depth = shared ? shared.path.length : 0;
 	let opening = '';
@@ -114,6 +117,21 @@ function carriedEnds(doc: Doc, from: number, to: number, bytes: string): string 
 	if (doc.mode !== 'live') return bytes;
 	const start = leafAt(doc, from);
 	const end = leafAt(doc, to);
-	if (!start || !end || start.leaf !== end.leaf) return bytes;
-	return doc.host.leaf.carried(doc.tree, start.leaf.path, start.offset, end.offset, doc.mode);
+	const carried = (at: NonNullable<typeof start>, a: number, b: number) =>
+		doc.host.leaf.carried(doc.tree, at.leaf.path, a, b, doc.mode);
+	if (start && end && start.leaf === end.leaf) return carried(start, start.offset, end.offset);
+	let out = bytes;
+	// Each end's own text, where the source spells it as the block does (no marker inside it).
+	const raw = (at: NonNullable<typeof start>) => nodeAt(doc, at.leaf.path).raw;
+	if (start) {
+		const tail = raw(start).slice(start.offset, displayLength(raw(start)));
+		if (out.startsWith(tail))
+			out = carried(start, start.offset, start.offset + tail.length) + out.slice(tail.length);
+	}
+	if (end) {
+		const head = raw(end).slice(0, end.offset);
+		if (out.endsWith(head))
+			out = out.slice(0, out.length - head.length) + carried(end, 0, end.offset);
+	}
+	return out;
 }

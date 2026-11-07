@@ -87,10 +87,16 @@ export function inTitleRow(read: Read, at: number, host: CheckHost): boolean {
 /** The deepest container both ends sit in; null for the document. */
 export function sharedContainer(read: Read, from: number, to: number): LaidBlock | null {
 	const ends = new Set(containersAt(read, to, 'end'));
+	// A container the range holds whole, from its first byte through its text, copies whole (§ 5.1).
+	const held = (b: LaidBlock) => b.from === from && to >= b.to - endingAt(read.source, b.to).length;
 	let shared: LaidBlock | null = null;
-	for (const b of containersAt(read, from, 'start')) if (ends.has(b)) shared = b;
+	for (const b of containersAt(read, from, 'start')) if (ends.has(b) && !held(b)) shared = b;
 	return shared;
 }
+
+/** The line ending just before `at`, or ''. */
+const endingAt = (source: string, at: number) =>
+	source.endsWith('\r\n', at) ? '\r\n' : source.endsWith('\n', at) ? '\n' : '';
 
 function lineOf(container: LaidBlock, byte: number): LaidLine {
 	return container.lines!.find((l) => l.from <= byte && byte < l.to) ?? container.lines!.at(-1)!;

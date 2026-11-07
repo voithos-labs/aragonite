@@ -412,6 +412,21 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'cut',
 		expect: { source: 'a\n\n```\n\n```\n', caret: text(1) }
 	},
+	// Miss-analysis: no row held a container whole from its first byte, select-all's range.
+	{
+		name: 'L10 a quote the range holds whole copies whole, markers and all',
+		source: '⟦> a\n>\n> b⟧\n',
+		gesture: 'copy',
+		expect: { clipboard: '> a\n>\n> b' }
+	},
+	// Miss-analysis: law 10 runs in source mode, and the live copy rows all sat inside one block.
+	{
+		name: 'L10 a live copy across blocks closes the format run it starts inside',
+		source: '**bo⟦ld** and\n\nne⟧xt\n',
+		mode: 'live',
+		gesture: 'copy',
+		expect: { clipboard: '**ld** and\n\nne' }
+	},
 	// ── Rulings at the land (2026-11-06) ──
 	// § 5.4 rule 6: a line holding only spaces is blank already, so blocks pasted on it add none.
 	{
