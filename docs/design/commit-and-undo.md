@@ -12,11 +12,14 @@ interface UndoEntry {
 	snapshot: Document; // shares nodes with the live tree, see below
 	blockIds: string[]; // the top-level ID array, for stable keyed rendering
 	selection: EditorSelection | GapCaretSelection; // anchor/focus in path addressing, or a gap position
+	grammar: GrammarStamp; // the grammar the snapshot was read under
 	integrity?: number; // DEV-only digest, verified on restore
 }
 ```
 
 Collapsed, single-block, and cross-block selections all use that one `selection` representation. The stack is capped at 200 entries (nobody has asked for more yet), and on a restore the snapshot replaces the tree, so there's never a question of which state is correct.
+
+**Unless the grammar moved.** Switch a plugin off and an older entry's tree still holds that plugin's blocks, so installing it as it stands would bring them back. So when the editor reads another grammar than the entry was read under (the block openers compared one by one, plus the setext switch), the undo reads the entry's bytes again instead. It splices the live document to them the way the byte splice does (§ The byte splice), so the blocks the undo didn't touch keep their nodes and ids, and the caret goes back to the byte it held, since its path may name another block now. That leans on the live document already reading under the editor's grammar, so whatever changes the grammar reads the document again first. G1.189 checks it in dev.
 
 **Snapshots share structure with the live tree.** An entry references the live nodes rather than cloning them, and each node carries an editor-level epoch mark (`ownerEpoch`) recording whether a snapshot still shares it, so pushing an entry costs O(top-level children), not O(all nodes). The cost moves to mutation time as **copy-path-on-write**: before any write, the chain of nodes from the document root down to the target is copied and the copies spliced in, so a shared node is never written through. The commit steps own this protocol. A commit copies the path down to each scope it touches and hands the mutation an owned children array; the mutation copies each child it writes before writing it (`tree-operations/unshare.ts`, which the `CommitScope` adapter's view offers as `unshareChild`), and never writes through a node reference captured before the commit.
 

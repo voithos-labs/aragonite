@@ -26,7 +26,13 @@ import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 import { checkLastLineKept } from './open-tail';
 import { checkKeepsABlock } from './keeps-a-block';
-import { checkReadsBack, checkRunReadsBack, READ_BACK_LIMIT, spliceRuns } from './reads-back';
+import {
+	checkReadsBack,
+	checkRestoredUnderGrammar,
+	checkRunReadsBack,
+	READ_BACK_LIMIT,
+	spliceRuns
+} from './reads-back';
 import { checkListMarkerWidths } from './list-marker-widths';
 import { perfEnabled } from '../perf/instruments';
 import { checkTopLevelUntouched } from './top-level-untouched';
@@ -120,6 +126,12 @@ export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
 export function assertReadsBack(tops: readonly CstNode[], grammar: GrammarView): void {
 	if (!devChecksOn || perfEnabled()) return;
 	for (const top of tops) assertInvariant('reads-back', () => checkReadsBack(top, grammar));
+}
+
+/** G1.189 after an undo or redo: each block it put back reads as itself under the editor's grammar. */
+export function assertRestoredUnderGrammar(tops: readonly CstNode[], grammar: GrammarView): void {
+	if (!devChecksOn || perfEnabled()) return;
+	assertInvariant('restore-grammar', () => checkRestoredUnderGrammar(tops, grammar));
 }
 
 /** G1.55 after a byte splice: each window of `top`, read with what could change it, reads as itself. */

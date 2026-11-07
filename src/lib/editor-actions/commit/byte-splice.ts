@@ -13,7 +13,11 @@ import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import { serialize } from '../../core/serializer';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { spliceMany } from '../../tree-operations/splice-many';
-import { spliceReading, type SpliceWindow } from '../../tree-operations/byte-splice';
+import {
+	spliceReading,
+	type SpliceReading,
+	type SpliceWindow
+} from '../../tree-operations/byte-splice';
 import {
 	applyStructuralChangeToIdsRefs,
 	replacePreservingFirst,
@@ -55,22 +59,7 @@ export function createByteSplice(
 			apply: () => {
 				if (!reading) return false;
 				saved = { children: deps.doc.children, ids: deps.blockIds, refs: [...deps.blockRefs] };
-				// Off the tree's `$state` proxy, where every index a splice shifts is a tracked write.
-				const children = [...deps.doc.children];
-				const ids = [...deps.blockIds];
-				const refs = [...deps.blockRefs];
-				// Last window first, so each one's indices still hold.
-				for (const window of [...windows].reverse()) {
-					spliceMany(children, window.at, window.count, window.blocks);
-					const change = changeOf(window);
-					stampStructuralChange(children, change, deps.sharing);
-					applyStructuralChangeToIdsRefs(change, ids, refs);
-				}
-				deps.doc.children = children;
-				deps.doc.suffix = reading.suffix;
-				assertIdsInLockstep('commitSource', ids.length, children.length);
-				deps.setBlockIds(ids);
-				replaceRefs(deps.blockRefs, refs);
+				installReading(deps, reading);
 				// A range the editor holds names the blocks just replaced; the landing puts the caret down.
 				if (deps.selectionState.ownsRange) {
 					deps.selectionState.clear();
@@ -96,6 +85,27 @@ export function createByteSplice(
 			reveal: splice.reveal
 		});
 	};
+}
+
+/** The live document's top-level blocks read again as `reading` says, ids and refs moved with
+ *  them; blocks outside its windows keep their nodes. */
+export function installReading(deps: EditorActionsDeps, reading: SpliceReading): void {
+	// Off the tree's `$state` proxy, where every index a splice shifts is a tracked write.
+	const children = [...deps.doc.children];
+	const ids = [...deps.blockIds];
+	const refs = [...deps.blockRefs];
+	// Last window first, so each one's indices still hold.
+	for (const window of [...reading.windows].reverse()) {
+		spliceMany(children, window.at, window.count, window.blocks);
+		const change = changeOf(window);
+		stampStructuralChange(children, change, deps.sharing);
+		applyStructuralChangeToIdsRefs(change, ids, refs);
+	}
+	deps.doc.children = children;
+	deps.doc.suffix = reading.suffix;
+	assertIdsInLockstep('byte splice', ids.length, children.length);
+	deps.setBlockIds(ids);
+	replaceRefs(deps.blockRefs, refs);
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
@@ -130,7 +140,7 @@ function landingAt(doc: DocumentView, caret: SpliceCaret): Landing | GapCaretSel
 
 /** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
  *  `at`; null where none may. */
-function gapAtByte(doc: DocumentView, at: number): GapCaretPosition | null {
+export function gapAtByte(doc: DocumentView, at: number): GapCaretPosition | null {
 	let found: GapCaretPosition | null = null;
 	let parentPath: number[] = [];
 	let children = doc.children;
