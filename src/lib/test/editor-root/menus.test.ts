@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root/menus.js';
+import type { Misspelling } from '#lib/spell/spell-state.svelte.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
-import { BLOCK_ACTIONS_LABEL } from '#lib/a11y-strings.js';
+import { BLOCK_ACTIONS_LABEL, SPELLING_MENU_LABEL } from '#lib/a11y-strings.js';
 import { parse } from '#lib/core/parser.js';
 import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
@@ -35,6 +36,11 @@ function harness(
 		mode?: PresentationMode;
 		editsLink?: boolean;
 		rangeAtPress?: boolean;
+		misspelling?: Misspelling;
+		suggestions?: readonly string[];
+		/** Null answers the first peek, so the rows arrive through the promise. */
+		cached?: boolean;
+		canAddWord?: boolean;
 		finger?: boolean;
 	} = {}
 ) {
@@ -67,6 +73,16 @@ function harness(
 	const order: string[] = [];
 	placeMenuCaret.mockImplementation(() => (order.push('place'), true));
 	const editLinkAtCaret = vi.fn();
+	const replaceWord = vi.fn(async () => true);
+	const addWord = vi.fn(async () => {});
+	const suggestions = opts.suggestions ?? [];
+	const spelling = {
+		peekSuggestions: () => (opts.cached === false ? null : suggestions),
+		suggestionsFor: async () => suggestions,
+		replace: replaceWord,
+		canAddWord: opts.canAddWord ?? false,
+		addWord
+	};
 	const selection = createSelectionState();
 	const menus = createRootMenus({
 		get editorEl() {
@@ -90,7 +106,11 @@ function harness(
 		stamps: createDocumentStamps(),
 		canEditLinkAtCaret: () => (order.push('ask'), !!opts.editsLink),
 		editLinkAtCaret,
-		setMenu: (next) => (menu = next)
+		misspellingAtCaret: () => (order.push('spell'), opts.misspelling ?? null),
+		spelling,
+		getMenu: () => menu,
+		setMenu: (next) => (menu = next),
+		getBlockElByPath: (path: number[]) => (path[0] === 1 ? prose : null)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 
@@ -122,6 +142,8 @@ function harness(
 		ids,
 		order,
 		editLinkAtCaret,
+		replaceWord,
+		addWord,
 		selection,
 		menu: () => menu
 	};
@@ -194,7 +216,7 @@ describe('editor-root menus: the right-click', () => {
 	it('over a link, prose leads with Edit link, asked after the caret lands, and runs it', () => {
 		const h = harness({ editsLink: true });
 		h.rightClick(h.prose.firstElementChild!);
-		expect(h.order).toEqual(['place', 'ask']);
+		expect(h.order).toEqual(['place', 'spell', 'ask']);
 		expect(h.ids().slice(0, 3)).toEqual(['link.edit', 'sep-edit', 'clip.cut']);
 		expect(h.menu()!.items[0].label).toBe('Edit link');
 
@@ -307,5 +329,108 @@ describe('editor-root menus: the right-click', () => {
 		expect(h.menu()).toBeNull();
 		expect(h.rightClick(h.menuRow).defaultPrevented).toBe(true);
 		expect(h.menu()).toBeNull();
+	});
+});
+
+describe('editor-root menus: a misspelled word under the right-click', () => {
+	const misspelling: Misspelling = { path: [1], start: 0, end: 5, word: 'prose' };
+
+	it('puts the suggestions first, then Add to dictionary where the checker takes words, then a divider', () => {
+		const h = harness({ misspelling, suggestions: ['prove', 'pose'], canAddWord: true });
+		h.rightClick(h.prose);
+		expect(h.ids().slice(0, 4)).toEqual(['spell.0', 'spell.1', 'spell.add', 'sep-spell']);
+		expect(
+			h
+				.menu()
+				?.items.slice(0, 2)
+				.map((item) => item.label)
+		).toEqual(['prove', 'pose']);
+		expect(h.ids()).toContain('clip.copy');
+		// The word is read after the caret is placed, since the caret is what names it.
+		expect(h.order.slice(0, 2)).toEqual(['place', 'spell']);
+	});
+
+	it('a checker that takes no words gets no Add to dictionary row', () => {
+		const h = harness({ misspelling, suggestions: ['prove'] });
+		h.rightClick(h.prose);
+		expect(h.ids().slice(0, 2)).toEqual(['spell.0', 'sep-spell']);
+	});
+
+	it('a word with no suggestions shows one dimmed row saying so', () => {
+		const h = harness({ misspelling, suggestions: [] });
+		h.rightClick(h.prose);
+		const [first] = h.menu()!.items;
+		expect(first).toMatchObject({ id: 'spell.none', label: 'No suggestions', disabled: true });
+	});
+
+	it('picking a suggestion replaces that word, and Add to dictionary adds it', () => {
+		const h = harness({ misspelling, suggestions: ['prove', 'pose'], canAddWord: true });
+		h.rightClick(h.prose);
+		h.menu()!.pick('spell.1');
+		expect(h.replaceWord).toHaveBeenCalledWith(misspelling, 'pose');
+		expect(h.menu()).toBeNull();
+		h.rightClick(h.prose);
+		h.menu()!.pick('spell.add');
+		expect(h.addWord).toHaveBeenCalledWith('prose');
+	});
+
+	it('suggestions still on their way show a dimmed row, then fill the same menu in', async () => {
+		const h = harness({ misspelling, suggestions: ['prove'], cached: false });
+		h.rightClick(h.prose);
+		expect(h.menu()!.items[0]).toMatchObject({ id: 'spell.pending', disabled: true });
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(h.ids().slice(0, 2)).toEqual(['spell.0', 'sep-spell']);
+	});
+
+	it('late suggestions never fill a menu the user has already closed', async () => {
+		const h = harness({ misspelling, suggestions: ['prove'], cached: false });
+		h.rightClick(h.prose);
+		h.menu()!.pick('nothing-here');
+		expect(h.menu()).toBeNull();
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(h.menu()).toBeNull();
+	});
+
+	it('prose with no misspelled word under the caret gets no spelling rows', () => {
+		const h = harness({ suggestions: ['prove'], canAddWord: true });
+		h.rightClick(h.prose);
+		expect(h.ids().some((id) => id.startsWith('spell.'))).toBe(false);
+	});
+});
+
+describe('editor-root menus: the spelling menu a hover opens', () => {
+	const misspelling: Misspelling = { path: [1], start: 0, end: 5, word: 'prose' };
+	const rect = { left: 40, top: 10, right: 70, bottom: 30 } as DOMRect;
+
+	it('shows the spelling rows alone, under the word, anchored to its block', () => {
+		const h = harness({ suggestions: ['prove', 'pose'], canAddWord: true });
+		const handle = h.menus.openSpellingMenu(misspelling, rect);
+		expect(h.ids()).toEqual(['spell.0', 'spell.1', 'spell.add']);
+		expect(h.menu()).toMatchObject({ x: 40, y: 34, label: SPELLING_MENU_LABEL });
+		expect(handle.isOpen()).toBe(true);
+	});
+
+	it('a pick replaces the word and closes; close() closes only its own menu', () => {
+		const h = harness({ suggestions: ['prove'] });
+		const handle = h.menus.openSpellingMenu(misspelling, rect);
+		h.menu()!.pick('spell.0');
+		expect(h.replaceWord).toHaveBeenCalledWith(misspelling, 'prove');
+		expect(h.menu()).toBeNull();
+		expect(handle.isOpen()).toBe(false);
+		h.rightClick(h.prose);
+		handle.close();
+		expect(h.menu()).not.toBeNull();
+	});
+
+	it('fills its rows in once late suggestions arrive, and stays the same menu', async () => {
+		const h = harness({ suggestions: ['prove'], cached: false });
+		const handle = h.menus.openSpellingMenu(misspelling, rect);
+		expect(h.ids()).toEqual(['spell.pending']);
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(h.ids()).toEqual(['spell.0']);
+		expect(handle.isOpen()).toBe(true);
 	});
 });

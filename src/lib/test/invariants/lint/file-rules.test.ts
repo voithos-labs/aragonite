@@ -406,6 +406,8 @@ const RULES: FileRule[] = [
 				'rAF pointermove coalescing: the one place every drag lifecycle runs',
 			'src/lib/editor-actions/commit/text-batch.ts':
 				'setTimeout wall-clock undo debounce, a pause detection tick() cannot express',
+			'src/lib/components/editor-root/spell-hover.ts':
+				"setTimeout rest before a hovered word's spelling menu opens and grace before it closes: how long the pointer stays, which tick() cannot time",
 			'packages/highlight-occurrences/src/highlight-occurrences-plugin.ts':
 				'setTimeout typing pause before the occurrence marks return, a pause detection tick() cannot express',
 			'src/lib/search/regex-executor.ts':

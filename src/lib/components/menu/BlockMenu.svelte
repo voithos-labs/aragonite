@@ -36,6 +36,7 @@
 		label = BLOCK_MENU_LABEL,
 		onPick,
 		onClose,
+		onPointerLeave,
 		menuPresence
 	}: {
 		x: number;
@@ -46,10 +47,20 @@
 		label?: string;
 		onPick: (id: string) => void;
 		onClose: () => void;
+		/** The pointer left the menu: a hover-opened menu closes itself after a grace. */
+		onPointerLeave?: () => void;
 		menuPresence: MenuPresence;
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
+
+	// An attachment, not an `onpointerleave` attribute: a handler on a role="menu" element reads
+	// as one that wants focus, and this menu takes none.
+	function leaveWatch(el: HTMLElement): (() => void) | void {
+		if (!onPointerLeave) return;
+		el.addEventListener('pointerleave', onPointerLeave);
+		return () => el.removeEventListener('pointerleave', onPointerLeave);
+	}
 	let activeIndex = $state(0);
 	/** The open flyout: the index of its parent row, and the active child inside it. */
 	let flyout = $state<{ row: number; child: number } | null>(null);
@@ -167,6 +178,7 @@
 	{@attach menuPresence.track(dismiss, { edits: true })}
 	style:left="{left}px"
 	style:top="{top}px"
+	{@attach leaveWatch}
 >
 	{#each items as item, i (item.id)}
 		{#if item.divider}

@@ -60,9 +60,13 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 		expect(engine.marksForPath([2])).toHaveLength(0);
 	});
 
-	// The perf contract: a document swap with nothing registered does no decoration work.
+	// The perf contract: a document swap with nothing registered does no decoration work. The
+	// spell check is a source of the editor's own, so it is switched off here.
 	it('skips the run entirely when no source is registered', async () => {
-		const { instance: editor, props } = mountSource('one\n\ntwo\n');
+		const { instance: editor, props } = mountEditor<SwapSeam>({
+			source: 'one\n\ntwo\n',
+			spellcheck: 'off'
+		});
 		props.source = 'only\n';
 		await settleEditor();
 		expect(editor.__test.getDecorationEngine().sourceCount).toBe(0);

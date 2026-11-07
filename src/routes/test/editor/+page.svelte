@@ -113,6 +113,10 @@
 		CARET_MODES.find((m) => m === param('caret')) ?? 'auto'
 	);
 
+	// `?spellcheck=native|off` starts with that prop; `on` is the default, with the built-in checker.
+	const SPELLCHECK_MODES = ['on', 'native', 'off'] as const;
+	const spellcheck = SPELLCHECK_MODES.find((m) => m === param('spellcheck')) ?? 'on';
+
 	// The testids are pinned by the presentation e2e.
 	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
 		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
@@ -248,6 +252,7 @@
 					{presentationMode}
 					{placeholder}
 					{caret}
+					{spellcheck}
 					{onRunCode}
 					{codeMenuItems}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}

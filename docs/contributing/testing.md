@@ -96,6 +96,7 @@ Test files take turns in a shared Node process, which bites in three ways:
 | `test:editor:plugins` | Plugin authoring APIs and the plugins built on them: container round-trips, chrome leaves, paste transforms |
 | `test:editor:undo` | Undo stack and entry management |
 | `test:editor:search` | Find/replace engine: document scan and search state |
+| `test:editor:spell` | Spell check: the word scan, the dictionary reader and suggester, and the spell state |
 | `test:editor:simulation` | Simulation-engine internals: seeded RNG, expectation tracker |
 | `test:editor:conformance` | commonmark.js differ slice: spec examples + seeded corpus vs the committed baseline |
 | `test:editor:invariants` | Invariant catalog: property/fuzz tests + source-scan guards |

@@ -27,6 +27,10 @@ const NOT_COUNTED: Record<string, { tag: string; reason: string }[]> = {
 			tag: 'selection-toolbar-flyout',
 			reason:
 				'closes through `trackUncounted`, since counting it would hide the toolbar under the pointer'
+		},
+		{
+			tag: 'selection-toolbar-spelling-flyout',
+			reason: 'the spelling flyout is the same toolbar flyout, over a misspelled word'
 		}
 	],
 	'src/lib/components/link-card/LinkCard.svelte': [

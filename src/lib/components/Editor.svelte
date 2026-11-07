@@ -67,6 +67,13 @@
 	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createSearchReplace } from '../editor-actions/search-replace';
 	import { createSearchState, type SearchState } from '../search/search-state.svelte';
+	import {
+		createSpellState,
+		SPELL_SOURCE_NAME,
+		type SpellcheckState
+	} from '../spell/spell-state.svelte';
+	import { sharedEnglishSpellChecker } from '../spell/english/english-checker';
+	import { createSpellHover } from './editor-root/spell-hover';
 	import { createDecorationEngine } from '../decorations/decoration-state.svelte';
 	import { createMarkActivation } from '../decorations/mark-activation';
 	import { paintedMarkRects } from '../decorations/mark-interactions';
@@ -184,6 +191,8 @@
 		presentationMode = 'source',
 		linkClick = 'modifier',
 		caret = 'auto',
+		spellcheck = 'on',
+		spellChecker,
 		scrollMode = 'self',
 		plugins,
 		syntax,
@@ -690,6 +699,40 @@
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());
 
+	// The spell check writes a word the way an inline menu pick does: one undo entry, caret after.
+	// Registered from the effect below, once the window it reads exists; `spellChecker` is set once.
+	// svelte-ignore state_referenced_locally
+	const checker = spellChecker ?? sharedEnglishSpellChecker();
+	// Hovering an underlined word opens its suggestions alone; the menus module is built further
+	// down, so it is reached at hover time.
+	const spellHover = createSpellHover({
+		open: (misspelling, anchor) => rootMenus.openSpellingMenu(misspelling, anchor),
+		menusOpen: () => menuPresence.isOpen,
+		rangeSelected: () => rangeHolder(selectionState) !== null,
+		// The menu renders beside the root, not in it, so the page is asked.
+		pointerOnMenu: () => !!document.querySelector('.block-menu:hover')
+	});
+	$effect(() => () => spellHover.dispose());
+	const spellState = createSpellState({
+		getDoc,
+		reading,
+		decorations,
+		checker,
+		mode: 'off',
+		getSelection,
+		events,
+		mountedRange: () => {
+			const { active, start, end } = topWindowing.window;
+			return active ? { start, end } : null;
+		},
+		replaceRange: (path, start, end, bytes, caretAfter) =>
+			inlineRange.commitInlineRange(path, start, end, bytes, caretAfter, { landCaret: true }),
+		onError: (error) =>
+			events.emit('error', { origin: 'decoration', error, context: { source: SPELL_SOURCE_NAME } }),
+		markInteractions: spellHover.interactions
+	});
+	$effect(() => () => spellState.dispose());
+
 	const pluginContexts = createEditorPluginContexts({
 		editorId,
 		getDoc,
@@ -858,6 +901,7 @@
 		selection: selectionState,
 		rangeCoverage: () => coverage,
 		search: searchState,
+		spell: spellState,
 		caretMemory,
 		caretWriter,
 		presses,
@@ -900,6 +944,7 @@
 		onPasteImage: () => onPasteImage,
 		onRunCode: () => onRunCode,
 		codeMenuItems: () => codeMenuItems,
+		nativeSpellcheck: () => spellcheck === 'native',
 		brokenImageUrls
 	} satisfies EditorPolicies);
 
@@ -998,7 +1043,16 @@
 		// The row does what Mod+K does at the caret the right-click just placed.
 		canEditLinkAtCaret: () => isCommandActive('link.openCard'),
 		editLinkAtCaret: () => void runCommand('link.openCard'),
-		setMenu: (menu) => (blockMenu = menu)
+		// The word under the caret the right-click just placed, if the spell check underlines it.
+		misspellingAtCaret: () => {
+			const focus = getSelection()?.focus;
+			if (!focus || 'cellCoordinate' in focus) return null;
+			return spellState.misspellingAt(focus.path, focus.offset);
+		},
+		spelling: spellState,
+		getMenu: () => blockMenu,
+		setMenu: (menu) => (blockMenu = menu),
+		getBlockElByPath
 	});
 
 	// Announced for plugins that paint their own colors and cannot see a theme change in CSS.
@@ -1245,6 +1299,20 @@
 		rootWindowingActive = topWindowing.window.active;
 	});
 
+	// The `spellcheck` prop reads live; the source registers here, after the window it reads exists.
+	// Untracked, since registering runs the source, whose reads are not this effect's business.
+	$effect(() => {
+		const mode = spellcheck;
+		untrack(() => spellState.setMode(mode));
+	});
+	// The marks cover the mounted blocks, so a window that moved is re-read.
+	$effect(() => {
+		const { start, end } = topWindowing.window;
+		void start;
+		void end;
+		spellState.noteWindowChange();
+	});
+
 	// Whether the editor corrects scroll on a height change; in host mode without windowing the
 	// browser's scroll anchoring does it instead.
 	function ownsScrollCorrection(): boolean {
@@ -1345,6 +1413,10 @@
 		return searchState;
 	}
 
+	export function getSpellcheck(): SpellcheckState {
+		return spellState;
+	}
+
 	export function getDecorations(): DecorationRegistry {
 		return decorations;
 	}
@@ -1421,6 +1493,7 @@
 		isCommandActive,
 		getEvents,
 		getSearch,
+		getSpellcheck,
 		getDecorations,
 		getInlineMenus,
 		getInsertCatalogue,
@@ -1527,6 +1600,7 @@
 			label={blockMenu.label}
 			onPick={blockMenu.pick}
 			onClose={() => (blockMenu = null)}
+			onPointerLeave={spellHover.menuLeft}
 			{menuPresence}
 		/>
 	{/if}
@@ -1539,7 +1613,8 @@
 				runCommand,
 				canRunCommand,
 				isCommandActive,
-				getEvents
+				getEvents,
+				getSpellcheck
 			}}
 			root={editorEl}
 			finger={() => fingerPress}

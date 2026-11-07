@@ -26,6 +26,8 @@ import type { EditorPluginEntry } from './schema/plugin-install';
 import type { SyntaxOptions } from './schema/registry-view';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 import type { InputRecordingHandle, InputRecordingOptions } from './debug/input-recorder';
+import type { SpellChecker, SpellcheckMode } from './spell/types';
+import type { SpellcheckState } from './spell/spell-state.svelte';
 
 export type { EditorPluginEntry } from './schema/plugin-install';
 export type { SyntaxOptions } from './schema/registry-view';
@@ -55,6 +57,17 @@ export interface EditorOptions {
 	 *  live state. Absent, or returning nothing, renders no overflow button: the editor has no
 	 *  app-level actions of its own to offer there. */
 	codeMenuItems?: CodeMenuItemsHook;
+	/** Who checks spelling, read live. `'on'` (default) underlines misspelled words in prose with
+	 *  the editor's own checker (`spellChecker`, else the built-in English one) and offers
+	 *  replacements in the right-click menu and the selection toolbar. `'native'` leaves it to the
+	 *  browser, which underlines but offers nothing in a menu the editor draws. `'off'` does neither.
+	 *  Code, equations and other source are never checked. */
+	spellcheck?: SpellcheckMode;
+	/** The checker `'on'` uses, set once at mount: a host's own dictionary (hunspell in a shell, a
+	 *  service, another language) in place of the built-in English one. Asked once per distinct
+	 *  word; suggestions only when a menu opens. Its `addWord` is what puts "Add to dictionary" in
+	 *  the menus. */
+	spellChecker?: SpellChecker;
 	/** The block drag handle (default on; never in reading mode), shown on hover, or outright on
 	 *  touch. Only blocks a user picks up whole have one (code, tables, equations, diagrams,
 	 *  pictures, list items, dividers, cards), never prose. `false` removes them, except on a
@@ -157,6 +170,8 @@ export const EDITOR_OPTION_SPECS = {
 	onPasteImage: { timing: 'live' },
 	onRunCode: { timing: 'live' },
 	codeMenuItems: { timing: 'live' },
+	spellcheck: { timing: 'live' },
+	spellChecker: { timing: 'once' },
 	plugins: { timing: 'once' },
 	syntax: { timing: 'once' },
 	scrollMode: { timing: 'once' }
@@ -245,6 +260,9 @@ export interface EditorInstance {
 	isCommandActive(commandId: string): boolean;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
+	/** The spell check's controller: the misspelled word at a position, its suggestions, and the
+	 *  replace and add-to-dictionary writes, for a host's own context menu or toolbar. */
+	getSpellcheck(): SpellcheckState;
 	getDecorations(): DecorationRegistry;
 	/** The same registry a plugin reaches as `editor.inlineMenus`, for a host that owns the menu's
 	 *  data (its document index, its tag list) rather than shipping a plugin for it. */
