@@ -76,6 +76,7 @@
 		editor,
 		root,
 		finger,
+		formatting,
 		clipboard,
 		menuPresence
 	}: {
@@ -84,6 +85,8 @@
 		/** Whether the last press was a finger: the bar then sits above the range, clear of the
 		 *  selection handles below it, and is that range's one menu, with Cut and Paste too. */
 		finger: () => boolean;
+		/** The `selectionToolbar` prop: off, a finger's range keeps the clipboard row alone. */
+		formatting: () => boolean;
 		/** What the Cut, Copy and Paste rows act through. */
 		clipboard: MenuClipboard;
 		menuPresence: MenuPresence;
@@ -102,6 +105,9 @@
 	// bar's shape, while a row that does nothing is noise over a selection it cannot act on.
 	const rows = $derived(ROWS.filter((row) => !declined.has(row.command)));
 	const offersHeading = $derived(!declined.has(TURN_INTO_COMMAND));
+	// The editor took the phone's own menu away, so with the formatting bar off a finger's range
+	// still gets its clipboard row.
+	const clipboardOnly = $derived(finger() && !formatting());
 
 	// The misspelled word the selection covers exactly, re-read as verdicts land. A rectangle in a
 	// table holds cell indices, which name no word.
@@ -264,7 +270,7 @@
 	// refuses every mark, and a bar of greyed-out buttons is worse than none.
 	function shownOver(selection: EditorSelection): Placement | null {
 		if (menuOpen || pointerHeld) return null;
-		if (MARKS.every((mark) => declined.has(mark.command))) return null;
+		if (!clipboardOnly && MARKS.every((mark) => declined.has(mark.command))) return null;
 		return place(selection);
 	}
 
@@ -348,173 +354,175 @@
 		tabindex="-1"
 		onpointerleave={closeOnLeave}
 	>
-		<div class="selection-toolbar-marks">
-			{#each MARKS as button (button.command)}
-				<button
-					type="button"
-					class="md-menu-item selection-toolbar-mark"
-					data-testid="toolbar-{button.command}"
-					title={button.title}
-					disabled={declined.has(button.command)}
-					aria-pressed={active.has(button.command)}
-					onmousedown={(e) => e.preventDefault()}
-					onclick={() => fire(button.command)}
-				>
-					<MenuIcon name={button.icon} size={button.size} />
-				</button>
-			{/each}
-		</div>
-		<div class="md-menu-divider" aria-hidden="true"></div>
-		{#if spelling}
-			<div
-				class="selection-toolbar-row"
-				role="presentation"
-				onpointerenter={() => {
-					spellingOpen = true;
-					turnIntoOpen = false;
-				}}
-			>
-				<button
-					type="button"
-					class="md-menu-item"
-					data-testid="toolbar-spelling"
-					aria-haspopup="menu"
-					aria-expanded={spellingOpen}
-					onmousedown={(e) => e.preventDefault()}
-					onclick={() => (spellingOpen = !spellingOpen)}
-				>
-					<span class="md-menu-icon"><MenuIcon name="spell-check" size={14} /></span>
-					<span class="selection-toolbar-label">Spelling</span>
-					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
-				</button>
-				{#if spellingOpen}
-					<div
-						class="md-menu selection-toolbar-spelling-flyout"
-						role="menu"
-						{@attach keepFlyoutOnScreen}
-						{@attach menuPresence.trackUncounted(closeFlyout, {
-							edits: true,
-							inside: () => [barEl]
-						})}
+		{#if !clipboardOnly}
+			<div class="selection-toolbar-marks">
+				{#each MARKS as button (button.command)}
+					<button
+						type="button"
+						class="md-menu-item selection-toolbar-mark"
+						data-testid="toolbar-{button.command}"
+						title={button.title}
+						disabled={declined.has(button.command)}
+						aria-pressed={active.has(button.command)}
+						onmousedown={(e) => e.preventDefault()}
+						onclick={() => fire(button.command)}
 					>
-						{#if suggestions === null}
-							<button
-								type="button"
-								class="md-menu-item"
-								role="menuitem"
-								disabled
-								onmousedown={(e) => e.preventDefault()}
-							>
-								<span class="selection-toolbar-label">Finding suggestions…</span>
-							</button>
-						{:else if suggestions.length === 0}
-							<button
-								type="button"
-								class="md-menu-item"
-								role="menuitem"
-								disabled
-								onmousedown={(e) => e.preventDefault()}
-							>
-								<span class="selection-toolbar-label">No suggestions</span>
-							</button>
-						{:else}
-							{#each suggestions.slice(0, 5) as word (word)}
+						<MenuIcon name={button.icon} size={button.size} />
+					</button>
+				{/each}
+			</div>
+			<div class="md-menu-divider" aria-hidden="true"></div>
+			{#if spelling}
+				<div
+					class="selection-toolbar-row"
+					role="presentation"
+					onpointerenter={() => {
+						spellingOpen = true;
+						turnIntoOpen = false;
+					}}
+				>
+					<button
+						type="button"
+						class="md-menu-item"
+						data-testid="toolbar-spelling"
+						aria-haspopup="menu"
+						aria-expanded={spellingOpen}
+						onmousedown={(e) => e.preventDefault()}
+						onclick={() => (spellingOpen = true)}
+					>
+						<span class="md-menu-icon"><MenuIcon name="spell-check" size={14} /></span>
+						<span class="selection-toolbar-label">Spelling</span>
+						<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+					</button>
+					{#if spellingOpen}
+						<div
+							class="md-menu selection-toolbar-spelling-flyout"
+							role="menu"
+							{@attach keepFlyoutOnScreen}
+							{@attach menuPresence.trackUncounted(closeFlyout, {
+								edits: true,
+								inside: () => [barEl]
+							})}
+						>
+							{#if suggestions === null}
 								<button
 									type="button"
 									class="md-menu-item"
 									role="menuitem"
-									data-testid="toolbar-spelling-suggestion"
+									disabled
 									onmousedown={(e) => e.preventDefault()}
-									onclick={() => pickSuggestion(word)}
 								>
-									<span class="selection-toolbar-label">{word}</span>
+									<span class="selection-toolbar-label">Finding suggestions…</span>
+								</button>
+							{:else if suggestions.length === 0}
+								<button
+									type="button"
+									class="md-menu-item"
+									role="menuitem"
+									disabled
+									onmousedown={(e) => e.preventDefault()}
+								>
+									<span class="selection-toolbar-label">No suggestions</span>
+								</button>
+							{:else}
+								{#each suggestions.slice(0, 5) as word (word)}
+									<button
+										type="button"
+										class="md-menu-item"
+										role="menuitem"
+										data-testid="toolbar-spelling-suggestion"
+										onmousedown={(e) => e.preventDefault()}
+										onclick={() => pickSuggestion(word)}
+									>
+										<span class="selection-toolbar-label">{word}</span>
+									</button>
+								{/each}
+							{/if}
+							{#if editor.getSpellcheck().canAddWord}
+								<button
+									type="button"
+									class="md-menu-item"
+									role="menuitem"
+									data-testid="toolbar-spelling-add"
+									onmousedown={(e) => e.preventDefault()}
+									onclick={addToDictionary}
+								>
+									<span class="selection-toolbar-label">Add to dictionary</span>
+								</button>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/if}
+			{#if offersHeading}
+				<div
+					class="selection-toolbar-row"
+					role="presentation"
+					onpointerenter={() => {
+						turnIntoOpen = true;
+						spellingOpen = false;
+					}}
+				>
+					<button
+						type="button"
+						class="md-menu-item"
+						data-testid="toolbar-set-heading"
+						aria-haspopup="menu"
+						aria-expanded={turnIntoOpen}
+						onmousedown={(e) => e.preventDefault()}
+						onclick={openFlyout}
+					>
+						<span class="md-menu-icon"><MenuIcon name="heading" size={14} /></span>
+						<span class="selection-toolbar-label">Set heading</span>
+						<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+					</button>
+					{#if turnIntoOpen}
+						<div
+							class="md-menu selection-toolbar-flyout"
+							role="menu"
+							{@attach keepFlyoutOnScreen}
+							{@attach menuPresence.trackUncounted(closeFlyout, {
+								edits: true,
+								inside: () => [barEl]
+							})}
+						>
+							{#each TURN_INTO as option (option.level)}
+								{@const chosen = option.level === 0 ? blockKind === 'paragraph' : false}
+								<button
+									type="button"
+									class="md-menu-item"
+									role="menuitemradio"
+									data-testid="toolbar-set-heading-{option.level}"
+									aria-checked={chosen}
+									onmousedown={(e) => e.preventDefault()}
+									onclick={() => fire(TURN_INTO_COMMAND, option.level)}
+								>
+									<span class="selection-toolbar-label">{option.label}</span>
+									{#if chosen}<span class="md-menu-icon"><MenuIcon name="check" size={13} /></span
+										>{/if}
 								</button>
 							{/each}
-						{/if}
-						{#if editor.getSpellcheck().canAddWord}
-							<button
-								type="button"
-								class="md-menu-item"
-								role="menuitem"
-								data-testid="toolbar-spelling-add"
-								onmousedown={(e) => e.preventDefault()}
-								onclick={addToDictionary}
-							>
-								<span class="selection-toolbar-label">Add to dictionary</span>
-							</button>
-						{/if}
-					</div>
-				{/if}
-			</div>
-		{/if}
-		{#if offersHeading}
-			<div
-				class="selection-toolbar-row"
-				role="presentation"
-				onpointerenter={() => {
-					turnIntoOpen = true;
-					spellingOpen = false;
-				}}
-			>
+						</div>
+					{/if}
+				</div>
+			{/if}
+			{#each rows as row (row.command)}
 				<button
 					type="button"
 					class="md-menu-item"
-					data-testid="toolbar-set-heading"
-					aria-haspopup="menu"
-					aria-expanded={turnIntoOpen}
+					data-testid="toolbar-{row.command}"
+					aria-pressed={active.has(row.command)}
 					onmousedown={(e) => e.preventDefault()}
-					onclick={openFlyout}
+					onclick={() => fire(row.command)}
 				>
-					<span class="md-menu-icon"><MenuIcon name="heading" size={14} /></span>
-					<span class="selection-toolbar-label">Set heading</span>
-					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+					<span class="md-menu-icon"><MenuIcon name={row.icon} size={14} /></span>
+					<span class="selection-toolbar-label">{row.label}</span>
+					{#if active.has(row.command)}<span class="md-menu-icon"
+							><MenuIcon name="check" size={13} /></span
+						>{/if}
 				</button>
-				{#if turnIntoOpen}
-					<div
-						class="md-menu selection-toolbar-flyout"
-						role="menu"
-						{@attach keepFlyoutOnScreen}
-						{@attach menuPresence.trackUncounted(closeFlyout, {
-							edits: true,
-							inside: () => [barEl]
-						})}
-					>
-						{#each TURN_INTO as option (option.level)}
-							{@const chosen = option.level === 0 ? blockKind === 'paragraph' : false}
-							<button
-								type="button"
-								class="md-menu-item"
-								role="menuitemradio"
-								data-testid="toolbar-set-heading-{option.level}"
-								aria-checked={chosen}
-								onmousedown={(e) => e.preventDefault()}
-								onclick={() => fire(TURN_INTO_COMMAND, option.level)}
-							>
-								<span class="selection-toolbar-label">{option.label}</span>
-								{#if chosen}<span class="md-menu-icon"><MenuIcon name="check" size={13} /></span
-									>{/if}
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
+			{/each}
 		{/if}
-		{#each rows as row (row.command)}
-			<button
-				type="button"
-				class="md-menu-item"
-				data-testid="toolbar-{row.command}"
-				aria-pressed={active.has(row.command)}
-				onmousedown={(e) => e.preventDefault()}
-				onclick={() => fire(row.command)}
-			>
-				<span class="md-menu-icon"><MenuIcon name={row.icon} size={14} /></span>
-				<span class="selection-toolbar-label">{row.label}</span>
-				{#if active.has(row.command)}<span class="md-menu-icon"
-						><MenuIcon name="check" size={13} /></span
-					>{/if}
-			</button>
-		{/each}
 		{#each finger() ? FINGER_CLIPBOARD : DESK_CLIPBOARD as row (row.action)}
 			<button
 				type="button"

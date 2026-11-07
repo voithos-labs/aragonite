@@ -132,7 +132,7 @@
 		): Painted[] {
 			if (!ref?.cellRect) return [];
 			const out: Painted[] = [];
-			for (const cell of collapseCellMarks(descMarks, path.length)) {
+			for (const cell of collapseCellMarks(descMarks, path)) {
 				const r = ref.cellRect(cell.rowIdx, cell.colIdx);
 				if (!r) continue;
 				const painted = {

@@ -5,13 +5,13 @@
  * holds none (G1.116).
  */
 
+import { hashSource } from '../core/string-hash';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import type { EditorSelection } from '../selection/primitives';
 import { ARAGONITE_VERSION } from '../version';
 import {
 	INPUT_RECORDING_FORMAT,
 	classifyStep,
-	hashSource,
 	isModifierKeydown,
 	spliceBetween,
 	type InputRecording,

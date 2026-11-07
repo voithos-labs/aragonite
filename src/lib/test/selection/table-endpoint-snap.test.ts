@@ -9,7 +9,7 @@ const doc = parse('intro\n\n> quoted\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3
 describe('normalizeTableEndpoint', () => {
 	it('flags a deep cell path and shallows it to the table wrapper', () => {
 		// [2, 2, 1] = table, row 2, col 1 → cell index 2*2 + 1 = 5.
-		expect(normalizeTableEndpoint(doc, [2, 2, 1], 99)).toEqual({
+		expect(normalizeTableEndpoint(doc, [2, 2, 1], 99, [0])).toEqual({
 			path: [2],
 			offset: 5,
 			cellCoordinate: true
@@ -18,15 +18,24 @@ describe('normalizeTableEndpoint', () => {
 
 	// A point on the table's own path already names a cell index; only the flag is missing.
 	it('flags a point on the table path, keeping its cell index', () => {
-		expect(normalizeTableEndpoint(doc, [2], 3)).toEqual({
+		expect(normalizeTableEndpoint(doc, [2], 3, [0])).toEqual({
 			path: [2],
 			offset: 3,
 			cellCoordinate: true
 		});
 	});
 
+	// A finger's word in one cell: both ends there, so the point keeps its text offset.
+	it('keeps a text point in a cell whose other end sits in that same cell', () => {
+		expect(normalizeTableEndpoint(doc, [2, 2, 1], 1, [2, 2, 1])).toEqual({
+			path: [2, 2, 1],
+			offset: 1
+		});
+		expect(normalizeTableEndpoint(doc, [2, 2, 1], 1, [2, 2, 0])).toMatchObject({ path: [2] });
+	});
+
 	it('passes a deep path with no table ancestor through unchanged', () => {
-		expect(normalizeTableEndpoint(doc, [1, 0], 4)).toEqual({ path: [1, 0], offset: 4 });
+		expect(normalizeTableEndpoint(doc, [1, 0], 4, [0])).toEqual({ path: [1, 0], offset: 4 });
 	});
 });
 

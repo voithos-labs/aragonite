@@ -1,3 +1,4 @@
+import type { CstNode } from './core/nodes';
 import type { NodeView } from './core/node-views';
 
 // A per-module-instance prefix: a dev-server reload restarts the counter while the live tree
@@ -19,16 +20,52 @@ export function assignIds(children: readonly NodeView[]): string[] {
 	return ids;
 }
 
-/** Ids for `next`, a re-read of `previous`: an unchanged run at either end keeps its ids, the first
- *  changed block keeps its own (the edit was in it), and each block the re-read made is new. */
-export function idsAcrossReread(
-	previous: readonly NodeView[],
+/** `next`, a re-read of `previous`, takes back the children whose bytes it left alone, and the ids.
+ *  A kept node an undo entry holds stays shared, so a write copies it first (G1.9). */
+export function keepUnchanged(previous: CstNode, next: CstNode): void {
+	keepChildren(previous, next);
+}
+
+/** {@link keepUnchanged} down the first changed child to the leaf, for the byte splice alone: its
+ *  bytes come from outside the tree, so no block shows text its re-read moved, as a keystroke's can. */
+export function keepUnchangedDeep(previous: CstNode, next: CstNode): void {
+	const changed = keepChildren(previous, next);
+	if (changed !== null) keepUnchangedDeep(previous.children![changed], next.children![changed]);
+}
+
+/** Where `next`'s first changed child is, when both sides still hold one there. */
+function keepChildren(previous: CstNode, next: CstNode): number | null {
+	if (previous.kind !== next.kind || !previous.children || !next.children) return null;
+	const [was, now] = [previous.children, next.children];
+	const { head, tail } = unchangedEnds(was, now);
+	next.childIds = idsAcross(previous.childIds, was.length, now.length, head, tail);
+	for (let i = 0; i < head; i++) now[i] = was[i];
+	for (let i = 1; i <= tail; i++) now[now.length - i] = was[was.length - i];
+	return head < was.length - tail && head < now.length - tail ? head : null;
+}
+
+/** The ids after a re-read: an unchanged run at either end keeps its ids, the first changed block
+ *  keeps its own (the edit was in it), and each block the re-read made is new. */
+function idsAcross(
 	ids: readonly string[] | undefined,
-	next: readonly NodeView[]
+	before: number,
+	after: number,
+	head: number,
+	tail: number
 ): string[] | undefined {
-	if (!ids || ids.length !== previous.length) return undefined;
-	const same = (a: NodeView, b: NodeView): boolean =>
-		a.kind === b.kind && a.leadingTrivia === b.leadingTrivia && a.raw === b.raw;
+	if (!ids || ids.length !== before) return undefined;
+	const changed = before - head - tail;
+	const created = Array.from({ length: after - head - tail }, (_, i) =>
+		i === 0 && changed > 0 ? ids[head] : generateBlockId()
+	);
+	return [...ids.slice(0, head), ...created, ...ids.slice(before - tail)];
+}
+
+const same = (a: NodeView, b: NodeView): boolean =>
+	a.kind === b.kind && a.leadingTrivia === b.leadingTrivia && a.raw === b.raw;
+
+/** How many blocks at the start, then at the end, `next` holds as `previous` did. */
+function unchangedEnds(previous: readonly NodeView[], next: readonly NodeView[]) {
 	const shorter = Math.min(previous.length, next.length);
 	let head = 0;
 	while (head < shorter && same(previous[head], next[head])) head++;
@@ -36,14 +73,9 @@ export function idsAcrossReread(
 	while (
 		tail < shorter - head &&
 		same(previous[previous.length - 1 - tail], next[next.length - 1 - tail])
-	) {
+	)
 		tail++;
-	}
-	const changed = previous.length - head - tail;
-	const created = Array.from({ length: next.length - head - tail }, (_, i) =>
-		i === 0 && changed > 0 ? ids[head] : generateBlockId()
-	);
-	return [...ids.slice(0, head), ...created, ...ids.slice(previous.length - tail)];
+	return { head, tail };
 }
 
 /** Call before a freshly parsed subtree is spliced in: a reused container reads `childIds` in its

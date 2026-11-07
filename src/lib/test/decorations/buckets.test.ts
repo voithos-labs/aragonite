@@ -46,7 +46,7 @@ describe('decoration buckets', () => {
 
 describe('collapseCellMarks', () => {
 	// Grid container at path [3]; cells sit at path[1] (row) and path[2] (col).
-	const DEPTH = 1;
+	const GRID = [3];
 
 	it('collapses two same-cell marks of different classes into one unioned rect', () => {
 		// The active class already contains the base token, so the union is one active
@@ -56,7 +56,7 @@ describe('collapseCellMarks', () => {
 				cellMark([3, 0, 1], 'match-overlay', 0),
 				cellMark([3, 0, 1], 'match-overlay match-overlay-active', 1)
 			],
-			DEPTH
+			GRID
 		);
 		expect(cells).toHaveLength(1);
 		expect(cells[0].class.split(' ').sort()).toEqual(['match-overlay', 'match-overlay-active']);
@@ -66,12 +66,12 @@ describe('collapseCellMarks', () => {
 	it('keeps marks in distinct cells as separate rects', () => {
 		const cells = collapseCellMarks(
 			[cellMark([3, 0, 0], 'match-overlay'), cellMark([3, 0, 1], 'match-overlay')],
-			DEPTH
+			GRID
 		);
 		expect(cells).toHaveLength(2);
 	});
 
 	it('skips a decoration with no cell coordinates', () => {
-		expect(collapseCellMarks([cellMark([3, 0], 'match-overlay')], DEPTH)).toHaveLength(0);
+		expect(collapseCellMarks([cellMark([3, 0], 'match-overlay')], GRID)).toHaveLength(0);
 	});
 });

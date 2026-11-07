@@ -117,6 +117,9 @@ export interface EditorServices {
 	caretWriter: CaretWriter;
 	/** Where each press in the editor went down: the one answer to whether a release ended a drag. */
 	presses: PressTracker;
+	/** Whether the last press was a finger's (`selection/pointer-gesture.ts`): what shows the touch
+	 *  chrome, the selection handles and a table's cell menu button. */
+	finger: () => boolean;
 	/** The caret the editor draws; each editable surface registers itself with it. */
 	drawnCaret: DrawnCaret;
 	/** The composition in progress, whichever element hosts it; the one composing flag. */

@@ -6,7 +6,7 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import { firstLineEnding } from '../core/lines';
-import { assignChildIdsDeep, idsAcrossReread } from '../block-id';
+import { assignChildIdsDeep, keepUnchanged } from '../block-id';
 import type { SharingState } from './sharing';
 import { documentBody, spliceList, type BodyParent, type NodeParent } from './node-primitives';
 import { ensureEditableContainers } from '../schema/opened-reading';
@@ -177,10 +177,8 @@ function spliceSpill(spill: Spill, sharing: SharingState, folds: AncestrySeamFol
 	// A blank tail the parse set aside has no block to hold it, so such bytes stay as they stand.
 	if (blocks.map((block) => block.leadingTrivia + block.raw).join('') !== node.raw) return;
 	const lineEnding = firstLineEnding(node.raw) ?? '\n';
-	// The first block keeps the node's id, so its children the re-read left alone keep theirs.
-	if (blocks[0].kind === node.kind && blocks[0].children) {
-		blocks[0].childIds = idsAcrossReread(node.children ?? [], node.childIds, blocks[0].children);
-	}
+	// The first block keeps the node's id, so its children the re-read left alone stay as they were.
+	keepUnchanged(node, blocks[0]);
 	for (const block of blocks) {
 		ensureEditableContainers(block, lineEnding);
 		assignChildIdsDeep(block);

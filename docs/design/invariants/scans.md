@@ -230,6 +230,9 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.295 | The range-edit law harness imports only the routes and reads it names | L |
 | G4.296 | Whether a selection is held is asked of the editor's selection before the browser's, in one module | L |
 | G4.303 | Every block kind's cut, copy and paste facts agree with its registration and its own parse | harness |
+| G4.311 | The range-edit core keeps its laws and its named rows, save the known law 3 residue | harness |
+| G4.312 | One range edit's work doesn't grow with the document | harness |
+| G4.313 | The range-edit layout reads every block and container line back from the document's bytes | harness |
 
 ### The entries
 
@@ -492,7 +495,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.150 · One placer for a hidden edge.** Which side of a hidden edge a letter takes is decided in `components/blocks/text/edge-seat.ts :: hiddenEdges` alone, from the caret memory's record, and no other file reads that record or how the caret arrived. `lint/edge-rule-guards.test.ts`.
 
-**G4.151 · One click-side check.** `components/blocks/text/click-side.ts :: clickSide` (a fresh start past a line's end, or the side of a code chip's border) is called only from `widget-interaction.ts :: snapClickToWidgetEdge`, the click entry both prose blocks' `onClick` go through, and neither `onClick` measures the press against its text itself. `lint/edge-rule-guards.test.ts`.
+**G4.151 · One click-side check.** `components/blocks/text/click-side.ts :: clickSide` (a fresh start past a line's end, or the side of a code chip's border) is called only from `widget-interaction.ts :: snapClickToWidgetEdge`, the click entry both prose blocks' `onClick` go through (G4.252 holds that), and neither `onClick` measures the press against its text itself. `lint/edge-rule-guards.test.ts`.
 
 **G4.152 · Everything a click follows can be edited.** Following and Edit link read one answer, `link-at-point.ts :: clickFollowsAt`: a construct whose policy row declares `followEdit`, or a widget whose kind claims the activation click. `follow-edit-parity.test.ts` renders every built-in inline kind and the other link shapes, and each `a[href]` must resolve to such a construct with a live edit target. `lint/file-rules.test.ts` keeps following a link (`window.open`, `activateLink`, `closest('a[href]')`) to the root click in `gestures.ts`, after `clickFollowsAt`.
 
@@ -669,3 +672,9 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.296 · Whether a selection is held is asked in one place.** While the editor holds a range or a widget, the browser's selection is a caret, so a read of the browser's alone takes the user's selection for none, and a menu's Cut and Copy go dark over a range across blocks. `selection/held-selection.ts` asks the editor's selection first, and only it reads `holdsNativeRange` and `nativeRangeIn`, anywhere in the library. `file-rules.test.ts`.
 
 **G4.303 · Block facts agree with the registrations.** `schema/block-facts.ts :: blockFacts` gives a kind's cut, copy and paste facts as data. With every bundled plugin installed, each one must equal what the registration already says (`bodyWrap`, `mergeRole`, `mustHoldChild`, the title row, a DOM view's surface), and the test writes out only what nothing else states. Every container has a line shape, and a merge key names a field the kind's own parse sets, or every pair would merge. When it fires, fix the kind's declaration. `test/schema/block-facts.test.ts`.
+
+**G4.311 · The range-edit laws hold.** `range-edit/edit-range.ts :: editRange` answers copy, cut, removal, paste and drop over a range in bytes. The laws run over seeded documents (120, or 600 with `RANGE_EDIT_FULL=1`), and each named row pins one shape by bytes. A law 3 or law 9 miss passes only when `known-residue.ts` names its class with a repro that still fails; the editor's own clipboard entry gives each one back. `test/range-edit/laws.test.ts`, `named-rows.test.ts`, `known-residue.test.ts`.
+
+**G4.312 · A range edit costs the range, not the document.** Over documents of 500 and 2,000 blocks, the core reads the whole document four times at most, and the bytes it hands the in-block writes grow by half plus 4 KB at most. `test/range-edit/cost.test.ts`.
+
+**G4.313 · The range layout reads back from the bytes.** `range-edit/layout.ts` is where the range-edit core reads each block's span and each container line's marker, and it's built on the byte map in `tree-operations/container-offsets.ts`, never a second one. Every block starts at its first byte and ends past its own line ending (not on the next line's markers), and each container line past its marker holds the next line its children write. A tab cut by a marker, a blank line and a title inside a tag are the allowed spellings. `test/range-edit/layout.test.ts`.

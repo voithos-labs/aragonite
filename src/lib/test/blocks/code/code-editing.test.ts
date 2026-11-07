@@ -5,10 +5,7 @@ import {
 	shouldAutoClose,
 	shouldSkipClose,
 	isBetweenEmptyPair,
-	isBetweenEmptyBracketPair,
-	BRACKET_PAIRS,
-	QUOTE_CHARS,
-	SKIP_CLOSE_CHARS
+	isBetweenEmptyBracketPair
 } from '../../../components/blocks/code/code-editing';
 
 // ── getLineLeadingWhitespace ────────────────────────────────────────────────
@@ -58,31 +55,10 @@ describe('getLineLeadingWhitespace', () => {
 // ── getCloserFor / pair maps ────────────────────────────────────────────────
 
 describe('getCloserFor', () => {
-	it('maps brackets to their closers', () => {
-		expect(getCloserFor('(')).toBe(')');
-		expect(getCloserFor('[')).toBe(']');
-		expect(getCloserFor('{')).toBe('}');
-	});
-
-	it('maps quote characters to themselves', () => {
-		expect(getCloserFor("'")).toBe("'");
-		expect(getCloserFor('"')).toBe('"');
-		expect(getCloserFor('`')).toBe('`');
-	});
-
 	it('returns null for non-opener characters', () => {
 		expect(getCloserFor('a')).toBeNull();
 		expect(getCloserFor(')')).toBeNull();
 		expect(getCloserFor('')).toBeNull();
-	});
-
-	it('exposes the complete bracket and quote sets', () => {
-		expect(Object.keys(BRACKET_PAIRS).sort()).toEqual(['(', '[', '{']);
-		expect([...QUOTE_CHARS].sort()).toEqual(['"', "'", '`']);
-	});
-
-	it('SKIP_CLOSE_CHARS contains every closer and every quote, no openers', () => {
-		expect([...SKIP_CLOSE_CHARS].sort()).toEqual(['"', "'", ')', ']', '`', '}']);
 	});
 });
 

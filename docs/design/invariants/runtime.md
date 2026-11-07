@@ -118,6 +118,7 @@ These checks run in three kinds of place:
 | G1.171 | A copy into or out of a container reads back inside it, its markers written by its own rebuild | harness·P |
 | G1.174 | A block writes a typed character only while the editor owns no range | A·N |
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
+| G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
 
 ### The entries
 
@@ -211,7 +212,7 @@ These checks run in three kinds of place:
 
 **G1.54 · The tree's top-level array comes back untouched** (`top-level-untouched`). A commit with the document among its scopes hands its mutation a copy of the top-level array and installs it at publish, so a write to the tree's own array is thrown away; the commit fails when that array was replaced or written (not with the perf instruments armed). Predicate `checkTopLevelUntouched` · `structural-commit.ts` · `top-level-untouched.test.ts`, `top-level-splice-writes.test.ts`.
 
-**G1.55 · A written block reads back as itself** (`reads-back`). After a keystroke's rebuild and every commit, dev reads each top-level block the edit names alone, as a file opens (`readAsOpened`, so a bare `- ` keeps its empty paragraph), and compares kinds, child counts and metadata: a dropped space that re-nests a list, a paragraph that reloads as a heading, or a container left with no bytes fails. Skipped: a top-level keystroke (it takes the reparsed kind), a block over 16K characters, perf-timed runs. `checkReadsBack` · `commit-frame.ts` · `reads-back.test.ts`.
+**G1.55 · A written block reads back as itself** (`reads-back`). After a keystroke's rebuild and every commit, dev reads each top-level block the edit names alone, as a file opens (`readAsOpened`, so a bare `- ` keeps its empty paragraph), and compares kinds, child counts and metadata: a dropped space that re-nests a list, or a paragraph that reloads as a heading, fails. A splice's window reads with its neighbours, or to the far end around an unclosed opener. Skipped: a top-level keystroke, anything over 16K characters, perf runs. `checkRunReadsBack` · `commit-frame.ts` · `reads-back.test.ts`.
 
 **G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab, Shift+Tab or a rebound indent key over a range moves list items, shifts code lines, or does what a kind's `registerRangeIndent` says, and nothing else. After each press dev compares the spanned blocks' leaf text (`leafTexts`, shared with G1.61), whitespace aside: a renumbered marker or an added tab passes, a lost or moved word fails. `checkIndentKeepsText` · `range-indent.ts` · `range-indent-keeps-text.test.ts`.
 
@@ -322,3 +323,5 @@ These checks run in three kinds of place:
 **G1.174 · A key typed over a range is the range's** (`typed-write-outside-range`). A character typed while the editor owns a range replaces the range (G4.108), and the range's handler takes it at its keydown, since beside a picture no engine sends a `beforeinput`. A block that writes a typed key itself under a range took one that was never its own, so dev fails a typed write through a block's text write (`editable-surface.ts`) while a range is owned. `checkTypedWriteOutsideRange` · `typed-write-outside-range.test.ts`.
 
 **G1.175 · The menu over a selection has one to act on** (`menu-over-selection`). A right-click whose press landed on the selection opens Cut and Copy over it, so something that dropped the selection between the press and the menu (a press handler ending the range, say) would offer them over nothing. Dev fails a menu opened over the selection while `holdsSelection` says none is held (`editor-root/menus.ts`). `checkMenuOverSelection` · `menus.test.ts`.
+
+**G1.178 · A cell's text range stays in its cell** (`cell-text-endpoint`). A finger's word in a table cell is stored at the cell's own path with text offsets, which only `SelectionState`'s cell snap keeps, and only while both ends sit in that cell. A text end there paired with one anywhere else is read as text where the delete, the copy and the paint expect a cell index, so dev fails one at every write of the pair. `checkCellTextEndpoint` · `owned-cell-range.test.ts`.

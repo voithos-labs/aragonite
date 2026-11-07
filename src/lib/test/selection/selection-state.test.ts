@@ -73,21 +73,16 @@ describe('SelectionState.isCustomRendered', () => {
 		expect(s.isCustomRendered).toBe(true);
 	});
 
-	// Deep row/cell paths are unstorable: the state normalizes them to the table block plus a
-	// row-major cell index on entry, so a pair addressing one cell collapses.
-	for (const path of [
-		[0, 0],
-		[0, 0, 0]
-	]) {
-		it(`normalizes a deep same-path pair at [${path.join(',')}] to table cell coordinates`, () => {
-			const doc = parse(tableSource);
-			const s = createSelectionState({ getDoc: () => doc });
-			s.enterCrossBlock({ path: path.slice(), offset: 0 }, { path: path.slice(), offset: 1 });
-			expect(s.anchor).toEqual({ path: [0], offset: 0, cellCoordinate: true });
-			expect(s.focus).toEqual({ path: [0], offset: 0, cellCoordinate: true });
-			expect(s.isCustomRendered).toBe(false);
-		});
-	}
+	// A row path is unstorable: it normalizes to the table plus a cell index, so a pair there
+	// collapses. A pair inside one cell stays text (`owned-cell-range.test.ts`).
+	it('normalizes a deep same-path pair at a row to table cell coordinates', () => {
+		const doc = parse(tableSource);
+		const s = createSelectionState({ getDoc: () => doc });
+		s.enterCrossBlock({ path: [0, 0], offset: 0 }, { path: [0, 0], offset: 1 });
+		expect(s.anchor).toEqual({ path: [0], offset: 0, cellCoordinate: true });
+		expect(s.focus).toEqual({ path: [0], offset: 0, cellCoordinate: true });
+		expect(s.isCustomRendered).toBe(false);
+	});
 
 	it('is true when paths differ (genuine cross-block range)', () => {
 		const doc = parse('a\n\nb\n');

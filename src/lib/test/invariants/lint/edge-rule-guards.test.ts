@@ -11,8 +11,6 @@ import { balancedBlock, collectEditorSources, readSource } from './scan-source';
 
 const RESOLVER = 'src/lib/components/blocks/text/edge-seat.ts';
 const CHIP_STEP = 'src/lib/components/blocks/text/edge-step.ts';
-const CLICK_ENTRY = 'src/lib/components/blocks/text/widget-interaction.ts';
-const CLICK_SIDE = 'src/lib/components/blocks/text/click-side.ts';
 /** The files that pass the caret memory's record on without reading it. */
 const CARRIERS = ['src/lib/caret/held-space.ts', 'src/lib/caret/next-insertion.ts'];
 /** The files that decide a hidden edge. */
@@ -158,26 +156,6 @@ describeFileRules(
 );
 
 // ── G4.151 one click-side check ─────────────────────────────────────────────
-
-const CLICK_SIDE_CALL = /\bclickSide\s*\(/;
-
-describeManifests(
-	[
-		{
-			id: 'G4.151 the click-side check runs from the shared click entry only',
-			matches: CLICK_SIDE_CALL,
-			declared: {
-				[CLICK_SIDE]: 'the check itself',
-				[CLICK_ENTRY]: 'the click entry both prose blocks’ `onClick` go through'
-			},
-			reason:
-				'a click past a line’s end or beside a code chip is one decision; a block asking it itself decides it twice, and a third surface would ask neither',
-			hits: ['const side = clickSide(el, x, y);'],
-			misses: ['const side = clickSideOf;']
-		}
-	],
-	collectEditorSources()
-);
 
 /** Reads a block's `onClick` may not make: measuring a press against text is the check's job. */
 const MEASURES_TEXT =

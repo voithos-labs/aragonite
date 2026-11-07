@@ -1,0 +1,65 @@
+// @vitest-environment jsdom
+// One range edit's work doesn't grow with the document (G4.312): the core reads the whole document
+// a few times at most, and hands the host's in-block writes only the blocks near the range.
+
+import { describe, expect, it } from 'vitest';
+import type { DocumentView } from '#lib/core/node-views.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
+import { rangeHost, type RangeHost } from '#lib/range-edit/host.js';
+import { testReading } from './test-host';
+
+const SHAPES: Record<string, (n: number) => string> = {
+	paragraphs: (n) =>
+		Array.from({ length: n }, (_, i) => `paragraph ${i} with some words\n`).join('\n'),
+	list: (n) => Array.from({ length: n }, (_, i) => `- item ${i} with words\n`).join(''),
+	quote: (n) => Array.from({ length: n }, (_, i) => `> line ${i} with words\n>\n`).join(''),
+	'nested list': (n) =>
+		Array.from({ length: n }, (_, i) => `- item ${i}\n  - inner ${i} with words\n`).join('')
+};
+
+const GESTURES: Gesture[] = ['copy', 'cut', 'backspace', { paste: 'one\n\ntwo', plain: false }];
+
+/** The host, counting whole-document reads and the block bytes its in-block writes are handed. */
+function counted(host: RangeHost) {
+	const work = { reads: 0, bytes: 0 };
+	const handed = (doc: DocumentView, path: readonly number[]) =>
+		(work.bytes += blockNodeAt(doc, path)!.raw.length);
+	const { leaf } = host;
+	const counting: RangeHost = {
+		...host,
+		read: (source) => (work.reads++, host.read(source)),
+		leaf: {
+			replace: (doc, path, ...rest) => (handed(doc, path), leaf.replace(doc, path, ...rest)),
+			insert: (doc, path, ...rest) => (handed(doc, path), leaf.insert(doc, path, ...rest)),
+			carried: (doc, path, ...rest) => (handed(doc, path), leaf.carried(doc, path, ...rest)),
+			plain: (doc, path, text) => (handed(doc, path), leaf.plain(doc, path, text))
+		}
+	};
+	return { work, host: counting };
+}
+
+/** What one gesture over a range across two blocks in the middle of `source` costs. */
+function cost(source: string, gesture: Gesture) {
+	const from = source.indexOf('with', Math.floor(source.length / 2));
+	const to = source.indexOf('with', from + 10) + 2;
+	const { work, host } = counted(rangeHost(testReading()));
+	editRange(source, { from, to }, gesture, 'source', host);
+	return work;
+}
+
+describe('work per gesture', () => {
+	for (const [shape, make] of Object.entries(SHAPES)) {
+		for (const gesture of GESTURES) {
+			it(`${shape}, ${JSON.stringify(gesture)}`, () => {
+				const small = cost(make(500), gesture);
+				const large = cost(make(2000), gesture);
+				expect(large.reads, 'whole-document reads').toBeLessThanOrEqual(4);
+				expect(
+					large.bytes,
+					`bytes handed the host: ${small.bytes} at 500 blocks, ${large.bytes} at 2,000`
+				).toBeLessThanOrEqual(small.bytes * 1.5 + 4096);
+			});
+		}
+	}
+});

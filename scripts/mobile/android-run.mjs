@@ -3,18 +3,18 @@
 // Usage: node android-run.mjs <out dir>, with Chrome open and port 9222 forwarded.
 import { appendFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { createDevice, sleep } from './android-device.mjs';
+import { createDevice, HARNESS_URL, sleep } from './android-device.mjs';
 import { probes, rows } from './android-rows.mjs';
 
 const out = process.argv[2];
 const device = createDevice(out);
 const page = await device.connect();
 
-// A reload, then the document: every row starts from a page no earlier row touched. A seed that
-// didn't take is tried once more on a new reload, then fails the row with that as its reason.
-async function fresh(source) {
+// A page load (the harness, or `url`), then the document: every row starts from a page no earlier
+// row touched. A seed that didn't take is tried once more on a new load, then fails the row.
+async function fresh(source, url = HARNESS_URL) {
 	for (let attempt = 1; attempt <= 2; attempt++) {
-		await page.evaluate('location.reload()').catch(() => {});
+		await page.evaluate(`location.assign(${JSON.stringify(url)})`).catch(() => {});
 		await sleep(1000);
 		for (let i = 0; i < 120; i++) {
 			if (await page.evaluate('!!window.__test').catch(() => false)) break;

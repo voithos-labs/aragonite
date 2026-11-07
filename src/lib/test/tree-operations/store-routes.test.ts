@@ -56,6 +56,8 @@ import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
+import { editRange } from '#lib/range-edit/edit-range.js';
+import { rangeHost } from '#lib/range-edit/host.js';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.
 const TOP = vi.hoisted(() => ({ on: false }));
@@ -67,7 +69,8 @@ vi.mock('#lib/tree-operations/stored-as.js', async (importOriginal) => {
 		storedAsAt: (...args: Parameters<typeof real.storedAsAt>) =>
 			TOP.on ? top(args[2]) : real.storedAsAt(...args),
 		storedAsIn: (...args: Parameters<typeof real.storedAsIn>) =>
-			TOP.on ? top(args[2]) : real.storedAsIn(...args)
+			TOP.on ? top(args[2]) : real.storedAsIn(...args),
+		writeTargetAt: real.writeTargetAt
 	};
 });
 
@@ -722,6 +725,32 @@ const FAMILIES: Family[] = [
 				shape: 'the kept tail of a plain item',
 				run: () => backspaceRange(`${CALLOUT}\n- **x**[ ] y\n`, [[0, 1], 2], [[1, 0, 0], 3]),
 				want: `:::callout T\nbo\n:::\n\n- **[ ] y\n`
+			}
+		]
+	},
+	{
+		// Deleting `x` empties the bold, so its runs go; in a to-do or a cell `# y` then reads as text.
+		name: 'the range-edit core’s in-block writes',
+		stores: { 'range-edit/host.ts': 3 },
+		rows: [
+			{
+				shape: 'a to-do',
+				run: () =>
+					editRange(TODO.source, { from: 8, to: 9 }, 'delete', 'live', rangeHost(LIVE)).source,
+				want: '- [ ] # y\n'
+			},
+			{
+				shape: 'a table cell',
+				run: () =>
+					editRange(CELL.source, { from: 16, to: 17 }, 'delete', 'live', rangeHost(LIVE)).source,
+				want: '| h |\n| - |\n| # y |\n'
+			},
+			{
+				shape: 'the bytes a copy carries',
+				run: () =>
+					editRange('- [ ] **x**# y z\n', { from: 9, to: 14 }, 'copy', 'live', rangeHost(LIVE))
+						.clipboard,
+				want: '# y'
 			}
 		]
 	},

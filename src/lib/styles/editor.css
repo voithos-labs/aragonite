@@ -145,8 +145,8 @@
 	caret-color: transparent;
 }
 
-/* A selection handle's drag hit-tests the text under the finger, under the handles and toolbar. */
-:where(.editor)[data-handle-drag] :is(.selection-handle, .selection-toolbar) {
+/* A selection handle's drag hit-tests the text under the finger, under the touch chrome over it. */
+:where(.editor)[data-handle-drag] :is(.selection-handle, .selection-toolbar, .table-cell-menu) {
 	pointer-events: none;
 }
 

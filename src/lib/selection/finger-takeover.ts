@@ -22,8 +22,8 @@ export interface TakeoverDeps {
 	lifetimeSignal: AbortSignal | null;
 }
 
-/** Takes the native range inside one block over, and until the next press every range the browser
- *  writes in that block (Safari's word written back, Android's held drag). A cell's stays native. */
+/** Takes the native range inside one block (a table cell counts) over, and until the next press
+ *  every range the browser writes in that block (Safari's word written back, Android's held drag). */
 export function takeOverBrowserRange(deps: TakeoverDeps, press: FingerPress): void {
 	const path = takeOnce(deps, press, null);
 	if (!path || deps.lifetimeSignal?.aborted) return;
@@ -34,8 +34,9 @@ export function takeOverBrowserRange(deps: TakeoverDeps, press: FingerPress): vo
 	document.addEventListener(
 		'selectionchange',
 		() => {
-			// Anything that ended the range (a key, a command) ends the adopting too.
-			if (!deps.selection.isCustomRendered) return done.abort();
+			// Anything that ended the range or replaced it (a key, a command, a cell rectangle the key
+			// started) ends the adopting too, or the word left native under the new range comes back.
+			if (!deps.selection.rangeInOneBlock) return done.abort();
 			if (takeOnce(deps, press, path)) return;
 			const live = readNativeSelection();
 			assertInvariant('finger-range-leaves-caret', () =>
@@ -63,7 +64,7 @@ export function returnBlockRangeToBrowser(
 }
 
 // The block the range was taken in, or null when the native selection held nothing to take: no
-// range, a range across blocks or in another block than `inBlock`, or one inside a table cell.
+// range, or a range across blocks or in another block than `inBlock`.
 function takeOnce(
 	deps: TakeoverDeps,
 	press: FingerPress,

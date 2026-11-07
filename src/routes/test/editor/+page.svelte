@@ -85,6 +85,9 @@
 	// standing bar shifts the block geometry the rest of the suite measures.
 	const insertToolbarOn = param('insertToolbar') === 'on';
 
+	// `?selectionToolbar=off` passes the prop false, which leaves a finger's range its clipboard row.
+	const selectionToolbarOn = param('selectionToolbar') !== 'off';
+
 	// `?searchAnchor=on` mounts a fixed pane outside `.aragonite-editor-theme` for the find and
 	// replace bar to sit in. Off by default: it would cover geometry the rest of the suite measures.
 	const searchAnchorOn = param('searchAnchor') === 'on';
@@ -244,6 +247,7 @@
 					bind:this={editor}
 					source={source.text}
 					blockDragHandles={dragHandlesOn}
+					selectionToolbar={selectionToolbarOn}
 					{keybindings}
 					{presentationMode}
 					{placeholder}
